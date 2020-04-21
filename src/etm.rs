@@ -1,9 +1,16 @@
+use crate::debug::Register;
 use bitfield::bitfield;
-use std::mem::size_of;
+use crate::register;
 
-bitfield! {
+macro_rules! etm_register {
+    ($reg:ty, $offs:expr, $($arg:tt)*) => (
+        register!($reg, 0xe004_1000 + ($offs * 4), $($arg)*);
+    )
+}
+
+etm_register!(ETMCCR, 0x001,
     #[derive(Copy, Clone)]
-    pub struct Etmccr(u32);
+    pub struct ETMCCR(u32);
     impl Debug;
     /// ETMIDR is present; should be set on ETMv2.0 and later
     pub has_etmidr, _: 31;
@@ -34,23 +41,11 @@ bitfield! {
     pub num_decoder_inputs, _: 12, 8;
     pub num_data_comparators, _: 7, 4;
     pub num_address_comparators, _: 3, 0;
-}
+);
 
-impl From<u32> for Etmccr {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl From<Etmccr> for u32 {
-    fn from(reg: Etmccr) -> Self {
-        reg.0
-    }
-}
-
-bitfield! {
+etm_register!(ETMIDR, 0x079,
     #[derive(Copy, Clone)]
-    pub struct Etmidr(u32);
+    pub struct ETMIDR(u32);
     impl Debug;
     pub implementer, _: 31, 24;
     pub has_branch_encoding, _: 20;
@@ -61,43 +56,13 @@ bitfield! {
     pub etm_major, _: 11, 8;
     pub etm_minor, _: 7, 4;
     pub etm_revision, _: 3, 0;
-}
+);
 
-impl From<u32> for Etmidr {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl From<Etmidr> for u32 {
-    fn from(reg: Etmidr) -> Self {
-        reg.0
-    }
-}
-
-bitfield! {
+etm_register!(ETMIDR2, 0x082,
     #[derive(Copy, Clone)]
-    pub struct Etmidr2(u32);
+    pub struct ETMIDR2(u32);
     impl Debug;
     pub swp_store_before_load, _: 1;
     pub rfe_cpsr_before_pc, _: 0;
-}
-
-impl From<u32> for Etmidr2 {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-impl From<Etmidr2> for u32 {
-    fn from(reg: Etmidr2) -> Self {
-        reg.0
-    }
-}
-
-pub fn read_etm_reg(core: &probe_rs::Core, etm: u32, regno: u32)
-    -> Result<u32, probe_rs::Error>
-{
-    core.read_word_32(etm + regno * size_of::<u32>() as u32)
-}
+);
 

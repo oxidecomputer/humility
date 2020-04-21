@@ -1,8 +1,5 @@
-use probe_rs::Error;
 use probe_rs::Core;
 
-#[macro_use]
-extern crate bitfield;
 extern crate log;
 
 mod debug;
@@ -10,6 +7,9 @@ use debug::*;
 
 mod etm;
 use etm::*;
+
+mod tpiu;
+use tpiu::*;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -26,7 +26,7 @@ fn main() -> Result<(), probe_rs::Error> {
     env_logger::init();
 
     let core = Core::auto_attach("STM32F407VGTx")?;
-    let info = core.halt()?;
+    let _info = core.halt()?;
 
     let tab = read_debug_rom_table(&core)?;
 
@@ -40,18 +40,25 @@ fn main() -> Result<(), probe_rs::Error> {
 
     println!("{:8x}", etm);
 
-    let etmccr = Etmccr(read_etm_reg(&core, etm, 1)?);
+    let etmccr = ETMCCR::read(&core)?;
 
     if !etmccr.has_etmidr() {
         core.run()?;
         fatal!("ETMv1.3 and earlier not supported");
     }
 
-    let etmidr = Etmidr(read_etm_reg(&core, etm, 0x079)?);
+    let etmidr = ETMIDR::read(&core)?;
     println!("{:?}", etmidr);
     println!("{:x}", etmidr.0);
 
-    println!("{:?}", core.registers());
+    let mut val = DEMCR::read(&core)?;
+    val.set_trcena(true);
+    val.write(&core)?;
+
+    println!("{:?}", DEMCR::read(&core)?);
+
+    println!("{:?}", DBGMCU_CR::read(&core)?);
+    println!("{:?}", TPIU_SPPR::read(&core)?);
 
     core.run()?;
 
