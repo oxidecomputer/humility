@@ -57,8 +57,18 @@ fn main() -> Result<(), probe_rs::Error> {
 
     println!("{:?}", DEMCR::read(&core)?);
 
-    println!("{:?}", DBGMCU_CR::read(&core)?);
-    println!("{:?}", TPIU_SPPR::read(&core)?);
+    println!("{:#?}", DBGMCU_CR::read(&core)?);
+    println!("{:#?}", TPIU_SPPR::read(&core)?);
+
+    println!("{:#?}", ETMCR::read(&core)?);
+
+    let e = ETMCR(0xd90);
+    println!("{:#?}", e);
+
+    println!("{:#?}", ETMLSR::read(&core)?);
+    println!("{:#?}", ETMCCR::read(&core)?);
+    println!("{:#?}", ETMSR::read(&core)?);
+    println!("{:#?}", ETMSCR::read(&core)?);
 
     core.run()?;
 
