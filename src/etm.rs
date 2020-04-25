@@ -16,28 +16,28 @@ etm_register!(ETMCR, 0x000,
     pub struct ETMCR(u32);
     impl Debug;
     pub vmid_trace_enable, _: 30;
-    pub timestamp_enable, _: 28;
-    pub processor_select, _: 27, 25;
+    pub timestamp_enable, set_timestamp_enable: 28;
+    pub processor_select, set_processor_select: 27, 25;
     pub instrumentation_access_control, _: 24;
     pub disable_software_writes, _: 23;
     pub disable_debugger_writes, _: 22;
     pub port_size_hibit, _: 21;
     pub data_only_mode, _: 20;
-    pub filter_cprt, _: 19;
-    pub suppress_data, _: 18;
-    pub port_mode, _: 17, 16;
-    pub context_id, _: 15, 14;
-    pub half_rate_clocking, _: 13;
-    pub cycle_accurate_tracing, _: 12;
-    pub port_selection, _: 11;
-    pub programming, _: 10;
+    pub filter_cprt, set_filter_cprt: 19;
+    pub suppress_data, set_suppress_data: 18;
+    pub port_mode, set_port_mode: 17, 16;
+    pub context_id, set_context_id: 15, 14;
+    pub half_rate_clocking, set_half_rate_clocking: 13;
+    pub cycle_accurate_tracing, set_cycle_accurate_tracing: 12;
+    pub port_select, set_port_select: 11;
+    pub programming, set_programming: 10;
     pub debug_request_control, _: 9;
-    pub branch_output, _: 8;
-    pub stall_processor, _: 7;
-    pub port_size, _: 6, 4;
-    pub data_access, _: 3, 2;
-    pub monitor_cprt, _: 1;
-    pub power_down, _: 0;
+    pub branch_output, set_branch_output: 8;
+    pub stall_processor, set_stall_processor: 7;
+    pub port_size, set_port_size: 6, 4;
+    pub data_access, set_data_access: 3, 2;
+    pub monitor_cprt, set_monitor_cprt: 1;
+    pub power_down, set_power_down: 0;
 );
 
 /*
@@ -96,14 +96,29 @@ etm_register!(ETMSCR, 0x005,
     pub max_port_size, _: 2, 0;
 );
 
+/*
+ * ETM TraceEnable Event Register
+ */
+etm_register!(ETMTEEVR, 0x008,
+    #[derive(Copy, Clone)]
+    pub struct ETMTEEVR(u32);
+    impl Debug;
+    pub fcn, _: 16, 14;
+    pub resource_b, set_resource_b: 13, 7;
+    pub resource_a, set_resource_a: 6, 0;
+);
+
+/*
+ * ETM TraceEnable Control 1 Register
+ */
 etm_register!(ETMTECR1, 0x009,
     #[derive(Copy, Clone)]
     pub struct ETMTECR1(u32);
     impl Debug;
     pub trace_control_enable, _: 25;
-    pub exclude, _: 24;
-    pub map_decode_select, _: 23, 8;
-    pub comparator_select, _: 7, 0;
+    pub exclude, set_exclude: 24;
+    pub map_decode_select, set_map_decode_select: 23, 8;
+    pub comparator_select, set_comparator_select: 7, 0;
 );
 
 /*
@@ -113,9 +128,9 @@ etm_register!(ETMFFRR, 0x00a,
     #[derive(Copy, Clone)]
     pub struct ETMFFRR(u32);
     impl Debug;
-    pub exclude, _: 24;
-    pub map_decode_select, _: 23, 8;
-    pub comparator_select, _: 7, 0;
+    pub exclude, set_exclude: 24;
+    pub map_decode_select, set_map_decode_select: 23, 8;
+    pub comparator_select, set_comparator_select: 7, 0;
 );
 
 /*
@@ -125,7 +140,7 @@ etm_register!(ETMFFLR, 0x00b,
     #[derive(Copy, Clone)]
     pub struct ETMFFLR(u32);
     impl Debug;
-    pub fifo_full_level, _: 7, 0;
+    pub fifo_full_level, set_fifo_full_level: 7, 0;
 );
 
 /*
@@ -147,6 +162,16 @@ etm_register!(ETMIDR, 0x079,
 );
 
 /*
+ * ETM Trace ID Register
+ */
+etm_register!(ETMTRACEIDR, 0x080,
+    #[derive(Copy, Clone)]
+    pub struct ETMTRACEIDR(u32);
+    impl Debug;
+    pub traceid, set_traceid: 6, 0;
+);
+
+/*
  * ETM Identification Register 2
  */
 etm_register!(ETMIDR2, 0x082,
@@ -156,6 +181,33 @@ etm_register!(ETMIDR2, 0x082,
     pub swp_store_before_load, _: 1;
     pub rfe_cpsr_before_pc, _: 0;
 );
+
+/*
+ * ETM Lock Access Register
+ */
+etm_register!(ETMLAR, 0x3ec,
+    #[derive(Copy, Clone)]
+    pub struct ETMLAR(u32);
+    impl Debug;
+    pub key, _: 1;
+);
+
+impl ETMLAR {
+    pub fn unlock(core: &probe_rs::Core) -> Result<(), probe_rs::Error> {
+        /*
+         * To unlock, we write "CoreSight Access" in l33t
+         */
+        let val: u32 = 0xc5_acce55;
+        core.write_word_32(ETMLAR::ADDRESS, val)?;
+        Ok(())
+    }
+
+    pub fn lock(core: &probe_rs::Core) -> Result<(), probe_rs::Error> {
+        let val: u32 = 0x1de_c0de;
+        core.write_word_32(ETMLAR::ADDRESS, val)?;
+        Ok(())
+    }
+}
 
 /*
  * ETM Lock Status Register

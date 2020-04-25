@@ -186,21 +186,3 @@ pub fn read_debug_rom_table(core: &probe_rs::Core)
         ETM: table[5], 
     })
 }
-
-pub fn dbgmcu_cr_trace_enable(core: &probe_rs::Core)
-    -> Result<(), probe_rs::Error>
-{
-    let val = DBGMCU_CR(core.read_word_32(DBGMCU_CR::ADDRESS)?);
-
-    if !val.trace_ioen() {
-        let mut enabled = val;
-
-        enabled.set_trace_ioen(true);
-        enabled.set_trace_mode(0);      /* 00 = asynchronous mode */
-
-        core.write_word_32(DBGMCU_CR::ADDRESS, enabled.into())?;
-    }
-
-    Ok(())
-}
-
