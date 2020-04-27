@@ -1,5 +1,10 @@
-use probe_rs::Core;
+/*
+ * Copyright 2020 Oxide Computer Company
+ */
 
+use probe_rs::{Core, Probe};
+
+#[macro_use]
 extern crate log;
 
 mod debug;
@@ -10,6 +15,7 @@ use etm::*;
 
 mod tpiu;
 use tpiu::*;
+use clap::{App, Arg, SubCommand};
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -22,12 +28,51 @@ macro_rules! fatal {
     });
 }
 
-fn main() -> Result<(), probe_rs::Error> {
-    env_logger::init();
+#[derive(Debug, Clone, Copy)]
+pub struct HumilityLog {
+    level: log::LevelFilter,
+}
 
-    let core = Core::auto_attach("STM32F407VGTx")?;
-    let _info = core.halt()?;
+impl log::Log for HumilityLog {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= self.level 
+    }
 
+    fn log(&self, record: &log::Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
+        if record.metadata().target() == "humility" {
+            eprint!("humility: {}\n", record.args())
+        } else {
+            eprint!("humility: {} ({}): {}\n",
+                record.level(),
+                record.metadata().target(),
+                record.args()
+            );
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+impl HumilityLog {
+    pub fn enable(&mut self) {
+        match log::set_boxed_logger(Box::new(self.clone())) {
+            Err(e) => {
+                fatal!("unable to enable logging: {}", e);
+            }
+            Ok(_l) => {
+                log::set_max_level(self.level);
+            }
+        };
+    }
+}
+
+fn etm_probe(
+    core: &probe_rs::Core,
+) -> Result<(), probe_rs::Error> {
     let tab = read_debug_rom_table(&core)?;
 
     let etm = match tab.ETM {
@@ -37,9 +82,16 @@ fn main() -> Result<(), probe_rs::Error> {
         }
         Some(etm) => etm
     };
-
     println!("{:8x}", etm);
 
+    Ok(())
+}
+
+fn etm_enable(
+    core: &probe_rs::Core,
+    matches: &clap::ArgMatches,
+    submatches: &clap::ArgMatches
+) -> Result<(), probe_rs::Error> {
     let etmccr = ETMCCR::read(&core)?;
 
     if !etmccr.has_etmidr() {
@@ -48,8 +100,7 @@ fn main() -> Result<(), probe_rs::Error> {
     }
 
     let etmidr = ETMIDR::read(&core)?;
-    println!("{:?}", etmidr);
-    println!("{:x}", etmidr.0);
+    trace!("{:?}", etmidr);
 
     /*
      * First, enable TRCENA in the DEMCR.
@@ -93,7 +144,7 @@ fn main() -> Result<(), probe_rs::Error> {
     let mut acpr = TPIU_ACPR::read(&core)?;
     acpr.set_swoscaler(10);
     acpr.write(&core)?;
-    println!("{:#x?}", TPIU_ACPR::read(&core)?);
+    trace!("{:#x?}", TPIU_ACPR::read(&core)?);
     
     /*
      * We are now ready to enable ETM.
@@ -107,7 +158,7 @@ fn main() -> Result<(), probe_rs::Error> {
      * Trigger?
      * CR clears programming
      */
-    println!("{:#x?}", ETMCR::read(&core)?);
+    trace!("{:#x?}", ETMCR::read(&core)?);
     let mut etmcr = ETMCR::read(&core)?;
     etmcr.set_branch_output(true);
     etmcr.set_stall_processor(true);
@@ -115,11 +166,8 @@ fn main() -> Result<(), probe_rs::Error> {
     etmcr.set_port_select(true);
     etmcr.set_programming(true);
     etmcr.set_power_down(false);
-    println!("will write {:#x?}", etmcr);
+    trace!("will write {:#x?}", etmcr);
     etmcr.write(&core)?;
-
-    println!("wrote {:#x?}", ETMCR::read(&core)?);
-    println!("{:#x?}", ETMSR::read(&core)?);
 
     /*
      * Set to the hard-wired always-true event
@@ -127,7 +175,7 @@ fn main() -> Result<(), probe_rs::Error> {
     let mut teevr = ETMTEEVR::read(&core)?;
     teevr.set_resource_a(0b110_1111);
     teevr.write(&core)?;
-    println!("{:#x?}", ETMTEEVR::read(&core)?);
+    trace!("{:#x?}", ETMTEEVR::read(&core)?);
 
     let mut tecr1 = ETMTECR1::read(&core)?;
     tecr1.set_map_decode_select(0);
@@ -145,13 +193,13 @@ fn main() -> Result<(), probe_rs::Error> {
     fflr.set_fifo_full_level(24);
     fflr.write(&core)?;
 
-    println!("{:#x?}", ETMFFLR::read(&core)?);
+    trace!("{:#x?}", ETMFFLR::read(&core)?);
 
-    println!("{:#x?}", ETMTRACEIDR::read(&core)?);
+    trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
     let mut val = ETMTRACEIDR::read(&core)?;
     val.set_traceid(0x54);
     val.write(&core)?;
-    println!("{:#x?}", ETMTRACEIDR::read(&core)?);
+    trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
 
     /*
      * Finally, indicate that we are done programming!
@@ -159,47 +207,186 @@ fn main() -> Result<(), probe_rs::Error> {
     etmcr.set_programming(false);
     etmcr.write(&core)?;
 
-    println!("final: wrote: {:#x?}", ETMCR::read(&core)?);
-    println!("{:#x?}", ETMSR::read(&core)?);
-
-/*
-
-    println!("{:#?}", DBGMCU_CR::read(&core)?);
-    println!("{:#?}", TPIU_SPPR::read(&core)?);
-
-    println!("{:#?}", ETMCR::read(&core)?);
-
-    let e = ETMCR(0xd90);
-    println!("{:#x?}", e);
-
-    let e = ETMCR(0x1e1e);
-    println!("{:#x?}", e);
-
-    let e = ETMCR(0x191e);
-    println!("{:#x?}", e);
-
-    println!("{:#?}", ETMCCR::read(&core)?);
-    println!("{:#?}", ETMSR::read(&core)?);
-    println!("{:#?}", ETMSCR::read(&core)?);
-    println!("{:#x?}", ETMLSR::read(&core)?);
-    println!("{:#x?}", ETMLSR::read(&core)?);
-*/
-
-    core.run()?;
-
-    println!("{:#x?}", ETMSR::read(&core)?);
-    println!("{:#x?}", ETMSR::read(&core)?);
-    println!("{:#x?}", TPIU_STMR::read(&core)?);
-    println!("{:#x?}", TPIU_FSCR::read(&core)?);
-
-    let mut val = TPIU_FSCR::read(&core)?;
-    val.set_counter(10);
-    val.write(&core)?;
-
-
-//    loop {
-        println!("{:#x?}", ETMSR::read(&core)?);
-//    }
+    info!("ETM enabled");
 
     Ok(())
+}
+
+fn etm_disable(
+    core: &probe_rs::Core,
+    matches: &clap::ArgMatches,
+    submatches: &clap::ArgMatches
+) -> Result<(), probe_rs::Error> {
+    let mut etmcr = ETMCR::read(&core)?;
+
+    if etmcr.power_down() {
+        info!("ETM not enabled");
+        return Ok(());
+    }
+
+    etmcr.set_programming(true);
+    etmcr.write(&core)?;
+
+    etmcr.set_power_down(true);
+    etmcr.write(&core)?;
+
+    etmcr.set_programming(false);
+    etmcr.write(&core)?;
+
+    info!("ETM disabled");
+
+    Ok(())
+}
+
+fn etm_attach(matches: &clap::ArgMatches,
+    submatches: &clap::ArgMatches
+) -> Result<probe_rs::Core, probe_rs::Error> {
+    let chip = matches.value_of("chip").unwrap();
+
+    info!("attaching as chip {} ...", chip);
+    let core = Core::auto_attach(chip)?;
+    info!("attached");
+
+    Ok(core)
+}
+
+fn etm(matches: &clap::ArgMatches,
+    submatches: &clap::ArgMatches
+) -> Result<(), probe_rs::Error> {
+    let mut rval = Ok(());
+
+    if submatches.is_present("ingest") {
+        fatal!("ingest not yet supported");
+    }
+
+    /*
+     * For all of the other commands, we need to actually attach to the chip.
+     */
+    let core = etm_attach(matches, submatches)?;
+    let info = core.halt();
+
+    info!("core halted: {:?}", info);
+
+    if submatches.is_present("probe") {
+        info!("probe not yet supported");
+    }
+
+    if submatches.is_present("enable") {
+        rval = etm_enable(&core, matches, submatches);
+    }
+
+    if submatches.is_present("disable") {
+        rval = etm_disable(&core, matches, submatches);
+    }
+
+    core.run()?;
+    info!("core resumed");
+
+    rval
+}
+
+fn probe(matches: &clap::ArgMatches,
+    submatches: &clap::ArgMatches
+) -> Result<(), probe_rs::Error> {
+    let chip = matches.value_of("chip").unwrap();
+
+    let probe_list = Probe::list_all();
+    info!("probes: {:?}", probe_list);
+
+    info!("attaching as chip {} ...", chip);
+    let _core = Core::auto_attach(chip)?;
+    info!("attached");
+
+    Ok(())
+}
+
+fn main() {
+    let matches = App::new("humility")
+        .set_term_width(80)
+        .arg(
+            Arg::with_name("verbose")
+            .long("verbose")
+            .short("v")
+            .help("verbose messages")
+        )
+        .arg(
+            Arg::with_name("chip")
+            .long("chip")
+            .short("c")
+            .env("HUMILITY_CHIP")
+            .default_value("STM32F407VGTx")
+            .hide_default_value(true)
+            .hide_env_values(true)
+            .help("specific chip on attached device (defaults to STM32F407VGTx)")
+        )
+        .subcommand(SubCommand::with_name("probe")
+            .about("probe for attached devices")
+        )
+        .subcommand(SubCommand::with_name("etm")
+            .about("commands for ARM's Embedded Trace Macrocell (ETM) facility")
+            .arg(
+                Arg::with_name("probe")
+                .long("probe")
+                .short("p")
+                .help("probe for ETM capability on attached device")
+                .conflicts_with_all(&["enable", "disable", "ingest"])
+            )
+            .arg(
+                Arg::with_name("enable")
+                .long("enable")
+                .short("e")
+                .help("enable ETM on attached device")
+                .conflicts_with_all(&["disable", "ingest"])
+            )
+            .arg(
+                Arg::with_name("disable")
+                .long("disable")
+                .short("d")
+                .help("disable ETM on attached device")
+            )
+            .arg(
+                Arg::with_name("traceid")
+                .long("traceid")
+                .short("t")
+                .help("sets ETM trace identifer (defaults to 0x54)")
+                .value_name("identifier")
+                .conflicts_with("disable")
+            )
+            .arg(
+                Arg::with_name("ingest")
+                .long("ingest")
+                .short("i")
+                .help("ingest ETM data as CSV")
+                .value_name("filename")
+            )
+            .arg(
+                Arg::with_name("clockscaler")
+                .long("clockscaler")
+                .short("c")
+                .help("sets the value of SWOSCALER")
+                .value_name("scaler")
+                .requires("enable")
+            )
+        )
+        .get_matches();
+
+    if matches.is_present("verbose") {
+        HumilityLog { level: log::LevelFilter::Trace }.enable();
+    } else {
+        HumilityLog { level: log::LevelFilter::Info }.enable();
+    }
+
+    if let Some(submatches) = matches.subcommand_matches("probe") {
+        match probe(&matches, &submatches) {
+            Err(err) => { fatal!("probe failed: {} (raw: \"{:?})\"", err, err); }
+            _ => { ::std::process::exit(0); }
+        }
+    }
+
+    if let Some(submatches) = matches.subcommand_matches("etm") {
+        match etm(&matches, &submatches) {
+            Err(err) => { fatal!("etm failed: {} (raw: \"{:?})\"", err, err); }
+            _ => { ::std::process::exit(0); }
+        }
+    }
 }
