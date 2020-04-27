@@ -16,6 +16,7 @@ use etm::*;
 mod tpiu;
 use tpiu::*;
 use clap::{App, Arg, SubCommand};
+use std::str::FromStr;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -70,33 +71,57 @@ impl HumilityLog {
     }
 }
 
+const HUMILITY_ETM_SWOSCALER: u16 = 10;
+const HUMILITY_ETM_TRACEID: u8 = 0x54;
+const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
+const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
+
 fn etm_probe(
     core: &probe_rs::Core,
 ) -> Result<(), probe_rs::Error> {
     let tab = read_debug_rom_table(&core)?;
 
+    info!("ROM debug table: {:#x?}", tab);
+
     let etm = match tab.ETM {
         None => { 
-            core.run()?;
             fatal!("ETM is not available on this CPU");
         }
-        Some(etm) => etm
+        Some(etm) => { etm }
     };
-    println!("{:8x}", etm);
+
+    if etm != ETMCR::ADDRESS {
+        fatal!(
+            "ETM base address (0x{:x}) is not at expected location ({:x})",
+            etm,
+            ETMCR::ADDRESS
+        );
+    }
+ 
+    let etmccr = ETMCCR::read(core)?;
+    info!("{:#x?}", etmccr);
+
+    if !etmccr.has_etmidr() {
+        warn!("ETMv1.3 and earlier not supported");
+        return Ok(());
+    }
+
+    let etmidr = ETMIDR::read(&core)?;
+    info!("{:#x?}", etmidr);
 
     Ok(())
 }
 
 fn etm_enable(
     core: &probe_rs::Core,
-    matches: &clap::ArgMatches,
-    submatches: &clap::ArgMatches
+    clockscaler: Option<u16>,
+    traceid: Option<u8>,
 ) -> Result<(), probe_rs::Error> {
     let etmccr = ETMCCR::read(&core)?;
 
     if !etmccr.has_etmidr() {
-        core.run()?;
-        fatal!("ETMv1.3 and earlier not supported");
+        warn!("ETMv1.3 and earlier not supported");
+        return Ok(());
     }
 
     let etmidr = ETMIDR::read(&core)?;
@@ -135,28 +160,26 @@ fn etm_enable(
     val.write(&core)?;
 
     /*
-     * HCLK seems to really vary, for reasons that aren't well understood.
-     * We use a SWOSCALER of 10, which has brought the TRACECLK to something
-     * attainable with a Saleae.  The clock also seems to need to evenly
-     * divide 4.5 MHz, which has resulted in a clock of 1.5 to 4.5 MHz in
-     * practice.
+     * HCLK seems to really vary, for reasons that aren't well understood.  We
+     * use a default SWOSCALER of 10, which has historically brought the
+     * TRACECLK to something attainable with a Saleae.  (The clock also seems
+     * to need to evenly divide 4.5 MHz, which has resulted in a clock of 1.5
+     * to 4.5 MHz in practice.)  Note that the size of the scaler has a direct
+     * effect on probe effect:  the higher the scaler, the slower TRACECLK --
+     * and therefore the more frequently that the CPU will stall on a full
+     * TPIU FIFO.
      */
     let mut acpr = TPIU_ACPR::read(&core)?;
-    acpr.set_swoscaler(10);
+    acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
     acpr.write(&core)?;
     trace!("{:#x?}", TPIU_ACPR::read(&core)?);
     
     /*
-     * We are now ready to enable ETM.
-     */
-
-    /*
-     * CR to 0xd90
-     * TEEVR to 0x6f
-     * TECR1 to EXCLUDE
-     * ETM_FFRR to EXCLUDE
-     * Trigger?
-     * CR clears programming
+     * We are now ready to enable ETM.  There are a bunch of steps involved in
+     * this, but we need to first write to the ETMCR to indicate that we are
+     * programming it.  Once done writing to the EMT control registers, we
+     * need to write to ETMCR again to indicate that we are done programming
+     * it.
      */
     trace!("{:#x?}", ETMCR::read(&core)?);
     let mut etmcr = ETMCR::read(&core)?;
@@ -173,7 +196,7 @@ fn etm_enable(
      * Set to the hard-wired always-true event
      */
     let mut teevr = ETMTEEVR::read(&core)?;
-    teevr.set_resource_a(0b110_1111);
+    teevr.set_resource_a(HUMILITY_ETM_ALWAYSTRUE);
     teevr.write(&core)?;
     trace!("{:#x?}", ETMTEEVR::read(&core)?);
 
@@ -197,7 +220,7 @@ fn etm_enable(
 
     trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
     let mut val = ETMTRACEIDR::read(&core)?;
-    val.set_traceid(0x54);
+    val.set_traceid(traceid.unwrap_or(HUMILITY_ETM_TRACEID).into());
     val.write(&core)?;
     trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
 
@@ -213,9 +236,7 @@ fn etm_enable(
 }
 
 fn etm_disable(
-    core: &probe_rs::Core,
-    matches: &clap::ArgMatches,
-    submatches: &clap::ArgMatches
+    core: &probe_rs::Core
 ) -> Result<(), probe_rs::Error> {
     let mut etmcr = ETMCR::read(&core)?;
 
@@ -239,7 +260,7 @@ fn etm_disable(
 }
 
 fn etm_attach(matches: &clap::ArgMatches,
-    submatches: &clap::ArgMatches
+    _submatches: &clap::ArgMatches
 ) -> Result<probe_rs::Core, probe_rs::Error> {
     let chip = matches.value_of("chip").unwrap();
 
@@ -250,33 +271,67 @@ fn etm_attach(matches: &clap::ArgMatches,
     Ok(core)
 }
 
+fn etm_ingest(filename: &str, traceid: Option<u8>) {
+    info!("ingesting {}", filename);
+}
+
 fn etm(matches: &clap::ArgMatches,
     submatches: &clap::ArgMatches
 ) -> Result<(), probe_rs::Error> {
     let mut rval = Ok(());
 
-    if submatches.is_present("ingest") {
-        fatal!("ingest not yet supported");
+    let clockscaler = match submatches.value_of("clockscaler") {
+        Some(str) => {
+            match u16::from_str(str) {
+                Ok(val) => { Some(val) }
+                Err(_e) => {
+                    fatal!("clockscaler must be an unsigned 16-bit integer");
+                }
+            }
+        }
+        _ => None
+    };
+
+    let traceid = match submatches.value_of("traceid") {
+        Some(str) => {
+            match u8::from_str(str) {
+                Ok(val) if val < HUMILITY_ETM_TRACEID_MAX => {
+                    Some(val)
+                }
+                _ => {
+                    fatal!(
+                        "traceid has a maximum value of {:x}",
+                        HUMILITY_ETM_TRACEID_MAX
+                    );
+                }
+            }
+        }
+        _ => None
+    };
+
+    if let Some(ingest) = submatches.value_of("ingest") {
+        etm_ingest(ingest, traceid);
+        return Ok(());
     }
 
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
     let core = etm_attach(matches, submatches)?;
-    let info = core.halt();
+    let _info = core.halt();
 
-    info!("core halted: {:?}", info);
+    info!("core halted");
 
     if submatches.is_present("probe") {
-        info!("probe not yet supported");
+        rval = etm_probe(&core);
     }
 
     if submatches.is_present("enable") {
-        rval = etm_enable(&core, matches, submatches);
+        rval = etm_enable(&core, clockscaler, traceid);
     }
 
     if submatches.is_present("disable") {
-        rval = etm_disable(&core, matches, submatches);
+        rval = etm_disable(&core);
     }
 
     core.run()?;
@@ -285,8 +340,9 @@ fn etm(matches: &clap::ArgMatches,
     rval
 }
 
-fn probe(matches: &clap::ArgMatches,
-    submatches: &clap::ArgMatches
+fn probe(
+    matches: &clap::ArgMatches,
+    _submatches: &clap::ArgMatches
 ) -> Result<(), probe_rs::Error> {
     let chip = matches.value_of("chip").unwrap();
 
