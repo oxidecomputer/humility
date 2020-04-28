@@ -15,8 +15,14 @@ use etm::*;
 
 mod tpiu;
 use tpiu::*;
-use clap::{App, Arg, SubCommand};
+
+use std::error::Error;
+use std::fs::File;
 use std::str::FromStr;
+
+use bitfield::bitfield;
+use clap::{App, Arg, SubCommand};
+use parse_int::parse;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -271,8 +277,222 @@ fn etm_attach(matches: &clap::ArgMatches,
     Ok(core)
 }
 
-fn etm_ingest(filename: &str, traceid: Option<u8>) {
-    info!("ingesting {}", filename);
+bitfield! {
+    #[derive(Copy, Clone)]
+    pub struct TPIUFrameHalfWord(u16);
+    impl Debug;
+    data_or_aux, _: 15, 8;
+    data_or_id, _: 7, 1;
+    f_control, _: 0;
+}
+
+impl From<u16> for TPIUFrameHalfWord {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
+impl From<TPIUFrameHalfWord> for u16 {
+    fn from(value: TPIUFrameHalfWord) -> Self {
+        value.0
+    }
+}
+
+fn etm_tpiu_check_frame(
+    frame: &Vec<u8>,
+    valid: &Vec<bool>,
+    intermixed: bool,
+) -> bool {
+    /*
+     * To check a frame, we go through its half words, checking them for
+     * inconsistency.  The false positive rate will very much depend on how
+     * crowded the ID space is:  the sparser the valid space, the less likely
+     * we are to accept a frame that is in fact invalid.
+     */
+    let max = frame.len() / 2;
+    let mut aux = TPIUFrameHalfWord(0);
+
+    for i in 0..max {
+        let low = frame[i * 2] as u16;
+        let high = frame[(i * 2) + 1] as u16;
+        let half: TPIUFrameHalfWord = ((high << 8) | low).into();
+
+        if half.f_control() {
+            /*
+             * The two conditions under which we can reject a frame:  we
+             * either have an ID that isn't expected, or we are not expecting
+             * intermixed output and we have an ID on anything but the first
+             * half-word of the frame.
+             */
+            if !valid[half.data_or_id() as usize] || (i > 0 && !intermixed) {
+                return false;
+            }
+        }
+
+        aux = half;
+    }
+
+    /*
+     * We have a valid packet.
+    let mut processed = vec![0u8; frame.len() - 1];
+
+    for i in 0..max {
+        let low = frame[i * 2] as u16;
+        let high = frame[(i * 2) + 1] as u16;
+        let half: TPIUFrameHalfWord = ((high << 8) | low).into();
+        let auxbit = ((aux.data_or_aux & (1 << i)) >> i);
+
+        if half.f_control() {
+            /*
+             * If our bit is set, the sense of the auxiliary bit tells us
+             * if the ID takes effect XXX
+             */
+            id = half.data_or_id();
+        } else {
+            /*
+             * If our bit is NOT set, the auxiliary bit is the actual bit
+             * of data.
+             */
+            processed[i * 2]
+
+            if (i < max - 1) 
+                processed[(i * 2) + 1] = 
+
+    processed[2] = 0x32;
+     */
+
+    true
+}
+
+fn etm_tpiu_check_byte(
+    byte: u8,
+    valid: &Vec<bool>,
+) -> bool {
+    let check: TPIUFrameHalfWord = (byte as u16).into();
+
+    check.f_control() && valid[check.data_or_id() as usize]
+}
+
+fn etm_ingest(
+    filename: &str,
+    traceid: Option<u8>
+) -> Result<(), Box<dyn Error>> {
+    let file = File::open(filename)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    enum FrameState { Searching, Framing };
+    let mut state: FrameState = FrameState::Searching;
+
+    let mut ndx = 0;
+    let mut frame = vec![0u8; 16];
+
+    let mut nvalid = 0;
+
+    type TraceRecord = (f64, u8, Option<String>, Option<String>);
+    let mut valid = vec![false; 256];
+
+    let headers = rdr.headers()?;
+    println!("{:?}", headers);
+
+    let mut line = 1;
+    let target = traceid.unwrap_or(HUMILITY_ETM_TRACEID);
+
+    valid[target as usize] = true;
+
+    for result in rdr.deserialize() {
+        let record: TraceRecord = result?;
+
+        line += 1;
+
+        match state {
+            FrameState::Searching => {
+                if ndx == 0 && !etm_tpiu_check_byte(record.1, &valid) {
+                    continue;
+                }
+
+                frame[ndx] = record.1;
+                ndx += 1;
+
+                if ndx < frame.len() {
+                    continue;
+                }
+
+                let base = line - frame.len();
+
+                /*
+                 * We have a complete frame.  We need to now check the entire
+                 * frame.
+                 */
+                if etm_tpiu_check_frame(&frame, &valid, false) {
+                    info!("found valid TPIU frame starting at line {}", base);
+                    state = FrameState::Framing;
+                    nvalid = 1;
+                    ndx = 0;
+                    continue;
+                }
+
+                ndx = 0;
+
+                /*
+                 * That wasn't a valid frame; we need to scan our current frame
+                 * to see if there is another plausible start to the frame.
+                 */
+                for check in 1..frame.len() {
+                    if !etm_tpiu_check_byte(frame[check], &valid) {
+                        continue;
+                    }
+
+                    /*
+                     * We have a plausible start! Scoot the rest of the frame
+                     * down to the start of the frame.
+                     */
+                    while ndx + check < frame.len() {
+                        frame[ndx] = frame[check + ndx]; 
+                        ndx += 1;
+                    }
+
+                    break;
+                }
+            }
+
+            FrameState::Framing => {
+                frame[ndx] = record.1;
+                ndx += 1;
+
+                if ndx < frame.len() {
+                    continue;
+                }
+
+                /*
+                 * We have a complete frame, but we more or less expect it to
+                 * be correct.  Warn if this fails.
+                 */
+                if !etm_tpiu_check_frame(&frame, &valid, false) {
+                    if nvalid == 0 {
+                        warn!("two consecutive invalid frames; resuming search");
+                        state = FrameState::Searching;
+                    } else {
+                        warn!(
+                            "after {} valid frame{}, invalid frame at line {}",
+                            nvalid,
+                            if nvalid == 1 { "" } else { "s" },
+                            line - frame.len()
+                        );
+
+                        nvalid = 0;
+                    }
+                } else {
+                    nvalid += 1;
+                }
+
+                ndx = 0;
+            }
+        }
+    }
+
+    info!("{} valid TPIU frames", nvalid);
+
+    Ok(())
 }
 
 fn etm(matches: &clap::ArgMatches,
@@ -282,7 +502,7 @@ fn etm(matches: &clap::ArgMatches,
 
     let clockscaler = match submatches.value_of("clockscaler") {
         Some(str) => {
-            match u16::from_str(str) {
+            match parse::<u16>(str) {
                 Ok(val) => { Some(val) }
                 Err(_e) => {
                     fatal!("clockscaler must be an unsigned 16-bit integer");
@@ -294,7 +514,7 @@ fn etm(matches: &clap::ArgMatches,
 
     let traceid = match submatches.value_of("traceid") {
         Some(str) => {
-            match u8::from_str(str) {
+            match parse::<u8>(str) {
                 Ok(val) if val < HUMILITY_ETM_TRACEID_MAX => {
                     Some(val)
                 }
@@ -310,8 +530,14 @@ fn etm(matches: &clap::ArgMatches,
     };
 
     if let Some(ingest) = submatches.value_of("ingest") {
-        etm_ingest(ingest, traceid);
-        return Ok(());
+        match etm_ingest(ingest, traceid) {
+            Err(e) => {
+                fatal!("failed to ingest {}: {}", ingest, e);
+            }
+            _ => {
+                return Ok(());
+            }
+        }
     }
 
     /*
