@@ -455,7 +455,7 @@ fn etm_ingest(
             0 => { runlen += 1 }
             0x80 => {
                 if runlen >= 5 {
-                    info!("A-sync alignment synchronization ",
+                    info!(concat!("A-sync alignment synchronization ",
                         "packet found at line {}"), line);
                     runlen = 0;
                 }
