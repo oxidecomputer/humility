@@ -18,7 +18,6 @@ use tpiu::*;
 
 use std::error::Error;
 use std::fs::File;
-use std::str::FromStr;
 
 use bitfield::bitfield;
 use clap::{App, Arg, SubCommand};
@@ -292,14 +291,14 @@ impl From<u16> for TPIUFrameHalfWord {
     }
 }
 
-impl From<TPIUFrameHalfWord> for u16 {
-    fn from(value: TPIUFrameHalfWord) -> Self {
-        value.0
+impl From<(u8, u8)> for TPIUFrameHalfWord {
+    fn from(value: (u8, u8)) -> Self {
+        Self((value.1 as u16) << 8 | (value.0 as u16))
     }
 }
 
 fn etm_tpiu_check_frame(
-    frame: &Vec<u8>,
+    frame: &Vec<(u8, f64, usize)>,
     valid: &Vec<bool>,
     intermixed: bool,
 ) -> bool {
@@ -310,12 +309,10 @@ fn etm_tpiu_check_frame(
      * we are to accept a frame that is in fact invalid.
      */
     let max = frame.len() / 2;
-    let mut aux = TPIUFrameHalfWord(0);
 
     for i in 0..max {
-        let low = frame[i * 2] as u16;
-        let high = frame[(i * 2) + 1] as u16;
-        let half: TPIUFrameHalfWord = ((high << 8) | low).into();
+        let base = i * 2;
+        let half = TPIUFrameHalfWord::from((frame[base].0, frame[base + 1].0));
 
         if half.f_control() {
             /*
@@ -328,38 +325,7 @@ fn etm_tpiu_check_frame(
                 return false;
             }
         }
-
-        aux = half;
     }
-
-    /*
-     * We have a valid packet.
-    let mut processed = vec![0u8; frame.len() - 1];
-
-    for i in 0..max {
-        let low = frame[i * 2] as u16;
-        let high = frame[(i * 2) + 1] as u16;
-        let half: TPIUFrameHalfWord = ((high << 8) | low).into();
-        let auxbit = ((aux.data_or_aux & (1 << i)) >> i);
-
-        if half.f_control() {
-            /*
-             * If our bit is set, the sense of the auxiliary bit tells us
-             * if the ID takes effect XXX
-             */
-            id = half.data_or_id();
-        } else {
-            /*
-             * If our bit is NOT set, the auxiliary bit is the actual bit
-             * of data.
-             */
-            processed[i * 2]
-
-            if (i < max - 1) 
-                processed[(i * 2) + 1] = 
-
-    processed[2] = 0x32;
-     */
 
     true
 }
@@ -373,6 +339,88 @@ fn etm_tpiu_check_byte(
     check.f_control() && valid[check.data_or_id() as usize]
 }
 
+fn etm_tpiu_process_frame(
+    frame: &Vec<(u8, f64, usize)>,
+    id: Option<u8>,
+    mut callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>>,
+) -> Result<u8, Box<dyn Error>> {
+
+    let high = frame.len() - 1;
+    let aux = TPIUFrameHalfWord::from((frame[high - 1].0, frame[high].0));
+    let max = frame.len() / 2;
+    let mut current = id;
+
+    for i in 0..max {
+        let base = i * 2;
+        let half = TPIUFrameHalfWord::from((frame[base].0, frame[base + 1].0));
+        let auxbit = ((aux.data_or_aux() & (1 << i)) >> i) as u8;
+        let last = i == max - 1;
+        if half.f_control() {
+            /*
+             * If our bit is set, the sense of the auxiliary bit tells us
+             * if the ID takes effect with this halfword (bit is clear), or
+             * with the next (bit is set).
+             */
+            let delay = auxbit != 0;
+            let id = half.data_or_id() as u8;
+            let data = half.data_or_aux() as u8;
+            let time = frame[base + 1].1;
+            let offset = frame[base + 1].2;
+
+            if last {
+                /*
+                 * If this is the last half-word, the auxiliary bit "must be
+                 * ignored" (Sec. D4.2 in the ARM CoreSight Architecture
+                 * Specification), and applies to subsequent record.  So in
+                 * this case, we just return the ID.
+                 */
+                return Ok(id);
+            }
+
+            match (delay, current) {
+                (false, _) => {
+                        callback(id, data, time, offset)?; 
+                }
+                (true, Some(current)) => {
+                        callback(current, data, time, offset)?;
+                }
+                (true, None) => {
+                    /*
+                     * We have no old ID -- we are going to discard this byte,
+                     * but also warn about it.
+                     */
+                    warn!("orphaned byte discarded at offset {}", offset);
+                }
+            }
+
+            current = Some(id as u8);
+        } else {
+            /*
+             * If our bit is NOT set, the auxiliary bit is the actual bit
+             * of data.  We know that our current is set:  if we are still
+             * seeking a first frame, we should not be here at all.
+             */
+            let id = current.unwrap();
+            let data: u8 = (half.data_or_id() << 1) as u8 | auxbit;
+            let aux: u8 = half.data_or_aux() as u8;
+
+            callback(id, data, frame[base].1, frame[base].2)?;
+
+            if last {
+                return Ok(id);
+            }
+                    
+            callback(id, aux, frame[base + 1].1, frame[base + 1].2)?;
+        }
+    }
+
+    /*
+     * We shouldn't be able to get here:  the last half-word handling logic
+     * should assure that we return from within the loop.
+     */
+    unreachable!();
+}
+
 fn etm_ingest(
     filename: &str,
     traceid: Option<u8>
@@ -384,9 +432,10 @@ fn etm_ingest(
     let mut state: FrameState = FrameState::Searching;
 
     let mut ndx = 0;
-    let mut frame = vec![0u8; 16];
+    let mut frame: Vec<(u8, f64, usize)> = vec![(0u8, 0.0, 0); 16];
 
     let mut nvalid = 0;
+    let mut id = None;
 
     type TraceRecord = (f64, u8, Option<String>, Option<String>);
     let mut valid = vec![false; 256];
@@ -399,6 +448,25 @@ fn etm_ingest(
 
     valid[target as usize] = true;
 
+    let mut runlen = 0;
+
+    let callback = move |_id, data, _time, line| {
+        match data {
+            0 => { runlen += 1 }
+            0x80 => {
+                if runlen >= 5 {
+                    info!("A-sync alignment synchronization ",
+                        "packet found at line {}"), line);
+                    runlen = 0;
+                }
+            }
+            _ => { runlen = 0; }
+        }
+
+        // println!("line {} id {:02x}: {:02x} {:08b}", line, id, data, data);
+        Ok(())
+    };
+
     for result in rdr.deserialize() {
         let record: TraceRecord = result?;
 
@@ -410,21 +478,20 @@ fn etm_ingest(
                     continue;
                 }
 
-                frame[ndx] = record.1;
+                frame[ndx] = (record.1, record.0, line);
                 ndx += 1;
 
                 if ndx < frame.len() {
                     continue;
                 }
 
-                let base = line - frame.len();
-
                 /*
                  * We have a complete frame.  We need to now check the entire
                  * frame.
                  */
                 if etm_tpiu_check_frame(&frame, &valid, false) {
-                    info!("found valid TPIU frame starting at line {}", base);
+                    info!("valid TPIU frame starting at line {}", frame[0].2);
+                    id = Some(etm_tpiu_process_frame(&frame, id, callback)?);
                     state = FrameState::Framing;
                     nvalid = 1;
                     ndx = 0;
@@ -438,7 +505,7 @@ fn etm_ingest(
                  * to see if there is another plausible start to the frame.
                  */
                 for check in 1..frame.len() {
-                    if !etm_tpiu_check_byte(frame[check], &valid) {
+                    if !etm_tpiu_check_byte(frame[check].0, &valid) {
                         continue;
                     }
 
@@ -456,7 +523,7 @@ fn etm_ingest(
             }
 
             FrameState::Framing => {
-                frame[ndx] = record.1;
+                frame[ndx] = (record.1, record.0, line);
                 ndx += 1;
 
                 if ndx < frame.len() {
@@ -483,6 +550,8 @@ fn etm_ingest(
                     }
                 } else {
                     nvalid += 1;
+
+                    id = Some(etm_tpiu_process_frame(&frame, id, callback)?);
                 }
 
                 ndx = 0;
