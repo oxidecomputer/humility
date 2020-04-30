@@ -275,6 +275,148 @@ fn etm_attach(matches: &clap::ArgMatches,
     Ok(core)
 }
 
+#[derive(Copy, Clone, Debug)]
+enum ETM3Header {
+    BranchAddress { addr: u8, c: bool },
+    ASync,
+    CycleCount,
+    ISync,
+    Trigger,
+    OutOfOrder { tag: u8, size: u8 },
+    StoreFailed,
+    ISyncCycleCount,
+    OutOfOrderPlaceholder { a: bool, tag: u8 },
+    VMID,
+    NormalData { a: bool, size: u8 },
+    Timestamp { r: bool },
+    DataSuppressed,
+    Ignore,
+    ValueNotTraced { a: bool },
+    ContextID,
+    ExceptionExit,
+    ExceptionEntry,
+    PHeaderFormat1 { e: u8, n: u8 },
+    PHeaderFormat2 { e0: bool, e1: bool }
+}
+
+fn encode(hdr: ETM3Header) -> u8 {
+    match hdr {
+        ETM3Header::BranchAddress { addr, c } => {
+            0b0000_0001 | if c { 1 << 7 } else { 0 } | (addr & 0b011_1111) << 1
+        }
+        ETM3Header::ASync => 0b0000_0000,
+        ETM3Header::CycleCount => 0b0000_0100,
+        ETM3Header::ISync => 0b0000_1000,
+        ETM3Header::Trigger => 0b0000_1100,
+        ETM3Header::OutOfOrder { tag, size } => {
+            0b0000_0000 | ((tag & 0b11) << 5 | (size & 0b11) << 2)
+        },
+        ETM3Header::StoreFailed => 0b0101_0000,
+        ETM3Header::ISyncCycleCount => 0b0111_0000,
+        ETM3Header::OutOfOrderPlaceholder { a, tag } => {
+            0b0101_0000 | if a { 1 << 5 } else { 0 } | ((tag & 0b11) << 2)
+        },
+        ETM3Header::VMID => 0b0011_1100,
+        ETM3Header::NormalData { a, size } => {
+            0b0000_0010 | if a { 1 << 5 } else { 0 } | ((size & 0b11) << 2)
+        },
+        ETM3Header::Timestamp { r } => {
+            0b0100_0010 | if r { 1 << 2 } else { 0 }
+        },
+        ETM3Header::DataSuppressed => 0b0110_0010,
+        ETM3Header::Ignore => 0b0110_0110,
+        ETM3Header::ValueNotTraced { a } => {
+            0b01101010 | if a { 1 << 4 } else { 0 }
+        },
+        ETM3Header::ContextID => 0b0110_1110,
+        ETM3Header::ExceptionExit => 0b0111_0110,
+        ETM3Header::ExceptionEntry => 0b0111_1110,
+        ETM3Header::PHeaderFormat1 { n, e } => {
+            0b1000_0000 | ((n & 0b1) << 6) | ((e & 0b1111) << 2)
+        }
+        ETM3Header::PHeaderFormat2 { e0, e1 } => {
+            0b1000_0010 |
+            if e0 { 1 << 3 } else { 0 } |
+            if e1 { 1 << 2 } else { 0 }
+        }
+    }
+}
+
+fn set(table: &mut Vec<Option<ETM3Header>>, hdr: ETM3Header)
+{
+    let val = encode(hdr) as usize;
+
+    match table[val] {
+        None => { table[val] = Some(hdr); }
+        Some(h) => {
+            panic!("two values for 0x{:x} (0b{:b}): {:?} and {:?}",
+                val, val, h, hdr);
+        }
+    }
+}
+
+fn etm_hdrs() -> Vec<Option<ETM3Header>>
+{
+    let mut hdr: Vec<Option<ETM3Header>> = vec![None; 256];
+
+    for i in 0..=0b11_1111 {
+        set(&mut hdr, ETM3Header::BranchAddress { addr: i, c: true });
+        set(&mut hdr, ETM3Header::BranchAddress { addr: i, c: false });
+    }
+
+    set(&mut hdr, ETM3Header::ASync);
+    set(&mut hdr, ETM3Header::CycleCount);
+    set(&mut hdr, ETM3Header::ISync);
+    set(&mut hdr, ETM3Header::Trigger);
+
+    for tag in 1..=0b11 {
+        for size in 0..=0b11 {
+            set(&mut hdr, ETM3Header::OutOfOrder { tag: tag, size: size });
+        }
+    }
+
+    set(&mut hdr, ETM3Header::StoreFailed);
+    set(&mut hdr, ETM3Header::ISyncCycleCount);
+
+    for tag in 1..=0b11 {
+        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag: tag, a: true });
+        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag: tag, a: false });
+    }
+
+    set(&mut hdr, ETM3Header::VMID);
+
+    for size in 0..=0b11 {
+        set(&mut hdr, ETM3Header::NormalData { a: true, size: size });
+        set(&mut hdr, ETM3Header::NormalData { a: false, size: size });
+    }
+
+    set(&mut hdr, ETM3Header::Timestamp { r: true });
+    set(&mut hdr, ETM3Header::Timestamp { r: false });
+
+    set(&mut hdr, ETM3Header::DataSuppressed);
+    set(&mut hdr, ETM3Header::Ignore);
+
+    set(&mut hdr, ETM3Header::ValueNotTraced { a: true });
+    set(&mut hdr, ETM3Header::ValueNotTraced { a: false });
+
+    set(&mut hdr, ETM3Header::ContextID);
+    set(&mut hdr, ETM3Header::ExceptionExit);
+    set(&mut hdr, ETM3Header::ExceptionEntry);
+
+    for e in 0..=0b1111 {
+        for n in 0..=0b1 {
+            set(&mut hdr, ETM3Header::PHeaderFormat1 { e: e, n: n });
+        }
+    }
+
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: false, e1: false });
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: false, e1: true });
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: true, e1: false });
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: true, e1: true });
+    
+    hdr
+}
+
 fn etm_ingest(
     filename: &str,
     traceid: Option<u8>
@@ -283,25 +425,45 @@ fn etm_ingest(
     let mut rdr = csv::Reader::from_reader(file);
     let mut valid = vec![false; 256];
 
+    #[derive(Copy,Clone)]
+    enum IngestState { ASyncSearching, ISyncSearching, Ingesting };
+    let mut state: IngestState = IngestState::ASyncSearching;
+
     let target = traceid.unwrap_or(HUMILITY_ETM_TRACEID);
     valid[target as usize] = true;
 
     let mut runlen = 0;
 
+    let hdrs = &etm_hdrs();
+
+    println!("{:#x?}", hdrs);
+
     tpiu_ingest(&mut rdr, &valid, move |_id, data, _time, line| {
-        match data {
-            0 => { runlen += 1 }
-            0x80 => {
-                if runlen >= 5 {
-                    info!(concat!("A-sync alignment synchronization ",
-                        "packet found at line {}"), line);
-                    runlen = 0;
+        match state {
+            IngestState::ASyncSearching => {
+                match data {
+                    0 => { runlen += 1 }
+                    0x80 => {
+                        if runlen >= 5 {
+                            info!(concat!("A-sync alignment synchronization ",
+                                "packet found at line {}"), line);
+                            state = IngestState::ISyncSearching;
+                        }
+                    }
+                    _ => { runlen = 0; }
                 }
             }
-            _ => { runlen = 0; }
+            IngestState::ISyncSearching => {
+                let hdr = hdrs[data as usize];
+
+                println!("{:?}", hdr);
+                ::std::process::exit(0);
+            }
+            IngestState::Ingesting => {
+                panic!("ingesting");
+            }
         }
 
-        // println!("line {} id {:02x}: {:02x} {:08b}", line, id, data, data);
         Ok(())
     })
 }
