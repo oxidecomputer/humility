@@ -256,7 +256,7 @@ fn tpiu_process_frame(
 pub fn tpiu_ingest<R: Read>(
     rdr: &mut csv::Reader<R>,
     valid: &Vec<bool>,
-    callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>> + Copy,
+    mut callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>> ,
 ) -> Result<(), Box<dyn Error>> {
 
     enum FrameState { Searching, Framing };
@@ -295,7 +295,7 @@ pub fn tpiu_ingest<R: Read>(
                  */
                 if tpiu_check_frame(&frame, &valid, false) {
                     info!("valid TPIU frame starting at line {}", frame[0].2);
-                    id = Some(tpiu_process_frame(&frame, id, callback)?);
+                    id = Some(tpiu_process_frame(&frame, id, &mut callback)?);
                     state = FrameState::Framing;
                     nvalid = 1;
                     ndx = 0;
@@ -354,8 +354,7 @@ pub fn tpiu_ingest<R: Read>(
                     }
                 } else {
                     nvalid += 1;
-
-                    id = Some(tpiu_process_frame(&frame, id, callback)?);
+                    id = Some(tpiu_process_frame(&frame, id, &mut callback)?);
                 }
 
                 ndx = 0;

@@ -131,6 +131,19 @@ fn etm_enable(
     let etmidr = ETMIDR::read(&core)?;
     trace!("{:?}", etmidr);
 
+    let major = etmidr.etm_major() + 1;
+    let minor = etmidr.etm_minor();
+
+    if (major, minor) != (3, 5) {
+        warn!("only ETMv3.5 supported");
+        return Ok(());
+    }
+
+    if !etmidr.has_branch_encoding() {
+        warn!("only alternative branch encoding supported");
+        return Ok(());
+    }
+
     /*
      * First, enable TRCENA in the DEMCR.
      */
@@ -181,7 +194,7 @@ fn etm_enable(
     /*
      * We are now ready to enable ETM.  There are a bunch of steps involved in
      * this, but we need to first write to the ETMCR to indicate that we are
-     * programming it.  Once done writing to the EMT control registers, we
+     * programming it.  Once done writing to the ETM control registers, we
      * need to write to ETMCR again to indicate that we are done programming
      * it.
      */
@@ -297,6 +310,19 @@ enum ETM3Header {
     ExceptionEntry,
     PHeaderFormat1 { e: u8, n: u8 },
     PHeaderFormat2 { e0: bool, e1: bool }
+}
+
+#[derive(Copy,Clone,Debug)]
+enum ETM3PacketState {
+    AwaitingHeader,
+    AwaitingPayload,
+    Complete
+}
+
+struct ETM3Config {
+    alternative_encoding: bool,
+    context_id: u8,
+    data_access: bool,
 }
 
 fn encode(hdr: ETM3Header) -> u8 {
@@ -417,6 +443,107 @@ fn etm_hdrs() -> Vec<Option<ETM3Header>>
     hdr
 }
 
+fn etm_packet_state(
+    hdr: ETM3Header,
+    payload: &Vec<u8>,
+    config: &ETM3Config
+) -> ETM3PacketState
+{
+    let expect = |size: u8| {
+        if payload.len() < size as usize {
+            ETM3PacketState::AwaitingPayload
+        } else {
+            ETM3PacketState::Complete
+        }
+    };
+
+    let compressed = |max: u8| {
+        let mut ndx: u8 = 0;
+
+        while ndx < payload.len() as u8 {
+            if ndx == max - 1 || (payload[ndx as usize] & 0b1000_0000) != 0 {
+                break;
+            }
+
+            ndx += 1;
+        }
+
+        ndx + 1
+    };
+
+    /*
+     * This assumes the alternative encoding for branch packets.
+     */
+    assert!(config.alternative_encoding);
+
+    match hdr {
+        ETM3Header::BranchAddress { addr: _, c } => {
+            if payload.len() == 0 {
+                if c {
+                    ETM3PacketState::AwaitingPayload
+                } else {
+                    ETM3PacketState::Complete
+                }
+            } else {
+                let last = payload[payload.len() - 1];
+
+                if (last & 0b1000_0000) != 0 {
+                    /*
+                     * If the high order bit is set, we are always awaiting
+                     * more payload -- regardless of whether that is in one
+                     * of the address bytes (up to five) or one of the
+                     * exception bytes (up to three).
+                     */
+                    ETM3PacketState::AwaitingPayload
+                } else {
+                    if (last & 0b0100_0000) != 0 {
+                        /*
+                         * If bit 6 is set, we are awaiting an Exception
+                         * Information Byte.
+                         */
+                        ETM3PacketState::AwaitingPayload
+                    } else {
+                        ETM3PacketState::Complete
+                    }
+                }
+            }
+        }
+
+        ETM3Header::CycleCount => { expect(compressed(5)) }
+        ETM3Header::ISync => { expect(5 + config.context_id) }
+        ETM3Header::OutOfOrder { tag: _, size } => { expect(size) }
+
+        ETM3Header::ISyncCycleCount => {
+            expect(compressed(5) + config.context_id + 5)
+        }
+    
+        ETM3Header::OutOfOrderPlaceholder { a: _, tag: _ } => { expect(5) }
+        ETM3Header::VMID => { expect(1) }
+        ETM3Header::NormalData { a, size } => {
+            let dsize = if a && config.data_access {
+                compressed(5)
+            } else {
+                0
+            };
+
+            expect(dsize + 1 + size)
+        }
+
+        ETM3Header::Timestamp { r: _ } => { expect(compressed(9)) }
+
+        ETM3Header::ValueNotTraced { a } => {
+            if a {
+                expect(compressed(5))
+            } else {
+                ETM3PacketState::Complete
+            }
+        }
+
+        ETM3Header::ContextID => { expect(config.context_id) }
+        _ => ETM3PacketState::Complete
+    }
+}
+
 fn etm_ingest(
     filename: &str,
     traceid: Option<u8>
@@ -429,16 +556,26 @@ fn etm_ingest(
     enum IngestState { ASyncSearching, ISyncSearching, Ingesting };
     let mut state: IngestState = IngestState::ASyncSearching;
 
+    let mut pstate: ETM3PacketState = ETM3PacketState::AwaitingHeader;
+
     let target = traceid.unwrap_or(HUMILITY_ETM_TRACEID);
     valid[target as usize] = true;
 
-    let mut runlen = 0;
+    let mut vec = Vec::with_capacity(16);
 
     let hdrs = &etm_hdrs();
+    let mut hdr = ETM3Header::ASync;
+    let mut runlen = 0;
 
-    println!("{:#x?}", hdrs);
+    let config = &ETM3Config {
+        alternative_encoding: true,
+        context_id: 0,
+        data_access: false
+    };
 
-    tpiu_ingest(&mut rdr, &valid, move |_id, data, _time, line| {
+    tpiu_ingest(&mut rdr, &valid, |_id, data, time, line| {
+        let payload = &mut vec;
+
         match state {
             IngestState::ASyncSearching => {
                 match data {
@@ -452,16 +589,44 @@ fn etm_ingest(
                     }
                     _ => { runlen = 0; }
                 }
-            }
-            IngestState::ISyncSearching => {
-                let hdr = hdrs[data as usize];
 
-                println!("{:?}", hdr);
-                ::std::process::exit(0);
+                return Ok(());
             }
-            IngestState::Ingesting => {
-                panic!("ingesting");
+            _ => {}
+        }
+
+        match pstate {
+            ETM3PacketState::AwaitingHeader => {
+                hdr = match hdrs[data as usize] {
+                    Some(hdr) => { hdr }
+                    None => {
+                        panic!("unrecognized ETMv3 header 0x{:x} at line {}",
+                            data, line);
+                    }
+                };
+
+                payload.truncate(0);
             }
+
+            ETM3PacketState::AwaitingPayload => {
+                payload.push(data);
+            }
+
+            _ => {
+                panic!("unexpected packet state {:?}", pstate);
+            }
+        }
+
+        pstate = etm_packet_state(hdr, &payload, config);
+
+        match pstate {
+            ETM3PacketState::Complete => {
+                println!("complete packet at line {} (time {} us)", line,
+                  time * 1000000 as f64);
+                println!("  {:#x?} {:#x?}", hdr, payload);
+                pstate = ETM3PacketState::AwaitingHeader;
+            }
+            _ => {}
         }
 
         Ok(())
