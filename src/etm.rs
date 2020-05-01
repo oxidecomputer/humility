@@ -1,6 +1,13 @@
+/*
+ * Copyright 2020 Oxide Computer Company
+ */
+
 use crate::debug::Register;
 use bitfield::bitfield;
 use crate::register;
+use crate::tpiu::*;
+use std::error::Error;
+use std::io::Read;
 
 macro_rules! etm_register {
     ($reg:ty, $offs:expr, $($arg:tt)*) => (
@@ -219,3 +226,476 @@ etm_register!(ETMLSR, 0x3ed,
     pub locked, _: 1;
     pub unlock_required, _: 0;
 );
+
+#[derive(Copy, Clone, Debug)]
+pub enum ETM3Header {
+    BranchAddress { addr: u8, c: bool },
+    ASync,
+    CycleCount,
+    ISync,
+    Trigger,
+    OutOfOrder { tag: u8, size: u8 },
+    StoreFailed,
+    ISyncCycleCount,
+    OutOfOrderPlaceholder { a: bool, tag: u8 },
+    VMID,
+    NormalData { a: bool, size: u8 },
+    Timestamp { r: bool },
+    DataSuppressed,
+    Ignore,
+    ValueNotTraced { a: bool },
+    ContextID,
+    ExceptionExit,
+    ExceptionEntry,
+    PHeaderFormat1 { e: u8, n: u8 },
+    PHeaderFormat2 { e0: bool, e1: bool }
+}
+
+#[derive(Copy,Clone,Debug)]
+enum ETM3PacketState {
+    AwaitingHeader,
+    AwaitingPayload,
+    Complete
+}
+
+#[derive(Copy,Clone,Debug)]
+pub enum ETM3SyncReason {
+    Periodic,
+    TracingEnabled,
+    TracingRestarted,
+    DebugExit,
+}
+
+#[derive(Copy,Clone,Debug)]
+pub enum ETM3ProcessorState {
+    ARM,
+    Thumb,
+    ThumbEE,
+    Jazelle
+}
+
+#[derive(Copy,Clone,Debug)]
+pub enum ETM3Payload {
+    None,
+    ISync {
+        context: Option<u32>,
+        reason: ETM3SyncReason,
+        address: u32,
+        processor_state: ETM3ProcessorState
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ETM3Packet {
+    pub header: ETM3Header,
+    pub payload: ETM3Payload,
+    pub offset: usize,
+    pub time: f64,
+}
+
+pub struct ETM3Config {
+    pub alternative_encoding: bool,
+    pub context_id: u8,
+    pub data_access: bool,
+    pub traceid: u8,
+}
+
+fn encode(hdr: ETM3Header) -> u8 {
+    match hdr {
+        ETM3Header::BranchAddress { addr, c } => {
+            0b0000_0001 | if c { 1 << 7 } else { 0 } | (addr & 0b011_1111) << 1
+        }
+        ETM3Header::ASync => 0b0000_0000,
+        ETM3Header::CycleCount => 0b0000_0100,
+        ETM3Header::ISync => 0b0000_1000,
+        ETM3Header::Trigger => 0b0000_1100,
+        ETM3Header::OutOfOrder { tag, size } => {
+            0b0000_0000 | ((tag & 0b11) << 5 | (size & 0b11) << 2)
+        },
+        ETM3Header::StoreFailed => 0b0101_0000,
+        ETM3Header::ISyncCycleCount => 0b0111_0000,
+        ETM3Header::OutOfOrderPlaceholder { a, tag } => {
+            0b0101_0000 | if a { 1 << 5 } else { 0 } | ((tag & 0b11) << 2)
+        },
+        ETM3Header::VMID => 0b0011_1100,
+        ETM3Header::NormalData { a, size } => {
+            0b0000_0010 | if a { 1 << 5 } else { 0 } | ((size & 0b11) << 2)
+        },
+        ETM3Header::Timestamp { r } => {
+            0b0100_0010 | if r { 1 << 2 } else { 0 }
+        },
+        ETM3Header::DataSuppressed => 0b0110_0010,
+        ETM3Header::Ignore => 0b0110_0110,
+        ETM3Header::ValueNotTraced { a } => {
+            0b01101010 | if a { 1 << 4 } else { 0 }
+        },
+        ETM3Header::ContextID => 0b0110_1110,
+        ETM3Header::ExceptionExit => 0b0111_0110,
+        ETM3Header::ExceptionEntry => 0b0111_1110,
+        ETM3Header::PHeaderFormat1 { n, e } => {
+            0b1000_0000 | ((n & 0b1) << 6) | ((e & 0b1111) << 2)
+        }
+        ETM3Header::PHeaderFormat2 { e0, e1 } => {
+            0b1000_0010 |
+            if e0 { 1 << 3 } else { 0 } |
+            if e1 { 1 << 2 } else { 0 }
+        }
+    }
+}
+
+fn set(table: &mut Vec<Option<ETM3Header>>, hdr: ETM3Header)
+{
+    let val = encode(hdr) as usize;
+
+    match table[val] {
+        None => { table[val] = Some(hdr); }
+        Some(h) => {
+            panic!("two values for 0x{:x} (0b{:b}): {:?} and {:?}",
+                val, val, h, hdr);
+        }
+    }
+}
+
+fn etm_hdrs() -> Vec<Option<ETM3Header>>
+{
+    let mut hdr: Vec<Option<ETM3Header>> = vec![None; 256];
+
+    for i in 0..=0b11_1111 {
+        set(&mut hdr, ETM3Header::BranchAddress { addr: i, c: true });
+        set(&mut hdr, ETM3Header::BranchAddress { addr: i, c: false });
+    }
+
+    set(&mut hdr, ETM3Header::ASync);
+    set(&mut hdr, ETM3Header::CycleCount);
+    set(&mut hdr, ETM3Header::ISync);
+    set(&mut hdr, ETM3Header::Trigger);
+
+    for tag in 1..=0b11 {
+        for size in 0..=0b11 {
+            set(&mut hdr, ETM3Header::OutOfOrder { tag: tag, size: size });
+        }
+    }
+
+    set(&mut hdr, ETM3Header::StoreFailed);
+    set(&mut hdr, ETM3Header::ISyncCycleCount);
+
+    for tag in 1..=0b11 {
+        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag: tag, a: true });
+        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag: tag, a: false });
+    }
+
+    set(&mut hdr, ETM3Header::VMID);
+
+    for size in 0..=0b11 {
+        set(&mut hdr, ETM3Header::NormalData { a: true, size: size });
+        set(&mut hdr, ETM3Header::NormalData { a: false, size: size });
+    }
+
+    set(&mut hdr, ETM3Header::Timestamp { r: true });
+    set(&mut hdr, ETM3Header::Timestamp { r: false });
+
+    set(&mut hdr, ETM3Header::DataSuppressed);
+    set(&mut hdr, ETM3Header::Ignore);
+
+    set(&mut hdr, ETM3Header::ValueNotTraced { a: true });
+    set(&mut hdr, ETM3Header::ValueNotTraced { a: false });
+
+    set(&mut hdr, ETM3Header::ContextID);
+    set(&mut hdr, ETM3Header::ExceptionExit);
+    set(&mut hdr, ETM3Header::ExceptionEntry);
+
+    for e in 0..=0b1111 {
+        for n in 0..=0b1 {
+            set(&mut hdr, ETM3Header::PHeaderFormat1 { e: e, n: n });
+        }
+    }
+
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: false, e1: false });
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: false, e1: true });
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: true, e1: false });
+    set(&mut hdr, ETM3Header::PHeaderFormat2 { e0: true, e1: true });
+    
+    hdr
+}
+
+fn etm_packet_state(
+    hdr: ETM3Header,
+    payload: &Vec<u8>,
+    config: &ETM3Config
+) -> ETM3PacketState
+{
+    let expect = |size: u8| {
+        if payload.len() < size as usize {
+            ETM3PacketState::AwaitingPayload
+        } else {
+            ETM3PacketState::Complete
+        }
+    };
+
+    let compressed = |max: u8| {
+        let mut ndx: u8 = 0;
+
+        while ndx < payload.len() as u8 {
+            if ndx == max - 1 || (payload[ndx as usize] & 0b1000_0000) != 0 {
+                break;
+            }
+
+            ndx += 1;
+        }
+
+        ndx + 1
+    };
+
+    /*
+     * This assumes the alternative encoding for branch packets.
+     */
+    assert!(config.alternative_encoding);
+
+    match hdr {
+        ETM3Header::BranchAddress { addr: _, c } => {
+            if payload.len() == 0 {
+                if c {
+                    ETM3PacketState::AwaitingPayload
+                } else {
+                    ETM3PacketState::Complete
+                }
+            } else {
+                let last = payload[payload.len() - 1];
+
+                if (last & 0b1000_0000) != 0 {
+                    /*
+                     * If the high order bit is set, we are always awaiting
+                     * more payload -- regardless of whether that is in one
+                     * of the address bytes (up to five) or one of the
+                     * exception bytes (up to three).
+                     */
+                    ETM3PacketState::AwaitingPayload
+                } else {
+                    if (last & 0b0100_0000) != 0 {
+                        /*
+                         * If bit 6 is set, we are awaiting an Exception
+                         * Information Byte.
+                         */
+                        ETM3PacketState::AwaitingPayload
+                    } else {
+                        ETM3PacketState::Complete
+                    }
+                }
+            }
+        }
+
+        ETM3Header::CycleCount => { expect(compressed(5)) }
+        ETM3Header::ISync => { expect(5 + config.context_id) }
+        ETM3Header::OutOfOrder { tag: _, size } => { expect(size) }
+
+        ETM3Header::ISyncCycleCount => {
+            expect(compressed(5) + config.context_id + 5)
+        }
+    
+        ETM3Header::OutOfOrderPlaceholder { a: _, tag: _ } => { expect(5) }
+        ETM3Header::VMID => { expect(1) }
+        ETM3Header::NormalData { a, size } => {
+            let dsize = if a && config.data_access {
+                compressed(5)
+            } else {
+                0
+            };
+
+            expect(dsize + 1 + size)
+        }
+
+        ETM3Header::Timestamp { r: _ } => { expect(compressed(9)) }
+
+        ETM3Header::ValueNotTraced { a } => {
+            if a {
+                expect(compressed(5))
+            } else {
+                ETM3PacketState::Complete
+            }
+        }
+
+        ETM3Header::ContextID => { expect(config.context_id) }
+        _ => ETM3PacketState::Complete
+    }
+}
+
+fn etm_payload_decode(
+    hdr: ETM3Header,
+    payload: &Vec<u8>,
+    config: &ETM3Config
+) -> ETM3Payload {
+
+    if payload.len() == 0 {
+        return ETM3Payload::None;
+    }
+
+    let context = |o| {
+        match config.context_id {
+            0 => None,
+            1 => Some(payload[o] as u32),
+            2 => Some(u16::from_le_bytes([payload[o], payload[o + 1]]) as u32),
+            4 => {
+                Some(u32::from_le_bytes([
+                    payload[o],
+                    payload[o + 1],
+                    payload[o + 2],
+                    payload[o + 3],
+                ]))
+            }
+            _ => { panic!("illegal context size"); }
+        }
+    };
+
+    let reason = |ibyte| {
+        match ((ibyte >> 5) as u8) & 0b11 {
+            0b00 => ETM3SyncReason::Periodic,
+            0b01 => ETM3SyncReason::TracingEnabled,
+            0b10 => ETM3SyncReason::TracingRestarted,
+            0b11 => ETM3SyncReason::DebugExit,
+            _ => { panic!("illegal reason") }
+        }
+    };
+
+    let processor_state = |ibyte, addr| {
+        let j = (ibyte & 0b0001_0000) != 0;
+        let t = (addr & 0b0000_0001) != 0;
+        let altisa = (ibyte & 0b0000_0100) != 0;
+
+        match (j, t, altisa) {
+            (false, false, false) => ETM3ProcessorState::ARM,
+            (false, true, false) => ETM3ProcessorState::Thumb,
+            (false, true, true) => ETM3ProcessorState::ThumbEE,
+            (true, _, false) => ETM3ProcessorState::Jazelle,
+            (_, _, _) => { panic!("unknown processor state information") }
+        }
+    };
+
+    match hdr {
+        ETM3Header::ISync => {
+            let o = config.context_id as usize;
+
+            let ibyte = payload[o];
+            let addr = &payload[o + 1..o + 5];
+            let processor_state = processor_state(ibyte, addr[0]);
+            let a0 = match processor_state {
+                ETM3ProcessorState::Jazelle => addr[0],
+                _ => addr[0] & !0b0000_0001
+            };
+
+            ETM3Payload::ISync {
+                context: context(0),
+                reason: reason(ibyte),
+                address: u32::from_le_bytes([
+                    a0, addr[1], addr[2], addr[3]
+                ]),
+                processor_state: processor_state
+            }
+        }
+        _ => {
+            panic!("unhandled packet!");
+        }
+    }
+}
+
+pub fn etm_ingest<R: Read>(
+    mut rdr: &mut csv::Reader<R>,
+    config: &ETM3Config,
+    mut callback: impl FnMut(&ETM3Packet) -> Result<(), Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
+
+    #[derive(Copy, Clone, Debug)]
+    enum IngestState { ASyncSearching, ISyncSearching, Ingesting };
+
+    let mut state: IngestState = IngestState::ASyncSearching;
+    let mut pstate: ETM3PacketState = ETM3PacketState::AwaitingHeader;
+    let mut vec = Vec::with_capacity(16);
+
+    let mut valid = vec![false; 256];
+    valid[config.traceid as usize] = true;
+
+    let hdrs = &etm_hdrs();
+    let mut hdr = ETM3Header::ASync;
+    let mut runlen = 0;
+
+    tpiu_ingest(&mut rdr, &valid, |_id, data, time, line| {
+        let payload = &mut vec;
+
+        match state {
+            IngestState::ASyncSearching => {
+                match data {
+                    0 => { runlen += 1 }
+                    0x80 => {
+                        if runlen >= 5 {
+                            info!(concat!("A-sync alignment synchronization ",
+                                "packet found at line {}"), line);
+                            state = IngestState::ISyncSearching;
+                        }
+                    }
+                    _ => { runlen = 0; }
+                }
+
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        match pstate {
+            ETM3PacketState::AwaitingHeader => {
+                hdr = match hdrs[data as usize] {
+                    Some(hdr) => { hdr }
+                    None => {
+                        panic!("unrecognized ETMv3 header 0x{:x} at line {}",
+                            data, line);
+                    }
+                };
+
+                payload.truncate(0);
+            }
+
+            ETM3PacketState::AwaitingPayload => {
+                payload.push(data);
+            }
+
+            ETM3PacketState::Complete => {
+                panic!("unexpected packet state");
+            }
+        }
+
+        pstate = etm_packet_state(hdr, &payload, config);
+
+        match pstate {
+            ETM3PacketState::AwaitingHeader | 
+            ETM3PacketState::AwaitingPayload => {
+                return Ok(());
+            }
+            ETM3PacketState::Complete => {}
+        }
+
+        match (state, hdr) {
+            (IngestState::ISyncSearching, ETM3Header::ISync) => {
+                /*
+                 * We have our ISync packet -- we can now ingest everything
+                 * (starting with this packet).
+                 */
+                state = IngestState::Ingesting;
+            }
+            (_, _) => {}
+        }
+
+        match state {
+            IngestState::Ingesting => {
+                callback(&ETM3Packet {
+                    header: hdr,
+                    payload: etm_payload_decode(hdr, payload, config),
+                    offset: line,
+                    time: time
+                })?;
+            }
+            _ => {}
+        }
+
+        pstate = ETM3PacketState::AwaitingHeader;
+
+        Ok(())
+    })
+}
