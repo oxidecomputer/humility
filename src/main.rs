@@ -319,6 +319,32 @@ enum ETM3PacketState {
     Complete
 }
 
+#[derive(Copy,Clone,Debug)]
+enum ETM3SyncReason {
+    Periodic,
+    TracingEnabled,
+    TracingRestarted,
+    DebugExit,
+}
+
+#[derive(Copy,Clone,Debug)]
+enum ETM3ProcessorState {
+    ARM,
+    Thumb,
+    ThumbEE,
+    Jazelle
+}
+
+#[derive(Copy,Clone,Debug)]
+enum ETM3Packet {
+    ISync {
+        context: Option<u32>,
+        reason: ETM3SyncReason,
+        address: u32,
+        processor_state: ETM3ProcessorState
+    }
+}
+        
 struct ETM3Config {
     alternative_encoding: bool,
     context_id: u8,
@@ -544,6 +570,80 @@ fn etm_packet_state(
     }
 }
 
+fn etm_packet_decode(
+    hdr: ETM3Header,
+    payload: &Vec<u8>,
+    config: &ETM3Config
+) -> ETM3Packet {
+    let context = |o| {
+        match config.context_id {
+            0 => None,
+            1 => Some(payload[o] as u32),
+            2 => Some(u16::from_le_bytes([payload[o], payload[o + 1]]) as u32),
+            4 => {
+                Some(u32::from_le_bytes([
+                    payload[o],
+                    payload[o + 1],
+                    payload[o + 2],
+                    payload[o + 3],
+                ]))
+            }
+            _ => { panic!("illegal context size"); }
+        }
+    };
+
+    let reason = |ibyte| {
+        match ((ibyte >> 5) as u8) & 0b11 {
+            0b00 => ETM3SyncReason::Periodic,
+            0b01 => ETM3SyncReason::TracingEnabled,
+            0b10 => ETM3SyncReason::TracingRestarted,
+            0b11 => ETM3SyncReason::DebugExit,
+            _ => { panic!("illegal reason") }
+        }
+    };
+
+    let processor_state = |ibyte, addr| {
+        let j = (ibyte & 0b0001_0000) != 0;
+        let t = (addr & 0b0000_0001) != 0;
+        let altisa = (ibyte & 0b0000_0100) != 0;
+
+        match (j, t, altisa) {
+            (false, false, false) => ETM3ProcessorState::ARM,
+            (false, true, false) => ETM3ProcessorState::Thumb,
+            (false, true, true) => ETM3ProcessorState::ThumbEE,
+            (true, _, false) => ETM3ProcessorState::Jazelle,
+            (_, _, _) => { panic!("unknown processor state information") }
+        }
+    };
+
+    match hdr {
+        ETM3Header::ISync => {
+            let o = config.context_id as usize;
+
+            let ibyte = payload[o];
+            let addr = &payload[o + 1..o + 5];
+            let processor_state = processor_state(ibyte, addr[0]);
+            let a0 = match processor_state {
+                ETM3ProcessorState::Jazelle => addr[0],
+                _ => addr[0] & !0b0000_0001
+            };
+
+            ETM3Packet::ISync {
+                context: context(0),
+                reason: reason(ibyte),
+                address: u32::from_le_bytes([
+                    a0, addr[1], addr[2], addr[3]
+                ]),
+                processor_state: processor_state
+            }
+        }
+        _ => {
+            panic!("unhandled packet!");
+        }
+    }
+}
+
+
 fn etm_ingest(
     filename: &str,
     traceid: Option<u8>
@@ -619,11 +719,28 @@ fn etm_ingest(
 
         pstate = etm_packet_state(hdr, &payload, config);
 
+        match (state, pstate, hdr) {
+            (
+                IngestState::ISyncSearching,
+                ETM3PacketState::Complete, 
+                ETM3Header::ISync
+            ) => {
+                /*
+                 * We have our ISync packet that will form our baseline for
+                 * state.
+                 */
+                let isync = etm_packet_decode(hdr, payload, config);
+                println!("line {} (time {} us): {:#x?}", line, 
+                    time * 1000000 as f64, isync);
+            }
+            (_, _, _) => {}
+        }
+
         match pstate {
             ETM3PacketState::Complete => {
-                println!("complete packet at line {} (time {} us)", line,
-                  time * 1000000 as f64);
-                println!("  {:#x?} {:#x?}", hdr, payload);
+//                println!("complete packet at line {} (time {} us)", line,
+//                  time * 1000000 as f64);
+//                println!("  {:#x?} {:#x?}", hdr, payload);
                 pstate = ETM3PacketState::AwaitingHeader;
             }
             _ => {}
