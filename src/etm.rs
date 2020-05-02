@@ -616,17 +616,17 @@ pub fn etm_ingest(
     let mut hdr = ETM3Header::ASync;
     let mut runlen = 0;
 
-    tpiu_ingest(&valid, &mut readnext, |_id, data, time, line| {
+    tpiu_ingest(&valid, &mut readnext, |packet| {
         let payload = &mut vec;
 
         match state {
             IngestState::ASyncSearching => {
-                match data {
+                match packet.datum {
                     0 => { runlen += 1 }
                     0x80 => {
                         if runlen >= 5 {
                             info!(concat!("A-sync alignment synchronization ",
-                                "packet found at line {}"), line);
+                                "packet found at line {}"), packet.offset);
                             state = IngestState::ISyncSearching;
                         }
                     }
@@ -640,11 +640,11 @@ pub fn etm_ingest(
 
         match pstate {
             ETM3PacketState::AwaitingHeader => {
-                hdr = match hdrs[data as usize] {
+                hdr = match hdrs[packet.datum as usize] {
                     Some(hdr) => { hdr }
                     None => {
                         panic!("unrecognized ETMv3 header 0x{:x} at line {}",
-                            data, line);
+                            packet.datum, packet.offset);
                     }
                 };
 
@@ -652,7 +652,7 @@ pub fn etm_ingest(
             }
 
             ETM3PacketState::AwaitingPayload => {
-                payload.push(data);
+                payload.push(packet.datum);
             }
 
             ETM3PacketState::Complete => {
@@ -686,8 +686,8 @@ pub fn etm_ingest(
                 callback(&ETM3Packet {
                     header: hdr,
                     payload: etm_payload_decode(hdr, payload, config),
-                    offset: line,
-                    time: time
+                    offset: packet.offset,
+                    time: packet.time
                 })?;
             }
             _ => {}

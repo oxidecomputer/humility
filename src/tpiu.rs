@@ -128,6 +128,14 @@ impl From<(u8, u8)> for TPIUFrameHalfWord {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct TPIUPacket {
+    pub id: u8,
+    pub datum: u8,
+    pub offset: usize,
+    pub time: f64
+}
+
 fn tpiu_check_frame(
     frame: &Vec<(u8, f64, usize)>,
     valid: &Vec<bool>,
@@ -173,7 +181,7 @@ fn tpiu_check_byte(
 fn tpiu_process_frame(
     frame: &Vec<(u8, f64, usize)>,
     id: Option<u8>,
-    mut callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>>,
+    mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<u8, Box<dyn Error>> {
 
     let high = frame.len() - 1;
@@ -193,10 +201,12 @@ fn tpiu_process_frame(
              * with the next (bit is set).
              */
             let delay = auxbit != 0;
-            let id = half.data_or_id() as u8;
-            let data = half.data_or_aux() as u8;
-            let time = frame[base + 1].1;
-            let offset = frame[base + 1].2;
+            let mut packet = TPIUPacket {
+                id: half.data_or_id() as u8,
+                datum: half.data_or_aux() as u8,
+                time: frame[base + 1].1,
+                offset: frame[base + 1].2
+            };
 
             if last {
                 /*
@@ -205,26 +215,27 @@ fn tpiu_process_frame(
                  * Specification), and applies to subsequent record.  So in
                  * this case, we just return the ID.
                  */
-                return Ok(id);
+                return Ok(packet.id);
             }
 
             match (delay, current) {
                 (false, _) => {
-                        callback(id, data, time, offset)?; 
+                    callback(&packet)?;
                 }
                 (true, Some(current)) => {
-                        callback(current, data, time, offset)?;
+                    packet.id = current;
+                    callback(&packet)?;
                 }
                 (true, None) => {
                     /*
                      * We have no old ID -- we are going to discard this byte,
                      * but also warn about it.
                      */
-                    warn!("orphaned byte discarded at offset {}", offset);
+                    warn!("orphaned byte at offset {}", packet.offset);
                 }
             }
 
-            current = Some(id as u8);
+            current = Some(packet.id);
         } else {
             /*
              * If our bit is NOT set, the auxiliary bit is the actual bit
@@ -232,16 +243,24 @@ fn tpiu_process_frame(
              * seeking a first frame, we should not be here at all.
              */
             let id = current.unwrap();
-            let data: u8 = (half.data_or_id() << 1) as u8 | auxbit;
-            let aux: u8 = half.data_or_aux() as u8;
 
-            callback(id, data, frame[base].1, frame[base].2)?;
+            callback(&TPIUPacket {
+                id: id,
+                datum: (half.data_or_id() << 1) as u8 | auxbit,
+                time: frame[base].1,
+                offset: frame[base].2
+            })?;
 
             if last {
                 return Ok(id);
             }
-                    
-            callback(id, aux, frame[base + 1].1, frame[base + 1].2)?;
+
+            callback(&TPIUPacket {
+                id: id,
+                datum: half.data_or_aux() as u8,
+                time: frame[base + 1].1,
+                offset: frame[base + 1].2
+            })?;
         }
     }
 
@@ -255,7 +274,7 @@ fn tpiu_process_frame(
 pub fn tpiu_ingest(
     valid: &Vec<bool>,
     mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
-    mut callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>>,
+    mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
 
     enum FrameState { Searching, Framing };
