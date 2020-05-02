@@ -274,8 +274,30 @@ pub enum ETM3ProcessorState {
 }
 
 #[derive(Copy,Clone,Debug)]
+pub enum ETM3Exception {
+    HardFault,
+    IRQ { irq: u16 },
+    UsageFault,
+    NMI,
+    SVC,
+    DebugMonitor,
+    MemManage,
+    PendSV,
+    SysTick,
+    ProcessorReset,
+    BusFault,
+    Reserved { exception: u16 }
+}
+
+
+#[derive(Copy,Clone,Debug)]
 pub enum ETM3Payload {
     None,
+    BranchAddress {
+        addr: u32,
+        mask: u32,
+        exception: Option<ETM3Exception>
+    },
     ISync {
         context: Option<u32>,
         reason: ETM3SyncReason,
@@ -569,6 +591,34 @@ fn etm_payload_decode(
         }
     };
 
+    let exception = |o| {
+        let eib0 = payload[o];
+
+        let mut xcp: u16 = ((eib0 & 0b0001_1110) as u16) >> 1;
+
+        if (eib0 & 0b1000_0000) != 0 {
+            let eib1 = payload[o + 1];
+            xcp |= ((eib1 & 0b0001_1111) as u16) << 4;
+        }
+
+        match xcp {
+            0x01..=0x07 => ETM3Exception::IRQ { irq: xcp },
+            0x08 => ETM3Exception::IRQ { irq: 0 },
+            0x09 => ETM3Exception::UsageFault,
+            0x0a => ETM3Exception::NMI,
+            0x0b => ETM3Exception::SVC,
+            0x0c => ETM3Exception::DebugMonitor,
+            0x0d => ETM3Exception::MemManage,
+            0x0e => ETM3Exception::PendSV,
+            0x0f => ETM3Exception::SysTick,
+            0x11 => ETM3Exception::ProcessorReset,
+            0x13 => ETM3Exception::HardFault,
+            0x15 => ETM3Exception::BusFault,
+            0x18..=0x1ff => ETM3Exception::IRQ { irq: xcp - 0x10 },
+            _ => ETM3Exception::Reserved { exception: xcp }
+        }
+    };
+
     match hdr {
         ETM3Header::ISync => {
             let o = config.context_id as usize;
@@ -590,8 +640,58 @@ fn etm_payload_decode(
                 processor_state: processor_state
             }
         }
+        ETM3Header::BranchAddress { addr, c: _ } => {
+            let mut target: u32 = (addr as u32) << 1;
+            let mut nbits = 7; 
+            let mut xcp = None;
+
+            for i in 0..=4 {
+                /*
+                 * If our continue bit is set, we always have seven new bits
+                 * of address; or it in, increase the number of bits and
+                 * continue.
+                 */
+                if (payload[i] & 0b1000_0000) != 0 {
+                    target |= ((payload[i] & 0b0111_1111) as u32) << nbits;
+                    nbits += 7;
+                    continue;
+                }
+
+                /*
+                 * The continue bit is not set, so this packet terminates
+                 * our address.  Bit 6 will indicate whether or not we have
+                 * exception bytes; if we have exception bytes, we'll pull
+                 * those now.
+                 */
+                if (payload[i] & 0b0100_0000) != 0 {
+                    xcp = Some(exception(i + 1));
+                }
+
+                /*
+                 * For our final address packet, it is generally six bits --
+                 * unless we have a full address change, in which case only
+                 * four bits remain.
+                 */
+                if i < 4 {
+                    target |= ((payload[i] & 0b0011_1111) as u32) << nbits;
+                    nbits += 6;
+                    break;
+                }
+
+                assert_eq!(nbits, 28);
+                target |= ((payload[i] & 0b0000_1111) as u32) << nbits;
+                nbits += 4;
+            }
+
+            ETM3Payload::BranchAddress {
+                addr: target,
+                mask: if nbits == 32 { 0 } else { !((1 << nbits) - 1) },
+                exception: xcp
+            }
+        }
+
         _ => {
-            panic!("unhandled packet!");
+            panic!("unhandled packet {:#x?}!", hdr);
         }
     }
 }
