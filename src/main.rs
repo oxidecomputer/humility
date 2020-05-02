@@ -190,7 +190,7 @@ fn etmcmd_enable(
     acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
     acpr.write(&core)?;
     trace!("{:#x?}", TPIU_ACPR::read(&core)?);
-    
+
     /*
      * We are now ready to enable ETM.  There are a bunch of steps involved in
      * this, but we need to first write to the ETMCR to indicate that we are
@@ -302,7 +302,18 @@ fn etmcmd_ingest(
         traceid: traceid.unwrap_or(HUMILITY_ETM_TRACEID),
     };
 
-    etm_ingest(&mut rdr, &config, |packet| {
+    type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
+
+    let mut iter = rdr.deserialize();
+
+    etm_ingest(&config, || {
+        if let Some(line) = iter.next() {
+            let record: SaleaeTraceRecord = line?;
+            Ok(Some((record.1, record.0)))
+        } else {
+            Ok(None)
+        }
+    }, |packet| {
         println!("{:#x?}", packet);
         Ok(())
     })

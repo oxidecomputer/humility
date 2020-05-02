@@ -7,7 +7,6 @@ use bitfield::bitfield;
 use crate::register;
 use crate::tpiu::*;
 use std::error::Error;
-use std::io::Read;
 
 macro_rules! etm_register {
     ($reg:ty, $offs:expr, $($arg:tt)*) => (
@@ -597,9 +596,9 @@ fn etm_payload_decode(
     }
 }
 
-pub fn etm_ingest<R: Read>(
-    mut rdr: &mut csv::Reader<R>,
+pub fn etm_ingest(
     config: &ETM3Config,
+    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
     mut callback: impl FnMut(&ETM3Packet) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
 
@@ -617,7 +616,7 @@ pub fn etm_ingest<R: Read>(
     let mut hdr = ETM3Header::ASync;
     let mut runlen = 0;
 
-    tpiu_ingest(&mut rdr, &valid, |_id, data, time, line| {
+    tpiu_ingest(&valid, &mut readnext, |_id, data, time, line| {
         let payload = &mut vec;
 
         match state {

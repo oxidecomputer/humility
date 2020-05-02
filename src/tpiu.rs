@@ -6,7 +6,6 @@ use bitfield::bitfield;
 use crate::debug::Register;
 use crate::register;
 use std::error::Error;
-use std::io::Read;
 
 register!(TPIU_SSPSR, 0xe004_0000,
     #[derive(Copy, Clone)]
@@ -253,10 +252,10 @@ fn tpiu_process_frame(
     unreachable!();
 }
 
-pub fn tpiu_ingest<R: Read>(
-    rdr: &mut csv::Reader<R>,
+pub fn tpiu_ingest(
     valid: &Vec<bool>,
-    mut callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>> ,
+    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
+    mut callback: impl FnMut(u8, u8, f64, usize) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
 
     enum FrameState { Searching, Framing };
@@ -268,21 +267,29 @@ pub fn tpiu_ingest<R: Read>(
     let mut nvalid = 0;
     let mut id = None;
     let mut line = 1;
+    let mut datum: u8;
+    let mut time: f64;
 
-    type TraceRecord = (f64, u8, Option<String>, Option<String>);
-
-    for result in rdr.deserialize() {
-        let record: TraceRecord = result?;
+    loop {
+        match readnext()? {
+            Some(result) => {
+                datum = result.0;
+                time = result.1;
+            }
+            None => {
+                break;
+            }
+        }
 
         line += 1;
 
         match state {
             FrameState::Searching => {
-                if ndx == 0 && !tpiu_check_byte(record.1, &valid) {
+                if ndx == 0 && !tpiu_check_byte(datum, &valid) {
                     continue;
                 }
 
-                frame[ndx] = (record.1, record.0, line);
+                frame[ndx] = (datum, time, line);
                 ndx += 1;
 
                 if ndx < frame.len() {
@@ -327,7 +334,7 @@ pub fn tpiu_ingest<R: Read>(
             }
 
             FrameState::Framing => {
-                frame[ndx] = (record.1, record.0, line);
+                frame[ndx] = (datum, time, line);
                 ndx += 1;
 
                 if ndx < frame.len() {
