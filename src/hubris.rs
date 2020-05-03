@@ -9,13 +9,16 @@ use std::fmt;
 use std::io::BufReader;
 use std::io::prelude::*;
 use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::Path;
 
 use goblin::elf::Elf;
+use capstone::prelude::*;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct HubrisPackage {
-    x: u32
+    cs: capstone::Capstone,
+    instrs: HashMap<u32, Vec<u8>>,
 }
 
 #[derive(Debug)]
@@ -61,6 +64,24 @@ macro_rules! err {
 }
 
 impl HubrisPackage {
+    pub fn new() -> Result<HubrisPackage, Box<dyn Error>> {
+        let cs = Capstone::new()
+            .arm()
+            .mode(arch::arm::ArchMode::Thumb)
+            .detail(true)
+            .build();
+
+        Ok(Self {
+            cs: match cs {
+                Ok(cs) => { cs }
+                Err(err) => { 
+                    return err!("failed to initialize disassembler: {}", err);
+                }
+            },
+            instrs: HashMap::new()
+        })
+    }
+
     fn load_object(
         &mut self,
         directory: &str,
@@ -95,15 +116,48 @@ impl HubrisPackage {
         let offset = textsec.sh_offset as usize;
         let size = textsec.sh_size as usize;
 
-        let _t = buffer.get(offset..offset + size).unwrap();
+        let t = buffer.get(offset..offset + size).unwrap();
 
-        /*
-         * TODO: disassemble all text to load hash map
-         */
-        println!("===> {}", object);
-        println!(" .text {:#x?}", text);
+        let instrs = match self.cs.disasm_count(t, textsec.sh_addr, size) {
+            Ok(instrs) => { instrs }
+            Err(err) => {
+                return err!(
+                    "failed to disassemble \"{}\" (offs 0x{:08x}, {}): {}",
+                    object, offset, size, err
+                );
+            }
+        };
+
+        for instr in instrs.iter() {
+            let addr: u32 = instr.address() as u32;
+
+            if self.instrs.contains_key(&addr) {
+                return err!("address 0x{:08x} is duplicated!", addr);
+            }
+
+            let b = instr.bytes();
+            let mut v = Vec::with_capacity(b.len());
+
+            for i in 0..b.len() {
+                v.push(b[i]);
+            }
+
+            self.instrs.insert(addr, v);
+        }
 
         Ok(())
+    }
+
+    pub fn instr_len(
+        &self,
+        addr: u32
+    ) -> Option<usize> {
+        match self.instrs.get(&addr) {
+            Some(instr) => {
+                Some(instr.len())
+            }
+            None => None
+        }
     }
 
     pub fn load(

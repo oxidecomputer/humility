@@ -292,11 +292,13 @@ fn etmcmd_attach(matches: &clap::ArgMatches,
 }
 
 fn etmcmd_ingest(
+    hubris: &HubrisPackage,
     filename: &str,
     traceid: Option<u8>
 ) -> Result<(), Box<dyn Error>> {
     let file = File::open(filename)?;
     let mut rdr = csv::Reader::from_reader(file);
+    let mut addr: Option<u32> = None;
 
     let config = &ETM3Config {
         alternative_encoding: true,
@@ -317,12 +319,28 @@ fn etmcmd_ingest(
             Ok(None)
         }
     }, |packet| {
+        match packet.payload {
+            ETM3Payload::ISync {
+                context: _,
+                reason: _,
+                address,
+                processor_state: _ } => {
+                    addr = Some(address);
+                    println!("{:x}: {:?}", address,
+                        hubris.instr_len(address));
+            
+            }
+            _ => {}
+        }
+
         println!("{:#x?}", packet);
         Ok(())
     })
 }
 
-fn etmcmd(matches: &clap::ArgMatches,
+fn etmcmd(
+    hubris: &HubrisPackage,
+    matches: &clap::ArgMatches,
     submatches: &clap::ArgMatches
 ) -> Result<(), probe_rs::Error> {
     let mut rval = Ok(());
@@ -357,7 +375,7 @@ fn etmcmd(matches: &clap::ArgMatches,
     };
 
     if let Some(ingest) = submatches.value_of("ingest") {
-        match etmcmd_ingest(ingest, traceid) {
+        match etmcmd_ingest(hubris, ingest, traceid) {
             Err(e) => {
                 fatal!("failed to ingest {}: {}", ingest, e);
             }
@@ -493,7 +511,9 @@ fn main() {
         HumilityLog { level: log::LevelFilter::Info }.enable();
     }
 
-    let mut hubris = HubrisPackage::default();
+    let mut hubris = HubrisPackage::new().map_err(|err| {
+        fatal!("failed to initialize: {}", err);
+    }).unwrap();
 
     match matches.value_of("package") {
         Some(dir) => {
@@ -517,7 +537,7 @@ fn main() {
     }
 
     if let Some(submatches) = matches.subcommand_matches("etm") {
-        match etmcmd(&matches, &submatches) {
+        match etmcmd(&hubris, &matches, &submatches) {
             Err(err) => { fatal!("etm failed: {} (raw: \"{:?})\"", err, err); }
             _ => { ::std::process::exit(0); }
         }
