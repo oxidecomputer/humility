@@ -16,6 +16,9 @@ use etm::*;
 mod tpiu;
 use tpiu::*;
 
+mod hubris;
+use hubris::*;
+
 use std::error::Error;
 use std::fs::File;
 
@@ -425,6 +428,14 @@ fn main() {
             .hide_env_values(true)
             .help("specific chip on attached device (defaults to STM32F407VGTx)")
         )
+        .arg(
+            Arg::with_name("package")
+            .long("package")
+            .short("p")
+            .env("HUMILITY_PACKAGE")
+            .hide_env_values(true)
+            .help("directory containing Hubris package")
+        )
         .subcommand(SubCommand::with_name("probe")
             .about("probe for attached devices")
         )
@@ -481,6 +492,22 @@ fn main() {
     } else {
         HumilityLog { level: log::LevelFilter::Info }.enable();
     }
+
+    let mut hubris = HubrisPackage::default();
+
+    match matches.value_of("package") {
+        Some(dir) => {
+            match hubris.load(dir) {
+                Err(err) => {
+                    fatal!("failed to load package {}: {}", dir, err);
+                }
+                Ok(package) => {
+                    Some(package)
+                }
+            }
+        }
+        None => { None }
+    };
 
     if let Some(submatches) = matches.subcommand_matches("probe") {
         match probe(&matches, &submatches) {
