@@ -10,6 +10,7 @@ use std::io::BufReader;
 use std::io::prelude::*;
 use std::collections::HashSet;
 use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use goblin::elf::Elf;
@@ -19,6 +20,7 @@ use capstone::prelude::*;
 pub struct HubrisPackage {
     cs: capstone::Capstone,
     instrs: HashMap<u32, Vec<u8>>,
+    modules: BTreeMap<u32, (String, u32)>,
 }
 
 #[derive(Debug)]
@@ -84,8 +86,36 @@ impl HubrisPackage {
                     return err!("failed to initialize disassembler: {}", err);
                 }
             },
-            instrs: HashMap::new()
+            instrs: HashMap::new(),
+            modules: BTreeMap::new()
         })
+    }
+
+    pub fn instr_len(
+        &self,
+        addr: u32
+    ) -> Option<u32> {
+        match self.instrs.get(&addr) {
+            Some(instr) => {
+                Some(instr.len() as u32)
+            }
+            None => None
+        }
+    }
+
+    pub fn instr_mod(
+        &self,
+        addr: u32
+    ) -> Option<&str> {
+        if let Some(module) = self.modules.range(..=addr).next_back() {
+            if addr < *module.0 + (module.1).1 {
+                Some(&(module.1).0)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 
     fn load_object(
@@ -170,19 +200,12 @@ impl HubrisPackage {
             );
         }
 
-        Ok(())
-    }
+        self.modules.insert(
+            textsec.sh_addr as u32,
+            (String::from(object), size as u32)
+        );
 
-    pub fn instr_len(
-        &self,
-        addr: u32
-    ) -> Option<u32> {
-        match self.instrs.get(&addr) {
-            Some(instr) => {
-                Some(instr.len() as u32)
-            }
-            None => None
-        }
+        Ok(())
     }
 
     pub fn load(

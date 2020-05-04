@@ -300,8 +300,9 @@ fn etmcmd_trace(
 ) -> Result<(), Box<dyn Error>> {
 
     let c = if !skipped { 'E' } else { 'N' };
+    let module = hubris.instr_mod(addr).unwrap_or("<unknown>");
 
-    println!("{:-15} {:08x} {} {}", nsecs, addr, c, len);
+    println!("{:-15} {:08x} {} {} {:10}", nsecs, addr, c, len, module);
 
     Ok(())
 }
