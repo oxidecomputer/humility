@@ -291,6 +291,21 @@ fn etmcmd_attach(matches: &clap::ArgMatches,
     Ok(core)
 }
 
+fn etmcmd_trace(
+    hubris: &HubrisPackage,
+    nsecs: u64,
+    addr: u32,
+    len: u32,
+    skipped: bool
+) -> Result<(), Box<dyn Error>> {
+
+    let c = if !skipped { 'E' } else { 'N' };
+
+    println!("{:-15} {:08x} {} {}", nsecs, addr, c, len);
+
+    Ok(())
+}
+
 fn etmcmd_ingest(
     hubris: &HubrisPackage,
     filename: &str,
@@ -324,14 +339,13 @@ fn etmcmd_ingest(
         match (curaddr, packet.header) {
             (None, ETM3Header::ISync) | (Some(_), _) => {}
             (None, _) => {
-                println!("non-ISync packet at time {}", nsecs);
-                return Ok(());
+                fatal!("non-ISync packet at time {}", nsecs);
             }
         }
 
         match packet.header {
             ETM3Header::PHeaderFormat1 { e, n } => {
-                for i in 0..e {
+                for _i in 0..e {
                     let addr = curaddr.unwrap();
                     let mut l = 0;
 
@@ -341,15 +355,15 @@ fn etmcmd_ingest(
                             Some(addr + len)
                         }
                         None => {
-                            println!("unknown instruction length at {:x}!", addr);
+                            warn!("unknown instruction length at {:x}!", addr);
                             None
                         }
                     };
 
-                    println!("{:-15} {:08x} E {}", nsecs, addr, l);
+                    etmcmd_trace(hubris, nsecs, addr, l, false)?;
                 }
         
-                for i in 0..n {
+                for _i in 0..n {
                     let addr = curaddr.unwrap();
                     let mut l = 0;
 
@@ -359,15 +373,21 @@ fn etmcmd_ingest(
                             Some(addr + len)
                         }
                         None => {
-                            println!("unknown instruction length at {:x}!", addr);
+                            warn!("unknown instruction length at {:x}!", addr);
                             None
                         }
                     };
 
-                    println!("{:-15} {:08x} N {}", nsecs, addr, l);
+                    etmcmd_trace(hubris, nsecs, addr, l, true)?;
                 }
             }
-            _ => {}
+            ETM3Header::ExceptionExit |
+            ETM3Header::ASync |
+            ETM3Header::ISync |
+            ETM3Header::BranchAddress { addr: _, c: _} => {}
+            _ => {
+                fatal!("unhandled packet: {:#x?}", packet);
+            }
         }
 
         match packet.payload {
@@ -383,9 +403,6 @@ fn etmcmd_ingest(
                 curaddr = Some((curaddr.unwrap() & mask) | addr);
             }
             ETM3Payload::None => {}
-            _ => {
-                fatal!("unhandled packet: {:?}", packet);
-            }
         }
 
         Ok(())

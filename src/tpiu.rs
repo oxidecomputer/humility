@@ -285,7 +285,7 @@ pub fn tpiu_ingest(
 
     let mut nvalid = 0;
     let mut id = None;
-    let mut line = 1;
+    let mut offs = 0;
     let mut datum: u8;
     let mut time: f64;
 
@@ -300,7 +300,7 @@ pub fn tpiu_ingest(
             }
         }
 
-        line += 1;
+        offs += 1;
 
         match state {
             FrameState::Searching => {
@@ -308,7 +308,7 @@ pub fn tpiu_ingest(
                     continue;
                 }
 
-                frame[ndx] = (datum, time, line);
+                frame[ndx] = (datum, time, offs);
                 ndx += 1;
 
                 if ndx < frame.len() {
@@ -320,7 +320,7 @@ pub fn tpiu_ingest(
                  * frame.
                  */
                 if tpiu_check_frame(&frame, &valid, false) {
-                    info!("valid TPIU frame starting at line {}", frame[0].2);
+                    info!("valid TPIU frame starting at offset {}", frame[0].2);
                     id = Some(tpiu_process_frame(&frame, id, &mut callback)?);
                     state = FrameState::Framing;
                     nvalid = 1;
@@ -353,7 +353,7 @@ pub fn tpiu_ingest(
             }
 
             FrameState::Framing => {
-                frame[ndx] = (datum, time, line);
+                frame[ndx] = (datum, time, offs);
                 ndx += 1;
 
                 if ndx < frame.len() {
@@ -370,10 +370,10 @@ pub fn tpiu_ingest(
                         state = FrameState::Searching;
                     } else {
                         warn!(
-                            "after {} valid frame{}, invalid frame at line {}",
+                            "after {} frame{}, invalid frame at offset {}",
                             nvalid,
                             if nvalid == 1 { "" } else { "s" },
-                            line - frame.len()
+                            offs - frame.len()
                         );
 
                         nvalid = 0;
