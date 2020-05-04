@@ -52,9 +52,9 @@ impl log::Log for HumilityLog {
         }
 
         if record.metadata().target() == "humility" {
-            eprint!("humility: {}\n", record.args())
+            println!("humility: {}", record.args())
         } else {
-            eprint!("humility: {} ({}): {}\n",
+            println!("humility: {} ({}): {}",
                 record.level(),
                 record.metadata().target(),
                 record.args()
@@ -298,7 +298,7 @@ fn etmcmd_ingest(
 ) -> Result<(), Box<dyn Error>> {
     let file = File::open(filename)?;
     let mut rdr = csv::Reader::from_reader(file);
-    let mut addr: Option<u32> = None;
+    let mut curaddr: Option<u32> = None;
 
     let config = &ETM3Config {
         alternative_encoding: true,
@@ -319,21 +319,75 @@ fn etmcmd_ingest(
             Ok(None)
         }
     }, |packet| {
+        let nsecs = (packet.time * 1_000_000_000 as f64) as u64;
+
+        match (curaddr, packet.header) {
+            (None, ETM3Header::ISync) | (Some(_), _) => {}
+            (None, _) => {
+                println!("non-ISync packet at time {}", nsecs);
+                return Ok(());
+            }
+        }
+
+        match packet.header {
+            ETM3Header::PHeaderFormat1 { e, n } => {
+                for i in 0..e {
+                    let addr = curaddr.unwrap();
+                    let mut l = 0;
+
+                    curaddr = match hubris.instr_len(addr) {
+                        Some(len) => {
+                            l = len;
+                            Some(addr + len)
+                        }
+                        None => {
+                            println!("unknown instruction length at {:x}!", addr);
+                            None
+                        }
+                    };
+
+                    println!("{:-15} {:08x} E {}", nsecs, addr, l);
+                }
+        
+                for i in 0..n {
+                    let addr = curaddr.unwrap();
+                    let mut l = 0;
+
+                    curaddr = match hubris.instr_len(addr) {
+                        Some(len) => {
+                            l = len;
+                            Some(addr + len)
+                        }
+                        None => {
+                            println!("unknown instruction length at {:x}!", addr);
+                            None
+                        }
+                    };
+
+                    println!("{:-15} {:08x} N {}", nsecs, addr, l);
+                }
+            }
+            _ => {}
+        }
+
         match packet.payload {
             ETM3Payload::ISync {
                 context: _,
                 reason: _,
                 address,
-                processor_state: _ } => {
-                    addr = Some(address);
-                    println!("{:x}: {:?}", address,
-                        hubris.instr_len(address));
-            
+                processor_state: _
+            } => {
+                curaddr = Some(address);
             }
-            _ => {}
+            ETM3Payload::BranchAddress { addr, mask, exception: _ } => {
+                curaddr = Some((curaddr.unwrap() & mask) | addr);
+            }
+            ETM3Payload::None => {}
+            _ => {
+                fatal!("unhandled packet: {:?}", packet);
+            }
         }
 
-        println!("{:#x?}", packet);
         Ok(())
     })
 }

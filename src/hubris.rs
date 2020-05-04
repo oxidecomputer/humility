@@ -65,9 +65,15 @@ macro_rules! err {
 
 impl HubrisPackage {
     pub fn new() -> Result<HubrisPackage, Box<dyn Error>> {
+        /*
+         * Initialize Capstone, being sure to specify not only our architecture
+         * but also that we are disassembling Thumb-2 -- and (importantly) to
+         * allow M-profile instructions.
+         */
         let cs = Capstone::new()
             .arm()
             .mode(arch::arm::ArchMode::Thumb)
+            .extra_mode([arch::arm::ArchExtraMode::MClass].iter().map(|x| *x))
             .detail(true)
             .build();
 
@@ -118,7 +124,7 @@ impl HubrisPackage {
 
         let t = buffer.get(offset..offset + size).unwrap();
 
-        let instrs = match self.cs.disasm_count(t, textsec.sh_addr, size) {
+        let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => { instrs }
             Err(err) => {
                 return err!(
@@ -127,6 +133,8 @@ impl HubrisPackage {
                 );
             }
         };
+
+        let mut last: (u32, usize) = (0, 0);
 
         for instr in instrs.iter() {
             let addr: u32 = instr.address() as u32;
@@ -142,7 +150,24 @@ impl HubrisPackage {
                 v.push(b[i]);
             }
 
+            last = (addr, b.len());
+
             self.instrs.insert(addr, v);
+        }
+
+        /*
+         * Regrettably, if Capstone flies off the rails while disassembling,
+         * it won't flag an error -- it will simply stop short.  Check to see
+         * if we are in this case and explicitly fail.
+         */
+        if last.0 + last.1 as u32 != textsec.sh_addr as u32 + size as u32 {
+            return err!(
+                concat!(
+                    "short disassembly for \"{}\": ",
+                    "stopped at 0x{:x}, expected to go to 0x{:x}"
+                ),
+                object, last.0, textsec.sh_addr as u32 + size as u32
+            );
         }
 
         Ok(())
@@ -151,10 +176,10 @@ impl HubrisPackage {
     pub fn instr_len(
         &self,
         addr: u32
-    ) -> Option<usize> {
+    ) -> Option<u32> {
         match self.instrs.get(&addr) {
             Some(instr) => {
-                Some(instr.len())
+                Some(instr.len() as u32)
             }
             None => None
         }

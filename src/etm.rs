@@ -512,7 +512,7 @@ fn etm_packet_state(
         ETM3Header::ISyncCycleCount => {
             expect(compressed(5) + config.context_id + 5)
         }
-    
+
         ETM3Header::OutOfOrderPlaceholder { a: _, tag: _ } => { expect(5) }
         ETM3Header::VMID => { expect(1) }
         ETM3Header::NormalData { a, size } => {
