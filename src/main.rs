@@ -299,10 +299,12 @@ fn etmcmd_trace(
     skipped: bool
 ) -> Result<(), Box<dyn Error>> {
 
-    let c = if !skipped { 'E' } else { 'N' };
+    // let c = if !skipped { 'E' } else { 'N' };
     let module = hubris.instr_mod(addr).unwrap_or("<unknown>");
+    let sym = hubris.instr_sym(addr).unwrap_or(("<unknown>", addr));
 
-    println!("{:-15} {:08x} {} {} {:10}", nsecs, addr, c, len, module);
+    println!("{:-10} {:08x} {}:{}+{:x}",
+        nsecs, addr, module, sym.0, addr - sym.1);
 
     Ok(())
 }

@@ -11,16 +11,30 @@ use std::io::prelude::*;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 use std::path::Path;
+use std::str;
 
 use goblin::elf::Elf;
 use capstone::prelude::*;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
-    cs: capstone::Capstone,
-    instrs: HashMap<u32, Vec<u8>>,
-    modules: BTreeMap<u32, (String, u32)>,
+    current: u32,                           // current object
+    cs: capstone::Capstone,                 // Capstone library handle
+    instrs: HashMap<u32, Vec<u8>>,          // instructions
+    modules: BTreeMap<u32, (String, u32)>,  // modules
+    symbols: BTreeMap<u32, (String, u32, HubrisGoff)>,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+///
+/// An identifier that corresponds to a global offset within a particular DWARF
+/// object.
+///
+pub struct HubrisGoff {
+    pub object: u32,
+    pub goff: usize,
 }
 
 #[derive(Debug)]
@@ -65,6 +79,30 @@ macro_rules! err {
     )
 }
 
+impl fmt::Display for HubrisGoff {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.object > 0 {
+            write!(f, "GOFF 0x{:x} in object {}", self.goff, self.object)
+        } else {
+            write!(f, "GOFF 0x{:x}", self.goff)
+        }
+    }
+}
+
+fn dwarf_name<'a>(
+    dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+    value: gimli::AttributeValue<gimli::EndianSlice<gimli::LittleEndian>>,
+) -> Option<&'a str> {
+    match value {
+        gimli::AttributeValue::DebugStrRef(strref) => {
+            let dstring = dwarf.debug_str.get_str(strref).ok()?;
+            let ddstring = str::from_utf8(dstring.slice()).ok()?;
+            Some(ddstring)
+        }
+        _ => None,
+    }
+}
+
 impl HubrisPackage {
     pub fn new() -> Result<HubrisPackage, Box<dyn Error>> {
         /*
@@ -86,8 +124,10 @@ impl HubrisPackage {
                     return err!("failed to initialize disassembler: {}", err);
                 }
             },
+            current: 0,
             instrs: HashMap::new(),
-            modules: BTreeMap::new()
+            modules: BTreeMap::new(),
+            symbols: BTreeMap::new()
         })
     }
 
@@ -116,6 +156,187 @@ impl HubrisPackage {
         } else {
             None
         }
+    }
+
+    pub fn instr_sym(
+        &self,
+        addr: u32
+    ) -> Option<(&str, u32)> {
+        if let Some(sym) = self.symbols.range(..=addr).next_back() {
+            if addr < *sym.0 + (sym.1).1 {
+                Some((&(sym.1).0, *sym.0 as u32))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
+        &self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> HubrisGoff {
+        let goff = match entry.offset().to_unit_section_offset(unit) {
+            gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
+            gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
+        };
+
+        HubrisGoff {
+            object: self.current,
+            goff: goff
+        }
+    }
+
+    fn dwarf_subprogram<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut name = None;
+        let mut _linkage_name = None;
+        let mut addr = None;
+        let mut len = None;
+
+        let goff = self.dwarf_goff(unit, entry);
+
+        // Iterate over the attributes in the DIE.
+        let mut attrs = entry.attrs();
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_low_pc,
+                    gimli::AttributeValue::Addr(value),
+                ) => {
+                    addr = Some(value);
+                }
+                (
+                    gimli::constants::DW_AT_high_pc,
+                    gimli::AttributeValue::Udata(value),
+                ) => {
+                    len = Some(value);
+                }
+                (
+                    gimli::constants::DW_AT_linkage_name,
+                    _
+                ) => {
+                    _linkage_name = dwarf_name(dwarf, attr.value());
+                }
+                (
+                    gimli::constants::DW_AT_name,
+                    _
+                ) => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(addr), Some(len)) = (name, addr, len) {
+            if addr != 0 {
+                self.symbols.insert(
+                    addr as u32,
+                    (String::from(name), len as u32, goff)
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_object_dwarf(
+        &mut self,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<(), Box<dyn Error>> {
+        // Load all of the sections. This "load" operation just gets the data in
+        // RAM -- since we've already loaded the Elf file, this can't fail.
+        let dwarf = gimli::Dwarf::<&[u8]>::load::<_, _, Infallible>(
+            // Load the normal DWARF section(s) from our Elf image.
+            |id| {
+                let sec_result = elf
+                    .section_headers
+                    .iter()
+                    .filter(|sh| {
+                        if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name)
+                        {
+                            name == id.name()
+                        } else {
+                            false
+                        }
+                    })
+                    .next();
+                Ok(sec_result
+                    .map(|sec| {
+                        let offset = sec.sh_offset as usize;
+                        let size = sec.sh_size as usize;
+                        buffer.get(offset..offset + size).unwrap()
+                    })
+                    .unwrap_or(&[]))
+            },
+            // We don't have a supplemental object file.
+            |_| Ok(&[]),
+        )?;
+
+        // Borrow all sections wrapped in EndianSlices
+        let dwarf = dwarf.borrow(|section| {
+            gimli::EndianSlice::new(section, gimli::LittleEndian)
+        });
+
+        // Iterate over the compilation units.
+        let mut iter = dwarf.units();
+        while let Some(header) = iter.next()? {
+            let unit = dwarf.unit(header)?;
+            let mut entries = unit.entries();
+            let mut depth = 0;
+            let mut stack: Vec<HubrisGoff> = vec![];
+
+            while let Some((delta, entry)) = entries.next_dfs()? {
+                depth += delta;
+
+                let goff = self.dwarf_goff(&unit, entry);
+
+                if depth as usize >= stack.len() {
+                    stack.push(goff);
+                } else {
+                    stack[depth as usize] = goff;
+                }
+
+                match entry.tag() {
+/*
+                    gimli::constants::DW_TAG_formal_parameter => {
+                        self.dwarf_formal_parameter(&dwarf, &unit, &entry,
+                            stack[(depth - 1) as usize]
+                        )?;
+                    }
+
+                    gimli::constants::DW_TAG_variable => {
+                        self.dwarf_variable(&unit, &entry, depth)?;
+                    }
+
+                    gimli::constants::DW_TAG_inlined_subroutine => {
+                        self.dwarf_inlined(&dwarf, &unit, &entry, depth)?;
+                    }
+*/
+                    gimli::constants::DW_TAG_subprogram => {
+                        self.dwarf_subprogram(&dwarf, &unit, &entry)?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        self.current += 1;
+
+        Ok(())
     }
 
     fn load_object(
@@ -153,6 +374,7 @@ impl HubrisPackage {
         let size = textsec.sh_size as usize;
 
         let t = buffer.get(offset..offset + size).unwrap();
+        self.load_object_dwarf(&buffer, &elf)?;
 
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => { instrs }
