@@ -22,9 +22,10 @@ use capstone::prelude::*;
 pub struct HubrisPackage {
     current: u32,                           // current object
     cs: capstone::Capstone,                 // Capstone library handle
-    instrs: HashMap<u32, Vec<u8>>,          // instructions
+    instrs: HashMap<u32, (Vec<u8>, Option<u32>)>, // instructions
     modules: BTreeMap<u32, (String, u32)>,  // modules
     symbols: BTreeMap<u32, (String, u32, HubrisGoff)>,
+    branch: Option<capstone::InsnGroupId>,  // cached branch group
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
@@ -110,7 +111,7 @@ impl HubrisPackage {
          * but also that we are disassembling Thumb-2 -- and (importantly) to
          * allow M-profile instructions.
          */
-        let cs = Capstone::new()
+        let mut cs = Capstone::new()
             .arm()
             .mode(arch::arm::ArchMode::Thumb)
             .extra_mode([arch::arm::ArchExtraMode::MClass].iter().map(|x| *x))
@@ -119,7 +120,7 @@ impl HubrisPackage {
 
         Ok(Self {
             cs: match cs {
-                Ok(cs) => { cs }
+                Ok(mut cs) => { cs.set_skipdata(true); cs }
                 Err(err) => { 
                     return err!("failed to initialize disassembler: {}", err);
                 }
@@ -127,7 +128,8 @@ impl HubrisPackage {
             current: 0,
             instrs: HashMap::new(),
             modules: BTreeMap::new(),
-            symbols: BTreeMap::new()
+            symbols: BTreeMap::new(),
+            branch: None,
         })
     }
 
@@ -137,7 +139,19 @@ impl HubrisPackage {
     ) -> Option<u32> {
         match self.instrs.get(&addr) {
             Some(instr) => {
-                Some(instr.len() as u32)
+                Some(instr.0.len() as u32)
+            }
+            None => None
+        }
+    }
+
+    pub fn instr_target(
+        &self,
+        addr: u32
+    ) -> Option<u32> {
+        match self.instrs.get(&addr) {
+            Some(instr) => {
+                instr.1
             }
             None => None
         }
@@ -171,6 +185,50 @@ impl HubrisPackage {
         } else {
             None
         }
+    }
+
+    fn instr_branch_target(
+        &self,
+        instr: &capstone::Insn
+    ) -> (Option<u32>, Option<capstone::InsnGroupId>)  {
+        let mut branch = self.branch;
+
+        if let Ok(detail) = self.cs.insn_detail(&instr) {
+            let mut br = false;
+
+            for g in detail.groups() {
+                if branch.is_none() {
+                    if let Some(name) = self.cs.group_name(g.into()) {
+                        if name == "branch_relative" {
+                            branch = Some(g);
+                        }
+                    }
+                }
+
+                if let Some(group) = branch {
+                    if g == group {
+                        br = true;
+                        break;
+                    }
+                }
+            }
+
+            if !br {
+                return (None, branch);
+            }
+
+            let arch = detail.arch_detail();
+            let ops = arch.operands();
+            if let Some(op) = ops.last() {
+                if let arch::ArchOperand::ArmOperand(op) = op {
+                    if let arch::arm::ArmOperandType::Imm(val) = op.op_type {
+                        return (Some(val as u32), branch);
+                    }
+                }
+            }
+        }
+
+        (None, branch)
     }
 
     fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
@@ -404,7 +462,10 @@ impl HubrisPackage {
 
             last = (addr, b.len());
 
-            self.instrs.insert(addr, v);
+            let target = self.instr_branch_target(&instr);
+            self.branch = target.1;
+
+            self.instrs.insert(addr, (v, target.0));
         }
 
         /*

@@ -299,12 +299,22 @@ fn etmcmd_trace(
     skipped: bool
 ) -> Result<(), Box<dyn Error>> {
 
-    // let c = if !skipped { 'E' } else { 'N' };
+    let c = if !skipped { 'E' } else { 'N' };
     let module = hubris.instr_mod(addr).unwrap_or("<unknown>");
     let sym = hubris.instr_sym(addr).unwrap_or(("<unknown>", addr));
 
-    println!("{:-10} {:08x} {}:{}+{:x}",
-        nsecs, addr, module, sym.0, addr - sym.1);
+    println!("{:-10} {:08x} {} {}:{}+{:x}",
+        nsecs, addr, c, module, sym.0, addr - sym.1);
+
+    Ok(())
+}
+
+fn etmcmd_trace_exception(
+    hubris: &HubrisPackage,
+    nsecs: u64,
+    exception: ETM3Exception
+) -> Result<(), Box<dyn Error>> {
+    println!("{:-10} {:8} X {:?}", nsecs, "-", exception);
 
     Ok(())
 }
@@ -328,6 +338,8 @@ fn etmcmd_ingest(
     type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
 
     let mut iter = rdr.deserialize();
+    let mut broken = false;
+    let mut target: (u32, Option<u32>) = (0, None);
 
     etm_ingest(&config, || {
         if let Some(line) = iter.next() {
@@ -342,47 +354,51 @@ fn etmcmd_ingest(
         match (curaddr, packet.header) {
             (None, ETM3Header::ISync) | (Some(_), _) => {}
             (None, _) => {
+                if broken {
+                    return Ok(());
+                }
+
                 fatal!("non-ISync packet at time {}", nsecs);
             }
         }
 
+        let mut instr = |skipped| {
+            if broken {
+                return Ok(());
+            }
+
+            let addr = curaddr.unwrap();
+            let mut l = 0;
+
+            curaddr = match hubris.instr_len(addr) {
+                Some(len) => {
+                    l = len;
+                    Some(addr + len)
+                }
+                None => {
+                    warn!("unknown instruction length at {:x}!", addr);
+                    broken = true;
+                    None
+                }
+            };
+
+            target = (addr, hubris.instr_target(addr));
+            etmcmd_trace(hubris, nsecs, addr, l, skipped)
+        };
+
         match packet.header {
             ETM3Header::PHeaderFormat1 { e, n } => {
                 for _i in 0..e {
-                    let addr = curaddr.unwrap();
-                    let mut l = 0;
-
-                    curaddr = match hubris.instr_len(addr) {
-                        Some(len) => {
-                            l = len;
-                            Some(addr + len)
-                        }
-                        None => {
-                            warn!("unknown instruction length at {:x}!", addr);
-                            None
-                        }
-                    };
-
-                    etmcmd_trace(hubris, nsecs, addr, l, false)?;
+                    instr(false)?;
                 }
         
                 for _i in 0..n {
-                    let addr = curaddr.unwrap();
-                    let mut l = 0;
-
-                    curaddr = match hubris.instr_len(addr) {
-                        Some(len) => {
-                            l = len;
-                            Some(addr + len)
-                        }
-                        None => {
-                            warn!("unknown instruction length at {:x}!", addr);
-                            None
-                        }
-                    };
-
-                    etmcmd_trace(hubris, nsecs, addr, l, true)?;
+                    instr(true)?;
                 }
+            }
+            ETM3Header::PHeaderFormat2 { e0, e1 } => {
+                instr(e0 != false)?;
+                instr(e1 != false)?;
             }
             ETM3Header::ExceptionExit |
             ETM3Header::ASync |
@@ -400,10 +416,35 @@ fn etmcmd_ingest(
                 address,
                 processor_state: _
             } => {
+                if broken {
+                    warn!("re-railing at offset {}", packet.offset);
+                    broken = false;
+                    target = (0, None);
+                }
+
                 curaddr = Some(address);
             }
-            ETM3Payload::BranchAddress { addr, mask, exception: _ } => {
+            ETM3Payload::BranchAddress { addr, mask, exception } => {
+//                println!("{:#x?}", packet.payload);
+//                println!("before {:x}", curaddr.unwrap());
                 curaddr = Some((curaddr.unwrap() & mask) | addr);
+
+                if let Some(expected) = target.1 {
+                    if curaddr.unwrap() != expected {
+                        warn!("detected bad branch: at 0x{:x} expected branch to 0x{:x}, found 0x{:x}; packet: {:x?}", target.0, expected, curaddr.unwrap(), packet);
+
+                        curaddr = Some(expected);
+                    }
+                }
+
+//                println!("after {:x}", curaddr.unwrap());
+
+                match exception {
+                    Some(exception) => {
+                        etmcmd_trace_exception(hubris, nsecs, exception)?;
+                    }
+                    None => {}
+                }
             }
             ETM3Payload::None => {}
         }
