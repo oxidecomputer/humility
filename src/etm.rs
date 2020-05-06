@@ -546,10 +546,6 @@ fn etm_payload_decode(
     config: &ETM3Config
 ) -> ETM3Payload {
 
-    if payload.len() == 0 {
-        return ETM3Payload::None;
-    }
-
     let context = |o| {
         match config.context_id {
             0 => None,
@@ -645,7 +641,7 @@ fn etm_payload_decode(
             let mut nbits = 7; 
             let mut xcp = None;
 
-            for i in 0..=4 {
+            for i in 0..payload.len() {
                 /*
                  * If our continue bit is set, we always have seven new bits
                  * of address; or it in, increase the number of bits and
@@ -691,6 +687,10 @@ fn etm_payload_decode(
         }
 
         _ => {
+            if payload.len() == 0 {
+                return ETM3Payload::None;
+            }
+
             panic!("unhandled packet {:#x?}!", hdr);
         }
     }

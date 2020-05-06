@@ -295,7 +295,7 @@ fn etmcmd_trace(
     hubris: &HubrisPackage,
     nsecs: u64,
     addr: u32,
-    len: u32,
+    _len: u32,
     skipped: bool
 ) -> Result<(), Box<dyn Error>> {
 
@@ -310,7 +310,7 @@ fn etmcmd_trace(
 }
 
 fn etmcmd_trace_exception(
-    hubris: &HubrisPackage,
+    _hubris: &HubrisPackage,
     nsecs: u64,
     exception: ETM3Exception
 ) -> Result<(), Box<dyn Error>> {
@@ -327,6 +327,7 @@ fn etmcmd_ingest(
     let file = File::open(filename)?;
     let mut rdr = csv::Reader::from_reader(file);
     let mut curaddr: Option<u32> = None;
+    let mut lastaddr: Option<u32> = None;
 
     let config = &ETM3Config {
         alternative_encoding: true,
@@ -339,7 +340,7 @@ fn etmcmd_ingest(
 
     let mut iter = rdr.deserialize();
     let mut broken = false;
-    let mut target: (u32, Option<u32>) = (0, None);
+    let mut target: (Option<u32>, HubrisTarget) = (None, HubrisTarget::None);
 
     etm_ingest(&config, || {
         if let Some(line) = iter.next() {
@@ -351,7 +352,7 @@ fn etmcmd_ingest(
     }, |packet| {
         let nsecs = (packet.time * 1_000_000_000 as f64) as u64;
 
-        match (curaddr, packet.header) {
+        match (lastaddr, packet.header) {
             (None, ETM3Header::ISync) | (Some(_), _) => {}
             (None, _) => {
                 if broken {
@@ -382,7 +383,7 @@ fn etmcmd_ingest(
                 }
             };
 
-            target = (addr, hubris.instr_target(addr));
+            target = (Some(addr), hubris.instr_target(addr));
             etmcmd_trace(hubris, nsecs, addr, l, skipped)
         };
 
@@ -410,34 +411,47 @@ fn etmcmd_ingest(
         }
 
         match packet.payload {
-            ETM3Payload::ISync {
-                context: _,
-                reason: _,
-                address,
-                processor_state: _
-            } => {
+            ETM3Payload::ISync { address, .. } => {
                 if broken {
                     warn!("re-railing at offset {}", packet.offset);
                     broken = false;
-                    target = (0, None);
+                    target = (None, HubrisTarget::None);
                 }
 
                 curaddr = Some(address);
+                lastaddr = curaddr;
             }
             ETM3Payload::BranchAddress { addr, mask, exception } => {
-//                println!("{:#x?}", packet.payload);
-//                println!("before {:x}", curaddr.unwrap());
-                curaddr = Some((curaddr.unwrap() & mask) | addr);
+                curaddr = Some((lastaddr.unwrap() & mask) | addr);
+                lastaddr = curaddr;
 
-                if let Some(expected) = target.1 {
-                    if curaddr.unwrap() != expected {
-                        warn!("detected bad branch: at 0x{:x} expected branch to 0x{:x}, found 0x{:x}; packet: {:x?}", target.0, expected, curaddr.unwrap(), packet);
-
-                        curaddr = Some(expected);
+                match (target.0, target.1) {
+                    (Some(origin), HubrisTarget::Direct(expected)) => {
+                        if curaddr.unwrap() != expected {
+                            warn!(
+                                concat!(
+                                    "detected bad branch: ",
+                                    "at 0x{:x} expected branch to 0x{:x}, ",
+                                    "found 0x{:x}; packet: {:x?}"
+                                ), origin, expected, curaddr.unwrap(), packet
+                            );
+                        }
                     }
-                }
 
-//                println!("after {:x}", curaddr.unwrap());
+                    (Some(origin), HubrisTarget::None) => {
+                        if exception.is_none() {
+                            warn!(
+                                concat!(
+                                    "detected bad branch: did not expect any ",
+                                    "branch from 0x{:x}, but control ",
+                                    "transferred to 0x{:x}; packet: {:x?}"
+                                ), origin, curaddr.unwrap(), packet
+                            );
+                        }
+                    }
+
+                    (_, _) => {}
+                }
 
                 match exception {
                     Some(exception) => {

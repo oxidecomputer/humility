@@ -17,15 +17,15 @@ use std::str;
 
 use goblin::elf::Elf;
 use capstone::prelude::*;
+use capstone::InsnGroupType;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
     current: u32,                           // current object
     cs: capstone::Capstone,                 // Capstone library handle
-    instrs: HashMap<u32, (Vec<u8>, Option<u32>)>, // instructions
+    instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>, // instructions
     modules: BTreeMap<u32, (String, u32)>,  // modules
     symbols: BTreeMap<u32, (String, u32, HubrisGoff)>,
-    branch: Option<capstone::InsnGroupId>,  // cached branch group
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
@@ -36,6 +36,13 @@ pub struct HubrisPackage {
 pub struct HubrisGoff {
     pub object: u32,
     pub goff: usize,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum HubrisTarget {
+    None,
+    Indirect,
+    Direct(u32),
 }
 
 #[derive(Debug)]
@@ -111,7 +118,7 @@ impl HubrisPackage {
          * but also that we are disassembling Thumb-2 -- and (importantly) to
          * allow M-profile instructions.
          */
-        let mut cs = Capstone::new()
+        let cs = Capstone::new()
             .arm()
             .mode(arch::arm::ArchMode::Thumb)
             .extra_mode([arch::arm::ArchExtraMode::MClass].iter().map(|x| *x))
@@ -120,7 +127,10 @@ impl HubrisPackage {
 
         Ok(Self {
             cs: match cs {
-                Ok(mut cs) => { cs.set_skipdata(true); cs }
+                Ok(mut cs) => {
+                    cs.set_skipdata(true).expect("failed to set skipdata");
+                    cs
+                }
                 Err(err) => { 
                     return err!("failed to initialize disassembler: {}", err);
                 }
@@ -129,7 +139,6 @@ impl HubrisPackage {
             instrs: HashMap::new(),
             modules: BTreeMap::new(),
             symbols: BTreeMap::new(),
-            branch: None,
         })
     }
 
@@ -148,12 +157,12 @@ impl HubrisPackage {
     pub fn instr_target(
         &self,
         addr: u32
-    ) -> Option<u32> {
+    ) -> HubrisTarget {
         match self.instrs.get(&addr) {
             Some(instr) => {
                 instr.1
             }
-            None => None
+            None => HubrisTarget::None
         }
     }
 
@@ -189,46 +198,73 @@ impl HubrisPackage {
 
     fn instr_branch_target(
         &self,
-        instr: &capstone::Insn
-    ) -> (Option<u32>, Option<capstone::InsnGroupId>)  {
-        let mut branch = self.branch;
+        instr: &capstone::Insn,
+    ) -> HubrisTarget {
+        let detail = match self.cs.insn_detail(&instr) {
+            Ok(detail) => { detail }
+            _ => { return HubrisTarget::None }
+        };
 
-        if let Ok(detail) = self.cs.insn_detail(&instr) {
-            let mut br = false;
+        let mut jump = false;
 
-            for g in detail.groups() {
-                if branch.is_none() {
-                    if let Some(name) = self.cs.group_name(g.into()) {
-                        if name == "branch_relative" {
-                            branch = Some(g);
-                        }
-                    }
-                }
+        const BREL: u8 = InsnGroupType::CS_GRP_BRANCH_RELATIVE as u8;
+        const JUMP: u8 = InsnGroupType::CS_GRP_JUMP as u8;
+        const ARM_REG_PC: u16 = arch::arm::ArmReg::ARM_REG_PC as u16;
 
-                if let Some(group) = branch {
-                    if g == group {
-                        br = true;
-                        break;
-                    }
-                }
-            }
+        for g in detail.groups() {
+            if let InsnGroupId(BREL) = g {
+                let arch = detail.arch_detail();
+                let ops = arch.operands();
 
-            if !br {
-                return (None, branch);
-            }
+                let op = ops.last().unwrap_or_else(|| {
+                    panic!("missing operand!");
+                });
 
-            let arch = detail.arch_detail();
-            let ops = arch.operands();
-            if let Some(op) = ops.last() {
                 if let arch::ArchOperand::ArmOperand(op) = op {
                     if let arch::arm::ArmOperandType::Imm(val) = op.op_type {
-                        return (Some(val as u32), branch);
+                        return HubrisTarget::Direct(val as u32);
+                    }
+                }
+            }
+
+            if let InsnGroupId(JUMP) = g {
+                /*
+                 * If we have an instruction in the JUMP group, note it -- but
+                 * keep looking as if we see a BREL, that will take priority.
+                 */
+                jump = true;
+            }
+        }
+
+        if jump {
+            return HubrisTarget::Indirect;
+        }
+
+        /*
+         * Ideally, we wouldn't need to do anything else:  the logic above
+         * would find every control transfer instruction that was either
+         * direct or indirect.  Unfortunately, Capstone misses a class of
+         * control transfer instructions (those that write to the PC via a
+         * pop, in particular).  Worse, capstone-rs#84 prevents us from
+         * determining conclusively that our PC is being written to.  So we
+         * err on the side of not emitting false positives and treat any
+         * instruction operating on a PC to be a potential indirect branch.
+         * This is not entirely correct, of course -- and means that we could
+         * potentially miss some misinterpretation of a trace stream when we
+         * see a spurious transfer of control follow a PC-relative (but not
+         * control-transferring instruction).
+         */
+        for op in detail.arch_detail().operands() {
+            if let arch::ArchOperand::ArmOperand(op) = op {
+                if let arch::arm::ArmOperandType::Reg(reg) = op.op_type {
+                    if let RegId(ARM_REG_PC) = reg {
+                        return HubrisTarget::Indirect;
                     }
                 }
             }
         }
 
-        (None, branch)
+        HubrisTarget::None
     }
 
     fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
@@ -463,9 +499,7 @@ impl HubrisPackage {
             last = (addr, b.len());
 
             let target = self.instr_branch_target(&instr);
-            self.branch = target.1;
-
-            self.instrs.insert(addr, (v, target.0));
+            self.instrs.insert(addr, (v, target));
         }
 
         /*
