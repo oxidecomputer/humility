@@ -78,6 +78,34 @@ impl HumilityLog {
     }
 }
 
+struct TraceInstruction {
+    nsecs: u64,
+    addr: u32,
+    len: u32,
+    target: HubrisTarget,
+    skipped: bool,
+}
+
+struct TraceException {
+    nsecs: u64,
+    exception: ETM3Exception
+}
+
+#[derive(Debug)]
+struct TraceConfig<'a> {
+    hubris: &'a HubrisPackage,
+    flowindent: bool,
+    traceid: Option<u8>,
+}
+
+#[derive(Debug, Default)]
+struct TraceState {
+    indent: usize,
+    target: Option<HubrisTarget>,
+    inlined: Vec<HubrisGoff>,
+    stack: Vec<usize>,
+}
+
 const HUMILITY_ETM_SWOSCALER: u16 = 10;
 const HUMILITY_ETM_TRACEID: u8 = 0x54;
 const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
@@ -292,48 +320,110 @@ fn etmcmd_attach(matches: &clap::ArgMatches,
 }
 
 fn etmcmd_trace(
-    hubris: &HubrisPackage,
-    nsecs: u64,
-    addr: u32,
-    _len: u32,
-    skipped: bool
+    config: &TraceConfig,
+    instr: &TraceInstruction,
+    state: &mut TraceState,
 ) -> Result<(), Box<dyn Error>> {
-
-    let c = if !skipped { 'E' } else { 'N' };
+    let hubris = config.hubris;
+    let addr = instr.addr;
+    let c = if !instr.skipped { 'E' } else { 'N' };
     let module = hubris.instr_mod(addr).unwrap_or("<unknown>");
     let sym = hubris.instr_sym(addr).unwrap_or(("<unknown>", addr));
+    let sigil = 2;
 
-    println!("{:-10} {:08x} {} {}:{}+{:x}",
-        nsecs, addr, c, module, sym.0, addr - sym.1);
+    if !config.flowindent {
+        println!("{:-10} {:08x} {} {}:{}+{:x} {:x?}",
+            instr.nsecs, addr, c, module, sym.0, addr - sym.1, instr.target);
+        return Ok(());
+    }
+
+    let inlined = hubris.instr_inlined(addr, sym.1);
+
+    match state.target {
+        Some(HubrisTarget::Call(_)) |
+        Some(HubrisTarget::IndirectCall) => {
+            state.indent += 2;
+            println!("{:-10} {:width$}-> {}:{}", instr.nsecs, "", module, sym.0,
+                width = state.indent);
+        }
+        None => {
+            println!("{:-10} {:width$} ? {}:{}", instr.nsecs, "", module, sym.0,
+                width = state.indent);
+        }
+        _ => {}
+    }
+
+    for i in 0..inlined.len() {
+        if i < state.inlined.len() && inlined[i].id == state.inlined[i] {
+            continue;
+        }
+
+        println!("{:-10} {:width$} | {}:{}", instr.nsecs, "", module,
+            inlined[i].name, width = state.indent + (i * 2) + sigil);
+    }
+
+    while let Some(_) = state.inlined.pop() {
+        continue;
+    }
+
+    for inline in inlined {
+        state.inlined.push(inline.id);
+    }
+
+    match instr.target {
+        HubrisTarget::Call(_) |
+        HubrisTarget::IndirectCall => {
+            state.stack.push(state.indent);
+
+            if state.inlined.len() > 0 {
+                state.indent += (state.inlined.len() * 2) + sigil - 1;
+            }
+        }
+        HubrisTarget::Return => {
+            println!("{:-10} {:width$}<- {}:{}", instr.nsecs, "", module, sym.0,
+                width = state.indent);
+
+            if state.stack.len() > 0 {
+                state.indent = state.stack.pop().unwrap();
+            } else {
+                if state.indent > 0 {
+                    state.indent -= 2;
+                }
+            }
+        }
+        _ => {}
+    }
+
+    state.target = Some(instr.target);
 
     Ok(())
 }
 
 fn etmcmd_trace_exception(
-    _hubris: &HubrisPackage,
-    nsecs: u64,
-    exception: ETM3Exception
+    config: &TraceConfig,
+    exception: &TraceException,
+    state: &mut TraceState,
 ) -> Result<(), Box<dyn Error>> {
-    println!("{:-10} {:8} X {:?}", nsecs, "-", exception);
+    println!("{:-10} {:8} X {:?}", exception.nsecs, "-", exception.exception);
 
     Ok(())
 }
 
 fn etmcmd_ingest(
-    hubris: &HubrisPackage,
+    config: &TraceConfig,
     filename: &str,
-    traceid: Option<u8>
 ) -> Result<(), Box<dyn Error>> {
     let file = File::open(filename)?;
     let mut rdr = csv::Reader::from_reader(file);
     let mut curaddr: Option<u32> = None;
     let mut lastaddr: Option<u32> = None;
+    let hubris = config.hubris;
 
-    let config = &ETM3Config {
+    let econfig = &ETM3Config {
         alternative_encoding: true,
         context_id: 0,
         data_access: false,
-        traceid: traceid.unwrap_or(HUMILITY_ETM_TRACEID),
+        traceid: config.traceid.unwrap_or(HUMILITY_ETM_TRACEID),
     };
 
     type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
@@ -342,7 +432,9 @@ fn etmcmd_ingest(
     let mut broken = false;
     let mut target: (Option<u32>, HubrisTarget) = (None, HubrisTarget::None);
 
-    etm_ingest(&config, || {
+    let mut state = TraceState::default();
+
+    etm_ingest(&econfig, || {
         if let Some(line) = iter.next() {
             let record: SaleaeTraceRecord = line?;
             Ok(Some((record.1, record.0)))
@@ -384,7 +476,17 @@ fn etmcmd_ingest(
             };
 
             target = (Some(addr), hubris.instr_target(addr));
-            etmcmd_trace(hubris, nsecs, addr, l, skipped)
+            etmcmd_trace(
+                config,
+                &TraceInstruction {
+                    nsecs: nsecs,
+                    addr: addr,
+                    target: target.1,
+                    len: l,
+                    skipped: skipped
+                },
+                &mut state
+            )
         };
 
         match packet.header {
@@ -426,7 +528,8 @@ fn etmcmd_ingest(
                 lastaddr = curaddr;
 
                 match (target.0, target.1) {
-                    (Some(origin), HubrisTarget::Direct(expected)) => {
+                    (Some(origin), HubrisTarget::Direct(expected)) | 
+                    (Some(origin), HubrisTarget::Call(expected)) => {
                         if curaddr.unwrap() != expected {
                             warn!(
                                 concat!(
@@ -455,7 +558,14 @@ fn etmcmd_ingest(
 
                 match exception {
                     Some(exception) => {
-                        etmcmd_trace_exception(hubris, nsecs, exception)?;
+                        etmcmd_trace_exception(
+                            config,
+                            &TraceException {
+                                nsecs: nsecs,
+                                exception: exception
+                            },
+                            &mut state
+                        )?;
                     }
                     None => {}
                 }
@@ -464,7 +574,9 @@ fn etmcmd_ingest(
         }
 
         Ok(())
-    })
+    })?;
+
+    Ok(())
 }
 
 fn etmcmd(
@@ -504,7 +616,13 @@ fn etmcmd(
     };
 
     if let Some(ingest) = submatches.value_of("ingest") {
-        match etmcmd_ingest(hubris, ingest, traceid) {
+        let config = TraceConfig {
+            hubris: hubris,
+            flowindent: submatches.is_present("flowindent"),
+            traceid: traceid,
+        };
+
+        match etmcmd_ingest(&config, ingest) {
             Err(e) => {
                 fatal!("failed to ingest {}: {}", ingest, e);
             }
@@ -622,6 +740,12 @@ fn main() {
                 .short("i")
                 .help("ingest ETM data as CSV")
                 .value_name("filename")
+            )
+            .arg(
+                Arg::with_name("flowindent")
+                .long("flowindent")
+                .short("F")
+                .help("flowindent ingested data")
             )
             .arg(
                 Arg::with_name("clockscaler")

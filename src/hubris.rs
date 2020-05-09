@@ -15,17 +15,38 @@ use std::convert::Infallible;
 use std::path::Path;
 use std::str;
 
+use fallible_iterator::FallibleIterator;
+
 use goblin::elf::Elf;
 use capstone::prelude::*;
 use capstone::InsnGroupType;
+use rustc_demangle::demangle;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
-    current: u32,                           // current object
-    cs: capstone::Capstone,                 // Capstone library handle
-    instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>, // instructions
-    modules: BTreeMap<u32, (String, u32)>,  // modules
-    symbols: BTreeMap<u32, (String, u32, HubrisGoff)>,
+    // current object
+    current: u32,
+
+    // Capstone library handle
+    cs: capstone::Capstone,
+
+    // Instructions: address to bytes/target tuple
+    instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>,
+
+    // Modules: address to string/base tuple
+    modules: BTreeMap<u32, (String, u32)>,
+
+    // DWARF symbols: address to name/length/goff tuple 
+    dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
+
+    // ELF symbols: address to name/length tuple
+    esyms: BTreeMap<u32, (String, u32)>,
+
+    // Inlined: address/nesting tuple to length/goff/origin tuple
+    inlined: BTreeMap<(u32, isize), (u32, HubrisGoff, HubrisGoff)>,
+
+    // Subprograms: goff to name
+    subprograms: HashMap<HubrisGoff, String>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
@@ -39,10 +60,28 @@ pub struct HubrisGoff {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub struct HubrisSymbol<'a> {
+    pub addr: u32,
+    pub name: &'a str,
+    pub goff: Option<HubrisGoff>,
+}
+
+#[derive(Debug)]
+pub struct HubrisInlined<'a> {
+    pub addr: u32,
+    pub name: &'a str,
+    pub id: HubrisGoff,
+    pub origin: HubrisGoff,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub enum HubrisTarget {
     None,
-    Indirect,
     Direct(u32),
+    Indirect,
+    Call(u32),
+    IndirectCall,
+    Return,
 }
 
 #[derive(Debug)]
@@ -138,7 +177,10 @@ impl HubrisPackage {
             current: 0,
             instrs: HashMap::new(),
             modules: BTreeMap::new(),
-            symbols: BTreeMap::new(),
+            dsyms: BTreeMap::new(),
+            esyms: BTreeMap::new(),
+            inlined: BTreeMap::new(),
+            subprograms: HashMap::new()
         })
     }
 
@@ -185,15 +227,74 @@ impl HubrisPackage {
         &self,
         addr: u32
     ) -> Option<(&str, u32)> {
-        if let Some(sym) = self.symbols.range(..=addr).next_back() {
-            if addr < *sym.0 + (sym.1).1 {
+
+        let sym: Option<(&str, u32)>;
+
+        /*
+         * First, check our DWARF symbols.
+         */
+        sym = match self.dsyms.range(..=addr).next_back() {
+            Some(sym) if addr < *sym.0 + (sym.1).1 => {
                 Some((&(sym.1).0, *sym.0 as u32))
-            } else {
-                None
             }
-        } else {
-            None
+            _ => None
+        };
+
+        /*
+         * Fallback to our ELF symbols.
+         */
+        match sym {
+            Some(_) => sym,
+            None => {
+                match self.esyms.range(..=addr).next_back() {
+                    Some(sym) if addr < *sym.0 + (sym.1).1 => {
+                        Some((&(sym.1).0, *sym.0 as u32))
+                    }
+                    _ => None
+                }
+            }
         }
+    }
+
+    pub fn instr_inlined(
+        &self,
+        pc: u32,
+        base: u32,
+    ) -> Vec<HubrisInlined> {
+        let mut inlined: Vec<HubrisInlined> = vec![];
+
+        /*
+         * We find our stack of inlined functions by searching backwards from
+         * our address (which we know must be greater than or equal to all
+         * inlined functions that it is in).  This yields a vector that starts
+         * from the greatest depth and ends with the least depth -- so we
+         * reverse it before we return it.  We know that our search is over
+         * when the address plus the length is less than our base.
+         */
+        for ((addr, _depth), (len, goff, origin)) in
+            self.inlined.range(..=(pc, std::isize::MAX)).rev()
+        {
+            if addr + len < base {
+                break;
+            }
+
+            if addr + len <= pc {
+                continue;
+            }
+
+            if let Some(func) = self.subprograms.get(origin) {
+                inlined.push(HubrisInlined {
+                    addr: *addr as u32,
+                    name: &func,
+                    id: *goff,
+                    origin: *origin,
+                });
+            }
+
+        }
+
+        inlined.reverse();
+        inlined
     }
 
     fn instr_branch_target(
@@ -206,59 +307,87 @@ impl HubrisPackage {
         };
 
         let mut jump = false;
+        let mut call = false;
+        let mut brel = None;
 
         const BREL: u8 = InsnGroupType::CS_GRP_BRANCH_RELATIVE as u8;
         const JUMP: u8 = InsnGroupType::CS_GRP_JUMP as u8;
+        const CALL: u8 = InsnGroupType::CS_GRP_CALL as u8;
         const ARM_REG_PC: u16 = arch::arm::ArmReg::ARM_REG_PC as u16;
+        const ARM_REG_LR: u16 = arch::arm::ArmReg::ARM_REG_LR as u16;
+        const ARM_INSN_POP: u32 = arch::arm::ArmInsn::ARM_INS_POP as u32;
 
         for g in detail.groups() {
-            if let InsnGroupId(BREL) = g {
-                let arch = detail.arch_detail();
-                let ops = arch.operands();
+            match g {
+                InsnGroupId(BREL) => {
+                    let arch = detail.arch_detail();
+                    let ops = arch.operands();
 
-                let op = ops.last().unwrap_or_else(|| {
-                    panic!("missing operand!");
-                });
+                    let op = ops.last().unwrap_or_else(|| {
+                        panic!("missing operand!");
+                    });
 
+                    if let arch::ArchOperand::ArmOperand(op) = op {
+                        if let arch::arm::ArmOperandType::Imm(a) = op.op_type {
+                            brel = Some(a as u32);
+                        }
+                    }
+                }
+
+                InsnGroupId(JUMP) => {
+                    jump = true;
+                }
+
+                InsnGroupId(CALL) => {
+                    call = true;
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(addr) = brel {
+            if call {
+                return HubrisTarget::Call(addr);
+            } else {
+                return HubrisTarget::Direct(addr);
+            }
+        }
+
+        if call {
+            return HubrisTarget::IndirectCall;
+        }
+
+        /*
+         * If this is a JUMP that isn't a CALL, check to see if one of
+         * its operands is LR -- in which case it's a return (or could be
+         * a return).
+         */
+        if jump {
+            for op in detail.arch_detail().operands() {
                 if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Imm(val) = op.op_type {
-                        return HubrisTarget::Direct(val as u32);
+                    if let arch::arm::ArmOperandType::Reg(reg) = op.op_type {
+                        if let RegId(ARM_REG_LR) = reg {
+                            return HubrisTarget::Return;
+                        }
                     }
                 }
             }
 
-            if let InsnGroupId(JUMP) = g {
-                /*
-                 * If we have an instruction in the JUMP group, note it -- but
-                 * keep looking as if we see a BREL, that will take priority.
-                 */
-                jump = true;
-            }
-        }
-
-        if jump {
             return HubrisTarget::Indirect;
         }
 
         /*
-         * Ideally, we wouldn't need to do anything else:  the logic above
-         * would find every control transfer instruction that was either
-         * direct or indirect.  Unfortunately, Capstone misses a class of
-         * control transfer instructions (those that write to the PC via a
-         * pop, in particular).  Worse, capstone-rs#84 prevents us from
-         * determining conclusively that our PC is being written to.  So we
-         * err on the side of not emitting false positives and treat any
-         * instruction operating on a PC to be a potential indirect branch.
-         * This is not entirely correct, of course -- and means that we could
-         * potentially miss some misinterpretation of a trace stream when we
-         * see a spurious transfer of control follow a PC-relative (but not
-         * control-transferring instruction).
+         * Capstone doesn't have a group denoting returns (they are control
+         * transfers, but not considered in the JUMP group), so explicitly
+         * look for a pop instruction that writes to the PC.
          */
-        for op in detail.arch_detail().operands() {
-            if let arch::ArchOperand::ArmOperand(op) = op {
-                if let arch::arm::ArmOperandType::Reg(reg) = op.op_type {
-                    if let RegId(ARM_REG_PC) = reg {
-                        return HubrisTarget::Indirect;
+        if let InsnId(ARM_INSN_POP) = instr.id() {
+            for op in detail.arch_detail().operands() {
+                if let arch::ArchOperand::ArmOperand(op) = op {
+                    if let arch::arm::ArmOperandType::Reg(reg) = op.op_type {
+                        if let RegId(ARM_REG_PC) = reg {
+                            return HubrisTarget::Return;
+                        }
                     }
                 }
             }
@@ -284,6 +413,135 @@ impl HubrisPackage {
             object: self.current,
             goff: goff
         }
+    }
+
+    fn dwarf_value_goff<R: gimli::Reader<Offset = usize>>(
+        &self,
+        unit: &gimli::Unit<R>,
+        value: &gimli::AttributeValue<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Option<HubrisGoff> {
+        let goff;
+
+        match value {
+            gimli::AttributeValue::UnitRef(offs) => {
+                goff = match offs.to_unit_section_offset(unit) {
+                    gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
+                    gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
+                };
+            }
+
+            gimli::AttributeValue::DebugInfoRef(offs) => {
+                goff = offs.0;
+            }
+
+            _ => { return None; }
+        }
+
+        Some(HubrisGoff {
+            object: self.current,
+            goff: goff
+        })
+    }
+
+
+    fn dwarf_inlined<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<R>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        depth: isize,
+    ) -> Result<(), Box<dyn Error>> {
+        /*
+         * Iterate over our attributes looking for addresses
+         */
+        let mut attrs = entry.attrs();
+        let mut low: Option<u64> = None;
+        let mut high: Option<u64> = None;
+        let mut origin: Option<HubrisGoff> = None;
+
+        let goff = self.dwarf_goff(unit, entry);
+
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_low_pc,
+                    gimli::AttributeValue::Addr(addr),
+                ) => {
+                    low = Some(addr);
+                }
+                (
+                    gimli::constants::DW_AT_high_pc,
+                    gimli::AttributeValue::Udata(data),
+                ) => {
+                    high = Some(data);
+                }
+                (
+                    gimli::constants::DW_AT_abstract_origin,
+                    _
+                ) => {
+                    origin = self.dwarf_value_goff(unit, &attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        match (low, high, origin) {
+            (Some(addr), Some(len), Some(origin)) => {
+                self.inlined.insert(
+                    (addr as u32, depth),
+                    (len as u32, goff, origin)
+                );
+
+                return Ok(());
+            }
+            (None, None, Some(_)) => {}
+            _ => {
+                return Err(err(format!("missing origin for {}", goff)));
+            }
+        }
+
+        let mut attrs = entry.attrs();
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_ranges,
+                    gimli::AttributeValue::RangeListsRef(r),
+                ) => {
+                    let raw_ranges =
+                        dwarf.ranges.raw_ranges(r, unit.encoding())?;
+                    let raw_ranges: Vec<_> = raw_ranges.collect()?;
+
+                    for r in raw_ranges {
+                        match r {
+                            gimli::RawRngListEntry::AddressOrOffsetPair {
+                                begin,
+                                end,
+                            } => {
+                                let begin = begin as u32;
+                                let end = end as u32;
+
+                                self.inlined.insert(
+                                    (begin, depth),
+                                    (end - begin, goff, origin.unwrap()),
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+
+        Err(err(format!("missing address range for {}", goff)))
     }
 
     fn dwarf_subprogram<'a, R: gimli::Reader<Offset = usize>>(
@@ -334,16 +592,24 @@ impl HubrisPackage {
             }
         }
 
-        if let (Some(name), Some(addr), Some(len)) = (name, addr, len) {
-            if addr != 0 {
-                self.symbols.insert(
-                    addr as u32,
-                    (String::from(name), len as u32, goff)
-                );
+        if let Some(name) = name {
+            match (addr, len) {
+                (Some(addr), Some(len)) if addr != 0 => {
+                    self.dsyms.insert(
+                        addr as u32,
+                        (String::from(name), len as u32, goff)
+                    );
+                }
+                _ => {}
             }
-        }
 
-        Ok(())
+            self.subprograms.insert(goff, String::from(name));
+
+            Ok(())
+        } else {
+            warn!("no name found for {}", goff);
+            Ok(())
+        }
     }
 
     fn load_object_dwarf(
@@ -405,21 +671,10 @@ impl HubrisPackage {
                 }
 
                 match entry.tag() {
-/*
-                    gimli::constants::DW_TAG_formal_parameter => {
-                        self.dwarf_formal_parameter(&dwarf, &unit, &entry,
-                            stack[(depth - 1) as usize]
-                        )?;
-                    }
-
-                    gimli::constants::DW_TAG_variable => {
-                        self.dwarf_variable(&unit, &entry, depth)?;
-                    }
-
                     gimli::constants::DW_TAG_inlined_subroutine => {
                         self.dwarf_inlined(&dwarf, &unit, &entry, depth)?;
                     }
-*/
+
                     gimli::constants::DW_TAG_subprogram => {
                         self.dwarf_subprogram(&dwarf, &unit, &entry)?;
                     }
@@ -445,6 +700,37 @@ impl HubrisPackage {
         let elf = Elf::parse(&buffer).map_err(|e| {
             err(format!("unrecognized ELF object: {}: {}", object, e))
         })?;
+
+        let arm = elf.header.e_machine == goblin::elf::header::EM_ARM;
+
+        if !arm {
+            return err!("{} not an ARM ELF object", object);
+        }
+
+        for sym in elf.syms.iter() {
+            if sym.st_name == 0 || sym.st_size == 0 {
+                continue;
+            }
+
+            let name = match elf.strtab.get(sym.st_name) {
+                Some(n) => n?,
+                None => {
+                    return err!("bad symbol in {}: {}", object, sym.st_name);
+                }
+            };
+
+            /*
+             * On ARM, we must explicitly clear the low bit of the symbol
+             * table, which exists only to indicate a function that contains
+             * Thumb instructions (which is of course every function on a
+             * microprocessor that executes only Thumb instructions).
+             */
+            assert!(arm);
+            let val = sym.st_value as u32 & !1;
+            let dem = format!("{:#}", demangle(name));
+
+            self.esyms.insert(val, (dem, sym.st_size as u32));
+        }
 
         let text = elf
             .section_headers
