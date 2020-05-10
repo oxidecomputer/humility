@@ -103,7 +103,7 @@ struct TraceState {
     indent: usize,
     target: Option<HubrisTarget>,
     inlined: Vec<HubrisGoff>,
-    stack: Vec<usize>,
+    stack: Vec<(usize, Vec<HubrisGoff>, u32)>,
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 10;
@@ -358,43 +358,54 @@ fn etmcmd_trace(
             continue;
         }
 
-        println!("{:-10} {:width$} | {}:{}", instr.nsecs, "", module,
-            inlined[i].name, width = state.indent + (i * 2) + sigil);
+        println!("{:-10} {:width$} | {}:{} {}", instr.nsecs, "", module,
+            inlined[i].name, inlined[i].id,
+            width = state.indent + (i * 2) + sigil);
     }
 
     while let Some(_) = state.inlined.pop() {
         continue;
     }
 
-    for inline in inlined {
-        state.inlined.push(inline.id);
-    }
+    state.target = Some(instr.target);
 
     match instr.target {
         HubrisTarget::Call(_) |
         HubrisTarget::IndirectCall => {
-            state.stack.push(state.indent);
+            let mut nindent = state.indent;
 
-            if state.inlined.len() > 0 {
-                state.indent += (state.inlined.len() * 2) + sigil - 1;
+            if inlined.len() > 0 {
+               nindent += (inlined.len() * 2) + 1;
             }
+
+            state.stack.push((
+                state.indent,
+                inlined.iter().map(|i| i.id).collect(),
+                instr.addr,
+            ));
+
+            state.indent = nindent;
+
+            return Ok(());
         }
+
         HubrisTarget::Return => {
             println!("{:-10} {:width$}<- {}:{}", instr.nsecs, "", module, sym.0,
                 width = state.indent);
 
             if state.stack.len() > 0 {
-                state.indent = state.stack.pop().unwrap();
+                let top = state.stack.pop().unwrap();
+
+                state.inlined = top.1;
+                state.indent = top.0;
             } else {
-                if state.indent > 0 {
-                    state.indent -= 2;
-                }
+                state.indent = 0;
             }
         }
-        _ => {}
+        _ => {
+            state.inlined = inlined.iter().map(|i| i.id).collect();
+        }
     }
-
-    state.target = Some(instr.target);
 
     Ok(())
 }
