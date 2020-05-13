@@ -168,6 +168,28 @@ etm_register!(ETMIDR, 0x079,
 );
 
 /*
+ * ETM Configuration Code Extension Register
+ */
+etm_register!(ETMCCER, 0x07a,
+    #[derive(Copy, Clone)]
+    pub struct ETMCCER(u32);
+    impl Debug;
+    pub has_64bit_timestamp, _: 29;
+    pub has_binary_timestamp, _: 28;
+    pub has_reduced_counter, _: 27;
+    pub has_virtual_extensions, _: 26;
+    pub has_timestamping, _: 22;
+    pub has_etmeibcr, _: 21;
+    pub can_use_ice, _: 20;
+    pub num_ice_inputs, _: 19, 16;
+    pub num_instrumentation_resources, _: 15, 13;
+    pub no_data_comparison, _: 12;
+    pub all_registers_readable, _: 11;
+    pub extended_input_bus_size, _: 10, 3;
+    pub num_extended_input_selectors, _: 2, 0;
+);
+
+/*
  * ETM Trace ID Register
  */
 etm_register!(ETMTRACEIDR, 0x080,

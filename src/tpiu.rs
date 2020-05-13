@@ -136,6 +136,92 @@ pub struct TPIUPacket {
     pub time: f64
 }
 
+#[derive(Copy, Clone, Debug)]
+enum TPIUState {
+    Searching,
+    SearchingSyncing(usize),
+    Framing,
+    FramingSyncing(usize)
+}
+
+const TPIU_FRAME_SYNC: [u8; 4] = [ 0xff, 0xff, 0xff, 0x7f ];
+const TPIU_ID_NULL: u8 = 0;
+
+fn tpiu_next_state(
+    state: TPIUState,
+    byte: u8,
+    offset: usize,
+) -> TPIUState {
+    let sync = &TPIU_FRAME_SYNC;
+
+    /*
+     * Based on our current state and the byte, we're looking at, determine
+     * our next framing state.
+     */
+    let nstate = match state {
+        TPIUState::SearchingSyncing(next) if byte != sync[next] => {
+            TPIUState::Searching
+        }
+
+        TPIUState::FramingSyncing(next) if byte != sync[next] => {
+            info!("TPIU framing derailed at offset {}", offset);
+            TPIUState::Searching
+        }
+
+        TPIUState::SearchingSyncing(next) if next + 1 < sync.len() => {
+            TPIUState::SearchingSyncing(next + 1)
+        }
+
+        TPIUState::FramingSyncing(next) if next + 1 < sync.len() => {
+            TPIUState::FramingSyncing(next + 1)
+        }
+
+        TPIUState::SearchingSyncing(next) => {
+            info!("TPIU sync packet found at offset {}", offset - next);
+            TPIUState::Framing
+        }
+
+        TPIUState::FramingSyncing(_) => {
+            TPIUState::Framing
+        }
+
+        TPIUState::Searching if byte != sync[0] => {
+            TPIUState::Searching
+        }
+
+        TPIUState::Searching => {
+            TPIUState::SearchingSyncing(1)
+        }
+
+        TPIUState::Framing if byte != sync[0] => {
+            TPIUState::Framing
+        }
+
+        TPIUState::Framing => {
+            TPIUState::FramingSyncing(1)
+        }
+    };
+
+    match (state, nstate) {
+        (TPIUState::Searching, TPIUState::Searching) |
+        (TPIUState::Searching, TPIUState::SearchingSyncing(_)) |
+        (TPIUState::SearchingSyncing(_), TPIUState::Searching) |
+        (TPIUState::SearchingSyncing(_), TPIUState::Framing) |
+        (TPIUState::SearchingSyncing(_), TPIUState::SearchingSyncing(_)) |
+        (TPIUState::Framing, TPIUState::Framing) |
+        (TPIUState::Framing, TPIUState::FramingSyncing(_)) |
+        (TPIUState::FramingSyncing(_), TPIUState::Framing) |
+        (TPIUState::FramingSyncing(_), TPIUState::Searching) |
+        (TPIUState::FramingSyncing(_), TPIUState::FramingSyncing(_)) => {}
+        _ => {
+            panic!("illegal state transition at offset {}: {:?} -> {:?}",
+                offset, state, nstate);
+        }
+    }
+
+    nstate
+}
+
 fn tpiu_check_frame(
     frame: &Vec<(u8, f64, usize)>,
     valid: &Vec<bool>,
@@ -154,6 +240,14 @@ fn tpiu_check_frame(
         let half = TPIUFrameHalfWord::from((frame[base].0, frame[base + 1].0));
 
         if half.f_control() {
+            /*
+             * The NULL source identifier denotes data we need to explicitly
+             * chuck; check for it.
+             */
+            if half.data_or_id() == TPIU_ID_NULL as u16 {
+                continue;
+            }
+
             /*
              * The two conditions under which we can reject a frame:  we
              * either have an ID that isn't expected, or we are not expecting
@@ -212,7 +306,7 @@ fn tpiu_process_frame(
                 /*
                  * If this is the last half-word, the auxiliary bit "must be
                  * ignored" (Sec. D4.2 in the ARM CoreSight Architecture
-                 * Specification), and applies to subsequent record.  So in
+                 * Specification), and applies to the subsequent record.  So in
                  * this case, we just return the ID.
                  */
                 return Ok(packet.id);
@@ -223,8 +317,10 @@ fn tpiu_process_frame(
                     callback(&packet)?;
                 }
                 (true, Some(current)) => {
+                    let saved = packet.id;
                     packet.id = current;
                     callback(&packet)?;
+                    packet.id = saved;
                 }
                 (true, None) => {
                     /*
@@ -277,8 +373,7 @@ pub fn tpiu_ingest(
     mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
 
-    enum FrameState { Searching, Framing };
-    let mut state: FrameState = FrameState::Searching;
+    let mut state = TPIUState::Searching;
 
     let mut ndx = 0;
     let mut frame: Vec<(u8, f64, usize)> = vec![(0u8, 0.0, 0); 16];
@@ -288,6 +383,14 @@ pub fn tpiu_ingest(
     let mut offs = 0;
     let mut datum: u8;
     let mut time: f64;
+
+    let mut filter = |packet: &TPIUPacket| {
+        if packet.id == TPIU_ID_NULL {
+            Ok(())
+        } else {
+            callback(packet)
+        }
+    };
 
     loop {
         match readnext()? {
@@ -303,9 +406,29 @@ pub fn tpiu_ingest(
         offs += 1;
 
         match state {
-            FrameState::Searching => {
-                if ndx == 0 && !tpiu_check_byte(datum, &valid) {
-                    continue;
+            TPIUState::SearchingSyncing(_) |
+            TPIUState::FramingSyncing(_) => {
+                state = tpiu_next_state(state, datum, offs);
+                continue;
+            }
+
+            TPIUState::Searching => {
+                if ndx == 0 {
+                    state = tpiu_next_state(state, datum, offs);
+
+                    match state {
+                        TPIUState::SearchingSyncing(_) => {
+                            continue;
+                        }
+                        TPIUState::Searching => {
+                            if !tpiu_check_byte(datum, &valid) {
+                                continue;
+                            }
+                        }
+                        _ => {
+                            unreachable!();
+                        }
+                    }
                 }
 
                 frame[ndx] = (datum, time, offs);
@@ -319,10 +442,10 @@ pub fn tpiu_ingest(
                  * We have a complete frame.  We need to now check the entire
                  * frame.
                  */
-                if tpiu_check_frame(&frame, &valid, false) {
+                if tpiu_check_frame(&frame, &valid, true) {
                     info!("valid TPIU frame starting at offset {}", frame[0].2);
-                    id = Some(tpiu_process_frame(&frame, id, &mut callback)?);
-                    state = FrameState::Framing;
+                    id = Some(tpiu_process_frame(&frame, id, &mut filter)?);
+                    state = TPIUState::Framing;
                     nvalid = 1;
                     ndx = 0;
                     continue;
@@ -352,7 +475,21 @@ pub fn tpiu_ingest(
                 }
             }
 
-            FrameState::Framing => {
+            TPIUState::Framing => {
+                if ndx == 0 {
+                    state = tpiu_next_state(state, datum, offs);
+
+                    match state {
+                        TPIUState::Framing => {}
+                        TPIUState::FramingSyncing(_) => {
+                            continue;
+                        }
+                        _ => {
+                            unreachable!();
+                        }
+                    }
+                }
+
                 frame[ndx] = (datum, time, offs);
                 ndx += 1;
 
@@ -364,23 +501,23 @@ pub fn tpiu_ingest(
                  * We have a complete frame, but we more or less expect it to
                  * be correct.  Warn if this fails.
                  */
-                if !tpiu_check_frame(&frame, &valid, false) {
+                if !tpiu_check_frame(&frame, &valid, true) {
                     if nvalid == 0 {
                         warn!("two consecutive invalid frames; resuming search");
-                        state = FrameState::Searching;
+                        state = TPIUState::Searching;
                     } else {
                         warn!(
                             "after {} frame{}, invalid frame at offset {}",
                             nvalid,
                             if nvalid == 1 { "" } else { "s" },
-                            offs - frame.len()
+                            frame[0].2
                         );
 
                         nvalid = 0;
                     }
                 } else {
                     nvalid += 1;
-                    id = Some(tpiu_process_frame(&frame, id, &mut callback)?);
+                    id = Some(tpiu_process_frame(&frame, id, &mut filter)?);
                 }
 
                 ndx = 0;

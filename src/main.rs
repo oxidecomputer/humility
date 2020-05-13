@@ -13,6 +13,12 @@ use debug::*;
 mod etm;
 use etm::*;
 
+mod itm;
+use itm::*;
+
+mod dwt;
+use dwt::*;
+
 mod tpiu;
 use tpiu::*;
 
@@ -143,6 +149,9 @@ fn etmcmd_probe(
 
     let etmidr = ETMIDR::read(&core)?;
     info!("{:#x?}", etmidr);
+
+    let etmccer = ETMCCER::read(&core)?;
+    info!("{:#x?}", etmccer);
 
     Ok(())
 }
@@ -669,6 +678,239 @@ fn etmcmd(
     rval
 }
 
+fn itmcmd_probe(
+    core: &probe_rs::Core,
+) -> Result<(), probe_rs::Error> {
+    let tab = read_debug_rom_table(&core)?;
+
+    info!("ROM debug table: {:#x?}", tab);
+
+    info!("{:#x?}", ITM_LSR::read(&core)?);
+    info!("{:#x?}", ITM_TCR::read(&core)?);
+    info!("{:#x?}", ITM_TER::read(&core)?);
+    info!("{:#x?}", DBGMCU_CR::read(&core)?);
+    info!("{:#x?}", TPIU_FFCR::read(&core)?);
+    info!("{:#x?}", DWT_CTRL::read(&core)?);
+
+    Ok(())
+}
+
+fn itmcmd_enable(
+    core: &probe_rs::Core,
+    clockscaler: Option<u16>,
+    traceid: Option<u8>,
+) -> Result<(), probe_rs::Error> {
+    /*
+     * First, enable TRCENA in the DEMCR.
+     */
+    let mut val = DEMCR::read(&core)?;
+    val.set_trcena(true);
+    val.write(&core)?;
+
+    /*
+     * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
+     * trace mode to be asynchronous.
+     */
+    let mut val = DBGMCU_CR::read(&core)?;
+    val.set_trace_ioen(true);
+    val.set_trace_mode(0);
+    val.write(&core)?;
+
+    /*
+     * Now setup the TPIU.
+     */
+    let mut val = TPIU_SPPR::read(&core)?;
+    val.set_txmode(TPIUMode::NRZ);
+    val.write(&core)?;
+
+    let mut val = TPIU_FFCR::read(&core)?;
+    val.set_continuous_formatting(true);
+    val.write(&core)?;
+
+    /*
+     * HCLK seems to really vary, for reasons that aren't well understood.  We
+     * use a default SWOSCALER of 10, which has historically brought the
+     * TRACECLK to something attainable with a Saleae.  (The clock also seems
+     * to need to evenly divide 4.5 MHz, which has resulted in a clock of 1.5
+     * to 4.5 MHz in practice.)  Note that the size of the scaler has a direct
+     * effect on probe effect:  the higher the scaler, the slower TRACECLK --
+     * and therefore the more frequently that the CPU will stall on a full
+     * TPIU FIFO.
+     */
+    let mut acpr = TPIU_ACPR::read(&core)?;
+    acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
+    acpr.write(&core)?;
+    trace!("{:#x?}", TPIU_ACPR::read(&core)?);
+
+    /*
+     * Unlock the ITM.
+     */
+    ITM_LAR::unlock(&core)?;
+
+    /*
+     * Disable the ITM.
+     */
+    let mut tcr = ITM_TCR::read(&core)?;
+    tcr.set_itm_enable(false);
+    tcr.write(&core)?;
+
+    /*
+     * Spin until the ITM is not busy
+     */
+    while ITM_TCR::read(&core)?.itm_busy() {
+        continue;
+    }
+
+    /*
+     * Enable the DWT to generate a synchronization packet every 8M cycles.
+     */
+    let mut dwt = DWT_CTRL::read(&core)?;
+    dwt.set_synctap(DWTSyncTapFrequency::CycCnt8M);
+    dwt.set_cyccnt_enabled(true);
+    dwt.write(&core)?;
+
+    /*
+     * Enable all stimuli
+     */
+    let mut ter = ITM_TER::read(&core)?;
+    ter.set_enabled(0xffff_ffff);
+    ter.write(&core)?;
+
+    /*
+     * Set the trace ID
+     */
+    tcr = ITM_TCR::read(&core)?;
+    tcr.set_traceid(traceid.unwrap_or(HUMILITY_ITM_TRACEID).into());
+    tcr.set_timestamp_enable(false);
+    tcr.set_sync_enable(true);
+    tcr.set_itm_enable(true);
+    tcr.write(&core)?;
+
+    Ok(())
+}
+
+fn itmcmd_disable(
+    core: &probe_rs::Core
+) -> Result<(), probe_rs::Error> {
+    /*
+     * Unlock the ITM.
+     */
+    ITM_LAR::unlock(&core)?;
+
+    /*
+     * Disable the ITM.
+     */
+    let mut tcr = ITM_TCR::read(&core)?;
+    tcr.set_itm_enable(false);
+    tcr.write(&core)?;
+
+    info!("ITM disabled");
+
+    Ok(())
+}
+
+fn itmcmd_ingest(
+    traceid: Option<u8>,
+    filename: &str,
+) -> Result<(), Box<dyn Error>> {
+    let file = File::open(filename)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
+
+    let mut iter = rdr.deserialize();
+    let mut valid = vec![false; 256];
+
+    valid[traceid.unwrap_or(HUMILITY_ITM_TRACEID) as usize] = true;
+
+    tpiu_ingest(&valid, || {
+        if let Some(line) = iter.next() {
+            let record: SaleaeTraceRecord = line?;
+            Ok(Some((record.1, record.0)))
+        } else {
+            Ok(None)
+        }
+    }, |packet| {
+        println!("packet is {:#x?}", packet);
+        Ok(())
+    })
+}
+
+const HUMILITY_ITM_TRACEID: u8 = 0x3a;
+
+fn itmcmd(
+    hubris: &HubrisPackage,
+    matches: &clap::ArgMatches,
+    submatches: &clap::ArgMatches
+) -> Result<(), probe_rs::Error> {
+    let mut rval = Ok(());
+
+    let clockscaler = match submatches.value_of("clockscaler") {
+        Some(str) => {
+            match parse::<u16>(str) {
+                Ok(val) => { Some(val) }
+                Err(_e) => {
+                    fatal!("clockscaler must be an unsigned 16-bit integer");
+                }
+            }
+        }
+        _ => None
+    };
+
+    let traceid = match submatches.value_of("traceid") {
+        Some(str) => {
+            match parse::<u8>(str) {
+                Ok(val) if val < HUMILITY_ETM_TRACEID_MAX => {
+                    Some(val)
+                }
+                _ => {
+                    fatal!(
+                        "traceid has a maximum value of {:x}",
+                        HUMILITY_ETM_TRACEID_MAX
+                    );
+                }
+            }
+        }
+        _ => None
+    };
+
+    if let Some(ingest) = submatches.value_of("ingest") {
+        match itmcmd_ingest(traceid, ingest) {
+            Err(e) => {
+                fatal!("failed to ingest {}: {}", ingest, e);
+            }
+            _ => {
+                return Ok(());
+            }
+        }
+    }
+
+    /*
+     * For all of the other commands, we need to actually attach to the chip.
+     */
+    let core = etmcmd_attach(matches, submatches)?;
+    let _info = core.halt();
+
+    info!("core halted");
+
+    if submatches.is_present("probe") {
+        rval = itmcmd_probe(&core);
+    }
+
+    if submatches.is_present("enable") {
+        rval = itmcmd_enable(&core, clockscaler, traceid);
+    }
+
+    if submatches.is_present("disable") {
+        rval = itmcmd_disable(&core);
+    }
+
+    core.run()?;
+    info!("core resumed");
+
+    rval
+}
+
 fn probe(
     matches: &clap::ArgMatches,
     _submatches: &clap::ArgMatches
@@ -767,6 +1009,55 @@ fn main() {
                 .requires("enable")
             )
         )
+        .subcommand(SubCommand::with_name("itm")
+            .about(concat!(
+                "commands for ARM's ",
+                "Instrumentation Trace Macrocell (ITM) facility"
+            ))
+            .arg(
+                Arg::with_name("probe")
+                .long("probe")
+                .short("p")
+                .help("probe for ITM capability on attached device")
+                .conflicts_with_all(&["enable", "disable", "ingest"])
+            )
+            .arg(
+                Arg::with_name("enable")
+                .long("enable")
+                .short("e")
+                .help("enable ITM on attached device")
+                .conflicts_with_all(&["disable", "ingest"])
+            )
+            .arg(
+                Arg::with_name("disable")
+                .long("disable")
+                .short("d")
+                .help("disable ITM on attached device")
+            )
+            .arg(
+                Arg::with_name("traceid")
+                .long("traceid")
+                .short("t")
+                .help("sets ITM trace identifer (defaults to 0x3a)")
+                .value_name("identifier")
+                .conflicts_with("disable")
+            )
+            .arg(
+                Arg::with_name("ingest")
+                .long("ingest")
+                .short("i")
+                .help("ingest ITM data as CSV")
+                .value_name("filename")
+            )
+            .arg(
+                Arg::with_name("clockscaler")
+                .long("clockscaler")
+                .short("c")
+                .help("sets the value of SWOSCALER")
+                .value_name("scaler")
+                .requires("enable")
+            )
+        )
         .get_matches();
 
     if matches.is_present("verbose") {
@@ -803,6 +1094,13 @@ fn main() {
     if let Some(submatches) = matches.subcommand_matches("etm") {
         match etmcmd(&hubris, &matches, &submatches) {
             Err(err) => { fatal!("etm failed: {} (raw: \"{:?})\"", err, err); }
+            _ => { ::std::process::exit(0); }
+        }
+    }
+
+    if let Some(submatches) = matches.subcommand_matches("itm") {
+        match itmcmd(&hubris, &matches, &submatches) {
+            Err(err) => { fatal!("itm failed: {} (raw: \"{:?})\"", err, err); }
             _ => { ::std::process::exit(0); }
         }
     }
