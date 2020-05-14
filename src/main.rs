@@ -819,11 +819,8 @@ fn itmcmd_ingest(
     type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
 
     let mut iter = rdr.deserialize();
-    let mut valid = vec![false; 256];
 
-    valid[traceid.unwrap_or(HUMILITY_ITM_TRACEID) as usize] = true;
-
-    tpiu_ingest(&valid, || {
+    itm_ingest(traceid.unwrap_or(HUMILITY_ITM_TRACEID), || {
         if let Some(line) = iter.next() {
             let record: SaleaeTraceRecord = line?;
             Ok(Some((record.1, record.0)))
@@ -831,7 +828,15 @@ fn itmcmd_ingest(
             Ok(None)
         }
     }, |packet| {
-        println!("packet is {:#x?}", packet);
+        match packet.payload {
+            ITMPayload::Instrumentation { port, ref payload } => {
+                for p in payload.iter() {
+                    print!("{}", *p as char);
+                }
+            }
+            _ => {}
+        }
+
         Ok(())
     })
 }
