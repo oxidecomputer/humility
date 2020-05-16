@@ -447,9 +447,8 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "probe-rs"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6423e5e857f28693f61eafd58460d465bd8083cbc186178262ac9a7818018a8"
+version = "0.6.2"
+source = "git+https://github.com/probe-rs/probe-rs.git?branch=itm#f23dbf9ac85a32a93c5a55c36d379db19b5c5ff6"
 dependencies = [
  "base64",
  "bitfield",
@@ -477,8 +476,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-t2rust"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0e2d177a33e8c8a46d98767fb01877f1c466826b9c25f88749f35140d0aae0"
+source = "git+https://github.com/probe-rs/probe-rs.git?branch=itm#f23dbf9ac85a32a93c5a55c36d379db19b5c5ff6"
 dependencies = [
  "base64",
  "proc-macro2",

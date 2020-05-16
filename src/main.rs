@@ -678,6 +678,25 @@ fn etmcmd(
     rval
 }
 
+const HUMILITY_ITM_TRACEID: u8 = 0x3a;
+
+fn itmcmd_attach(matches: &clap::ArgMatches,
+    _submatches: &clap::ArgMatches
+) -> Result<(probe_rs::Session, probe_rs::Core), probe_rs::Error> {
+
+    let probes = Probe::list_all();
+    let probe = probes[0].open()?;
+
+    let chip = matches.value_of("chip").unwrap();
+    info!("attaching as chip {} ...", chip);
+    let session = probe.attach(chip)?;
+
+    let core = session.attach_to_core(0)?;
+    info!("attached");
+
+    Ok((session, core))
+}
+
 fn itmcmd_probe(
     core: &probe_rs::Core,
 ) -> Result<(), probe_rs::Error> {
@@ -841,7 +860,37 @@ fn itmcmd_ingest(
     })
 }
 
-const HUMILITY_ITM_TRACEID: u8 = 0x3a;
+fn itmcmd_ingest_attached(
+    session: &mut probe_rs::Session,
+    core: &mut probe_rs::Core,
+    traceid: Option<u8>,
+) -> Result<(), Box<dyn Error>> {
+
+    println!("will ingest from attached!");
+
+    let mut bytes: Vec<u8> = vec![];
+    let mut ndx = 0;
+
+    itm_ingest(traceid.unwrap_or(HUMILITY_ITM_TRACEID), || {
+        while ndx == bytes.len() {
+            bytes = session.read_swv().unwrap();
+            ndx = 0;
+        }
+        ndx += 1;
+        Ok(Some((bytes[ndx - 1], 0.0)))
+    }, |packet| {
+        match packet.payload {
+            ITMPayload::Instrumentation { port, ref payload } => {
+                for p in payload.iter() {
+                    print!("{}", *p as char);
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    })
+}
 
 fn itmcmd(
     hubris: &HubrisPackage,
@@ -893,7 +942,7 @@ fn itmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let core = etmcmd_attach(matches, submatches)?;
+    let (mut session, mut core) = itmcmd_attach(matches, submatches)?;
     let _info = core.halt();
 
     info!("core halted");
@@ -912,6 +961,17 @@ fn itmcmd(
 
     core.run()?;
     info!("core resumed");
+
+    if submatches.is_present("attach") {
+        match itmcmd_ingest_attached(&mut session, &mut core, traceid) {
+            Err(e) => {
+                fatal!("failed to ingest from attached device: {}", e);
+            }
+            _ => {
+                return Ok(());
+            }
+        }
+    }
 
     rval
 }
@@ -1053,6 +1113,13 @@ fn main() {
                 .short("i")
                 .help("ingest ITM data as CSV")
                 .value_name("filename")
+            )
+            .arg(
+                Arg::with_name("attach")
+                .long("attach")
+                .short("a")
+                .help("ingest directly from attached device")
+                .conflicts_with_all(&["disable", "ingest"])
             )
             .arg(
                 Arg::with_name("clockscaler")
