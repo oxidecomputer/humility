@@ -160,7 +160,7 @@ impl HubrisPackage {
         let cs = Capstone::new()
             .arm()
             .mode(arch::arm::ArchMode::Thumb)
-            .extra_mode([arch::arm::ArchExtraMode::MClass].iter().map(|x| *x))
+            .extra_mode(std::iter::once(arch::arm::ArchExtraMode::MClass))
             .detail(true)
             .build();
 
@@ -411,7 +411,7 @@ impl HubrisPackage {
 
         HubrisGoff {
             object: self.current,
-            goff: goff
+            goff,
         }
     }
 
@@ -442,7 +442,7 @@ impl HubrisPackage {
 
         Some(HubrisGoff {
             object: self.current,
-            goff: goff
+            goff,
         })
     }
 
@@ -508,36 +508,30 @@ impl HubrisPackage {
 
         let mut attrs = entry.attrs();
         while let Some(attr) = attrs.next()? {
-            match (attr.name(), attr.value()) {
-                (
-                    gimli::constants::DW_AT_ranges,
-                    gimli::AttributeValue::RangeListsRef(r),
-                ) => {
-                    let raw_ranges =
-                        dwarf.ranges.raw_ranges(r, unit.encoding())?;
-                    let raw_ranges: Vec<_> = raw_ranges.collect()?;
+            if let (
+                gimli::constants::DW_AT_ranges,
+                gimli::AttributeValue::RangeListsRef(r),
+            ) = (attr.name(), attr.value()) {
+                let raw_ranges =
+                    dwarf.ranges.raw_ranges(r, unit.encoding())?;
+                let raw_ranges: Vec<_> = raw_ranges.collect()?;
 
-                    for r in raw_ranges {
-                        match r {
-                            gimli::RawRngListEntry::AddressOrOffsetPair {
-                                begin,
-                                end,
-                            } => {
-                                let begin = begin as u32;
-                                let end = end as u32;
+                for r in raw_ranges {
+                    if let gimli::RawRngListEntry::AddressOrOffsetPair {
+                        begin,
+                        end,
+                    } = r {
+                        let begin = begin as u32;
+                        let end = end as u32;
 
-                                self.inlined.insert(
-                                    (begin, depth),
-                                    (end - begin, goff, origin.unwrap()),
-                                );
-                            }
-                            _ => {}
-                        }
+                        self.inlined.insert(
+                            (begin, depth),
+                            (end - begin, goff, origin.unwrap()),
+                        );
                     }
-
-                    return Ok(());
                 }
-                _ => {}
+
+                return Ok(());
             }
         }
 
@@ -625,15 +619,14 @@ impl HubrisPackage {
                 let sec_result = elf
                     .section_headers
                     .iter()
-                    .filter(|sh| {
+                    .find(|sh| {
                         if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name)
                         {
                             name == id.name()
                         } else {
                             false
                         }
-                    })
-                    .next();
+                    });
                 Ok(sec_result
                     .map(|sec| {
                         let offset = sec.sh_offset as usize;
@@ -735,13 +728,13 @@ impl HubrisPackage {
         let text = elf
             .section_headers
             .iter()
-            .filter(|sh| {
+            .find(|sh| {
                 if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
                     name == ".text"
                 } else {
                     false
                 }
-            }).next();
+            });
 
         let textsec = match text {
             None => {
@@ -778,8 +771,8 @@ impl HubrisPackage {
             let b = instr.bytes();
             let mut v = Vec::with_capacity(b.len());
 
-            for i in 0..b.len() {
-                v.push(b[i]);
+            for byte in b {
+                v.push(*byte);
             }
 
             last = (addr, b.len());
@@ -819,7 +812,7 @@ impl HubrisPackage {
 
         let file = File::open(directory)?;
         let metadata = file.metadata()?;
-        let mapfile = directory.clone().to_owned() + "/map.txt";
+        let mapfile = directory.to_owned() + "/map.txt";
         let expected = &["ADDRESS", "END", "SIZE", "FILE"];
 
         if !metadata.is_dir() {

@@ -178,8 +178,8 @@ fn itm_hdrs() -> Vec<Option<ITMHeader>>
 
     for a in 0..32 {
         for ss in 1..=0b11 {
-            set(&mut hdr, ITMHeader::Instrumentation { a: a, ss: ss });
-            set(&mut hdr, ITMHeader::Hardware { a: a, ss: ss });
+            set(&mut hdr, ITMHeader::Instrumentation { a, ss });
+            set(&mut hdr, ITMHeader::Hardware { a, ss });
         }
     }
 
@@ -207,7 +207,7 @@ fn itm_hdrs() -> Vec<Option<ITMHeader>>
 
 fn itm_packet_state(
     hdr: ITMHeader,
-    payload: &Vec<u8>,
+    payload: &[u8],
 ) -> ITMPacketState
 {
     let expect = |size: u8| {
@@ -240,8 +240,8 @@ fn itm_packet_state(
         ITMHeader::GlobalTimestamp1 => { expect(compressed(4)) }
         ITMHeader::GlobalTimestamp2 => { expect(4) }
         ITMHeader::Extension { .. } => { expect(compressed(4)) }
-        ITMHeader::Instrumentation { a: _, ss } |
-        ITMHeader::Hardware { a: _, ss } => {
+        ITMHeader::Instrumentation { ss, .. } |
+        ITMHeader::Hardware { ss, .. } => {
             expect(match ss {
                 0b01 => 1,
                 0b10 => 2,
@@ -254,7 +254,7 @@ fn itm_packet_state(
 
 fn itm_payload_decode(
     hdr: ITMHeader,
-    payload: &Vec<u8>,
+    payload: &[u8],
 ) -> ITMPayload {
 
     match hdr {
@@ -265,7 +265,7 @@ fn itm_payload_decode(
             ITMPayload::Instrumentation {
                 port: a as u32,
                 // len: payload.len(),
-                payload: payload.clone()
+                payload: payload.to_vec(),
             }
         }
         _ => { ITMPayload::None }
@@ -278,7 +278,7 @@ pub fn itm_ingest(
     mut callback: impl FnMut(&ITMPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
 
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     enum IngestState { SyncSearching, Ingesting };
 
     let mut state: IngestState = IngestState::SyncSearching;
@@ -295,23 +295,20 @@ pub fn itm_ingest(
     tpiu_ingest(&valid, &mut readnext, |packet| {
         let payload = &mut vec;
 
-        match state {
-            IngestState::SyncSearching => {
-                match packet.datum {
-                    0 => { runlen += 1 }
-                    0x80 => {
-                        if runlen >= 5 {
-                            info!(concat!("Synchronization ",
-                                "packet found at line {}"), packet.offset);
-                            state = IngestState::Ingesting;
-                        }
+        if state == IngestState::SyncSearching {
+            match packet.datum {
+                0 => { runlen += 1 }
+                0x80 => {
+                    if runlen >= 5 {
+                        info!(concat!("Synchronization ",
+                            "packet found at line {}"), packet.offset);
+                        state = IngestState::Ingesting;
                     }
-                    _ => { runlen = 0; }
                 }
-
-                return Ok(());
+                _ => { runlen = 0; }
             }
-            _ => {}
+
+            return Ok(());
         }
 
         match pstate {
@@ -346,18 +343,15 @@ pub fn itm_ingest(
             ITMPacketState::Complete => {}
         }
 
-        match state {
-            IngestState::Ingesting => {
-                callback(&ITMPacket {
-                    header: hdr,
-                    payload: itm_payload_decode(hdr, payload),
-                    offset: packet.offset,
-                    time: packet.time
-                })?;
-            }
-            _ => {
-                unreachable!();
-            }
+        if state == IngestState::Ingesting  {
+            callback(&ITMPacket {
+                header: hdr,
+                payload: itm_payload_decode(hdr, payload),
+                offset: packet.offset,
+                time: packet.time
+            })?;
+        } else {
+            unreachable!();
         }
 
         pstate = ITMPacketState::AwaitingHeader;
