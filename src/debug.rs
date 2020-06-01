@@ -146,7 +146,7 @@ impl DebugROMEntry {
     /// Determines the address of the corresponding table, given the address
     /// of the entry.
     ///
-    fn address(&self, addr: u32) -> u32 {
+    fn address(self, addr: u32) -> u32 {
         (addr as i32 + ((self.offset() << 12) as i32)) as u32
     }        
 }
@@ -168,12 +168,12 @@ pub fn read_debug_rom_table(core: &probe_rs::Core)
     let base = 0xe00f_f000u32;
     let mut table: Vec<Option<u32>> = vec![None; 6];
 
-    for index in 0..table.len() {
+    for (index, entry) in table.iter_mut().enumerate() {
         let addr = base + index as u32 * size_of::<u32>() as u32;
         let ent = DebugROMEntry(core.read_word_32(addr)?);
 
         if ent.present() {
-            table[index] = Some(ent.address(base));
+            *entry = Some(ent.address(base));
         }
     }
 

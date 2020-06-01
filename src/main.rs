@@ -72,7 +72,7 @@ impl log::Log for HumilityLog {
 
 impl HumilityLog {
     pub fn enable(&mut self) {
-        match log::set_boxed_logger(Box::new(self.clone())) {
+        match log::set_boxed_logger(Box::new(*self)) {
             Err(e) => {
                 fatal!("unable to enable logging: {}", e);
             }
@@ -358,13 +358,13 @@ fn etmcmd_trace(
         _ => {}
     }
 
-    for i in 0..inlined.len() {
-        if i < state.inlined.len() && inlined[i].id == state.inlined[i] {
+    for (i, element) in inlined.iter().enumerate() {
+        if i < state.inlined.len() && element.id == state.inlined[i] {
             continue;
         }
 
         println!("{:-10} {:width$} | {}:{} {}", instr.nsecs, "", module,
-            inlined[i].name, inlined[i].id,
+            element.name, element.id,
             width = state.indent + (i * 2) + sigil);
     }
 
@@ -379,7 +379,7 @@ fn etmcmd_trace(
         HubrisTarget::IndirectCall => {
             let mut nindent = state.indent;
 
-            if inlined.len() > 0 {
+            if !inlined.is_empty() {
                nindent += (inlined.len() * 2) + 1;
             }
 
@@ -398,7 +398,7 @@ fn etmcmd_trace(
             println!("{:-10} {:width$}<- {}:{}", instr.nsecs, "", module, sym.0,
                 width = state.indent);
 
-            if state.stack.len() > 0 {
+            if !state.stack.is_empty() {
                 let top = state.stack.pop().unwrap();
 
                 state.inlined = top.1;
@@ -458,7 +458,7 @@ fn etmcmd_ingest(
             Ok(None)
         }
     }, |packet| {
-        let nsecs = (packet.time * 1_000_000_000 as f64) as u64;
+        let nsecs = (packet.time * 1_000_000_000_f64) as u64;
 
         match (lastaddr, packet.header) {
             (None, ETM3Header::ISync) | (Some(_), _) => {}
@@ -495,11 +495,11 @@ fn etmcmd_ingest(
             etmcmd_trace(
                 config,
                 &TraceInstruction {
-                    nsecs: nsecs,
-                    addr: addr,
+                    nsecs,
+                    addr,
                     target: target.1,
                     _len: l,
-                    skipped: skipped
+                    skipped,
                 },
                 &mut state
             )
@@ -516,13 +516,13 @@ fn etmcmd_ingest(
                 }
             }
             ETM3Header::PHeaderFormat2 { e0, e1 } => {
-                instr(e0 != false)?;
-                instr(e1 != false)?;
+                instr(e0)?;
+                instr(e1)?;
             }
             ETM3Header::ExceptionExit |
             ETM3Header::ASync |
             ETM3Header::ISync |
-            ETM3Header::BranchAddress { addr: _, c: _} => {}
+            ETM3Header::BranchAddress { .. } => {}
             _ => {
                 fatal!("unhandled packet: {:#x?}", packet);
             }
@@ -572,18 +572,15 @@ fn etmcmd_ingest(
                     (_, _) => {}
                 }
 
-                match exception {
-                    Some(exception) => {
-                        etmcmd_trace_exception(
-                            config,
-                            &TraceException {
-                                nsecs: nsecs,
-                                exception: exception
-                            },
-                            &mut state
-                        )?;
-                    }
-                    None => {}
+                if let Some(exception) = exception {
+                    etmcmd_trace_exception(
+                        config,
+                        &TraceException {
+                            nsecs,
+                            exception,
+                        },
+                        &mut state
+                    )?;
                 }
             }
             ETM3Payload::None => {}
@@ -644,7 +641,7 @@ fn etmcmd(
 
     if let Some(ingest) = &subargs.ingest {
         let config = TraceConfig {
-            hubris: hubris,
+            hubris,
             flowindent: subargs.flowindent,
             traceid: subargs.traceid,
         };
@@ -851,13 +848,10 @@ fn itmcmd_ingest(
             Ok(None)
         }
     }, |packet| {
-        match &packet.payload {
-            ITMPayload::Instrumentation { payload, .. } => {
-                for p in payload {
-                    print!("{}", *p as char);
-                }
+        if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
+            for p in payload {
+                print!("{}", *p as char);
             }
-            _ => {}
         }
 
         Ok(())
@@ -883,13 +877,10 @@ fn itmcmd_ingest_attached(
         ndx += 1;
         Ok(Some((bytes[ndx - 1], 0.0)))
     }, |packet| {
-        match &packet.payload {
-            ITMPayload::Instrumentation { payload, .. } => {
-                for p in payload {
-                    print!("{}", *p as char);
-                }
+        if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
+            for p in payload {
+                print!("{}", *p as char);
             }
-            _ => {}
         }
 
         Ok(())
@@ -1045,19 +1036,11 @@ fn main() {
         fatal!("failed to initialize: {}", err);
     }).unwrap();
 
-    match &args.package {
-        Some(dir) => {
-            match hubris.load(&dir) {
-                Err(err) => {
-                    fatal!("failed to load package {}: {}", dir, err);
-                }
-                Ok(package) => {
-                    Some(package)
-                }
-            }
+    if let Some(dir) = &args.package {
+        if let Err(err) = hubris.load(&dir) {
+            fatal!("failed to load package {}: {}", dir, err);
         }
-        None => { None }
-    };
+    }
 
     match &args.cmd {
         Subcommand::Probe => match probe(&args) {

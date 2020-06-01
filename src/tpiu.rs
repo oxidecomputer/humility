@@ -223,8 +223,8 @@ fn tpiu_next_state(
 }
 
 fn tpiu_check_frame(
-    frame: &Vec<(u8, f64, usize)>,
-    valid: &Vec<bool>,
+    frame: &[(u8, f64, usize)],
+    valid: &[bool],
     intermixed: bool,
 ) -> bool {
     /*
@@ -265,7 +265,7 @@ fn tpiu_check_frame(
 
 fn tpiu_check_byte(
     byte: u8,
-    valid: &Vec<bool>,
+    valid: &[bool],
 ) -> bool {
     let check: TPIUFrameHalfWord = (byte as u16).into();
 
@@ -273,7 +273,7 @@ fn tpiu_check_byte(
 }
 
 fn tpiu_process_frame(
-    frame: &Vec<(u8, f64, usize)>,
+    frame: &[(u8, f64, usize)],
     id: Option<u8>,
     mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<u8, Box<dyn Error>> {
@@ -341,7 +341,7 @@ fn tpiu_process_frame(
             let id = current.unwrap();
 
             callback(&TPIUPacket {
-                id: id,
+                id,
                 datum: (half.data_or_id() << 1) as u8 | auxbit,
                 time: frame[base].1,
                 offset: frame[base].2
@@ -352,7 +352,7 @@ fn tpiu_process_frame(
             }
 
             callback(&TPIUPacket {
-                id: id,
+                id,
                 datum: half.data_or_aux() as u8,
                 time: frame[base + 1].1,
                 offset: frame[base + 1].2
@@ -368,7 +368,7 @@ fn tpiu_process_frame(
 }
 
 pub fn tpiu_ingest(
-    valid: &Vec<bool>,
+    valid: &[bool],
     mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
     mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {

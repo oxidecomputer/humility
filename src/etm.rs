@@ -370,7 +370,7 @@ fn encode(hdr: ETM3Header) -> u8 {
         ETM3Header::DataSuppressed => 0b0110_0010,
         ETM3Header::Ignore => 0b0110_0110,
         ETM3Header::ValueNotTraced { a } => {
-            0b01101010 | if a { 1 << 4 } else { 0 }
+            0b0110_1010 | if a { 1 << 4 } else { 0 }
         },
         ETM3Header::ContextID => 0b0110_1110,
         ETM3Header::ExceptionExit => 0b0111_0110,
@@ -415,7 +415,7 @@ fn etm_hdrs() -> Vec<Option<ETM3Header>>
 
     for tag in 1..=0b11 {
         for size in 0..=0b11 {
-            set(&mut hdr, ETM3Header::OutOfOrder { tag: tag, size: size });
+            set(&mut hdr, ETM3Header::OutOfOrder { tag, size });
         }
     }
 
@@ -423,15 +423,15 @@ fn etm_hdrs() -> Vec<Option<ETM3Header>>
     set(&mut hdr, ETM3Header::ISyncCycleCount);
 
     for tag in 1..=0b11 {
-        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag: tag, a: true });
-        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag: tag, a: false });
+        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag, a: true });
+        set(&mut hdr, ETM3Header::OutOfOrderPlaceholder { tag, a: false });
     }
 
     set(&mut hdr, ETM3Header::VMID);
 
     for size in 0..=0b11 {
-        set(&mut hdr, ETM3Header::NormalData { a: true, size: size });
-        set(&mut hdr, ETM3Header::NormalData { a: false, size: size });
+        set(&mut hdr, ETM3Header::NormalData { a: true, size });
+        set(&mut hdr, ETM3Header::NormalData { a: false, size });
     }
 
     set(&mut hdr, ETM3Header::Timestamp { r: true });
@@ -449,7 +449,7 @@ fn etm_hdrs() -> Vec<Option<ETM3Header>>
 
     for e in 0..=0b1111 {
         for n in 0..=0b1 {
-            set(&mut hdr, ETM3Header::PHeaderFormat1 { e: e, n: n });
+            set(&mut hdr, ETM3Header::PHeaderFormat1 { e, n });
         }
     }
 
@@ -463,7 +463,7 @@ fn etm_hdrs() -> Vec<Option<ETM3Header>>
 
 fn etm_packet_state(
     hdr: ETM3Header,
-    payload: &Vec<u8>,
+    payload: &[u8],
     config: &ETM3Config
 ) -> ETM3PacketState
 {
@@ -495,8 +495,8 @@ fn etm_packet_state(
     assert!(config.alternative_encoding);
 
     match hdr {
-        ETM3Header::BranchAddress { addr: _, c } => {
-            if payload.len() == 0 {
+        ETM3Header::BranchAddress { c, .. } => {
+            if payload.is_empty() {
                 if c {
                     ETM3PacketState::AwaitingPayload
                 } else {
@@ -513,29 +513,27 @@ fn etm_packet_state(
                      * exception bytes (up to three).
                      */
                     ETM3PacketState::AwaitingPayload
+                } else if (last & 0b0100_0000) != 0 {
+                    /*
+                     * If bit 6 is set, we are awaiting an Exception
+                     * Information Byte.
+                     */
+                    ETM3PacketState::AwaitingPayload
                 } else {
-                    if (last & 0b0100_0000) != 0 {
-                        /*
-                         * If bit 6 is set, we are awaiting an Exception
-                         * Information Byte.
-                         */
-                        ETM3PacketState::AwaitingPayload
-                    } else {
-                        ETM3PacketState::Complete
-                    }
+                    ETM3PacketState::Complete
                 }
             }
         }
 
         ETM3Header::CycleCount => { expect(compressed(5)) }
         ETM3Header::ISync => { expect(5 + config.context_id) }
-        ETM3Header::OutOfOrder { tag: _, size } => { expect(size) }
+        ETM3Header::OutOfOrder { size, .. } => { expect(size) }
 
         ETM3Header::ISyncCycleCount => {
             expect(compressed(5) + config.context_id + 5)
         }
 
-        ETM3Header::OutOfOrderPlaceholder { a: _, tag: _ } => { expect(5) }
+        ETM3Header::OutOfOrderPlaceholder { .. } => { expect(5) }
         ETM3Header::VMID => { expect(1) }
         ETM3Header::NormalData { a, size } => {
             let dsize = if a && config.data_access {
@@ -547,7 +545,7 @@ fn etm_packet_state(
             expect(dsize + 1 + size)
         }
 
-        ETM3Header::Timestamp { r: _ } => { expect(compressed(9)) }
+        ETM3Header::Timestamp { .. } => { expect(compressed(9)) }
 
         ETM3Header::ValueNotTraced { a } => {
             if a {
@@ -564,7 +562,7 @@ fn etm_packet_state(
 
 fn etm_payload_decode(
     hdr: ETM3Header,
-    payload: &Vec<u8>,
+    payload: &[u8],
     config: &ETM3Config
 ) -> ETM3Payload {
 
@@ -655,22 +653,22 @@ fn etm_payload_decode(
                 address: u32::from_le_bytes([
                     a0, addr[1], addr[2], addr[3]
                 ]),
-                processor_state: processor_state
+                processor_state,
             }
         }
-        ETM3Header::BranchAddress { addr, c: _ } => {
+        ETM3Header::BranchAddress { addr, .. } => {
             let mut target: u32 = (addr as u32) << 1;
             let mut nbits = 7; 
             let mut xcp = None;
 
-            for i in 0..payload.len() {
+            for (i, pld) in payload.iter().enumerate() {
                 /*
                  * If our continue bit is set, we always have seven new bits
                  * of address; or it in, increase the number of bits and
                  * continue.
                  */
-                if (payload[i] & 0b1000_0000) != 0 {
-                    target |= ((payload[i] & 0b0111_1111) as u32) << nbits;
+                if (pld & 0b1000_0000) != 0 {
+                    target |= ((pld & 0b0111_1111) as u32) << nbits;
                     nbits += 7;
                     continue;
                 }
@@ -681,7 +679,7 @@ fn etm_payload_decode(
                  * exception bytes; if we have exception bytes, we'll pull
                  * those now.
                  */
-                if (payload[i] & 0b0100_0000) != 0 {
+                if (pld & 0b0100_0000) != 0 {
                     xcp = Some(exception(i + 1));
                 }
 
@@ -691,13 +689,13 @@ fn etm_payload_decode(
                  * four bits remain.
                  */
                 if i < 4 {
-                    target |= ((payload[i] & 0b0011_1111) as u32) << nbits;
+                    target |= ((pld & 0b0011_1111) as u32) << nbits;
                     nbits += 6;
                     break;
                 }
 
                 assert_eq!(nbits, 28);
-                target |= ((payload[i] & 0b0000_1111) as u32) << nbits;
+                target |= ((pld & 0b0000_1111) as u32) << nbits;
                 nbits += 4;
             }
 
@@ -709,7 +707,7 @@ fn etm_payload_decode(
         }
 
         _ => {
-            if payload.len() == 0 {
+            if payload.is_empty() {
                 return ETM3Payload::None;
             }
 
@@ -724,7 +722,7 @@ pub fn etm_ingest(
     mut callback: impl FnMut(&ETM3Packet) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
 
-    #[derive(Copy, Clone, Debug)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     enum IngestState { ASyncSearching, ISyncSearching, Ingesting };
 
     let mut state: IngestState = IngestState::ASyncSearching;
@@ -741,23 +739,20 @@ pub fn etm_ingest(
     tpiu_ingest(&valid, &mut readnext, |packet| {
         let payload = &mut vec;
 
-        match state {
-            IngestState::ASyncSearching => {
-                match packet.datum {
-                    0 => { runlen += 1 }
-                    0x80 => {
-                        if runlen >= 5 {
-                            info!(concat!("A-sync alignment synchronization ",
-                                "packet found at line {}"), packet.offset);
-                            state = IngestState::ISyncSearching;
-                        }
+        if state == IngestState::ASyncSearching {
+            match packet.datum {
+                0 => { runlen += 1 }
+                0x80 => {
+                    if runlen >= 5 {
+                        info!(concat!("A-sync alignment synchronization ",
+                            "packet found at line {}"), packet.offset);
+                        state = IngestState::ISyncSearching;
                     }
-                    _ => { runlen = 0; }
                 }
-
-                return Ok(());
+                _ => { runlen = 0; }
             }
-            _ => {}
+
+            return Ok(());
         }
 
         match pstate {
@@ -803,16 +798,13 @@ pub fn etm_ingest(
             (_, _) => {}
         }
 
-        match state {
-            IngestState::Ingesting => {
-                callback(&ETM3Packet {
-                    header: hdr,
-                    payload: etm_payload_decode(hdr, payload, config),
-                    offset: packet.offset,
-                    time: packet.time
-                })?;
-            }
-            _ => {}
+        if state == IngestState::Ingesting {
+            callback(&ETM3Packet {
+                header: hdr,
+                payload: etm_payload_decode(hdr, payload, config),
+                offset: packet.offset,
+                time: packet.time
+            })?;
         }
 
         pstate = ETM3PacketState::AwaitingHeader;
