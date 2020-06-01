@@ -80,10 +80,14 @@ impl ITM_LAR {
 #[derive(Debug)]
 pub enum ITMPayload {
     None,
+    #[allow(dead_code)]
     LocalTimestamp { timestamp: u32, delayed: bool, early: bool },
+    #[allow(dead_code)]
     Extension { payload: u32, sh: bool },
+    #[allow(dead_code)]
     GlobalTimestamp { timestamp: u64 },
     Instrumentation { port: u32, payload: Vec<u8> },
+    #[allow(dead_code)]
     Hardware { source: u32, payload: [u8; 4], len: usize },
 }
 

@@ -86,7 +86,7 @@ impl HumilityLog {
 struct TraceInstruction {
     nsecs: u64,
     addr: u32,
-    len: u32,
+    _len: u32,
     target: HubrisTarget,
     skipped: bool,
 }
@@ -416,9 +416,9 @@ fn etmcmd_trace(
 }
 
 fn etmcmd_trace_exception(
-    config: &TraceConfig,
+    _config: &TraceConfig,
     exception: &TraceException,
-    state: &mut TraceState,
+    _state: &mut TraceState,
 ) -> Result<(), Box<dyn Error>> {
     println!("{:-10} {:8} X {:?}", exception.nsecs, "-", exception.exception);
 
@@ -498,7 +498,7 @@ fn etmcmd_ingest(
                     nsecs: nsecs,
                     addr: addr,
                     target: target.1,
-                    len: l,
+                    _len: l,
                     skipped: skipped
                 },
                 &mut state
@@ -851,9 +851,9 @@ fn itmcmd_ingest(
             Ok(None)
         }
     }, |packet| {
-        match packet.payload {
-            ITMPayload::Instrumentation { port, ref payload } => {
-                for p in payload.iter() {
+        match &packet.payload {
+            ITMPayload::Instrumentation { payload, .. } => {
+                for p in payload {
                     print!("{}", *p as char);
                 }
             }
@@ -866,7 +866,7 @@ fn itmcmd_ingest(
 
 fn itmcmd_ingest_attached(
     session: &mut probe_rs::Session,
-    core: &mut probe_rs::Core,
+    _core: &mut probe_rs::Core,
     traceid: u8,
 ) -> Result<(), Box<dyn Error>> {
 
@@ -883,9 +883,9 @@ fn itmcmd_ingest_attached(
         ndx += 1;
         Ok(Some((bytes[ndx - 1], 0.0)))
     }, |packet| {
-        match packet.payload {
-            ITMPayload::Instrumentation { port, ref payload } => {
-                for p in payload.iter() {
+        match &packet.payload {
+            ITMPayload::Instrumentation { payload, .. } => {
+                for p in payload {
                     print!("{}", *p as char);
                 }
             }
@@ -929,7 +929,7 @@ struct ItmArgs {
 }
 
 fn itmcmd(
-    hubris: &HubrisPackage,
+    _hubris: &HubrisPackage,
     args: &Args,
     subargs: &ItmArgs,
 ) -> Result<(), probe_rs::Error> {
