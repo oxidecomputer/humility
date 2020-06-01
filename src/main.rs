@@ -7,6 +7,8 @@ use probe_rs::{Core, Probe};
 #[macro_use]
 extern crate log;
 
+use structopt::StructOpt;
+
 mod debug;
 use debug::*;
 
@@ -27,9 +29,6 @@ use hubris::*;
 
 use std::error::Error;
 use std::fs::File;
-
-use clap::{App, Arg, SubCommand};
-use parse_int::parse;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -101,7 +100,7 @@ struct TraceException {
 struct TraceConfig<'a> {
     hubris: &'a HubrisPackage,
     flowindent: bool,
-    traceid: Option<u8>,
+    traceid: u8,
 }
 
 #[derive(Debug, Default)]
@@ -113,7 +112,6 @@ struct TraceState {
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 10;
-const HUMILITY_ETM_TRACEID: u8 = 0x54;
 const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
@@ -159,7 +157,7 @@ fn etmcmd_probe(
 fn etmcmd_enable(
     core: &probe_rs::Core,
     clockscaler: Option<u16>,
-    traceid: Option<u8>,
+    traceid: u8,
 ) -> Result<(), probe_rs::Error> {
     let etmccr = ETMCCR::read(&core)?;
 
@@ -277,7 +275,7 @@ fn etmcmd_enable(
 
     trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
     let mut val = ETMTRACEIDR::read(&core)?;
-    val.set_traceid(traceid.unwrap_or(HUMILITY_ETM_TRACEID).into());
+    val.set_traceid(traceid.into());
     val.write(&core)?;
     trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
 
@@ -316,13 +314,11 @@ fn etmcmd_disable(
     Ok(())
 }
 
-fn etmcmd_attach(matches: &clap::ArgMatches,
-    _submatches: &clap::ArgMatches
+fn etmcmd_attach(args: &Args,
+    _subargs: &EtmArgs,
 ) -> Result<probe_rs::Core, probe_rs::Error> {
-    let chip = matches.value_of("chip").unwrap();
-
-    info!("attaching as chip {} ...", chip);
-    let core = Core::auto_attach(chip)?;
+    info!("attaching as chip {} ...", args.chip);
+    let core = Core::auto_attach(&args.chip)?;
     info!("attached");
 
     Ok(core)
@@ -443,7 +439,7 @@ fn etmcmd_ingest(
         alternative_encoding: true,
         context_id: 0,
         data_access: false,
-        traceid: config.traceid.unwrap_or(HUMILITY_ETM_TRACEID),
+        traceid: config.traceid,
     };
 
     type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
@@ -599,47 +595,58 @@ fn etmcmd_ingest(
     Ok(())
 }
 
+#[derive(StructOpt)]
+struct EtmArgs {
+    /// probe for ETM capability on attached device
+    #[structopt(
+        long, short, conflicts_with_all = &["enable", "disable", "ingest"]
+    )]
+    probe: bool,
+    /// enable ETM on attached device
+    #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
+    enable: bool,
+    /// disable ETM on attached device
+    #[structopt(long, short)]
+    disable: bool,
+    /// sets ETM trace identifier
+    #[structopt(
+        long, short, value_name = "identifier", conflicts_with = "disable",
+        default_value = "0x54", parse(try_from_str = parse_int::parse),
+    )]
+    traceid: u8,
+    /// ingest ETM data as CSV
+    #[structopt(long, short, value_name = "filename")]
+    ingest: Option<String>,
+    /// flowindent ingested data
+    #[structopt(long, short = "F")]
+    flowindent: bool,
+    /// sets the value of SWOSCALER
+    #[structopt(
+        long, short, value_name = "scaler", requires = "enable",
+        parse(try_from_str = parse_int::parse)
+    )]
+    clockscaler: Option<u16>,
+}
+
 fn etmcmd(
     hubris: &HubrisPackage,
-    matches: &clap::ArgMatches,
-    submatches: &clap::ArgMatches
+    args: &Args,
+    subargs: &EtmArgs,
 ) -> Result<(), probe_rs::Error> {
     let mut rval = Ok(());
 
-    let clockscaler = match submatches.value_of("clockscaler") {
-        Some(str) => {
-            match parse::<u16>(str) {
-                Ok(val) => { Some(val) }
-                Err(_e) => {
-                    fatal!("clockscaler must be an unsigned 16-bit integer");
-                }
-            }
-        }
-        _ => None
-    };
+    if subargs.traceid >= HUMILITY_ETM_TRACEID_MAX {
+        fatal!(
+            "traceid has a maximum value of {:x}",
+            HUMILITY_ETM_TRACEID_MAX
+        );
+    }
 
-    let traceid = match submatches.value_of("traceid") {
-        Some(str) => {
-            match parse::<u8>(str) {
-                Ok(val) if val < HUMILITY_ETM_TRACEID_MAX => {
-                    Some(val)
-                }
-                _ => {
-                    fatal!(
-                        "traceid has a maximum value of {:x}",
-                        HUMILITY_ETM_TRACEID_MAX
-                    );
-                }
-            }
-        }
-        _ => None
-    };
-
-    if let Some(ingest) = submatches.value_of("ingest") {
+    if let Some(ingest) = &subargs.ingest {
         let config = TraceConfig {
             hubris: hubris,
-            flowindent: submatches.is_present("flowindent"),
-            traceid: traceid,
+            flowindent: subargs.flowindent,
+            traceid: subargs.traceid,
         };
 
         match etmcmd_ingest(&config, ingest) {
@@ -655,20 +662,20 @@ fn etmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let core = etmcmd_attach(matches, submatches)?;
+    let core = etmcmd_attach(args, subargs)?;
     let _info = core.halt();
 
     info!("core halted");
 
-    if submatches.is_present("probe") {
+    if subargs.probe {
         rval = etmcmd_probe(&core);
     }
 
-    if submatches.is_present("enable") {
-        rval = etmcmd_enable(&core, clockscaler, traceid);
+    if subargs.enable {
+        rval = etmcmd_enable(&core, subargs.clockscaler, subargs.traceid);
     }
 
-    if submatches.is_present("disable") {
+    if subargs.disable {
         rval = etmcmd_disable(&core);
     }
 
@@ -678,18 +685,15 @@ fn etmcmd(
     rval
 }
 
-const HUMILITY_ITM_TRACEID: u8 = 0x3a;
-
-fn itmcmd_attach(matches: &clap::ArgMatches,
-    _submatches: &clap::ArgMatches
+fn itmcmd_attach(args: &Args,
+    _subargs: &ItmArgs,
 ) -> Result<(probe_rs::Session, probe_rs::Core), probe_rs::Error> {
 
     let probes = Probe::list_all();
     let probe = probes[0].open()?;
 
-    let chip = matches.value_of("chip").unwrap();
-    info!("attaching as chip {} ...", chip);
-    let session = probe.attach(chip)?;
+    info!("attaching as chip {} ...", args.chip);
+    let session = probe.attach(&args.chip)?;
 
     let core = session.attach_to_core(0)?;
     info!("attached");
@@ -717,7 +721,7 @@ fn itmcmd_probe(
 fn itmcmd_enable(
     core: &probe_rs::Core,
     clockscaler: Option<u16>,
-    traceid: Option<u8>,
+    traceid: u8,
 ) -> Result<(), probe_rs::Error> {
     /*
      * First, enable TRCENA in the DEMCR.
@@ -799,7 +803,7 @@ fn itmcmd_enable(
      * Set the trace ID
      */
     tcr = ITM_TCR::read(&core)?;
-    tcr.set_traceid(traceid.unwrap_or(HUMILITY_ITM_TRACEID).into());
+    tcr.set_traceid(traceid.into());
     tcr.set_timestamp_enable(false);
     tcr.set_sync_enable(true);
     tcr.set_itm_enable(true);
@@ -829,7 +833,7 @@ fn itmcmd_disable(
 }
 
 fn itmcmd_ingest(
-    traceid: Option<u8>,
+    traceid: u8,
     filename: &str,
 ) -> Result<(), Box<dyn Error>> {
     let file = File::open(filename)?;
@@ -839,7 +843,7 @@ fn itmcmd_ingest(
 
     let mut iter = rdr.deserialize();
 
-    itm_ingest(traceid.unwrap_or(HUMILITY_ITM_TRACEID), || {
+    itm_ingest(traceid, || {
         if let Some(line) = iter.next() {
             let record: SaleaeTraceRecord = line?;
             Ok(Some((record.1, record.0)))
@@ -863,7 +867,7 @@ fn itmcmd_ingest(
 fn itmcmd_ingest_attached(
     session: &mut probe_rs::Session,
     core: &mut probe_rs::Core,
-    traceid: Option<u8>,
+    traceid: u8,
 ) -> Result<(), Box<dyn Error>> {
 
     println!("will ingest from attached!");
@@ -871,7 +875,7 @@ fn itmcmd_ingest_attached(
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
 
-    itm_ingest(traceid.unwrap_or(HUMILITY_ITM_TRACEID), || {
+    itm_ingest(traceid, || {
         while ndx == bytes.len() {
             bytes = session.read_swv().unwrap();
             ndx = 0;
@@ -892,44 +896,54 @@ fn itmcmd_ingest_attached(
     })
 }
 
+#[derive(StructOpt)]
+struct ItmArgs {
+    /// probe for ITM capability on attached device
+    #[structopt(
+        long, short, conflicts_with_all = &["enable", "disable", "ingest"]
+    )]
+    probe: bool,
+    /// enable ITM on attached device
+    #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
+    enable: bool,
+    /// disable ITM on attached device
+    #[structopt(long, short)]
+    disable: bool,
+    /// sets ITM trace identifier
+    #[structopt(
+        long, short, default_value = "0x3a", value_name = "identifier",
+        parse(try_from_str = parse_int::parse), conflicts_with = "disable"
+    )]
+    traceid: u8,
+    /// ingest ITM data as CSV
+    #[structopt(long, short, value_name = "filename")]
+    ingest: Option<String>,
+    /// ingest directly from attached device
+    #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
+    attach: bool,
+    /// sets the value of SWOSCALER
+    #[structopt(long, short, value_name = "scaler", requires = "enable",
+        parse(try_from_str = parse_int::parse),
+    )]
+    clockscaler: Option<u16>,
+}
+
 fn itmcmd(
     hubris: &HubrisPackage,
-    matches: &clap::ArgMatches,
-    submatches: &clap::ArgMatches
+    args: &Args,
+    subargs: &ItmArgs,
 ) -> Result<(), probe_rs::Error> {
     let mut rval = Ok(());
 
-    let clockscaler = match submatches.value_of("clockscaler") {
-        Some(str) => {
-            match parse::<u16>(str) {
-                Ok(val) => { Some(val) }
-                Err(_e) => {
-                    fatal!("clockscaler must be an unsigned 16-bit integer");
-                }
-            }
-        }
-        _ => None
-    };
+    if subargs.traceid >= HUMILITY_ETM_TRACEID_MAX {
+        fatal!(
+            "traceid has a maximum value of {:x}",
+            HUMILITY_ETM_TRACEID_MAX
+        );
+    }
 
-    let traceid = match submatches.value_of("traceid") {
-        Some(str) => {
-            match parse::<u8>(str) {
-                Ok(val) if val < HUMILITY_ETM_TRACEID_MAX => {
-                    Some(val)
-                }
-                _ => {
-                    fatal!(
-                        "traceid has a maximum value of {:x}",
-                        HUMILITY_ETM_TRACEID_MAX
-                    );
-                }
-            }
-        }
-        _ => None
-    };
-
-    if let Some(ingest) = submatches.value_of("ingest") {
-        match itmcmd_ingest(traceid, ingest) {
+    if let Some(ingest) = &subargs.ingest {
+        match itmcmd_ingest(subargs.traceid, ingest) {
             Err(e) => {
                 fatal!("failed to ingest {}: {}", ingest, e);
             }
@@ -942,28 +956,28 @@ fn itmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let (mut session, mut core) = itmcmd_attach(matches, submatches)?;
+    let (mut session, mut core) = itmcmd_attach(args, subargs)?;
     let _info = core.halt();
 
     info!("core halted");
 
-    if submatches.is_present("probe") {
+    if subargs.probe {
         rval = itmcmd_probe(&core);
     }
 
-    if submatches.is_present("enable") {
-        rval = itmcmd_enable(&core, clockscaler, traceid);
+    if subargs.enable {
+        rval = itmcmd_enable(&core, subargs.clockscaler, subargs.traceid);
     }
 
-    if submatches.is_present("disable") {
+    if subargs.disable {
         rval = itmcmd_disable(&core);
     }
 
     core.run()?;
     info!("core resumed");
 
-    if submatches.is_present("attach") {
-        match itmcmd_ingest_attached(&mut session, &mut core, traceid) {
+    if subargs.attach {
+        match itmcmd_ingest_attached(&mut session, &mut core, subargs.traceid) {
             Err(e) => {
                 fatal!("failed to ingest from attached device: {}", e);
             }
@@ -977,162 +991,51 @@ fn itmcmd(
 }
 
 fn probe(
-    matches: &clap::ArgMatches,
-    _submatches: &clap::ArgMatches
+    args: &Args,
 ) -> Result<(), probe_rs::Error> {
-    let chip = matches.value_of("chip").unwrap();
-
     let probe_list = Probe::list_all();
     info!("probes: {:?}", probe_list);
 
-    info!("attaching as chip {} ...", chip);
-    let _core = Core::auto_attach(chip)?;
+    info!("attaching as chip {} ...", &args.chip);
+    let _core = Core::auto_attach(&args.chip)?;
     info!("attached");
 
     Ok(())
 }
 
-fn main() {
-    let matches = App::new("humility")
-        .set_term_width(80)
-        .arg(
-            Arg::with_name("verbose")
-            .long("verbose")
-            .short("v")
-            .help("verbose messages")
-        )
-        .arg(
-            Arg::with_name("chip")
-            .long("chip")
-            .short("c")
-            .env("HUMILITY_CHIP")
-            .default_value("STM32F407VGTx")
-            .hide_default_value(true)
-            .hide_env_values(true)
-            .help("specific chip on attached device (defaults to STM32F407VGTx)")
-        )
-        .arg(
-            Arg::with_name("package")
-            .long("package")
-            .short("p")
-            .env("HUMILITY_PACKAGE")
-            .hide_env_values(true)
-            .help("directory containing Hubris package")
-        )
-        .subcommand(SubCommand::with_name("probe")
-            .about("probe for attached devices")
-        )
-        .subcommand(SubCommand::with_name("etm")
-            .about("commands for ARM's Embedded Trace Macrocell (ETM) facility")
-            .arg(
-                Arg::with_name("probe")
-                .long("probe")
-                .short("p")
-                .help("probe for ETM capability on attached device")
-                .conflicts_with_all(&["enable", "disable", "ingest"])
-            )
-            .arg(
-                Arg::with_name("enable")
-                .long("enable")
-                .short("e")
-                .help("enable ETM on attached device")
-                .conflicts_with_all(&["disable", "ingest"])
-            )
-            .arg(
-                Arg::with_name("disable")
-                .long("disable")
-                .short("d")
-                .help("disable ETM on attached device")
-            )
-            .arg(
-                Arg::with_name("traceid")
-                .long("traceid")
-                .short("t")
-                .help("sets ETM trace identifer (defaults to 0x54)")
-                .value_name("identifier")
-                .conflicts_with("disable")
-            )
-            .arg(
-                Arg::with_name("ingest")
-                .long("ingest")
-                .short("i")
-                .help("ingest ETM data as CSV")
-                .value_name("filename")
-            )
-            .arg(
-                Arg::with_name("flowindent")
-                .long("flowindent")
-                .short("F")
-                .help("flowindent ingested data")
-            )
-            .arg(
-                Arg::with_name("clockscaler")
-                .long("clockscaler")
-                .short("c")
-                .help("sets the value of SWOSCALER")
-                .value_name("scaler")
-                .requires("enable")
-            )
-        )
-        .subcommand(SubCommand::with_name("itm")
-            .about(concat!(
-                "commands for ARM's ",
-                "Instrumentation Trace Macrocell (ITM) facility"
-            ))
-            .arg(
-                Arg::with_name("probe")
-                .long("probe")
-                .short("p")
-                .help("probe for ITM capability on attached device")
-                .conflicts_with_all(&["enable", "disable", "ingest"])
-            )
-            .arg(
-                Arg::with_name("enable")
-                .long("enable")
-                .short("e")
-                .help("enable ITM on attached device")
-                .conflicts_with_all(&["disable", "ingest"])
-            )
-            .arg(
-                Arg::with_name("disable")
-                .long("disable")
-                .short("d")
-                .help("disable ITM on attached device")
-            )
-            .arg(
-                Arg::with_name("traceid")
-                .long("traceid")
-                .short("t")
-                .help("sets ITM trace identifer (defaults to 0x3a)")
-                .value_name("identifier")
-                .conflicts_with("disable")
-            )
-            .arg(
-                Arg::with_name("ingest")
-                .long("ingest")
-                .short("i")
-                .help("ingest ITM data as CSV")
-                .value_name("filename")
-            )
-            .arg(
-                Arg::with_name("attach")
-                .long("attach")
-                .short("a")
-                .help("ingest directly from attached device")
-                .conflicts_with_all(&["disable", "ingest"])
-            )
-            .arg(
-                Arg::with_name("clockscaler")
-                .long("clockscaler")
-                .short("c")
-                .help("sets the value of SWOSCALER")
-                .value_name("scaler")
-                .requires("enable")
-            )
-        )
-        .get_matches();
+#[derive(StructOpt)]
+#[structopt(name = "humility", max_term_width = 80)]
+struct Args {
+    /// verbose messages
+    #[structopt(long, short)]
+    verbose: bool,
 
-    if matches.is_present("verbose") {
+    /// specific chip on attached device
+    #[structopt(long, short, env = "HUMILITY_CHIP", default_value = "STM32F407VGTx")]
+    chip: String,
+
+    /// directory containing Hubris package
+    #[structopt(long, short, env = "HUMILITY_PACKAGE")]
+    package: Option<String>,
+
+    #[structopt(subcommand)]
+    cmd: Subcommand,
+}
+
+#[derive(StructOpt)]
+enum Subcommand {
+    /// probe for attached devices
+    Probe,
+    /// commands for ARM's Embedded Trace Macrocell (ETM) facility
+    Etm(EtmArgs),
+    /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
+    Itm(ItmArgs),
+}
+
+fn main() {
+    let args = Args::from_args();
+
+    if args.verbose {
         HumilityLog { level: log::LevelFilter::Trace }.enable();
     } else {
         HumilityLog { level: log::LevelFilter::Info }.enable();
@@ -1142,9 +1045,9 @@ fn main() {
         fatal!("failed to initialize: {}", err);
     }).unwrap();
 
-    match matches.value_of("package") {
+    match &args.package {
         Some(dir) => {
-            match hubris.load(dir) {
+            match hubris.load(&dir) {
                 Err(err) => {
                     fatal!("failed to load package {}: {}", dir, err);
                 }
@@ -1156,24 +1059,20 @@ fn main() {
         None => { None }
     };
 
-    if let Some(submatches) = matches.subcommand_matches("probe") {
-        match probe(&matches, &submatches) {
-            Err(err) => { fatal!("probe failed: {} (raw: \"{:?})\"", err, err); }
-            _ => { ::std::process::exit(0); }
+    match &args.cmd {
+        Subcommand::Probe => match probe(&args) {
+            Err(err) => fatal!("probe failed: {} (raw: \"{:?})\"", err, err),
+            _ => std::process::exit(0),
         }
-    }
 
-    if let Some(submatches) = matches.subcommand_matches("etm") {
-        match etmcmd(&hubris, &matches, &submatches) {
-            Err(err) => { fatal!("etm failed: {} (raw: \"{:?})\"", err, err); }
-            _ => { ::std::process::exit(0); }
+        Subcommand::Etm(subargs) => match etmcmd(&hubris, &args, subargs) {
+            Err(err) => fatal!("etm failed: {} (raw: \"{:?})\"", err, err),
+            _ => std::process::exit(0),
         }
-    }
 
-    if let Some(submatches) = matches.subcommand_matches("itm") {
-        match itmcmd(&hubris, &matches, &submatches) {
-            Err(err) => { fatal!("itm failed: {} (raw: \"{:?})\"", err, err); }
-            _ => { ::std::process::exit(0); }
+        Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
+            Err(err) => fatal!("itm failed: {} (raw: \"{:?})\"", err, err),
+            _ => std::process::exit(0),
         }
     }
 }
