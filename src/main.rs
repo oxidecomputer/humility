@@ -29,6 +29,7 @@ use hubris::*;
 
 use std::error::Error;
 use std::fs::File;
+use std::convert::TryInto;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -1007,6 +1008,14 @@ fn taskscmd(
     let task = hubris.lookup_struct("Task")?;
     let taskdesc = hubris.lookup_struct("TaskDesc")?;
 
+    /*
+     * We read the entire task table at a go to get as consistent a snapshot
+     * as possible.
+     */
+    let mut taskblock: Vec<u8> = vec![];
+    taskblock.resize_with(task.size * size as usize, Default::default);
+    core.read_8(base, taskblock.as_mut_slice())?;
+
     let descriptor = task.lookup_member("descriptor")?;
     let generation = task.lookup_member("generation")?;
 
@@ -1014,11 +1023,16 @@ fn taskscmd(
 
     println!("{:2} {:8} {:12} {:3}", "ID", "ADDR", "TASK", "GEN");
 
+    let taskblock32 = |o| {
+        u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
+    };
+
     for i in 0..size {
         let addr = base + i * task.size as u32;
+        let offs = i as usize * task.size;
 
-        let gen = core.read_word_8(addr + generation)?;
-        let daddr = core.read_word_32(addr + descriptor)?;
+        let gen = taskblock[offs + generation as usize];
+        let daddr = taskblock32(offs + descriptor as usize);
         let entry = core.read_word_32(daddr + entry_point)?;
         let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
 
