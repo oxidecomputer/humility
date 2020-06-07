@@ -994,6 +994,41 @@ fn probe(
     Ok(())
 }
 
+fn taskscmd(
+    hubris: &HubrisPackage,
+    args: &Args,
+) -> Result<(), Box<dyn Error>> {
+    let core = Core::auto_attach(&args.chip)?;
+
+    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
+    let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+    let cur = core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
+
+    let task = hubris.lookup_struct("Task")?;
+    let taskdesc = hubris.lookup_struct("TaskDesc")?;
+
+    let descriptor = task.lookup_member("descriptor")?;
+    let generation = task.lookup_member("generation")?;
+
+    let entry_point = taskdesc.lookup_member("entry_point")?;
+
+    println!("{:2} {:8} {:12} {:3}", "ID", "ADDR", "TASK", "GEN");
+
+    for i in 0..size {
+        let addr = base + i * task.size as u32;
+
+        let gen = core.read_word_8(addr + generation)?;
+        let daddr = core.read_word_32(addr + descriptor)?;
+        let entry = core.read_word_32(daddr + entry_point)?;
+        let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
+
+        println!("{:2} {:08x} {:12} {:3}{}", i, addr, module, gen,
+            if addr == cur { " <-" } else { "" });
+    }
+
+    Ok(())
+}
+
 #[derive(StructOpt)]
 #[structopt(name = "humility", max_term_width = 80)]
 struct Args {
@@ -1021,6 +1056,8 @@ enum Subcommand {
     Etm(EtmArgs),
     /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
     Itm(ItmArgs),
+    /// list tasks
+    Tasks,
 }
 
 fn main() {
@@ -1055,6 +1092,11 @@ fn main() {
 
         Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
             Err(err) => fatal!("itm failed: {} (raw: \"{:?})\"", err, err),
+            _ => std::process::exit(0),
+        }
+
+        Subcommand::Tasks => match taskscmd(&hubris, &args) {
+            Err(err) => fatal!("tasks failed: {} (raw: \"{:?})\"", err, err),
             _ => std::process::exit(0),
         }
     }

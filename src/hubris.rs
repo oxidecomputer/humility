@@ -21,6 +21,7 @@ use goblin::elf::Elf;
 use capstone::prelude::*;
 use capstone::InsnGroupType;
 use rustc_demangle::demangle;
+use multimap::MultiMap;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
@@ -42,11 +43,20 @@ pub struct HubrisPackage {
     // ELF symbols: address to name/length tuple
     esyms: BTreeMap<u32, (String, u32)>,
 
+    // ELF symbols: name to value/length
+    esyms_byname: HashMap<String, (u32, u32)>,
+
     // Inlined: address/nesting tuple to length/goff/origin tuple
     inlined: BTreeMap<(u32, isize), (u32, HubrisGoff, HubrisGoff)>,
 
     // Subprograms: goff to name
     subprograms: HashMap<HubrisGoff, String>,
+
+    // Structures: goff to struct
+    structs: HashMap<HubrisGoff, HubrisStruct>,
+
+    // Structures: name to goff
+    structs_byname: MultiMap<String, HubrisGoff>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
@@ -72,6 +82,21 @@ pub struct HubrisInlined<'a> {
     pub name: &'a str,
     pub id: HubrisGoff,
     pub origin: HubrisGoff,
+}
+
+#[derive(Debug)]
+pub struct HubrisStructMember {
+    pub name: String,
+    pub offset: usize,
+    pub origin: HubrisGoff,
+}
+
+#[derive(Debug)]
+pub struct HubrisStruct {
+    pub name: String,
+    pub goff: HubrisGoff,
+    pub size: usize,
+    pub members: HashMap<String, HubrisStructMember>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -129,9 +154,9 @@ macro_rules! err {
 impl fmt::Display for HubrisGoff {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.object > 0 {
-            write!(f, "GOFF 0x{:x} in object {}", self.goff, self.object)
+            write!(f, "GOFF 0x{:08x} (object {})", self.goff, self.object)
         } else {
-            write!(f, "GOFF 0x{:x}", self.goff)
+            write!(f, "GOFF 0x{:08x}", self.goff)
         }
     }
 }
@@ -147,6 +172,18 @@ fn dwarf_name<'a>(
             Some(ddstring)
         }
         _ => None,
+    }
+}
+
+impl HubrisStruct {
+    pub fn lookup_member(
+        &self,
+        name: &str
+    ) -> Result<u32, Box<dyn Error>> {
+        match self.members.get(name) {
+            Some(member) => { Ok(member.offset as u32) }
+            None => { err!("missing member: {}.{}", self.name, name) }
+        }
     }
 }
 
@@ -179,8 +216,11 @@ impl HubrisPackage {
             modules: BTreeMap::new(),
             dsyms: BTreeMap::new(),
             esyms: BTreeMap::new(),
+            esyms_byname: HashMap::new(),
             inlined: BTreeMap::new(),
-            subprograms: HashMap::new()
+            subprograms: HashMap::new(),
+            structs: HashMap::new(),
+            structs_byname: MultiMap::new(),
         })
     }
 
@@ -601,9 +641,148 @@ impl HubrisPackage {
 
             Ok(())
         } else {
-            warn!("no name found for {}", goff);
+            trace!("no name found for {}", goff);
             Ok(())
         }
+    }
+
+    ///
+    /// Looks up the specfied structure.  This returns a Result and not an
+    /// Option because the assumption is that the structure is needed to be
+    /// present, and be present exactly once.  If needed structures begin
+    /// having their names duplicated in modules, we may need to support
+    /// proper namespacing -- or kludgey namespacing...
+    ///
+    pub fn lookup_struct(
+        &self,
+        name: &str,
+    ) -> Result<&HubrisStruct, Box<dyn Error>> {
+        match self.structs_byname.get_vec(name) {
+            Some(v) => {
+                if v.len() > 1 {
+                    err!("{} matches more than one structure", name)
+                } else {
+                    Ok(self.structs.get(&v[0]).unwrap())
+                }
+            }
+            None => {
+                err!("expected structure {} not found", name)
+            }
+        }
+    }
+
+    ///
+    /// Looks up the specified symbol.  This is more of a convenience routine
+    /// that turns an Option into a Result.
+    ///
+    pub fn lookup_symword(
+        &self,
+        name: &str,
+    ) -> Result<u32, Box<dyn Error>> {
+        match self.esyms_byname.get(name) {
+            Some(sym) => {
+                if sym.1 != 4 {
+                    err!("symbol {} is not word-sized", name)
+                } else {
+                    Ok(sym.0)
+                }
+            }
+            None => {
+                err!("expected symbol {} not found", name)
+            }
+        }
+    }
+
+    fn dwarf_struct<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut name = None;
+        let mut size = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(size)) = (name, size) {
+            self.structs.insert(goff, HubrisStruct {
+                name: name.to_string(),
+                size: size,
+                goff: goff,
+                members: HashMap::new()
+            });
+
+            self.structs_byname.insert(name.to_string(), goff);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_member<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut attrs = entry.attrs();
+        let mut name = None;
+        let mut offset = None;
+        let mut origin = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_data_member_location => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        offset = Some(value as usize)
+                    }
+                }
+
+                gimli::constants::DW_AT_type => {
+                    origin = self.dwarf_value_goff(unit, &attr.value());
+                }
+
+                _ => {}
+            }
+        }
+
+        if let Some(pstruct) = self.structs.get_mut(&parent) {
+            if let (Some(n), Some(offs), Some(o)) = (name, offset, origin) {
+                pstruct.members.insert(n.to_string(), HubrisStructMember {
+                    name: n.to_string(),
+                    offset: offs,
+                    origin: o
+                });
+            }
+        }
+
+        Ok(())
     }
 
     fn load_object_dwarf(
@@ -671,6 +850,21 @@ impl HubrisPackage {
                     gimli::constants::DW_TAG_subprogram => {
                         self.dwarf_subprogram(&dwarf, &unit, &entry)?;
                     }
+
+                    gimli::constants::DW_TAG_structure_type => {
+                        self.dwarf_struct(&dwarf, &unit, &entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_member => {
+                        if depth == 0 {
+                            warn!("no structure for member {}", goff);
+                            continue;
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_member(&dwarf, &unit, &entry, parent)?;
+                    }
+
                     _ => {}
                 }
             }
@@ -722,6 +916,7 @@ impl HubrisPackage {
             let val = sym.st_value as u32 & !1;
             let dem = format!("{:#}", demangle(name));
 
+            self.esyms_byname.insert(name.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
         }
 
@@ -808,8 +1003,6 @@ impl HubrisPackage {
         &mut self, 
         directory: &str
     ) -> Result<(), Box<dyn Error>> {
-        println!("loading package at {}", directory);
-
         let file = File::open(directory)?;
         let metadata = file.metadata()?;
         let mapfile = directory.to_owned() + "/map.txt";
@@ -889,7 +1082,6 @@ impl HubrisPackage {
             }
         }
 
-        println!("{:?}", seen);
         Ok(())
     }
 }
