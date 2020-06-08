@@ -52,11 +52,20 @@ pub struct HubrisPackage {
     // Subprograms: goff to name
     subprograms: HashMap<HubrisGoff, String>,
 
+    // Base types: goff to size
+    basetypes: HashMap<HubrisGoff, usize>,
+
     // Structures: goff to struct
     structs: HashMap<HubrisGoff, HubrisStruct>,
 
     // Structures: name to goff
     structs_byname: MultiMap<String, HubrisGoff>,
+
+    // Enums: goff to enum
+    enums: HashMap<HubrisGoff, HubrisEnum>,
+
+    // Enums: name to goff
+    enums_byname: MultiMap<String, HubrisGoff>,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
@@ -88,7 +97,7 @@ pub struct HubrisInlined<'a> {
 pub struct HubrisStructMember {
     pub name: String,
     pub offset: usize,
-    pub origin: HubrisGoff,
+    pub goff: HubrisGoff,
 }
 
 #[derive(Debug)]
@@ -97,6 +106,30 @@ pub struct HubrisStruct {
     pub goff: HubrisGoff,
     pub size: usize,
     pub members: HashMap<String, HubrisStructMember>,
+}
+
+#[derive(Debug)]
+pub struct HubrisEnumVariant {
+    pub name: String,
+    pub offset: usize,
+    pub goff: HubrisGoff,
+    pub tag: Option<u64>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum HubrisDiscriminant {
+    Expected(HubrisGoff),
+    Value(HubrisGoff, usize),
+}
+
+#[derive(Debug)]
+pub struct HubrisEnum {
+    pub name: String,
+    pub goff: HubrisGoff,
+    pub size: usize,
+    pub discriminant: HubrisDiscriminant,
+    pub tag: Option<u64>,
+    pub variants: Vec<HubrisEnumVariant>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -219,8 +252,11 @@ impl HubrisPackage {
             esyms_byname: HashMap::new(),
             inlined: BTreeMap::new(),
             subprograms: HashMap::new(),
+            basetypes: HashMap::new(),
             structs: HashMap::new(),
             structs_byname: MultiMap::new(),
+            enums: HashMap::new(),
+            enums_byname: MultiMap::new(),
         })
     }
 
@@ -671,6 +707,16 @@ impl HubrisPackage {
         }
     }
 
+    pub fn lookup_enum(
+        &self,
+        goff: HubrisGoff,
+    ) -> Result<&HubrisEnum, Box<dyn Error>> {
+        match self.enums.get(&goff) {
+            Some(union) => { Ok(union) }
+            None => { err!("expected enum {} not found", goff) }
+        }
+    }
+
     ///
     /// Looks up the specified symbol.  This is more of a convenience routine
     /// that turns an Option into a Result.
@@ -691,6 +737,36 @@ impl HubrisPackage {
                 err!("expected symbol {} not found", name)
             }
         }
+    }
+
+    fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut size = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(size) = size {
+            self.basetypes.insert(goff, size);
+        }
+
+        Ok(())
     }
 
     fn dwarf_struct<'a, R: gimli::Reader<Offset = usize>>(
@@ -737,6 +813,83 @@ impl HubrisPackage {
         Ok(())
     }
 
+    fn dwarf_enum<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        goff: HubrisGoff,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut attrs = entry.attrs();
+        let mut discr = None;
+
+        /*
+         * If we have an enum, we need to first remove it from its structures,
+         * putting back any duplicate names that isn't this enum.
+         */
+        let union = self.structs.remove(&goff).unwrap();
+        let mut removed = self.structs_byname.remove(&union.name).unwrap();
+        removed.retain(|&g| g != goff);
+
+        for replace in removed {
+            self.structs_byname.insert(union.name.clone(), replace);
+        }
+
+        while let Some(attr) = attrs.next()? {
+            if attr.name() == gimli::constants::DW_AT_discr {
+                discr = self.dwarf_value_goff(unit, &attr.value());
+            }
+        }
+
+        if let Some(discr) = discr {
+            self.enums.insert(goff, HubrisEnum {
+                name: union.name.clone(),
+                goff: goff,
+                size: union.size,
+                discriminant: HubrisDiscriminant::Expected(discr),
+                tag: None,
+                variants: Vec::new(),
+            });
+
+            self.enums_byname.insert(union.name, goff);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_variant<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+    ) -> Result<(), Box<dyn Error>> {
+        let goff = self.dwarf_goff(unit, entry);
+        let mut attrs = entry.attrs();
+        let mut value = None;
+
+        while let Some(attr) = attrs.next()? {
+            if attr.name() == gimli::constants::DW_AT_discr_value {
+                value = attr.value().udata_value();
+
+                if value.is_none() {
+                    return err!("bad discriminant on union {}", parent);
+                }
+            }
+        }
+
+        if let Some(union) = self.enums.get_mut(&parent) {
+            union.tag = value;
+            Ok(())
+        } else {
+            err!("missing enum on variant {}", goff)
+        }
+    }
+
     fn dwarf_member<'a, R: gimli::Reader<Offset = usize>>(
         &mut self,
         dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
@@ -750,7 +903,8 @@ impl HubrisPackage {
         let mut attrs = entry.attrs();
         let mut name = None;
         let mut offset = None;
-        let mut origin = None;
+        let mut goff = None;
+        let member = self.dwarf_goff(unit, entry);
 
         while let Some(attr) = attrs.next()? {
             match attr.name() {
@@ -765,7 +919,7 @@ impl HubrisPackage {
                 }
 
                 gimli::constants::DW_AT_type => {
-                    origin = self.dwarf_value_goff(unit, &attr.value());
+                    goff = self.dwarf_value_goff(unit, &attr.value());
                 }
 
                 _ => {}
@@ -773,13 +927,51 @@ impl HubrisPackage {
         }
 
         if let Some(pstruct) = self.structs.get_mut(&parent) {
-            if let (Some(n), Some(offs), Some(o)) = (name, offset, origin) {
+            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
                 pstruct.members.insert(n.to_string(), HubrisStructMember {
                     name: n.to_string(),
                     offset: offs,
-                    origin: o
+                    goff: g
                 });
+            } else {
+                return err!("member {} is incomplete", member);
             }
+        } else if let Some(union) = self.enums.get_mut(&parent) {
+            if let HubrisDiscriminant::Expected(expect) = union.discriminant {
+                if member != expect {
+                    return err!("enum {}: expected discriminant {}, found {}",
+                        union.goff, expect, member)
+                }
+
+                if let (Some(offs), Some(g)) = (offset, goff) {
+                    union.discriminant = HubrisDiscriminant::Value(g, offs);
+                    return Ok(());
+                }
+
+                return err!("enum {}: incomplete discriminant", union.goff);
+            }
+
+            /*
+             * We have an enum variant; add it to our variants.
+             */
+            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
+                union.variants.push(HubrisEnumVariant {
+                    name: n.to_string(),
+                    offset: offs,
+                    goff: g,
+                    tag: union.tag
+                });
+
+                union.tag = None;
+            } else {
+                return err!("enum variant {} is incomplete", member);
+            }
+        } else {
+            /*
+             * This is possible because of Rust's (unsafe-only) support for
+             * C-style unions, which we ignore.
+             */
+            trace!("no struct/enum found for {}", parent);
         }
 
         Ok(())
@@ -855,10 +1047,46 @@ impl HubrisPackage {
                         self.dwarf_struct(&dwarf, &unit, &entry)?;
                     }
 
+                    gimli::constants::DW_TAG_base_type => {
+                        self.dwarf_basetype(&unit, &entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_variant_part => {
+                        if depth == 0 {
+                            return err!("no enum for variant {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_enum(&unit, &entry, parent)?;
+
+                        /*
+                         * The discriminant is a (grand)child member; we need
+                         * to duplicate our parent's goff so our child can find
+                         * it.
+                         */
+                        stack[depth as usize] = parent;
+                    }
+
+                    gimli::constants::DW_TAG_variant => {
+                        if depth == 0 {
+                            return err!("no enum for variant {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_variant(&unit, &entry, parent)?;
+
+                        /*
+                         * Our discriminant is still below us as a child
+                         * member, so, as in the DW_TAG_variant_part case
+                         * (which is our parent), we need to copy our parent
+                         * down.
+                         */
+                        stack[depth as usize] = parent;
+                    }
+
                     gimli::constants::DW_TAG_member => {
                         if depth == 0 {
-                            warn!("no structure for member {}", goff);
-                            continue;
+                            return err!("no parent for member {}", goff);
                         }
 
                         let parent = stack[depth as usize - 1];

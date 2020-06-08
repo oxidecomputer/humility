@@ -1008,6 +1008,12 @@ fn taskscmd(
     let task = hubris.lookup_struct("Task")?;
     let taskdesc = hubris.lookup_struct("TaskDesc")?;
 
+    let state = task.members.get("state").unwrap();
+    println!("state is {:?}", state);
+
+    let senum = hubris.lookup_enum(state.goff)?;
+    println!("enum is {:?}", senum);
+
     /*
      * We read the entire task table at a go to get as consistent a snapshot
      * as possible.
@@ -1018,6 +1024,7 @@ fn taskscmd(
 
     let descriptor = task.lookup_member("descriptor")?;
     let generation = task.lookup_member("generation")?;
+    let _state = task.lookup_member("state")?;
 
     let entry_point = taskdesc.lookup_member("entry_point")?;
 
@@ -1025,6 +1032,10 @@ fn taskscmd(
 
     let taskblock32 = |o| {
         u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
+    };
+
+    let _taskblock16 = |o| {
+        u16::from_le_bytes(taskblock[o..o + 2].try_into().unwrap())
     };
 
     for i in 0..size {
@@ -1089,7 +1100,7 @@ fn main() {
 
     if let Some(dir) = &args.package {
         if let Err(err) = hubris.load(&dir) {
-            fatal!("failed to load package {}: {}", dir, err);
+            fatal!("failed to load package: {}", err);
         }
     }
 
