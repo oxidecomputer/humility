@@ -6,12 +6,14 @@ use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::fmt;
+use std::fmt::Write;
 use std::io::BufReader;
 use std::io::prelude::*;
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 use std::convert::Infallible;
+use std::convert::TryInto;
 use std::path::Path;
 use std::str;
 
@@ -93,10 +95,10 @@ pub struct HubrisInlined<'a> {
     pub origin: HubrisGoff,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HubrisStructMember {
-    pub name: String,
     pub offset: usize,
+    pub name: String,
     pub goff: HubrisGoff,
 }
 
@@ -105,7 +107,7 @@ pub struct HubrisStruct {
     pub name: String,
     pub goff: HubrisGoff,
     pub size: usize,
-    pub members: HashMap<String, HubrisStructMember>,
+    pub members: Vec<HubrisStructMember>,
 }
 
 #[derive(Debug)]
@@ -212,11 +214,30 @@ impl HubrisStruct {
     pub fn lookup_member(
         &self,
         name: &str
-    ) -> Result<u32, Box<dyn Error>> {
-        match self.members.get(name) {
-            Some(member) => { Ok(member.offset as u32) }
-            None => { err!("missing member: {}.{}", self.name, name) }
+    ) -> Result<&HubrisStructMember, Box<dyn Error>> {
+        for member in &self.members {
+            if member.name == name {
+                return Ok(member)
+            }
         }
+
+        err!("missing member: {}.{}", self.name, name)
+    }
+}
+
+impl HubrisEnum {
+    pub fn lookup_variant(
+        &self,
+        tag: u64
+    ) -> Option<&HubrisEnumVariant> {
+        for variant in &self.variants {
+            match variant.tag {
+                Some(t) if t == tag => { return Some(variant); }
+                Some(_t) => {}
+                None => { return Some(variant); }
+            }
+        }
+        None
     }
 }
 
@@ -689,7 +710,7 @@ impl HubrisPackage {
     /// having their names duplicated in modules, we may need to support
     /// proper namespacing -- or kludgey namespacing...
     ///
-    pub fn lookup_struct(
+    pub fn lookup_struct_byname(
         &self,
         name: &str,
     ) -> Result<&HubrisStruct, Box<dyn Error>> {
@@ -704,6 +725,17 @@ impl HubrisPackage {
             None => {
                 err!("expected structure {} not found", name)
             }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn lookup_struct(
+        &self,
+        goff: HubrisGoff,
+    ) -> Result<&HubrisStruct, Box<dyn Error>> {
+        match self.structs.get(&goff) {
+            Some(str) => { Ok(str) }
+            None => { err!("expected struct {} not found", goff) }
         }
     }
 
@@ -737,6 +769,107 @@ impl HubrisPackage {
                 err!("expected symbol {} not found", name)
             }
         }
+    }
+
+    pub fn dump(
+        &self,
+        buf: &[u8],
+        goff: HubrisGoff,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut rval = String::new();
+
+        let readval = |b: &[u8], o, sz| -> Result<u64, Box<dyn Error>> {
+            Ok(match sz {
+                1 => b[o] as u64,
+                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
+                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
+                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
+                _ => { return err!("bad size!"); }
+            })
+        };
+
+        if let Some(v) = self.structs.get(&goff) {
+            /*
+             * This is a structure; iterate over its members.
+             */
+            if v.members.len() == 0 {
+                return Ok(rval);
+            }
+
+            if v.members[0].name == "__0" {
+                rval += "(";
+
+                for i in 0..v.members.len() {
+                    let m = &v.members[i];
+                    rval += &self.dump(&buf[m.offset..], m.goff)?;
+
+                    if i + 1 < v.members.len() {
+                        rval += ", ";
+                    }
+                }
+
+                rval += ")";
+                return Ok(rval);
+            }
+
+            rval += "{ ";
+
+            for i in 0..v.members.len() {
+                let m = &v.members[i];
+                rval += &m.name;
+                rval += ": ";
+                rval += &self.dump(&buf[m.offset..], m.goff)?;
+
+                if i + 1 < v.members.len() {
+                    rval += ", ";
+                }
+            }
+
+            rval += "}";
+            return Ok(rval);
+        }
+
+        if let Some(union) = self.enums.get(&goff) {
+            /*
+             * For enums, we need to determine which variant this actually
+             * is -- which necessitates determining our XXX
+             */
+            if let HubrisDiscriminant::Value(g, offs) = union.discriminant {
+                let size = match self.basetypes.get(&g) {
+                    Some(size) => { size }
+                    None => {
+                        return err!("enum {} has unknown discriminant", goff);
+                    }
+                };
+
+                let val = readval(buf, offs, *size)?;
+
+                match union.lookup_variant(val) {
+                    None => {
+                        write!(rval, "<? (0x{:x})>", val)?;
+                    }
+
+                    Some(variant) => {
+                        rval += &variant.name;
+                        rval += &self.dump(&buf[0..], variant.goff)?;
+                    }
+                }
+
+                return Ok(rval);
+            } else {
+                return err!("enum {} has incomplete discriminant", goff);
+            }
+        }
+
+        if let Some(base) = self.basetypes.get(&goff) {
+            let val = readval(buf, 0, *base)?;
+            write!(rval, "{}", val)?;
+            return Ok(rval);
+        }
+
+        rval = goff.to_string();
+
+        Ok(rval)
     }
 
     fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
@@ -804,7 +937,7 @@ impl HubrisPackage {
                 name: name.to_string(),
                 size: size,
                 goff: goff,
-                members: HashMap::new()
+                members: Vec::new()
             });
 
             self.structs_byname.insert(name.to_string(), goff);
@@ -928,7 +1061,7 @@ impl HubrisPackage {
 
         if let Some(pstruct) = self.structs.get_mut(&parent) {
             if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
-                pstruct.members.insert(n.to_string(), HubrisStructMember {
+                pstruct.members.push(HubrisStructMember {
                     name: n.to_string(),
                     offset: offs,
                     goff: g

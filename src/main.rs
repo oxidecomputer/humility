@@ -995,60 +995,75 @@ fn probe(
     Ok(())
 }
 
+#[derive(StructOpt)]
+struct TasksArgs {
+    /// spin pulling tasks
+    #[structopt(
+        long, short, 
+    )]
+    spin: bool,
+}
+
 fn taskscmd(
     hubris: &HubrisPackage,
     args: &Args,
+    subargs: &TasksArgs,
 ) -> Result<(), Box<dyn Error>> {
     let core = Core::auto_attach(&args.chip)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
-    let cur = core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
 
-    let task = hubris.lookup_struct("Task")?;
-    let taskdesc = hubris.lookup_struct("TaskDesc")?;
+    let task = hubris.lookup_struct_byname("Task")?;
+    let taskdesc = hubris.lookup_struct_byname("TaskDesc")?;
 
-    let state = task.members.get("state").unwrap();
-    println!("state is {:?}", state);
+    let state = task.lookup_member("state")?;
+    let state_enum = hubris.lookup_enum(state.goff)?;
 
-    let senum = hubris.lookup_enum(state.goff)?;
-    println!("enum is {:?}", senum);
+    loop {
+        let cur = core.read_word_32(
+            hubris.lookup_symword("CURRENT_TASK_PTR")?
+        )?;
 
-    /*
-     * We read the entire task table at a go to get as consistent a snapshot
-     * as possible.
-     */
-    let mut taskblock: Vec<u8> = vec![];
-    taskblock.resize_with(task.size * size as usize, Default::default);
-    core.read_8(base, taskblock.as_mut_slice())?;
+        /*
+         * We read the entire task table at a go to get as consistent a
+         * snapshot as possible.
+         */
+        let mut taskblock: Vec<u8> = vec![];
+        taskblock.resize_with(task.size * size as usize, Default::default);
+        core.read_8(base, taskblock.as_mut_slice())?;
 
-    let descriptor = task.lookup_member("descriptor")?;
-    let generation = task.lookup_member("generation")?;
-    let _state = task.lookup_member("state")?;
+        let descriptor = task.lookup_member("descriptor")?.offset as u32;
+        let generation = task.lookup_member("generation")?.offset as u32;
+        let state = task.lookup_member("state")?.offset as u32;
 
-    let entry_point = taskdesc.lookup_member("entry_point")?;
+        let entry_point = taskdesc.lookup_member("entry_point")?.offset as u32;
 
-    println!("{:2} {:8} {:12} {:3}", "ID", "ADDR", "TASK", "GEN");
+        println!("{:2} {:8} {:12} {:3} {:9}",
+            "ID", "ADDR", "TASK", "GEN", "STATE");
 
-    let taskblock32 = |o| {
-        u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
-    };
+        let taskblock32 = |o| {
+            u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
+        };
 
-    let _taskblock16 = |o| {
-        u16::from_le_bytes(taskblock[o..o + 2].try_into().unwrap())
-    };
+        for i in 0..size {
+            let addr = base + i * task.size as u32;
+            let offs = i as usize * task.size;
+            let soffs = offs + state as usize;
 
-    for i in 0..size {
-        let addr = base + i * task.size as u32;
-        let offs = i as usize * task.size;
+            let gen = taskblock[offs + generation as usize];
+            let daddr = taskblock32(offs + descriptor as usize);
+            let entry = core.read_word_32(daddr + entry_point)?;
+            let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
 
-        let gen = taskblock[offs + generation as usize];
-        let daddr = taskblock32(offs + descriptor as usize);
-        let entry = core.read_word_32(daddr + entry_point)?;
-        let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
+            println!("{:2} {:08x} {:12} {:3} {:25} {}", i, addr, module, gen,
+                hubris.dump(&taskblock[soffs..], state_enum.goff)?,
+                if addr == cur { " <-" } else { "" });
+        }
 
-        println!("{:2} {:08x} {:12} {:3}{}", i, addr, module, gen,
-            if addr == cur { " <-" } else { "" });
+        if !subargs.spin {
+            break;
+        }
     }
 
     Ok(())
@@ -1082,7 +1097,7 @@ enum Subcommand {
     /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
     Itm(ItmArgs),
     /// list tasks
-    Tasks,
+    Tasks(TasksArgs),
 }
 
 fn main() {
@@ -1120,7 +1135,7 @@ fn main() {
             _ => std::process::exit(0),
         }
 
-        Subcommand::Tasks => match taskscmd(&hubris, &args) {
+        Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
             Err(err) => fatal!("tasks failed: {} (raw: \"{:?})\"", err, err),
             _ => std::process::exit(0),
         }
