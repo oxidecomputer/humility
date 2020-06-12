@@ -706,12 +706,14 @@ fn itmcmd_probe(
 
     info!("ROM debug table: {:#x?}", tab);
 
+    info!("{:#x?}", DEMCR::read(&core)?);
     info!("{:#x?}", ITM_LSR::read(&core)?);
     info!("{:#x?}", ITM_TCR::read(&core)?);
     info!("{:#x?}", ITM_TER::read(&core)?);
     info!("{:#x?}", DBGMCU_CR::read(&core)?);
     info!("{:#x?}", TPIU_FFCR::read(&core)?);
     info!("{:#x?}", DWT_CTRL::read(&core)?);
+    info!("{:#x?}", TPIU_SPPR::read(&core)?);
 
     Ok(())
 }
@@ -1039,7 +1041,7 @@ fn taskscmd(
 
         let entry_point = taskdesc.lookup_member("entry_point")?.offset as u32;
 
-        println!("{:2} {:8} {:12} {:3} {:9}",
+        println!("{:2} {:8} {:18} {:3} {:9}",
             "ID", "ADDR", "TASK", "GEN", "STATE");
 
         let taskblock32 = |o| {
@@ -1056,7 +1058,7 @@ fn taskscmd(
             let entry = core.read_word_32(daddr + entry_point)?;
             let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
 
-            println!("{:2} {:08x} {:12} {:3} {:25} {}", i, addr, module, gen,
+            println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
                 hubris.dump(&taskblock[soffs..], state_enum.goff)?,
                 if addr == cur { " <-" } else { "" });
         }

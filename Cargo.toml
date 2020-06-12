@@ -9,12 +9,13 @@ gimli = "0.20.0"
 fallible-iterator = "0.2.0"
 
 #
-# For now, we depend on the itm branch of probe-rs, but only for the
-# read_swv() function in the session (and more generally, for its
-# implementation of SWV.  As soon as we can get these changes elsewhere, this
-# dependency should be changed!
+# For now, we depend on the itm branch of Oxide's fork of probe-rs (!).  We
+# need the itm branch for the read_swv() function in the session (and more
+# generally, for its implementation of SWV) -- and we need the Oxide fork for
+# several bug fixes needed for the LPC55 in particular.  As soon as we can get
+# these changes elsewhere, this dependency should be changed!
 #
-probe-rs = { git = "https://github.com/probe-rs/probe-rs.git", branch = "itm" }
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "itm" }
 
 log = {version = "0.4.8", features = ["std"]}
 bitfield = "0.13.2"
