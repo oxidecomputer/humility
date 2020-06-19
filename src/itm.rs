@@ -80,8 +80,7 @@ impl ITM_LAR {
 #[derive(Debug)]
 pub enum ITMPayload {
     None,
-    #[allow(dead_code)]
-    LocalTimestamp { timestamp: u32, delayed: bool, early: bool },
+    LocalTimestamp { timedelta: u32, delayed: bool, early: bool },
     #[allow(dead_code)]
     Extension { payload: u32, sh: bool },
     #[allow(dead_code)]
@@ -222,7 +221,7 @@ fn itm_packet_state(
         let mut ndx: u8 = 0;
 
         while ndx < payload.len() as u8 {
-            if ndx == max - 1 || (payload[ndx as usize] & 0b1000_0000) != 0 {
+            if ndx == max - 1 || (payload[ndx as usize] & 0b1000_0000) == 0 {
                 break;
             }
 
@@ -259,15 +258,26 @@ fn itm_payload_decode(
 
     match hdr {
         ITMHeader::Instrumentation { a, .. } => {
-//            let mut p: [u8; 4] = [0; 4];
-//            payload.iter().enumerate().for_each(|v| { p[v.0] = *v.1; });
-
             ITMPayload::Instrumentation {
                 port: a as u32,
-                // len: payload.len(),
                 payload: payload.to_vec(),
             }
         }
+
+        ITMHeader::LocalTimestamp1 { tc } => {
+            let mut delta: u32 = 0;
+
+            for (i, pld) in payload.iter().enumerate() {
+                delta |= ((*pld as u32) & 0b0111_1111) << (i * 7);
+            }
+
+            ITMPayload::LocalTimestamp {
+                delayed: (tc & 0b01) != 0,
+                early: (tc & 0b10) != 0,
+                timedelta: delta,
+            }
+        }
+
         _ => { ITMPayload::None }
     }
 }

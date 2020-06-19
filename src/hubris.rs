@@ -239,6 +239,19 @@ impl HubrisEnum {
         }
         None
     }
+
+    pub fn lookup_variant_byname(
+        &self,
+        name: &str
+    ) -> Result<&HubrisEnumVariant, Box<dyn Error>> {
+        for variant in &self.variants {
+            if variant.name == name {
+                return Ok(variant);
+            }
+        }
+
+        err!("missing variant: {}.{}", self.name, name)
+    }
 }
 
 impl HubrisPackage {

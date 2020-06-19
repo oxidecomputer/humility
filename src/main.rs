@@ -30,6 +30,9 @@ use hubris::*;
 use std::error::Error;
 use std::fs::File;
 use std::convert::TryInto;
+use std::time::Instant;
+use std::time::SystemTime;
+use std::collections::HashMap;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -47,6 +50,14 @@ pub struct HumilityLog {
     level: log::LevelFilter,
 }
 
+fn is_humility(metadata: &log::Metadata) -> bool {
+    if let Some(metadata) = metadata.target().split("::").next() {
+        metadata == "humility"
+    } else {
+        false
+    }
+}
+
 impl log::Log for HumilityLog {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
         metadata.level() <= self.level 
@@ -57,10 +68,10 @@ impl log::Log for HumilityLog {
             return;
         }
 
-        if record.metadata().target() == "humility" {
-            println!("humility: {}", record.args())
+        if is_humility(record.metadata()) {
+            eprintln!("humility: {}", record.args())
         } else {
-            println!("humility: {} ({}): {}",
+            eprintln!("humility: {} ({}): {}",
                 record.level(),
                 record.metadata().target(),
                 record.args()
@@ -112,7 +123,7 @@ struct TraceState {
     stack: Vec<(usize, Vec<HubrisGoff>, u32)>,
 }
 
-const HUMILITY_ETM_SWOSCALER: u16 = 10;
+const HUMILITY_ETM_SWOSCALER: u16 = 7;
 const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
@@ -215,16 +226,6 @@ fn etmcmd_enable(
     val.set_continuous_formatting(true);
     val.write(&core)?;
 
-    /*
-     * HCLK seems to really vary, for reasons that aren't well understood.  We
-     * use a default SWOSCALER of 10, which has historically brought the
-     * TRACECLK to something attainable with a Saleae.  (The clock also seems
-     * to need to evenly divide 4.5 MHz, which has resulted in a clock of 1.5
-     * to 4.5 MHz in practice.)  Note that the size of the scaler has a direct
-     * effect on probe effect:  the higher the scaler, the slower TRACECLK --
-     * and therefore the more frequently that the CPU will stall on a full
-     * TPIU FIFO.
-     */
     let mut acpr = TPIU_ACPR::read(&core)?;
     acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
     acpr.write(&core)?;
@@ -750,16 +751,6 @@ fn itmcmd_enable(
     val.set_continuous_formatting(true);
     val.write(&core)?;
 
-    /*
-     * HCLK seems to really vary, for reasons that aren't well understood.  We
-     * use a default SWOSCALER of 10, which has historically brought the
-     * TRACECLK to something attainable with a Saleae.  (The clock also seems
-     * to need to evenly divide 4.5 MHz, which has resulted in a clock of 1.5
-     * to 4.5 MHz in practice.)  Note that the size of the scaler has a direct
-     * effect on probe effect:  the higher the scaler, the slower TRACECLK --
-     * and therefore the more frequently that the CPU will stall on a full
-     * TPIU FIFO.
-     */
     let mut acpr = TPIU_ACPR::read(&core)?;
     acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
     acpr.write(&core)?;
@@ -804,7 +795,7 @@ fn itmcmd_enable(
      */
     tcr = ITM_TCR::read(&core)?;
     tcr.set_traceid(traceid.into());
-    tcr.set_timestamp_enable(false);
+    tcr.set_timestamp_enable(true);
     tcr.set_sync_enable(true);
     tcr.set_itm_enable(true);
     tcr.write(&core)?;
@@ -866,11 +857,10 @@ fn itmcmd_ingest_attached(
     _core: &mut probe_rs::Core,
     traceid: u8,
 ) -> Result<(), Box<dyn Error>> {
-
-    println!("will ingest from attached!");
-
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
+
+    let start = Instant::now();
 
     itm_ingest(traceid, || {
         while ndx == bytes.len() {
@@ -878,12 +868,20 @@ fn itmcmd_ingest_attached(
             ndx = 0;
         }
         ndx += 1;
-        Ok(Some((bytes[ndx - 1], 0.0)))
+        Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
     }, |packet| {
-        if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
-            for p in payload {
-                print!("{}", *p as char);
+        match &packet.payload {
+            ITMPayload::Instrumentation { payload, port } => {
+                if *port > 1 {
+                    println!("{:x?}", payload);
+                    return Ok(());
+                }
+
+                for p in payload {
+                    print!("{}", *p as char);
+                }
             }
+            _ => {}
         }
 
         Ok(())
@@ -1061,12 +1059,250 @@ fn taskscmd(
             println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
                 hubris.dump(&taskblock[soffs..], state_enum.goff)?,
                 if addr == cur { " <-" } else { "" });
+
+            println!("{:?}", &taskblock[soffs..soffs + state_enum.size]);
         }
 
         if !subargs.spin {
             break;
         }
     }
+
+    Ok(())
+}
+
+#[derive(StructOpt)]
+struct TraceArgs {
+    /// sets ITM trace identifier
+    #[structopt(
+        long, short, default_value = "0x3a", value_name = "identifier",
+        parse(try_from_str = parse_int::parse)
+    )]
+    traceid: u8,
+    /// sets the value of SWOSCALER
+    #[structopt(long, short, value_name = "scaler", requires = "enable",
+        parse(try_from_str = parse_int::parse)
+    )]
+    clockscaler: Option<u16>,
+    /// provide statemap-ready output
+    #[structopt(
+        long, short
+    )]
+    statemap: bool,
+}
+
+fn tracecmd_ingest(
+    hubris: &HubrisPackage,
+    subargs: &TraceArgs,
+    session: &mut probe_rs::Session,
+    tasks: &HashMap<u32, String>,
+) -> Result<(), Box<dyn Error>> {
+    let mut bytes: Vec<u8> = vec![];
+    let mut ndx = 0;
+
+    let start = Instant::now();
+    let mut ts: f64 = 0.0;
+    let mut time = 0;
+
+    let mut states: HashMap<String, i32> = HashMap::new();
+
+    if subargs.statemap {
+        let t = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+
+        let colors = [
+            "#ed441f", "#ef5b3b", "#f27357", "#f48a73",
+            "#f6a28f", "#f8b9ab", "#fad0c7", "#fde8e3",
+        ];
+
+        println!("{{");
+        println!("\t\"start\": [ {}, {} ],", t.as_secs(), t.subsec_nanos());
+        println!("\t\"title\": \"Hubris tasks\",");
+        println!("\t\"entityKind\": \"Task\",");
+
+        println!("\t\"states\": {{");
+        println!("\t\t\"Running\": {{ \"value\": 0, \"color\": \"#DAF7A6\" }},");
+        println!("\t\t\"Runnable\": {{ \"value\": 1, \"color\": \"#9BC362\" }},");
+        println!("\t\t\"InRecv\": {{ \"value\": 2, \"color\": \"#e0e0e0\" }},");
+
+        states.insert("Runnable".to_string(), 1);
+        states.insert("InRecv(None)".to_string(), 2);
+
+        for i in 0..tasks.len() {
+            let name = tasks.get(&(i as u32)).unwrap();
+            let s = format!("InReply(({}))", i);
+            let state = 3 + i;
+
+            states.insert(s, state as i32);
+            println!(concat!("\t\t\"InReply({})\": {{ \"value\": {}, ",
+                "\"color\": \"{}\" }}{}"), name, state, colors[i],
+                if i < tasks.len() - 1 { "," } else { "" });
+        }
+
+        println!("\t}}");
+        println!("}}");
+
+        for i in 0..tasks.len() {
+            let name = tasks.get(&(i as u32)).unwrap();
+            println!("{{ \"entity\": \"{}\", \"description\": \"{}\" }}",
+                i, name);
+        }
+    }
+
+    let tstruct = hubris.lookup_struct_byname("Task")?;
+    let state = tstruct.lookup_member("state")?;
+    let state_enum = hubris.lookup_enum(state.goff)?;
+    let healthy = state_enum.lookup_variant_byname("Healthy")?;
+    let hh = hubris.lookup_struct(healthy.goff)?;
+
+    let schedstate = hubris.lookup_enum(hh.lookup_member("__0")?.goff)?;
+    let mut spayload = Vec::with_capacity(schedstate.size);
+    let mut task = 0;
+    let mut newtask = None;
+
+    itm_ingest(subargs.traceid, || {
+        while ndx == bytes.len() {
+            bytes = session.read_swv().unwrap();
+            ts = start.elapsed().as_secs_f64();
+            ndx = 0;
+        }
+        ndx += 1;
+        Ok(Some((bytes[ndx - 1], ts)))
+    }, |packet| {
+        match &packet.payload {
+            ITMPayload::Instrumentation { payload, port } => {
+                if *port == 30 {
+                    newtask = Some(payload[0] as u32);
+                    return Ok(());
+                }
+
+                if *port == 31 {
+                    if payload.len() == 1 {
+                        task = payload[0] as u32;
+                        spayload.truncate(0);
+                    } else {
+                        for p in payload {
+                            spayload.push(*p);
+                        }
+                    }
+
+                    if spayload.len() < schedstate.size {
+                        return Ok(());
+                    }
+
+                    if !subargs.statemap {
+                        println!(
+                            "{:.9} {} ({}): {}",
+                            time as f64 / 16_000_000 as f64,
+                            task,
+                            tasks.get(&task).unwrap_or(&"<invalid>".to_string()),
+                            hubris.dump(&spayload[..], schedstate.goff)?,
+                        );
+                        return Ok(());
+                    }
+
+                    let state = hubris.dump(&spayload[..], schedstate.goff)?;
+
+                    println!(
+                        concat!(
+                            "{{ \"time\": \"{}\", \"entity\": \"{}\", ",
+                            "\"state\": {} }}"
+                        ),
+                        ((time as f64 / 16_000_000 as f64) *
+                        1_000_000_000 as f64) as u64,
+                        task, states.get(&state).unwrap_or(&-1)
+                    );
+
+                    return Ok(());
+                }
+
+                if !subargs.statemap {
+                    for p in payload {
+                        print!("{}", *p as char);
+                    }
+                }
+            }
+
+            ITMPayload::LocalTimestamp { timedelta, delayed, early } => {
+                time += timedelta;
+
+                if let Some(task) = newtask {
+                    if subargs.statemap {
+                        println!(
+                            concat!(
+                                "{{ \"time\": \"{}\", \"entity\": \"{}\", ",
+                                "\"state\": 0 }}"
+                            ),
+                            ((time as f64 / 16_000_000 as f64) *
+                            1_000_000_000 as f64) as u64,
+                            task
+                        );
+                    } else {
+                        println!(
+                            "{:.9} {} ({}): Running",
+                            time as f64 / 16_000_000 as f64,
+                            task,
+                            tasks.get(&task).unwrap_or(&"<invalid>".to_string())
+                        );
+                    }
+
+                    newtask = None;
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    })
+}
+
+fn tracecmd(
+    hubris: &HubrisPackage,
+    args: &Args,
+    subargs: &TraceArgs,
+) -> Result<(), Box<dyn Error>> {
+    let mut tasks: HashMap<u32, String> = HashMap::new();
+
+    let probes = Probe::list_all();
+    let probe = probes[0].open()?;
+    let mut session = probe.attach(&args.chip)?;
+    let core = session.attach_to_core(0)?;
+
+    /*
+     * First, read the task block to get a mapping of IDs to names.
+     */
+    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
+    let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+
+    let task = hubris.lookup_struct_byname("Task")?;
+    let descriptor = task.lookup_member("descriptor")?.offset as u32;
+
+    let taskdesc = hubris.lookup_struct_byname("TaskDesc")?;
+    let entry_point = taskdesc.lookup_member("entry_point")?.offset as u32;
+
+    let mut taskblock: Vec<u8> = vec![];
+    taskblock.resize_with(task.size * size as usize, Default::default);
+    core.read_8(base, taskblock.as_mut_slice())?;
+
+    let taskblock32 = |o| {
+        u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
+    };
+
+    for i in 0..size {
+        let addr = base + i * task.size as u32;
+        let offs = i as usize * task.size;
+        let daddr = taskblock32(offs + descriptor as usize);
+        let entry = core.read_word_32(daddr + entry_point)?;
+        let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
+
+        trace!("task {} is {}", i, module);
+        tasks.insert(i, module.to_string());
+    }
+
+    /*
+     * Now enable ITM and ingest.
+     */
+    itmcmd_enable(&core, subargs.clockscaler, subargs.traceid)?;
+    tracecmd_ingest(&hubris, subargs, &mut session, &tasks)?;
 
     Ok(())
 }
@@ -1100,6 +1336,8 @@ enum Subcommand {
     Itm(ItmArgs),
     /// list tasks
     Tasks(TasksArgs),
+    /// trace Hubris operations
+    Trace(TraceArgs),
 }
 
 fn main() {
@@ -1118,6 +1356,13 @@ fn main() {
     if let Some(dir) = &args.package {
         if let Err(err) = hubris.load(&dir) {
             fatal!("failed to load package: {}", err);
+        }
+    } else {
+        match &args.cmd {
+            Subcommand::Tasks(..) | Subcommand::Trace(..) => {
+                fatal!("must provide a package");
+            }
+            _ => {}
         }
     }
 
@@ -1139,6 +1384,11 @@ fn main() {
 
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
             Err(err) => fatal!("tasks failed: {} (raw: \"{:?})\"", err, err),
+            _ => std::process::exit(0),
+        }
+
+        Subcommand::Trace(subargs) => match tracecmd(&hubris, &args, subargs) {
+            Err(err) => fatal!("trace failed: {} (raw: \"{:?})\"", err, err),
             _ => std::process::exit(0),
         }
     }
