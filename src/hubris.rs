@@ -120,6 +120,7 @@ pub struct HubrisEnumVariant {
 
 #[derive(Copy, Clone, Debug)]
 pub enum HubrisDiscriminant {
+    None,
     Expected(HubrisGoff),
     Value(HubrisGoff, usize),
 }
@@ -845,32 +846,55 @@ impl HubrisPackage {
         if let Some(union) = self.enums.get(&goff) {
             /*
              * For enums, we need to determine which variant this actually
-             * is -- which necessitates determining our XXX
+             * is -- which necessitates looking at our discriminant.
              */
-            if let HubrisDiscriminant::Value(g, offs) = union.discriminant {
-                let size = match self.basetypes.get(&g) {
-                    Some(size) => { size }
-                    None => {
-                        return err!("enum {} has unknown discriminant", goff);
-                    }
-                };
+            match union.discriminant {
+                HubrisDiscriminant::Value(g, offs) => {
+                    let size = match self.basetypes.get(&g) {
+                        Some(size) => { size }
+                        None => {
+                            return err!(concat!("enum {} has discriminant ",
+                                "of unknown type: {}"), goff, g);
+                        }
+                    };
 
-                let val = readval(buf, offs, *size)?;
+                    let val = readval(buf, offs, *size)?;
 
-                match union.lookup_variant(val) {
-                    None => {
-                        write!(rval, "<? (0x{:x})>", val)?;
+                    match union.lookup_variant(val) {
+                        None => {
+                            write!(rval, "<? (0x{:x})>", val)?;
+                        }
+
+                        Some(variant) => {
+                            rval += &variant.name;
+                            rval += &self.dump(&buf[0..], variant.goff)?;
+                        }
                     }
 
-                    Some(variant) => {
-                        rval += &variant.name;
-                        rval += &self.dump(&buf[0..], variant.goff)?;
-                    }
+                    return Ok(rval);
                 }
 
-                return Ok(rval);
-            } else {
-                return err!("enum {} has incomplete discriminant", goff);
+                HubrisDiscriminant::None => {
+                    if union.variants.len() == 0 {
+                        return err!("enum {} has no variants", goff);
+                    }
+
+                    if union.variants.len() > 1 {
+                        return err!(concat!("enum {} has multiple variants ",
+                            "but no discriminant"), goff);
+                    }
+
+                    let variant = &union.variants[0];
+
+                    rval += &variant.name;
+                    rval += &self.dump(&buf[0..], variant.goff)?;
+
+                    return Ok(rval);
+                }
+
+                HubrisDiscriminant::Expected(_) => {
+                    return err!("enum {} has incomplete discriminant", goff);
+                }
             }
         }
 
@@ -972,7 +996,7 @@ impl HubrisPackage {
         let mut discr = None;
 
         /*
-         * If we have an enum, we need to first remove it from its structures,
+         * If we have an enum, we need to first remove it from our structures,
          * putting back any duplicate names that isn't this enum.
          */
         let union = self.structs.remove(&goff).unwrap();
@@ -989,18 +1013,19 @@ impl HubrisPackage {
             }
         }
 
-        if let Some(discr) = discr {
-            self.enums.insert(goff, HubrisEnum {
-                name: union.name.clone(),
-                goff: goff,
-                size: union.size,
-                discriminant: HubrisDiscriminant::Expected(discr),
-                tag: None,
-                variants: Vec::new(),
-            });
+        self.enums.insert(goff, HubrisEnum {
+            name: union.name.clone(),
+            goff: goff,
+            size: union.size,
+            discriminant: match discr {
+                Some(discr) => HubrisDiscriminant::Expected(discr),
+                None => HubrisDiscriminant::None
+            },
+            tag: None,
+            variants: Vec::new(),
+        });
 
-            self.enums_byname.insert(union.name, goff);
-        }
+        self.enums_byname.insert(union.name, goff);
 
         Ok(())
     }
@@ -1315,6 +1340,7 @@ impl HubrisPackage {
         let offset = textsec.sh_offset as usize;
         let size = textsec.sh_size as usize;
 
+        trace!("loading {} as object {}", object, self.current);
         let t = buffer.get(offset..offset + size).unwrap();
         self.load_object_dwarf(&buffer, &elf)?;
 

@@ -1059,8 +1059,6 @@ fn taskscmd(
             println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
                 hubris.dump(&taskblock[soffs..], state_enum.goff)?,
                 if addr == cur { " <-" } else { "" });
-
-            println!("{:?}", &taskblock[soffs..soffs + state_enum.size]);
         }
 
         if !subargs.spin {
