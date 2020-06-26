@@ -33,6 +33,7 @@ use std::convert::TryInto;
 use std::time::Instant;
 use std::time::SystemTime;
 use std::collections::HashMap;
+use std::io::Read;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -121,6 +122,21 @@ struct TraceState {
     target: Option<HubrisTarget>,
     inlined: Vec<HubrisGoff>,
     stack: Vec<(usize, Vec<HubrisGoff>, u32)>,
+}
+
+fn attach(
+    args: &Args
+) -> Result<(probe_rs::Session, probe_rs::Core), probe_rs::Error> {
+    let probes = Probe::list_all();
+    let probe = probes[0].open()?;
+
+    info!("attaching as chip {} ...", args.chip);
+    let session = probe.attach(&args.chip)?;
+
+    let core = session.attach_to_core(0)?;
+    info!("attached");
+
+    Ok((session, core))
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 7;
@@ -316,16 +332,6 @@ fn etmcmd_disable(
     Ok(())
 }
 
-fn etmcmd_attach(args: &Args,
-    _subargs: &EtmArgs,
-) -> Result<probe_rs::Core, probe_rs::Error> {
-    info!("attaching as chip {} ...", args.chip);
-    let core = Core::auto_attach(&args.chip)?;
-    info!("attached");
-
-    Ok(core)
-}
-
 fn etmcmd_trace(
     config: &TraceConfig,
     instr: &TraceInstruction,
@@ -507,6 +513,8 @@ fn etmcmd_ingest(
             )
         };
 
+        println!("{:#x?}", packet);
+
         match packet.header {
             ETM3Header::PHeaderFormat1 { e, n } => {
                 for _i in 0..e {
@@ -594,6 +602,22 @@ fn etmcmd_ingest(
     Ok(())
 }
 
+fn etmcmd_output(
+    session: &mut probe_rs::Session,
+) -> Result<(), Box<dyn Error>> {
+    let start = Instant::now();
+
+    println!("Time [s],Value,Parity Error,Framing Error");
+
+    loop {
+        let bytes = session.read_swv().unwrap();
+
+        for b in bytes {
+            println!("{:.15},0x{:02X},,", start.elapsed().as_secs_f64(), b);
+        }
+    }
+}
+
 #[derive(StructOpt)]
 struct EtmArgs {
     /// probe for ETM capability on attached device
@@ -625,6 +649,11 @@ struct EtmArgs {
         parse(try_from_str = parse_int::parse)
     )]
     clockscaler: Option<u16>,
+    /// output ETM data as CSV
+    #[structopt(
+        long, short, conflicts_with = "ingest"
+    )]
+    output: bool,
 }
 
 fn etmcmd(
@@ -661,7 +690,7 @@ fn etmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let core = etmcmd_attach(args, subargs)?;
+    let (mut session, core) = attach(args)?;
     let _info = core.halt();
 
     info!("core halted");
@@ -681,23 +710,18 @@ fn etmcmd(
     core.run()?;
     info!("core resumed");
 
+    if subargs.output {
+        match etmcmd_output(&mut session) {
+            Err(e) => {
+                fatal!("failed to output from attached device: {}", e);
+            }
+            _ => {
+                return Ok(());
+            }
+        }
+    }
+
     rval
-}
-
-fn itmcmd_attach(args: &Args,
-    _subargs: &ItmArgs,
-) -> Result<(probe_rs::Session, probe_rs::Core), probe_rs::Error> {
-
-    let probes = Probe::list_all();
-    let probe = probes[0].open()?;
-
-    info!("attaching as chip {} ...", args.chip);
-    let session = probe.attach(&args.chip)?;
-
-    let core = session.attach_to_core(0)?;
-    info!("attached");
-
-    Ok((session, core))
 }
 
 fn itmcmd_probe(
@@ -828,20 +852,8 @@ fn itmcmd_ingest(
     filename: &str,
 ) -> Result<(), Box<dyn Error>> {
     let file = File::open(filename)?;
-    let mut rdr = csv::Reader::from_reader(file);
 
-    type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
-
-    let mut iter = rdr.deserialize();
-
-    itm_ingest(traceid, || {
-        if let Some(line) = iter.next() {
-            let record: SaleaeTraceRecord = line?;
-            Ok(Some((record.1, record.0)))
-        } else {
-            Ok(None)
-        }
-    }, |packet| {
+    let process = |packet: &ITMPacket| -> Result<(), Box<dyn Error>> {
         if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
             for p in payload {
                 print!("{}", *p as char);
@@ -849,7 +861,47 @@ fn itmcmd_ingest(
         }
 
         Ok(())
-    })
+    };
+
+    let mut rdr = csv::Reader::from_reader(file);
+
+    match rdr.headers() {
+        Ok(_hdr) => {
+            type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
+            let mut iter = rdr.deserialize();
+
+            itm_ingest(traceid, || {
+                if let Some(line) = iter.next() {
+                    let record: SaleaeTraceRecord = line?;
+                    Ok(Some((record.1, record.0)))
+                } else {
+                    Ok(None)
+                }
+            }, process)
+        },
+        Err(_) => {
+            info!("not a Saleae trace file; assuming raw input");
+
+            let mut file = File::open(filename)?;
+            let mut buffer = [0; 1];
+
+            itm_ingest(traceid, || {
+                let nbytes = file.read(&mut buffer)?;
+
+                match nbytes {
+                    1 => {
+                        Ok(Some((buffer[0], 0.0)))
+                    }
+                    0 => {
+                        Ok(None)
+                    }
+                    _ => {
+                        panic!("illegal read");
+                    }
+                }
+            }, process)
+        }
+    }
 }
 
 fn itmcmd_ingest_attached(
@@ -948,7 +1000,7 @@ fn itmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let (mut session, mut core) = itmcmd_attach(args, subargs)?;
+    let (mut session, mut core) = attach(args)?;
     let _info = core.halt();
 
     info!("core halted");
@@ -1220,7 +1272,7 @@ fn tracecmd_ingest(
                 }
             }
 
-            ITMPayload::LocalTimestamp { timedelta, delayed, early } => {
+            ITMPayload::LocalTimestamp { timedelta, delayed: _, early: _ } => {
                 time += timedelta;
 
                 if let Some(task) = newtask {
@@ -1286,13 +1338,11 @@ fn tracecmd(
     };
 
     for i in 0..size {
-        let addr = base + i * task.size as u32;
         let offs = i as usize * task.size;
         let daddr = taskblock32(offs + descriptor as usize);
         let entry = core.read_word_32(daddr + entry_point)?;
         let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
 
-        trace!("task {} is {}", i, module);
         tasks.insert(i, module.to_string());
     }
 
