@@ -479,7 +479,7 @@ fn etm_packet_state(
         let mut ndx: u8 = 0;
 
         while ndx < payload.len() as u8 {
-            if ndx == max - 1 || (payload[ndx as usize] & 0b1000_0000) != 0 {
+            if ndx == max - 1 || (payload[ndx as usize] & 0b1000_0000) == 0 {
                 break;
             }
 
