@@ -61,7 +61,9 @@ register!(ITM_LSR, 0xe000_0fb4,
 );
 
 impl ITM_LAR {
-    pub fn unlock(core: &probe_rs::Core) -> Result<(), probe_rs::Error> {
+    pub fn unlock(
+        core: &mut dyn crate::core::Core
+    ) -> Result<(), Box<dyn Error>> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -70,7 +72,9 @@ impl ITM_LAR {
         Ok(())
     }
 
-    pub fn lock(core: &probe_rs::Core) -> Result<(), probe_rs::Error> {
+    pub fn lock(
+        core: &mut dyn crate::core::Core
+    ) -> Result<(), Box<dyn Error>> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ITM_LAR::ADDRESS, val)?;
         Ok(())

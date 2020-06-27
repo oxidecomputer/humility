@@ -221,7 +221,9 @@ etm_register!(ETMLAR, 0x3ec,
 );
 
 impl ETMLAR {
-    pub fn unlock(core: &probe_rs::Core) -> Result<(), probe_rs::Error> {
+    pub fn unlock(
+        core: &mut dyn crate::core::Core
+    ) -> Result<(), Box<dyn Error>> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -230,7 +232,9 @@ impl ETMLAR {
         Ok(())
     }
 
-    pub fn lock(core: &probe_rs::Core) -> Result<(), probe_rs::Error> {
+    pub fn lock(
+        core: &mut dyn crate::core::Core
+    ) -> Result<(), Box<dyn Error>> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ETMLAR::ADDRESS, val)?;
         Ok(())

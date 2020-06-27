@@ -1,5 +1,10 @@
+/*
+ * Copyright 2020 Oxide Computer Company
+ */
+
 use std::mem::size_of;
 use bitfield::bitfield;
+use std::error::Error;
 
 pub trait Register: Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug {
     const ADDRESS: u32;
@@ -32,15 +37,15 @@ macro_rules! register {
 
         impl $reg {
             pub fn read(
-                core: &probe_rs::Core
-            ) -> Result<$reg, probe_rs::Error> {
+                core: &mut dyn crate::core::Core
+            ) -> Result<$reg, Box<dyn Error>> {
                 Ok(Self(core.read_word_32($addr)?))
             }
 
             pub fn write(
                 &self,
-                core: &probe_rs::Core
-            ) -> Result<(), probe_rs::Error> {
+                core: &mut dyn crate::core::Core
+            ) -> Result<(), Box<dyn Error>> {
                 core.write_word_32($addr, self.0.into())?;
                 Ok(())
             }
@@ -162,8 +167,8 @@ pub struct DebugROMTable {
     pub ETM: Option<u32>,
 }
 
-pub fn read_debug_rom_table(core: &probe_rs::Core)
-    -> Result<DebugROMTable, probe_rs::Error>
+pub fn read_debug_rom_table(core: &mut dyn crate::core::Core)
+    -> Result<DebugROMTable, Box<dyn Error>>
 {
     let base = 0xe00f_f000u32;
     let mut table: Vec<Option<u32>> = vec![None; 6];

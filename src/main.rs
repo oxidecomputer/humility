@@ -2,7 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use probe_rs::{Core, Probe};
+use probe_rs::Probe;
 
 #[macro_use]
 extern crate log;
@@ -26,6 +26,9 @@ use tpiu::*;
 
 mod hubris;
 use hubris::*;
+
+mod core;
+use crate::core::*;
 
 use std::error::Error;
 use std::fs::File;
@@ -126,7 +129,7 @@ struct TraceState {
 
 fn attach(
     args: &Args
-) -> Result<(probe_rs::Session, probe_rs::Core), probe_rs::Error> {
+) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
     let probes = Probe::list_all();
     let probe = probes[0].open()?;
 
@@ -136,7 +139,10 @@ fn attach(
     let core = session.attach_to_core(0)?;
     info!("attached");
 
-    Ok((session, core))
+    Ok(Box::new(ProbeCore {
+        session: session,
+        core: core
+    }))
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 7;
@@ -144,9 +150,9 @@ const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
 fn etmcmd_probe(
-    core: &probe_rs::Core,
-) -> Result<(), probe_rs::Error> {
-    let tab = read_debug_rom_table(&core)?;
+    core: &mut dyn core::Core,
+) -> Result<(), Box<dyn Error>> {
+    let tab = read_debug_rom_table(core)?;
 
     info!("ROM debug table: {:#x?}", tab);
 
@@ -173,28 +179,28 @@ fn etmcmd_probe(
         return Ok(());
     }
 
-    let etmidr = ETMIDR::read(&core)?;
+    let etmidr = ETMIDR::read(core)?;
     info!("{:#x?}", etmidr);
 
-    let etmccer = ETMCCER::read(&core)?;
+    let etmccer = ETMCCER::read(core)?;
     info!("{:#x?}", etmccer);
 
     Ok(())
 }
 
 fn etmcmd_enable(
-    core: &probe_rs::Core,
+    core: &mut dyn core::Core,
     clockscaler: Option<u16>,
     traceid: u8,
-) -> Result<(), probe_rs::Error> {
-    let etmccr = ETMCCR::read(&core)?;
+) -> Result<(), Box<dyn Error>> {
+    let etmccr = ETMCCR::read(core)?;
 
     if !etmccr.has_etmidr() {
         warn!("ETMv1.3 and earlier not supported");
         return Ok(());
     }
 
-    let etmidr = ETMIDR::read(&core)?;
+    let etmidr = ETMIDR::read(core)?;
     trace!("{:?}", etmidr);
 
     let major = etmidr.etm_major() + 1;
@@ -213,39 +219,39 @@ fn etmcmd_enable(
     /*
      * First, enable TRCENA in the DEMCR.
      */
-    let mut val = DEMCR::read(&core)?;
+    let mut val = DEMCR::read(core)?;
     val.set_trcena(true);
-    val.write(&core)?;
+    val.write(core)?;
 
     /*
      * Now unlock the ETM.
      */
-    ETMLAR::unlock(&core)?;
+    ETMLAR::unlock(core)?;
 
     /*
      * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
      * trace mode to be asynchronous.
      */
-    let mut val = DBGMCU_CR::read(&core)?;
+    let mut val = DBGMCU_CR::read(core)?;
     val.set_trace_ioen(true);
     val.set_trace_mode(0);
-    val.write(&core)?;
+    val.write(core)?;
 
     /*
      * Now setup the TPIU.
      */
-    let mut val = TPIU_SPPR::read(&core)?;
+    let mut val = TPIU_SPPR::read(core)?;
     val.set_txmode(TPIUMode::NRZ);
-    val.write(&core)?;
+    val.write(core)?;
 
-    let mut val = TPIU_FFCR::read(&core)?;
+    let mut val = TPIU_FFCR::read(core)?;
     val.set_continuous_formatting(true);
-    val.write(&core)?;
+    val.write(core)?;
 
-    let mut acpr = TPIU_ACPR::read(&core)?;
+    let mut acpr = TPIU_ACPR::read(core)?;
     acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
-    acpr.write(&core)?;
-    trace!("{:#x?}", TPIU_ACPR::read(&core)?);
+    acpr.write(core)?;
+    trace!("{:#x?}", TPIU_ACPR::read(core)?);
 
     /*
      * We are now ready to enable ETM.  There are a bunch of steps involved in
@@ -254,8 +260,8 @@ fn etmcmd_enable(
      * need to write to ETMCR again to indicate that we are done programming
      * it.
      */
-    trace!("{:#x?}", ETMCR::read(&core)?);
-    let mut etmcr = ETMCR::read(&core)?;
+    trace!("{:#x?}", ETMCR::read(core)?);
+    let mut etmcr = ETMCR::read(core)?;
     etmcr.set_branch_output(true);
     etmcr.set_stall_processor(true);
     etmcr.set_port_size(1);
@@ -263,45 +269,45 @@ fn etmcmd_enable(
     etmcr.set_programming(true);
     etmcr.set_power_down(false);
     trace!("will write {:#x?}", etmcr);
-    etmcr.write(&core)?;
+    etmcr.write(core)?;
 
     /*
      * Set to the hard-wired always-true event
      */
-    let mut teevr = ETMTEEVR::read(&core)?;
+    let mut teevr = ETMTEEVR::read(core)?;
     teevr.set_resource_a(HUMILITY_ETM_ALWAYSTRUE);
-    teevr.write(&core)?;
-    trace!("{:#x?}", ETMTEEVR::read(&core)?);
+    teevr.write(core)?;
+    trace!("{:#x?}", ETMTEEVR::read(core)?);
 
-    let mut tecr1 = ETMTECR1::read(&core)?;
+    let mut tecr1 = ETMTECR1::read(core)?;
     tecr1.set_map_decode_select(0);
     tecr1.set_comparator_select(0);
     tecr1.set_exclude(true);
-    tecr1.write(&core)?;
+    tecr1.write(core)?;
 
-    let mut ffrr = ETMFFRR::read(&core)?;
+    let mut ffrr = ETMFFRR::read(core)?;
     ffrr.set_map_decode_select(0);
     ffrr.set_comparator_select(0);
     ffrr.set_exclude(true);
-    ffrr.write(&core)?;
+    ffrr.write(core)?;
 
-    let mut fflr = ETMFFLR::read(&core)?;
+    let mut fflr = ETMFFLR::read(core)?;
     fflr.set_fifo_full_level(24);
-    fflr.write(&core)?;
+    fflr.write(core)?;
 
-    trace!("{:#x?}", ETMFFLR::read(&core)?);
+    trace!("{:#x?}", ETMFFLR::read(core)?);
 
-    trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
-    let mut val = ETMTRACEIDR::read(&core)?;
+    trace!("{:#x?}", ETMTRACEIDR::read(core)?);
+    let mut val = ETMTRACEIDR::read(core)?;
     val.set_traceid(traceid.into());
-    val.write(&core)?;
-    trace!("{:#x?}", ETMTRACEIDR::read(&core)?);
+    val.write(core)?;
+    trace!("{:#x?}", ETMTRACEIDR::read(core)?);
 
     /*
      * Finally, indicate that we are done programming!
      */
     etmcr.set_programming(false);
-    etmcr.write(&core)?;
+    etmcr.write(core)?;
 
     info!("ETM enabled");
 
@@ -309,9 +315,9 @@ fn etmcmd_enable(
 }
 
 fn etmcmd_disable(
-    core: &probe_rs::Core
-) -> Result<(), probe_rs::Error> {
-    let mut etmcr = ETMCR::read(&core)?;
+    core: &mut dyn core::Core,
+) -> Result<(), Box<dyn Error>> {
+    let mut etmcr = ETMCR::read(core)?;
 
     if etmcr.power_down() {
         info!("ETM not enabled");
@@ -319,13 +325,13 @@ fn etmcmd_disable(
     }
 
     etmcr.set_programming(true);
-    etmcr.write(&core)?;
+    etmcr.write(core)?;
 
     etmcr.set_power_down(true);
-    etmcr.write(&core)?;
+    etmcr.write(core)?;
 
     etmcr.set_programming(false);
-    etmcr.write(&core)?;
+    etmcr.write(core)?;
 
     info!("ETM disabled");
 
@@ -603,14 +609,14 @@ fn etmcmd_ingest(
 }
 
 fn etmcmd_output(
-    session: &mut probe_rs::Session,
+    core: &mut dyn core::Core,
 ) -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
 
     println!("Time [s],Value,Parity Error,Framing Error");
 
     loop {
-        let bytes = session.read_swv().unwrap();
+        let bytes = core.read_swv().unwrap();
 
         for b in bytes {
             println!("{:.15},0x{:02X},,", start.elapsed().as_secs_f64(), b);
@@ -660,10 +666,12 @@ fn etmcmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &EtmArgs,
-) -> Result<(), probe_rs::Error> {
+) -> Result<(), Box<dyn Error>> {
     let mut rval = Ok(());
 
-    if subargs.traceid >= HUMILITY_ETM_TRACEID_MAX {
+    let traceid = subargs.traceid;
+
+    if traceid >= HUMILITY_ETM_TRACEID_MAX {
         fatal!(
             "traceid has a maximum value of {:x}",
             HUMILITY_ETM_TRACEID_MAX
@@ -690,28 +698,28 @@ fn etmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let (mut session, core) = attach(args)?;
-    let _info = core.halt();
+    let mut core = attach(args)?;
+    let _info = core.halt()?;
 
     info!("core halted");
 
     if subargs.probe {
-        rval = etmcmd_probe(&core);
+        rval = etmcmd_probe(core.as_mut());
     }
 
     if subargs.enable {
-        rval = etmcmd_enable(&core, subargs.clockscaler, subargs.traceid);
+        rval = etmcmd_enable(core.as_mut(), subargs.clockscaler, traceid);
     }
 
     if subargs.disable {
-        rval = etmcmd_disable(&core);
+        rval = etmcmd_disable(core.as_mut());
     }
 
     core.run()?;
     info!("core resumed");
 
     if subargs.output {
-        match etmcmd_output(&mut session) {
+        match etmcmd_output(core.as_mut()) {
             Err(e) => {
                 fatal!("failed to output from attached device: {}", e);
             }
@@ -725,122 +733,122 @@ fn etmcmd(
 }
 
 fn itmcmd_probe(
-    core: &probe_rs::Core,
-) -> Result<(), probe_rs::Error> {
-    let tab = read_debug_rom_table(&core)?;
+    core: &mut dyn core::Core,
+) -> Result<(), Box<dyn Error>> {
+    let tab = read_debug_rom_table(core)?;
 
     info!("ROM debug table: {:#x?}", tab);
 
-    info!("{:#x?}", DEMCR::read(&core)?);
-    info!("{:#x?}", ITM_LSR::read(&core)?);
-    info!("{:#x?}", ITM_TCR::read(&core)?);
-    info!("{:#x?}", ITM_TER::read(&core)?);
-    info!("{:#x?}", DBGMCU_CR::read(&core)?);
-    info!("{:#x?}", TPIU_FFCR::read(&core)?);
-    info!("{:#x?}", DWT_CTRL::read(&core)?);
-    info!("{:#x?}", TPIU_SPPR::read(&core)?);
+    info!("{:#x?}", DEMCR::read(core)?);
+    info!("{:#x?}", ITM_LSR::read(core)?);
+    info!("{:#x?}", ITM_TCR::read(core)?);
+    info!("{:#x?}", ITM_TER::read(core)?);
+    info!("{:#x?}", DBGMCU_CR::read(core)?);
+    info!("{:#x?}", TPIU_FFCR::read(core)?);
+    info!("{:#x?}", DWT_CTRL::read(core)?);
+    info!("{:#x?}", TPIU_SPPR::read(core)?);
 
     Ok(())
 }
 
 fn itmcmd_enable(
-    core: &probe_rs::Core,
+    core: &mut dyn core::Core,
     clockscaler: Option<u16>,
     traceid: u8,
-) -> Result<(), probe_rs::Error> {
+) -> Result<(), Box<dyn Error>> {
     /*
      * First, enable TRCENA in the DEMCR.
      */
-    let mut val = DEMCR::read(&core)?;
+    let mut val = DEMCR::read(core)?;
     val.set_trcena(true);
-    val.write(&core)?;
+    val.write(core)?;
 
     /*
      * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
      * trace mode to be asynchronous.
      */
-    let mut val = DBGMCU_CR::read(&core)?;
+    let mut val = DBGMCU_CR::read(core)?;
     val.set_trace_ioen(true);
     val.set_trace_mode(0);
-    val.write(&core)?;
+    val.write(core)?;
 
     /*
      * Now setup the TPIU.
      */
-    let mut val = TPIU_SPPR::read(&core)?;
+    let mut val = TPIU_SPPR::read(core)?;
     val.set_txmode(TPIUMode::NRZ);
-    val.write(&core)?;
+    val.write(core)?;
 
-    let mut val = TPIU_FFCR::read(&core)?;
+    let mut val = TPIU_FFCR::read(core)?;
     val.set_continuous_formatting(true);
-    val.write(&core)?;
+    val.write(core)?;
 
-    let mut acpr = TPIU_ACPR::read(&core)?;
+    let mut acpr = TPIU_ACPR::read(core)?;
     acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
-    acpr.write(&core)?;
-    trace!("{:#x?}", TPIU_ACPR::read(&core)?);
+    acpr.write(core)?;
+    trace!("{:#x?}", TPIU_ACPR::read(core)?);
 
     /*
      * Unlock the ITM.
      */
-    ITM_LAR::unlock(&core)?;
+    ITM_LAR::unlock(core)?;
 
     /*
      * Disable the ITM.
      */
-    let mut tcr = ITM_TCR::read(&core)?;
+    let mut tcr = ITM_TCR::read(core)?;
     tcr.set_itm_enable(false);
-    tcr.write(&core)?;
+    tcr.write(core)?;
 
     /*
      * Spin until the ITM is not busy
      */
-    while ITM_TCR::read(&core)?.itm_busy() {
+    while ITM_TCR::read(core)?.itm_busy() {
         continue;
     }
 
     /*
      * Enable the DWT to generate a synchronization packet every 8M cycles.
      */
-    let mut dwt = DWT_CTRL::read(&core)?;
+    let mut dwt = DWT_CTRL::read(core)?;
     dwt.set_synctap(DWTSyncTapFrequency::CycCnt8M);
     dwt.set_cyccnt_enabled(true);
-    dwt.write(&core)?;
+    dwt.write(core)?;
 
     /*
      * Enable all stimuli
      */
-    let mut ter = ITM_TER::read(&core)?;
+    let mut ter = ITM_TER::read(core)?;
     ter.set_enabled(0xffff_ffff);
-    ter.write(&core)?;
+    ter.write(core)?;
 
     /*
      * Set the trace ID
      */
-    tcr = ITM_TCR::read(&core)?;
+    tcr = ITM_TCR::read(core)?;
     tcr.set_traceid(traceid.into());
     tcr.set_timestamp_enable(true);
     tcr.set_sync_enable(true);
     tcr.set_itm_enable(true);
-    tcr.write(&core)?;
+    tcr.write(core)?;
 
     Ok(())
 }
 
 fn itmcmd_disable(
-    core: &probe_rs::Core
-) -> Result<(), probe_rs::Error> {
+    core: &mut dyn core::Core,
+) -> Result<(), Box<dyn Error>> {
     /*
      * Unlock the ITM.
      */
-    ITM_LAR::unlock(&core)?;
+    ITM_LAR::unlock(core)?;
 
     /*
      * Disable the ITM.
      */
-    let mut tcr = ITM_TCR::read(&core)?;
+    let mut tcr = ITM_TCR::read(core)?;
     tcr.set_itm_enable(false);
-    tcr.write(&core)?;
+    tcr.write(core)?;
 
     info!("ITM disabled");
 
@@ -905,8 +913,7 @@ fn itmcmd_ingest(
 }
 
 fn itmcmd_ingest_attached(
-    session: &mut probe_rs::Session,
-    _core: &mut probe_rs::Core,
+    core: &mut dyn core::Core,
     traceid: u8,
 ) -> Result<(), Box<dyn Error>> {
     let mut bytes: Vec<u8> = vec![];
@@ -916,7 +923,7 @@ fn itmcmd_ingest_attached(
 
     itm_ingest(traceid, || {
         while ndx == bytes.len() {
-            bytes = session.read_swv().unwrap();
+            bytes = core.read_swv().unwrap();
             ndx = 0;
         }
         ndx += 1;
@@ -976,10 +983,12 @@ fn itmcmd(
     _hubris: &HubrisPackage,
     args: &Args,
     subargs: &ItmArgs,
-) -> Result<(), probe_rs::Error> {
+) -> Result<(), Box<dyn Error>> {
     let mut rval = Ok(());
 
-    if subargs.traceid >= HUMILITY_ETM_TRACEID_MAX {
+    let traceid = subargs.traceid;
+
+    if traceid >= HUMILITY_ETM_TRACEID_MAX {
         fatal!(
             "traceid has a maximum value of {:x}",
             HUMILITY_ETM_TRACEID_MAX
@@ -1000,28 +1009,28 @@ fn itmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let (mut session, mut core) = attach(args)?;
+    let mut core = attach(args)?;
     let _info = core.halt();
 
     info!("core halted");
 
     if subargs.probe {
-        rval = itmcmd_probe(&core);
+        rval = itmcmd_probe(core.as_mut());
     }
 
     if subargs.enable {
-        rval = itmcmd_enable(&core, subargs.clockscaler, subargs.traceid);
+        rval = itmcmd_enable(core.as_mut(), subargs.clockscaler, traceid);
     }
 
     if subargs.disable {
-        rval = itmcmd_disable(&core);
+        rval = itmcmd_disable(core.as_mut());
     }
 
     core.run()?;
     info!("core resumed");
 
     if subargs.attach {
-        match itmcmd_ingest_attached(&mut session, &mut core, subargs.traceid) {
+        match itmcmd_ingest_attached(core.as_mut(), traceid) {
             Err(e) => {
                 fatal!("failed to ingest from attached device: {}", e);
             }
@@ -1036,14 +1045,8 @@ fn itmcmd(
 
 fn probe(
     args: &Args,
-) -> Result<(), probe_rs::Error> {
-    let probe_list = Probe::list_all();
-    info!("probes: {:?}", probe_list);
-
-    info!("attaching as chip {} ...", &args.chip);
-    let _core = Core::auto_attach(&args.chip)?;
-    info!("attached");
-
+) -> Result<(), Box<dyn Error>> {
+    let _core = attach(args)?;
     Ok(())
 }
 
@@ -1061,7 +1064,7 @@ fn taskscmd(
     args: &Args,
     subargs: &TasksArgs,
 ) -> Result<(), Box<dyn Error>> {
-    let core = Core::auto_attach(&args.chip)?;
+    let mut core = attach(&args)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
@@ -1144,7 +1147,7 @@ struct TraceArgs {
 fn tracecmd_ingest(
     hubris: &HubrisPackage,
     subargs: &TraceArgs,
-    session: &mut probe_rs::Session,
+    core: &mut dyn core::Core,
     tasks: &HashMap<u32, String>,
 ) -> Result<(), Box<dyn Error>> {
     let mut bytes: Vec<u8> = vec![];
@@ -1211,7 +1214,7 @@ fn tracecmd_ingest(
 
     itm_ingest(subargs.traceid, || {
         while ndx == bytes.len() {
-            bytes = session.read_swv().unwrap();
+            bytes = core.read_swv().unwrap();
             ts = start.elapsed().as_secs_f64();
             ndx = 0;
         }
@@ -1312,10 +1315,7 @@ fn tracecmd(
 ) -> Result<(), Box<dyn Error>> {
     let mut tasks: HashMap<u32, String> = HashMap::new();
 
-    let probes = Probe::list_all();
-    let probe = probes[0].open()?;
-    let mut session = probe.attach(&args.chip)?;
-    let core = session.attach_to_core(0)?;
+    let mut core = attach(args)?;
 
     /*
      * First, read the task block to get a mapping of IDs to names.
@@ -1349,8 +1349,8 @@ fn tracecmd(
     /*
      * Now enable ITM and ingest.
      */
-    itmcmd_enable(&core, subargs.clockscaler, subargs.traceid)?;
-    tracecmd_ingest(&hubris, subargs, &mut session, &tasks)?;
+    itmcmd_enable(core.as_mut(), subargs.clockscaler, subargs.traceid)?;
+    tracecmd_ingest(&hubris, subargs, core.as_mut(), &tasks)?;
 
     Ok(())
 }
