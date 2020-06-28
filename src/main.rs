@@ -2,8 +2,6 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use probe_rs::Probe;
-
 #[macro_use]
 extern crate log;
 
@@ -28,7 +26,9 @@ mod hubris;
 use hubris::*;
 
 mod core;
-use crate::core::*;
+
+mod error;
+use crate::error::*;
 
 use std::error::Error;
 use std::fs::File;
@@ -130,19 +130,7 @@ struct TraceState {
 fn attach(
     args: &Args
 ) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
-    let probes = Probe::list_all();
-    let probe = probes[0].open()?;
-
-    info!("attaching as chip {} ...", args.chip);
-    let session = probe.attach(&args.chip)?;
-
-    let core = session.attach_to_core(0)?;
-    info!("attached");
-
-    Ok(Box::new(ProbeCore {
-        session: session,
-        core: core
-    }))
+    crate::core::attach(&args.ocd, &args.chip)
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 7;
@@ -1366,6 +1354,10 @@ struct Args {
     #[structopt(long, short, env = "HUMILITY_CHIP", default_value = "STM32F407VGTx")]
     chip: String,
 
+    /// specific chip on attached device
+    #[structopt(long, short, env = "HUMILITY_OCD", default_value = "probe")]
+    ocd: String,
+
     /// directory containing Hubris package
     #[structopt(long, short, env = "HUMILITY_PACKAGE")]
     package: Option<String>,
@@ -1416,27 +1408,27 @@ fn main() {
 
     match &args.cmd {
         Subcommand::Probe => match probe(&args) {
-            Err(err) => fatal!("probe failed: {} (raw: \"{:?})\"", err, err),
+            Err(err) => fatal!("probe failed: {}", err),
             _ => std::process::exit(0),
         }
 
         Subcommand::Etm(subargs) => match etmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("etm failed: {} (raw: \"{:?})\"", err, err),
+            Err(err) => fatal!("etm failed: {}", err),
             _ => std::process::exit(0),
         }
 
         Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("itm failed: {} (raw: \"{:?})\"", err, err),
+            Err(err) => fatal!("itm failed: {}", err),
             _ => std::process::exit(0),
         }
 
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("tasks failed: {} (raw: \"{:?})\"", err, err),
+            Err(err) => fatal!("tasks failed: {}", err),
             _ => std::process::exit(0),
         }
 
         Subcommand::Trace(subargs) => match tracecmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("trace failed: {} (raw: \"{:?})\"", err, err),
+            Err(err) => fatal!("trace failed: {}", err),
             _ => std::process::exit(0),
         }
     }

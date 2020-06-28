@@ -24,6 +24,7 @@ use capstone::prelude::*;
 use capstone::InsnGroupType;
 use rustc_demangle::demangle;
 use multimap::MultiMap;
+use crate::err;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
@@ -143,48 +144,6 @@ pub enum HubrisTarget {
     Call(u32),
     IndirectCall,
     Return,
-}
-
-#[derive(Debug)]
-pub struct HubrisError {
-    errmsg: String,
-}
-
-impl<'a> From<&'a str> for HubrisError {
-    fn from(msg: &'a str) -> HubrisError {
-        msg.to_string().into()
-    }
-}
-
-impl From<String> for HubrisError {
-    fn from(errmsg: String) -> HubrisError {
-        HubrisError { errmsg }
-    }
-}
-
-impl fmt::Display for HubrisError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.errmsg)
-    }
-}
-
-impl Error for HubrisError {
-    fn description(&self) -> &str {
-        &self.errmsg
-    }
-}
-
-fn err<S: ToString>(msg: S) -> Box<dyn Error> {
-    Box::new(HubrisError::from(msg.to_string()))
-}
-
-macro_rules! err {
-    ($fmt:expr) => (
-        Err(err($fmt))
-    );
-    ($fmt:expr, $($arg:tt)*) => (
-        Err(err(&format!($fmt, $($arg)*)))
-    )
 }
 
 impl fmt::Display for HubrisGoff {
