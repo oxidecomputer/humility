@@ -330,8 +330,10 @@ pub fn itm_ingest(
                 hdr = match hdrs[packet.datum as usize] {
                     Some(hdr) => { hdr }
                     None => {
-                        panic!("unrecognized ITM header 0x{:x} at line {}",
+                        info!("unrecognized ITM header 0x{:x} at line {}",
                             packet.datum, packet.offset);
+                        state = IngestState::SyncSearching;
+                        return Ok(());
                     }
                 };
 

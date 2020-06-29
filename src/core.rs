@@ -15,6 +15,7 @@ pub trait Core {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) ->
         Result<(), Box<dyn Error>>;
+    fn init_swv(&mut self) -> Result<(), Box<dyn Error>>;
     fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>>;
     fn write_word_32(&mut self, addr: u32, data: u32) ->
         Result<(), Box<dyn Error>>;
@@ -39,10 +40,6 @@ impl Core for ProbeCore {
         Ok(self.core.read_8(addr, data)?)
     }
 
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
-        Ok(self.session.read_swv()?)
-    }
-
     fn write_word_32(&mut self,
         addr: u32,
         data: u32
@@ -58,17 +55,28 @@ impl Core for ProbeCore {
     fn run(&mut self) -> Result<(), Box<dyn Error>> {
         Ok(self.core.run()?)
     }
+
+    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+        Ok(self.session.read_swv()?)
+    }
 }
 
 const OPENOCD_COMMAND_DELIMITER: u8 = 0x1a;
+const OPENOCD_TRACE_DATA_BEGIN: &str = "type target_trace data ";
+const OPENOCD_TRACE_DATA_END: &str = "\r\n";
 
 pub struct OpenOCDCore {
-    pub stream: TcpStream,
+    stream: TcpStream,
+    swv: bool,
 }
 
 impl OpenOCDCore {
     fn sendcmd(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
-        let mut rbuf = vec![0; 16];
+        let mut rbuf = vec![0; 1024];
         let mut result = String::with_capacity(16);
 
         let mut str = String::from(cmd);
@@ -93,9 +101,10 @@ impl OpenOCDCore {
          * that any return value that contains "Error: " or "invalid command
          * name" is in fact an error.
          */
-        if result.contains("Error: ") ||
-          result.contains("invalid command name ") {
+        if result.contains("Error: ") {
             err!("OpenOCD command \"{}\" failed with \"{}\"", cmd, result)
+        } else if result.contains("invalid command name ") {
+            err!("OpenOCD command \"{}\" invalid: \"{}\"", cmd, result)
         } else {
             Ok(result)
         }
@@ -108,7 +117,8 @@ impl OpenOCDCore {
             })?;
 
         Ok(Self {
-            stream: stream
+            stream: stream,
+            swv: false
         })
     }
 }
@@ -174,23 +184,73 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
+    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+        self.swv = true;
+        self.sendcmd("tpiu config disable")?;
+
+        /*
+         * XXX: This assumes STM32F4's 16Mhz clock
+         */
+        self.sendcmd("tpiu config internal - uart on 16000000")?;
+        self.sendcmd("tcl_trace on")?;
+
+        Ok(())
+    }
+
     fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
-        todo!();
+        if !self.swv {
+            self.init_swv()?
+        }
+
+        let mut rbuf = vec![0; 8192];
+        let mut swv: Vec<u8> = Vec::with_capacity(8192);
+
+        let rval = self.stream.read(&mut rbuf)?;
+
+        if rbuf[rval - 1] != OPENOCD_COMMAND_DELIMITER {
+            return err!("missing trace data delimiter: {:?}", rval);
+        }
+
+        let rstr = str::from_utf8(&rbuf[0..rval - 1])?;
+
+        if !rstr.starts_with(OPENOCD_TRACE_DATA_BEGIN) {
+            return err!("bogus trace data (bad start): {:?}", rval);
+        }
+
+        if !rstr.ends_with(OPENOCD_TRACE_DATA_END) {
+            return err!("bogus trace data (bad end): {:?}", rval);
+        }
+
+        let begin = OPENOCD_TRACE_DATA_BEGIN.len();
+        let end = rstr.len() - OPENOCD_TRACE_DATA_END.len();
+
+        for i in (begin..end).step_by(2) {
+            if i + 1 >= end {
+                return err!("short trace data: {:?}", rval);
+            }
+
+            swv.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
+        }
+
+        Ok(swv)
     }
 
     fn write_word_32(&mut self,
-        _addr: u32,
-        _data: u32
+        addr: u32,
+        data: u32
     ) -> Result<(), Box<dyn Error>> {
-        todo!();
+        self.sendcmd(&format!("mww 0x{:x} 0x{:x}", addr, data))?;
+        Ok(())
     }
 
     fn halt(&mut self) -> Result<(), Box<dyn Error>> {
-        todo!();
+        self.sendcmd("halt")?;
+        Ok(())
     }
 
     fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        todo!();
+        self.sendcmd("resume")?;
+        Ok(())
     }
 }
 

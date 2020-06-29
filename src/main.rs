@@ -743,6 +743,7 @@ fn itmcmd_enable(
     core: &mut dyn core::Core,
     clockscaler: Option<u16>,
     traceid: u8,
+    stimuli: u32,
 ) -> Result<(), Box<dyn Error>> {
     /*
      * First, enable TRCENA in the DEMCR.
@@ -804,10 +805,10 @@ fn itmcmd_enable(
     dwt.write(core)?;
 
     /*
-     * Enable all stimuli
+     * Enable stimuli
      */
     let mut ter = ITM_TER::read(core)?;
-    ter.set_enabled(0xffff_ffff);
+    ter.set_enabled(stimuli);
     ter.write(core)?;
 
     /*
@@ -815,7 +816,14 @@ fn itmcmd_enable(
      */
     tcr = ITM_TCR::read(core)?;
     tcr.set_traceid(traceid.into());
-    tcr.set_timestamp_enable(true);
+    tcr.set_timestamp_enable(
+        if stimuli & 0xffff_0000 != 0 {
+            true
+        } else {
+            false
+        }
+    );
+
     tcr.set_sync_enable(true);
     tcr.set_itm_enable(true);
     tcr.write(core)?;
@@ -1007,7 +1015,15 @@ fn itmcmd(
     }
 
     if subargs.enable {
-        rval = itmcmd_enable(core.as_mut(), subargs.clockscaler, traceid);
+        if subargs.attach {
+            core.init_swv()?;
+        }
+
+        /*
+         * By default, we enable all logging (ports 0-7).
+         */
+        let stim = 0x0000_000f;
+        rval = itmcmd_enable(core.as_mut(), subargs.clockscaler, traceid, stim);
     }
 
     if subargs.disable {
@@ -1337,7 +1353,9 @@ fn tracecmd(
     /*
      * Now enable ITM and ingest.
      */
-    itmcmd_enable(core.as_mut(), subargs.clockscaler, subargs.traceid)?;
+    core.init_swv()?;
+    let stim = 0xf000_0000;
+    itmcmd_enable(core.as_mut(), subargs.clockscaler, subargs.traceid, stim)?;
     tracecmd_ingest(&hubris, subargs, core.as_mut(), &tasks)?;
 
     Ok(())
