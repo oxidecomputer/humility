@@ -1050,9 +1050,10 @@ fn itmcmd(
         }
 
         /*
-         * By default, we enable all logging (ports 0-7).
+         * By default, we enable all logging (ports 0-7) and test-related output
+         * (ports 8-11).
          */
-        let stim = 0x0000_000f;
+        let stim = 0x0000_0f0f;
         rval = itmcmd_enable(core.as_mut(), subargs.clockscaler, traceid, stim);
     }
 
