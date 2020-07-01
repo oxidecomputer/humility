@@ -314,8 +314,8 @@ pub fn itm_ingest(
                 0 => { runlen += 1 }
                 0x80 => {
                     if runlen >= 5 {
-                        info!(concat!("ITM synchronization ",
-                            "packet found at offset {}"), packet.offset);
+                        info!("ITM synchronization packet found at offset {}",
+                            packet.offset);
                         state = IngestState::Ingesting;
                     }
                 }

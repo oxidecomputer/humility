@@ -748,8 +748,8 @@ pub fn etm_ingest(
                 0 => { runlen += 1 }
                 0x80 => {
                     if runlen >= 5 {
-                        info!(concat!("A-sync alignment synchronization ",
-                            "packet found at line {}"), packet.offset);
+                        info!("A-sync alignment synchronization \
+                            packet found at offset {}", packet.offset);
                         state = IngestState::ISyncSearching;
                     }
                 }

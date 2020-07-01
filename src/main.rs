@@ -552,11 +552,9 @@ fn etmcmd_ingest(
                     (Some(origin), HubrisTarget::Call(expected)) => {
                         if curaddr.unwrap() != expected {
                             warn!(
-                                concat!(
-                                    "detected bad branch: ",
-                                    "at 0x{:x} expected branch to 0x{:x}, ",
-                                    "found 0x{:x}; packet: {:x?}"
-                                ), origin, expected, curaddr.unwrap(), packet
+                                "detected bad branch: at 0x{:x} expected \
+                                branch to 0x{:x}, found 0x{:x}; packet: {:x?}",
+                                origin, expected, curaddr.unwrap(), packet
                             );
                         }
                     }
@@ -564,11 +562,10 @@ fn etmcmd_ingest(
                     (Some(origin), HubrisTarget::None) => {
                         if exception.is_none() {
                             warn!(
-                                concat!(
-                                    "detected bad branch: did not expect any ",
-                                    "branch from 0x{:x}, but control ",
-                                    "transferred to 0x{:x}; packet: {:x?}"
-                                ), origin, curaddr.unwrap(), packet
+                                "detected bad branch: did not expect any \
+                                branch from 0x{:x}, but control transferred \
+                                to 0x{:x}; packet: {:x?}",
+                                origin, curaddr.unwrap(), packet
                             );
                         }
                     }
@@ -1194,8 +1191,8 @@ fn tracecmd_ingest(
             let state = 3 + i;
 
             states.insert(s, state as i32);
-            println!(concat!("\t\t\"InReply({})\": {{ \"value\": {}, ",
-                "\"color\": \"{}\" }}{}"), name, state, colors[i],
+            println!("\t\t\"InReply({})\": {{ \"value\": {}, \
+                \"color\": \"{}\" }}{}", name, state, colors[i],
                 if i < tasks.len() - 1 { "," } else { "" });
         }
 
@@ -1263,11 +1260,8 @@ fn tracecmd_ingest(
 
                     let state = hubris.dump(&spayload[..], schedstate.goff)?;
 
-                    println!(
-                        concat!(
-                            "{{ \"time\": \"{}\", \"entity\": \"{}\", ",
-                            "\"state\": {} }}"
-                        ),
+                    println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
+                        \"state\": {} }}",
                         ((time as f64 / 16_000_000 as f64) *
                         1_000_000_000 as f64) as u64,
                         task, states.get(&state).unwrap_or(&-1)
@@ -1288,11 +1282,8 @@ fn tracecmd_ingest(
 
                 if let Some(task) = newtask {
                     if subargs.statemap {
-                        println!(
-                            concat!(
-                                "{{ \"time\": \"{}\", \"entity\": \"{}\", ",
-                                "\"state\": 0 }}"
-                            ),
+                        println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
+                            \"state\": 0 }}",
                             ((time as f64 / 16_000_000 as f64) *
                             1_000_000_000 as f64) as u64,
                             task

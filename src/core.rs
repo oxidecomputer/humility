@@ -273,15 +273,13 @@ pub fn attach(
              * debug probe because something else has already attached to it;
              * we pull this error out to yield a more actionable suggestion!
              */
-            if let Err(probe_rs::DebugProbeError::USB(ref err)) = res {
-                if let Some(code) = err {
-                    if let Some(rcode) = code.downcast_ref::<rusb::Error>() {
-                        if *rcode == rusb::Error::Busy {
-                            return err!(concat!(
-                                "USB link in use; is OpenOCD or ",
-                                "another debugger running?"
-                            ));
-                        }
+            if let Err(probe_rs::DebugProbeError::USB(Some(ref err))) = res {
+                if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
+                    if *rcode == rusb::Error::Busy {
+                        return err!(
+                            "USB link in use; is OpenOCD or \
+                            another debugger running?"
+                        );
                     }
                 }
             }
