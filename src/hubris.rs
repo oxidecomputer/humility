@@ -2,7 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::error::Error;
+use anyhow::{anyhow, Error};
 use std::fs;
 use std::fs::File;
 use std::fmt;
@@ -24,7 +24,6 @@ use capstone::prelude::*;
 use capstone::InsnGroupType;
 use rustc_demangle::demangle;
 use multimap::MultiMap;
-use crate::err;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
@@ -174,14 +173,14 @@ impl HubrisStruct {
     pub fn lookup_member(
         &self,
         name: &str
-    ) -> Result<&HubrisStructMember, Box<dyn Error>> {
+    ) -> Result<&HubrisStructMember, Error> {
         for member in &self.members {
             if member.name == name {
                 return Ok(member)
             }
         }
 
-        err!("missing member: {}.{}", self.name, name)
+        Err(anyhow!("missing member: {}.{}", self.name, name))
     }
 }
 
@@ -203,19 +202,19 @@ impl HubrisEnum {
     pub fn lookup_variant_byname(
         &self,
         name: &str
-    ) -> Result<&HubrisEnumVariant, Box<dyn Error>> {
+    ) -> Result<&HubrisEnumVariant, Error> {
         for variant in &self.variants {
             if variant.name == name {
                 return Ok(variant);
             }
         }
 
-        err!("missing variant: {}.{}", self.name, name)
+        Err(anyhow!("missing variant: {}.{}", self.name, name))
     }
 }
 
 impl HubrisPackage {
-    pub fn new() -> Result<HubrisPackage, Box<dyn Error>> {
+    pub fn new() -> Result<HubrisPackage, Error> {
         /*
          * Initialize Capstone, being sure to specify not only our architecture
          * but also that we are disassembling Thumb-2 -- and (importantly) to
@@ -235,7 +234,7 @@ impl HubrisPackage {
                     cs
                 }
                 Err(err) => { 
-                    return err!("failed to initialize disassembler: {}", err);
+                    return Err(anyhow!("failed to initialize disassembler: {}", err));
                 }
             },
             current: 0,
@@ -526,7 +525,7 @@ impl HubrisPackage {
             usize,
         >,
         depth: isize,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         /*
          * Iterate over our attributes looking for addresses
          */
@@ -572,7 +571,7 @@ impl HubrisPackage {
             }
             (None, None, Some(_)) => {}
             _ => {
-                return Err(err(format!("missing origin for {}", goff)));
+                return Err(anyhow!("missing origin for {}", goff));
             }
         }
 
@@ -605,7 +604,7 @@ impl HubrisPackage {
             }
         }
 
-        Err(err(format!("missing address range for {}", goff)))
+        Err(anyhow!("missing address range for {}", goff))
     }
 
     fn dwarf_subprogram<'a, R: gimli::Reader<Offset = usize>>(
@@ -616,7 +615,7 @@ impl HubrisPackage {
             gimli::EndianSlice<gimli::LittleEndian>,
             usize,
         >,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut name = None;
         let mut _linkage_name = None;
         let mut addr = None;
@@ -686,17 +685,17 @@ impl HubrisPackage {
     pub fn lookup_struct_byname(
         &self,
         name: &str,
-    ) -> Result<&HubrisStruct, Box<dyn Error>> {
+    ) -> Result<&HubrisStruct, Error> {
         match self.structs_byname.get_vec(name) {
             Some(v) => {
                 if v.len() > 1 {
-                    err!("{} matches more than one structure", name)
+                    Err(anyhow!("{} matches more than one structure", name))
                 } else {
                     Ok(self.structs.get(&v[0]).unwrap())
                 }
             }
             None => {
-                err!("expected structure {} not found", name)
+                Err(anyhow!("expected structure {} not found", name))
             }
         }
     }
@@ -705,20 +704,20 @@ impl HubrisPackage {
     pub fn lookup_struct(
         &self,
         goff: HubrisGoff,
-    ) -> Result<&HubrisStruct, Box<dyn Error>> {
+    ) -> Result<&HubrisStruct, Error> {
         match self.structs.get(&goff) {
             Some(str) => { Ok(str) }
-            None => { err!("expected struct {} not found", goff) }
+            None => { Err(anyhow!("expected struct {} not found", goff)) }
         }
     }
 
     pub fn lookup_enum(
         &self,
         goff: HubrisGoff,
-    ) -> Result<&HubrisEnum, Box<dyn Error>> {
+    ) -> Result<&HubrisEnum, Error> {
         match self.enums.get(&goff) {
             Some(union) => { Ok(union) }
-            None => { err!("expected enum {} not found", goff) }
+            None => { Err(anyhow!("expected enum {} not found", goff)) }
         }
     }
 
@@ -729,17 +728,17 @@ impl HubrisPackage {
     pub fn lookup_symword(
         &self,
         name: &str,
-    ) -> Result<u32, Box<dyn Error>> {
+    ) -> Result<u32, Error> {
         match self.esyms_byname.get(name) {
             Some(sym) => {
                 if sym.1 != 4 {
-                    err!("symbol {} is not word-sized", name)
+                    Err(anyhow!("symbol {} is not word-sized", name))
                 } else {
                     Ok(sym.0)
                 }
             }
             None => {
-                err!("expected symbol {} not found", name)
+                Err(anyhow!("expected symbol {} not found", name))
             }
         }
     }
@@ -748,16 +747,16 @@ impl HubrisPackage {
         &self,
         buf: &[u8],
         goff: HubrisGoff,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Error> {
         let mut rval = String::new();
 
-        let readval = |b: &[u8], o, sz| -> Result<u64, Box<dyn Error>> {
+        let readval = |b: &[u8], o, sz| -> Result<u64, Error> {
             Ok(match sz {
                 1 => b[o] as u64,
                 2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
                 4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
                 8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
-                _ => { return err!("bad size!"); }
+                _ => { return Err(anyhow!("bad size!")); }
             })
         };
 
@@ -812,8 +811,8 @@ impl HubrisPackage {
                     let size = match self.basetypes.get(&g) {
                         Some(size) => { size }
                         None => {
-                            return err!(concat!("enum {} has discriminant ",
-                                "of unknown type: {}"), goff, g);
+                            return Err(anyhow!(concat!("enum {} has discriminant ",
+                                "of unknown type: {}"), goff, g));
                         }
                     };
 
@@ -835,12 +834,12 @@ impl HubrisPackage {
 
                 HubrisDiscriminant::None => {
                     if union.variants.len() == 0 {
-                        return err!("enum {} has no variants", goff);
+                        return Err(anyhow!("enum {} has no variants", goff));
                     }
 
                     if union.variants.len() > 1 {
-                        return err!(concat!("enum {} has multiple variants ",
-                            "but no discriminant"), goff);
+                        return Err(anyhow!(concat!("enum {} has multiple variants ",
+                            "but no discriminant"), goff));
                     }
 
                     let variant = &union.variants[0];
@@ -852,7 +851,7 @@ impl HubrisPackage {
                 }
 
                 HubrisDiscriminant::Expected(_) => {
-                    return err!("enum {} has incomplete discriminant", goff);
+                    return Err(anyhow!("enum {} has incomplete discriminant", goff));
                 }
             }
         }
@@ -875,7 +874,7 @@ impl HubrisPackage {
             gimli::EndianSlice<gimli::LittleEndian>,
             usize,
         >,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
@@ -906,7 +905,7 @@ impl HubrisPackage {
             gimli::EndianSlice<gimli::LittleEndian>,
             usize,
         >,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut name = None;
@@ -950,7 +949,7 @@ impl HubrisPackage {
             usize,
         >,
         goff: HubrisGoff,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut attrs = entry.attrs();
         let mut discr = None;
 
@@ -997,7 +996,7 @@ impl HubrisPackage {
             usize,
         >,
         parent: HubrisGoff,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let goff = self.dwarf_goff(unit, entry);
         let mut attrs = entry.attrs();
         let mut value = None;
@@ -1007,7 +1006,7 @@ impl HubrisPackage {
                 value = attr.value().udata_value();
 
                 if value.is_none() {
-                    return err!("bad discriminant on union {}", parent);
+                    return Err(anyhow!("bad discriminant on union {}", parent));
                 }
             }
         }
@@ -1016,7 +1015,7 @@ impl HubrisPackage {
             union.tag = value;
             Ok(())
         } else {
-            err!("missing enum on variant {}", goff)
+            Err(anyhow!("missing enum on variant {}", goff))
         }
     }
 
@@ -1029,7 +1028,7 @@ impl HubrisPackage {
             usize,
         >,
         parent: HubrisGoff,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let mut attrs = entry.attrs();
         let mut name = None;
         let mut offset = None;
@@ -1064,13 +1063,13 @@ impl HubrisPackage {
                     goff: g
                 });
             } else {
-                return err!("member {} is incomplete", member);
+                return Err(anyhow!("member {} is incomplete", member));
             }
         } else if let Some(union) = self.enums.get_mut(&parent) {
             if let HubrisDiscriminant::Expected(expect) = union.discriminant {
                 if member != expect {
-                    return err!("enum {}: expected discriminant {}, found {}",
-                        union.goff, expect, member)
+                    return Err(anyhow!("enum {}: expected discriminant {}, found {}",
+                        union.goff, expect, member))
                 }
 
                 if let (Some(offs), Some(g)) = (offset, goff) {
@@ -1078,7 +1077,7 @@ impl HubrisPackage {
                     return Ok(());
                 }
 
-                return err!("enum {}: incomplete discriminant", union.goff);
+                return Err(anyhow!("enum {}: incomplete discriminant", union.goff));
             }
 
             /*
@@ -1094,7 +1093,7 @@ impl HubrisPackage {
 
                 union.tag = None;
             } else {
-                return err!("enum variant {} is incomplete", member);
+                return Err(anyhow!("enum variant {} is incomplete", member));
             }
         } else {
             /*
@@ -1111,7 +1110,7 @@ impl HubrisPackage {
         &mut self,
         buffer: &[u8],
         elf: &goblin::elf::Elf,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         // Load all of the sections. This "load" operation just gets the data in
         // RAM -- since we've already loaded the Elf file, this can't fail.
         let dwarf = gimli::Dwarf::<&[u8]>::load::<_, _, Infallible>(
@@ -1183,7 +1182,7 @@ impl HubrisPackage {
 
                     gimli::constants::DW_TAG_variant_part => {
                         if depth == 0 {
-                            return err!("no enum for variant {}", goff);
+                            return Err(anyhow!("no enum for variant {}", goff));
                         }
 
                         let parent = stack[depth as usize - 1];
@@ -1199,7 +1198,7 @@ impl HubrisPackage {
 
                     gimli::constants::DW_TAG_variant => {
                         if depth == 0 {
-                            return err!("no enum for variant {}", goff);
+                            return Err(anyhow!("no enum for variant {}", goff));
                         }
 
                         let parent = stack[depth as usize - 1];
@@ -1216,7 +1215,7 @@ impl HubrisPackage {
 
                     gimli::constants::DW_TAG_member => {
                         if depth == 0 {
-                            return err!("no parent for member {}", goff);
+                            return Err(anyhow!("no parent for member {}", goff));
                         }
 
                         let parent = stack[depth as usize - 1];
@@ -1237,19 +1236,19 @@ impl HubrisPackage {
         &mut self,
         directory: &str,
         object: &str
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let p = Path::new(directory).join(object);
 
         let buffer = fs::read(p)?;
 
         let elf = Elf::parse(&buffer).map_err(|e| {
-            err(format!("unrecognized ELF object: {}: {}", object, e))
+            anyhow!("unrecognized ELF object: {}: {}", object, e)
         })?;
 
         let arm = elf.header.e_machine == goblin::elf::header::EM_ARM;
 
         if !arm {
-            return err!("{} not an ARM ELF object", object);
+            return Err(anyhow!("{} not an ARM ELF object", object));
         }
 
         for sym in elf.syms.iter() {
@@ -1260,7 +1259,7 @@ impl HubrisPackage {
             let name = match elf.strtab.get(sym.st_name) {
                 Some(n) => n?,
                 None => {
-                    return err!("bad symbol in {}: {}", object, sym.st_name);
+                    return Err(anyhow!("bad symbol in {}: {}", object, sym.st_name));
                 }
             };
 
@@ -1291,7 +1290,7 @@ impl HubrisPackage {
 
         let textsec = match text {
             None => {
-                return err!("couldn't find text in ELF object \"{}\"", object);
+                return Err(anyhow!("couldn't find text in ELF object \"{}\"", object));
             }
             Some(sec) => { sec }
         };
@@ -1306,10 +1305,10 @@ impl HubrisPackage {
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => { instrs }
             Err(err) => {
-                return err!(
+                return Err(anyhow!(
                     "failed to disassemble \"{}\" (offs 0x{:08x}, {}): {}",
                     object, offset, size, err
-                );
+                ));
             }
         };
 
@@ -1319,7 +1318,7 @@ impl HubrisPackage {
             let addr: u32 = instr.address() as u32;
 
             if self.instrs.contains_key(&addr) {
-                return err!("address 0x{:08x} is duplicated!", addr);
+                return Err(anyhow!("address 0x{:08x} is duplicated!", addr));
             }
 
             let b = instr.bytes();
@@ -1341,13 +1340,13 @@ impl HubrisPackage {
          * if we are in this case and explicitly fail.
          */
         if last.0 + last.1 as u32 != textsec.sh_addr as u32 + size as u32 {
-            return err!(
+            return Err(anyhow!(
                 concat!(
                     "short disassembly for \"{}\": ",
                     "stopped at 0x{:x}, expected to go to 0x{:x}"
                 ),
                 object, last.0, textsec.sh_addr as u32 + size as u32
-            );
+            ));
         }
 
         self.modules.insert(
@@ -1361,20 +1360,20 @@ impl HubrisPackage {
     pub fn load(
         &mut self, 
         directory: &str
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let file = File::open(directory)?;
         let metadata = file.metadata()?;
         let mapfile = directory.to_owned() + "/map.txt";
         let expected = &["ADDRESS", "END", "SIZE", "FILE"];
 
         if !metadata.is_dir() {
-            return err!("package must be a directory");
+            return Err(anyhow!("package must be a directory"));
         }
 
         let map = match File::open(mapfile) {
             Ok(map) => map,
             Err(e) => {
-                return err!("couldn't find map.txt: {}", e);
+                return Err(anyhow!("couldn't find map.txt: {}", e));
             }
         };
 
@@ -1387,10 +1386,10 @@ impl HubrisPackage {
                 let headers: Vec<&str> = h.split_ascii_whitespace().collect();
 
                 if headers.len() != expected.len() {
-                    return err!("bad headers: found {}, expected {}",
+                    return Err(anyhow!("bad headers: found {}, expected {}",
                         headers.len(),
                         expected.len()
-                    );
+                    ));
                 }
 
                 for i in 0..expected.len() {
@@ -1398,15 +1397,15 @@ impl HubrisPackage {
                         continue;
                     }
 
-                    return err!("bad header: found \"{}\", expected \"{}\"",
+                    return Err(anyhow!("bad header: found \"{}\", expected \"{}\"",
                         headers[i],
                         expected[i]
-                    );
+                    ));
                 }
             }
 
             None => {
-                return err!("map file empty or otherwise missing a header");
+                return Err(anyhow!("map file empty or otherwise missing a header"));
             }
         };
 
@@ -1420,7 +1419,7 @@ impl HubrisPackage {
             lineno += 1;
 
             if fields.len() < expected.len() {
-                return err!("short line at {}", lineno);
+                return Err(anyhow!("short line at {}", lineno));
             }
 
             let file = fields[3];
@@ -1430,7 +1429,7 @@ impl HubrisPackage {
              * We expect a 3 element path.
              */
             if pieces.len() != 3 {
-                return err!("bad object \"{}\" on line {}", file, lineno);
+                return Err(anyhow!("bad object \"{}\" on line {}", file, lineno));
             }
 
             let object = pieces[2].to_owned();

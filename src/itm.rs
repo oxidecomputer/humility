@@ -6,7 +6,7 @@ use crate::debug::Register;
 use bitfield::bitfield;
 use crate::register;
 use crate::tpiu::*;
-use std::error::Error;
+use anyhow::Error;
 
 /*
  * ITM Trace Enable Register
@@ -63,7 +63,7 @@ register!(ITM_LSR, 0xe000_0fb4,
 impl ITM_LAR {
     pub fn unlock(
         core: &mut dyn crate::core::Core
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -74,7 +74,7 @@ impl ITM_LAR {
 
     pub fn lock(
         core: &mut dyn crate::core::Core
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ITM_LAR::ADDRESS, val)?;
         Ok(())
@@ -288,9 +288,9 @@ fn itm_payload_decode(
 
 pub fn itm_ingest(
     traceid: u8,
-    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
-    mut callback: impl FnMut(&ITMPacket) -> Result<(), Box<dyn Error>>,
-) -> Result<(), Box<dyn Error>> {
+    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Error>,
+    mut callback: impl FnMut(&ITMPacket) -> Result<(), Error>,
+) -> Result<(), Error> {
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     enum IngestState { SyncSearching, Ingesting };

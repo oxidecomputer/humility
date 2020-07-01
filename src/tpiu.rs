@@ -5,7 +5,7 @@
 use bitfield::bitfield;
 use crate::debug::Register;
 use crate::register;
-use std::error::Error;
+use anyhow::Error;
 
 register!(TPIU_SSPSR, 0xe004_0000,
     #[derive(Copy, Clone)]
@@ -275,8 +275,8 @@ fn tpiu_check_byte(
 fn tpiu_process_frame(
     frame: &[(u8, f64, usize)],
     id: Option<u8>,
-    mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
-) -> Result<u8, Box<dyn Error>> {
+    mut callback: impl FnMut(&TPIUPacket) -> Result<(), Error>,
+) -> Result<u8, Error> {
 
     let high = frame.len() - 1;
     let aux = TPIUFrameHalfWord::from((frame[high - 1].0, frame[high].0));
@@ -377,9 +377,9 @@ fn tpiu_process_frame(
 
 pub fn tpiu_ingest(
     valid: &[bool],
-    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
-    mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
-) -> Result<(), Box<dyn Error>> {
+    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Error>,
+    mut callback: impl FnMut(&TPIUPacket) -> Result<(), Error>,
+) -> Result<(), Error> {
 
     let mut state = TPIUState::Searching;
 

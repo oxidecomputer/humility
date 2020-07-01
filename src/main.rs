@@ -5,6 +5,8 @@
 #[macro_use]
 extern crate log;
 
+use anyhow::{anyhow, Error};
+
 use structopt::StructOpt;
 
 mod debug;
@@ -27,10 +29,6 @@ use hubris::*;
 
 mod core;
 
-mod error;
-use crate::error::*;
-
-use std::error::Error;
 use std::fs::File;
 use std::convert::TryInto;
 use std::time::Instant;
@@ -129,7 +127,7 @@ struct TraceState {
 
 fn attach(
     args: &Args
-) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
+) -> Result<Box<dyn core::Core>, Error> {
     crate::core::attach(&args.debugger, &args.chip)
 }
 
@@ -139,7 +137,7 @@ const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
 fn etmcmd_probe(
     core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let tab = read_debug_rom_table(core)?;
 
     info!("ROM debug table: {:#x?}", tab);
@@ -180,7 +178,7 @@ fn etmcmd_enable(
     core: &mut dyn core::Core,
     clockscaler: Option<u16>,
     traceid: u8,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let etmccr = ETMCCR::read(core)?;
 
     if !etmccr.has_etmidr() {
@@ -304,7 +302,7 @@ fn etmcmd_enable(
 
 fn etmcmd_disable(
     core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut etmcr = ETMCR::read(core)?;
 
     if etmcr.power_down() {
@@ -330,7 +328,7 @@ fn etmcmd_trace(
     config: &TraceConfig,
     instr: &TraceInstruction,
     state: &mut TraceState,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let hubris = config.hubris;
     let addr = instr.addr;
     let c = if !instr.skipped { 'E' } else { 'N' };
@@ -421,7 +419,7 @@ fn etmcmd_trace_exception(
     _config: &TraceConfig,
     exception: &TraceException,
     _state: &mut TraceState,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     println!("{:-10} {:8} X {:?}", exception.nsecs, "-", exception.exception);
 
     Ok(())
@@ -430,7 +428,7 @@ fn etmcmd_trace_exception(
 fn etmcmd_ingest(
     config: &TraceConfig,
     filename: &str,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let file = File::open(filename)?;
     let mut rdr = csv::Reader::from_reader(file);
     let mut curaddr: Option<u32> = None;
@@ -595,7 +593,7 @@ fn etmcmd_ingest(
 
 fn etmcmd_output(
     core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let start = Instant::now();
 
     println!("Time [s],Value,Parity Error,Framing Error");
@@ -651,7 +649,7 @@ fn etmcmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &EtmArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -719,7 +717,7 @@ fn etmcmd(
 
 fn itmcmd_probe(
     core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let tab = read_debug_rom_table(core)?;
 
     info!("ROM debug table: {:#x?}", tab);
@@ -741,7 +739,7 @@ fn itmcmd_enable(
     clockscaler: Option<u16>,
     traceid: u8,
     stimuli: u32,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     /*
      * First, enable TRCENA in the DEMCR.
      */
@@ -830,7 +828,7 @@ fn itmcmd_enable(
 
 fn itmcmd_disable(
     core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     /*
      * Unlock the ITM.
      */
@@ -851,10 +849,10 @@ fn itmcmd_disable(
 fn itmcmd_ingest(
     traceid: u8,
     filename: &str,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let file = File::open(filename)?;
 
-    let process = |packet: &ITMPacket| -> Result<(), Box<dyn Error>> {
+    let process = |packet: &ITMPacket| -> Result<(), Error> {
         if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
             for p in payload {
                 print!("{}", *p as char);
@@ -908,7 +906,7 @@ fn itmcmd_ingest(
 fn itmcmd_ingest_attached(
     core: &mut dyn core::Core,
     traceid: u8,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
 
@@ -976,7 +974,7 @@ fn itmcmd(
     _hubris: &HubrisPackage,
     args: &Args,
     subargs: &ItmArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -1046,7 +1044,7 @@ fn itmcmd(
 
 fn probe(
     args: &Args,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let _core = attach(args)?;
     Ok(())
 }
@@ -1064,7 +1062,7 @@ fn taskscmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &TasksArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut core = attach(&args)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
@@ -1154,7 +1152,7 @@ fn tracecmd_ingest(
     subargs: &TraceArgs,
     core: &mut dyn core::Core,
     tasks: &HashMap<u32, String>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
 
@@ -1311,7 +1309,7 @@ fn tracecmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &TraceArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Error> {
     let mut tasks: HashMap<u32, String> = HashMap::new();
 
     let mut core = attach(args)?;
@@ -1393,7 +1391,7 @@ enum Subcommand {
     Trace(TraceArgs),
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args = Args::from_args();
 
     if args.verbose {
@@ -1403,46 +1401,27 @@ fn main() {
     }
 
     let mut hubris = HubrisPackage::new().map_err(|err| {
-        fatal!("failed to initialize: {}", err);
-    }).unwrap();
+        anyhow!("failed to initialize: {}", err)
+    })?;
 
     if let Some(dir) = &args.package {
-        if let Err(err) = hubris.load(&dir) {
-            fatal!("failed to load package: {}", err);
-        }
+        hubris.load(&dir)?;
     } else {
         match &args.cmd {
             Subcommand::Tasks(..) | Subcommand::Trace(..) => {
-                fatal!("must provide a package");
+                return Err(anyhow!("must provide a package"));
             }
             _ => {}
         }
     }
 
     match &args.cmd {
-        Subcommand::Probe => match probe(&args) {
-            Err(err) => fatal!("probe failed: {}", err),
-            _ => std::process::exit(0),
-        }
+        Subcommand::Probe => probe(&args)?,
+        Subcommand::Etm(subargs) => etmcmd(&hubris, &args, subargs)?,
+        Subcommand::Itm(subargs) => itmcmd(&hubris, &args, subargs)?,
+        Subcommand::Tasks(subargs) => taskscmd(&hubris, &args, subargs)?,
+        Subcommand::Trace(subargs) => tracecmd(&hubris, &args, subargs)?,
+    };
 
-        Subcommand::Etm(subargs) => match etmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("etm failed: {}", err),
-            _ => std::process::exit(0),
-        }
-
-        Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("itm failed: {}", err),
-            _ => std::process::exit(0),
-        }
-
-        Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("tasks failed: {}", err),
-            _ => std::process::exit(0),
-        }
-
-        Subcommand::Trace(subargs) => match tracecmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("trace failed: {}", err),
-            _ => std::process::exit(0),
-        }
-    }
+    Ok(())
 }

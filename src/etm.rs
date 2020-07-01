@@ -6,7 +6,7 @@ use crate::debug::Register;
 use bitfield::bitfield;
 use crate::register;
 use crate::tpiu::*;
-use std::error::Error;
+use anyhow::Error;
 
 macro_rules! etm_register {
     ($reg:ty, $offs:expr, $($arg:tt)*) => (
@@ -223,7 +223,7 @@ etm_register!(ETMLAR, 0x3ec,
 impl ETMLAR {
     pub fn unlock(
         core: &mut dyn crate::core::Core
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -234,7 +234,7 @@ impl ETMLAR {
 
     pub fn lock(
         core: &mut dyn crate::core::Core
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ETMLAR::ADDRESS, val)?;
         Ok(())
@@ -722,9 +722,9 @@ fn etm_payload_decode(
 
 pub fn etm_ingest(
     config: &ETM3Config,
-    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
-    mut callback: impl FnMut(&ETM3Packet) -> Result<(), Box<dyn Error>>,
-) -> Result<(), Box<dyn Error>> {
+    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Error>,
+    mut callback: impl FnMut(&ETM3Packet) -> Result<(), Error>,
+) -> Result<(), Error> {
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     enum IngestState { ASyncSearching, ISyncSearching, Ingesting };

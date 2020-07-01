@@ -4,23 +4,23 @@
 
 use probe_rs::Probe;
 
-use std::error::Error;
 use std::str;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
-use crate::err;
+
+use anyhow::{anyhow, Error};
 
 pub trait Core {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>>;
+    fn read_word_32(&mut self, addr: u32) -> Result<u32, Error>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) ->
-        Result<(), Box<dyn Error>>;
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>>;
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>>;
+        Result<(), Error>;
+    fn init_swv(&mut self) -> Result<(), Error>;
+    fn read_swv(&mut self) -> Result<Vec<u8>, Error>;
     fn write_word_32(&mut self, addr: u32, data: u32) ->
-        Result<(), Box<dyn Error>>;
-    fn halt(&mut self) -> Result<(), Box<dyn Error>>;
-    fn run(&mut self) -> Result<(), Box<dyn Error>>;
+        Result<(), Error>;
+    fn halt(&mut self) -> Result<(), Error>;
+    fn run(&mut self) -> Result<(), Error>;
 }
 
 pub struct ProbeCore {
@@ -29,38 +29,38 @@ pub struct ProbeCore {
 }
 
 impl Core for ProbeCore {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32, Error> {
         Ok(self.core.read_word_32(addr)?)
     }
 
     fn read_8(&mut self,
         addr: u32,
         data: &mut [u8]
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         Ok(self.core.read_8(addr, data)?)
     }
 
     fn write_word_32(&mut self,
         addr: u32,
         data: u32
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         Ok(self.core.write_word_32(addr, data)?)
     }
 
-    fn halt(&mut self) -> Result<(), Box<dyn Error>> {
+    fn halt(&mut self) -> Result<(), Error> {
         self.core.halt()?;
         Ok(())
     }
 
-    fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    fn run(&mut self) -> Result<(), Error> {
         Ok(self.core.run()?)
     }
 
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+    fn init_swv(&mut self) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_swv(&mut self) -> Result<Vec<u8>, Error> {
         Ok(self.session.read_swv()?)
     }
 }
@@ -75,7 +75,7 @@ pub struct OpenOCDCore {
 }
 
 impl OpenOCDCore {
-    fn sendcmd(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
+    fn sendcmd(&mut self, cmd: &str) -> Result<String, Error> {
         let mut rbuf = vec![0; 1024];
         let mut result = String::with_capacity(16);
 
@@ -102,18 +102,18 @@ impl OpenOCDCore {
          * name" is in fact an error.
          */
         if result.contains("Error: ") {
-            err!("OpenOCD command \"{}\" failed with \"{}\"", cmd, result)
+            Err(anyhow!("OpenOCD command \"{}\" failed with \"{}\"", cmd, result))
         } else if result.contains("invalid command name ") {
-            err!("OpenOCD command \"{}\" invalid: \"{}\"", cmd, result)
+            Err(anyhow!("OpenOCD command \"{}\" invalid: \"{}\"", cmd, result))
         } else {
             Ok(result)
         }
     }
 
-    fn new() -> Result<OpenOCDCore, Box<dyn Error>> {
+    fn new() -> Result<OpenOCDCore, Error> {
         let stream = TcpStream::connect("localhost:6666")
             .map_err(|_| {
-                err("can't connect to OpenOCD on port 6666; is it running?")
+                anyhow!("can't connect to OpenOCD on port 6666; is it running?")
             })?;
 
         Ok(Self {
@@ -124,7 +124,7 @@ impl OpenOCDCore {
 }
 
 impl Core for OpenOCDCore {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32, Error> {
         let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
         Ok(result.parse::<u32>()?)
     }
@@ -132,7 +132,7 @@ impl Core for OpenOCDCore {
     fn read_8(&mut self,
         addr: u32,
         data: &mut [u8]
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         /*
          * To read an array, we put it in a TCL variable called "output"
          * and then dump the variable.
@@ -157,11 +157,11 @@ impl Core for OpenOCDCore {
                     let idx = val.parse::<usize>()?;
 
                     if idx >= data.len() {
-                        return err!("\"{}\": illegal index {}", cmd, idx);
+                        return Err(anyhow!("\"{}\": illegal index {}", cmd, idx));
                     }
 
                     if seen[idx] {
-                        return err!("\"{}\": duplicate index {}", cmd, idx);
+                        return Err(anyhow!("\"{}\": duplicate index {}", cmd, idx));
                     }
 
                     seen[idx] = true;
@@ -177,14 +177,14 @@ impl Core for OpenOCDCore {
 
         for v in seen.iter().enumerate() {
             if !v.1 {
-                return err!("\"{}\": missing index {}", cmd, v.0);
+                return Err(anyhow!("\"{}\": missing index {}", cmd, v.0));
             }
         }
 
         Ok(())
     }
 
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+    fn init_swv(&mut self) -> Result<(), Error> {
         self.swv = true;
         self.sendcmd("tpiu config disable")?;
 
@@ -197,7 +197,7 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_swv(&mut self) -> Result<Vec<u8>, Error> {
         if !self.swv {
             self.init_swv()?
         }
@@ -208,17 +208,17 @@ impl Core for OpenOCDCore {
         let rval = self.stream.read(&mut rbuf)?;
 
         if rbuf[rval - 1] != OPENOCD_COMMAND_DELIMITER {
-            return err!("missing trace data delimiter: {:?}", rval);
+            return Err(anyhow!("missing trace data delimiter: {:?}", rval));
         }
 
         let rstr = str::from_utf8(&rbuf[0..rval - 1])?;
 
         if !rstr.starts_with(OPENOCD_TRACE_DATA_BEGIN) {
-            return err!("bogus trace data (bad start): {:?}", rval);
+            return Err(anyhow!("bogus trace data (bad start): {:?}", rval));
         }
 
         if !rstr.ends_with(OPENOCD_TRACE_DATA_END) {
-            return err!("bogus trace data (bad end): {:?}", rval);
+            return Err(anyhow!("bogus trace data (bad end): {:?}", rval));
         }
 
         let begin = OPENOCD_TRACE_DATA_BEGIN.len();
@@ -226,7 +226,7 @@ impl Core for OpenOCDCore {
 
         for i in (begin..end).step_by(2) {
             if i + 1 >= end {
-                return err!("short trace data: {:?}", rval);
+                return Err(anyhow!("short trace data: {:?}", rval));
             }
 
             swv.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
@@ -238,17 +238,17 @@ impl Core for OpenOCDCore {
     fn write_word_32(&mut self,
         addr: u32,
         data: u32
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Error> {
         self.sendcmd(&format!("mww 0x{:x} 0x{:x}", addr, data))?;
         Ok(())
     }
 
-    fn halt(&mut self) -> Result<(), Box<dyn Error>> {
+    fn halt(&mut self) -> Result<(), Error> {
         self.sendcmd("halt")?;
         Ok(())
     }
 
-    fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    fn run(&mut self) -> Result<(), Error> {
         self.sendcmd("resume")?;
         Ok(())
     }
@@ -257,13 +257,13 @@ impl Core for OpenOCDCore {
 pub fn attach(
     debugger: &str,
     chip: &str,
-) -> Result<Box<dyn Core>, Box<dyn Error>> {
+) -> Result<Box<dyn Core>, Error> {
     match debugger {
         "probe" => {
             let probes = Probe::list_all();
 
             if probes.len() == 0 {
-                return err!("no debug probe found; is it plugged in?");
+                return Err(anyhow!("no debug probe found; is it plugged in?"));
             }
 
             let res = probes[0].open();
@@ -276,10 +276,10 @@ pub fn attach(
             if let Err(probe_rs::DebugProbeError::USB(Some(ref err))) = res {
                 if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
                     if *rcode == rusb::Error::Busy {
-                        return err!(
+                        return Err(anyhow!(
                             "USB link in use; is OpenOCD or \
                             another debugger running?"
-                        );
+                        ));
                     }
                 }
             }
@@ -302,7 +302,7 @@ pub fn attach(
             let version = core.sendcmd("version")?;
 
             if !version.contains("Open On-Chip Debugger") {
-                return err!("version string unrecognized: \"{}\"", version);
+                return Err(anyhow!("version string unrecognized: \"{}\"", version));
             }
 
             info!("attached via OpenOCD");
@@ -319,7 +319,7 @@ pub fn attach(
         }
 
         _ => {
-            err!("unrecognized debugger: {}", debugger)
+            Err(anyhow!("unrecognized debugger: {}", debugger))
         }
     }
 }
