@@ -314,8 +314,8 @@ pub fn itm_ingest(
                 0 => { runlen += 1 }
                 0x80 => {
                     if runlen >= 5 {
-                        info!(concat!("synchronization ",
-                            "packet found at line {}"), packet.offset);
+                        info!(concat!("ITM synchronization ",
+                            "packet found at offset {}"), packet.offset);
                         state = IngestState::Ingesting;
                     }
                 }
@@ -330,7 +330,7 @@ pub fn itm_ingest(
                 hdr = match hdrs[packet.datum as usize] {
                     Some(hdr) => { hdr }
                     None => {
-                        info!("unrecognized ITM header 0x{:x} at line {}",
+                        info!("unrecognized ITM header 0x{:x} at offset {}",
                             packet.datum, packet.offset);
                         state = IngestState::SyncSearching;
                         return Ok(());
