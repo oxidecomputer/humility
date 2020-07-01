@@ -136,7 +136,7 @@ pub struct TPIUPacket {
     pub time: f64
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum TPIUState {
     Searching,
     SearchingSyncing(usize),
@@ -288,6 +288,7 @@ fn tpiu_process_frame(
         let half = TPIUFrameHalfWord::from((frame[base].0, frame[base + 1].0));
         let auxbit = ((aux.data_or_aux() & (1 << i)) >> i) as u8;
         let last = i == max - 1;
+
         if half.f_control() {
             /*
              * If our bit is set, the sense of the auxiliary bit tells us
@@ -335,10 +336,17 @@ fn tpiu_process_frame(
         } else {
             /*
              * If our bit is NOT set, the auxiliary bit is the actual bit
-             * of data.  We know that our current is set:  if we are still
-             * seeking a first frame, we should not be here at all.
+             * of data.  If our current is not set, then we are still searching
+             * for a first frame; we don't have an ID to associate with it,
+             * so we need to chuck the data.
              */
-            let id = current.unwrap();
+            let id = match current {
+                Some(id) => { id },
+                None => {
+                    assert!(!last);
+                    continue;
+                }
+            };
 
             callback(&TPIUPacket {
                 id,
@@ -377,6 +385,7 @@ pub fn tpiu_ingest(
 
     let mut ndx = 0;
     let mut frame: Vec<(u8, f64, usize)> = vec![(0u8, 0.0, 0); 16];
+    let mut replay: Vec<(u8, f64, usize)> = vec![];
 
     let mut nvalid = 0;
     let mut id = None;
@@ -393,23 +402,40 @@ pub fn tpiu_ingest(
     };
 
     loop {
-        match readnext()? {
-            Some(result) => {
-                datum = result.0;
-                time = result.1;
-            }
-            None => {
-                break;
-            }
-        }
 
-        offs += 1;
+        if replay.len() > 0 {
+            let popped = replay.pop().unwrap();
+
+            datum = popped.0;
+            time = popped.1;
+            offs = popped.2;
+        } else {
+            match readnext()? {
+                Some(result) => {
+                    datum = result.0;
+                    time = result.1;
+                }
+                None => {
+                    break;
+                }
+            }
+
+            offs += 1;
+        }
 
         match state {
             TPIUState::SearchingSyncing(_) |
             TPIUState::FramingSyncing(_) => {
                 state = tpiu_next_state(state, datum, offs);
-                continue;
+
+                if state == TPIUState::Searching {
+                    /*
+                     * We just got kicked back into searching; we need to
+                     * replay this datum to see if it starts a frame.
+                     */
+                    replay.push((datum, time, offs));
+                    continue;
+                }
             }
 
             TPIUState::Searching => {
@@ -451,28 +477,15 @@ pub fn tpiu_ingest(
                     continue;
                 }
 
-                ndx = 0;
-
                 /*
-                 * That wasn't a valid frame; we need to scan our current frame
-                 * to see if there is another plausible start to the frame.
+                 * That wasn't a valid frame; we need to replay.
                  */
-                for check in 1..frame.len() {
-                    if !tpiu_check_byte(frame[check].0, &valid) {
-                        continue;
-                    }
-
-                    /*
-                     * We have a plausible start! Scoot the rest of the frame
-                     * down to the start of the frame.
-                     */
-                    while ndx + check < frame.len() {
-                        frame[ndx] = frame[check + ndx]; 
-                        ndx += 1;
-                    }
-
-                    break;
+                while ndx > 1 {
+                    replay.push(frame[ndx - 1]);
+                    ndx -= 1;
                 }
+
+                ndx = 0;
             }
 
             TPIUState::Framing => {
@@ -499,22 +512,24 @@ pub fn tpiu_ingest(
 
                 /*
                  * We have a complete frame, but we more or less expect it to
-                 * be correct.  Warn if this fails.
+                 * be correct.  If this fails, we need to go back in time
+                 * and resume our search for a frame.
                  */
                 if !tpiu_check_frame(&frame, &valid, true) {
-                    if nvalid == 0 {
-                        warn!("two consecutive invalid frames; resuming search");
-                        state = TPIUState::Searching;
-                    } else {
-                        warn!(
-                            "after {} frame{}, invalid frame at offset {}",
-                            nvalid,
-                            if nvalid == 1 { "" } else { "s" },
-                            frame[0].2
-                        );
+                    warn!(
+                        "after {} frame{}, invalid frame at offset {}",
+                        nvalid,
+                        if nvalid == 1 { "" } else { "s" },
+                        frame[0].2
+                    );
 
-                        nvalid = 0;
+                    while ndx > 1 {
+                        replay.push(frame[ndx - 1]);
+                        ndx -= 1;
                     }
+
+                    nvalid = 0;
+                    state = TPIUState::Searching;
                 } else {
                     nvalid += 1;
                     id = Some(tpiu_process_frame(&frame, id, &mut filter)?);
