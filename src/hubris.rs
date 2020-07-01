@@ -1362,8 +1362,7 @@ impl HubrisPackage {
         &mut self, 
         directory: &str
     ) -> Result<(), Box<dyn Error>> {
-        let file = File::open(directory)?;
-        let metadata = file.metadata()?;
+        let metadata = fs::metadata(directory)?;
         let mapfile = directory.to_owned() + "/map.txt";
         let expected = &["ADDRESS", "END", "SIZE", "FILE"];
 
