@@ -1236,7 +1236,7 @@ impl HubrisPackage {
     fn load_object(
         &mut self,
         directory: &str,
-        object: &str
+        object: &str,
     ) -> Result<(), Box<dyn Error>> {
         let p = Path::new(directory).join(object);
 
@@ -1423,17 +1423,26 @@ impl HubrisPackage {
                 return err!("short line at {}", lineno);
             }
 
-            let file = fields[3];
-            let pieces: Vec<&str> = file.split('/').collect();
+            let file = Path::new(fields[3]);
+            let pieces = file.components().collect::<Vec<_>>();
 
             /*
              * We expect a 3 element path.
              */
             if pieces.len() != 3 {
-                return err!("bad object \"{}\" on line {}", file, lineno);
+                return err!("bad object \"{}\" on line {}",
+                    file.display(), lineno);
             }
 
-            let object = pieces[2].to_owned();
+            let object = match pieces[2].to_owned().as_os_str().to_str() {
+                Some(ref str) => { str.to_string() },
+                None => {
+                    return err!(
+                        "bad object name \"{}\" on line {}",
+                        file.display(), lineno
+                    );
+                }
+            };
 
             if !seen.contains(&object) {
                 self.load_object(directory, &object)?;
