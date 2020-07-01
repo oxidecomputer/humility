@@ -36,7 +36,7 @@ use std::convert::TryInto;
 use std::time::Instant;
 use std::time::SystemTime;
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Read, Write};
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -914,6 +914,8 @@ fn itmcmd_ingest_attached(
 
     let start = Instant::now();
 
+    let mut last_port = None;
+
     itm_ingest(traceid, || {
         while ndx == bytes.len() {
             bytes = core.read_swv().unwrap();
@@ -921,20 +923,48 @@ fn itmcmd_ingest_attached(
         }
         ndx += 1;
         Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
-    }, |packet| {
+    }, move |packet| {
         match &packet.payload {
             ITMPayload::Instrumentation { payload, port } => {
-                if *port > 1 {
-                    println!("{:x?}", payload);
+                if *port > 16 {
+                    if last_port.is_some() {
+                        // Terminate any labeled output
+                        println!("\\");
+                        last_port = None;
+                    }
+                    println!("{:02x}|{:x?}", port, payload);
                     return Ok(());
                 }
 
-                for p in payload {
-                    print!("{}", *p as char);
+                if let Some(lp) = last_port {
+                    // We've been producing output for a particular port.
+                    if &lp == port {
+                        // And that doesn't need to change.
+                    } else {
+                        // And we need to call it off.
+                        println!("\\");
+                        print!("{:02x}|", port);
+                        last_port = Some(*port);
+                    }
+                }
+
+                for &p in payload {
+                    if last_port.is_none() {
+                        print!("{:02x}|", port);
+                        last_port = Some(*port);
+                    }
+                    print!("{}", p as char);
+                    if p == b'\n' {
+                        last_port = None;
+                    }
                 }
             }
             _ => {}
         }
+
+        // Ensure that we get output even if it stops before the newline.
+        // Tolerate failure.
+        std::io::stdout().flush().ok();
 
         Ok(())
     })
@@ -1017,9 +1047,10 @@ fn itmcmd(
         }
 
         /*
-         * By default, we enable all logging (ports 0-7).
+         * By default, we enable all logging (ports 0-7) and test-related output
+         * (ports 8-11).
          */
-        let stim = 0x0000_000f;
+        let stim = 0x0000_0f0f;
         rval = itmcmd_enable(core.as_mut(), subargs.clockscaler, traceid, stim);
     }
 
