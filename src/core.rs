@@ -255,19 +255,43 @@ impl Core for OpenOCDCore {
 }
 
 pub fn attach(
-    ocd: &str,
+    debugger: &str,
     chip: &str,
 ) -> Result<Box<dyn Core>, Box<dyn Error>> {
-    match ocd {
+    match debugger {
         "probe" => {
             let probes = Probe::list_all();
-            let probe = probes[0].open()?;
 
-            info!("attaching as chip {} ...", chip);
+            if probes.len() == 0 {
+                return err!("no debug probe found; is it plugged in?");
+            }
+
+            let res = probes[0].open();
+
+            /*
+             * By far the most common error is to not be able to attach to a
+             * debug probe because something else has already attached to it;
+             * we pull this error out to yield a more actionable suggestion!
+             */
+            if let Err(probe_rs::DebugProbeError::USB(ref err)) = res {
+                if let Some(code) = err {
+                    if let Some(rcode) = code.downcast_ref::<rusb::Error>() {
+                        if *rcode == rusb::Error::Busy {
+                            return err!(concat!(
+                                "USB link in use; is OpenOCD or ",
+                                "another debugger running?"
+                            ));
+                        }
+                    }
+                }
+            }
+
+            let probe = res?;
+            let name = probe.get_name();
             let session = probe.attach(chip)?;
-
             let core = session.attach_to_core(0)?;
-            info!("attached");
+
+            info!("attached to {} via {}", chip, name);
 
             Ok(Box::new(ProbeCore {
                 session: session,
@@ -283,13 +307,21 @@ pub fn attach(
                 return err!("version string unrecognized: \"{}\"", version);
             }
 
-            info!("attached to OpenOCD");
+            info!("attached via OpenOCD");
 
             Ok(Box::new(core))
         }
 
+        "auto" => {
+            if let Ok(probe) = attach("ocd", chip) {
+                return Ok(probe);
+            }
+
+            attach("probe", chip)
+        }
+
         _ => {
-            err!("unrecognized on-chip debugger: {}", ocd)
+            err!("unrecognized debugger: {}", debugger)
         }
     }
 }

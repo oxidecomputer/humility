@@ -130,7 +130,7 @@ struct TraceState {
 fn attach(
     args: &Args
 ) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
-    crate::core::attach(&args.ocd, &args.chip)
+    crate::core::attach(&args.debugger, &args.chip)
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 7;
@@ -1080,6 +1080,8 @@ fn taskscmd(
     let state_enum = hubris.lookup_enum(state.goff)?;
 
     loop {
+        core.halt()?;
+
         let cur = core.read_word_32(
             hubris.lookup_symword("CURRENT_TASK_PTR")?
         )?;
@@ -1091,6 +1093,8 @@ fn taskscmd(
         let mut taskblock: Vec<u8> = vec![];
         taskblock.resize_with(task.size * size as usize, Default::default);
         core.read_8(base, taskblock.as_mut_slice())?;
+
+        core.run()?;
 
         let descriptor = task.lookup_member("descriptor")?.offset as u32;
         let generation = task.lookup_member("generation")?.offset as u32;
@@ -1372,9 +1376,9 @@ struct Args {
     #[structopt(long, short, env = "HUMILITY_CHIP", default_value = "STM32F407VGTx")]
     chip: String,
 
-    /// specific chip on attached device
-    #[structopt(long, short, env = "HUMILITY_OCD", default_value = "probe")]
-    ocd: String,
+    /// chip debugger to use
+    #[structopt(long, short, env = "HUMILITY_DEBUGGER", default_value = "auto")]
+    debugger: String,
 
     /// directory containing Hubris package
     #[structopt(long, short, env = "HUMILITY_PACKAGE")]
