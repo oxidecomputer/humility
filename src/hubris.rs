@@ -58,6 +58,9 @@ pub struct HubrisPackage {
     // Base types: goff to size
     basetypes: HashMap<HubrisGoff, usize>,
 
+    // Base types: goff to underlying type
+    ptrtypes: HashMap<HubrisGoff, (String, HubrisGoff)>,
+
     // Structures: goff to struct
     structs: HashMap<HubrisGoff, HubrisStruct>,
 
@@ -144,6 +147,13 @@ pub enum HubrisTarget {
     Call(u32),
     IndirectCall,
     Return,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct HubrisDumpFormat {
+    pub indent: usize,
+    pub newline: bool,
+    pub hex: bool
 }
 
 impl fmt::Display for HubrisGoff {
@@ -247,6 +257,7 @@ impl HubrisPackage {
             inlined: BTreeMap::new(),
             subprograms: HashMap::new(),
             basetypes: HashMap::new(),
+            ptrtypes: HashMap::new(),
             structs: HashMap::new(),
             structs_byname: MultiMap::new(),
             enums: HashMap::new(),
@@ -744,12 +755,17 @@ impl HubrisPackage {
         }
     }
 
-    pub fn dump(
+    pub fn dumpfmt(
         &self,
         buf: &[u8],
         goff: HubrisGoff,
+        fmt: &HubrisDumpFormat,
     ) -> Result<String, Box<dyn Error>> {
         let mut rval = String::new();
+        let delim = if fmt.newline { "\n" } else { " " };
+
+        let mut f = *fmt;
+        f.indent += 4;
 
         let readval = |b: &[u8], o, sz| -> Result<u64, Box<dyn Error>> {
             Ok(match sz {
@@ -770,35 +786,57 @@ impl HubrisPackage {
             }
 
             if v.members[0].name == "__0" {
-                rval += "(";
+                let paren = v.members.len() > 1 ||
+                    self.basetypes.get(&v.members[0].goff).is_none();
+
+                if paren {
+                    rval += "(";
+                }
 
                 for i in 0..v.members.len() {
                     let m = &v.members[i];
-                    rval += &self.dump(&buf[m.offset..], m.goff)?;
+                    rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
 
                     if i + 1 < v.members.len() {
                         rval += ", ";
                     }
                 }
 
-                rval += ")";
+                if paren {
+                    rval += ")";
+                }
+
                 return Ok(rval);
             }
 
-            rval += "{ ";
+            rval += "{";
+            rval += delim;
 
             for i in 0..v.members.len() {
                 let m = &v.members[i];
+
+                if fmt.indent > 0 {
+                    rval += &format!("{:1$}", " ", f.indent);
+                }
+
                 rval += &m.name;
                 rval += ": ";
-                rval += &self.dump(&buf[m.offset..], m.goff)?;
+                rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
 
                 if i + 1 < v.members.len() {
-                    rval += ", ";
+                    rval += ",";
+                    rval += delim;
                 }
             }
 
+            rval += delim;
+
+            if fmt.indent > 0 {
+                rval += &format!("{:1$}", " ", fmt.indent);
+            }
+
             rval += "}";
+
             return Ok(rval);
         }
 
@@ -826,7 +864,7 @@ impl HubrisPackage {
 
                         Some(variant) => {
                             rval += &variant.name;
-                            rval += &self.dump(&buf[0..], variant.goff)?;
+                            rval += &self.dumpfmt(&buf[0..], variant.goff, &f)?;
                         }
                     }
 
@@ -846,7 +884,7 @@ impl HubrisPackage {
                     let variant = &union.variants[0];
 
                     rval += &variant.name;
-                    rval += &self.dump(&buf[0..], variant.goff)?;
+                    rval += &self.dumpfmt(&buf[0..], variant.goff, &f)?;
 
                     return Ok(rval);
                 }
@@ -859,13 +897,39 @@ impl HubrisPackage {
 
         if let Some(base) = self.basetypes.get(&goff) {
             let val = readval(buf, 0, *base)?;
-            write!(rval, "{}", val)?;
+
+            if fmt.hex {
+                write!(rval, "0x{:x}", val)?;
+            } else {
+                write!(rval, "{}", val)?;
+            }
+
+            return Ok(rval);
+        }
+
+        if let Some((name, _ptr)) = self.ptrtypes.get(&goff) {
+            let val = readval(buf, 0, 4)?;
+
+            write!(rval, "0x{:x} ({})", val, name)?;
+
             return Ok(rval);
         }
 
         rval = goff.to_string();
 
         Ok(rval)
+    }
+
+    pub fn dump(
+        &self,
+        buf: &[u8],
+        goff: HubrisGoff,
+    ) -> Result<String, Box<dyn Error>> {
+        self.dumpfmt(buf, goff, &HubrisDumpFormat {
+            indent: 0,
+            newline: false,
+            hex: false,
+        })
     }
 
     fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
@@ -893,6 +957,39 @@ impl HubrisPackage {
 
         if let Some(size) = size {
             self.basetypes.insert(goff, size);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_ptrtype<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut underlying = None;
+        let mut name = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_type => {
+                    underlying = self.dwarf_value_goff(unit, &attr.value());
+                }
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(underlying)) = (name, underlying) {
+            self.ptrtypes.insert(goff, (name.to_string(), underlying));
         }
 
         Ok(())
@@ -1179,6 +1276,10 @@ impl HubrisPackage {
 
                     gimli::constants::DW_TAG_base_type => {
                         self.dwarf_basetype(&unit, &entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_pointer_type => {
+                        self.dwarf_ptrtype(&dwarf, &unit, &entry)?;
                     }
 
                     gimli::constants::DW_TAG_variant_part => {

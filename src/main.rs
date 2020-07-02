@@ -1054,10 +1054,11 @@ fn probe(
 #[derive(StructOpt)]
 struct TasksArgs {
     /// spin pulling tasks
-    #[structopt(
-        long, short, 
-    )]
+    #[structopt(long, short)]
     spin: bool,
+    /// verbose task output
+    #[structopt(long, short)]
+    verbose: bool,
 }
 
 fn taskscmd(
@@ -1119,6 +1120,19 @@ fn taskscmd(
             println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
                 hubris.dump(&taskblock[soffs..], state_enum.goff)?,
                 if addr == cur { " <-" } else { "" });
+
+            if subargs.verbose {
+                let fmt = HubrisDumpFormat {
+                    indent: 16,
+                    newline: true,
+                    hex: true
+                };
+
+                println!(
+                    "          |\n          +----> {}\n",
+                    hubris.dumpfmt(&taskblock[offs..], task.goff, &fmt)?
+                );
+            }
         }
 
         if !subargs.spin {

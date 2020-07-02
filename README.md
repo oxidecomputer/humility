@@ -106,13 +106,49 @@ ID ADDR     TASK               GEN STATE
  0 200000e8 jefe                 0 Healthy(InRecv(None))     
  1 20000158 rcc_driver           0 Healthy(InRecv(None))     
  2 200001c8 usart_driver         0 Healthy(Runnable)          <-
- 3 20000238 ping                 3 Healthy(InReply((4)))     
+ 3 20000238 ping                 3 Healthy(InReply(4))
  4 200002a8 pong                 0 Healthy(InRecv(None))     
  5 20000318 idle                 0 Healthy(Runnable)         
 ```
 
-### `humility itm`
+To see every field in each task, you can use the `-v` flag:
 
+```
+% humility -p ~/hubris/target/packager tasks -v
+...
+ 4 200002c8 pong                 0 Healthy(InRecv(None))
+          |
+          +----> {
+                    save: {
+                        r4: 0x200023bc,
+                        r5: 0x10,
+                        r6: 0x1,
+                        r7: 0x200023f0,
+                        r8: 0x40020c00,
+                        r9: 0x2491b8,
+                        r10: 0x200023bc,
+                        r11: 0x1,
+                        psp: 0x20002328,
+                        exc_return: 0xffffffed
+                    },
+                    priority: 0x2,
+                    state: Healthy(InRecv(None)),
+                    timer: {
+                        deadline: Some(0x2491b8),
+                        to_post: 0x1
+                    },
+                    generation: 0x0,
+                    region_table: {
+                        data_ptr: 0x200000a8 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80047c4 (&abi::TaskDesc)
+                }
+...
+```
+
+### `humility itm`
 
 ### `humility etm`
 
