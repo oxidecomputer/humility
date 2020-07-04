@@ -10,23 +10,28 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
 use crate::err;
+use crate::debug::*;
 
 pub trait Core {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) ->
         Result<(), Box<dyn Error>>;
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>>;
     fn init_swv(&mut self) -> Result<(), Box<dyn Error>>;
     fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>>;
     fn write_word_32(&mut self, addr: u32, data: u32) ->
         Result<(), Box<dyn Error>>;
     fn halt(&mut self) -> Result<(), Box<dyn Error>>;
     fn run(&mut self) -> Result<(), Box<dyn Error>>;
+    fn step(&mut self) -> Result<(), Box<dyn Error>>;
 }
 
 pub struct ProbeCore {
     pub core: probe_rs::Core,
     pub session: probe_rs::Session
 }
+
+const CORE_MAX_READSIZE: usize = 65536;   // 64K ought to be enough for anyone
 
 impl Core for ProbeCore {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
@@ -37,7 +42,22 @@ impl Core for ProbeCore {
         addr: u32,
         data: &mut [u8]
     ) -> Result<(), Box<dyn Error>> {
+        if data.len() > CORE_MAX_READSIZE {
+            return err!("read of {} bytes at 0x{:x} exceeds max of {}",
+                data.len(), addr, CORE_MAX_READSIZE);
+        }
+
         Ok(self.core.read_8(addr, data)?)
+    }
+
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>> {
+        use num_traits::ToPrimitive;
+
+        Ok(self.core.read_core_reg(
+            Into::<probe_rs::CoreRegisterAddress>::into(
+                ARMRegister::to_u16(&reg).unwrap()
+            )
+        )?)
     }
 
     fn write_word_32(&mut self,
@@ -54,6 +74,11 @@ impl Core for ProbeCore {
 
     fn run(&mut self) -> Result<(), Box<dyn Error>> {
         Ok(self.core.run()?)
+    }
+
+    fn step(&mut self) -> Result<(), Box<dyn Error>> {
+        self.core.step()?;
+        Ok(())
     }
 
     fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
@@ -133,6 +158,11 @@ impl Core for OpenOCDCore {
         addr: u32,
         data: &mut [u8]
     ) -> Result<(), Box<dyn Error>> {
+        if data.len() > CORE_MAX_READSIZE {
+            return err!("read of {} bytes at 0x{:x} exceeds max of {}",
+                data.len(), addr, CORE_MAX_READSIZE);
+        }
+
         /*
          * To read an array, we put it in a TCL variable called "output"
          * and then dump the variable.
@@ -182,6 +212,23 @@ impl Core for OpenOCDCore {
         }
 
         Ok(())
+    }
+
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>> {
+        use num_traits::ToPrimitive;
+
+        let cmd = format!("reg {}", ARMRegister::to_u16(&reg).unwrap());
+        let rval = self.sendcmd(&cmd)?;
+
+        if let Some(line) = rval.lines().next() {
+            if let Some(val) = line.split_whitespace().last() {
+                if let Ok(rval) = parse_int::parse::<u32>(val) {
+                    return Ok(rval);
+                }
+            }
+        }
+
+        err!("\"{}\": malformed return value: {:?}", cmd, rval)
     }
 
     fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
@@ -252,6 +299,10 @@ impl Core for OpenOCDCore {
         self.sendcmd("resume")?;
         Ok(())
     }
+
+    fn step(&mut self) -> Result<(), Box<dyn Error>> {
+        todo!();
+    }
 }
 
 pub fn attach(
@@ -289,7 +340,7 @@ pub fn attach(
             let session = probe.attach(chip)?;
             let core = session.attach_to_core(0)?;
 
-            info!("attached to {} via {}", chip, name);
+            info!("attached via {}", name);
 
             Ok(Box::new(ProbeCore {
                 session: session,

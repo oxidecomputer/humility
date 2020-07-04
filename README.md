@@ -95,6 +95,72 @@ environment variable.
 
 ## Commands
 
+### `humility probe`
+
+`humility probe` attempts to infer as much about the hardware state as it
+can, e.g.:
+
+```
+% humility tasks
+humility: attached via ST-Link
+humility:       core => Cortex-M4
+humility:       chip => STM32F40x/STM32F41x, revision 0x1007
+humility:     status => executing
+humility:        ITM => TRCENA disabled, TCR enabled, TER=0xb1
+humility:         R0 => 0x0
+humility:         R1 => 0x80215dc
+humility:         R2 => 0x0
+humility:         R3 => 0x8004514
+humility:         R4 => 0x20000e60
+humility:         R5 => 0x0
+humility:         R6 => 0x20000ef8
+humility:         R7 => 0x20000e98
+humility:         R8 => 0x20000258
+humility:         R9 => 0x20000108
+humility:        R10 => 0x20000e68
+humility:        R11 => 0x7
+humility:        R12 => 0x0
+humility:         SP => 0x20000e10
+humility:         LR => 0x8002f79
+humility:         PC => 0x8002de6
+humility:       xPSR => 0x6100000b
+humility:        MSP => 0x20000e10
+humility:        PSP => 0x20001d20
+humility:        SPR => 0x1000000
+```
+
+If provided a Hubris packager, `humility probe` will display any register
+contents symbolically, e.g.:
+
+```
+% humility -p ~/hubris/target/packager probe
+humility: attached via ST-Link
+humility:       core => Cortex-M4
+humility:       chip => STM32F40x/STM32F41x, revision 0x1007
+humility:     status => executing
+humility:        ITM => TRCENA disabled, TCR enabled, TER=0xb1
+humility:         R0 => 0x0        
+humility:         R1 => 0x8003c7a  
+humility:         R2 => 0x1        
+humility:         R3 => 0x4        
+humility:         R4 => 0x20000008  <- TASK_TABLE_BASE+0x0
+humility:         R5 => 0x26       
+humility:         R6 => 0x8004948  
+humility:         R7 => 0x20000f38 
+humility:         R8 => 0x7        
+humility:         R9 => 0x20000108 
+humility:        R10 => 0x40004400 
+humility:        R11 => 0x7        
+humility:        R12 => 0x20001b38 
+humility:         SP => 0x20000ef8 
+humility:         LR => 0x80014ab   <- post+0x17
+humility:         PC => 0x80034a4   <- DefaultHandler+0x7c
+humility:       xPSR => 0x41000036 
+humility:        MSP => 0x20000ef8 
+humility:        PSP => 0x20001b38 
+humility:        SPR => 0x1000000  
+```
+
 ### `humility tasks`
 
 `humility tasks` offers a ps-like view of a system, e.g.:

@@ -5,6 +5,9 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate num_derive;
+
 use structopt::StructOpt;
 
 mod debug;
@@ -64,7 +67,7 @@ fn is_humility(metadata: &log::Metadata) -> bool {
 
 impl log::Log for HumilityLog {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= self.level 
+        metadata.level() <= self.level
     }
 
     fn log(&self, record: &log::Record) {
@@ -220,7 +223,7 @@ fn etmcmd_enable(
      * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
      * trace mode to be asynchronous.
      */
-    let mut val = DBGMCU_CR::read(core)?;
+    let mut val = STM32F4_DBGMCU_CR::read(core)?;
     val.set_trace_ioen(true);
     val.set_trace_mode(0);
     val.write(core)?;
@@ -624,7 +627,7 @@ struct EtmArgs {
     disable: bool,
     /// sets ETM trace identifier
     #[structopt(
-        long, short, value_name = "identifier", conflicts_with = "disable",
+        long, short, value_name = "identifier",
         default_value = "0x54", parse(try_from_str = parse_int::parse),
     )]
     traceid: u8,
@@ -728,7 +731,7 @@ fn itmcmd_probe(
     info!("{:#x?}", ITM_LSR::read(core)?);
     info!("{:#x?}", ITM_TCR::read(core)?);
     info!("{:#x?}", ITM_TER::read(core)?);
-    info!("{:#x?}", DBGMCU_CR::read(core)?);
+    info!("{:#x?}", STM32F4_DBGMCU_CR::read(core)?);
     info!("{:#x?}", TPIU_FFCR::read(core)?);
     info!("{:#x?}", DWT_CTRL::read(core)?);
     info!("{:#x?}", TPIU_SPPR::read(core)?);
@@ -753,7 +756,7 @@ fn itmcmd_enable(
      * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
      * trace mode to be asynchronous.
      */
-    let mut val = DBGMCU_CR::read(core)?;
+    let mut val = STM32F4_DBGMCU_CR::read(core)?;
     val.set_trace_ioen(true);
     val.set_trace_mode(0);
     val.write(core)?;
@@ -842,6 +845,13 @@ fn itmcmd_disable(
     let mut tcr = ITM_TCR::read(core)?;
     tcr.set_itm_enable(false);
     tcr.write(core)?;
+
+    /*
+     * Now disable TRCENA in the DEMCR.
+     */
+    let mut val = DEMCR::read(core)?;
+    val.set_trcena(false);
+    val.write(core)?;
 
     info!("ITM disabled");
 
@@ -956,7 +966,7 @@ struct ItmArgs {
     /// sets ITM trace identifier
     #[structopt(
         long, short, default_value = "0x3a", value_name = "identifier",
-        parse(try_from_str = parse_int::parse), conflicts_with = "disable"
+        parse(try_from_str = parse_int::parse)
     )]
     traceid: u8,
     /// ingest ITM data as CSV
@@ -1045,9 +1055,14 @@ fn itmcmd(
 }
 
 fn probe(
+    hubris: &HubrisPackage,
     args: &Args,
 ) -> Result<(), Box<dyn Error>> {
-    let _core = attach(args)?;
+    let mut core = attach(args)?;
+
+    hubris.validate(core.as_mut())?;
+    cpuinfo(hubris, core.as_mut())?;
+
     Ok(())
 }
 
@@ -1067,6 +1082,8 @@ fn taskscmd(
     subargs: &TasksArgs,
 ) -> Result<(), Box<dyn Error>> {
     let mut core = attach(&args)?;
+
+    hubris.validate(core.as_mut())?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
@@ -1434,7 +1451,7 @@ fn main() {
     }
 
     match &args.cmd {
-        Subcommand::Probe => match probe(&args) {
+        Subcommand::Probe => match probe(&hubris, &args) {
             Err(err) => fatal!("probe failed: {}", err),
             _ => std::process::exit(0),
         }

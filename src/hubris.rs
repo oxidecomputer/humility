@@ -755,6 +755,56 @@ impl HubrisPackage {
         }
     }
 
+    pub fn ntasks(&self) -> usize {
+        if self.current >= 1 {
+            self.current as usize - 1
+        } else {
+            0
+        }
+    }
+
+    pub fn validate(
+        &self,
+        core: &mut dyn crate::core::Core
+    ) -> Result<(), Box<dyn Error>> {
+        let ntasks = self.ntasks();
+
+        if self.current == 0 {
+            /*
+             * If we have no objects, we were never loaded -- and we consider
+             * this to be validated because it will give no answers rather than
+             * wrong ones.
+             */
+            return Ok(());
+        }
+
+        let size = core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
+
+        if size == 0 {
+            /*
+             * The TASK_TABLE_SIZE is set dynamically by Hubris on boot -- so
+             * it can be 0 if the kernel hasn't booted.  If this is the case,
+             * we expect the TASK_TABLE_BASE to also be 0, so as an added
+             * check, we check that as well.
+             */
+            let base = core.read_word_32(
+                self.lookup_symword("TASK_TABLE_BASE")?
+            )?;
+
+            if base != 0 {
+                err!("TASK_TABLE_SIZE is 0, but TASK_TABLE_BASE is 0x{:x}; \
+                    package mismatch?", base)
+            } else {
+                Ok(())
+            }
+        } else if size != ntasks as u32 {
+            err!("tasks in image ({}) exceeds tasks in \
+                package ({}); package mismatch?", size, ntasks)
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn dumpfmt(
         &self,
         buf: &[u8],
@@ -815,12 +865,13 @@ impl HubrisPackage {
             for i in 0..v.members.len() {
                 let m = &v.members[i];
 
-                if fmt.indent > 0 {
+                if fmt.newline && fmt.indent > 0 {
                     rval += &format!("{:1$}", " ", f.indent);
                 }
 
                 rval += &m.name;
                 rval += ": ";
+
                 rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
 
                 if i + 1 < v.members.len() {
@@ -831,7 +882,7 @@ impl HubrisPackage {
 
             rval += delim;
 
-            if fmt.indent > 0 {
+            if fmt.newline && fmt.indent > 0 {
                 rval += &format!("{:1$}", " ", fmt.indent);
             }
 

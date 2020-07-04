@@ -283,6 +283,8 @@ dependencies = [
  "goblin",
  "log",
  "multimap",
+ "num-derive",
+ "num-traits 0.2.11",
  "parse_int",
  "probe-rs",
  "rusb",
@@ -411,6 +413,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c8b15b261814f992e33760b1fca9fe8b693d8a65299f20c9901688636cfb746"
+dependencies = [
+ "proc-macro2",
+ "quote 1.0.3",
+ "syn 1.0.17",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -469,7 +482,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "probe-rs"
 version = "0.6.2"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=itm#10b7205e12b6211cca1b449283fa42734989ddae"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=itm#7ae63a56ec8124790fa520d84fcb505bca7cbb8e"
 dependencies = [
  "base64",
  "bitfield",
@@ -497,7 +510,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-t2rust"
 version = "0.6.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=itm#10b7205e12b6211cca1b449283fa42734989ddae"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=itm#7ae63a56ec8124790fa520d84fcb505bca7cbb8e"
 dependencies = [
  "base64",
  "proc-macro2",
