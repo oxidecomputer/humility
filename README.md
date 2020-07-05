@@ -83,6 +83,16 @@ the `-d` option (long form `--debugger`), which can have the following values:
 - `ocd`: Attach via OpenOCD, which is presumed to have the TCL interface
   available on localhost on port 6666 (its default).
 
+- `jlink`: Attach via Segger JLink, which is presumed to have the GDB
+  interface available on localhost on port 2331 (its default).  Note that
+  when semihosting is being used by Hubris, the Segger JLink GDB server 
+  will become confused when Humility attaches to it -- and subsequent
+  calls to semihosting will cause a halt.  A subsequent Humility invocation
+  will resume the target (directing semihosting output correctly to the
+  running GDB instance), but subsequent semihosting output will again cause
+  a halt. To recover from this condition, send an explicit ^C to the
+  running GDB and continue from the resulting stop.
+
 - `probe`: Attach directly via USB to a debug probe
 
 ### Package

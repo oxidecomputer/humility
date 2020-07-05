@@ -6,9 +6,11 @@ use probe_rs::Probe;
 
 use std::error::Error;
 use std::str;
+use std::fmt;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
+use std::convert::TryInto;
 use crate::err;
 use crate::debug::*;
 
@@ -305,6 +307,318 @@ impl Core for OpenOCDCore {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum GDBServer {
+    OpenOCD,
+    JLink
+}
+
+impl fmt::Display for GDBServer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            GDBServer::OpenOCD => "OpenOCD",
+            GDBServer::JLink => "JLink"
+        })
+    }
+}
+
+pub struct GDBCore {
+    stream: TcpStream,
+    server: GDBServer,
+    halted: bool,
+}
+
+const GDB_PACKET_START: char = '$';
+const GDB_PACKET_END: char = '#';
+const GDB_PACKET_ACK: char = '+';
+const GDB_PACKET_HALT: u8 = 3;
+
+impl GDBCore {
+    fn prepcmd(&mut self, cmd: &str) -> Vec<u8> {
+        let mut payload = vec![];
+
+        payload.push(GDB_PACKET_START as u8);
+
+        let mut cksum = 0;
+
+        for b in cmd.as_bytes() {
+            payload.push(*b);
+            cksum += *b as u32;
+        }
+
+        /*
+         * Tack on the goofy checksum beyond the end of the packet.
+         */
+        let trailer = &format!("{}{:02x}", GDB_PACKET_END, cksum % 256);
+
+        for b in trailer.as_bytes() {
+            payload.push(*b);
+        }
+
+        trace!("sending {}", str::from_utf8(&payload).unwrap());
+        payload
+    }
+
+    fn firecmd(&mut self, cmd: &str) -> Result<(), Box<dyn Error>> {
+        let mut rbuf = vec![0; 1024];
+        let payload = self.prepcmd(cmd);
+
+        self.stream.write(&payload)?;
+
+        /*
+         * We are expecting no result -- just an ack.
+         */
+        let rval = self.stream.read(&mut rbuf)?;
+
+        if rval != 1 {
+            return err!("cmd {} returned {} bytes: {:?}", cmd, rval,
+                str::from_utf8(&rbuf));
+        }
+
+        if rbuf[0] != GDB_PACKET_ACK as u8 {
+            return err!("cmd {} incorrectly ack'd: {:?}", cmd, rbuf);
+        }
+
+        Ok(())
+    }
+
+    fn sendack(&mut self) -> Result<(), Box<dyn Error>> {
+        self.stream.write(&[GDB_PACKET_ACK as u8])?;
+        Ok(())
+    }
+
+    fn recv(&mut self, expectack: bool) -> Result<String, Box<dyn Error>> {
+        let mut rbuf = vec![0; 1024];
+        let mut result = String::new();
+
+        loop {
+            let rval = self.stream.read(&mut rbuf)?;
+
+            result.push_str(str::from_utf8(&rbuf[0..rval])?);
+            trace!("response: {}", result);
+
+            /*
+             * We are done when we have our closing delimter followed by
+             * the two byte checksum.
+             */
+            if result.find(GDB_PACKET_END) == Some(result.len() - 3) {
+                break;
+            }
+        }
+
+        /*
+         * We have our response, so ack it back
+         */
+        self.sendack()?;
+
+        /*
+         * In our result, we should have exactly one opening and exactly
+         * one closing delimiter -- and, if expectack is set, at least
+         * one ACK as well.
+         */
+        let start = match result.find(GDB_PACKET_START) {
+            Some(ndx) => ndx,
+            None => {
+                return err!("missing start of packet: \"{}\"", result);
+            }
+        };
+
+        /*
+         * By merits of being here, we know we have our end-of-packet...
+         */
+        let end = result.find(GDB_PACKET_END).unwrap();
+
+        if end < start {
+            return err!("start/end inverted: \"{}\"", result);
+        }
+
+        match result.find(GDB_PACKET_ACK) {
+            Some(ack) => {
+                if expectack && ack > start {
+                    return err!("found response but no ack: \"{}\"", result);
+                }
+
+                if !expectack && ack < start {
+                    return err!("found spurious ack: \"{}\"", result);
+                }
+            }
+
+            None => {
+                if expectack {
+                    return err!("did not find expected ack: \"{}\"", result);
+                }
+            }
+        }
+
+        Ok(result[start + 1..end].to_string())
+    }
+
+    fn sendcmd(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
+        let payload = self.prepcmd(cmd);
+        self.stream.write(&payload)?;
+        self.recv(true)
+    }
+
+    fn send_32(&mut self, cmd: &str) -> Result<u32, Box<dyn Error>> {
+        let rstr = self.sendcmd(cmd)?;
+        let mut buf: Vec<u8> = vec![];
+
+        for i in (0..rstr.len()).step_by(2) {
+            buf.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
+        }
+
+        trace!("command {} returned {}", cmd, rstr);
+
+        match rstr.len() {
+            2 => Ok(u8::from_le_bytes(buf[..].try_into().unwrap()) as u32),
+            4 => Ok(u16::from_le_bytes(buf[..].try_into().unwrap()) as u32),
+            8 => Ok(u32::from_le_bytes(buf[..].try_into().unwrap()) as u32),
+            16 => {
+                /*
+                 * Amazingly, for some 32-bit register values under certain
+                 * circumstances the JLink seems to return a 64-bit value (!).
+                 * We confirm that this value is representable and return it.
+                 */
+                let val = u64::from_le_bytes(buf[..].try_into().unwrap());
+
+                if val > std::u32::MAX.into() {
+                    err!("bad 64-bit return on cmd {}: {}", cmd, rstr)
+                } else {
+                    Ok(val as u32)
+                }
+            }
+            _ => {
+                err!("bad return on cmd {}: {}", cmd, rstr)
+            }
+        }
+    }
+
+    fn new(server: GDBServer) -> Result<GDBCore, Box<dyn Error>> {
+        let port = match server {
+            GDBServer::OpenOCD => 3333,
+            GDBServer::JLink => 2331
+        };
+
+        let host = format!("localhost:{}", port);
+
+        let stream = TcpStream::connect(host)
+            .map_err(|_| {
+                err(format!("can't connect to {} GDB server on \
+                    port {}; is it running?", server, port))
+            })?;
+
+        /*
+         * Both the OpenOCD and JLink GDB servers stop the target upon
+         * connection.  This is helpful in that we know the state that
+         * we're in -- but it's also not the state that we want to be
+         * in.  We explicitly run the target before returning.
+         */
+        let mut core = Self {
+            stream: stream,
+            server: server,
+            halted: true,
+        };
+
+        let supported = core.sendcmd("qSupported")?;
+        trace!("{} supported string: {}", server, supported);
+
+        core.run()?;
+
+        Ok(core)
+    }
+}
+
+impl Core for GDBCore {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
+        self.send_32(&format!("m{:x},4", addr))
+    }
+
+    fn read_8(&mut self,
+        addr: u32,
+        data: &mut [u8]
+    ) -> Result<(), Box<dyn Error>> {
+        let cmd = format!("m{:x},{:x}", addr, data.len());
+
+        let rstr = self.sendcmd(&cmd)?;
+
+        if rstr.len() > data.len() * 2 {
+            return err!("bad read_8 on cmd {} \
+                (expected {}, found {}): {}",
+                cmd, data.len() * 2, rstr.len(), rstr);
+        }
+
+        let mut idx = 0;
+
+        for i in (0..rstr.len()).step_by(2) {
+            data[idx] = u8::from_str_radix(&rstr[i..=i + 1], 16)?;
+            idx += 1;
+        }
+
+        Ok(())
+    }
+
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>> {
+        use num_traits::ToPrimitive;
+        let cmd = &format!("p{:02X}", ARMRegister::to_u16(&reg).unwrap());
+
+        let rval = self.send_32(cmd);
+
+        if self.server == GDBServer::JLink {
+            /*
+             * Maddeningly, the JLink stops the target whenever a register
+             * is read.
+             */
+            self.firecmd("c")?;
+        }
+
+        rval
+    }
+
+    fn write_word_32(&mut self,
+        _addr: u32,
+        _data: u32
+    ) -> Result<(), Box<dyn Error>> {
+        err!("{} GDB target does not support modifying state", self.server)
+    }
+
+    fn halt(&mut self) -> Result<(), Box<dyn Error>> {
+        self.stream.write(&[GDB_PACKET_HALT])?;
+
+        let reply = self.recv(false)?;
+        trace!("halt reply: {}", reply);
+        self.halted = true;
+
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<(), Box<dyn Error>> {
+        /*
+         * The OpenOCD target in particular loses its mind if told to continue
+         * to when it's already running, insisting on sending a reply with an
+         * elaborate message that we don't know to wait on -- so we only
+         * continue a target if we know it to be halted.
+         */
+        if self.halted {
+            self.firecmd("c")?;
+            self.halted = false;
+        }
+
+        Ok(())
+    }
+
+    fn step(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+        err!("GDB target does not support SWV")
+    }
+}
+
 pub fn attach(
     debugger: &str,
     chip: &str,
@@ -366,7 +680,25 @@ pub fn attach(
                 return Ok(probe);
             }
 
+            if let Ok(probe) = attach("jlink", chip) {
+                return Ok(probe);
+            }
+
             attach("probe", chip)
+        }
+
+        "ocdgdb" => {
+            let core = GDBCore::new(GDBServer::OpenOCD)?;
+            info!("attached via OpenOCD's GDB server");
+
+            Ok(Box::new(core))
+        }
+
+        "jlink" => {
+            let core = GDBCore::new(GDBServer::JLink)?;
+            info!("attached via JLink");
+
+            Ok(Box::new(core))
         }
 
         _ => {
