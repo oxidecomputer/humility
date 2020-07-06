@@ -4,25 +4,31 @@
 
 use probe_rs::Probe;
 
+use crate::debug::*;
+use crate::err;
+use std::convert::TryInto;
 use std::error::Error;
-use std::str;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
-use std::convert::TryInto;
-use crate::err;
-use crate::debug::*;
+use std::str;
 
 pub trait Core {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>>;
-    fn read_8(&mut self, addr: u32, data: &mut [u8]) ->
-        Result<(), Box<dyn Error>>;
+    fn read_8(
+        &mut self,
+        addr: u32,
+        data: &mut [u8],
+    ) -> Result<(), Box<dyn Error>>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>>;
     fn init_swv(&mut self) -> Result<(), Box<dyn Error>>;
     fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>>;
-    fn write_word_32(&mut self, addr: u32, data: u32) ->
-        Result<(), Box<dyn Error>>;
+    fn write_word_32(
+        &mut self,
+        addr: u32,
+        data: u32,
+    ) -> Result<(), Box<dyn Error>>;
     fn halt(&mut self) -> Result<(), Box<dyn Error>>;
     fn run(&mut self) -> Result<(), Box<dyn Error>>;
     fn step(&mut self) -> Result<(), Box<dyn Error>>;
@@ -30,19 +36,22 @@ pub trait Core {
 
 pub struct ProbeCore {
     pub core: probe_rs::Core,
-    pub session: probe_rs::Session
+    pub session: probe_rs::Session,
 }
 
-const CORE_MAX_READSIZE: usize = 65536;   // 64K ought to be enough for anyone
+const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
+
+#[rustfmt::skip::macros(err)]
 
 impl Core for ProbeCore {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
         Ok(self.core.read_word_32(addr)?)
     }
 
-    fn read_8(&mut self,
+    fn read_8(
+        &mut self,
         addr: u32,
-        data: &mut [u8]
+        data: &mut [u8],
     ) -> Result<(), Box<dyn Error>> {
         if data.len() > CORE_MAX_READSIZE {
             return err!("read of {} bytes at 0x{:x} exceeds max of {}",
@@ -57,14 +66,15 @@ impl Core for ProbeCore {
 
         Ok(self.core.read_core_reg(
             Into::<probe_rs::CoreRegisterAddress>::into(
-                ARMRegister::to_u16(&reg).unwrap()
-            )
+                ARMRegister::to_u16(&reg).unwrap(),
+            ),
         )?)
     }
 
-    fn write_word_32(&mut self,
+    fn write_word_32(
+        &mut self,
         addr: u32,
-        data: u32
+        data: u32,
     ) -> Result<(), Box<dyn Error>> {
         Ok(self.core.write_word_32(addr, data)?)
     }
@@ -100,6 +110,8 @@ pub struct OpenOCDCore {
     stream: TcpStream,
     swv: bool,
 }
+
+#[rustfmt::skip::macros(err)]
 
 impl OpenOCDCore {
     fn sendcmd(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
@@ -138,17 +150,15 @@ impl OpenOCDCore {
     }
 
     fn new() -> Result<OpenOCDCore, Box<dyn Error>> {
-        let stream = TcpStream::connect("localhost:6666")
-            .map_err(|_| {
-                err("can't connect to OpenOCD on port 6666; is it running?")
-            })?;
+        let stream = TcpStream::connect("localhost:6666").map_err(|_| {
+            err("can't connect to OpenOCD on port 6666; is it running?")
+        })?;
 
-        Ok(Self {
-            stream: stream,
-            swv: false
-        })
+        Ok(Self { stream: stream, swv: false })
     }
 }
+
+#[rustfmt::skip::macros(err)]
 
 impl Core for OpenOCDCore {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
@@ -156,9 +166,10 @@ impl Core for OpenOCDCore {
         Ok(result.parse::<u32>()?)
     }
 
-    fn read_8(&mut self,
+    fn read_8(
+        &mut self,
         addr: u32,
-        data: &mut [u8]
+        data: &mut [u8],
     ) -> Result<(), Box<dyn Error>> {
         if data.len() > CORE_MAX_READSIZE {
             return err!("read of {} bytes at 0x{:x} exceeds max of {}",
@@ -284,9 +295,10 @@ impl Core for OpenOCDCore {
         Ok(swv)
     }
 
-    fn write_word_32(&mut self,
+    fn write_word_32(
+        &mut self,
         addr: u32,
-        data: u32
+        data: u32,
     ) -> Result<(), Box<dyn Error>> {
         self.sendcmd(&format!("mww 0x{:x} 0x{:x}", addr, data))?;
         Ok(())
@@ -310,15 +322,19 @@ impl Core for OpenOCDCore {
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum GDBServer {
     OpenOCD,
-    JLink
+    JLink,
 }
 
 impl fmt::Display for GDBServer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            GDBServer::OpenOCD => "OpenOCD",
-            GDBServer::JLink => "JLink"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                GDBServer::OpenOCD => "OpenOCD",
+                GDBServer::JLink => "JLink",
+            }
+        )
     }
 }
 
@@ -332,6 +348,8 @@ const GDB_PACKET_START: char = '$';
 const GDB_PACKET_END: char = '#';
 const GDB_PACKET_ACK: char = '+';
 const GDB_PACKET_HALT: u8 = 3;
+
+#[rustfmt::skip::macros(err)]
 
 impl GDBCore {
     fn prepcmd(&mut self, cmd: &str) -> Vec<u8> {
@@ -487,25 +505,25 @@ impl GDBCore {
                     Ok(val as u32)
                 }
             }
-            _ => {
-                err!("bad return on cmd {}: {}", cmd, rstr)
-            }
+            _ => err!("bad return on cmd {}: {}", cmd, rstr),
         }
     }
 
     fn new(server: GDBServer) -> Result<GDBCore, Box<dyn Error>> {
         let port = match server {
             GDBServer::OpenOCD => 3333,
-            GDBServer::JLink => 2331
+            GDBServer::JLink => 2331,
         };
 
         let host = format!("localhost:{}", port);
 
-        let stream = TcpStream::connect(host)
-            .map_err(|_| {
-                err(format!("can't connect to {} GDB server on \
-                    port {}; is it running?", server, port))
-            })?;
+        let stream = TcpStream::connect(host).map_err(|_| {
+            err(format!(
+                "can't connect to {} GDB server on \
+                    port {}; is it running?",
+                server, port
+            ))
+        })?;
 
         /*
          * Both the OpenOCD and JLink GDB servers stop the target upon
@@ -513,11 +531,7 @@ impl GDBCore {
          * we're in -- but it's also not the state that we want to be
          * in.  We explicitly run the target before returning.
          */
-        let mut core = Self {
-            stream: stream,
-            server: server,
-            halted: true,
-        };
+        let mut core = Self { stream: stream, server: server, halted: true };
 
         let supported = core.sendcmd("qSupported")?;
         trace!("{} supported string: {}", server, supported);
@@ -528,14 +542,17 @@ impl GDBCore {
     }
 }
 
+#[rustfmt::skip::macros(err)]
+
 impl Core for GDBCore {
     fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
         self.send_32(&format!("m{:x},4", addr))
     }
 
-    fn read_8(&mut self,
+    fn read_8(
+        &mut self,
         addr: u32,
-        data: &mut [u8]
+        data: &mut [u8],
     ) -> Result<(), Box<dyn Error>> {
         let cmd = format!("m{:x},{:x}", addr, data.len());
 
@@ -574,9 +591,10 @@ impl Core for GDBCore {
         rval
     }
 
-    fn write_word_32(&mut self,
+    fn write_word_32(
+        &mut self,
         _addr: u32,
-        _data: u32
+        _data: u32,
     ) -> Result<(), Box<dyn Error>> {
         err!("{} GDB target does not support modifying state", self.server)
     }
@@ -619,6 +637,8 @@ impl Core for GDBCore {
     }
 }
 
+#[rustfmt::skip::macros(err)]
+
 pub fn attach(
     debugger: &str,
     chip: &str,
@@ -656,10 +676,7 @@ pub fn attach(
 
             info!("attached via {}", name);
 
-            Ok(Box::new(ProbeCore {
-                session: session,
-                core: core
-            }))
+            Ok(Box::new(ProbeCore { session: session, core: core }))
         }
 
         "ocd" => {
@@ -701,8 +718,6 @@ pub fn attach(
             Ok(Box::new(core))
         }
 
-        _ => {
-            err!("unrecognized debugger: {}", debugger)
-        }
+        _ => err!("unrecognized debugger: {}", debugger),
     }
 }

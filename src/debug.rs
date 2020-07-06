@@ -2,14 +2,16 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::mem::size_of;
+use crate::err;
+use crate::hubris::*;
+use crate::itm::*;
 use bitfield::bitfield;
 use std::error::Error;
-use crate::err;
-use crate::itm::*;
-use crate::hubris::*;
+use std::mem::size_of;
 
-pub trait Register: Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug {
+pub trait Register:
+    Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug
+{
     const ADDRESS: u32;
     const NAME: &'static str;
 }
@@ -248,7 +250,7 @@ impl DebugROMEntry {
     ///
     fn address(self, addr: u32) -> u32 {
         (addr as i32 + ((self.offset() << 12) as i32)) as u32
-    }        
+    }
 }
 
 #[allow(non_snake_case)]
@@ -262,9 +264,9 @@ pub struct DebugROMTable {
     pub ETM: Option<u32>,
 }
 
-pub fn read_debug_rom_table(core: &mut dyn crate::core::Core)
-    -> Result<DebugROMTable, Box<dyn Error>>
-{
+pub fn read_debug_rom_table(
+    core: &mut dyn crate::core::Core,
+) -> Result<DebugROMTable, Box<dyn Error>> {
     let base = 0xe00f_f000u32;
     let mut table: Vec<Option<u32>> = vec![None; 6];
 
@@ -278,12 +280,12 @@ pub fn read_debug_rom_table(core: &mut dyn crate::core::Core)
     }
 
     Ok(DebugROMTable {
-        SCS: table[0], 
-        DWT: table[1], 
-        FPB: table[2], 
-        ITM: table[3], 
-        TPIU: table[4], 
-        ETM: table[5], 
+        SCS: table[0],
+        DWT: table[1],
+        FPB: table[2],
+        ITM: table[3],
+        TPIU: table[4],
+        ETM: table[5],
     })
 }
 
@@ -345,42 +347,41 @@ pub enum ARMRegister {
     FPSCR = 0b10_0001,
 }
 
-pub fn corename(partno: ARMCore) -> String
-{
+pub fn corename(partno: ARMCore) -> String {
     match partno {
-        ARMCore::CortexA5 => { "Cortex-A5" },
-        ARMCore::CortexA7 => { "Cortex-A7" },
-        ARMCore::CortexA8 => { "Cortex-A8" },
-        ARMCore::CortexA9 => { "Cortex-A9" },
-        ARMCore::CortexA12 => { "Cortex-A12" },
-        ARMCore::CortexA15 => { "Cortex-A15" },
-        ARMCore::CortexA17 => { "Cortex-A17" },
-        ARMCore::CortexR4 => { "Cortex-R4" },
-        ARMCore::CortexR5 => { "Cortex-R5" },
-        ARMCore::CortexR7 => { "Cortex-R7" },
-        ARMCore::CortexR8 => { "Cortex-R8" },
-        ARMCore::CortexM0 => { "Cortex-M0" },
-        ARMCore::CortexM0Plus => { "Cortex-M0+" },
-        ARMCore::CortexM1 => { "Cortex-M1" },
-        ARMCore::CortexM3 => { "Cortex-M3" },
-        ARMCore::CortexM4 => { "Cortex-M4" },
-        ARMCore::CortexM7 => { "Cortex-M7" },
-        ARMCore::CortexM23 => { "Cortex-M23" },
-        ARMCore::CortexM33 => { "Cortex-M33" },
-        ARMCore::CortexA32 => { "Cortex-A32" },
-        ARMCore::CortexA53 => { "Cortex-A53" },
-        ARMCore::CortexA35 => { "Cortex-A35" },
-        ARMCore::CortexA55 => { "Cortex-A55" },
-        ARMCore::CortexA57 => { "Cortex-A57" },
-        ARMCore::CortexA72 => { "Cortex-A72" },
-        ARMCore::CortexA73 => { "Cortex-A73" },
-        ARMCore::CortexA75 => { "Cortex-A75" },
-        ARMCore::CortexR52 => { "Cortex-R52" },
-    }.to_string()
+        ARMCore::CortexA5 => "Cortex-A5",
+        ARMCore::CortexA7 => "Cortex-A7",
+        ARMCore::CortexA8 => "Cortex-A8",
+        ARMCore::CortexA9 => "Cortex-A9",
+        ARMCore::CortexA12 => "Cortex-A12",
+        ARMCore::CortexA15 => "Cortex-A15",
+        ARMCore::CortexA17 => "Cortex-A17",
+        ARMCore::CortexR4 => "Cortex-R4",
+        ARMCore::CortexR5 => "Cortex-R5",
+        ARMCore::CortexR7 => "Cortex-R7",
+        ARMCore::CortexR8 => "Cortex-R8",
+        ARMCore::CortexM0 => "Cortex-M0",
+        ARMCore::CortexM0Plus => "Cortex-M0+",
+        ARMCore::CortexM1 => "Cortex-M1",
+        ARMCore::CortexM3 => "Cortex-M3",
+        ARMCore::CortexM4 => "Cortex-M4",
+        ARMCore::CortexM7 => "Cortex-M7",
+        ARMCore::CortexM23 => "Cortex-M23",
+        ARMCore::CortexM33 => "Cortex-M33",
+        ARMCore::CortexA32 => "Cortex-A32",
+        ARMCore::CortexA53 => "Cortex-A53",
+        ARMCore::CortexA35 => "Cortex-A35",
+        ARMCore::CortexA55 => "Cortex-A55",
+        ARMCore::CortexA57 => "Cortex-A57",
+        ARMCore::CortexA72 => "Cortex-A72",
+        ARMCore::CortexA73 => "Cortex-A73",
+        ARMCore::CortexA75 => "Cortex-A75",
+        ARMCore::CortexR52 => "Cortex-R52",
+    }
+    .to_string()
 }
 
-pub fn stm32_chipname(partno: u32) -> String
-{
+pub fn stm32_chipname(partno: u32) -> String {
     match partno {
         0x410 => "STM32F10xx8/STM32F10xxB",
         0x411 => "STM32F2xx/STM32F4xx",
@@ -436,13 +437,16 @@ pub fn stm32_chipname(partno: u32) -> String
         0x472 => "STM32L552xx/STM32L562xx",
         0x480 => "STM32H7A3/STM32H7B3/STM32H7B0",
         0x495 => "STM32WB55xx",
-        _ => { return format!("<Unknown STM32 chip 0x{:x}>", partno); }
-    }.to_string()
+        _ => {
+            return format!("<Unknown STM32 chip 0x{:x}>", partno);
+        }
+    }
+    .to_string()
 }
 
 pub fn cpuinfo(
     hubris: &HubrisPackage,
-    core: &mut dyn crate::core::Core
+    core: &mut dyn crate::core::Core,
 ) -> Result<(), Box<dyn Error>> {
     use num_traits::FromPrimitive;
     let mut status = vec![];
@@ -461,8 +465,10 @@ pub fn cpuinfo(
     let cpuid = CPUID::read(core)?;
 
     let part = match ARMCore::from_u32(cpuid.partno()) {
-        Some(part) => { part }
-        None => { return err!("unknown core in CPUID {:x?}", cpuid); }
+        Some(part) => part,
+        None => {
+            return err!("unknown core in CPUID {:x?}", cpuid);
+        }
     };
 
     let dhcsr = DHCSR::read(core)?;
@@ -470,11 +476,15 @@ pub fn cpuinfo(
 
     print("core", corename(part));
 
-    print("chip",
+    print(
+        "chip",
         if part == ARMCore::CortexM4 {
             if let Ok(idc) = STM32F4_DBGMCU_IDCODE::read(core) {
-                format!("{}, revision 0x{:x}",
-                    stm32_chipname(idc.dev_id()), idc.rev_id())
+                format!(
+                    "{}, revision 0x{:x}",
+                    stm32_chipname(idc.dev_id()),
+                    idc.rev_id()
+                )
             } else {
                 "<unknown>".to_string()
             }
@@ -488,7 +498,7 @@ pub fn cpuinfo(
              * work around it...
              */
             "<unknown>".to_string()
-        }
+        },
     );
 
     statusif(dhcsr.restart_status(), "restarting");
@@ -502,7 +512,8 @@ pub fn cpuinfo(
     statusif(dfsr.breakpoint(), "breakpoint");
     statusif(dfsr.halted(), "debug halt");
 
-    print("status",
+    print(
+        "status",
         if status.len() == 0 {
             /*
              * If the status is unknown, it doesn't mean very much; from the
@@ -516,9 +527,13 @@ pub fn cpuinfo(
              * To see if the core is actually executing instructions, we
              * will attempt to halt it and step it, seeing if the PC moves.
              */
-            let rval = core.halt()
-                .and_then(|_| { Ok(core.read_reg(ARMRegister::PC)?) })
-                .and_then(|val| { core.step()?; Ok(val) })
+            let rval = core
+                .halt()
+                .and_then(|_| Ok(core.read_reg(ARMRegister::PC)?))
+                .and_then(|val| {
+                    core.step()?;
+                    Ok(val)
+                })
                 .and_then(|val| {
                     if core.read_reg(ARMRegister::PC)? == val {
                         Ok("not progressing")
@@ -526,38 +541,41 @@ pub fn cpuinfo(
                         Ok("progressing")
                     }
                 })
-                .map_or_else(|_| { "unable to step" }, |s| s)
+                .map_or_else(|_| "unable to step", |s| s)
                 .to_string();
             core.run()?;
             rval
         } else {
             status.join(", ")
-        }
+        },
     );
 
-    print("ITM", match tab.ITM {
-        None => "absent".to_string(),
-        Some(_) => {
-            let mut itm = vec![];
+    print(
+        "ITM",
+        match tab.ITM {
+            None => "absent".to_string(),
+            Some(_) => {
+                let mut itm = vec![];
 
-            if DEMCR::read(core)?.trcena() {
-                itm.push("TRCENA enabled");
-            } else {
-                itm.push("TRCENA disabled");
+                if DEMCR::read(core)?.trcena() {
+                    itm.push("TRCENA enabled");
+                } else {
+                    itm.push("TRCENA disabled");
+                }
+
+                if ITM_TCR::read(core)?.itm_enable() {
+                    itm.push("TCR enabled")
+                } else {
+                    itm.push("TCR disabled")
+                }
+
+                let s = format!("TER=0x{:x}", u32::from(ITM_TER::read(core)?));
+
+                itm.push(&s);
+                itm.join(", ")
             }
-
-            if ITM_TCR::read(core)?.itm_enable() {
-                itm.push("TCR enabled")
-            } else {
-                itm.push("TCR disabled")
-            }
-
-            let s = format!("TER=0x{:x}", u32::from(ITM_TER::read(core)?));
-
-            itm.push(&s);
-            itm.join(", ")
-        }
-    });
+        },
+    );
 
     if !dhcsr.halted() {
         core.halt()?;
@@ -566,7 +584,9 @@ pub fn cpuinfo(
     for i in 0..31 {
         let reg = match ARMRegister::from_u16(i) {
             Some(r) => r,
-            None => { continue; }
+            None => {
+                continue;
+            }
         };
 
         let val = core.read_reg(reg)?;
@@ -593,4 +613,3 @@ pub fn cpuinfo(
 
     Ok(())
 }
-

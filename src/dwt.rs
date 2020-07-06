@@ -3,8 +3,8 @@
  */
 
 use crate::debug::Register;
-use bitfield::bitfield;
 use crate::register;
+use bitfield::bitfield;
 use std::error::Error;
 
 /*
@@ -37,9 +37,9 @@ register!(DWT_CTRL, 0xe000_1000,
 
 pub enum DWTSyncTapFrequency {
     Disabled,
-    CycCnt8M,       // Every 2^23rd (8M) cycles
-    CycCnt32M,       // Every 2^25th (32M) cycles
-    CycCnt128M,       // Every 2^27th (~128M) cycles
+    CycCnt8M,   // Every 2^23rd (8M) cycles
+    CycCnt32M,  // Every 2^25th (32M) cycles
+    CycCnt128M, // Every 2^27th (~128M) cycles
 }
 
 impl DWT_CTRL {
@@ -54,4 +54,3 @@ impl DWT_CTRL {
         self._set_synctap(val);
     }
 }
-

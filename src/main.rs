@@ -33,13 +33,13 @@ mod core;
 mod error;
 use crate::error::*;
 
+use std::collections::HashMap;
+use std::convert::TryInto;
 use std::error::Error;
 use std::fs::File;
-use std::convert::TryInto;
+use std::io::Read;
 use std::time::Instant;
 use std::time::SystemTime;
-use std::collections::HashMap;
-use std::io::Read;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -78,7 +78,8 @@ impl log::Log for HumilityLog {
         if is_humility(record.metadata()) {
             eprintln!("humility: {}", record.args())
         } else {
-            eprintln!("humility: {} ({}): {}",
+            eprintln!(
+                "humility: {} ({}): {}",
                 record.level(),
                 record.metadata().target(),
                 record.args()
@@ -112,7 +113,7 @@ struct TraceInstruction {
 
 struct TraceException {
     nsecs: u64,
-    exception: ETM3Exception
+    exception: ETM3Exception,
 }
 
 #[derive(Debug)]
@@ -130,9 +131,7 @@ struct TraceState {
     stack: Vec<(usize, Vec<HubrisGoff>, u32)>,
 }
 
-fn attach(
-    args: &Args
-) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
+fn attach(args: &Args) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
     crate::core::attach(&args.debugger, &args.chip)
 }
 
@@ -140,18 +139,16 @@ const HUMILITY_ETM_SWOSCALER: u16 = 7;
 const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
-fn etmcmd_probe(
-    core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+fn etmcmd_probe(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
     let tab = read_debug_rom_table(core)?;
 
     info!("ROM debug table: {:#x?}", tab);
 
     let etm = match tab.ETM {
-        None => { 
+        None => {
             fatal!("ETM is not available on this CPU");
         }
-        Some(etm) => { etm }
+        Some(etm) => etm,
     };
 
     if etm != ETMCR::ADDRESS {
@@ -161,7 +158,7 @@ fn etmcmd_probe(
             ETMCR::ADDRESS
         );
     }
- 
+
     let etmccr = ETMCCR::read(core)?;
     info!("{:#x?}", etmccr);
 
@@ -305,9 +302,7 @@ fn etmcmd_enable(
     Ok(())
 }
 
-fn etmcmd_disable(
-    core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+fn etmcmd_disable(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
     let mut etmcr = ETMCR::read(core)?;
 
     if etmcr.power_down() {
@@ -328,6 +323,8 @@ fn etmcmd_disable(
 
     Ok(())
 }
+
+#[rustfmt::skip::macros(println)]
 
 fn etmcmd_trace(
     config: &TraceConfig,
@@ -350,8 +347,7 @@ fn etmcmd_trace(
     let inlined = hubris.instr_inlined(addr, sym.1);
 
     match state.target {
-        Some(HubrisTarget::Call(_)) |
-        Some(HubrisTarget::IndirectCall) => {
+        Some(HubrisTarget::Call(_)) | Some(HubrisTarget::IndirectCall) => {
             state.indent += 2;
             println!("{:-10} {:width$}-> {}:{}", instr.nsecs, "", module, sym.0,
                 width = state.indent);
@@ -380,12 +376,11 @@ fn etmcmd_trace(
     state.target = Some(instr.target);
 
     match instr.target {
-        HubrisTarget::Call(_) |
-        HubrisTarget::IndirectCall => {
+        HubrisTarget::Call(_) | HubrisTarget::IndirectCall => {
             let mut nindent = state.indent;
 
             if !inlined.is_empty() {
-               nindent += (inlined.len() * 2) + 1;
+                nindent += (inlined.len() * 2) + 1;
             }
 
             state.stack.push((
@@ -455,150 +450,154 @@ fn etmcmd_ingest(
 
     let mut state = TraceState::default();
 
-    etm_ingest(&econfig, || {
-        if let Some(line) = iter.next() {
-            let record: SaleaeTraceRecord = line?;
-            Ok(Some((record.1, record.0)))
-        } else {
-            Ok(None)
-        }
-    }, |packet| {
-        let nsecs = (packet.time * 1_000_000_000_f64) as u64;
+    etm_ingest(
+        &econfig,
+        || {
+            if let Some(line) = iter.next() {
+                let record: SaleaeTraceRecord = line?;
+                Ok(Some((record.1, record.0)))
+            } else {
+                Ok(None)
+            }
+        },
+        |packet| {
+            let nsecs = (packet.time * 1_000_000_000_f64) as u64;
 
-        match (lastaddr, packet.header) {
-            (None, ETM3Header::ISync) | (Some(_), _) => {}
-            (None, _) => {
+            match (lastaddr, packet.header) {
+                (None, ETM3Header::ISync) | (Some(_), _) => {}
+                (None, _) => {
+                    if broken {
+                        return Ok(());
+                    }
+
+                    fatal!("non-ISync packet at time {}", nsecs);
+                }
+            }
+
+            let mut instr = |skipped| {
                 if broken {
                     return Ok(());
                 }
 
-                fatal!("non-ISync packet at time {}", nsecs);
-            }
-        }
+                let addr = curaddr.unwrap();
+                let mut l = 0;
 
-        let mut instr = |skipped| {
-            if broken {
-                return Ok(());
-            }
+                curaddr = match hubris.instr_len(addr) {
+                    Some(len) => {
+                        l = len;
+                        Some(addr + len)
+                    }
+                    None => {
+                        warn!("unknown instruction length at {:x}!", addr);
+                        broken = true;
+                        None
+                    }
+                };
 
-            let addr = curaddr.unwrap();
-            let mut l = 0;
-
-            curaddr = match hubris.instr_len(addr) {
-                Some(len) => {
-                    l = len;
-                    Some(addr + len)
-                }
-                None => {
-                    warn!("unknown instruction length at {:x}!", addr);
-                    broken = true;
-                    None
-                }
+                target = (Some(addr), hubris.instr_target(addr));
+                etmcmd_trace(
+                    config,
+                    &TraceInstruction {
+                        nsecs,
+                        addr,
+                        target: target.1,
+                        _len: l,
+                        skipped,
+                    },
+                    &mut state,
+                )
             };
 
-            target = (Some(addr), hubris.instr_target(addr));
-            etmcmd_trace(
-                config,
-                &TraceInstruction {
-                    nsecs,
-                    addr,
-                    target: target.1,
-                    _len: l,
-                    skipped,
-                },
-                &mut state
-            )
-        };
+            println!("{:#x?}", packet);
 
-        println!("{:#x?}", packet);
-
-        match packet.header {
-            ETM3Header::PHeaderFormat1 { e, n } => {
-                for _i in 0..e {
-                    instr(false)?;
-                }
-        
-                for _i in 0..n {
-                    instr(true)?;
-                }
-            }
-            ETM3Header::PHeaderFormat2 { e0, e1 } => {
-                instr(e0)?;
-                instr(e1)?;
-            }
-            ETM3Header::ExceptionExit |
-            ETM3Header::ASync |
-            ETM3Header::ISync |
-            ETM3Header::BranchAddress { .. } => {}
-            _ => {
-                fatal!("unhandled packet: {:#x?}", packet);
-            }
-        }
-
-        match packet.payload {
-            ETM3Payload::ISync { address, .. } => {
-                if broken {
-                    warn!("re-railing at offset {}", packet.offset);
-                    broken = false;
-                    target = (None, HubrisTarget::None);
-                }
-
-                curaddr = Some(address);
-                lastaddr = curaddr;
-            }
-            ETM3Payload::BranchAddress { addr, mask, exception } => {
-                curaddr = Some((lastaddr.unwrap() & mask) | addr);
-                lastaddr = curaddr;
-
-                match (target.0, target.1) {
-                    (Some(origin), HubrisTarget::Direct(expected)) | 
-                    (Some(origin), HubrisTarget::Call(expected)) => {
-                        if curaddr.unwrap() != expected {
-                            warn!(
-                                "detected bad branch: at 0x{:x} expected \
-                                branch to 0x{:x}, found 0x{:x}; packet: {:x?}",
-                                origin, expected, curaddr.unwrap(), packet
-                            );
-                        }
+            match packet.header {
+                ETM3Header::PHeaderFormat1 { e, n } => {
+                    for _i in 0..e {
+                        instr(false)?;
                     }
 
-                    (Some(origin), HubrisTarget::None) => {
-                        if exception.is_none() {
-                            warn!(
-                                "detected bad branch: did not expect any \
+                    for _i in 0..n {
+                        instr(true)?;
+                    }
+                }
+                ETM3Header::PHeaderFormat2 { e0, e1 } => {
+                    instr(e0)?;
+                    instr(e1)?;
+                }
+                ETM3Header::ExceptionExit
+                | ETM3Header::ASync
+                | ETM3Header::ISync
+                | ETM3Header::BranchAddress { .. } => {}
+                _ => {
+                    fatal!("unhandled packet: {:#x?}", packet);
+                }
+            }
+
+            match packet.payload {
+                ETM3Payload::ISync { address, .. } => {
+                    if broken {
+                        warn!("re-railing at offset {}", packet.offset);
+                        broken = false;
+                        target = (None, HubrisTarget::None);
+                    }
+
+                    curaddr = Some(address);
+                    lastaddr = curaddr;
+                }
+                ETM3Payload::BranchAddress { addr, mask, exception } => {
+                    curaddr = Some((lastaddr.unwrap() & mask) | addr);
+                    lastaddr = curaddr;
+
+                    match (target.0, target.1) {
+                        (Some(origin), HubrisTarget::Direct(expected))
+                        | (Some(origin), HubrisTarget::Call(expected)) => {
+                            if curaddr.unwrap() != expected {
+                                warn!(
+                                    "detected bad branch: at 0x{:x} expected \
+                                branch to 0x{:x}, found 0x{:x}; packet: {:x?}",
+                                    origin,
+                                    expected,
+                                    curaddr.unwrap(),
+                                    packet
+                                );
+                            }
+                        }
+
+                        (Some(origin), HubrisTarget::None) => {
+                            if exception.is_none() {
+                                warn!(
+                                    "detected bad branch: did not expect any \
                                 branch from 0x{:x}, but control transferred \
                                 to 0x{:x}; packet: {:x?}",
-                                origin, curaddr.unwrap(), packet
-                            );
+                                    origin,
+                                    curaddr.unwrap(),
+                                    packet
+                                );
+                            }
                         }
+
+                        (_, _) => {}
                     }
 
-                    (_, _) => {}
+                    if let Some(exception) = exception {
+                        etmcmd_trace_exception(
+                            config,
+                            &TraceException { nsecs, exception },
+                            &mut state,
+                        )?;
+                    }
                 }
-
-                if let Some(exception) = exception {
-                    etmcmd_trace_exception(
-                        config,
-                        &TraceException {
-                            nsecs,
-                            exception,
-                        },
-                        &mut state
-                    )?;
-                }
+                ETM3Payload::None => {}
             }
-            ETM3Payload::None => {}
-        }
 
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
     Ok(())
 }
 
-fn etmcmd_output(
-    core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+fn etmcmd_output(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
 
     println!("Time [s],Value,Parity Error,Framing Error");
@@ -644,9 +643,7 @@ struct EtmArgs {
     )]
     clockscaler: Option<u16>,
     /// output ETM data as CSV
-    #[structopt(
-        long, short, conflicts_with = "ingest"
-    )]
+    #[structopt(long, short, conflicts_with = "ingest")]
     output: bool,
 }
 
@@ -660,10 +657,7 @@ fn etmcmd(
     let traceid = subargs.traceid;
 
     if traceid >= HUMILITY_ETM_TRACEID_MAX {
-        fatal!(
-            "traceid has a maximum value of {:x}",
-            HUMILITY_ETM_TRACEID_MAX
-        );
+        fatal!("traceid has a maximum value of {:x}", HUMILITY_ETM_TRACEID_MAX);
     }
 
     if let Some(ingest) = &subargs.ingest {
@@ -720,9 +714,7 @@ fn etmcmd(
     rval
 }
 
-fn itmcmd_probe(
-    core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+fn itmcmd_probe(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
     let tab = read_debug_rom_table(core)?;
 
     info!("ROM debug table: {:#x?}", tab);
@@ -816,13 +808,11 @@ fn itmcmd_enable(
      */
     tcr = ITM_TCR::read(core)?;
     tcr.set_traceid(traceid.into());
-    tcr.set_timestamp_enable(
-        if stimuli & 0xffff_0000 != 0 {
-            true
-        } else {
-            false
-        }
-    );
+    tcr.set_timestamp_enable(if stimuli & 0xffff_0000 != 0 {
+        true
+    } else {
+        false
+    });
 
     tcr.set_sync_enable(true);
     tcr.set_itm_enable(true);
@@ -831,9 +821,7 @@ fn itmcmd_enable(
     Ok(())
 }
 
-fn itmcmd_disable(
-    core: &mut dyn core::Core,
-) -> Result<(), Box<dyn Error>> {
+fn itmcmd_disable(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
     /*
      * Unlock the ITM.
      */
@@ -858,10 +846,7 @@ fn itmcmd_disable(
     Ok(())
 }
 
-fn itmcmd_ingest(
-    traceid: u8,
-    filename: &str,
-) -> Result<(), Box<dyn Error>> {
+fn itmcmd_ingest(traceid: u8, filename: &str) -> Result<(), Box<dyn Error>> {
     let file = File::open(filename)?;
 
     let process = |packet: &ITMPacket| -> Result<(), Box<dyn Error>> {
@@ -881,36 +866,40 @@ fn itmcmd_ingest(
             type SaleaeTraceRecord = (f64, u8, Option<String>, Option<String>);
             let mut iter = rdr.deserialize();
 
-            itm_ingest(traceid, || {
-                if let Some(line) = iter.next() {
-                    let record: SaleaeTraceRecord = line?;
-                    Ok(Some((record.1, record.0)))
-                } else {
-                    Ok(None)
-                }
-            }, process)
-        },
+            itm_ingest(
+                traceid,
+                || {
+                    if let Some(line) = iter.next() {
+                        let record: SaleaeTraceRecord = line?;
+                        Ok(Some((record.1, record.0)))
+                    } else {
+                        Ok(None)
+                    }
+                },
+                process,
+            )
+        }
         Err(_) => {
             info!("not a Saleae trace file; assuming raw input");
 
             let mut file = File::open(filename)?;
             let mut buffer = [0; 1];
 
-            itm_ingest(traceid, || {
-                let nbytes = file.read(&mut buffer)?;
+            itm_ingest(
+                traceid,
+                || {
+                    let nbytes = file.read(&mut buffer)?;
 
-                match nbytes {
-                    1 => {
-                        Ok(Some((buffer[0], 0.0)))
+                    match nbytes {
+                        1 => Ok(Some((buffer[0], 0.0))),
+                        0 => Ok(None),
+                        _ => {
+                            panic!("illegal read");
+                        }
                     }
-                    0 => {
-                        Ok(None)
-                    }
-                    _ => {
-                        panic!("illegal read");
-                    }
-                }
-            }, process)
+                },
+                process,
+            )
         }
     }
 }
@@ -924,30 +913,34 @@ fn itmcmd_ingest_attached(
 
     let start = Instant::now();
 
-    itm_ingest(traceid, || {
-        while ndx == bytes.len() {
-            bytes = core.read_swv().unwrap();
-            ndx = 0;
-        }
-        ndx += 1;
-        Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
-    }, |packet| {
-        match &packet.payload {
-            ITMPayload::Instrumentation { payload, port } => {
-                if *port > 1 {
-                    println!("{:x?}", payload);
-                    return Ok(());
-                }
-
-                for p in payload {
-                    print!("{}", *p as char);
-                }
+    itm_ingest(
+        traceid,
+        || {
+            while ndx == bytes.len() {
+                bytes = core.read_swv().unwrap();
+                ndx = 0;
             }
-            _ => {}
-        }
+            ndx += 1;
+            Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
+        },
+        |packet| {
+            match &packet.payload {
+                ITMPayload::Instrumentation { payload, port } => {
+                    if *port > 1 {
+                        println!("{:x?}", payload);
+                        return Ok(());
+                    }
 
-        Ok(())
-    })
+                    for p in payload {
+                        print!("{}", *p as char);
+                    }
+                }
+                _ => {}
+            }
+
+            Ok(())
+        },
+    )
 }
 
 #[derive(StructOpt)]
@@ -992,10 +985,7 @@ fn itmcmd(
     let traceid = subargs.traceid;
 
     if traceid >= HUMILITY_ETM_TRACEID_MAX {
-        fatal!(
-            "traceid has a maximum value of {:x}",
-            HUMILITY_ETM_TRACEID_MAX
-        );
+        fatal!("traceid has a maximum value of {:x}", HUMILITY_ETM_TRACEID_MAX);
     }
 
     if let Some(ingest) = &subargs.ingest {
@@ -1054,10 +1044,7 @@ fn itmcmd(
     rval
 }
 
-fn probe(
-    hubris: &HubrisPackage,
-    args: &Args,
-) -> Result<(), Box<dyn Error>> {
+fn probe(hubris: &HubrisPackage, args: &Args) -> Result<(), Box<dyn Error>> {
     let mut core = attach(args)?;
 
     hubris.validate(core.as_mut())?;
@@ -1075,6 +1062,8 @@ struct TasksArgs {
     #[structopt(long, short)]
     verbose: bool,
 }
+
+#[rustfmt::skip::macros(println)]
 
 fn taskscmd(
     hubris: &HubrisPackage,
@@ -1097,9 +1086,8 @@ fn taskscmd(
     loop {
         core.halt()?;
 
-        let cur = core.read_word_32(
-            hubris.lookup_symword("CURRENT_TASK_PTR")?
-        )?;
+        let cur =
+            core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
 
         /*
          * We read the entire task table at a go to get as consistent a
@@ -1120,9 +1108,8 @@ fn taskscmd(
         println!("{:2} {:8} {:18} {:3} {:9}",
             "ID", "ADDR", "TASK", "GEN", "STATE");
 
-        let taskblock32 = |o| {
-            u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
-        };
+        let taskblock32 =
+            |o| u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
 
         for i in 0..size {
             let addr = base + i * task.size as u32;
@@ -1139,11 +1126,8 @@ fn taskscmd(
                 if addr == cur { " <-" } else { "" });
 
             if subargs.verbose {
-                let fmt = HubrisDumpFormat {
-                    indent: 16,
-                    newline: true,
-                    hex: true
-                };
+                let fmt =
+                    HubrisDumpFormat { indent: 16, newline: true, hex: true };
 
                 println!(
                     "          |\n          +----> {}\n",
@@ -1174,11 +1158,11 @@ struct TraceArgs {
     )]
     clockscaler: Option<u16>,
     /// provide statemap-ready output
-    #[structopt(
-        long, short
-    )]
+    #[structopt(long, short)]
     statemap: bool,
 }
+
+#[rustfmt::skip::macros(println)]
 
 fn tracecmd_ingest(
     hubris: &HubrisPackage,
@@ -1199,8 +1183,8 @@ fn tracecmd_ingest(
         let t = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
         let colors = [
-            "#ed441f", "#ef5b3b", "#f27357", "#f48a73",
-            "#f6a28f", "#f8b9ab", "#fad0c7", "#fde8e3",
+            "#ed441f", "#ef5b3b", "#f27357", "#f48a73", "#f6a28f", "#f8b9ab",
+            "#fad0c7", "#fde8e3",
         ];
 
         println!("{{");
@@ -1209,9 +1193,12 @@ fn tracecmd_ingest(
         println!("\t\"entityKind\": \"Task\",");
 
         println!("\t\"states\": {{");
-        println!("\t\t\"Running\": {{ \"value\": 0, \"color\": \"#DAF7A6\" }},");
-        println!("\t\t\"Runnable\": {{ \"value\": 1, \"color\": \"#9BC362\" }},");
-        println!("\t\t\"InRecv\": {{ \"value\": 2, \"color\": \"#e0e0e0\" }},");
+        println!("\t\t\"Running\": \
+            {{ \"value\": 0, \"color\": \"#DAF7A6\" }},");
+        println!("\t\t\"Runnable\": \
+            {{ \"value\": 1, \"color\": \"#9BC362\" }},");
+        println!("\t\t\"InRecv\": \
+            {{ \"value\": 2, \"color\": \"#e0e0e0\" }},");
 
         states.insert("Runnable".to_string(), 1);
         states.insert("InRecv(None)".to_string(), 2);
@@ -1248,94 +1235,103 @@ fn tracecmd_ingest(
     let mut task = 0;
     let mut newtask = None;
 
-    itm_ingest(subargs.traceid, || {
-        while ndx == bytes.len() {
-            bytes = core.read_swv().unwrap();
-            ts = start.elapsed().as_secs_f64();
-            ndx = 0;
-        }
-        ndx += 1;
-        Ok(Some((bytes[ndx - 1], ts)))
-    }, |packet| {
-        match &packet.payload {
-            ITMPayload::Instrumentation { payload, port } => {
-                if *port == 30 {
-                    newtask = Some(payload[0] as u32);
-                    return Ok(());
-                }
-
-                if *port == 31 {
-                    if payload.len() == 1 {
-                        task = payload[0] as u32;
-                        spayload.truncate(0);
-                    } else {
-                        for p in payload {
-                            spayload.push(*p);
-                        }
-                    }
-
-                    if spayload.len() < schedstate.size {
+    itm_ingest(
+        subargs.traceid,
+        || {
+            while ndx == bytes.len() {
+                bytes = core.read_swv().unwrap();
+                ts = start.elapsed().as_secs_f64();
+                ndx = 0;
+            }
+            ndx += 1;
+            Ok(Some((bytes[ndx - 1], ts)))
+        },
+        |packet| {
+            match &packet.payload {
+                ITMPayload::Instrumentation { payload, port } => {
+                    if *port == 30 {
+                        newtask = Some(payload[0] as u32);
                         return Ok(());
                     }
 
-                    if !subargs.statemap {
-                        println!(
+                    if *port == 31 {
+                        if payload.len() == 1 {
+                            task = payload[0] as u32;
+                            spayload.truncate(0);
+                        } else {
+                            for p in payload {
+                                spayload.push(*p);
+                            }
+                        }
+
+                        if spayload.len() < schedstate.size {
+                            return Ok(());
+                        }
+
+                        if !subargs.statemap {
+                            println!(
                             "{:.9} {} ({}): {}",
                             time as f64 / 16_000_000 as f64,
                             task,
                             tasks.get(&task).unwrap_or(&"<invalid>".to_string()),
                             hubris.dump(&spayload[..], schedstate.goff)?,
                         );
-                        return Ok(());
-                    }
+                            return Ok(());
+                        }
 
-                    let state = hubris.dump(&spayload[..], schedstate.goff)?;
+                        let state =
+                            hubris.dump(&spayload[..], schedstate.goff)?;
 
-                    println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
+                        println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
                         \"state\": {} }}",
                         ((time as f64 / 16_000_000 as f64) *
                         1_000_000_000 as f64) as u64,
                         task, states.get(&state).unwrap_or(&-1)
                     );
 
-                    return Ok(());
-                }
+                        return Ok(());
+                    }
 
-                if !subargs.statemap {
-                    for p in payload {
-                        print!("{}", *p as char);
+                    if !subargs.statemap {
+                        for p in payload {
+                            print!("{}", *p as char);
+                        }
                     }
                 }
-            }
 
-            ITMPayload::LocalTimestamp { timedelta, delayed: _, early: _ } => {
-                time += timedelta;
+                ITMPayload::LocalTimestamp {
+                    timedelta,
+                    delayed: _,
+                    early: _,
+                } => {
+                    time += timedelta;
 
-                if let Some(task) = newtask {
-                    if subargs.statemap {
-                        println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
+                    if let Some(task) = newtask {
+                        if subargs.statemap {
+                            println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
                             \"state\": 0 }}",
                             ((time as f64 / 16_000_000 as f64) *
                             1_000_000_000 as f64) as u64,
                             task
                         );
-                    } else {
-                        println!(
+                        } else {
+                            println!(
                             "{:.9} {} ({}): Running",
                             time as f64 / 16_000_000 as f64,
                             task,
                             tasks.get(&task).unwrap_or(&"<invalid>".to_string())
                         );
+                        }
+
+                        newtask = None;
                     }
-
-                    newtask = None;
                 }
+                _ => {}
             }
-            _ => {}
-        }
 
-        Ok(())
-    })
+            Ok(())
+        },
+    )
 }
 
 fn tracecmd(
@@ -1363,9 +1359,8 @@ fn tracecmd(
     taskblock.resize_with(task.size * size as usize, Default::default);
     core.read_8(base, taskblock.as_mut_slice())?;
 
-    let taskblock32 = |o| {
-        u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap())
-    };
+    let taskblock32 =
+        |o| u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
 
     for i in 0..size {
         let offs = i as usize * task.size;
@@ -1395,11 +1390,21 @@ struct Args {
     verbose: bool,
 
     /// specific chip on attached device
-    #[structopt(long, short, env = "HUMILITY_CHIP", default_value = "STM32F407VGTx")]
+    #[structopt(
+        long,
+        short,
+        env = "HUMILITY_CHIP",
+        default_value = "STM32F407VGTx"
+    )]
     chip: String,
 
     /// chip debugger to use
-    #[structopt(long, short, env = "HUMILITY_DEBUGGER", default_value = "auto")]
+    #[structopt(
+        long,
+        short,
+        env = "HUMILITY_DEBUGGER",
+        default_value = "auto"
+    )]
     debugger: String,
 
     /// directory containing Hubris package
@@ -1433,9 +1438,11 @@ fn main() {
         HumilityLog { level: log::LevelFilter::Info }.enable();
     }
 
-    let mut hubris = HubrisPackage::new().map_err(|err| {
-        fatal!("failed to initialize: {}", err);
-    }).unwrap();
+    let mut hubris = HubrisPackage::new()
+        .map_err(|err| {
+            fatal!("failed to initialize: {}", err);
+        })
+        .unwrap();
 
     if let Some(dir) = &args.package {
         if let Err(err) = hubris.load(&dir) {
@@ -1454,26 +1461,26 @@ fn main() {
         Subcommand::Probe => match probe(&hubris, &args) {
             Err(err) => fatal!("probe failed: {}", err),
             _ => std::process::exit(0),
-        }
+        },
 
         Subcommand::Etm(subargs) => match etmcmd(&hubris, &args, subargs) {
             Err(err) => fatal!("etm failed: {}", err),
             _ => std::process::exit(0),
-        }
+        },
 
         Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
             Err(err) => fatal!("itm failed: {}", err),
             _ => std::process::exit(0),
-        }
+        },
 
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
             Err(err) => fatal!("tasks failed: {}", err),
             _ => std::process::exit(0),
-        }
+        },
 
         Subcommand::Trace(subargs) => match tracecmd(&hubris, &args, subargs) {
             Err(err) => fatal!("trace failed: {}", err),
             _ => std::process::exit(0),
-        }
+        },
     }
 }

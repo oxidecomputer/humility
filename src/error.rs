@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 #[derive(Debug)]
 pub struct HumilityError {
@@ -47,4 +47,3 @@ macro_rules! err {
         Err(err(&format!($fmt, $($arg)*)))
     )
 }
-

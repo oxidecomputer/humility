@@ -3,9 +3,9 @@
  */
 
 use crate::debug::Register;
-use bitfield::bitfield;
 use crate::register;
 use crate::tpiu::*;
+use bitfield::bitfield;
 use std::error::Error;
 
 /*
@@ -62,7 +62,7 @@ register!(ITM_LSR, 0xe000_0fb4,
 
 impl ITM_LAR {
     pub fn unlock(
-        core: &mut dyn crate::core::Core
+        core: &mut dyn crate::core::Core,
     ) -> Result<(), Box<dyn Error>> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
@@ -73,7 +73,7 @@ impl ITM_LAR {
     }
 
     pub fn lock(
-        core: &mut dyn crate::core::Core
+        core: &mut dyn crate::core::Core,
     ) -> Result<(), Box<dyn Error>> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ITM_LAR::ADDRESS, val)?;
@@ -84,14 +84,30 @@ impl ITM_LAR {
 #[derive(Debug)]
 pub enum ITMPayload {
     None,
-    LocalTimestamp { timedelta: u32, delayed: bool, early: bool },
+    LocalTimestamp {
+        timedelta: u32,
+        delayed: bool,
+        early: bool,
+    },
     #[allow(dead_code)]
-    Extension { payload: u32, sh: bool },
+    Extension {
+        payload: u32,
+        sh: bool,
+    },
     #[allow(dead_code)]
-    GlobalTimestamp { timestamp: u64 },
-    Instrumentation { port: u32, payload: Vec<u8> },
+    GlobalTimestamp {
+        timestamp: u64,
+    },
+    Instrumentation {
+        port: u32,
+        payload: Vec<u8>,
+    },
     #[allow(dead_code)]
-    Hardware { source: u32, payload: [u8; 4], len: usize },
+    Hardware {
+        source: u32,
+        payload: [u8; 4],
+        len: usize,
+    },
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -104,14 +120,14 @@ pub enum ITMHeader {
     GlobalTimestamp2,
     Extension { c: bool, d: u8, s: bool },
     Instrumentation { a: u8, ss: u8 },
-    Hardware { a: u8, ss: u8 }
+    Hardware { a: u8, ss: u8 },
 }
 
 #[derive(Copy, Clone, Debug)]
 enum ITMPacketState {
     AwaitingHeader,
     AwaitingPayload,
-    Complete
+    Complete,
 }
 
 #[derive(Debug)]
@@ -158,23 +174,25 @@ fn encode(hdr: ITMHeader) -> u8 {
     }
 }
 
-fn set(table: &mut Vec<Option<ITMHeader>>, hdr: ITMHeader)
-{
+fn set(table: &mut Vec<Option<ITMHeader>>, hdr: ITMHeader) {
     let val = encode(hdr) as usize;
 
     match table[val] {
-        None => { table[val] = Some(hdr); }
+        None => {
+            table[val] = Some(hdr);
+        }
         Some(h) => {
-            panic!("two values for ITM header 0x{:x} (0b{:b}): {:?} and {:?}",
-                val, val, h, hdr);
+            panic!(
+                "two values for ITM header 0x{:x} (0b{:b}): {:?} and {:?}",
+                val, val, h, hdr
+            );
         }
     }
 }
 
-fn itm_hdrs() -> Vec<Option<ITMHeader>>
-{
+fn itm_hdrs() -> Vec<Option<ITMHeader>> {
     let mut hdr: Vec<Option<ITMHeader>> = vec![None; 256];
-    let bools = [ false, true ];
+    let bools = [false, true];
 
     set(&mut hdr, ITMHeader::Sync);
     set(&mut hdr, ITMHeader::Overflow);
@@ -208,11 +226,7 @@ fn itm_hdrs() -> Vec<Option<ITMHeader>>
     hdr
 }
 
-fn itm_packet_state(
-    hdr: ITMHeader,
-    payload: &[u8],
-) -> ITMPacketState
-{
+fn itm_packet_state(hdr: ITMHeader, payload: &[u8]) -> ITMPacketState {
     let expect = |size: u8| {
         if payload.len() < size as usize {
             ITMPacketState::AwaitingPayload
@@ -236,37 +250,29 @@ fn itm_packet_state(
     };
 
     match hdr {
-        ITMHeader::Sync => { expect(5) }
-        ITMHeader::Overflow => { ITMPacketState::Complete }
-        ITMHeader::LocalTimestamp1 { .. } => { expect(compressed(4)) }
-        ITMHeader::LocalTimestamp2 { .. } => { ITMPacketState::Complete }
-        ITMHeader::GlobalTimestamp1 => { expect(compressed(4)) }
-        ITMHeader::GlobalTimestamp2 => { expect(4) }
-        ITMHeader::Extension { .. } => { expect(compressed(4)) }
-        ITMHeader::Instrumentation { ss, .. } |
-        ITMHeader::Hardware { ss, .. } => {
-            expect(match ss {
-                0b01 => 1,
-                0b10 => 2,
-                0b11 => 4,
-                _ => panic!("invalid ss")
-            })
-        }
+        ITMHeader::Sync => expect(5),
+        ITMHeader::Overflow => ITMPacketState::Complete,
+        ITMHeader::LocalTimestamp1 { .. } => expect(compressed(4)),
+        ITMHeader::LocalTimestamp2 { .. } => ITMPacketState::Complete,
+        ITMHeader::GlobalTimestamp1 => expect(compressed(4)),
+        ITMHeader::GlobalTimestamp2 => expect(4),
+        ITMHeader::Extension { .. } => expect(compressed(4)),
+        ITMHeader::Instrumentation { ss, .. }
+        | ITMHeader::Hardware { ss, .. } => expect(match ss {
+            0b01 => 1,
+            0b10 => 2,
+            0b11 => 4,
+            _ => panic!("invalid ss"),
+        }),
     }
 }
 
-fn itm_payload_decode(
-    hdr: ITMHeader,
-    payload: &[u8],
-) -> ITMPayload {
-
+fn itm_payload_decode(hdr: ITMHeader, payload: &[u8]) -> ITMPayload {
     match hdr {
-        ITMHeader::Instrumentation { a, .. } => {
-            ITMPayload::Instrumentation {
-                port: a as u32,
-                payload: payload.to_vec(),
-            }
-        }
+        ITMHeader::Instrumentation { a, .. } => ITMPayload::Instrumentation {
+            port: a as u32,
+            payload: payload.to_vec(),
+        },
 
         ITMHeader::LocalTimestamp1 { tc } => {
             let mut delta: u32 = 0;
@@ -282,7 +288,7 @@ fn itm_payload_decode(
             }
         }
 
-        _ => { ITMPayload::None }
+        _ => ITMPayload::None,
     }
 }
 
@@ -291,9 +297,11 @@ pub fn itm_ingest(
     mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
     mut callback: impl FnMut(&ITMPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
-
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-    enum IngestState { SyncSearching, Ingesting };
+    enum IngestState {
+        SyncSearching,
+        Ingesting,
+    };
 
     let mut state: IngestState = IngestState::SyncSearching;
     let mut pstate: ITMPacketState = ITMPacketState::AwaitingHeader;
@@ -311,15 +319,19 @@ pub fn itm_ingest(
 
         if state == IngestState::SyncSearching {
             match packet.datum {
-                0 => { runlen += 1 }
+                0 => runlen += 1,
                 0x80 => {
                     if runlen >= 5 {
-                        info!("ITM synchronization packet found at offset {}",
-                            packet.offset);
+                        info!(
+                            "ITM synchronization packet found at offset {}",
+                            packet.offset
+                        );
                         state = IngestState::Ingesting;
                     }
                 }
-                _ => { runlen = 0; }
+                _ => {
+                    runlen = 0;
+                }
             }
 
             return Ok(());
@@ -328,10 +340,12 @@ pub fn itm_ingest(
         match pstate {
             ITMPacketState::AwaitingHeader => {
                 hdr = match hdrs[packet.datum as usize] {
-                    Some(hdr) => { hdr }
+                    Some(hdr) => hdr,
                     None => {
-                        info!("unrecognized ITM header 0x{:x} at offset {}",
-                            packet.datum, packet.offset);
+                        info!(
+                            "unrecognized ITM header 0x{:x} at offset {}",
+                            packet.datum, packet.offset
+                        );
                         state = IngestState::SyncSearching;
                         return Ok(());
                     }
@@ -352,19 +366,19 @@ pub fn itm_ingest(
         pstate = itm_packet_state(hdr, &payload);
 
         match pstate {
-            ITMPacketState::AwaitingHeader | 
-            ITMPacketState::AwaitingPayload => {
+            ITMPacketState::AwaitingHeader
+            | ITMPacketState::AwaitingPayload => {
                 return Ok(());
             }
             ITMPacketState::Complete => {}
         }
 
-        if state == IngestState::Ingesting  {
+        if state == IngestState::Ingesting {
             callback(&ITMPacket {
                 header: hdr,
                 payload: itm_payload_decode(hdr, payload),
                 offset: packet.offset,
-                time: packet.time
+                time: packet.time,
             })?;
         } else {
             unreachable!();

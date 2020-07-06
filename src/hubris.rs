@@ -2,29 +2,29 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::error::Error;
-use std::fs;
-use std::fs::File;
-use std::fmt;
-use std::fmt::Write;
-use std::io::BufReader;
-use std::io::prelude::*;
-use std::collections::HashSet;
-use std::collections::HashMap;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::convert::Infallible;
 use std::convert::TryInto;
+use std::error::Error;
+use std::fmt;
+use std::fmt::Write;
+use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
 use std::path::Path;
 use std::str;
 
 use fallible_iterator::FallibleIterator;
 
-use goblin::elf::Elf;
+use crate::err;
 use capstone::prelude::*;
 use capstone::InsnGroupType;
-use rustc_demangle::demangle;
+use goblin::elf::Elf;
 use multimap::MultiMap;
-use crate::err;
+use rustc_demangle::demangle;
 
 #[derive(Debug)]
 pub struct HubrisPackage {
@@ -40,7 +40,7 @@ pub struct HubrisPackage {
     // Modules: address to string/base tuple
     modules: BTreeMap<u32, (String, u32)>,
 
-    // DWARF symbols: address to name/length/goff tuple 
+    // DWARF symbols: address to name/length/goff tuple
     dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
 
     // ELF symbols: address to name/length tuple
@@ -153,7 +153,7 @@ pub enum HubrisTarget {
 pub struct HubrisDumpFormat {
     pub indent: usize,
     pub newline: bool,
-    pub hex: bool
+    pub hex: bool,
 }
 
 impl fmt::Display for HubrisGoff {
@@ -183,11 +183,11 @@ fn dwarf_name<'a>(
 impl HubrisStruct {
     pub fn lookup_member(
         &self,
-        name: &str
+        name: &str,
     ) -> Result<&HubrisStructMember, Box<dyn Error>> {
         for member in &self.members {
             if member.name == name {
-                return Ok(member)
+                return Ok(member);
             }
         }
 
@@ -196,15 +196,16 @@ impl HubrisStruct {
 }
 
 impl HubrisEnum {
-    pub fn lookup_variant(
-        &self,
-        tag: u64
-    ) -> Option<&HubrisEnumVariant> {
+    pub fn lookup_variant(&self, tag: u64) -> Option<&HubrisEnumVariant> {
         for variant in &self.variants {
             match variant.tag {
-                Some(t) if t == tag => { return Some(variant); }
+                Some(t) if t == tag => {
+                    return Some(variant);
+                }
                 Some(_t) => {}
-                None => { return Some(variant); }
+                None => {
+                    return Some(variant);
+                }
             }
         }
         None
@@ -212,7 +213,7 @@ impl HubrisEnum {
 
     pub fn lookup_variant_byname(
         &self,
-        name: &str
+        name: &str,
     ) -> Result<&HubrisEnumVariant, Box<dyn Error>> {
         for variant in &self.variants {
             if variant.name == name {
@@ -223,6 +224,8 @@ impl HubrisEnum {
         err!("missing variant: {}.{}", self.name, name)
     }
 }
+
+#[rustfmt::skip::macros(err)]
 
 impl HubrisPackage {
     pub fn new() -> Result<HubrisPackage, Box<dyn Error>> {
@@ -244,7 +247,7 @@ impl HubrisPackage {
                     cs.set_skipdata(true).expect("failed to set skipdata");
                     cs
                 }
-                Err(err) => { 
+                Err(err) => {
                     return err!("failed to initialize disassembler: {}", err);
                 }
             },
@@ -265,34 +268,21 @@ impl HubrisPackage {
         })
     }
 
-    pub fn instr_len(
-        &self,
-        addr: u32
-    ) -> Option<u32> {
+    pub fn instr_len(&self, addr: u32) -> Option<u32> {
         match self.instrs.get(&addr) {
-            Some(instr) => {
-                Some(instr.0.len() as u32)
-            }
-            None => None
+            Some(instr) => Some(instr.0.len() as u32),
+            None => None,
         }
     }
 
-    pub fn instr_target(
-        &self,
-        addr: u32
-    ) -> HubrisTarget {
+    pub fn instr_target(&self, addr: u32) -> HubrisTarget {
         match self.instrs.get(&addr) {
-            Some(instr) => {
-                instr.1
-            }
-            None => HubrisTarget::None
+            Some(instr) => instr.1,
+            None => HubrisTarget::None,
         }
     }
 
-    pub fn instr_mod(
-        &self,
-        addr: u32
-    ) -> Option<&str> {
+    pub fn instr_mod(&self, addr: u32) -> Option<&str> {
         if let Some(module) = self.modules.range(..=addr).next_back() {
             if addr < *module.0 + (module.1).1 {
                 Some(&(module.1).0)
@@ -304,11 +294,7 @@ impl HubrisPackage {
         }
     }
 
-    pub fn instr_sym(
-        &self,
-        addr: u32
-    ) -> Option<(&str, u32)> {
-
+    pub fn instr_sym(&self, addr: u32) -> Option<(&str, u32)> {
         let sym: Option<(&str, u32)>;
 
         /*
@@ -318,7 +304,7 @@ impl HubrisPackage {
             Some(sym) if addr < *sym.0 + (sym.1).1 => {
                 Some((&(sym.1).0, *sym.0 as u32))
             }
-            _ => None
+            _ => None,
         };
 
         /*
@@ -326,22 +312,16 @@ impl HubrisPackage {
          */
         match sym {
             Some(_) => sym,
-            None => {
-                match self.esyms.range(..=addr).next_back() {
-                    Some(sym) if addr < *sym.0 + (sym.1).1 => {
-                        Some((&(sym.1).0, *sym.0 as u32))
-                    }
-                    _ => None
+            None => match self.esyms.range(..=addr).next_back() {
+                Some(sym) if addr < *sym.0 + (sym.1).1 => {
+                    Some((&(sym.1).0, *sym.0 as u32))
                 }
-            }
+                _ => None,
+            },
         }
     }
 
-    pub fn instr_inlined(
-        &self,
-        pc: u32,
-        base: u32,
-    ) -> Vec<HubrisInlined> {
+    pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined> {
         let mut inlined: Vec<HubrisInlined> = vec![];
 
         /*
@@ -371,20 +351,16 @@ impl HubrisPackage {
                     origin: *origin,
                 });
             }
-
         }
 
         inlined.reverse();
         inlined
     }
 
-    fn instr_branch_target(
-        &self,
-        instr: &capstone::Insn,
-    ) -> HubrisTarget {
+    fn instr_branch_target(&self, instr: &capstone::Insn) -> HubrisTarget {
         let detail = match self.cs.insn_detail(&instr) {
-            Ok(detail) => { detail }
-            _ => { return HubrisTarget::None }
+            Ok(detail) => detail,
+            _ => return HubrisTarget::None,
         };
 
         let mut jump = false;
@@ -490,10 +466,7 @@ impl HubrisPackage {
             gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
         };
 
-        HubrisGoff {
-            object: self.current,
-            goff,
-        }
+        HubrisGoff { object: self.current, goff }
     }
 
     fn dwarf_value_goff<R: gimli::Reader<Offset = usize>>(
@@ -518,15 +491,13 @@ impl HubrisPackage {
                 goff = offs.0;
             }
 
-            _ => { return None; }
+            _ => {
+                return None;
+            }
         }
 
-        Some(HubrisGoff {
-            object: self.current,
-            goff,
-        })
+        Some(HubrisGoff { object: self.current, goff })
     }
-
 
     fn dwarf_inlined<R: gimli::Reader<Offset = usize>>(
         &mut self,
@@ -562,10 +533,7 @@ impl HubrisPackage {
                 ) => {
                     high = Some(data);
                 }
-                (
-                    gimli::constants::DW_AT_abstract_origin,
-                    _
-                ) => {
+                (gimli::constants::DW_AT_abstract_origin, _) => {
                     origin = self.dwarf_value_goff(unit, &attr.value());
                 }
                 _ => {}
@@ -574,10 +542,8 @@ impl HubrisPackage {
 
         match (low, high, origin) {
             (Some(addr), Some(len), Some(origin)) => {
-                self.inlined.insert(
-                    (addr as u32, depth),
-                    (len as u32, goff, origin)
-                );
+                self.inlined
+                    .insert((addr as u32, depth), (len as u32, goff, origin));
 
                 return Ok(());
             }
@@ -592,16 +558,17 @@ impl HubrisPackage {
             if let (
                 gimli::constants::DW_AT_ranges,
                 gimli::AttributeValue::RangeListsRef(r),
-            ) = (attr.name(), attr.value()) {
-                let raw_ranges =
-                    dwarf.ranges.raw_ranges(r, unit.encoding())?;
+            ) = (attr.name(), attr.value())
+            {
+                let raw_ranges = dwarf.ranges.raw_ranges(r, unit.encoding())?;
                 let raw_ranges: Vec<_> = raw_ranges.collect()?;
 
                 for r in raw_ranges {
                     if let gimli::RawRngListEntry::AddressOrOffsetPair {
                         begin,
                         end,
-                    } = r {
+                    } = r
+                    {
                         let begin = begin as u32;
                         let end = end as u32;
 
@@ -651,16 +618,10 @@ impl HubrisPackage {
                 ) => {
                     len = Some(value);
                 }
-                (
-                    gimli::constants::DW_AT_linkage_name,
-                    _
-                ) => {
+                (gimli::constants::DW_AT_linkage_name, _) => {
                     _linkage_name = dwarf_name(dwarf, attr.value());
                 }
-                (
-                    gimli::constants::DW_AT_name,
-                    _
-                ) => {
+                (gimli::constants::DW_AT_name, _) => {
                     name = dwarf_name(dwarf, attr.value());
                 }
                 _ => {}
@@ -672,7 +633,7 @@ impl HubrisPackage {
                 (Some(addr), Some(len)) if addr != 0 => {
                     self.dsyms.insert(
                         addr as u32,
-                        (String::from(name), len as u32, goff)
+                        (String::from(name), len as u32, goff),
                     );
                 }
                 _ => {}
@@ -706,9 +667,7 @@ impl HubrisPackage {
                     Ok(self.structs.get(&v[0]).unwrap())
                 }
             }
-            None => {
-                err!("expected structure {} not found", name)
-            }
+            None => err!("expected structure {} not found", name),
         }
     }
 
@@ -718,8 +677,8 @@ impl HubrisPackage {
         goff: HubrisGoff,
     ) -> Result<&HubrisStruct, Box<dyn Error>> {
         match self.structs.get(&goff) {
-            Some(str) => { Ok(str) }
-            None => { err!("expected struct {} not found", goff) }
+            Some(str) => Ok(str),
+            None => err!("expected struct {} not found", goff),
         }
     }
 
@@ -728,8 +687,8 @@ impl HubrisPackage {
         goff: HubrisGoff,
     ) -> Result<&HubrisEnum, Box<dyn Error>> {
         match self.enums.get(&goff) {
-            Some(union) => { Ok(union) }
-            None => { err!("expected enum {} not found", goff) }
+            Some(union) => Ok(union),
+            None => err!("expected enum {} not found", goff),
         }
     }
 
@@ -737,10 +696,7 @@ impl HubrisPackage {
     /// Looks up the specified symbol.  This is more of a convenience routine
     /// that turns an Option into a Result.
     ///
-    pub fn lookup_symword(
-        &self,
-        name: &str,
-    ) -> Result<u32, Box<dyn Error>> {
+    pub fn lookup_symword(&self, name: &str) -> Result<u32, Box<dyn Error>> {
         match self.esyms_byname.get(name) {
             Some(sym) => {
                 if sym.1 != 4 {
@@ -749,9 +705,7 @@ impl HubrisPackage {
                     Ok(sym.0)
                 }
             }
-            None => {
-                err!("expected symbol {} not found", name)
-            }
+            None => err!("expected symbol {} not found", name),
         }
     }
 
@@ -765,7 +719,7 @@ impl HubrisPackage {
 
     pub fn validate(
         &self,
-        core: &mut dyn crate::core::Core
+        core: &mut dyn crate::core::Core,
     ) -> Result<(), Box<dyn Error>> {
         let ntasks = self.ntasks();
 
@@ -778,7 +732,8 @@ impl HubrisPackage {
             return Ok(());
         }
 
-        let size = core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
+        let size =
+            core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
 
         if size == 0 {
             /*
@@ -787,9 +742,8 @@ impl HubrisPackage {
              * we expect the TASK_TABLE_BASE to also be 0, so as an added
              * check, we check that as well.
              */
-            let base = core.read_word_32(
-                self.lookup_symword("TASK_TABLE_BASE")?
-            )?;
+            let base =
+                core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
 
             if base != 0 {
                 err!("TASK_TABLE_SIZE is 0, but TASK_TABLE_BASE is 0x{:x}; \
@@ -823,7 +777,9 @@ impl HubrisPackage {
                 2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
                 4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
                 8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
-                _ => { return err!("bad size!"); }
+                _ => {
+                    return err!("bad size!");
+                }
             })
         };
 
@@ -836,8 +792,8 @@ impl HubrisPackage {
             }
 
             if v.members[0].name == "__0" {
-                let paren = v.members.len() > 1 ||
-                    self.basetypes.get(&v.members[0].goff).is_none();
+                let paren = v.members.len() > 1
+                    || self.basetypes.get(&v.members[0].goff).is_none();
 
                 if paren {
                     rval += "(";
@@ -899,7 +855,7 @@ impl HubrisPackage {
             match union.discriminant {
                 HubrisDiscriminant::Value(g, offs) => {
                     let size = match self.basetypes.get(&g) {
-                        Some(size) => { size }
+                        Some(size) => size,
                         None => {
                             return err!(concat!("enum {} has discriminant ",
                                 "of unknown type: {}"), goff, g);
@@ -915,7 +871,8 @@ impl HubrisPackage {
 
                         Some(variant) => {
                             rval += &variant.name;
-                            rval += &self.dumpfmt(&buf[0..], variant.goff, &f)?;
+                            rval +=
+                                &self.dumpfmt(&buf[0..], variant.goff, &f)?;
                         }
                     }
 
@@ -976,11 +933,11 @@ impl HubrisPackage {
         buf: &[u8],
         goff: HubrisGoff,
     ) -> Result<String, Box<dyn Error>> {
-        self.dumpfmt(buf, goff, &HubrisDumpFormat {
-            indent: 0,
-            newline: false,
-            hex: false,
-        })
+        self.dumpfmt(
+            buf,
+            goff,
+            &HubrisDumpFormat { indent: 0, newline: false, hex: false },
+        )
     }
 
     fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
@@ -1077,12 +1034,15 @@ impl HubrisPackage {
         }
 
         if let (Some(name), Some(size)) = (name, size) {
-            self.structs.insert(goff, HubrisStruct {
-                name: name.to_string(),
-                size: size,
-                goff: goff,
-                members: Vec::new()
-            });
+            self.structs.insert(
+                goff,
+                HubrisStruct {
+                    name: name.to_string(),
+                    size: size,
+                    goff: goff,
+                    members: Vec::new(),
+                },
+            );
 
             self.structs_byname.insert(name.to_string(), goff);
         }
@@ -1120,17 +1080,20 @@ impl HubrisPackage {
             }
         }
 
-        self.enums.insert(goff, HubrisEnum {
-            name: union.name.clone(),
-            goff: goff,
-            size: union.size,
-            discriminant: match discr {
-                Some(discr) => HubrisDiscriminant::Expected(discr),
-                None => HubrisDiscriminant::None
+        self.enums.insert(
+            goff,
+            HubrisEnum {
+                name: union.name.clone(),
+                goff: goff,
+                size: union.size,
+                discriminant: match discr {
+                    Some(discr) => HubrisDiscriminant::Expected(discr),
+                    None => HubrisDiscriminant::None,
+                },
+                tag: None,
+                variants: Vec::new(),
             },
-            tag: None,
-            variants: Vec::new(),
-        });
+        );
 
         self.enums_byname.insert(union.name, goff);
 
@@ -1209,7 +1172,7 @@ impl HubrisPackage {
                 pstruct.members.push(HubrisStructMember {
                     name: n.to_string(),
                     offset: offs,
-                    goff: g
+                    goff: g,
                 });
             } else {
                 return err!("member {} is incomplete", member);
@@ -1218,7 +1181,7 @@ impl HubrisPackage {
             if let HubrisDiscriminant::Expected(expect) = union.discriminant {
                 if member != expect {
                     return err!("enum {}: expected discriminant {}, found {}",
-                        union.goff, expect, member)
+                        union.goff, expect, member);
                 }
 
                 if let (Some(offs), Some(g)) = (offset, goff) {
@@ -1237,7 +1200,7 @@ impl HubrisPackage {
                     name: n.to_string(),
                     offset: offs,
                     goff: g,
-                    tag: union.tag
+                    tag: union.tag,
                 });
 
                 union.tag = None;
@@ -1265,17 +1228,13 @@ impl HubrisPackage {
         let dwarf = gimli::Dwarf::<&[u8]>::load::<_, _, Infallible>(
             // Load the normal DWARF section(s) from our Elf image.
             |id| {
-                let sec_result = elf
-                    .section_headers
-                    .iter()
-                    .find(|sh| {
-                        if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name)
-                        {
-                            name == id.name()
-                        } else {
-                            false
-                        }
-                    });
+                let sec_result = elf.section_headers.iter().find(|sh| {
+                    if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                        name == id.name()
+                    } else {
+                        false
+                    }
+                });
                 Ok(sec_result
                     .map(|sec| {
                         let offset = sec.sh_offset as usize;
@@ -1426,26 +1385,24 @@ impl HubrisPackage {
             let val = sym.st_value as u32 & !1;
             let dem = format!("{:#}", demangle(name));
 
-            self.esyms_byname.insert(name.to_string(), (val, sym.st_size as u32));
+            self.esyms_byname
+                .insert(name.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
         }
 
-        let text = elf
-            .section_headers
-            .iter()
-            .find(|sh| {
-                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                    name == ".text"
-                } else {
-                    false
-                }
-            });
+        let text = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".text"
+            } else {
+                false
+            }
+        });
 
         let textsec = match text {
             None => {
                 return err!("couldn't find text in ELF object \"{}\"", object);
             }
-            Some(sec) => { sec }
+            Some(sec) => sec,
         };
 
         let offset = textsec.sh_offset as usize;
@@ -1456,7 +1413,7 @@ impl HubrisPackage {
         self.load_object_dwarf(&buffer, &elf)?;
 
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
-            Ok(instrs) => { instrs }
+            Ok(instrs) => instrs,
             Err(err) => {
                 return err!(
                     "failed to disassemble \"{}\" (offs 0x{:08x}, {}): {}",
@@ -1504,16 +1461,13 @@ impl HubrisPackage {
 
         self.modules.insert(
             textsec.sh_addr as u32,
-            (String::from(object), size as u32)
+            (String::from(object), size as u32),
         );
 
         Ok(())
     }
 
-    pub fn load(
-        &mut self, 
-        directory: &str
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn load(&mut self, directory: &str) -> Result<(), Box<dyn Error>> {
         let metadata = fs::metadata(directory)?;
         let mapfile = directory.to_owned() + "/map.txt";
         let expected = &["ADDRESS", "END", "SIZE", "FILE"];
@@ -1586,7 +1540,7 @@ impl HubrisPackage {
             }
 
             let object = match pieces[2].to_owned().as_os_str().to_str() {
-                Some(ref str) => { str.to_string() },
+                Some(ref str) => str.to_string(),
                 None => {
                     return err!(
                         "bad object name \"{}\" on line {}",
