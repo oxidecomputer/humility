@@ -2,9 +2,9 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use bitfield::bitfield;
 use crate::debug::Register;
 use crate::register;
+use bitfield::bitfield;
 use std::error::Error;
 
 register!(TPIU_SSPSR, 0xe004_0000,
@@ -40,7 +40,7 @@ register!(TPIU_SPPR, 0xe004_00f0,
 pub enum TPIUMode {
     Parallel,
     Manchester,
-    NRZ,  
+    NRZ,
 }
 
 impl TPIU_SPPR {
@@ -48,7 +48,7 @@ impl TPIU_SPPR {
         let val = match mode {
             TPIUMode::Parallel => 0,
             TPIUMode::Manchester => 1,
-            TPIUMode::NRZ => 2
+            TPIUMode::NRZ => 2,
         };
 
         self._set_txmode(val);
@@ -133,7 +133,7 @@ pub struct TPIUPacket {
     pub id: u8,
     pub datum: u8,
     pub offset: usize,
-    pub time: f64
+    pub time: f64,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -141,17 +141,13 @@ enum TPIUState {
     Searching,
     SearchingSyncing(usize),
     Framing,
-    FramingSyncing(usize)
+    FramingSyncing(usize),
 }
 
-const TPIU_FRAME_SYNC: [u8; 4] = [ 0xff, 0xff, 0xff, 0x7f ];
+const TPIU_FRAME_SYNC: [u8; 4] = [0xff, 0xff, 0xff, 0x7f];
 const TPIU_ID_NULL: u8 = 0;
 
-fn tpiu_next_state(
-    state: TPIUState,
-    byte: u8,
-    offset: usize,
-) -> TPIUState {
+fn tpiu_next_state(state: TPIUState, byte: u8, offset: usize) -> TPIUState {
     let sync = &TPIU_FRAME_SYNC;
 
     /*
@@ -181,41 +177,33 @@ fn tpiu_next_state(
             TPIUState::Framing
         }
 
-        TPIUState::FramingSyncing(_) => {
-            TPIUState::Framing
-        }
+        TPIUState::FramingSyncing(_) => TPIUState::Framing,
 
-        TPIUState::Searching if byte != sync[0] => {
-            TPIUState::Searching
-        }
+        TPIUState::Searching if byte != sync[0] => TPIUState::Searching,
 
-        TPIUState::Searching => {
-            TPIUState::SearchingSyncing(1)
-        }
+        TPIUState::Searching => TPIUState::SearchingSyncing(1),
 
-        TPIUState::Framing if byte != sync[0] => {
-            TPIUState::Framing
-        }
+        TPIUState::Framing if byte != sync[0] => TPIUState::Framing,
 
-        TPIUState::Framing => {
-            TPIUState::FramingSyncing(1)
-        }
+        TPIUState::Framing => TPIUState::FramingSyncing(1),
     };
 
     match (state, nstate) {
-        (TPIUState::Searching, TPIUState::Searching) |
-        (TPIUState::Searching, TPIUState::SearchingSyncing(_)) |
-        (TPIUState::SearchingSyncing(_), TPIUState::Searching) |
-        (TPIUState::SearchingSyncing(_), TPIUState::Framing) |
-        (TPIUState::SearchingSyncing(_), TPIUState::SearchingSyncing(_)) |
-        (TPIUState::Framing, TPIUState::Framing) |
-        (TPIUState::Framing, TPIUState::FramingSyncing(_)) |
-        (TPIUState::FramingSyncing(_), TPIUState::Framing) |
-        (TPIUState::FramingSyncing(_), TPIUState::Searching) |
-        (TPIUState::FramingSyncing(_), TPIUState::FramingSyncing(_)) => {}
+        (TPIUState::Searching, TPIUState::Searching)
+        | (TPIUState::Searching, TPIUState::SearchingSyncing(_))
+        | (TPIUState::SearchingSyncing(_), TPIUState::Searching)
+        | (TPIUState::SearchingSyncing(_), TPIUState::Framing)
+        | (TPIUState::SearchingSyncing(_), TPIUState::SearchingSyncing(_))
+        | (TPIUState::Framing, TPIUState::Framing)
+        | (TPIUState::Framing, TPIUState::FramingSyncing(_))
+        | (TPIUState::FramingSyncing(_), TPIUState::Framing)
+        | (TPIUState::FramingSyncing(_), TPIUState::Searching)
+        | (TPIUState::FramingSyncing(_), TPIUState::FramingSyncing(_)) => {}
         _ => {
-            panic!("illegal state transition at offset {}: {:?} -> {:?}",
-                offset, state, nstate);
+            panic!(
+                "illegal state transition at offset {}: {:?} -> {:?}",
+                offset, state, nstate
+            );
         }
     }
 
@@ -263,10 +251,7 @@ fn tpiu_check_frame(
     true
 }
 
-fn tpiu_check_byte(
-    byte: u8,
-    valid: &[bool],
-) -> bool {
+fn tpiu_check_byte(byte: u8, valid: &[bool]) -> bool {
     let check: TPIUFrameHalfWord = (byte as u16).into();
 
     check.f_control() && valid[check.data_or_id() as usize]
@@ -277,7 +262,6 @@ fn tpiu_process_frame(
     id: Option<u8>,
     mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<u8, Box<dyn Error>> {
-
     let high = frame.len() - 1;
     let aux = TPIUFrameHalfWord::from((frame[high - 1].0, frame[high].0));
     let max = frame.len() / 2;
@@ -300,7 +284,7 @@ fn tpiu_process_frame(
                 id: half.data_or_id() as u8,
                 datum: half.data_or_aux() as u8,
                 time: frame[base + 1].1,
-                offset: frame[base + 1].2
+                offset: frame[base + 1].2,
             };
 
             if last {
@@ -341,7 +325,7 @@ fn tpiu_process_frame(
              * so we need to chuck the data.
              */
             let id = match current {
-                Some(id) => { id },
+                Some(id) => id,
                 None => {
                     assert!(!last);
                     continue;
@@ -352,7 +336,7 @@ fn tpiu_process_frame(
                 id,
                 datum: (half.data_or_id() << 1) as u8 | auxbit,
                 time: frame[base].1,
-                offset: frame[base].2
+                offset: frame[base].2,
             })?;
 
             if last {
@@ -363,7 +347,7 @@ fn tpiu_process_frame(
                 id,
                 datum: half.data_or_aux() as u8,
                 time: frame[base + 1].1,
-                offset: frame[base + 1].2
+                offset: frame[base + 1].2,
             })?;
         }
     }
@@ -380,7 +364,6 @@ pub fn tpiu_ingest(
     mut readnext: impl FnMut() -> Result<Option<(u8, f64)>, Box<dyn Error>>,
     mut callback: impl FnMut(&TPIUPacket) -> Result<(), Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
-
     let mut state = TPIUState::Searching;
 
     let mut ndx = 0;
@@ -402,7 +385,6 @@ pub fn tpiu_ingest(
     };
 
     loop {
-
         if replay.len() > 0 {
             let popped = replay.pop().unwrap();
 
@@ -424,8 +406,7 @@ pub fn tpiu_ingest(
         }
 
         match state {
-            TPIUState::SearchingSyncing(_) |
-            TPIUState::FramingSyncing(_) => {
+            TPIUState::SearchingSyncing(_) | TPIUState::FramingSyncing(_) => {
                 state = tpiu_next_state(state, datum, offs);
 
                 if state == TPIUState::Searching {
