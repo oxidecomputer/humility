@@ -5,6 +5,7 @@
 use crate::err;
 use crate::hubris::*;
 use crate::itm::*;
+use crate::scs::*;
 use bitfield::bitfield;
 use std::error::Error;
 use std::mem::size_of;
@@ -53,6 +54,57 @@ macro_rules! register {
             ) -> Result<(), Box<dyn Error>> {
                 core.write_word_32($addr, self.0.into())?;
                 Ok(())
+            }
+        }
+    )
+}
+
+#[macro_export]
+macro_rules! register_offs {
+    ($reg:ident, $offs:expr, $($arg:tt)*) => (
+        paste::item! {
+            #[allow(non_snake_case)]
+            mod [<mod_ $reg>] {
+                use bitfield::bitfield;
+
+                bitfield!(
+                    #[derive(Copy, Clone)]
+                    pub struct $reg(u32);
+                    impl Debug;
+                    $($arg)*
+                );
+
+                impl From<u32> for $reg {
+                    fn from(value: u32) -> Self {
+                        Self(value)
+                    }
+                }
+
+                impl From<$reg> for u32 {
+                    fn from(reg: $reg) -> Self {
+                        reg.0
+                    }
+                }
+            }
+
+            #[derive(Copy, Clone, Debug)]
+            pub struct $reg {
+                base: u32,
+                register: [<mod_ $reg>]::$reg
+            }
+
+            impl $reg {
+                pub fn read(
+                    core: &mut dyn crate::core::Core,
+                    base: u32
+                ) -> Result<$reg, Box<dyn Error>> {
+                    Ok(Self {
+                        base: base,
+                        register: [<mod_ $reg>]::$reg(
+                            core.read_word_32(base + $offs)?
+                        )
+                    })
+                }
             }
         }
     )
@@ -452,7 +504,7 @@ pub fn cpuinfo(
     let mut status = vec![];
 
     let print = |what, val| {
-        info!("{:>10} => {}", what, val);
+        info!("{:>12} => {}", what, val);
     };
 
     let mut statusif = |val, str: &str| {
@@ -461,7 +513,6 @@ pub fn cpuinfo(
         }
     };
 
-    let tab = read_debug_rom_table(core)?;
     let cpuid = CPUID::read(core)?;
 
     let part = match ARMCore::from_u32(cpuid.partno()) {
@@ -476,9 +527,31 @@ pub fn cpuinfo(
 
     print("core", corename(part));
 
+    let rom = match part {
+        ARMCore::CortexM7 | ARMCore::CortexM33 => 0xe00f_e000,
+        _ => 0xe00f_f000,
+    };
+
+    let comp = CoreSightComponent::new(core, rom)?;
+    let m = &comp.manufacturer;
+
+    print(
+        "manufacturer",
+        if let Some(manufacturer) = m.get() {
+            manufacturer.to_string()
+        } else {
+            format!("<JEP106 [0x{:x}, 0x{:x}]>", m.cc, m.id)
+        },
+    );
+
+    let st = match m.get() {
+        Some(manufacturer) if manufacturer == "STMicroelectronics" => true,
+        _ => false,
+    };
+
     print(
         "chip",
-        if part == ARMCore::CortexM4 {
+        if st && part == ARMCore::CortexM4 {
             if let Ok(idc) = STM32F4_DBGMCU_IDCODE::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
@@ -486,18 +559,20 @@ pub fn cpuinfo(
                     idc.rev_id()
                 )
             } else {
-                "<unknown>".to_string()
+                format!("<unknown ST part 0x{:x}>", comp.part)
+            }
+        } else if st && part == ARMCore::CortexM7 {
+            if let Ok(idc) = STM32H7_DBGMCU_IDC::read(core) {
+                format!(
+                    "{}, revision 0x{:x}",
+                    stm32_chipname(idc.dev_id()),
+                    idc.rev_id()
+                )
+            } else {
+                format!("<unknown ST part 0x{:x}>", comp.part)
             }
         } else {
-            /*
-             * For the Cortex-M7 case, we would actually like to determine if
-             * this is an ST part or not by reading DBGMCU_IDC, but when
-             * talking to non-ST parts (e.g., the RT1060), probe-rs seems to
-             * lose its mind after a bad read.  It is unclear who to blame,
-             * but we don't want to dump this into the user's lap until we can
-             * work around it...
-             */
-            "<unknown>".to_string()
+            format!("<unknown part 0x{:x}>", comp.part)
         },
     );
 
@@ -550,6 +625,8 @@ pub fn cpuinfo(
         },
     );
 
+    let tab = read_debug_rom_table(core)?;
+
     print(
         "ITM",
         match tab.ITM {
@@ -592,7 +669,7 @@ pub fn cpuinfo(
         let val = core.read_reg(reg)?;
 
         info!(
-            "{:>10} => 0x{:8} {}",
+            "{:>12} => 0x{:8} {}",
             format!("{:?}", reg),
             format!("{:x}", val),
             if i <= 15 {

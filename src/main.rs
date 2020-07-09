@@ -29,6 +29,7 @@ mod hubris;
 use hubris::*;
 
 mod core;
+mod scs;
 
 mod error;
 use crate::error::*;
