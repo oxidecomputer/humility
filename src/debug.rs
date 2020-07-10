@@ -2,11 +2,12 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+use anyhow::Result;
+
 use crate::hubris::*;
 use crate::itm::*;
 use crate::scs::*;
 use bitfield::bitfield;
-use std::error::Error;
 
 pub trait Register:
     Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug
@@ -42,14 +43,14 @@ macro_rules! register {
         impl $reg {
             pub fn read(
                 core: &mut dyn crate::core::Core
-            ) -> Result<$reg, Box<dyn Error>> {
+            ) -> anyhow::Result<$reg> {
                 Ok(Self(core.read_word_32($addr)?))
             }
 
             pub fn write(
                 &self,
                 core: &mut dyn crate::core::Core
-            ) -> Result<(), Box<dyn Error>> {
+            ) -> anyhow::Result<()> {
                 core.write_word_32($addr, self.0.into())?;
                 Ok(())
             }
@@ -95,7 +96,7 @@ macro_rules! register_offs {
                 pub fn read(
                     core: &mut dyn crate::core::Core,
                     base: u32
-                ) -> Result<$reg, Box<dyn Error>> {
+                ) -> anyhow::Result<$reg> {
                     Ok(Self {
                         base: base,
                         register: [<mod_ $reg>]::$reg(
@@ -462,7 +463,7 @@ pub fn stm32_chipname(partno: u32) -> String {
 pub fn cpuinfo(
     hubris: &HubrisPackage,
     core: &mut dyn crate::core::Core,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     use num_traits::FromPrimitive;
     let mut status = vec![];
 
@@ -620,7 +621,7 @@ pub fn cpuinfo(
             format!("{:x}", val),
             if i <= 15 {
                 if let Some(sval) = hubris.instr_sym(val) {
-                    format!(" <- {}{}+0x{:x}", 
+                    format!(" <- {}{}+0x{:x}",
                         match hubris.instr_mod(val) {
                             Some(module) if module != "kernel" => {
                                 format!("{}:", module)

@@ -5,7 +5,6 @@
 use crate::debug::Register;
 use crate::register;
 use bitfield::bitfield;
-use std::error::Error;
 
 /*
  * DWT Control Register

@@ -3,12 +3,11 @@
  */
 
 use crate::debug::*;
-use crate::err;
 use crate::register;
 use crate::register_offs;
+use anyhow::{bail, Result};
 use bitfield::bitfield;
 use multimap::MultiMap;
-use std::error::Error;
 use std::mem::size_of;
 
 register_offs!(CIDR0, 0xff0,
@@ -102,10 +101,7 @@ pub struct CoreSightPage {
 }
 
 impl CoreSightPage {
-    pub fn new(
-        core: &mut dyn crate::core::Core,
-        base: u32,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn new(core: &mut dyn crate::core::Core, base: u32) -> Result<Self> {
         let cidr0 = &CIDR0::read(core, base)?.register;
         let cidr1 = &CIDR1::read(core, base)?.register;
         let cidr2 = &CIDR2::read(core, base)?.register;
@@ -178,7 +174,7 @@ impl CoreSightComponent {
     pub fn new(
         core: &mut dyn crate::core::Core,
         page: &CoreSightPage,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self> {
         let base = page.base;
 
         let archid = DEVARCH::read(core, base)?.register.archid();
@@ -324,7 +320,7 @@ pub fn read_rom(
     core: &mut dyn crate::core::Core,
     base: u32,
     components: &mut MultiMap<CoreSightComponent, u32>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     /*
      * We need to determine if this, in fact, a ROM table.
      */
@@ -381,9 +377,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn read(
-        core: &mut dyn crate::core::Core,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn read(core: &mut dyn crate::core::Core) -> Result<Self> {
         use num_traits::FromPrimitive;
 
         let cpuid = CPUID::read(core)?;
@@ -392,7 +386,7 @@ impl Config {
         let part = match ARMCore::from_u32(cpuid.partno()) {
             Some(part) => part,
             None => {
-                return err!("unknown core in CPUID {:x?}", cpuid);
+                bail!("unknown core in CPUID {:x?}", cpuid);
             }
         };
 

@@ -4,10 +4,10 @@
 
 use probe_rs::Probe;
 
+use anyhow::{anyhow, bail, ensure, Result};
+
 use crate::debug::*;
-use crate::err;
 use std::convert::TryInto;
-use std::error::Error;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
@@ -15,23 +15,15 @@ use std::net::TcpStream;
 use std::str;
 
 pub trait Core {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>>;
-    fn read_8(
-        &mut self,
-        addr: u32,
-        data: &mut [u8],
-    ) -> Result<(), Box<dyn Error>>;
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>>;
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>>;
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>>;
-    fn write_word_32(
-        &mut self,
-        addr: u32,
-        data: u32,
-    ) -> Result<(), Box<dyn Error>>;
-    fn halt(&mut self) -> Result<(), Box<dyn Error>>;
-    fn run(&mut self) -> Result<(), Box<dyn Error>>;
-    fn step(&mut self) -> Result<(), Box<dyn Error>>;
+    fn read_word_32(&mut self, addr: u32) -> Result<u32>;
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
+    fn init_swv(&mut self) -> Result<()>;
+    fn read_swv(&mut self) -> Result<Vec<u8>>;
+    fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
+    fn halt(&mut self) -> Result<()>;
+    fn run(&mut self) -> Result<()>;
+    fn step(&mut self) -> Result<()>;
 }
 
 pub struct ProbeCore {
@@ -41,27 +33,22 @@ pub struct ProbeCore {
 
 const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
-#[rustfmt::skip::macros(err)]
-
+#[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         Ok(self.core.read_word_32(addr)?)
     }
 
-    fn read_8(
-        &mut self,
-        addr: u32,
-        data: &mut [u8],
-    ) -> Result<(), Box<dyn Error>> {
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         if data.len() > CORE_MAX_READSIZE {
-            return err!("read of {} bytes at 0x{:x} exceeds max of {}",
+            bail!("read of {} bytes at 0x{:x} exceeds max of {}",
                 data.len(), addr, CORE_MAX_READSIZE);
         }
 
         Ok(self.core.read_8(addr, data)?)
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>> {
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
         use num_traits::ToPrimitive;
 
         Ok(self.core.read_core_reg(
@@ -71,33 +58,29 @@ impl Core for ProbeCore {
         )?)
     }
 
-    fn write_word_32(
-        &mut self,
-        addr: u32,
-        data: u32,
-    ) -> Result<(), Box<dyn Error>> {
+    fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         Ok(self.core.write_word_32(addr, data)?)
     }
 
-    fn halt(&mut self) -> Result<(), Box<dyn Error>> {
+    fn halt(&mut self) -> Result<()> {
         self.core.halt()?;
         Ok(())
     }
 
-    fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    fn run(&mut self) -> Result<()> {
         Ok(self.core.run()?)
     }
 
-    fn step(&mut self) -> Result<(), Box<dyn Error>> {
+    fn step(&mut self) -> Result<()> {
         self.core.step()?;
         Ok(())
     }
 
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+    fn init_swv(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
         Ok(self.session.read_swv()?)
     }
 }
@@ -111,10 +94,9 @@ pub struct OpenOCDCore {
     swv: bool,
 }
 
-#[rustfmt::skip::macros(err)]
-
+#[rustfmt::skip::macros(anyhow, bail)]
 impl OpenOCDCore {
-    fn sendcmd(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
+    fn sendcmd(&mut self, cmd: &str) -> Result<String> {
         let mut rbuf = vec![0; 1024];
         let mut result = String::with_capacity(16);
 
@@ -141,40 +123,38 @@ impl OpenOCDCore {
          * name" is in fact an error.
          */
         if result.contains("Error: ") {
-            err!("OpenOCD command \"{}\" failed with \"{}\"", cmd, result)
+            Err(anyhow!("OpenOCD command \"{}\" failed with \"{}\"", cmd, result))
         } else if result.contains("invalid command name ") {
-            err!("OpenOCD command \"{}\" invalid: \"{}\"", cmd, result)
+            Err(anyhow!("OpenOCD command \"{}\" invalid: \"{}\"", cmd, result))
         } else {
             Ok(result)
         }
     }
 
-    fn new() -> Result<OpenOCDCore, Box<dyn Error>> {
+    fn new() -> Result<OpenOCDCore> {
         let stream = TcpStream::connect("localhost:6666").map_err(|_| {
-            err("can't connect to OpenOCD on port 6666; is it running?")
+            anyhow!("can't connect to OpenOCD on port 6666; is it running?")
         })?;
 
         Ok(Self { stream: stream, swv: false })
     }
 }
 
-#[rustfmt::skip::macros(err)]
-
+#[rustfmt::skip::macros(anyhow, bail)]
 impl Core for OpenOCDCore {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
         Ok(result.parse::<u32>()?)
     }
 
-    fn read_8(
-        &mut self,
-        addr: u32,
-        data: &mut [u8],
-    ) -> Result<(), Box<dyn Error>> {
-        if data.len() > CORE_MAX_READSIZE {
-            return err!("read of {} bytes at 0x{:x} exceeds max of {}",
-                data.len(), addr, CORE_MAX_READSIZE);
-        }
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        ensure!(
+            data.len() > CORE_MAX_READSIZE,
+            "read of {} bytes at 0x{:x} exceeds max of {}",
+            data.len(),
+            addr,
+            CORE_MAX_READSIZE
+        );
 
         /*
          * To read an array, we put it in a TCL variable called "output"
@@ -200,11 +180,11 @@ impl Core for OpenOCDCore {
                     let idx = val.parse::<usize>()?;
 
                     if idx >= data.len() {
-                        return err!("\"{}\": illegal index {}", cmd, idx);
+                        bail!("\"{}\": illegal index {}", cmd, idx);
                     }
 
                     if seen[idx] {
-                        return err!("\"{}\": duplicate index {}", cmd, idx);
+                        bail!("\"{}\": duplicate index {}", cmd, idx);
                     }
 
                     seen[idx] = true;
@@ -219,15 +199,13 @@ impl Core for OpenOCDCore {
         }
 
         for v in seen.iter().enumerate() {
-            if !v.1 {
-                return err!("\"{}\": missing index {}", cmd, v.0);
-            }
+            ensure!(!v.1, "\"{}\": missing index {}", cmd, v.0);
         }
 
         Ok(())
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>> {
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
         use num_traits::ToPrimitive;
 
         let cmd = format!("reg {}", ARMRegister::to_u16(&reg).unwrap());
@@ -241,10 +219,10 @@ impl Core for OpenOCDCore {
             }
         }
 
-        err!("\"{}\": malformed return value: {:?}", cmd, rval)
+        Err(anyhow!("\"{}\": malformed return value: {:?}", cmd, rval))
     }
 
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+    fn init_swv(&mut self) -> Result<()> {
         self.swv = true;
         self.sendcmd("tpiu config disable")?;
 
@@ -257,7 +235,7 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
         if !self.swv {
             self.init_swv()?
         }
@@ -268,17 +246,17 @@ impl Core for OpenOCDCore {
         let rval = self.stream.read(&mut rbuf)?;
 
         if rbuf[rval - 1] != OPENOCD_COMMAND_DELIMITER {
-            return err!("missing trace data delimiter: {:?}", rval);
+            bail!("missing trace data delimiter: {:?}", rval);
         }
 
         let rstr = str::from_utf8(&rbuf[0..rval - 1])?;
 
         if !rstr.starts_with(OPENOCD_TRACE_DATA_BEGIN) {
-            return err!("bogus trace data (bad start): {:?}", rval);
+            bail!("bogus trace data (bad start): {:?}", rval);
         }
 
         if !rstr.ends_with(OPENOCD_TRACE_DATA_END) {
-            return err!("bogus trace data (bad end): {:?}", rval);
+            bail!("bogus trace data (bad end): {:?}", rval);
         }
 
         let begin = OPENOCD_TRACE_DATA_BEGIN.len();
@@ -286,7 +264,7 @@ impl Core for OpenOCDCore {
 
         for i in (begin..end).step_by(2) {
             if i + 1 >= end {
-                return err!("short trace data: {:?}", rval);
+                bail!("short trace data: {:?}", rval);
             }
 
             swv.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
@@ -295,26 +273,22 @@ impl Core for OpenOCDCore {
         Ok(swv)
     }
 
-    fn write_word_32(
-        &mut self,
-        addr: u32,
-        data: u32,
-    ) -> Result<(), Box<dyn Error>> {
+    fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         self.sendcmd(&format!("mww 0x{:x} 0x{:x}", addr, data))?;
         Ok(())
     }
 
-    fn halt(&mut self) -> Result<(), Box<dyn Error>> {
+    fn halt(&mut self) -> Result<()> {
         self.sendcmd("halt")?;
         Ok(())
     }
 
-    fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    fn run(&mut self) -> Result<()> {
         self.sendcmd("resume")?;
         Ok(())
     }
 
-    fn step(&mut self) -> Result<(), Box<dyn Error>> {
+    fn step(&mut self) -> Result<()> {
         todo!();
     }
 }
@@ -349,8 +323,7 @@ const GDB_PACKET_END: char = '#';
 const GDB_PACKET_ACK: char = '+';
 const GDB_PACKET_HALT: u8 = 3;
 
-#[rustfmt::skip::macros(err)]
-
+#[rustfmt::skip::macros(anyhow, bail)]
 impl GDBCore {
     fn prepcmd(&mut self, cmd: &str) -> Vec<u8> {
         let mut payload = vec![];
@@ -377,7 +350,7 @@ impl GDBCore {
         payload
     }
 
-    fn firecmd(&mut self, cmd: &str) -> Result<(), Box<dyn Error>> {
+    fn firecmd(&mut self, cmd: &str) -> Result<()> {
         let mut rbuf = vec![0; 1024];
         let payload = self.prepcmd(cmd);
 
@@ -389,23 +362,23 @@ impl GDBCore {
         let rval = self.stream.read(&mut rbuf)?;
 
         if rval != 1 {
-            return err!("cmd {} returned {} bytes: {:?}", cmd, rval,
+            bail!("cmd {} returned {} bytes: {:?}", cmd, rval,
                 str::from_utf8(&rbuf));
         }
 
         if rbuf[0] != GDB_PACKET_ACK as u8 {
-            return err!("cmd {} incorrectly ack'd: {:?}", cmd, rbuf);
+            bail!("cmd {} incorrectly ack'd: {:?}", cmd, rbuf);
         }
 
         Ok(())
     }
 
-    fn sendack(&mut self) -> Result<(), Box<dyn Error>> {
+    fn sendack(&mut self) -> Result<()> {
         self.stream.write(&[GDB_PACKET_ACK as u8])?;
         Ok(())
     }
 
-    fn recv(&mut self, expectack: bool) -> Result<String, Box<dyn Error>> {
+    fn recv(&mut self, expectack: bool) -> Result<String> {
         let mut rbuf = vec![0; 1024];
         let mut result = String::new();
 
@@ -437,7 +410,7 @@ impl GDBCore {
         let start = match result.find(GDB_PACKET_START) {
             Some(ndx) => ndx,
             None => {
-                return err!("missing start of packet: \"{}\"", result);
+                bail!("missing start of packet: \"{}\"", result);
             }
         };
 
@@ -447,23 +420,23 @@ impl GDBCore {
         let end = result.find(GDB_PACKET_END).unwrap();
 
         if end < start {
-            return err!("start/end inverted: \"{}\"", result);
+            bail!("start/end inverted: \"{}\"", result);
         }
 
         match result.find(GDB_PACKET_ACK) {
             Some(ack) => {
                 if expectack && ack > start {
-                    return err!("found response but no ack: \"{}\"", result);
+                    bail!("found response but no ack: \"{}\"", result);
                 }
 
                 if !expectack && ack < start {
-                    return err!("found spurious ack: \"{}\"", result);
+                    bail!("found spurious ack: \"{}\"", result);
                 }
             }
 
             None => {
                 if expectack {
-                    return err!("did not find expected ack: \"{}\"", result);
+                    bail!("did not find expected ack: \"{}\"", result);
                 }
             }
         }
@@ -471,13 +444,13 @@ impl GDBCore {
         Ok(result[start + 1..end].to_string())
     }
 
-    fn sendcmd(&mut self, cmd: &str) -> Result<String, Box<dyn Error>> {
+    fn sendcmd(&mut self, cmd: &str) -> Result<String> {
         let payload = self.prepcmd(cmd);
         self.stream.write(&payload)?;
         self.recv(true)
     }
 
-    fn send_32(&mut self, cmd: &str) -> Result<u32, Box<dyn Error>> {
+    fn send_32(&mut self, cmd: &str) -> Result<u32> {
         let rstr = self.sendcmd(cmd)?;
         let mut buf: Vec<u8> = vec![];
 
@@ -500,16 +473,16 @@ impl GDBCore {
                 let val = u64::from_le_bytes(buf[..].try_into().unwrap());
 
                 if val > std::u32::MAX.into() {
-                    err!("bad 64-bit return on cmd {}: {}", cmd, rstr)
+                    Err(anyhow!("bad 64-bit return on cmd {}: {}", cmd, rstr))
                 } else {
                     Ok(val as u32)
                 }
             }
-            _ => err!("bad return on cmd {}: {}", cmd, rstr),
+            _ => Err(anyhow!("bad return on cmd {}: {}", cmd, rstr)),
         }
     }
 
-    fn new(server: GDBServer) -> Result<GDBCore, Box<dyn Error>> {
+    fn new(server: GDBServer) -> Result<GDBCore> {
         let port = match server {
             GDBServer::OpenOCD => 3333,
             GDBServer::JLink => 2331,
@@ -518,11 +491,11 @@ impl GDBCore {
         let host = format!("localhost:{}", port);
 
         let stream = TcpStream::connect(host).map_err(|_| {
-            err(format!(
+            anyhow!(
                 "can't connect to {} GDB server on \
                     port {}; is it running?",
                 server, port
-            ))
+            )
         })?;
 
         /*
@@ -542,24 +515,19 @@ impl GDBCore {
     }
 }
 
-#[rustfmt::skip::macros(err)]
-
+#[rustfmt::skip::macros(anyhow, bail)]
 impl Core for GDBCore {
-    fn read_word_32(&mut self, addr: u32) -> Result<u32, Box<dyn Error>> {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         self.send_32(&format!("m{:x},4", addr))
     }
 
-    fn read_8(
-        &mut self,
-        addr: u32,
-        data: &mut [u8],
-    ) -> Result<(), Box<dyn Error>> {
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         let cmd = format!("m{:x},{:x}", addr, data.len());
 
         let rstr = self.sendcmd(&cmd)?;
 
         if rstr.len() > data.len() * 2 {
-            return err!("bad read_8 on cmd {} \
+            bail!("bad read_8 on cmd {} \
                 (expected {}, found {}): {}",
                 cmd, data.len() * 2, rstr.len(), rstr);
         }
@@ -574,7 +542,7 @@ impl Core for GDBCore {
         Ok(())
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32, Box<dyn Error>> {
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
         use num_traits::ToPrimitive;
         let cmd = &format!("p{:02X}", ARMRegister::to_u16(&reg).unwrap());
 
@@ -591,15 +559,11 @@ impl Core for GDBCore {
         rval
     }
 
-    fn write_word_32(
-        &mut self,
-        _addr: u32,
-        _data: u32,
-    ) -> Result<(), Box<dyn Error>> {
-        err!("{} GDB target does not support modifying state", self.server)
+    fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
+        Err(anyhow!("{} GDB target does not support modifying state", self.server))
     }
 
-    fn halt(&mut self) -> Result<(), Box<dyn Error>> {
+    fn halt(&mut self) -> Result<()> {
         self.stream.write(&[GDB_PACKET_HALT])?;
 
         let reply = self.recv(false)?;
@@ -609,7 +573,7 @@ impl Core for GDBCore {
         Ok(())
     }
 
-    fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    fn run(&mut self) -> Result<()> {
         /*
          * The OpenOCD target in particular loses its mind if told to continue
          * to when it's already running, insisting on sending a reply with an
@@ -624,31 +588,27 @@ impl Core for GDBCore {
         Ok(())
     }
 
-    fn step(&mut self) -> Result<(), Box<dyn Error>> {
+    fn step(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn init_swv(&mut self) -> Result<(), Box<dyn Error>> {
+    fn init_swv(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read_swv(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
-        err!("GDB target does not support SWV")
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
+        Err(anyhow!("GDB target does not support SWV"))
     }
 }
 
-#[rustfmt::skip::macros(err)]
-
-pub fn attach(
-    debugger: &str,
-    chip: &str,
-) -> Result<Box<dyn Core>, Box<dyn Error>> {
+#[rustfmt::skip::macros(anyhow, bail)]
+pub fn attach(debugger: &str, chip: &str) -> Result<Box<dyn Core>> {
     match debugger {
         "probe" => {
             let probes = Probe::list_all();
 
             if probes.len() == 0 {
-                return err!("no debug probe found; is it plugged in?");
+                bail!("no debug probe found; is it plugged in?");
             }
 
             let res = probes[0].open();
@@ -661,7 +621,7 @@ pub fn attach(
             if let Err(probe_rs::DebugProbeError::USB(Some(ref err))) = res {
                 if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
                     if *rcode == rusb::Error::Busy {
-                        return err!(
+                        bail!(
                             "USB link in use; is OpenOCD or \
                             another debugger running?"
                         );
@@ -684,7 +644,7 @@ pub fn attach(
             let version = core.sendcmd("version")?;
 
             if !version.contains("Open On-Chip Debugger") {
-                return err!("version string unrecognized: \"{}\"", version);
+                bail!("version string unrecognized: \"{}\"", version);
             }
 
             info!("attached via OpenOCD");
@@ -718,6 +678,6 @@ pub fn attach(
             Ok(Box::new(core))
         }
 
-        _ => err!("unrecognized debugger: {}", debugger),
+        _ => Err(anyhow!("unrecognized debugger: {}", debugger)),
     }
 }

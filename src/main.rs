@@ -8,6 +8,8 @@ extern crate log;
 #[macro_use]
 extern crate num_derive;
 
+use anyhow::Result;
+
 use structopt::StructOpt;
 
 mod debug;
@@ -33,12 +35,8 @@ use scs::*;
 
 mod core;
 
-mod error;
-use crate::error::*;
-
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
@@ -134,7 +132,7 @@ struct TraceState {
     stack: Vec<(usize, Vec<HubrisGoff>, u32)>,
 }
 
-fn attach(args: &Args) -> Result<Box<dyn core::Core>, Box<dyn Error>> {
+fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
     crate::core::attach(&args.debugger, &args.chip)
 }
 
@@ -142,7 +140,7 @@ const HUMILITY_ETM_SWOSCALER: u16 = 7;
 const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
-fn etmcmd_probe(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
+fn etmcmd_probe(core: &mut dyn core::Core) -> Result<()> {
     let config = Config::read(core)?;
 
     let etm = match config.address(CoreSightComponent::ETM) {
@@ -181,7 +179,7 @@ fn etmcmd_enable(
     core: &mut dyn core::Core,
     clockscaler: Option<u16>,
     traceid: u8,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let etmccr = ETMCCR::read(core)?;
 
     if !etmccr.has_etmidr() {
@@ -303,7 +301,7 @@ fn etmcmd_enable(
     Ok(())
 }
 
-fn etmcmd_disable(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
+fn etmcmd_disable(core: &mut dyn core::Core) -> Result<()> {
     let mut etmcr = ETMCR::read(core)?;
 
     if etmcr.power_down() {
@@ -331,7 +329,7 @@ fn etmcmd_trace(
     config: &TraceConfig,
     instr: &TraceInstruction,
     state: &mut TraceState,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let hubris = config.hubris;
     let addr = instr.addr;
     let c = if !instr.skipped { 'E' } else { 'N' };
@@ -420,16 +418,13 @@ fn etmcmd_trace_exception(
     _config: &TraceConfig,
     exception: &TraceException,
     _state: &mut TraceState,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     println!("{:-10} {:8} X {:?}", exception.nsecs, "-", exception.exception);
 
     Ok(())
 }
 
-fn etmcmd_ingest(
-    config: &TraceConfig,
-    filename: &str,
-) -> Result<(), Box<dyn Error>> {
+fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
     let file = File::open(filename)?;
     let mut rdr = csv::Reader::from_reader(file);
     let mut curaddr: Option<u32> = None;
@@ -598,7 +593,7 @@ fn etmcmd_ingest(
     Ok(())
 }
 
-fn etmcmd_output(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
+fn etmcmd_output(core: &mut dyn core::Core) -> Result<()> {
     let start = Instant::now();
 
     println!("Time [s],Value,Parity Error,Framing Error");
@@ -652,7 +647,7 @@ fn etmcmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &EtmArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -715,7 +710,7 @@ fn etmcmd(
     rval
 }
 
-fn itmcmd_probe(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
+fn itmcmd_probe(core: &mut dyn core::Core) -> Result<()> {
     info!("{:#x?}", DEMCR::read(core)?);
     info!("{:#x?}", ITM_LSR::read(core)?);
     info!("{:#x?}", ITM_TCR::read(core)?);
@@ -733,7 +728,7 @@ fn itmcmd_enable(
     clockscaler: Option<u16>,
     traceid: u8,
     stimuli: u32,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     /*
      * First, enable TRCENA in the DEMCR.
      */
@@ -818,7 +813,7 @@ fn itmcmd_enable(
     Ok(())
 }
 
-fn itmcmd_disable(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
+fn itmcmd_disable(core: &mut dyn core::Core) -> Result<()> {
     /*
      * Unlock the ITM.
      */
@@ -843,10 +838,10 @@ fn itmcmd_disable(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn itmcmd_ingest(traceid: u8, filename: &str) -> Result<(), Box<dyn Error>> {
+fn itmcmd_ingest(traceid: u8, filename: &str) -> Result<()> {
     let file = File::open(filename)?;
 
-    let process = |packet: &ITMPacket| -> Result<(), Box<dyn Error>> {
+    let process = |packet: &ITMPacket| -> Result<()> {
         if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
             for p in payload {
                 print!("{}", *p as char);
@@ -904,7 +899,7 @@ fn itmcmd_ingest(traceid: u8, filename: &str) -> Result<(), Box<dyn Error>> {
 fn itmcmd_ingest_attached(
     core: &mut dyn core::Core,
     traceid: u8,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
 
@@ -976,7 +971,7 @@ fn itmcmd(
     _hubris: &HubrisPackage,
     args: &Args,
     subargs: &ItmArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -1041,7 +1036,7 @@ fn itmcmd(
     rval
 }
 
-fn probe(hubris: &HubrisPackage, args: &Args) -> Result<(), Box<dyn Error>> {
+fn probe(hubris: &HubrisPackage, args: &Args) -> Result<()> {
     let mut core = attach(args)?;
 
     hubris.validate(core.as_mut())?;
@@ -1050,7 +1045,7 @@ fn probe(hubris: &HubrisPackage, args: &Args) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn manifest(hubris: &HubrisPackage) -> Result<(), Box<dyn Error>> {
+fn manifest(hubris: &HubrisPackage) -> Result<()> {
     hubris.manifest()?;
 
     Ok(())
@@ -1072,7 +1067,7 @@ fn taskscmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &TasksArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut core = attach(&args)?;
 
     hubris.validate(core.as_mut())?;
@@ -1172,7 +1167,7 @@ fn tracecmd_ingest(
     subargs: &TraceArgs,
     core: &mut dyn core::Core,
     tasks: &HashMap<u32, String>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
 
@@ -1341,7 +1336,7 @@ fn tracecmd(
     hubris: &HubrisPackage,
     args: &Args,
     subargs: &TraceArgs,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut tasks: HashMap<u32, String> = HashMap::new();
 
     let mut core = attach(args)?;
