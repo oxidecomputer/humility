@@ -1532,14 +1532,11 @@ impl HubrisPackage {
             let pieces = file.components().collect::<Vec<_>>();
 
             /*
-             * We expect a 3 element path.
+             * We expect our object name to be the last element of our path.
              */
-            if pieces.len() != 3 {
-                return err!("bad object \"{}\" on line {}",
-                    file.display(), lineno);
-            }
+            let o = pieces.len() - 1;
 
-            let object = match pieces[2].to_owned().as_os_str().to_str() {
+            let object = match pieces[o].to_owned().as_os_str().to_str() {
                 Some(ref str) => str.to_string(),
                 None => {
                     return err!(
