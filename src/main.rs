@@ -28,8 +28,10 @@ use tpiu::*;
 mod hubris;
 use hubris::*;
 
-mod core;
 mod scs;
+use scs::*;
+
+mod core;
 
 mod error;
 use crate::error::*;
@@ -141,11 +143,9 @@ const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
 fn etmcmd_probe(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
-    let tab = read_debug_rom_table(core)?;
+    let config = Config::read(core)?;
 
-    info!("ROM debug table: {:#x?}", tab);
-
-    let etm = match tab.ETM {
+    let etm = match config.address(CoreSightComponent::ETM) {
         None => {
             fatal!("ETM is not available on this CPU");
         }
@@ -716,10 +716,6 @@ fn etmcmd(
 }
 
 fn itmcmd_probe(core: &mut dyn core::Core) -> Result<(), Box<dyn Error>> {
-    let tab = read_debug_rom_table(core)?;
-
-    info!("ROM debug table: {:#x?}", tab);
-
     info!("{:#x?}", DEMCR::read(core)?);
     info!("{:#x?}", ITM_LSR::read(core)?);
     info!("{:#x?}", ITM_TCR::read(core)?);

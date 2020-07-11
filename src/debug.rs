@@ -2,13 +2,11 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::err;
 use crate::hubris::*;
 use crate::itm::*;
 use crate::scs::*;
 use bitfield::bitfield;
 use std::error::Error;
-use std::mem::size_of;
 
 pub trait Register:
     Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug
@@ -270,76 +268,39 @@ register!(STM32H7_DBGMCU_IDC, 0x5c00_1000,
     pub dev_id, _: 11, 0;
 );
 
-bitfield! {
+register!(STM32H7_DBGMCU_CR, 0x5c00_1004,
     #[derive(Copy, Clone)]
-    pub struct DebugROMEntry(u32);
+    #[allow(non_camel_case_types)]
+    pub struct STM32H7_DBGMCU_CR(u32);
     impl Debug;
-    pub offset, _: 31, 12;
-    pub res1, _: 11, 9;
-    pub domain, _: 8, 4;
-    pub res2, _: 3;
-    pub domvalid, _: 2;
-    pub valid, _: 1;
-    pub present, _: 0;
-}
 
-impl From<u32> for DebugROMEntry {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
+    /// External trigger output enabled
+    pub trgoen, _: 28;
 
-impl From<DebugROMEntry> for u32 {
-    fn from(entry: DebugROMEntry) -> Self {
-        entry.0
-    }
-}
+    /// SmartRun domain debug clock enabled
+    pub srdbgcken, set_srdbgcken: 22;
 
-impl DebugROMEntry {
-    ///
-    /// Determines the address of the corresponding table, given the address
-    /// of the entry.
-    ///
-    fn address(self, addr: u32) -> u32 {
-        (addr as i32 + ((self.offset() << 12) as i32)) as u32
-    }
-}
+    /// CPU domain debug clock enabled
+    pub cddbgcken, set_cddbgcken: 21;
 
-#[allow(non_snake_case)]
-#[derive(Copy, Clone, Debug)]
-pub struct DebugROMTable {
-    pub SCS: Option<u32>,
-    pub DWT: Option<u32>,
-    pub FPB: Option<u32>,
-    pub ITM: Option<u32>,
-    pub TPIU: Option<u32>,
-    pub ETM: Option<u32>,
-}
+    /// Trace clock enable
+    pub traceclken, set_traceclken: 20;
 
-pub fn read_debug_rom_table(
-    core: &mut dyn crate::core::Core,
-) -> Result<DebugROMTable, Box<dyn Error>> {
-    let base = 0xe00f_f000u32;
-    let mut table: Vec<Option<u32>> = vec![None; 6];
+    /// Debug in SmartRun domain Standby mode
+    pub dbgstby_srd, _: 8;
 
-    for (index, entry) in table.iter_mut().enumerate() {
-        let addr = base + index as u32 * size_of::<u32>() as u32;
-        let ent = DebugROMEntry(core.read_word_32(addr)?);
+    /// Debug in SmartRun domain Stop mode
+    pub dbgstop_srd, _: 7;
 
-        if ent.present() {
-            *entry = Some(ent.address(base));
-        }
-    }
+    /// CPU domain debug in Standby mode
+    pub dbgstby_cd, _: 2;
 
-    Ok(DebugROMTable {
-        SCS: table[0],
-        DWT: table[1],
-        FPB: table[2],
-        ITM: table[3],
-        TPIU: table[4],
-        ETM: table[5],
-    })
-}
+    /// CPU domain debug in Stop mode
+    pub dbgstop_cd, _: 1;
+
+    /// CPU domain debug in Sleep mode
+    pub dbgsleep_cd, _: 0;
+);
 
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq, Eq)]
 pub enum ARMCore {
@@ -513,27 +474,15 @@ pub fn cpuinfo(
         }
     };
 
-    let cpuid = CPUID::read(core)?;
-
-    let part = match ARMCore::from_u32(cpuid.partno()) {
-        Some(part) => part,
-        None => {
-            return err!("unknown core in CPUID {:x?}", cpuid);
-        }
-    };
+    let config = Config::read(core)?;
+    let part = config.part;
 
     let dhcsr = DHCSR::read(core)?;
     let dfsr = DFSR::read(core)?;
 
     print("core", corename(part));
 
-    let rom = match part {
-        ARMCore::CortexM7 | ARMCore::CortexM33 => 0xe00f_e000,
-        _ => 0xe00f_f000,
-    };
-
-    let comp = CoreSightComponent::new(core, rom)?;
-    let m = &comp.manufacturer;
+    let m = &config.manufacturer;
 
     print(
         "manufacturer",
@@ -544,14 +493,9 @@ pub fn cpuinfo(
         },
     );
 
-    let st = match m.get() {
-        Some(manufacturer) if manufacturer == "STMicroelectronics" => true,
-        _ => false,
-    };
-
     print(
         "chip",
-        if st && part == ARMCore::CortexM4 {
+        if config.st && part == ARMCore::CortexM4 {
             if let Ok(idc) = STM32F4_DBGMCU_IDCODE::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
@@ -559,9 +503,9 @@ pub fn cpuinfo(
                     idc.rev_id()
                 )
             } else {
-                format!("<unknown ST part 0x{:x}>", comp.part)
+                format!("<unknown ST part 0x{:x}>", config.manufacturer_part)
             }
-        } else if st && part == ARMCore::CortexM7 {
+        } else if config.st && part == ARMCore::CortexM7 {
             if let Ok(idc) = STM32H7_DBGMCU_IDC::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
@@ -569,12 +513,14 @@ pub fn cpuinfo(
                     idc.rev_id()
                 )
             } else {
-                format!("<unknown ST part 0x{:x}>", comp.part)
+                format!("<unknown ST part 0x{:x}>", config.manufacturer_part)
             }
         } else {
-            format!("<unknown part 0x{:x}>", comp.part)
+            format!("<unknown part 0x{:x}>", config.manufacturer_part)
         },
     );
+
+    print("debug units", config.components());
 
     statusif(dhcsr.restart_status(), "restarting");
     statusif(dhcsr.reset_status(), "resetting");
@@ -625,11 +571,9 @@ pub fn cpuinfo(
         },
     );
 
-    let tab = read_debug_rom_table(core)?;
-
     print(
         "ITM",
-        match tab.ITM {
+        match config.address(CoreSightComponent::ITM) {
             None => "absent".to_string(),
             Some(_) => {
                 let mut itm = vec![];
