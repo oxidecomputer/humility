@@ -457,6 +457,8 @@ pub fn stm32_chipname(partno: u32) -> String {
     .to_string()
 }
 
+#[rustfmt::skip::macros(format)]
+
 pub fn cpuinfo(
     hubris: &HubrisPackage,
     core: &mut dyn crate::core::Core,
@@ -618,7 +620,14 @@ pub fn cpuinfo(
             format!("{:x}", val),
             if i <= 15 {
                 if let Some(sval) = hubris.instr_sym(val) {
-                    format!(" <- {}+0x{:x}", sval.0, val - sval.1)
+                    format!(" <- {}{}+0x{:x}", 
+                        match hubris.instr_mod(val) {
+                            Some(module) if module != "kernel" => {
+                                format!("{}:", module)
+                            }
+                            _ => "".to_string()
+                        },
+                        sval.0, val - sval.1)
                 } else {
                     "".to_string()
                 }
