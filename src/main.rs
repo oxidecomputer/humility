@@ -1050,6 +1050,12 @@ fn probe(hubris: &HubrisPackage, args: &Args) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn manifest(hubris: &HubrisPackage) -> Result<(), Box<dyn Error>> {
+    hubris.manifest()?;
+
+    Ok(())
+}
+
 #[derive(StructOpt)]
 struct TasksArgs {
     /// spin pulling tasks
@@ -1404,7 +1410,7 @@ struct Args {
     )]
     debugger: String,
 
-    /// directory containing Hubris package
+    /// Hubris package
     #[structopt(long, short, env = "HUMILITY_PACKAGE")]
     package: Option<String>,
 
@@ -1420,6 +1426,8 @@ enum Subcommand {
     Etm(EtmArgs),
     /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
     Itm(ItmArgs),
+    /// print package manifest
+    Manifest,
     /// list tasks
     Tasks(TasksArgs),
     /// trace Hubris operations
@@ -1441,8 +1449,8 @@ fn main() {
         })
         .unwrap();
 
-    if let Some(dir) = &args.package {
-        if let Err(err) = hubris.load(&dir) {
+    if let Some(package) = &args.package {
+        if let Err(err) = hubris.load(&package) {
             fatal!("failed to load package: {}", err);
         }
     } else {
@@ -1467,6 +1475,11 @@ fn main() {
 
         Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
             Err(err) => fatal!("itm failed: {}", err),
+            _ => std::process::exit(0),
+        },
+
+        Subcommand::Manifest => match manifest(&hubris) {
+            Err(err) => fatal!("manifest failed: {}", err),
             _ => std::process::exit(0),
         },
 

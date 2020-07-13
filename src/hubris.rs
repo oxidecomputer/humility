@@ -26,8 +26,21 @@ use goblin::elf::Elf;
 use multimap::MultiMap;
 use rustc_demangle::demangle;
 
+#[derive(Default, Debug)]
+pub struct HubrisManifest {
+    version: Option<String>,
+    gitrev: Option<String>,
+    features: Vec<String>,
+    board: Option<String>,
+    target: Option<String>,
+    task_features: HashMap<String, Vec<String>>,
+}
+
 #[derive(Debug)]
 pub struct HubrisPackage {
+    // constructed manifest
+    manifest: HubrisManifest,
+
     // current object
     current: u32,
 
@@ -37,8 +50,8 @@ pub struct HubrisPackage {
     // Instructions: address to bytes/target tuple
     instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>,
 
-    // Modules: address to string/base tuple
-    modules: BTreeMap<u32, (String, u32)>,
+    // Modules: address to string/base/memsz tuple
+    modules: BTreeMap<u32, (String, u32, u32)>,
 
     // DWARF symbols: address to name/length/goff tuple
     dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
@@ -242,6 +255,7 @@ impl HubrisPackage {
             .build();
 
         Ok(Self {
+            manifest: Default::default(),
             cs: match cs {
                 Ok(mut cs) => {
                     cs.set_skipdata(true).expect("failed to set skipdata");
@@ -1346,14 +1360,10 @@ impl HubrisPackage {
 
     fn load_object(
         &mut self,
-        directory: &str,
         object: &str,
+        buffer: &[u8],
     ) -> Result<(), Box<dyn Error>> {
-        let p = Path::new(directory).join(object);
-
-        let buffer = fs::read(p)?;
-
-        let elf = Elf::parse(&buffer).map_err(|e| {
+        let elf = Elf::parse(buffer).map_err(|e| {
             err(format!("unrecognized ELF object: {}: {}", object, e))
         })?;
 
@@ -1390,6 +1400,14 @@ impl HubrisPackage {
             self.esyms.insert(val, (dem, sym.st_size as u32));
         }
 
+        let memsz = elf.program_headers.iter().fold(0, |ttl, hdr| {
+            if hdr.p_type == goblin::elf::program_header::PT_LOAD {
+                ttl + hdr.p_memsz
+            } else {
+                ttl
+            }
+        });
+
         let text = elf.section_headers.iter().find(|sh| {
             if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
                 name == ".text"
@@ -1410,7 +1428,7 @@ impl HubrisPackage {
 
         trace!("loading {} as object {}", object, self.current);
         let t = buffer.get(offset..offset + size).unwrap();
-        self.load_object_dwarf(&buffer, &elf)?;
+        self.load_object_dwarf(buffer, &elf)?;
 
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => instrs,
@@ -1461,20 +1479,151 @@ impl HubrisPackage {
 
         self.modules.insert(
             textsec.sh_addr as u32,
-            (String::from(object), size as u32),
+            (String::from(object), size as u32, memsz as u32),
         );
 
         Ok(())
     }
 
-    pub fn load(&mut self, directory: &str) -> Result<(), Box<dyn Error>> {
-        let metadata = fs::metadata(directory)?;
-        let mapfile = directory.to_owned() + "/map.txt";
-        let expected = &["ADDRESS", "END", "SIZE", "FILE"];
+    fn load_config(
+        &mut self,
+        toml: &toml::value::Table,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut manifest = &mut self.manifest;
+
+        let conf = |member| {
+            toml.get(member)
+                .and_then(|m| m.as_str())
+                .and_then(|s| Some(s.to_string()))
+        };
+
+        manifest.board = conf("board");
+        manifest.target = conf("target");
+
+        /*
+         * It can be useful to see which features the kernel was compiled with,
+         * so we go fishing for that explicitly.
+         */
+        let features = toml.get("kernel").and_then(|k| k.get("features"));
+
+        if let Some(toml::Value::Array(ref features)) = features {
+            manifest.features = features
+                .into_iter()
+                .map(|f| f.as_str().unwrap().to_string())
+                .collect::<Vec<String>>();
+        }
+
+        /*
+         * Now we want to iterate over our tasks to discover their features as
+         * well.
+         */
+        if let Some(toml::Value::Table(ref tasks)) = toml.get("tasks") {
+            for (task, config) in tasks.into_iter() {
+                let features = config.get("features");
+
+                if let Some(toml::Value::Array(ref features)) = features {
+                    manifest.task_features.insert(
+                        task.to_string(),
+                        features
+                            .into_iter()
+                            .map(|f| f.as_str().unwrap().to_string())
+                            .collect::<Vec<String>>(),
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_package(&mut self, package: &str) -> Result<(), Box<dyn Error>> {
+        let file = fs::File::open(package)?;
+        let mut archive = zip::ZipArchive::new(file)?;
+        let mut manifest = &mut self.manifest;
+
+        /*
+         * First, we'll load aspects of configuration.
+         */
+        manifest.version = Some(str::from_utf8(archive.comment())?.to_string());
+
+        if let Ok(mut file) = archive.by_name("git-rev") {
+            let mut gitrev = String::new();
+            file.read_to_string(&mut gitrev)?;
+            manifest.gitrev = Some(gitrev);
+        }
+
+        let mut app = String::new();
+        archive.by_name("app.toml")?.read_to_string(&mut app)?;
+
+        match app.parse::<toml::Value>() {
+            Ok(toml::Value::Table(ref toml)) => {
+                self.load_config(&toml)?;
+            }
+            Ok(_) => {
+                return err!("app.toml valid TOML but malformed");
+            }
+            Err(err) => {
+                return err!("failed to parse app.toml: {}", err);
+            }
+        }
+
+        let elf = Path::new("elf");
+
+        /*
+         * Next up is the kernel.
+         */
+        let mut buffer = Vec::new();
+        archive
+            .by_name(elf.join("kernel").to_str().unwrap())?
+            .read_to_end(&mut buffer)?;
+
+        self.load_object("kernel", &buffer)?;
+
+        /*
+         * And now we need to find the tasks.
+         */
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)?;
+            let path = Path::new(file.name());
+            let pieces = path.iter().collect::<Vec<_>>();
+
+            /*
+             * If the second-to-last element of our path is "task", we have a
+             * winner!
+             */
+            if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
+                continue;
+            }
+
+            let object = match pieces[pieces.len() - 1].to_str() {
+                Some(ref str) => str.to_string(),
+                None => {
+                    return err!("bad object name for \"{}\"", file.name());
+                }
+            };
+
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)?;
+            self.load_object(&object, &buffer)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn load(&mut self, package: &str) -> Result<(), Box<dyn Error>> {
+        let metadata = fs::metadata(package)?;
 
         if !metadata.is_dir() {
-            return err!("package must be a directory");
+            return self.load_package(package);
         }
+
+        warn!(
+            "warning: a directory as a package is deprecated; \
+            use archive instead"
+        );
+
+        let mapfile = package.to_owned() + "/map.txt";
+        let expected = &["ADDRESS", "END", "SIZE", "FILE"];
 
         let map = match File::open(mapfile) {
             Ok(map) => map,
@@ -1547,9 +1696,92 @@ impl HubrisPackage {
             };
 
             if !seen.contains(&object) {
-                self.load_object(directory, &object)?;
+                let p = Path::new(package).join(&object);
+                let buffer = fs::read(p)?;
+                self.load_object(&object, &buffer)?;
                 seen.insert(object);
             }
+        }
+
+        Ok(())
+    }
+
+    pub fn manifest(&self) -> Result<(), Box<dyn Error>> {
+        if self.modules.len() == 0 {
+            return err!("must specify a valid Hubris package");
+        }
+
+        let print = |what, val| {
+            info!("{:>12} => {}", what, val);
+        };
+
+        let size = |task| {
+            self.modules
+                .iter()
+                .find(|module| if (module.1).0 == task { true } else { false })
+                .and_then(|module| Some((module.1).2))
+                .unwrap()
+        };
+
+        print(
+            "version",
+            match self.manifest.version {
+                Some(ref str) => str,
+                None => "<unknown>",
+            },
+        );
+
+        print(
+            "git rev",
+            match self.manifest.gitrev {
+                Some(ref str) => str,
+                None => "<unknown>",
+            },
+        );
+
+        print(
+            "board",
+            match self.manifest.board {
+                Some(ref str) => str,
+                None => "<unknown>",
+            },
+        );
+
+        print(
+            "target",
+            match self.manifest.target {
+                Some(ref str) => str,
+                None => "<unknown>",
+            },
+        );
+
+        print("features", &self.manifest.features.join(", "));
+
+        let ttl = self.modules.iter().fold(0, |ttl, module| ttl + (module.1).2);
+
+        info!("{:>12} => {}K", "total size", ttl / 1024);
+        info!("{:>12} => {}K", "kernel size", size("kernel") / 1024);
+        info!("{:>12} => {}", "tasks", self.modules.len() - 1);
+        info!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
+
+        let mut id = 0;
+
+        for module in self.modules.iter().skip(1) {
+            let features = self.manifest.task_features.get(&(module.1).0);
+
+            info!(
+                "{:>18} {:18} {:>4.1}K {}",
+                id,
+                (module.1).0,
+                (module.1).2 as f64 / 1024 as f64,
+                if let Some(f) = features {
+                    f.join(", ")
+                } else {
+                    "".to_string()
+                }
+            );
+
+            id += 1;
         }
 
         Ok(())

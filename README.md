@@ -46,12 +46,12 @@ options that are specific to particular subcommands.
 
 ### Chip
 
-While some autodetection is in princple possible, Humility regrettably
-needs to be made aware of the specifics of the target chip.
-Supported chips include:
+While some autodetection is possible, Humility regrettably may need to be made
+aware of the specifics of the target chip.  Supported chips include:
 
 - `STM32F407VGTx` (default): STM32F407 as found on the reference Discovery board
 - `LPC55S69JBD100`: LPC55S69 as found on the LPCXpresso55S69
+- `STM32H7B3LIHxQ`: STM32H7B3 as found on the STM32H7B3I-DK 
 
 The target chip can be specified via the `-c` option or the `HUMILITY_CHIP`
 environment variable.
@@ -97,13 +97,40 @@ the `-d` option (long form `--debugger`), which can have the following values:
 
 ### Package
 
-Many Humility commands require the complete Hubris package.  This is 
-the directory as created by `packager`, and includes the `map.txt` file,
-as well as the full DWARF binaries of the package constituents.  This
-package directory is specified via the `-p` option or the `HUMILITY_PACKAGE`
-environment variable.
+Many Humility commands require the complete Hubris package.  This is a ZIP
+archive created by `packager`, and includes all binaries as well as the
+`app.toml` file used to configure the Hubris package.  The Hubris package is
+specified via the `-p` option or the `HUMILITY_PACKAGE` environment variable.
 
 ## Commands
+
+### `humility manifest`
+
+`humility manifest` displays information about the Hubris package.  It
+does not connect at all to a Hubris target to operate.  In addition to
+package-wide attributes, `humility manifest` displays the features enabled
+for each task, e.g.:
+
+```
+% humility -p ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip manifest
+humility:      version => hubris build archive v1.0.0
+humility:      git rev => 049db2ef2a24eabf3fef3f8a6634b36e9d371ad6-dirty
+humility:        board => stm32h7b3i-dk
+humility:       target => thumbv7em-none-eabihf
+humility:     features => itm, h7b3
+humility:   total size => 65K
+humility:  kernel size => 19K
+humility:        tasks => 8
+humility:                 ID TASK                SIZE FEATURES
+humility:                  0 jefe                8.2K itm
+humility:                  1 rcc_driver          6.0K
+humility:                  2 gpio_driver         6.3K
+humility:                  3 usart_driver        6.5K h7b3
+humility:                  4 user_leds           6.1K stm32h7
+humility:                  5 pong                6.1K
+humility:                  6 ping                6.1K uart
+humility:                  7 idle                0.1K
+```
 
 ### `humility probe`
 
@@ -111,64 +138,68 @@ environment variable.
 can, e.g.:
 
 ```
-% humility tasks
+% humility probe
 humility: attached via ST-Link
-humility:       core => Cortex-M4
-humility:       chip => STM32F40x/STM32F41x, revision 0x1007
-humility:     status => executing
-humility:        ITM => TRCENA disabled, TCR enabled, TER=0xb1
-humility:         R0 => 0x0
-humility:         R1 => 0x80215dc
-humility:         R2 => 0x0
-humility:         R3 => 0x8004514
-humility:         R4 => 0x20000e60
-humility:         R5 => 0x0
-humility:         R6 => 0x20000ef8
-humility:         R7 => 0x20000e98
-humility:         R8 => 0x20000258
-humility:         R9 => 0x20000108
-humility:        R10 => 0x20000e68
-humility:        R11 => 0x7
-humility:        R12 => 0x0
-humility:         SP => 0x20000e10
-humility:         LR => 0x8002f79
-humility:         PC => 0x8002de6
-humility:       xPSR => 0x6100000b
-humility:        MSP => 0x20000e10
-humility:        PSP => 0x20001d20
-humility:        SPR => 0x1000000
+humility:         core => Cortex-M7
+humility: manufacturer => STMicroelectronics
+humility:         chip => STM32H7A3/STM32H7B3/STM32H7B0, revision 0x1001
+humility:  debug units => CSTF CTI DWT ETM FPB ITM SCS SWO TMC TPIU
+humility:       status => executing
+humility:          ITM => TRCENA enabled, TCR enabled, TER=0x3
+humility:           R0 => 0x20002a00 
+humility:           R1 => 0x8018038  
+humility:           R2 => 0x20002a00 
+humility:           R3 => 0x0        
+humility:           R4 => 0x0        
+humility:           R5 => 0x0        
+humility:           R6 => 0x0        
+humility:           R7 => 0x0        
+humility:           R8 => 0x0        
+humility:           R9 => 0x0        
+humility:          R10 => 0x0        
+humility:          R11 => 0x0        
+humility:          R12 => 0x0        
+humility:           SP => 0x20002b00 
+humility:           LR => 0xffffffff 
+humility:           PC => 0x8018020  
+humility:         xPSR => 0x61000000 
+humility:          MSP => 0x20000f48 
+humility:          PSP => 0x20002b00 
+humility:          SPR => 0x7000000  
 ```
 
 If provided a Hubris packager, `humility probe` will display any register
 contents symbolically, e.g.:
 
 ```
-% humility -p ~/hubris/target/packager probe
+% humility -p ~/hubris/target/demo/dist/build-demo.zip probe
 humility: attached via ST-Link
-humility:       core => Cortex-M4
-humility:       chip => STM32F40x/STM32F41x, revision 0x1007
-humility:     status => executing
-humility:        ITM => TRCENA disabled, TCR enabled, TER=0xb1
-humility:         R0 => 0x0        
-humility:         R1 => 0x8003c7a  
-humility:         R2 => 0x1        
-humility:         R3 => 0x4        
-humility:         R4 => 0x20000008  <- TASK_TABLE_BASE+0x0
-humility:         R5 => 0x26       
-humility:         R6 => 0x8004948  
-humility:         R7 => 0x20000f38 
-humility:         R8 => 0x7        
-humility:         R9 => 0x20000108 
-humility:        R10 => 0x40004400 
-humility:        R11 => 0x7        
-humility:        R12 => 0x20001b38 
-humility:         SP => 0x20000ef8 
-humility:         LR => 0x80014ab   <- post+0x17
-humility:         PC => 0x80034a4   <- DefaultHandler+0x7c
-humility:       xPSR => 0x41000036 
-humility:        MSP => 0x20000ef8 
-humility:        PSP => 0x20001b38 
-humility:        SPR => 0x1000000  
+humility:         core => Cortex-M4
+humility: manufacturer => STMicroelectronics
+humility:         chip => STM32F40x/STM32F41x, revision 0x1007
+humility:  debug units => DWT ETM FPB ITM SCS TPIU
+humility:       status => executing
+humility:          ITM => TRCENA enabled, TCR enabled, TER=0x3
+humility:           R0 => 0x0        
+humility:           R1 => 0x0        
+humility:           R2 => 0x1        
+humility:           R3 => 0x20001bd4 
+humility:           R4 => 0x20001bd4 
+humility:           R5 => 0x801d988  
+humility:           R6 => 0xb004     
+humility:           R7 => 0x20001bf0 
+humility:           R8 => 0x40004400 
+humility:           R9 => 0x1        
+humility:          R10 => 0x0        
+humility:          R11 => 0xffff     
+humility:          R12 => 0x0        
+humility:           SP => 0x20001ba8 
+humility:           LR => 0x801c12b   <- main+0xef
+humility:           PC => 0x801d290   <- sys_recv_stub+0x1e
+humility:         xPSR => 0x61000000 
+humility:          MSP => 0x20000f48 
+humility:          PSP => 0x20001ba8 
+humility:          SPR => 0x7000000  
 ```
 
 ### `humility tasks`
@@ -176,21 +207,25 @@ humility:        SPR => 0x1000000
 `humility tasks` offers a ps-like view of a system, e.g.:
 
 ```
-% humility -p ~/hubris/target/packager tasks
-humility: attached via OpenOCD
-ID ADDR     TASK               GEN STATE    
- 0 200000e8 jefe                 0 Healthy(InRecv(None))     
- 1 20000158 rcc_driver           0 Healthy(InRecv(None))     
- 2 200001c8 usart_driver         0 Healthy(Runnable)          <-
- 3 20000238 ping                 3 Healthy(InReply(4))
- 4 200002a8 pong                 0 Healthy(InRecv(None))     
- 5 20000318 idle                 0 Healthy(Runnable)         
+% humility -p ~/hubris/target/lpc55/dist/build-lpc55.zip tasks
+humility: attached via DAPLink
+ID ADDR     TASK               GEN STATE
+ 0 20000160 jefe                 0 Healthy(InRecv(None))
+ 1 200001d0 idle                 0 Healthy(Runnable)          <-
+ 2 20000240 syscon_driver        0 Healthy(InRecv(None))
+ 3 200002b0 gpio_driver          0 Healthy(InRecv(None))
+ 4 20000320 user_leds            0 Healthy(InRecv(None))
+ 5 20000390 usart_driver         0 Healthy(InRecv(None))
+ 6 20000400 i2c_driver           0 Healthy(InRecv(None))
+ 7 20000470 ping                11 Healthy(InReply(5))
+ 8 200004e0 pong                 0 Healthy(InRecv(None))
+ 9 20000550 spam                 0 Healthy(Stopped)
 ```
 
 To see every field in each task, you can use the `-v` flag:
 
 ```
-% humility -p ~/hubris/target/packager tasks -v
+% humility -p ~/hubris/target/demo/dist/build-demo.zip tasks -v
 ...
  4 200002c8 pong                 0 Healthy(InRecv(None))
           |
