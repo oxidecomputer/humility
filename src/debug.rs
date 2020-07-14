@@ -62,6 +62,7 @@ macro_rules! register {
 macro_rules! register_offs {
     ($reg:ident, $offs:expr, $($arg:tt)*) => (
         paste::item! {
+            #[allow(non_camel_case_types)]
             #[allow(non_snake_case)]
             mod [<mod_ $reg>] {
                 use bitfield::bitfield;
@@ -87,12 +88,14 @@ macro_rules! register_offs {
             }
 
             #[derive(Copy, Clone, Debug)]
+            #[allow(non_camel_case_types)]
             pub struct $reg {
-                base: u32,
-                register: [<mod_ $reg>]::$reg
+                pub base: u32,
+                pub register: [<mod_ $reg>]::$reg
             }
 
             impl $reg {
+                #[allow(dead_code)]
                 pub fn read(
                     core: &mut dyn crate::core::Core,
                     base: u32
@@ -104,6 +107,20 @@ macro_rules! register_offs {
                         )
                     })
                 }
+
+                #[allow(dead_code)]
+                pub fn write(
+                    &self,
+                    core: &mut dyn crate::core::Core
+                ) -> anyhow::Result<()> {
+                    Ok(core.write_word_32(
+                        self.base + $offs,
+                        self.register.into()
+                    )?)
+                }
+
+                #[allow(dead_code)]
+                pub fn address(base: u32) -> u32 { base + $offs }
             }
         }
     )
@@ -524,6 +541,10 @@ pub fn cpuinfo(
     );
 
     print("debug units", config.components());
+
+    for component in config.components.iter() {
+        info!("{:>12} => {:x?}", format!("{:?}", component.0), component.1);
+    }
 
     statusif(dhcsr.restart_status(), "restarting");
     statusif(dhcsr.reset_status(), "resetting");

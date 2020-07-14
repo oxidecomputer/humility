@@ -27,6 +27,9 @@ use dwt::*;
 mod tpiu;
 use tpiu::*;
 
+mod swo;
+use swo::*;
+
 mod hubris;
 use hubris::*;
 
@@ -729,6 +732,8 @@ fn itmcmd_enable(
     traceid: u8,
     stimuli: u32,
 ) -> Result<()> {
+    let config = Config::read(core)?;
+
     /*
      * First, enable TRCENA in the DEMCR.
      */
@@ -736,30 +741,60 @@ fn itmcmd_enable(
     val.set_trcena(true);
     val.write(core)?;
 
-    /*
-     * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
-     * trace mode to be asynchronous.
-     */
-    let mut val = STM32F4_DBGMCU_CR::read(core)?;
-    val.set_trace_ioen(true);
-    val.set_trace_mode(0);
-    val.write(core)?;
+    if config.st && config.part == ARMCore::CortexM4 {
+        /*
+         * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
+         * trace mode to be asynchronous.
+         */
+        let mut val = STM32F4_DBGMCU_CR::read(core)?;
+        val.set_trace_ioen(true);
+        val.set_trace_mode(0);
+        val.write(core)?;
+    } else if config.st && config.part == ARMCore::CortexM7 {
+        /*
+         * STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
+         */
+        let mut cr = STM32H7_DBGMCU_CR::read(core)?;
+        cr.set_srdbgcken(true);
+        cr.set_cddbgcken(true);
+        cr.set_traceclken(true);
+        cr.write(core)?;
+    }
 
-    /*
-     * Now setup the TPIU.
-     */
-    let mut val = TPIU_SPPR::read(core)?;
-    val.set_txmode(TPIUMode::NRZ);
-    val.write(core)?;
+    let swoscaler = clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into();
 
-    let mut val = TPIU_FFCR::read(core)?;
-    val.set_continuous_formatting(true);
-    val.write(core)?;
+    if let Some(swo) = config.address(CoreSightComponent::SWO) {
+        /*
+         * If we have a SWO unit, configure it instead of the TPIU
+         */
+        trace!("SWO found at {:x}", swo);
 
-    let mut acpr = TPIU_ACPR::read(core)?;
-    acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
-    acpr.write(core)?;
-    trace!("{:#x?}", TPIU_ACPR::read(core)?);
+        SWO_LAR::unlock(core, swo)?;
+
+        let mut codr = SWO_CODR::read(core, swo)?;
+        codr.register.set_prescaler(swoscaler);
+        codr.write(core)?;
+
+        let mut sppr = SWO_SPPR::read(core, swo)?;
+        sppr.register.set_pprot(SWOMode::NRZ.into());
+        sppr.write(core)?;
+    } else {
+        /*
+         * Otherwise setup the TPIU.
+         */
+        let mut val = TPIU_SPPR::read(core)?;
+        val.set_txmode(TPIUMode::NRZ);
+        val.write(core)?;
+
+        let mut val = TPIU_FFCR::read(core)?;
+        val.set_continuous_formatting(true);
+        val.write(core)?;
+
+        let mut acpr = TPIU_ACPR::read(core)?;
+        acpr.set_swoscaler(swoscaler);
+        acpr.write(core)?;
+        trace!("{:#x?}", TPIU_ACPR::read(core)?);
+    }
 
     /*
      * Unlock the ITM.

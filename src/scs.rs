@@ -368,6 +368,7 @@ register!(CPUID, 0xe000_ed00,
     pub revision, _: 3, 0;
 );
 
+#[derive(Debug)]
 pub struct Config {
     pub part: ARMCore,
     pub manufacturer: jep106::JEP106Code,
