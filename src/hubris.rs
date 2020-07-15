@@ -1512,6 +1512,14 @@ impl HubrisPackage {
         let mut archive = zip::ZipArchive::new(file)?;
         let mut manifest = &mut self.manifest;
 
+        macro_rules! byname {
+            ($name:tt) => {
+                archive.by_name($name).map_err(|e| {
+                    anyhow!("failed to find \"{}\": {}", $name, e)
+                })
+            }
+        }
+
         /*
          * First, we'll load aspects of configuration.
          */
@@ -1524,7 +1532,7 @@ impl HubrisPackage {
         }
 
         let mut app = String::new();
-        archive.by_name("app.toml")?.read_to_string(&mut app)?;
+        byname!("app.toml")?.read_to_string(&mut app)?;
 
         match app.parse::<toml::Value>() {
             Ok(toml::Value::Table(ref toml)) => {
@@ -1538,16 +1546,13 @@ impl HubrisPackage {
             }
         }
 
-        let elf = Path::new("elf");
-
         /*
-         * Next up is the kernel.
+         * Next up is the kernel.  Note that we refer to it explicitly with a
+         * forward slash: regardless of platform, paths within a ZIP archive
+         * use the forward slash as a separator.
          */
         let mut buffer = Vec::new();
-        archive
-            .by_name(elf.join("kernel").to_str().unwrap())?
-            .read_to_end(&mut buffer)?;
-
+        byname!("elf/kernel")?.read_to_end(&mut buffer)?;
         self.load_object("kernel", &buffer)?;
 
         /*
@@ -1678,7 +1683,7 @@ impl HubrisPackage {
     }
 
     pub fn manifest(&self) -> Result<()> {
-        ensure!(self.modules.len() == 0, "must specify a valid Hubris package");
+        ensure!(self.modules.len() > 0, "must specify a valid Hubris package");
 
         let print = |what, val| {
             info!("{:>12} => {}", what, val);
