@@ -494,15 +494,15 @@ pub fn cpuinfo(
         }
     };
 
-    let config = Config::read(core)?;
-    let part = config.part;
+    let coreinfo = CoreInfo::read(core)?;
+    let part = coreinfo.part;
 
     let dhcsr = DHCSR::read(core)?;
     let dfsr = DFSR::read(core)?;
 
     print("core", corename(part));
 
-    let m = &config.manufacturer;
+    let m = &coreinfo.manufacturer;
 
     print(
         "manufacturer",
@@ -515,7 +515,7 @@ pub fn cpuinfo(
 
     print(
         "chip",
-        if config.st && part == ARMCore::CortexM4 {
+        if coreinfo.st && part == ARMCore::CortexM4 {
             if let Ok(idc) = STM32F4_DBGMCU_IDCODE::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
@@ -523,9 +523,9 @@ pub fn cpuinfo(
                     idc.rev_id()
                 )
             } else {
-                format!("<unknown ST part 0x{:x}>", config.manufacturer_part)
+                format!("<unknown ST part 0x{:x}>", coreinfo.manufacturer_part)
             }
-        } else if config.st && part == ARMCore::CortexM7 {
+        } else if coreinfo.st && part == ARMCore::CortexM7 {
             if let Ok(idc) = STM32H7_DBGMCU_IDC::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
@@ -533,16 +533,16 @@ pub fn cpuinfo(
                     idc.rev_id()
                 )
             } else {
-                format!("<unknown ST part 0x{:x}>", config.manufacturer_part)
+                format!("<unknown ST part 0x{:x}>", coreinfo.manufacturer_part)
             }
         } else {
-            format!("<unknown part 0x{:x}>", config.manufacturer_part)
+            format!("<unknown part 0x{:x}>", coreinfo.manufacturer_part)
         },
     );
 
-    print("debug units", config.components());
+    print("debug units", coreinfo.components());
 
-    for component in config.components.iter() {
+    for component in coreinfo.components.iter() {
         info!("{:>12} => {:x?}", format!("{:?}", component.0), component.1);
     }
 
@@ -597,7 +597,7 @@ pub fn cpuinfo(
 
     print(
         "ITM",
-        match config.address(CoreSightComponent::ITM) {
+        match coreinfo.address(CoreSightComponent::ITM) {
             None => "absent".to_string(),
             Some(_) => {
                 let mut itm = vec![];

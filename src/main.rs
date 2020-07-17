@@ -144,9 +144,9 @@ const HUMILITY_ETM_TRACEID_MAX: u8 = 0x7f;
 const HUMILITY_ETM_ALWAYSTRUE: u32 = 0b110_1111;
 
 fn etmcmd_probe(core: &mut dyn core::Core) -> Result<()> {
-    let config = Config::read(core)?;
+    let coreinfo = CoreInfo::read(core)?;
 
-    let etm = match config.address(CoreSightComponent::ETM) {
+    let etm = match coreinfo.address(CoreSightComponent::ETM) {
         None => {
             fatal!("ETM is not available on this CPU");
         }
@@ -728,12 +728,11 @@ fn itmcmd_probe(core: &mut dyn core::Core) -> Result<()> {
 
 fn itmcmd_enable(
     core: &mut dyn core::Core,
+    coreinfo: &CoreInfo,
     clockscaler: Option<u16>,
     traceid: u8,
     stimuli: u32,
 ) -> Result<()> {
-    let config = Config::read(core)?;
-
     /*
      * First, enable TRCENA in the DEMCR.
      */
@@ -741,7 +740,7 @@ fn itmcmd_enable(
     val.set_trcena(true);
     val.write(core)?;
 
-    if config.st && config.part == ARMCore::CortexM4 {
+    if coreinfo.st && coreinfo.part == ARMCore::CortexM4 {
         /*
          * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
          * trace mode to be asynchronous.
@@ -750,7 +749,7 @@ fn itmcmd_enable(
         val.set_trace_ioen(true);
         val.set_trace_mode(0);
         val.write(core)?;
-    } else if config.st && config.part == ARMCore::CortexM7 {
+    } else if coreinfo.st && coreinfo.part == ARMCore::CortexM7 {
         /*
          * STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
          */
@@ -763,7 +762,7 @@ fn itmcmd_enable(
 
     let swoscaler = clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into();
 
-    if let Some(swo) = config.address(CoreSightComponent::SWO) {
+    if let Some(swo) = coreinfo.address(CoreSightComponent::SWO) {
         /*
          * If we have a SWO unit, configure it instead of the TPIU
          */
@@ -873,8 +872,9 @@ fn itmcmd_disable(core: &mut dyn core::Core) -> Result<()> {
     Ok(())
 }
 
-fn itmcmd_ingest(traceid: u8, filename: &str) -> Result<()> {
+fn itmcmd_ingest(subargs: &ItmArgs, filename: &str) -> Result<()> {
     let file = File::open(filename)?;
+    let traceid = if subargs.bypass { None } else { Some(subargs.traceid) };
 
     let process = |packet: &ITMPacket| -> Result<()> {
         if let ITMPayload::Instrumentation { payload, .. } = &packet.payload {
@@ -933,10 +933,17 @@ fn itmcmd_ingest(traceid: u8, filename: &str) -> Result<()> {
 
 fn itmcmd_ingest_attached(
     core: &mut dyn core::Core,
-    traceid: u8,
+    coreinfo: &CoreInfo,
+    subargs: &ItmArgs,
 ) -> Result<()> {
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
+
+    let traceid = if coreinfo.address(CoreSightComponent::SWO).is_some() {
+        None
+    } else {
+        Some(subargs.traceid)
+    };
 
     let start = Instant::now();
 
@@ -970,7 +977,7 @@ fn itmcmd_ingest_attached(
     )
 }
 
-#[derive(StructOpt)]
+#[derive(StructOpt, Debug)]
 struct ItmArgs {
     /// probe for ITM capability on attached device
     #[structopt(
@@ -995,6 +1002,9 @@ struct ItmArgs {
     /// ingest directly from attached device
     #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
     attach: bool,
+    /// assume bypassed TPIU in ingested file
+    #[structopt(long, short, requires = "ingest")]
+    bypass: bool,
     /// sets the value of SWOSCALER
     #[structopt(long, short, value_name = "scaler", requires = "enable",
         parse(try_from_str = parse_int::parse),
@@ -1016,7 +1026,7 @@ fn itmcmd(
     }
 
     if let Some(ingest) = &subargs.ingest {
-        match itmcmd_ingest(subargs.traceid, ingest) {
+        match itmcmd_ingest(subargs, ingest) {
             Err(e) => {
                 fatal!("failed to ingest {}: {}", ingest, e);
             }
@@ -1029,13 +1039,20 @@ fn itmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let mut core = attach(args)?;
+    let mut c = attach(args)?;
+    let core = c.as_mut();
+    let coreinfo = CoreInfo::read(core)?;
+
     let _info = core.halt();
 
     info!("core halted");
 
     if subargs.probe {
-        rval = itmcmd_probe(core.as_mut());
+        rval = itmcmd_probe(core);
+    }
+
+    if subargs.disable {
+        rval = itmcmd_disable(core);
     }
 
     if subargs.enable {
@@ -1047,18 +1064,20 @@ fn itmcmd(
          * By default, we enable all logging (ports 0-7).
          */
         let stim = 0x0000_000f;
-        rval = itmcmd_enable(core.as_mut(), subargs.clockscaler, traceid, stim);
-    }
 
-    if subargs.disable {
-        rval = itmcmd_disable(core.as_mut());
+        rval = itmcmd_enable(core,
+            &coreinfo,
+            subargs.clockscaler,
+            traceid,
+            stim,
+        );
     }
 
     core.run()?;
     info!("core resumed");
 
-    if subargs.attach {
-        match itmcmd_ingest_attached(core.as_mut(), traceid) {
+    if rval.is_ok() && subargs.attach {
+        match itmcmd_ingest_attached(core, &coreinfo, subargs) {
             Err(e) => {
                 fatal!("failed to ingest from attached device: {}", e);
             }
@@ -1198,9 +1217,10 @@ struct TraceArgs {
 #[rustfmt::skip::macros(println)]
 
 fn tracecmd_ingest(
-    hubris: &HubrisPackage,
-    subargs: &TraceArgs,
     core: &mut dyn core::Core,
+    coreinfo: &CoreInfo,
+    subargs: &TraceArgs,
+    hubris: &HubrisPackage,
     tasks: &HashMap<u32, String>,
 ) -> Result<()> {
     let mut bytes: Vec<u8> = vec![];
@@ -1268,8 +1288,14 @@ fn tracecmd_ingest(
     let mut task = 0;
     let mut newtask = None;
 
+    let traceid = if coreinfo.address(CoreSightComponent::SWO).is_some() {
+        None
+    } else {
+        Some(subargs.traceid)
+    };
+
     itm_ingest(
-        subargs.traceid,
+        traceid,
         || {
             while ndx == bytes.len() {
                 bytes = core.read_swv().unwrap();
@@ -1374,7 +1400,10 @@ fn tracecmd(
 ) -> Result<()> {
     let mut tasks: HashMap<u32, String> = HashMap::new();
 
-    let mut core = attach(args)?;
+    let mut c = attach(args)?;
+    let core = c.as_mut();
+
+    let coreinfo = CoreInfo::read(core)?;
 
     /*
      * First, read the task block to get a mapping of IDs to names.
@@ -1409,8 +1438,8 @@ fn tracecmd(
      */
     core.init_swv()?;
     let stim = 0xf000_0000;
-    itmcmd_enable(core.as_mut(), subargs.clockscaler, subargs.traceid, stim)?;
-    tracecmd_ingest(&hubris, subargs, core.as_mut(), &tasks)?;
+    itmcmd_enable(core, &coreinfo, subargs.clockscaler, subargs.traceid, stim)?;
+    tracecmd_ingest(core, &coreinfo, subargs, hubris, &tasks)?;
 
     Ok(())
 }

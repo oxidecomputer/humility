@@ -130,7 +130,7 @@ impl From<(u8, u8)> for TPIUFrameHalfWord {
 
 #[derive(Copy, Clone, Debug)]
 pub struct TPIUPacket {
-    pub id: u8,
+    pub id: Option<u8>,
     pub datum: u8,
     pub offset: usize,
     pub time: f64,
@@ -281,7 +281,7 @@ fn tpiu_process_frame(
              */
             let delay = auxbit != 0;
             let mut packet = TPIUPacket {
-                id: half.data_or_id() as u8,
+                id: Some(half.data_or_id() as u8),
                 datum: half.data_or_aux() as u8,
                 time: frame[base + 1].1,
                 offset: frame[base + 1].2,
@@ -294,7 +294,7 @@ fn tpiu_process_frame(
                  * Specification), and applies to the subsequent record.  So in
                  * this case, we just return the ID.
                  */
-                return Ok(packet.id);
+                return Ok(packet.id.unwrap());
             }
 
             match (delay, current) {
@@ -303,7 +303,7 @@ fn tpiu_process_frame(
                 }
                 (true, Some(current)) => {
                     let saved = packet.id;
-                    packet.id = current;
+                    packet.id = Some(current);
                     callback(&packet)?;
                     packet.id = saved;
                 }
@@ -316,7 +316,7 @@ fn tpiu_process_frame(
                 }
             }
 
-            current = Some(packet.id);
+            current = packet.id;
         } else {
             /*
              * If our bit is NOT set, the auxiliary bit is the actual bit
@@ -333,7 +333,7 @@ fn tpiu_process_frame(
             };
 
             callback(&TPIUPacket {
-                id,
+                id: Some(id),
                 datum: (half.data_or_id() << 1) as u8 | auxbit,
                 time: frame[base].1,
                 offset: frame[base].2,
@@ -344,7 +344,7 @@ fn tpiu_process_frame(
             }
 
             callback(&TPIUPacket {
-                id,
+                id: Some(id),
                 datum: half.data_or_aux() as u8,
                 time: frame[base + 1].1,
                 offset: frame[base + 1].2,
@@ -357,6 +357,38 @@ fn tpiu_process_frame(
      * should assure that we return from within the loop.
      */
     unreachable!();
+}
+
+pub fn tpiu_ingest_bypass(
+    mut readnext: impl FnMut() -> Result<Option<(u8, f64)>>,
+    mut callback: impl FnMut(&TPIUPacket) -> Result<()>,
+) -> Result<()> {
+    let mut datum: u8;
+    let mut offs = 0;
+    let mut time: f64;
+
+    loop {
+        match readnext()? {
+            Some(result) => {
+                datum = result.0;
+                time = result.1;
+            }
+            None => {
+                break;
+            }
+        }
+
+        offs += 1;
+
+        callback(&TPIUPacket {
+            id: None,
+            datum: datum,
+            time: time,
+            offset: offs
+        })?
+    }
+
+    Ok(())
 }
 
 pub fn tpiu_ingest(
@@ -377,7 +409,7 @@ pub fn tpiu_ingest(
     let mut time: f64;
 
     let mut filter = |packet: &TPIUPacket| {
-        if packet.id == TPIU_ID_NULL {
+        if packet.id == Some(TPIU_ID_NULL) {
             Ok(())
         } else {
             callback(packet)

@@ -369,7 +369,7 @@ register!(CPUID, 0xe000_ed00,
 );
 
 #[derive(Debug)]
-pub struct Config {
+pub struct CoreInfo {
     pub part: ARMCore,
     pub manufacturer: jep106::JEP106Code,
     pub manufacturer_part: u32,
@@ -377,7 +377,7 @@ pub struct Config {
     pub components: MultiMap<CoreSightComponent, u32>,
 }
 
-impl Config {
+impl CoreInfo {
     pub fn read(core: &mut dyn crate::core::Core) -> Result<Self> {
         use num_traits::FromPrimitive;
 

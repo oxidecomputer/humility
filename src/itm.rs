@@ -289,7 +289,7 @@ fn itm_payload_decode(hdr: ITMHeader, payload: &[u8]) -> ITMPayload {
 }
 
 pub fn itm_ingest(
-    traceid: u8,
+    traceid: Option<u8>,
     mut readnext: impl FnMut() -> Result<Option<(u8, f64)>>,
     mut callback: impl FnMut(&ITMPacket) -> Result<()>,
 ) -> Result<()> {
@@ -303,14 +303,11 @@ pub fn itm_ingest(
     let mut pstate: ITMPacketState = ITMPacketState::AwaitingHeader;
     let mut vec = Vec::with_capacity(16);
 
-    let mut valid = vec![false; 256];
-    valid[traceid as usize] = true;
-
     let hdrs = &itm_hdrs();
     let mut hdr = ITMHeader::Sync;
     let mut runlen = 0;
 
-    tpiu_ingest(&valid, &mut readnext, |packet| {
+    let process = |packet: &TPIUPacket| -> Result<()> {
         let payload = &mut vec;
 
         if state == IngestState::SyncSearching {
@@ -383,5 +380,16 @@ pub fn itm_ingest(
         pstate = ITMPacketState::AwaitingHeader;
 
         Ok(())
-    })
+    };
+
+    match traceid {
+        Some(traceid) => {
+            let mut valid = vec![false; 256];
+            valid[traceid as usize] = true;
+            tpiu_ingest(&valid, &mut readnext, process)
+        }
+        None => {
+            tpiu_ingest_bypass(&mut readnext, process)
+        }
+    }
 }
