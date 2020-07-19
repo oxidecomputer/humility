@@ -3,6 +3,7 @@
  */
 
 use probe_rs::Probe;
+use probe_rs::MemoryInterface;
 
 use anyhow::{anyhow, bail, ensure, Result};
 
@@ -27,7 +28,6 @@ pub trait Core {
 }
 
 pub struct ProbeCore {
-    pub core: probe_rs::Core,
     pub session: probe_rs::Session,
 }
 
@@ -36,22 +36,27 @@ const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        Ok(self.core.read_word_32(addr)?)
+        trace!("reading word at {:x}", addr);
+        let mut core = self.session.core(0)?;
+        Ok(core.read_word_32(addr)?)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        let mut core = self.session.core(0)?;
+
         if data.len() > CORE_MAX_READSIZE {
             bail!("read of {} bytes at 0x{:x} exceeds max of {}",
                 data.len(), addr, CORE_MAX_READSIZE);
         }
 
-        Ok(self.core.read_8(addr, data)?)
+        Ok(core.read_8(addr, data)?)
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+        let mut core = self.session.core(0)?;
         use num_traits::ToPrimitive;
 
-        Ok(self.core.read_core_reg(
+        Ok(core.read_core_reg(
             Into::<probe_rs::CoreRegisterAddress>::into(
                 ARMRegister::to_u16(&reg).unwrap(),
             ),
@@ -59,20 +64,25 @@ impl Core for ProbeCore {
     }
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
-        Ok(self.core.write_word_32(addr, data)?)
+        let mut core = self.session.core(0)?;
+        core.write_word_32(addr, data)?;
+        Ok(())
     }
 
     fn halt(&mut self) -> Result<()> {
-        self.core.halt()?;
+        let mut core = self.session.core(0)?;
+        core.halt()?;
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
-        Ok(self.core.run()?)
+        let mut core = self.session.core(0)?;
+        Ok(core.run()?)
     }
 
     fn step(&mut self) -> Result<()> {
-        self.core.step()?;
+        let mut core = self.session.core(0)?;
+        core.step()?;
         Ok(())
     }
 
@@ -632,11 +642,10 @@ pub fn attach(debugger: &str, chip: &str) -> Result<Box<dyn Core>> {
             let probe = res?;
             let name = probe.get_name();
             let session = probe.attach(chip)?;
-            let core = session.attach_to_core(0)?;
 
             info!("attached via {}", name);
 
-            Ok(Box::new(ProbeCore { session: session, core: core }))
+            Ok(Box::new(ProbeCore { session: session }))
         }
 
         "ocd" => {

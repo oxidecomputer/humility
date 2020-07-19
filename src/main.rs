@@ -714,14 +714,14 @@ fn etmcmd(
 }
 
 fn itmcmd_probe(core: &mut dyn core::Core) -> Result<()> {
+    info!("{:#x?}", TPIU_ACPR::read(core)?);
     info!("{:#x?}", DEMCR::read(core)?);
     info!("{:#x?}", ITM_LSR::read(core)?);
     info!("{:#x?}", ITM_TCR::read(core)?);
     info!("{:#x?}", ITM_TER::read(core)?);
     info!("{:#x?}", STM32F4_DBGMCU_CR::read(core)?);
-    info!("{:#x?}", TPIU_FFCR::read(core)?);
     info!("{:#x?}", DWT_CTRL::read(core)?);
-    info!("{:#x?}", TPIU_SPPR::read(core)?);
+    // info!("{:#x?}", TPIU_SPPR::read(core)?);
 
     Ok(())
 }
@@ -951,7 +951,7 @@ fn itmcmd_ingest_attached(
         traceid,
         || {
             while ndx == bytes.len() {
-                bytes = core.read_swv().unwrap();
+                bytes = core.read_swv()?;
                 ndx = 0;
             }
             ndx += 1;
