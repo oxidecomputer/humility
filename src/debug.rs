@@ -320,6 +320,53 @@ register!(STM32H7_DBGMCU_CR, 0x5c00_1004,
     pub dbgsleep_cd, _: 0;
 );
 
+register!(LPC55_SYSCON_AHBCLKCTRL0, 0x5000_0200,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct LPC55_SYSCON_AHBCLKCTRL0(u32);
+    impl Debug;
+    pub adc, _: 27;
+    pub mailbox, _: 26;
+    pub rtc, _: 23;
+    pub wwdt, _: 22;
+    pub crcgen, _: 21;
+    pub dma0, _: 20;
+    pub gint, _: 19;
+    pub pint, _: 18;
+    pub gpio3, _: 17;
+    pub gpio2, _: 16;
+    pub gpio1, _: 15;
+    pub gpio0, _: 14;
+    pub iocon, _: 13;
+    pub mux, _: 11;
+    pub fmc, _: 8;
+    pub flash, _: 7;
+    pub sram_ctrl4, _: 6;
+    pub sram_ctrl3, _: 5;
+    pub sram_ctrl2, _: 4;
+    pub sram_ctrl1, _: 3;
+    pub rom, _: 1;
+);
+
+register!(LPC55_SYSCON_TRACECLKSEL, 0x5000_0268,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct LPC55_SYSCON_TRACECLKSEL(u32);
+    impl Debug;
+    pub sel, set_sel: 2, 0;
+);
+
+register!(LPC55_SYSCON_TRACECLKDIV, 0x5000_0308,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct LPC55_SYSCON_TRACECLKDIV(u32);
+    impl Debug;
+    pub reqflag, set_reqflag: 31;
+    pub halt, set_halt: 30;
+    pub reset, set_reset: 29;
+    pub div, _: 7, 0;
+);
+
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq, Eq)]
 pub enum ARMCore {
     CortexA5 = 0xc05,
@@ -515,7 +562,7 @@ pub fn cpuinfo(
 
     print(
         "chip",
-        if coreinfo.st && part == ARMCore::CortexM4 {
+        if coreinfo.vendor == Vendor::ST && part == ARMCore::CortexM4 {
             if let Ok(idc) = STM32F4_DBGMCU_IDCODE::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
@@ -525,7 +572,7 @@ pub fn cpuinfo(
             } else {
                 format!("<unknown ST part 0x{:x}>", coreinfo.manufacturer_part)
             }
-        } else if coreinfo.st && part == ARMCore::CortexM7 {
+        } else if coreinfo.vendor == Vendor::ST && part == ARMCore::CortexM7 {
             if let Ok(idc) = STM32H7_DBGMCU_IDC::read(core) {
                 format!(
                     "{}, revision 0x{:x}",

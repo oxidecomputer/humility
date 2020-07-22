@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use probe_rs::Probe;
 use probe_rs::MemoryInterface;
+use probe_rs::Probe;
 
 use anyhow::{anyhow, bail, ensure, Result};
 
@@ -56,11 +56,9 @@ impl Core for ProbeCore {
         let mut core = self.session.core(0)?;
         use num_traits::ToPrimitive;
 
-        Ok(core.read_core_reg(
-            Into::<probe_rs::CoreRegisterAddress>::into(
-                ARMRegister::to_u16(&reg).unwrap(),
-            ),
-        )?)
+        Ok(core.read_core_reg(Into::<probe_rs::CoreRegisterAddress>::into(
+            ARMRegister::to_u16(&reg).unwrap(),
+        ))?)
     }
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
@@ -77,7 +75,8 @@ impl Core for ProbeCore {
 
     fn run(&mut self) -> Result<()> {
         let mut core = self.session.core(0)?;
-        Ok(core.run()?)
+        core.run()?;
+        Ok(())
     }
 
     fn step(&mut self) -> Result<()> {

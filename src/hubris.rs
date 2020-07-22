@@ -1514,10 +1514,10 @@ impl HubrisPackage {
 
         macro_rules! byname {
             ($name:tt) => {
-                archive.by_name($name).map_err(|e| {
-                    anyhow!("failed to find \"{}\": {}", $name, e)
-                })
-            }
+                archive
+                    .by_name($name)
+                    .map_err(|e| anyhow!("failed to find \"{}\": {}", $name, e))
+            };
         }
 
         /*

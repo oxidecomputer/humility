@@ -388,8 +388,6 @@ pub fn itm_ingest(
             valid[traceid as usize] = true;
             tpiu_ingest(&valid, &mut readnext, process)
         }
-        None => {
-            tpiu_ingest_bypass(&mut readnext, process)
-        }
+        None => tpiu_ingest_bypass(&mut readnext, process),
     }
 }

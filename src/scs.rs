@@ -368,12 +368,24 @@ register!(CPUID, 0xe000_ed00,
     pub revision, _: 3, 0;
 );
 
+/*
+ * This is the much shorter list of vendors whose parts we support -- and
+ * therefore are willing to hard-code special case handling for, to some
+ * extent.
+ */
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Vendor {
+    ST,
+    NXP,
+    Other,
+}
+
 #[derive(Debug)]
 pub struct CoreInfo {
     pub part: ARMCore,
+    pub vendor: Vendor,
     pub manufacturer: jep106::JEP106Code,
     pub manufacturer_part: u32,
-    pub st: bool,
     pub components: MultiMap<CoreSightComponent, u32>,
 }
 
@@ -399,12 +411,13 @@ impl CoreInfo {
         let id = CoreSightPage::new(core, rom)?;
         let m = &id.manufacturer;
 
-        let st = match m.get() {
-            Some(manufacturer) if manufacturer == "STMicroelectronics" => true,
-            _ => false,
+        let vendor = match m.get() {
+            Some("STMicroelectronics") => Vendor::ST,
+            Some("NXP (Philips)") => Vendor::NXP,
+            _ => Vendor::Other,
         };
 
-        if st && part == ARMCore::CortexM7 {
+        if vendor == Vendor::ST && part == ARMCore::CortexM7 {
             /*
              * Before we can walk the M7's ROM tables, we need to make sure
              * that the debug parts are clocked.
@@ -416,11 +429,37 @@ impl CoreInfo {
             read_rom(core, 0x5c00_0000, &mut components)?;
         }
 
+        if vendor == Vendor::NXP && part == ARMCore::CortexM33 {
+            /*
+             * Before we can talk to the TPIU on the LPC55, we need to make
+             * sure that it is clocked: TRACECLKSEL.SEL must be set to 0 to
+             * select the Trace Divided Clock, and TRACECLKDIV.HALT,
+             * TRACECLKDIV.REQFLAG and TRACECLKDIV.RESET must all be cleared.
+             * (We also must check that IOCON is clocked -- though we expect
+             * this to be true.)
+             */
+            let mut sel = LPC55_SYSCON_TRACECLKSEL::read(core)?;
+            sel.set_sel(0);
+            sel.write(core)?;
+
+            let mut div = LPC55_SYSCON_TRACECLKDIV::read(core)?;
+            div.set_reqflag(false);
+            div.set_halt(false);
+            div.set_reset(false);
+            div.write(core)?;
+
+            let ctrl = LPC55_SYSCON_AHBCLKCTRL0::read(core)?;
+
+            if !ctrl.iocon() {
+                bail!("IOCON is not clocked");
+            }
+        }
+
         read_rom(core, rom, &mut components)?;
 
         Ok(Self {
             part: part,
-            st: st,
+            vendor: vendor,
             components: components,
             manufacturer: id.manufacturer,
             manufacturer_part: id.part,

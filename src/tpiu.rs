@@ -384,7 +384,7 @@ pub fn tpiu_ingest_bypass(
             id: None,
             datum: datum,
             time: time,
-            offset: offs
+            offset: offs,
         })?
     }
 

@@ -740,24 +740,30 @@ fn itmcmd_enable(
     val.set_trcena(true);
     val.write(core)?;
 
-    if coreinfo.st && coreinfo.part == ARMCore::CortexM4 {
-        /*
-         * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
-         * trace mode to be asynchronous.
-         */
-        let mut val = STM32F4_DBGMCU_CR::read(core)?;
-        val.set_trace_ioen(true);
-        val.set_trace_mode(0);
-        val.write(core)?;
-    } else if coreinfo.st && coreinfo.part == ARMCore::CortexM7 {
-        /*
-         * STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
-         */
-        let mut cr = STM32H7_DBGMCU_CR::read(core)?;
-        cr.set_srdbgcken(true);
-        cr.set_cddbgcken(true);
-        cr.set_traceclken(true);
-        cr.write(core)?;
+    match (coreinfo.vendor, coreinfo.part) {
+        (Vendor::ST, ARMCore::CortexM4) => {
+            /*
+             * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and set
+             * the trace mode to be asynchronous.
+             */
+            let mut val = STM32F4_DBGMCU_CR::read(core)?;
+            val.set_trace_ioen(true);
+            val.set_trace_mode(0);
+            val.write(core)?;
+        }
+
+        (Vendor::ST, ARMCore::CortexM7) => {
+            /*
+             * STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
+             */
+            let mut cr = STM32H7_DBGMCU_CR::read(core)?;
+            cr.set_srdbgcken(true);
+            cr.set_cddbgcken(true);
+            cr.set_traceclken(true);
+            cr.write(core)?;
+        }
+
+        _ => {}
     }
 
     let swoscaler = clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into();
@@ -1044,7 +1050,6 @@ fn itmcmd(
     let coreinfo = CoreInfo::read(core)?;
 
     let _info = core.halt();
-
     info!("core halted");
 
     if subargs.probe {
@@ -1065,12 +1070,8 @@ fn itmcmd(
          */
         let stim = 0x0000_000f;
 
-        rval = itmcmd_enable(core,
-            &coreinfo,
-            subargs.clockscaler,
-            traceid,
-            stim,
-        );
+        rval =
+            itmcmd_enable(core, &coreinfo, subargs.clockscaler, traceid, stim);
     }
 
     core.run()?;
@@ -1523,32 +1524,32 @@ fn main() {
 
     match &args.cmd {
         Subcommand::Probe => match probe(&hubris, &args) {
-            Err(err) => fatal!("probe failed: {}", err),
+            Err(err) => fatal!("probe failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
         Subcommand::Etm(subargs) => match etmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("etm failed: {}", err),
+            Err(err) => fatal!("etm failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
         Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("itm failed: {}", err),
+            Err(err) => fatal!("itm failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
         Subcommand::Manifest => match manifest(&hubris) {
-            Err(err) => fatal!("manifest failed: {}", err),
+            Err(err) => fatal!("manifest failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("tasks failed: {}", err),
+            Err(err) => fatal!("tasks failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
         Subcommand::Trace(subargs) => match tracecmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("trace failed: {}", err),
+            Err(err) => fatal!("trace failed: {:?}", err),
             _ => std::process::exit(0),
         },
     }
