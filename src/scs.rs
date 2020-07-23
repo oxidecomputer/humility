@@ -279,6 +279,18 @@ impl CoreSightComponent {
             }
         })
     }
+
+    pub fn displayable(&self) -> bool {
+        match self {
+            CoreSightComponent::DebugV8M
+            | CoreSightComponent::DebugV8R
+            | CoreSightComponent::DebugV80A
+            | CoreSightComponent::DebugV81A
+            | CoreSightComponent::DebugV82A
+            | CoreSightComponent::Unknown { .. } => false,
+            _ => true
+        }
+    }
 }
 
 bitfield! {
@@ -471,26 +483,5 @@ impl CoreInfo {
             Some(addr) => Some(*addr),
             None => None,
         }
-    }
-
-    pub fn components(&self) -> String {
-        let mut rval = vec![];
-
-        for component in self.components.keys() {
-            match component {
-                CoreSightComponent::DebugV8M
-                | CoreSightComponent::DebugV8R
-                | CoreSightComponent::DebugV80A
-                | CoreSightComponent::DebugV81A
-                | CoreSightComponent::DebugV82A
-                | CoreSightComponent::Unknown { .. } => {}
-                _ => {
-                    rval.push(format!("{:?}", component));
-                }
-            }
-        }
-
-        rval.sort();
-        rval.join(" ")
     }
 }

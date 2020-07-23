@@ -547,6 +547,9 @@ pub fn cpuinfo(
     let dhcsr = DHCSR::read(core)?;
     let dfsr = DFSR::read(core)?;
 
+    /*
+     * Start with information about our core and chip...
+     */
     print("core", corename(part));
 
     let m = &coreinfo.manufacturer;
@@ -587,12 +590,9 @@ pub fn cpuinfo(
         },
     );
 
-    print("debug units", coreinfo.components());
-
-    for component in coreinfo.components.iter() {
-        info!("{:>12} => {:x?}", format!("{:?}", component.0), component.1);
-    }
-
+    /*
+     * Now display our chip status
+     */
     statusif(dhcsr.restart_status(), "restarting");
     statusif(dhcsr.reset_status(), "resetting");
     statusif(dhcsr.retire_status(), "executing");
@@ -642,8 +642,47 @@ pub fn cpuinfo(
         },
     );
 
+    /*
+     * Now display information about each CoreSight component found
+     */
+    let mut sorted = coreinfo
+        .components
+        .keys()
+        .filter(|k| k.displayable())
+        .map(|k| (format!("{:?}", k), *k))
+        .collect::<Vec<(String, CoreSightComponent)>>();
+
+    sorted.sort();
+
+    let comp = |k: &(String, CoreSightComponent)| {
+        let len = coreinfo.components.get_vec(&k.1).unwrap().len();
+
+        if len > 1 {
+            format!("{}(x{})", k.0, len)
+        } else {
+            format!("{}", k.0)
+        }
+    };
+
+    let units = sorted.iter().map(comp).collect::<Vec<String>>().join(" ");
+
+    print("debug units", units);
+
+    for component in sorted {
+        let addrs = coreinfo
+            .components
+            .get_vec(&component.1)
+            .unwrap()
+            .iter()
+            .map(|addr| format!("0x{:08x}", *addr))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        info!("{:>12} => {}", component.0, addrs);
+    }
+
     print(
-        "ITM",
+        "ITM status",
         match coreinfo.address(CoreSightComponent::ITM) {
             None => "absent".to_string(),
             Some(_) => {
