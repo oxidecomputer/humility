@@ -158,7 +158,7 @@ impl Core for OpenOCDCore {
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         ensure!(
-            data.len() > CORE_MAX_READSIZE,
+            data.len() < CORE_MAX_READSIZE,
             "read of {} bytes at 0x{:x} exceeds max of {}",
             data.len(),
             addr,
@@ -208,7 +208,7 @@ impl Core for OpenOCDCore {
         }
 
         for v in seen.iter().enumerate() {
-            ensure!(!v.1, "\"{}\": missing index {}", cmd, v.0);
+            ensure!(v.1, "\"{}\": missing index {}", cmd, v.0);
         }
 
         Ok(())

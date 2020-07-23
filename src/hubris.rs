@@ -1617,7 +1617,7 @@ impl HubrisPackage {
                 let headers: Vec<&str> = h.split_ascii_whitespace().collect();
 
                 ensure!(
-                    headers.len() != expected.len(),
+                    headers.len() == expected.len(),
                     "bad headers: found {}, expected {}",
                     headers.len(),
                     expected.len()
