@@ -761,6 +761,22 @@ fn itmcmd_enable(
             cr.set_cddbgcken(true);
             cr.set_traceclken(true);
             cr.write(core)?;
+
+            let components = &coreinfo.components;
+
+            if let Some(cstf) = components.get_vec(&CoreSightComponent::CSTF) {
+                /*
+                 * If we have two funnels, the first is in D3 -- and it needs
+                 * to be unlocked and enabled.
+                 */
+                if cstf.len() > 1 {
+                    trace!("SWTF found at {:x}", cstf[0]);
+                    SWO_LAR::unlock(core, cstf[0])?;
+                    let mut swtf = SWTF_CTRL::read(core, cstf[0])?;
+                    swtf.register.set_es0(true);
+                    swtf.write(core)?;
+                }
+            }
         }
 
         _ => {}

@@ -65,6 +65,11 @@ register_offs!(DEVTYPE, 0xfcc,
     pub major, _: 3, 0;
 );
 
+register_offs!(SWTF_CTRL, 0x0,
+    pub min_hold_time, _: 11, 8;
+    pub es0, set_es0: 0;
+);
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CoreSightClass {
     ROM,
