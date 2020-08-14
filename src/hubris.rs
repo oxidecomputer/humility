@@ -131,7 +131,7 @@ pub struct HubrisStruct {
 pub struct HubrisEnumVariant {
     pub name: String,
     pub offset: usize,
-    pub goff: HubrisGoff,
+    pub goff: Option<HubrisGoff>,
     pub tag: Option<u64>,
 }
 
@@ -148,6 +148,7 @@ pub struct HubrisEnum {
     pub goff: HubrisGoff,
     pub size: usize,
     pub discriminant: HubrisDiscriminant,
+    /// temporary to hold tag of next variant
     pub tag: Option<u64>,
     pub variants: Vec<HubrisEnumVariant>,
 }
@@ -744,8 +745,8 @@ impl HubrisPackage {
                 core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
 
             if base != 0 {
-                Err(anyhow!("TASK_TABLE_SIZE is 0, but TASK_TABLE_BASE is 0x{:x}; \
-                    package mismatch?", base))
+                Err(anyhow!("TASK_TABLE_SIZE is 0, \
+                    but TASK_TABLE_BASE is 0x{:x}; package mismatch?", base))
             } else {
                 Ok(())
             }
@@ -767,7 +768,6 @@ impl HubrisPackage {
         let delim = if fmt.newline { "\n" } else { " " };
 
         let mut f = *fmt;
-        f.indent += 4;
 
         let readval = |b: &[u8], o, sz| -> Result<u64> {
             Ok(match sz {
@@ -789,9 +789,10 @@ impl HubrisPackage {
                 return Ok(rval);
             }
 
+            f.indent += 4;
+
             if v.members[0].name == "__0" {
-                let paren = v.members.len() > 1
-                    || self.basetypes.get(&v.members[0].goff).is_none();
+                let paren = v.members.len() != 0;
 
                 if paren {
                     rval += "(";
@@ -799,6 +800,11 @@ impl HubrisPackage {
 
                 for i in 0..v.members.len() {
                     let m = &v.members[i];
+
+                    if let Some(child) = self.structs.get(&m.goff) {
+                        rval += &child.name;
+                    }
+
                     rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
 
                     if i + 1 < v.members.len() {
@@ -813,7 +819,7 @@ impl HubrisPackage {
                 return Ok(rval);
             }
 
-            rval += "{";
+            rval += " {";
             rval += delim;
 
             for i in 0..v.members.len() {
@@ -825,6 +831,10 @@ impl HubrisPackage {
 
                 rval += &m.name;
                 rval += ": ";
+
+                if let Some(child) = self.structs.get(&m.goff) {
+                    rval += &child.name;
+                }
 
                 rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
 
@@ -855,7 +865,10 @@ impl HubrisPackage {
                     let size = match self.basetypes.get(&g) {
                         Some(size) => size,
                         None => {
-                            bail!("enum {} has discriminant of unknown type: {}", goff, g);
+                            bail!(
+                                "enum {} has discriminant of unknown type: {}",
+                                goff, g
+                            );
                         }
                     };
 
@@ -868,8 +881,10 @@ impl HubrisPackage {
 
                         Some(variant) => {
                             rval += &variant.name;
-                            rval +=
-                                &self.dumpfmt(&buf[0..], variant.goff, &f)?;
+
+                            if let Some(goff) = variant.goff {
+                                rval += &self.dumpfmt(&buf[0..], goff, &f)?;
+                            }
                         }
                     }
 
@@ -882,13 +897,18 @@ impl HubrisPackage {
                     }
 
                     if union.variants.len() > 1 {
-                        bail!("enum {} has multiple variants but no discriminant", goff);
+                        bail!(
+                            "enum {} has multiple variants but no discriminant",
+                            goff
+                        );
                     }
 
                     let variant = &union.variants[0];
-
                     rval += &variant.name;
-                    rval += &self.dumpfmt(&buf[0..], variant.goff, &f)?;
+
+                    if let Some(goff) = variant.goff {
+                        rval += &self.dumpfmt(&buf[0..], goff, &f)?;
+                    }
 
                     return Ok(rval);
                 }
@@ -928,7 +948,7 @@ impl HubrisPackage {
         self.dumpfmt(
             buf,
             goff,
-            &HubrisDumpFormat { indent: 0, newline: false, hex: false },
+            &HubrisDumpFormat { indent: 0, newline: false, hex: true },
         )
     }
 
@@ -1040,6 +1060,112 @@ impl HubrisPackage {
         }
 
         Ok(())
+    }
+
+    fn dwarf_const_enum<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        goff: HubrisGoff,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let mut name = None;
+        let mut size = None;
+        let mut dgoff = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_type => {
+                    dgoff = self.dwarf_value_goff(unit, &attr.value());
+                }
+
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(dgoff), Some(size)) = (name, dgoff, size) {
+            self.enums.insert(
+                goff,
+                HubrisEnum {
+                    name: name.to_string(),
+                    goff: goff,
+                    size: size,
+                    discriminant: HubrisDiscriminant::Value(dgoff, 0),
+                    tag: None,
+                    variants: Vec::new(),
+                },
+            );
+
+            self.enums_byname.insert(name.to_string(), goff);
+            Ok(())
+        } else {
+            Err(anyhow!("missing enum on variant {}", goff))
+        }
+    }
+
+    fn dwarf_enum_variant<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+    ) -> Result<()> {
+        let goff = self.dwarf_goff(unit, entry);
+        let mut attrs = entry.attrs();
+        let mut value = None;
+        let mut name = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_const_value => {
+                    value = attr.value().udata_value();
+
+                    if value.is_none() {
+                        bail!("bad discriminant on const enum {}", parent);
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(value)) = (name, value) {
+            if let Some(union) = self.enums.get_mut(&parent) {
+                union.variants.push(HubrisEnumVariant {
+                    name: name.to_string(),
+                    offset: 0,
+                    goff: None,
+                    tag: Some(value),
+                });
+
+                Ok(())
+            } else {
+                Err(anyhow!("missing enum for variant {}", goff))
+            }
+        } else {
+            Err(anyhow!("incomplete const enum variant {}", goff))
+        }
     }
 
     fn dwarf_enum<'a, R: gimli::Reader<Offset = usize>>(
@@ -1191,7 +1317,7 @@ impl HubrisPackage {
                 union.variants.push(HubrisEnumVariant {
                     name: n.to_string(),
                     offset: offs,
-                    goff: g,
+                    goff: Some(g),
                     tag: union.tag,
                 });
 
@@ -1282,6 +1408,16 @@ impl HubrisPackage {
 
                     gimli::constants::DW_TAG_pointer_type => {
                         self.dwarf_ptrtype(&dwarf, &unit, &entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_enumeration_type => {
+                        self.dwarf_const_enum(&dwarf, &unit, &entry, goff)?;
+                    }
+
+                    gimli::constants::DW_TAG_enumerator => {
+                        let parent = stack[depth as usize - 1];
+
+                        self.dwarf_enum_variant(&dwarf, &unit, &entry, parent)?;
                     }
 
                     gimli::constants::DW_TAG_variant_part => {

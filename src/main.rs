@@ -8,7 +8,7 @@ extern crate log;
 #[macro_use]
 extern crate num_derive;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use structopt::StructOpt;
 
@@ -1298,7 +1298,9 @@ fn tracecmd_ingest(
     let state = tstruct.lookup_member("state")?;
     let state_enum = hubris.lookup_enum(state.goff)?;
     let healthy = state_enum.lookup_variant_byname("Healthy")?;
-    let hh = hubris.lookup_struct(healthy.goff)?;
+    let hh = hubris.lookup_struct(
+        healthy.goff.ok_or_else(|| anyhow!("incomplete Healthy structure"))?,
+    )?;
 
     let schedstate = hubris.lookup_enum(hh.lookup_member("__0")?.goff)?;
     let mut spayload = Vec::with_capacity(schedstate.size);
