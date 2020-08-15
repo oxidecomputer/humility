@@ -367,6 +367,22 @@ register!(LPC55_SYSCON_TRACECLKDIV, 0x5000_0308,
     pub div, _: 7, 0;
 );
 
+register!(LPC55_SYSCON_DEVID, 0x5000_0ff8,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct LPC55_SYSCON_DEVID(u32);
+    impl Debug;
+    pub rom_revision, _: 23, 20;
+);
+
+register!(LPC55_SYSCON_DIEID, 0x5000_0ffc,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct LPC55_SYSCON_DIEID(u32);
+    impl Debug;
+    pub rev_id, _: 3, 0;
+);
+
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq, Eq)]
 pub enum ARMCore {
     CortexA5 = 0xc05,
@@ -584,6 +600,23 @@ pub fn cpuinfo(
                 )
             } else {
                 format!("<unknown ST part 0x{:x}>", coreinfo.manufacturer_part)
+            }
+        } else if coreinfo.vendor == Vendor::NXP && part == ARMCore::CortexM33 {
+            let dieid = LPC55_SYSCON_DIEID::read(core);
+            let devid = LPC55_SYSCON_DEVID::read(core);
+
+            if let (Ok(dieid), Ok(devid)) = (dieid, devid) {
+                format!(
+                    "LPC55, ROM revision {}, device revision 0x{:x} ({})",
+                    devid.rom_revision(), dieid.rev_id(),
+                    match dieid.rev_id() {
+                        0x0 => { "0A" },
+                        0x1 => { "1B" },
+                        _ => { "<unknown>" }
+                    }
+                )
+            } else {
+                format!("<unknown NXP M33 0x{:x}>", coreinfo.manufacturer_part)
             }
         } else {
             format!("<unknown part 0x{:x}>", coreinfo.manufacturer_part)
