@@ -1116,6 +1116,41 @@ fn probe(hubris: &HubrisPackage, args: &Args) -> Result<()> {
     Ok(())
 }
 
+fn map(hubris: &HubrisPackage, args: &Args) -> Result<()> {
+    let mut core = attach(&args)?;
+    hubris.validate(core.as_mut())?;
+
+    let regions = hubris.regions(core.as_mut())?;
+
+    println!(
+        "{:10} {:10}   {:10} {:>7} {:5} {:2} {}",
+        "DESC", "LOW", "HIGH", "SIZE", "ATTR", "ID", "TASK"
+    );
+
+    for (_, region) in regions.iter() {
+        println!(
+            "0x{:08x} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{} {:2} {}",
+            region.daddr,
+            region.base,
+            region.base + region.size - 1,
+            if region.size >= 1024 {
+                format!("{}KiB", region.size >> 10)
+            } else {
+                format!("{}", region.size)
+            },
+            if region.attr.read { "r" } else { "-" },
+            if region.attr.write { "w" } else { "-" },
+            if region.attr.execute { "x" } else { "-" },
+            if region.attr.device { "d" } else { "-" },
+            if region.attr.dma { "m" } else { "-" },
+            region.task,
+            hubris.taskname(region.task)?
+        );
+    }
+
+    Ok(())
+}
+
 fn manifest(hubris: &HubrisPackage) -> Result<()> {
     hubris.manifest()?;
 
@@ -1504,6 +1539,8 @@ enum Subcommand {
     Etm(EtmArgs),
     /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
     Itm(ItmArgs),
+    /// print tasks memory maps
+    Map,
     /// print package manifest
     Manifest,
     /// list tasks
@@ -1533,8 +1570,11 @@ fn main() {
         }
     } else {
         match &args.cmd {
-            Subcommand::Tasks(..) | Subcommand::Trace(..) => {
-                fatal!("must provide a package");
+            Subcommand::Manifest
+            | Subcommand::Tasks(..)
+            | Subcommand::Trace(..)
+            | Subcommand::Map => {
+                fatal!("must provide a Hubris package");
             }
             _ => {}
         }
@@ -1558,6 +1598,11 @@ fn main() {
 
         Subcommand::Manifest => match manifest(&hubris) {
             Err(err) => fatal!("manifest failed: {:?}", err),
+            _ => std::process::exit(0),
+        },
+
+        Subcommand::Map => match map(&hubris, &args) {
+            Err(err) => fatal!("map failed: {:?}", err),
             _ => std::process::exit(0),
         },
 

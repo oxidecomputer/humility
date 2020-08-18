@@ -127,6 +127,25 @@ pub struct HubrisStruct {
     pub members: Vec<HubrisStructMember>,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct HubrisRegionAttr {
+    pub read: bool,
+    pub write: bool,
+    pub execute: bool,
+    pub device: bool,
+    pub dma: bool,
+    pub raw: u32,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct HubrisRegion {
+    pub daddr: u32,
+    pub base: u32,
+    pub size: u32,
+    pub attr: HubrisRegionAttr,
+    pub task: usize,
+}
+
 #[derive(Debug)]
 pub struct HubrisEnumVariant {
     pub name: String,
@@ -682,7 +701,7 @@ impl HubrisPackage {
     #[allow(dead_code)]
     pub fn lookup_struct(&self, goff: HubrisGoff) -> Result<&HubrisStruct> {
         match self.structs.get(&goff) {
-            Some(str) => Ok(str),
+            Some(s) => Ok(s),
             None => Err(anyhow!("expected struct {} not found", goff)),
         }
     }
@@ -716,6 +735,13 @@ impl HubrisPackage {
             self.current as usize - 1
         } else {
             0
+        }
+    }
+
+    pub fn taskname(&self, id: usize) -> Result<String> {
+        match self.modules.iter().skip(id + 1).next() {
+            Some(module) => Ok(((module.1).0).to_string()),
+            None => Err(anyhow!("no such task: {}", id)),
         }
     }
 
@@ -756,6 +782,142 @@ impl HubrisPackage {
         } else {
             Ok(())
         }
+    }
+
+    pub fn member_offset(
+        &self,
+        structure: &HubrisStruct,
+        member: &str,
+    ) -> Result<u32> {
+        let mut s = structure;
+        let mut offset = 0;
+
+        let fields: Vec<&str> = member.split(".").collect();
+
+        for i in 0..fields.len() {
+            let field = fields[i];
+
+            let m = match s.lookup_member(field) {
+                Ok(member) => member,
+                _ => {
+                    return Err(anyhow!("struct {} ({}) doesn't contain {}",
+                        s.name, s.goff, field))
+                }
+            };
+
+            offset += m.offset;
+
+            if i == fields.len() - 1 {
+                /*
+                 * We want to make sure that this is a 32-bit basetype or a
+                 * ptrtype.
+                 */
+                if let Some(size) = self.basetypes.get(&m.goff) {
+                    if *size != 4 {
+                        return Err(anyhow!(
+                            "expected {} in struct {} ({}) to \
+                            be 4 bytes, found to be {} bytes",
+                            member, structure.name, structure.goff, *size
+                        ));
+                    }
+                } else if let Some(_) = self.ptrtypes.get(&m.goff) {
+                    break;
+                } else {
+                    return Err(anyhow!(
+                        "expected {} in struct {} ({}) to \
+                        be 4 byte type, found to be {}",
+                        member, structure.name, structure.goff, m.goff
+                    ));
+                }
+
+                break;
+            }
+
+            /*
+             * We need to descend -- make sure that this is a structure!
+             */
+            s = match self.lookup_struct(m.goff) {
+                Ok(structure) => structure,
+                Err(_) => {
+                    return Err(anyhow!(
+                        "struct {} ({}) doesn't contain {}: \
+                        non-structure at {} ({})",
+                        structure.name, structure.goff, member, field, m.goff
+                    ));
+                }
+            }
+        }
+
+        Ok(offset as u32)
+    }
+
+    pub fn regions(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<BTreeMap<u32, HubrisRegion>> {
+        let task_table_base = self.lookup_symword("TASK_TABLE_BASE")?;
+        let base = core.read_word_32(task_table_base)?;
+        let task = self.lookup_struct_byname("Task")?;
+        let desc = self.lookup_struct_byname("RegionDesc")?;
+
+        let ptr_offs = self.member_offset(task, "region_table.data_ptr")?;
+        let len_offs = self.member_offset(task, "region_table.length")?;
+
+        let base_offs = self.member_offset(desc, "base")?;
+        let size_offs = self.member_offset(desc, "size")?;
+        let attr_offs = self.member_offset(desc, "attributes.bits")?;
+
+        /*
+         * Regrettably copied out of Hubris -- there isn't DWARF for this.
+         */
+        const READ: u32 = 1 << 0;
+        const WRITE: u32 = 1 << 1;
+        const EXECUTE: u32 = 1 << 2;
+        const DEVICE: u32 = 1 << 3;
+        const DMA: u32 = 1 << 4;
+
+        let mut regions: BTreeMap<u32, HubrisRegion> = BTreeMap::new();
+
+        /*
+         * Iterate over all tasks, reading their region descriptors.
+         */
+        for i in 0..self.ntasks() {
+            let addr = base + i as u32 * task.size as u32;
+
+            let ptr = core.read_word_32(addr + ptr_offs)?;
+            let len = core.read_word_32(addr + len_offs)?;
+
+            for j in 0..len {
+                let daddr = core.read_word_32(ptr + j * 4)?;
+                let base = core.read_word_32(daddr + base_offs)?;
+                let size = core.read_word_32(daddr + size_offs)?;
+                let attr = core.read_word_32(daddr + attr_offs)?;
+
+                if base == 0 {
+                    continue;
+                }
+
+                regions.insert(
+                    base,
+                    HubrisRegion {
+                        daddr: daddr,
+                        base: base,
+                        size: size,
+                        attr: HubrisRegionAttr {
+                            read: attr & READ != 0,
+                            write: attr & WRITE != 0,
+                            execute: attr & EXECUTE != 0,
+                            device: attr & DEVICE != 0,
+                            dma: attr & DMA != 0,
+                            raw: attr,
+                        },
+                        task: i,
+                    },
+                );
+            }
+        }
+
+        Ok(regions)
     }
 
     pub fn dumpfmt(
