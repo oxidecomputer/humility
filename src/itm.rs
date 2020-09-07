@@ -20,6 +20,17 @@ register!(ITM_TER, 0xe000_0e00,
 );
 
 /*
+ * ITM Trace Privilege Register
+ */
+register!(ITM_TPR, 0xe000_0e40,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct ITM_TPR(u32);
+    impl Debug;
+    pub privmask, set_privmask: 31, 0;
+);
+
+/*
  * ITM Trace Configuration Register
  */
 register!(ITM_TCR, 0xe000_0e80,

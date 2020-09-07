@@ -713,15 +713,29 @@ fn etmcmd(
     rval
 }
 
-fn itmcmd_probe(core: &mut dyn core::Core) -> Result<()> {
+fn itmcmd_probe(core: &mut dyn core::Core, coreinfo: &CoreInfo) -> Result<()> {
     info!("{:#x?}", TPIU_ACPR::read(core)?);
-    info!("{:#x?}", DEMCR::read(core)?);
+    info!("{:#x?}", TPIU_SPPR::read(core)?);
+    info!("{:#x?}", TPIU_FFCR::read(core)?);
+
     info!("{:#x?}", ITM_LSR::read(core)?);
     info!("{:#x?}", ITM_TCR::read(core)?);
     info!("{:#x?}", ITM_TER::read(core)?);
-    info!("{:#x?}", STM32F4_DBGMCU_CR::read(core)?);
+    info!("{:#x?}", ITM_TPR::read(core)?);
+
     info!("{:#x?}", DWT_CTRL::read(core)?);
-    // info!("{:#x?}", TPIU_SPPR::read(core)?);
+
+    info!("{:#x?}", DEMCR::read(core)?);
+
+    match (coreinfo.vendor, coreinfo.part) {
+        (Vendor::ST, ARMCore::CortexM4) => {
+            info!("{:#x?}", STM32F4_DBGMCU_CR::read(core)?);
+        }
+        (Vendor::ST, ARMCore::CortexM7) => {
+            info!("{:#x?}", STM32H7_DBGMCU_CR::read(core)?);
+        }
+        _ => {}
+    }
 
     Ok(())
 }
@@ -850,6 +864,13 @@ fn itmcmd_enable(
     let mut ter = ITM_TER::read(core)?;
     ter.set_enabled(stimuli);
     ter.write(core)?;
+
+    /*
+     * Allow unprivileged access to all stimulus ports
+     */
+    let mut tpr = ITM_TPR::read(core)?;
+    tpr.set_privmask(0);
+    tpr.write(core)?;
 
     /*
      * Set the trace ID
@@ -1069,7 +1090,7 @@ fn itmcmd(
     info!("core halted");
 
     if subargs.probe {
-        rval = itmcmd_probe(core);
+        rval = itmcmd_probe(core, &coreinfo);
     }
 
     if subargs.disable {
