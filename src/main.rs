@@ -1015,11 +1015,15 @@ fn itmcmd_ingest(subargs: &ItmArgs, filename: &str) -> Result<()> {
     }
 }
 
-fn itmcmd_ingest_attached(
+fn itmcmd_ingest_attached<F>(
     core: &mut dyn core::Core,
     coreinfo: &CoreInfo,
     subargs: &ItmArgs,
-) -> Result<()> {
+    callback: F,
+) -> Result<()>
+where
+    F: FnMut(&itm::ITMPacket) -> Result<()>,
+{
     let mut bytes: Vec<u8> = vec![];
     let mut ndx = 0;
 
@@ -1041,23 +1045,7 @@ fn itmcmd_ingest_attached(
             ndx += 1;
             Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
         },
-        |packet| {
-            match &packet.payload {
-                ITMPayload::Instrumentation { payload, port } => {
-                    if *port > 1 {
-                        println!("{:x?}", payload);
-                        return Ok(());
-                    }
-
-                    for p in payload {
-                        print!("{}", *p as char);
-                    }
-                }
-                _ => {}
-            }
-
-            Ok(())
-        },
+        callback,
     )
 }
 
@@ -1096,11 +1084,15 @@ struct ItmArgs {
     clockscaler: Option<u16>,
 }
 
-fn itmcmd(
+fn itmcmd<F>(
     hubris: &HubrisArchive,
     args: &Args,
     subargs: &ItmArgs,
-) -> Result<()> {
+    callback: F,
+) -> Result<()> 
+where
+    F: FnMut(&itm::ITMPacket) -> Result<()>,
+{
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -1155,7 +1147,7 @@ fn itmcmd(
     info!("core resumed");
 
     if rval.is_ok() && subargs.attach {
-        match itmcmd_ingest_attached(core, &coreinfo, subargs) {
+        match itmcmd_ingest_attached(core, &coreinfo, subargs, callback) {
             Err(e) => {
                 fatal!("failed to ingest from attached device: {}", e);
             }
@@ -2092,6 +2084,8 @@ enum Subcommand {
     Itm(ItmArgs),
     /// generate Hubris dump
     Dump(DumpArgs),
+    /// Get logging over ITM
+    Log(ItmArgs),
     /// print memory map, with association of regions to tasks
     Map,
     /// print archive manifest
@@ -2143,6 +2137,7 @@ fn main() {
             | Subcommand::Readvar(..)
             | Subcommand::Manifest
             | Subcommand::Test(..)
+            | Subcommand::Log(..)
             | Subcommand::Tasks(..)
             | Subcommand::Trace(..)
             | Subcommand::Map => {
@@ -2151,6 +2146,97 @@ fn main() {
             _ => {}
         }
     }
+
+    let itm_callback = |packet: &ITMPacket| {
+        match &packet.payload {
+            ITMPayload::Instrumentation { payload, port } => {
+                if *port > 1 {
+                    println!("{:x?}", payload);
+                    return Ok(());
+                }
+
+                for p in payload {
+                    print!("{}", *p as char);
+                }
+            }
+            _ => (),
+        }
+
+        Ok(())
+    };
+
+    let mut frames = vec![];
+
+    let log_callback = |packet: &ITMPacket| {
+        match &packet.payload {
+            ITMPayload::Instrumentation { payload, port: _ } => {
+                frames.extend_from_slice(&payload);
+
+                // find the first byte of our frame, add two since it's two bytes long
+                if let Some(position) =
+                    frames.windows(2).position(|bytes| bytes == [0x1, 0xde])
+                {
+                    let position = position + 2;
+
+                    // do we have a task id + frame length? we need two bytes for each of them, four total
+                    if frames.len() > position + 4 {
+                        // these are u16, but we want to use them as usize, so we cast after constructing it
+                        let task_id = u16::from_be_bytes([
+                            frames[position],
+                            frames[position + 1],
+                        ]);
+                        // this is duplicated from hubris, probably want to de-duplicate someday
+                        let task_index = task_id & (1 << 10) - 1;
+
+                        let frame_len = u16::from_be_bytes([
+                            frames[position + 2],
+                            frames[position + 3],
+                        ]) as usize;
+
+                        // have we got all the data yet?
+                        let total_end_position = position + 4 + frame_len;
+
+                        if frames.len() >= total_end_position {
+                            let start = position + 4;
+                            let end = start + frame_len;
+
+                            let table = hubris
+                                .task_elf_map()
+                                .get(&task_index)
+                                .ok_or(anyhow!(
+                                    "couldn't find task #{}",
+                                    task_index
+                                ))?
+                                .as_ref()
+                                .ok_or(anyhow!(
+                                    "couldn't find log messages for task #{}",
+                                    task_index
+                                ))?;
+
+                            if let Ok((frame, consumed)) =
+                                defmt_decoder::decode(&frames[start..end], &table)
+                            {
+                                // just to be on the safe side
+                                assert_eq!(frame_len, consumed);
+
+                                println!(
+                                    "#{}: {}",
+                                    task_index,
+                                    frame.display(true)
+                                );
+
+                                let len = frames.len();
+                                frames.rotate_left(end);
+                                frames.truncate(len - end);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    };
 
     match &args.cmd {
         Subcommand::Apptable(subargs) => {
@@ -2177,10 +2263,19 @@ fn main() {
             _ => std::process::exit(0),
         },
 
-        Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("itm failed: {:?}", err),
-            _ => std::process::exit(0),
-        },
+        Subcommand::Itm(subargs) => {
+            match itmcmd(&hubris, &args, subargs, itm_callback) {
+                Err(err) => fatal!("itm failed: {:?}", err),
+                _ => std::process::exit(0),
+            }
+        }
+
+        Subcommand::Log(subargs) => {
+            match itmcmd(&hubris, &args, subargs, log_callback) {
+                Err(err) => fatal!("log failed: {:?}", err),
+                _ => std::process::exit(0),
+            }
+        }
 
         Subcommand::Dump(subargs) => match dump(&hubris, &args, subargs) {
             Err(err) => fatal!("dump failed: {:?}", err),

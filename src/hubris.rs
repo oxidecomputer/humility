@@ -69,6 +69,9 @@ pub struct HubrisArchive {
     // Modules: text address to module
     modules: BTreeMap<u32, HubrisModule>,
 
+    // a set of Tables to parse logs
+    task_elf_map: HashMap<u16, Option<defmt_decoder::Table>>,
+
     // DWARF symbols: address to name/length/goff tuple
     dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
 
@@ -399,6 +402,7 @@ impl HubrisArchive {
             arrays: HashMap::new(),
             variables: HashMap::new(),
             unions: HashMap::new(),
+            task_elf_map: HashMap::new(),
         })
     }
 
@@ -1861,6 +1865,11 @@ impl HubrisArchive {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
             self.load_object(&object, HubrisTask::Task(id), &buffer)?;
+
+            // save a Table for parsing logs
+            let table = defmt_elf2table::parse(&buffer)?;
+            self.task_elf_map.insert(id as u16, table);
+
             id = id + 1;
         }
 
@@ -2825,5 +2834,9 @@ impl HubrisArchive {
 
     pub fn apptable(&self) -> &[u8] {
         &self.apptable
+    }
+
+    pub fn task_elf_map(&self) -> &HashMap<u16, Option<defmt_elf2table::Table>> {
+        &self.task_elf_map
     }
 }
