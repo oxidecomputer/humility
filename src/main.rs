@@ -1164,17 +1164,55 @@ fn map(hubris: &HubrisPackage, args: &Args) -> Result<()> {
             if region.attr.execute { "x" } else { "-" },
             if region.attr.device { "d" } else { "-" },
             if region.attr.dma { "m" } else { "-" },
-            region.task,
-            hubris.taskname(region.task)?
+            region.task.id(),
+            hubris.lookup_task(region.task)?.name
         );
     }
 
     Ok(())
 }
 
+#[derive(StructOpt, Debug)]
+struct ReadvarArgs {
+    /// list variables
+    #[structopt(long, short)]
+    list: bool,
+    #[structopt(conflicts_with = "list")]
+    variable: Option<String>,
+}
+
+fn readvar(
+    hubris: &HubrisPackage,
+    args: &Args,
+    subargs: &ReadvarArgs,
+) -> Result<()> {
+    if subargs.list {
+        return hubris.list_variables();
+    }
+
+    let v = match subargs.variable {
+        Some(ref variable) => hubris.lookup_variable(variable)?,
+        None => fatal!("expected variable (use \"-l\" to list)"),
+    };
+
+    let mut core = attach(&args)?;
+    hubris.validate(core.as_mut())?;
+
+    let mut buf: Vec<u8> = vec![];
+    buf.resize_with(v.size, Default::default);
+    core.read_8(v.addr, buf.as_mut_slice())?;
+
+    let fmt = HubrisDumpFormat { indent: 0, newline: true, hex: true };
+    let name = subargs.variable.as_ref().unwrap();
+    let dumped = hubris.dumpfmt(&buf, v.goff, &fmt)?;
+
+    println!("{} (0x{:08x}) = {}", name, v.addr, dumped);
+
+    Ok(())
+}
+
 fn manifest(hubris: &HubrisPackage) -> Result<()> {
     hubris.manifest()?;
-
     Ok(())
 }
 
@@ -1564,6 +1602,8 @@ enum Subcommand {
     Map,
     /// print package manifest
     Manifest,
+    /// read and print a Hubris variable
+    Readvar(ReadvarArgs),
     /// list tasks
     Tasks(TasksArgs),
     /// trace Hubris operations
@@ -1626,6 +1666,13 @@ fn main() {
             Err(err) => fatal!("map failed: {:?}", err),
             _ => std::process::exit(0),
         },
+
+        Subcommand::Readvar(subargs) => {
+            match readvar(&hubris, &args, subargs) {
+                Err(err) => fatal!("readvar failed: {:?}", err),
+                _ => std::process::exit(0),
+            }
+        }
 
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
             Err(err) => fatal!("tasks failed: {:?}", err),

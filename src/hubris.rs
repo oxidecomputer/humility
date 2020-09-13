@@ -4,15 +4,12 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::convert::Infallible;
 use std::convert::TryInto;
 use std::fmt;
 use std::fmt::Write;
 use std::fs;
-use std::fs::File;
 use std::io::prelude::*;
-use std::io::BufReader;
 use std::path::Path;
 use std::str;
 
@@ -50,8 +47,8 @@ pub struct HubrisPackage {
     // Instructions: address to bytes/target tuple
     instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>,
 
-    // Modules: address to string/base/memsz tuple
-    modules: BTreeMap<u32, (String, u32, u32)>,
+    // Modules: text address to module
+    modules: BTreeMap<u32, HubrisModule>,
 
     // DWARF symbols: address to name/length/goff tuple
     dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
@@ -69,7 +66,7 @@ pub struct HubrisPackage {
     subprograms: HashMap<HubrisGoff, String>,
 
     // Base types: goff to size
-    basetypes: HashMap<HubrisGoff, usize>,
+    basetypes: HashMap<HubrisGoff, HubrisBasetype>,
 
     // Base types: goff to underlying type
     ptrtypes: HashMap<HubrisGoff, (String, HubrisGoff)>,
@@ -85,6 +82,21 @@ pub struct HubrisPackage {
 
     // Enums: name to goff
     enums_byname: MultiMap<String, HubrisGoff>,
+
+    // Arrays: goff to array
+    arrays: HashMap<HubrisGoff, HubrisArray>,
+
+    // Variables: name to goff/address/size tuple
+    variables: HashMap<String, HubrisVariable>,
+
+    // Unions: goff to size
+    unions: HashMap<HubrisGoff, usize>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum HubrisTask {
+    Kernel,
+    Task(u32),
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
@@ -112,6 +124,21 @@ pub struct HubrisInlined<'a> {
     pub origin: HubrisGoff,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum HubrisEncoding {
+    Unknown,
+    Signed,
+    Unsigned,
+    Float,
+    Bool,
+}
+
+#[derive(Debug)]
+pub struct HubrisBasetype {
+    pub encoding: HubrisEncoding,
+    pub size: usize,
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HubrisStructMember {
     pub offset: usize,
@@ -125,6 +152,19 @@ pub struct HubrisStruct {
     pub goff: HubrisGoff,
     pub size: usize,
     pub members: Vec<HubrisStructMember>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct HubrisVariable {
+    pub goff: HubrisGoff,
+    pub addr: u32,
+    pub size: usize,
+}
+
+#[derive(Debug)]
+pub struct HubrisArray {
+    pub goff: HubrisGoff,
+    pub count: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -143,7 +183,7 @@ pub struct HubrisRegion {
     pub base: u32,
     pub size: u32,
     pub attr: HubrisRegionAttr,
-    pub task: usize,
+    pub task: HubrisTask,
 }
 
 #[derive(Debug)]
@@ -182,6 +222,16 @@ pub enum HubrisTarget {
     Return,
 }
 
+#[derive(Debug)]
+pub struct HubrisModule {
+    pub name: String,
+    pub object: u32,
+    pub task: HubrisTask,
+    pub textbase: u32,
+    pub textsize: u32,
+    pub memsize: u32,
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct HubrisDumpFormat {
     pub indent: usize,
@@ -199,6 +249,25 @@ impl fmt::Display for HubrisGoff {
     }
 }
 
+impl fmt::Display for HubrisTask {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HubrisTask::Kernel => write!(f, "kernel"),
+            HubrisTask::Task(id) => write!(f, "Task #{}", id),
+        }
+    }
+}
+
+impl From<HubrisGoff> for HubrisTask {
+    fn from(goff: HubrisGoff) -> Self {
+        if goff.object == 0 {
+            HubrisTask::Kernel
+        } else {
+            HubrisTask::Task(goff.object - 1)
+        }
+    }
+}
+
 fn dwarf_name<'a>(
     dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
     value: gimli::AttributeValue<gimli::EndianSlice<gimli::LittleEndian>>,
@@ -210,6 +279,15 @@ fn dwarf_name<'a>(
             Some(ddstring)
         }
         _ => None,
+    }
+}
+
+impl HubrisTask {
+    pub fn id(&self) -> String {
+        match self {
+            HubrisTask::Kernel => "-".to_string(),
+            HubrisTask::Task(id) => format!("{}", id),
+        }
     }
 }
 
@@ -295,6 +373,9 @@ impl HubrisPackage {
             structs_byname: MultiMap::new(),
             enums: HashMap::new(),
             enums_byname: MultiMap::new(),
+            arrays: HashMap::new(),
+            variables: HashMap::new(),
+            unions: HashMap::new(),
         })
     }
 
@@ -314,8 +395,8 @@ impl HubrisPackage {
 
     pub fn instr_mod(&self, addr: u32) -> Option<&str> {
         if let Some(module) = self.modules.range(..=addr).next_back() {
-            if addr < *module.0 + (module.1).1 {
-                Some(&(module.1).0)
+            if addr < *module.0 + (module.1).textsize {
+                Some(&(module.1).name)
             } else {
                 None
             }
@@ -678,442 +759,6 @@ impl HubrisPackage {
         }
     }
 
-    ///
-    /// Looks up the specfied structure.  This returns a Result and not an
-    /// Option because the assumption is that the structure is needed to be
-    /// present, and be present exactly once.  If needed structures begin
-    /// having their names duplicated in modules, we may need to support
-    /// proper namespacing -- or kludgey namespacing...
-    ///
-    pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
-        match self.structs_byname.get_vec(name) {
-            Some(v) => {
-                if v.len() > 1 {
-                    Err(anyhow!("{} matches more than one structure", name))
-                } else {
-                    Ok(self.structs.get(&v[0]).unwrap())
-                }
-            }
-            None => Err(anyhow!("expected structure {} not found", name)),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn lookup_struct(&self, goff: HubrisGoff) -> Result<&HubrisStruct> {
-        match self.structs.get(&goff) {
-            Some(s) => Ok(s),
-            None => Err(anyhow!("expected struct {} not found", goff)),
-        }
-    }
-
-    pub fn lookup_enum(&self, goff: HubrisGoff) -> Result<&HubrisEnum> {
-        match self.enums.get(&goff) {
-            Some(union) => Ok(union),
-            None => Err(anyhow!("expected enum {} not found", goff)),
-        }
-    }
-
-    ///
-    /// Looks up the specified symbol.  This is more of a convenience routine
-    /// that turns an Option into a Result.
-    ///
-    pub fn lookup_symword(&self, name: &str) -> Result<u32> {
-        match self.esyms_byname.get(name) {
-            Some(sym) => {
-                if sym.1 != 4 {
-                    Err(anyhow!("symbol {} is not word-sized", name))
-                } else {
-                    Ok(sym.0)
-                }
-            }
-            None => Err(anyhow!("expected symbol {} not found", name)),
-        }
-    }
-
-    pub fn ntasks(&self) -> usize {
-        if self.current >= 1 {
-            self.current as usize - 1
-        } else {
-            0
-        }
-    }
-
-    pub fn taskname(&self, id: usize) -> Result<String> {
-        match self.modules.iter().skip(id + 1).next() {
-            Some(module) => Ok(((module.1).0).to_string()),
-            None => Err(anyhow!("no such task: {}", id)),
-        }
-    }
-
-    pub fn validate(&self, core: &mut dyn crate::core::Core) -> Result<()> {
-        let ntasks = self.ntasks();
-
-        if self.current == 0 {
-            /*
-             * If we have no objects, we were never loaded -- and we consider
-             * this to be validated because it will give no answers rather than
-             * wrong ones.
-             */
-            return Ok(());
-        }
-
-        let size =
-            core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
-
-        if size == 0 {
-            /*
-             * The TASK_TABLE_SIZE is set dynamically by Hubris on boot -- so
-             * it can be 0 if the kernel hasn't booted.  If this is the case,
-             * we expect the TASK_TABLE_BASE to also be 0, so as an added
-             * check, we check that as well.
-             */
-            let base =
-                core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
-
-            if base != 0 {
-                Err(anyhow!("TASK_TABLE_SIZE is 0, \
-                    but TASK_TABLE_BASE is 0x{:x}; package mismatch?", base))
-            } else {
-                Ok(())
-            }
-        } else if size != ntasks as u32 {
-            Err(anyhow!("tasks in image ({}) exceeds tasks in \
-                package ({}); package mismatch?", size, ntasks))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn member_offset(
-        &self,
-        structure: &HubrisStruct,
-        member: &str,
-    ) -> Result<u32> {
-        let mut s = structure;
-        let mut offset = 0;
-
-        let fields: Vec<&str> = member.split(".").collect();
-
-        for i in 0..fields.len() {
-            let field = fields[i];
-
-            let m = match s.lookup_member(field) {
-                Ok(member) => member,
-                _ => {
-                    return Err(anyhow!("struct {} ({}) doesn't contain {}",
-                        s.name, s.goff, field))
-                }
-            };
-
-            offset += m.offset;
-
-            if i == fields.len() - 1 {
-                /*
-                 * We want to make sure that this is a 32-bit basetype or a
-                 * ptrtype.
-                 */
-                if let Some(size) = self.basetypes.get(&m.goff) {
-                    if *size != 4 {
-                        return Err(anyhow!(
-                            "expected {} in struct {} ({}) to \
-                            be 4 bytes, found to be {} bytes",
-                            member, structure.name, structure.goff, *size
-                        ));
-                    }
-                } else if let Some(_) = self.ptrtypes.get(&m.goff) {
-                    break;
-                } else {
-                    return Err(anyhow!(
-                        "expected {} in struct {} ({}) to \
-                        be 4 byte type, found to be {}",
-                        member, structure.name, structure.goff, m.goff
-                    ));
-                }
-
-                break;
-            }
-
-            /*
-             * We need to descend -- make sure that this is a structure!
-             */
-            s = match self.lookup_struct(m.goff) {
-                Ok(structure) => structure,
-                Err(_) => {
-                    return Err(anyhow!(
-                        "struct {} ({}) doesn't contain {}: \
-                        non-structure at {} ({})",
-                        structure.name, structure.goff, member, field, m.goff
-                    ));
-                }
-            }
-        }
-
-        Ok(offset as u32)
-    }
-
-    pub fn regions(
-        &self,
-        core: &mut dyn crate::core::Core,
-    ) -> Result<BTreeMap<u32, HubrisRegion>> {
-        let task_table_base = self.lookup_symword("TASK_TABLE_BASE")?;
-        let base = core.read_word_32(task_table_base)?;
-        let task = self.lookup_struct_byname("Task")?;
-        let desc = self.lookup_struct_byname("RegionDesc")?;
-
-        let ptr_offs = self.member_offset(task, "region_table.data_ptr")?;
-        let len_offs = self.member_offset(task, "region_table.length")?;
-
-        let base_offs = self.member_offset(desc, "base")?;
-        let size_offs = self.member_offset(desc, "size")?;
-        let attr_offs = self.member_offset(desc, "attributes.bits")?;
-
-        /*
-         * Regrettably copied out of Hubris -- there isn't DWARF for this.
-         */
-        const READ: u32 = 1 << 0;
-        const WRITE: u32 = 1 << 1;
-        const EXECUTE: u32 = 1 << 2;
-        const DEVICE: u32 = 1 << 3;
-        const DMA: u32 = 1 << 4;
-
-        let mut regions: BTreeMap<u32, HubrisRegion> = BTreeMap::new();
-
-        /*
-         * Iterate over all tasks, reading their region descriptors.
-         */
-        for i in 0..self.ntasks() {
-            let addr = base + i as u32 * task.size as u32;
-
-            let ptr = core.read_word_32(addr + ptr_offs)?;
-            let len = core.read_word_32(addr + len_offs)?;
-
-            for j in 0..len {
-                let daddr = core.read_word_32(ptr + j * 4)?;
-                let base = core.read_word_32(daddr + base_offs)?;
-                let size = core.read_word_32(daddr + size_offs)?;
-                let attr = core.read_word_32(daddr + attr_offs)?;
-
-                if base == 0 {
-                    continue;
-                }
-
-                regions.insert(
-                    base,
-                    HubrisRegion {
-                        daddr: daddr,
-                        base: base,
-                        size: size,
-                        attr: HubrisRegionAttr {
-                            read: attr & READ != 0,
-                            write: attr & WRITE != 0,
-                            execute: attr & EXECUTE != 0,
-                            device: attr & DEVICE != 0,
-                            dma: attr & DMA != 0,
-                            raw: attr,
-                        },
-                        task: i,
-                    },
-                );
-            }
-        }
-
-        Ok(regions)
-    }
-
-    pub fn dumpfmt(
-        &self,
-        buf: &[u8],
-        goff: HubrisGoff,
-        fmt: &HubrisDumpFormat,
-    ) -> Result<String> {
-        let mut rval = String::new();
-        let delim = if fmt.newline { "\n" } else { " " };
-
-        let mut f = *fmt;
-
-        let readval = |b: &[u8], o, sz| -> Result<u64> {
-            Ok(match sz {
-                1 => b[o] as u64,
-                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
-                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
-                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
-                _ => {
-                    bail!("bad size!");
-                }
-            })
-        };
-
-        if let Some(v) = self.structs.get(&goff) {
-            /*
-             * This is a structure; iterate over its members.
-             */
-            if v.members.len() == 0 {
-                return Ok(rval);
-            }
-
-            f.indent += 4;
-
-            if v.members[0].name == "__0" {
-                let paren = v.members.len() != 0;
-
-                if paren {
-                    rval += "(";
-                }
-
-                for i in 0..v.members.len() {
-                    let m = &v.members[i];
-
-                    if let Some(child) = self.structs.get(&m.goff) {
-                        rval += &child.name;
-                    }
-
-                    rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
-
-                    if i + 1 < v.members.len() {
-                        rval += ", ";
-                    }
-                }
-
-                if paren {
-                    rval += ")";
-                }
-
-                return Ok(rval);
-            }
-
-            rval += " {";
-            rval += delim;
-
-            for i in 0..v.members.len() {
-                let m = &v.members[i];
-
-                if fmt.newline && fmt.indent > 0 {
-                    rval += &format!("{:1$}", " ", f.indent);
-                }
-
-                rval += &m.name;
-                rval += ": ";
-
-                if let Some(child) = self.structs.get(&m.goff) {
-                    rval += &child.name;
-                }
-
-                rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
-
-                if i + 1 < v.members.len() {
-                    rval += ",";
-                    rval += delim;
-                }
-            }
-
-            rval += delim;
-
-            if fmt.newline && fmt.indent > 0 {
-                rval += &format!("{:1$}", " ", fmt.indent);
-            }
-
-            rval += "}";
-
-            return Ok(rval);
-        }
-
-        if let Some(union) = self.enums.get(&goff) {
-            /*
-             * For enums, we need to determine which variant this actually
-             * is -- which necessitates looking at our discriminant.
-             */
-            match union.discriminant {
-                HubrisDiscriminant::Value(g, offs) => {
-                    let size = match self.basetypes.get(&g) {
-                        Some(size) => size,
-                        None => {
-                            bail!(
-                                "enum {} has discriminant of unknown type: {}",
-                                goff, g
-                            );
-                        }
-                    };
-
-                    let val = readval(buf, offs, *size)?;
-
-                    match union.lookup_variant(val) {
-                        None => {
-                            write!(rval, "<? (0x{:x})>", val)?;
-                        }
-
-                        Some(variant) => {
-                            rval += &variant.name;
-
-                            if let Some(goff) = variant.goff {
-                                rval += &self.dumpfmt(&buf[0..], goff, &f)?;
-                            }
-                        }
-                    }
-
-                    return Ok(rval);
-                }
-
-                HubrisDiscriminant::None => {
-                    if union.variants.len() == 0 {
-                        bail!("enum {} has no variants", goff);
-                    }
-
-                    if union.variants.len() > 1 {
-                        bail!(
-                            "enum {} has multiple variants but no discriminant",
-                            goff
-                        );
-                    }
-
-                    let variant = &union.variants[0];
-                    rval += &variant.name;
-
-                    if let Some(goff) = variant.goff {
-                        rval += &self.dumpfmt(&buf[0..], goff, &f)?;
-                    }
-
-                    return Ok(rval);
-                }
-
-                HubrisDiscriminant::Expected(_) => {
-                    bail!("enum {} has incomplete discriminant", goff);
-                }
-            }
-        }
-
-        if let Some(base) = self.basetypes.get(&goff) {
-            let val = readval(buf, 0, *base)?;
-
-            if fmt.hex {
-                write!(rval, "0x{:x}", val)?;
-            } else {
-                write!(rval, "{}", val)?;
-            }
-
-            return Ok(rval);
-        }
-
-        if let Some((name, _ptr)) = self.ptrtypes.get(&goff) {
-            let val = readval(buf, 0, 4)?;
-
-            write!(rval, "0x{:x} ({})", val, name)?;
-
-            return Ok(rval);
-        }
-
-        rval = goff.to_string();
-
-        Ok(rval)
-    }
-
-    pub fn dump(&self, buf: &[u8], goff: HubrisGoff) -> Result<String> {
-        self.dumpfmt(
-            buf,
-            goff,
-            &HubrisDumpFormat { indent: 0, newline: false, hex: true },
-        )
-    }
-
     fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
@@ -1125,6 +770,7 @@ impl HubrisPackage {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
+        let mut encoding = None;
 
         while let Some(attr) = attrs.next()? {
             match attr.name() {
@@ -1133,12 +779,38 @@ impl HubrisPackage {
                         size = Some(value as usize)
                     }
                 }
+                gimli::constants::DW_AT_encoding => {
+                    if let gimli::AttributeValue::Encoding(en) = attr.value() {
+                        encoding = Some(match en {
+                            gimli::constants::DW_ATE_signed => {
+                                HubrisEncoding::Signed
+                            }
+
+                            gimli::constants::DW_ATE_unsigned => {
+                                HubrisEncoding::Unsigned
+                            }
+
+                            gimli::constants::DW_ATE_float => {
+                                HubrisEncoding::Float
+                            }
+
+                            gimli::constants::DW_ATE_boolean => {
+                                HubrisEncoding::Bool
+                            }
+
+                            _ => HubrisEncoding::Unknown,
+                        });
+                    }
+                }
                 _ => {}
             }
         }
 
-        if let Some(size) = size {
-            self.basetypes.insert(goff, size);
+        if let (Some(size), Some(encoding)) = (size, encoding) {
+            self.basetypes.insert(
+                goff,
+                HubrisBasetype { encoding: encoding, size: size },
+            );
         }
 
         Ok(())
@@ -1172,6 +844,106 @@ impl HubrisPackage {
 
         if let (Some(name), Some(underlying)) = (name, underlying) {
             self.ptrtypes.insert(goff, (name.to_string(), underlying));
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_array<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+        array: Option<HubrisGoff>,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut count = None;
+
+        let array = match array {
+            Some(array) => array,
+            None => bail!("missing array type for subrange type {}", goff),
+        };
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_count => {
+                    count = attr.udata_value();
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(count) = count {
+            self.arrays.insert(
+                parent,
+                HubrisArray { goff: array, count: count as usize },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_variable<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut name = None;
+        let mut external = None;
+        let mut tgoff = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_external => {
+                    if let gimli::AttributeValue::Flag(val) = attr.value() {
+                        external = Some(val);
+                    }
+                }
+
+                gimli::constants::DW_AT_type => {
+                    tgoff = self.dwarf_value_goff(unit, &attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        match (external, name, tgoff) {
+            (Some(true), Some(name), Some(tgoff)) => {
+                if let Some(sym) = self.esyms_byname.get(name) {
+                    match self.dsyms.get(&sym.0) {
+                        None => {
+                            self.dsyms.insert(
+                                sym.0,
+                                (String::from(name), sym.1, goff),
+                            );
+                            self.variables.insert(
+                                String::from(name),
+                                HubrisVariable {
+                                    goff: tgoff,
+                                    addr: sym.0,
+                                    size: sym.1 as usize,
+                                },
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
         }
 
         Ok(())
@@ -1411,6 +1183,36 @@ impl HubrisPackage {
         }
     }
 
+    fn dwarf_union<'a, R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut size = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(size) = size {
+            self.unions.insert(goff, size);
+        }
+
+        Ok(())
+    }
+
     fn dwarf_member<'a, R: gimli::Reader<Offset = usize>>(
         &mut self,
         dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
@@ -1540,6 +1342,8 @@ impl HubrisPackage {
             let mut depth = 0;
             let mut stack: Vec<HubrisGoff> = vec![];
 
+            let mut array = None;
+
             while let Some((delta, entry)) = entries.next_dfs()? {
                 depth += delta;
 
@@ -1560,6 +1364,10 @@ impl HubrisPackage {
                         self.dwarf_subprogram(&dwarf, &unit, &entry)?;
                     }
 
+                    gimli::constants::DW_TAG_variable => {
+                        self.dwarf_variable(&dwarf, &unit, &entry)?;
+                    }
+
                     gimli::constants::DW_TAG_structure_type => {
                         self.dwarf_struct(&dwarf, &unit, &entry)?;
                     }
@@ -1570,6 +1378,29 @@ impl HubrisPackage {
 
                     gimli::constants::DW_TAG_pointer_type => {
                         self.dwarf_ptrtype(&dwarf, &unit, &entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_array_type => {
+                        let mut attrs = entry.attrs();
+
+                        while let Some(attr) = attrs.next()? {
+                            if attr.name() != gimli::constants::DW_AT_type {
+                                continue;
+                            }
+
+                            array = self.dwarf_value_goff(&unit, &attr.value());
+                            break;
+                        }
+                    }
+
+                    gimli::constants::DW_TAG_subrange_type => {
+                        if depth == 0 {
+                            bail!("no array for subrange {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_array(&unit, &entry, parent, array)?;
+                        array = None;
                     }
 
                     gimli::constants::DW_TAG_enumeration_type => {
@@ -1624,8 +1455,17 @@ impl HubrisPackage {
                         self.dwarf_member(&dwarf, &unit, &entry, parent)?;
                     }
 
+                    gimli::constants::DW_TAG_union_type => {
+                        self.dwarf_union(&unit, &entry)?;
+                    }
+
                     _ => {}
                 }
+            }
+
+            match array {
+                Some(array) => bail!("missing subrange for array {}", array),
+                None => {}
             }
         }
 
@@ -1634,7 +1474,12 @@ impl HubrisPackage {
         Ok(())
     }
 
-    fn load_object(&mut self, object: &str, buffer: &[u8]) -> Result<()> {
+    fn load_object(
+        &mut self,
+        object: &str,
+        task: HubrisTask,
+        buffer: &[u8],
+    ) -> Result<()> {
         let elf = Elf::parse(buffer).map_err(|e| {
             anyhow!("unrecognized ELF object: {}: {}", object, e)
         })?;
@@ -1664,7 +1509,13 @@ impl HubrisPackage {
              * microprocessor that executes only Thumb instructions).
              */
             assert!(arm);
-            let val = sym.st_value as u32 & !1;
+
+            let val = if sym.is_function() {
+                sym.st_value as u32 & !1
+            } else {
+                sym.st_value as u32
+            };
+
             let dem = format!("{:#}", demangle(name));
 
             self.esyms_byname
@@ -1751,7 +1602,14 @@ impl HubrisPackage {
 
         self.modules.insert(
             textsec.sh_addr as u32,
-            (String::from(object), size as u32, memsz as u32),
+            HubrisModule {
+                name: String::from(object),
+                object: self.current,
+                textbase: (textsec.sh_addr as u32),
+                textsize: size as u32,
+                memsize: memsz as u32,
+                task: task,
+            },
         );
 
         Ok(())
@@ -1851,10 +1709,13 @@ impl HubrisPackage {
          */
         let mut buffer = Vec::new();
         byname!("elf/kernel")?.read_to_end(&mut buffer)?;
-        self.load_object("kernel", &buffer)?;
+        self.load_object("kernel", HubrisTask::Kernel, &buffer)?;
+
+        let mut id = 0;
 
         /*
-         * And now we need to find the tasks.
+         * And now we need to find the tasks.  Note that we depend on the fact
+         * that these are stored in task ID order in the archive.
          */
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
@@ -1878,7 +1739,8 @@ impl HubrisPackage {
 
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
-            self.load_object(&object, &buffer)?;
+            self.load_object(&object, HubrisTask::Task(id), &buffer)?;
+            id = id + 1;
         }
 
         Ok(())
@@ -1887,97 +1749,543 @@ impl HubrisPackage {
     pub fn load(&mut self, package: &str) -> Result<()> {
         let metadata = fs::metadata(package)?;
 
-        if !metadata.is_dir() {
-            return self.load_package(package);
+        if metadata.is_dir() {
+            bail!("a directory as a package is deprecated; \
+                use archive instead");
         }
 
-        warn!(
-            "warning: a directory as a package is deprecated; \
-            use archive instead"
-        );
+        self.load_package(package)
+    }
 
-        let mapfile = package.to_owned() + "/map.txt";
-        let expected = &["ADDRESS", "END", "SIZE", "FILE"];
-
-        let map = match File::open(mapfile) {
-            Ok(map) => map,
-            Err(e) => {
-                bail!("couldn't find map.txt: {}", e);
-            }
-        };
-
-        let f = BufReader::new(map);
-        let mut iter = f.lines();
-
-        match iter.next() {
-            Some(header) => {
-                let h = header.unwrap();
-                let headers: Vec<&str> = h.split_ascii_whitespace().collect();
-
-                ensure!(
-                    headers.len() == expected.len(),
-                    "bad headers: found {}, expected {}",
-                    headers.len(),
-                    expected.len()
-                );
-
-                for i in 0..expected.len() {
-                    if headers[i] == expected[i] {
-                        continue;
-                    }
-
-                    bail!("bad header: found \"{}\", expected \"{}\"",
-                        headers[i],
-                        expected[i]
-                    );
+    ///
+    /// Looks up the specfied structure.  This returns a Result and not an
+    /// Option because the assumption is that the structure is needed to be
+    /// present, and be present exactly once.  If needed structures begin
+    /// having their names duplicated in modules, we may need to support
+    /// proper namespacing -- or kludgey namespacing...
+    ///
+    pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
+        match self.structs_byname.get_vec(name) {
+            Some(v) => {
+                if v.len() > 1 {
+                    Err(anyhow!("{} matches more than one structure", name))
+                } else {
+                    Ok(self.structs.get(&v[0]).unwrap())
                 }
             }
+            None => Err(anyhow!("expected structure {} not found", name)),
+        }
+    }
 
-            None => {
-                bail!("map file empty or otherwise missing a header");
+    #[allow(dead_code)]
+    pub fn lookup_struct(&self, goff: HubrisGoff) -> Result<&HubrisStruct> {
+        match self.structs.get(&goff) {
+            Some(s) => Ok(s),
+            None => Err(anyhow!("expected struct {} not found", goff)),
+        }
+    }
+
+    pub fn lookup_enum(&self, goff: HubrisGoff) -> Result<&HubrisEnum> {
+        match self.enums.get(&goff) {
+            Some(union) => Ok(union),
+            None => Err(anyhow!("expected enum {} not found", goff)),
+        }
+    }
+
+    ///
+    /// Looks up the specified symbol.  This is more of a convenience routine
+    /// that turns an Option into a Result.
+    ///
+    pub fn lookup_symword(&self, name: &str) -> Result<u32> {
+        match self.esyms_byname.get(name) {
+            Some(sym) => {
+                if sym.1 != 4 {
+                    Err(anyhow!("symbol {} is not word-sized", name))
+                } else {
+                    Ok(sym.0)
+                }
             }
-        };
+            None => Err(anyhow!("expected symbol {} not found", name)),
+        }
+    }
 
-        let mut lineno = 1;
-        let mut seen = HashSet::new();
+    pub fn lookup_variable(&self, name: &str) -> Result<&HubrisVariable> {
+        match self.variables.get(name) {
+            Some(variable) => Ok(variable),
+            None => Err(anyhow!("variable {} not found", name)),
+        }
+    }
 
-        for line in iter {
-            let l = line.unwrap();
-            let fields: Vec<&str> = l.split_ascii_whitespace().collect();
+    pub fn lookup_task(&self, task: HubrisTask) -> Result<&HubrisModule> {
+        match self.modules.values().find(|m| m.task == task) {
+            Some(module) => Ok(module),
+            None => Err(anyhow!("no such task: {}", task)),
+        }
+    }
 
-            lineno += 1;
+    fn ntasks(&self) -> usize {
+        if self.current >= 1 {
+            self.current as usize - 1
+        } else {
+            0
+        }
+    }
 
-            if fields.len() < expected.len() {
-                bail!("short line at {}", lineno);
-            }
+    pub fn validate(&self, core: &mut dyn crate::core::Core) -> Result<()> {
+        let ntasks = self.ntasks();
 
-            let file = Path::new(fields[3]);
-            let pieces = file.components().collect::<Vec<_>>();
-
+        if self.current == 0 {
             /*
-             * We expect our object name to be the last element of our path.
+             * If we have no objects, we were never loaded -- and we consider
+             * this to be validated because it will give no answers rather than
+             * wrong ones.
              */
-            let o = pieces.len() - 1;
+            return Ok(());
+        }
 
-            let object = match pieces[o].to_owned().as_os_str().to_str() {
-                Some(ref str) => str.to_string(),
-                None => {
-                    bail!(
-                        "bad object name \"{}\" on line {}",
-                        file.display(), lineno
-                    );
+        let size =
+            core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
+
+        if size == 0 {
+            /*
+             * The TASK_TABLE_SIZE is set dynamically by Hubris on boot -- so
+             * it can be 0 if the kernel hasn't booted.  If this is the case,
+             * we expect the TASK_TABLE_BASE to also be 0, so as an added
+             * check, we check that as well.
+             */
+            let base =
+                core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
+
+            if base != 0 {
+                Err(anyhow!("TASK_TABLE_SIZE is 0, \
+                    but TASK_TABLE_BASE is 0x{:x}; package mismatch?", base))
+            } else {
+                Ok(())
+            }
+        } else if size != ntasks as u32 {
+            Err(anyhow!("tasks in image ({}) exceeds tasks in \
+                package ({}); package mismatch?", size, ntasks))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn member_offset(
+        &self,
+        structure: &HubrisStruct,
+        member: &str,
+    ) -> Result<u32> {
+        let mut s = structure;
+        let mut offset = 0;
+
+        let fields: Vec<&str> = member.split(".").collect();
+
+        for i in 0..fields.len() {
+            let field = fields[i];
+
+            let m = match s.lookup_member(field) {
+                Ok(member) => member,
+                _ => {
+                    return Err(anyhow!("struct {} ({}) doesn't contain {}",
+                        s.name, s.goff, field))
                 }
             };
 
-            if !seen.contains(&object) {
-                let p = Path::new(package).join(&object);
-                let buffer = fs::read(p)?;
-                self.load_object(&object, &buffer)?;
-                seen.insert(object);
+            offset += m.offset;
+
+            if i == fields.len() - 1 {
+                /*
+                 * We want to make sure that this is a 32-bit basetype or a
+                 * ptrtype.
+                 */
+                if let Some(v) = self.basetypes.get(&m.goff) {
+                    if v.size != 4 {
+                        return Err(anyhow!(
+                            "expected {} in struct {} ({}) to \
+                            be 4 bytes, found to be {} bytes",
+                            member, structure.name, structure.goff, v.size
+                        ));
+                    }
+                } else if let Some(_) = self.ptrtypes.get(&m.goff) {
+                    break;
+                } else {
+                    return Err(anyhow!(
+                        "expected {} in struct {} ({}) to \
+                        be 4 byte type, found to be {}",
+                        member, structure.name, structure.goff, m.goff
+                    ));
+                }
+
+                break;
+            }
+
+            /*
+             * We need to descend -- make sure that this is a structure!
+             */
+            s = match self.lookup_struct(m.goff) {
+                Ok(structure) => structure,
+                Err(_) => {
+                    return Err(anyhow!(
+                        "struct {} ({}) doesn't contain {}: \
+                        non-structure at {} ({})",
+                        structure.name, structure.goff, member, field, m.goff
+                    ));
+                }
             }
         }
 
-        Ok(())
+        Ok(offset as u32)
+    }
+
+    pub fn regions(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<BTreeMap<u32, HubrisRegion>> {
+        let task_table_base = self.lookup_symword("TASK_TABLE_BASE")?;
+        let base = core.read_word_32(task_table_base)?;
+        let task = self.lookup_struct_byname("Task")?;
+        let desc = self.lookup_struct_byname("RegionDesc")?;
+
+        let ptr_offs = self.member_offset(task, "region_table.data_ptr")?;
+        let len_offs = self.member_offset(task, "region_table.length")?;
+
+        let base_offs = self.member_offset(desc, "base")?;
+        let size_offs = self.member_offset(desc, "size")?;
+        let attr_offs = self.member_offset(desc, "attributes.bits")?;
+
+        /*
+         * Regrettably copied out of Hubris -- there isn't DWARF for this.
+         */
+        const READ: u32 = 1 << 0;
+        const WRITE: u32 = 1 << 1;
+        const EXECUTE: u32 = 1 << 2;
+        const DEVICE: u32 = 1 << 3;
+        const DMA: u32 = 1 << 4;
+
+        let mut regions: BTreeMap<u32, HubrisRegion> = BTreeMap::new();
+
+        /*
+         * Iterate over all tasks, reading their region descriptors.
+         */
+        for i in 0..self.ntasks() {
+            let addr = base + i as u32 * task.size as u32;
+
+            let ptr = core.read_word_32(addr + ptr_offs)?;
+            let len = core.read_word_32(addr + len_offs)?;
+
+            for j in 0..len {
+                let daddr = core.read_word_32(ptr + j * 4)?;
+                let base = core.read_word_32(daddr + base_offs)?;
+                let size = core.read_word_32(daddr + size_offs)?;
+                let attr = core.read_word_32(daddr + attr_offs)?;
+
+                if base == 0 {
+                    continue;
+                }
+
+                regions.insert(
+                    base,
+                    HubrisRegion {
+                        daddr: daddr,
+                        base: base,
+                        size: size,
+                        attr: HubrisRegionAttr {
+                            read: attr & READ != 0,
+                            write: attr & WRITE != 0,
+                            execute: attr & EXECUTE != 0,
+                            device: attr & DEVICE != 0,
+                            dma: attr & DMA != 0,
+                            raw: attr,
+                        },
+                        task: HubrisTask::Task(i as u32),
+                    },
+                );
+            }
+        }
+
+        Ok(regions)
+    }
+
+    pub fn typesize(&self, goff: HubrisGoff) -> Result<usize> {
+        if let Some(v) = self.structs.get(&goff) {
+            return Ok(v.size);
+        }
+
+        if let Some(v) = self.basetypes.get(&goff) {
+            return Ok(v.size);
+        }
+
+        if self.ptrtypes.get(&goff).is_some() {
+            return Ok(4);
+        }
+
+        if let Some(v) = self.enums.get(&goff) {
+            return Ok(v.size);
+        }
+
+        if let Some(size) = self.unions.get(&goff) {
+            return Ok(*size);
+        }
+
+        if let Some(v) = self.arrays.get(&goff) {
+            return Ok(self.typesize(v.goff)? * v.count);
+        }
+
+        Err(anyhow!("unknown size for type {}", goff))
+    }
+
+    pub fn dumpfmt(
+        &self,
+        buf: &[u8],
+        goff: HubrisGoff,
+        fmt: &HubrisDumpFormat,
+    ) -> Result<String> {
+        let mut rval = String::new();
+        let delim = if fmt.newline { "\n" } else { " " };
+
+        let mut f = *fmt;
+
+        let readval = |b: &[u8], o, sz| -> Result<u64> {
+            Ok(match sz {
+                1 => b[o] as u64,
+                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
+                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
+                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
+                _ => {
+                    bail!("bad size!");
+                }
+            })
+        };
+
+        let readfloat = |b: &[u8], o, sz| -> Result<f64> {
+            Ok(match sz {
+                4 => f32::from_le_bytes(b[o..o + 4].try_into()?) as f64,
+                8 => f64::from_le_bytes(b[o..o + 8].try_into()?) as f64,
+                _ => {
+                    bail!("bad float size!");
+                }
+            })
+        };
+
+        if let Some(v) = self.structs.get(&goff) {
+            /*
+             * This is a structure; iterate over its members.
+             */
+            if v.members.len() == 0 {
+                return Ok(rval);
+            }
+
+            f.indent += 4;
+
+            if v.members[0].name == "__0" {
+                let paren = v.members.len() != 0;
+
+                if paren {
+                    rval += "(";
+                }
+
+                for i in 0..v.members.len() {
+                    let m = &v.members[i];
+
+                    if let Some(child) = self.structs.get(&m.goff) {
+                        rval += &child.name;
+                    }
+
+                    rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
+
+                    if i + 1 < v.members.len() {
+                        rval += ", ";
+                    }
+                }
+
+                if paren {
+                    rval += ")";
+                }
+
+                return Ok(rval);
+            }
+
+            rval += " {";
+            rval += delim;
+
+            for i in 0..v.members.len() {
+                let m = &v.members[i];
+
+                if fmt.newline && f.indent > 0 {
+                    rval += &format!("{:1$}", " ", f.indent);
+                }
+
+                rval += &m.name;
+                rval += ": ";
+
+                if let Some(child) = self.structs.get(&m.goff) {
+                    rval += &child.name;
+                }
+
+                rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
+
+                if i + 1 < v.members.len() {
+                    rval += ",";
+                    rval += delim;
+                }
+            }
+
+            rval += delim;
+
+            if fmt.newline && fmt.indent > 0 {
+                rval += &format!("{:1$}", " ", fmt.indent);
+            }
+
+            rval += "}";
+
+            return Ok(rval);
+        }
+
+        if let Some(union) = self.enums.get(&goff) {
+            /*
+             * For enums, we need to determine which variant this actually
+             * is -- which necessitates looking at our discriminant.
+             */
+            match union.discriminant {
+                HubrisDiscriminant::Value(g, offs) => {
+                    let size = match self.basetypes.get(&g) {
+                        Some(v) => v.size,
+                        None => {
+                            bail!(
+                                "enum {} has discriminant of unknown type: {}",
+                                goff, g
+                            );
+                        }
+                    };
+
+                    let val = readval(buf, offs, size)?;
+
+                    match union.lookup_variant(val) {
+                        None => {
+                            write!(rval, "<? (0x{:x})>", val)?;
+                        }
+
+                        Some(variant) => {
+                            rval += &variant.name;
+
+                            if let Some(goff) = variant.goff {
+                                rval += &self.dumpfmt(&buf[0..], goff, &f)?;
+                            }
+                        }
+                    }
+
+                    return Ok(rval);
+                }
+
+                HubrisDiscriminant::None => {
+                    if union.variants.len() == 0 {
+                        bail!("enum {} has no variants", goff);
+                    }
+
+                    if union.variants.len() > 1 {
+                        bail!(
+                            "enum {} has multiple variants but no discriminant",
+                            goff
+                        );
+                    }
+
+                    let variant = &union.variants[0];
+                    rval += &variant.name;
+
+                    if let Some(goff) = variant.goff {
+                        rval += &self.dumpfmt(&buf[0..], goff, &f)?;
+                    }
+
+                    return Ok(rval);
+                }
+
+                HubrisDiscriminant::Expected(_) => {
+                    bail!("enum {} has incomplete discriminant", goff);
+                }
+            }
+        }
+
+        if let Some(array) = self.arrays.get(&goff) {
+            let size = self.typesize(array.goff)?;
+
+            f.indent += 4;
+            let mut offset = 0;
+
+            rval += "[";
+            rval += delim;
+
+            for i in 0..array.count {
+                if fmt.newline && f.indent > 0 {
+                    rval += &format!("{:1$}", " ", f.indent);
+                }
+
+                rval += &self.dumpfmt(&buf[offset..], array.goff, &f)?;
+                offset += size;
+
+                if i + 1 < array.count {
+                    rval += ",";
+                    rval += delim;
+                }
+            }
+
+            rval += delim;
+
+            if fmt.newline && fmt.indent > 0 {
+                rval += &format!("{:1$}", " ", fmt.indent);
+            }
+
+            rval += "]";
+
+            return Ok(rval);
+        }
+
+        if let Some(v) = self.basetypes.get(&goff) {
+            if v.encoding == HubrisEncoding::Float {
+                write!(rval, "{}", readfloat(buf, 0, v.size)?)?;
+            } else {
+                let val = readval(buf, 0, v.size)?;
+
+                if fmt.hex {
+                    write!(rval, "0x{:x}", val)?;
+                } else {
+                    write!(rval, "{}", val)?;
+                }
+            }
+
+            return Ok(rval);
+        }
+
+        if let Some(size) = self.unions.get(&goff) {
+            let val = readval(buf, 0, *size)?;
+
+            if fmt.hex {
+                write!(rval, "0x{:x}", val)?;
+            } else {
+                write!(rval, "{}", val)?;
+            }
+
+            return Ok(rval);
+        }
+
+        if let Some((name, _ptr)) = self.ptrtypes.get(&goff) {
+            let val = readval(buf, 0, 4)?;
+
+            write!(rval, "0x{:x} ({})", val, name)?;
+
+            return Ok(rval);
+        }
+
+        rval = goff.to_string();
+
+        Ok(rval)
+    }
+
+    pub fn dump(&self, buf: &[u8], goff: HubrisGoff) -> Result<String> {
+        self.dumpfmt(
+            buf,
+            goff,
+            &HubrisDumpFormat { indent: 0, newline: false, hex: true },
+        )
     }
 
     pub fn manifest(&self) -> Result<()> {
@@ -1990,8 +2298,8 @@ impl HubrisPackage {
         let size = |task| {
             self.modules
                 .iter()
-                .find(|module| if (module.1).0 == task { true } else { false })
-                .and_then(|module| Some((module.1).2))
+                .find(|m| if (m.1).task == task { true } else { false })
+                .and_then(|module| Some((module.1).memsize))
                 .unwrap()
         };
 
@@ -2029,23 +2337,27 @@ impl HubrisPackage {
 
         print("features", &self.manifest.features.join(", "));
 
-        let ttl = self.modules.iter().fold(0, |ttl, module| ttl + (module.1).2);
+        let ttl = self.modules.iter().fold(0, |ttl, m| ttl + (m.1).memsize);
 
         info!("{:>12} => {}K", "total size", ttl / 1024);
-        info!("{:>12} => {}K", "kernel size", size("kernel") / 1024);
+        info!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
         info!("{:>12} => {}", "tasks", self.modules.len() - 1);
         info!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
 
         let mut id = 0;
 
-        for module in self.modules.iter().skip(1) {
-            let features = self.manifest.task_features.get(&(module.1).0);
+        for module in self.modules.values() {
+            if module.task == HubrisTask::Kernel {
+                continue;
+            }
+
+            let features = self.manifest.task_features.get(&module.name);
 
             info!(
                 "{:>18} {:18} {:>4.1}K {}",
                 id,
-                (module.1).0,
-                (module.1).2 as f64 / 1024 as f64,
+                module.name,
+                module.memsize as f64 / 1024 as f64,
                 if let Some(f) = features {
                     f.join(", ")
                 } else {
@@ -2056,6 +2368,24 @@ impl HubrisPackage {
             id += 1;
         }
 
+        Ok(())
+    }
+
+    pub fn list_variables(&self) -> Result<()> {
+        let mut variables = vec![];
+
+        for (name, variable) in &self.variables {
+            variables.push((HubrisTask::from(variable.goff), name, variable));
+        }
+
+        variables.sort();
+
+        info!("{:18} {:<30} {:<10} {}", "MODULE", "VARIABLE", "ADDR", "SIZE");
+
+        for v in variables {
+            let task = &self.lookup_task(v.0)?.name;
+            info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
+        }
         Ok(())
     }
 }
