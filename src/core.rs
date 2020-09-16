@@ -611,9 +611,9 @@ impl Core for GDBCore {
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-pub fn attach(debugger: &str, chip: &str) -> Result<Box<dyn Core>> {
-    match debugger {
-        "probe" => {
+pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+    match probe {
+        "usb" => {
             let probes = Probe::list_all();
 
             if probes.len() == 0 {
@@ -669,7 +669,7 @@ pub fn attach(debugger: &str, chip: &str) -> Result<Box<dyn Core>> {
                 return Ok(probe);
             }
 
-            attach("probe", chip)
+            attach("usb", chip)
         }
 
         "ocdgdb" => {
@@ -686,6 +686,6 @@ pub fn attach(debugger: &str, chip: &str) -> Result<Box<dyn Core>> {
             Ok(Box::new(core))
         }
 
-        _ => Err(anyhow!("unrecognized debugger: {}", debugger)),
+        _ => Err(anyhow!("unrecognized probe: {}", probe)),
     }
 }

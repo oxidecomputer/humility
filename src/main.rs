@@ -122,7 +122,7 @@ struct TraceException {
 
 #[derive(Debug)]
 struct TraceConfig<'a> {
-    hubris: &'a HubrisPackage,
+    hubris: &'a HubrisArchive,
     flowindent: bool,
     traceid: u8,
 }
@@ -136,7 +136,7 @@ struct TraceState {
 }
 
 fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
-    crate::core::attach(&args.debugger, &args.chip)
+    crate::core::attach(&args.probe, &args.chip)
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 7;
@@ -647,7 +647,7 @@ struct EtmArgs {
 }
 
 fn etmcmd(
-    hubris: &HubrisPackage,
+    hubris: &HubrisArchive,
     args: &Args,
     subargs: &EtmArgs,
 ) -> Result<()> {
@@ -1056,7 +1056,7 @@ struct ItmArgs {
 }
 
 fn itmcmd(
-    _hubris: &HubrisPackage,
+    _hubris: &HubrisArchive,
     args: &Args,
     subargs: &ItmArgs,
 ) -> Result<()> {
@@ -1128,7 +1128,7 @@ fn itmcmd(
     rval
 }
 
-fn probe(hubris: &HubrisPackage, args: &Args) -> Result<()> {
+fn probe(hubris: &HubrisArchive, args: &Args) -> Result<()> {
     let mut core = attach(args)?;
 
     hubris.validate(core.as_mut())?;
@@ -1137,7 +1137,7 @@ fn probe(hubris: &HubrisPackage, args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn map(hubris: &HubrisPackage, args: &Args) -> Result<()> {
+fn map(hubris: &HubrisArchive, args: &Args) -> Result<()> {
     let mut core = attach(&args)?;
     hubris.validate(core.as_mut())?;
 
@@ -1182,7 +1182,7 @@ struct ReadvarArgs {
 }
 
 fn readvar(
-    hubris: &HubrisPackage,
+    hubris: &HubrisArchive,
     args: &Args,
     subargs: &ReadvarArgs,
 ) -> Result<()> {
@@ -1211,7 +1211,7 @@ fn readvar(
     Ok(())
 }
 
-fn manifest(hubris: &HubrisPackage) -> Result<()> {
+fn manifest(hubris: &HubrisArchive) -> Result<()> {
     hubris.manifest()?;
     Ok(())
 }
@@ -1229,7 +1229,7 @@ struct TasksArgs {
 #[rustfmt::skip::macros(println)]
 
 fn taskscmd(
-    hubris: &HubrisPackage,
+    hubris: &HubrisArchive,
     args: &Args,
     subargs: &TasksArgs,
 ) -> Result<()> {
@@ -1331,7 +1331,7 @@ fn tracecmd_ingest(
     core: &mut dyn core::Core,
     coreinfo: &CoreInfo,
     subargs: &TraceArgs,
-    hubris: &HubrisPackage,
+    hubris: &HubrisArchive,
     tasks: &HashMap<u32, String>,
 ) -> Result<()> {
     let mut bytes: Vec<u8> = vec![];
@@ -1507,7 +1507,7 @@ fn tracecmd_ingest(
 }
 
 fn tracecmd(
-    hubris: &HubrisPackage,
+    hubris: &HubrisArchive,
     args: &Args,
     subargs: &TraceArgs,
 ) -> Result<()> {
@@ -1573,18 +1573,18 @@ struct Args {
     )]
     chip: String,
 
-    /// chip debugger to use
+    /// chip probe to use
     #[structopt(
         long,
         short,
-        env = "HUMILITY_DEBUGGER",
+        env = "HUMILITY_PROBE",
         default_value = "auto"
     )]
-    debugger: String,
+    probe: String,
 
-    /// Hubris package
-    #[structopt(long, short, env = "HUMILITY_PACKAGE")]
-    package: Option<String>,
+    /// Hubris archive
+    #[structopt(long, short, env = "HUMILITY_ARCHIVE")]
+    archive: Option<String>,
 
     #[structopt(subcommand)]
     cmd: Subcommand,
@@ -1600,7 +1600,7 @@ enum Subcommand {
     Itm(ItmArgs),
     /// print tasks memory maps
     Map,
-    /// print package manifest
+    /// print archive manifest
     Manifest,
     /// read and print a Hubris variable
     Readvar(ReadvarArgs),
@@ -1619,15 +1619,15 @@ fn main() {
         HumilityLog { level: log::LevelFilter::Info }.enable();
     }
 
-    let mut hubris = HubrisPackage::new()
+    let mut hubris = HubrisArchive::new()
         .map_err(|err| {
             fatal!("failed to initialize: {}", err);
         })
         .unwrap();
 
-    if let Some(package) = &args.package {
-        if let Err(err) = hubris.load(&package) {
-            fatal!("failed to load package: {}", err);
+    if let Some(archive) = &args.archive {
+        if let Err(err) = hubris.load(&archive) {
+            fatal!("failed to load archive: {}", err);
         }
     } else {
         match &args.cmd {
@@ -1635,7 +1635,7 @@ fn main() {
             | Subcommand::Tasks(..)
             | Subcommand::Trace(..)
             | Subcommand::Map => {
-                fatal!("must provide a Hubris package");
+                fatal!("must provide a Hubris archive");
             }
             _ => {}
         }

@@ -541,7 +541,7 @@ pub fn stm32_chipname(partno: u32) -> String {
 #[rustfmt::skip::macros(format)]
 
 pub fn cpuinfo(
-    hubris: &HubrisPackage,
+    hubris: &HubrisArchive,
     core: &mut dyn crate::core::Core,
 ) -> Result<()> {
     use num_traits::FromPrimitive;

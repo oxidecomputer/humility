@@ -20,7 +20,7 @@ the system.
 Humility is Hubris-specific:  it is not trying to be a generic *in situ*
 debugger, but rather specifically focused on debugging Hubris-based systems.
 Humility is therefore willing to encode Hubris-specific concepts like
-packages and tasks.
+archives and tasks.
 
 ### Microcontroller-specific
 
@@ -56,11 +56,11 @@ aware of the specifics of the target chip.  Supported chips include:
 The target chip can be specified via the `-c` option or the `HUMILITY_CHIP`
 environment variable.
 
-### Debugger
+### Probe
 
 Humility needs to have some way of extracting information and/or controlling
 the microcontroller running Hubris.  This is done through some variant of a
-*debug probe*, a separate microcontroller that speaks to debug-specific
+debug *probe*, a separate microcontroller that speaks to debug-specific
 functionality on the target microcontroller.  (For details of the mechanics
 of these probes on ARM parts, see <a
 href="https://65.rfd.oxide.computer">RFD 65</a>.)
@@ -75,7 +75,7 @@ disruptive to development workflows. To allow for easier development
 workflows, Humility also has the option to attach via OpenOCD.
 
 The debug probe to use is specified to Humility via
-the `-d` option (long form `--debugger`), which can have the following values:
+the `-p` option (long form `--probe`), which can have the following values:
 
 - `auto` (default): Automatically determine how to attach to the 
   microcontroller.
@@ -93,26 +93,26 @@ the `-d` option (long form `--debugger`), which can have the following values:
   a halt. To recover from this condition, send an explicit ^C to the
   running GDB and continue from the resulting stop.
 
-- `probe`: Attach directly via USB to a debug probe
+- `usb`: Attach directly via USB to a debug probe
 
-### Package
+### Archive
 
-Many Humility commands require the complete Hubris package.  This is a ZIP
-archive created by `packager`, and includes all binaries as well as the
-`app.toml` file used to configure the Hubris package.  The Hubris package is
-specified via the `-p` option or the `HUMILITY_PACKAGE` environment variable.
+Many Humility commands require the complete Hubris archive.  This is a ZIP
+archive created by the build process, and includes all binaries as well as the
+`app.toml` file used to configure the Hubris archive.  The Hubris archive is
+specified via the `-a` option or the `HUMILITY_ARCHIVE` environment variable.
 
 ## Commands
 
 ### `humility manifest`
 
-`humility manifest` displays information about the Hubris package.  It
+`humility manifest` displays information about the Hubris archive.  It
 does not connect at all to a Hubris target to operate.  In addition to
-package-wide attributes, `humility manifest` displays the features enabled
+archive-wide attributes, `humility manifest` displays the features enabled
 for each task, e.g.:
 
 ```
-% humility -p ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip manifest
+% humility -a ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip manifest
 humility:      version => hubris build archive v1.0.0
 humility:      git rev => 049db2ef2a24eabf3fef3f8a6634b36e9d371ad6-dirty
 humility:        board => stm32h7b3i-dk
@@ -168,11 +168,11 @@ humility:          PSP => 0x20002b00
 humility:          SPR => 0x7000000  
 ```
 
-If provided a Hubris packager, `humility probe` will display any register
+If provided a Hubris archive, `humility probe` will display any register
 contents symbolically, e.g.:
 
 ```
-% humility -p ~/hubris/target/demo/dist/build-demo.zip probe
+% humility -a ~/hubris/target/demo/dist/build-demo.zip probe
 humility: attached via ST-Link
 humility:         core => Cortex-M4
 humility: manufacturer => STMicroelectronics
@@ -207,7 +207,7 @@ humility:          SPR => 0x7000000
 `humility tasks` offers a ps-like view of a system, e.g.:
 
 ```
-% humility -p ~/hubris/target/lpc55/dist/build-lpc55.zip tasks
+% humility -a ~/hubris/target/lpc55/dist/build-lpc55.zip tasks
 humility: attached via DAPLink
 ID ADDR     TASK               GEN STATE
  0 20000160 jefe                 0 Healthy(InRecv(None))
@@ -225,7 +225,7 @@ ID ADDR     TASK               GEN STATE
 To see every field in each task, you can use the `-v` flag:
 
 ```
-% humility -p ~/hubris/target/demo/dist/build-demo.zip tasks -v
+% humility -a ~/hubris/target/demo/dist/build-demo.zip tasks -v
 ...
  4 200002c8 pong                 0 Healthy(InRecv(None))
           |
@@ -288,7 +288,7 @@ run the `humility map` command, which shows the memory regions that
 have been mapped into tasks, in address order:
 
 ```
-% humility -p ~/hubris/target/demo/dist/build-demo.zip map
+% humility -a ~/hubris/target/demo/dist/build-demo.zip map
 humility: attached via OpenOCD
 DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08004864 0x08010000 - 0x08017fff   32KiB r-x--  0 jefe
@@ -324,7 +324,7 @@ we can see from the `map` output has been sized to only 256 bytes.)
 To list all such variables, use the `-l` option:
 
 ```
-% humility -p ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip readvar -l
+% humility -a ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip readvar -l
 humility: MODULE             VARIABLE                       ADDR       SIZE
 humility: kernel             CORE_PERIPHERALS               0x20000000 1
 humility: kernel             CURRENT_TASK_PTR               0x20000018 4
@@ -344,7 +344,7 @@ humility: adt7420            TEMPS_BYSECOND                 0x20008000 14408
 To read a variable, specify it:
 
 ```
-% humility -p ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip readvar CURRENT_TASK_PTR
+% humility -a ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip readvar CURRENT_TASK_PTR
 humility: attached via ST-Link
 CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
         pointer: 0x20000558 (*const kern::task::Task)

@@ -34,7 +34,7 @@ pub struct HubrisManifest {
 }
 
 #[derive(Debug)]
-pub struct HubrisPackage {
+pub struct HubrisArchive {
     // constructed manifest
     manifest: HubrisManifest,
 
@@ -334,8 +334,8 @@ impl HubrisEnum {
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-impl HubrisPackage {
-    pub fn new() -> Result<HubrisPackage> {
+impl HubrisArchive {
+    pub fn new() -> Result<HubrisArchive> {
         /*
          * Initialize Capstone, being sure to specify not only our architecture
          * but also that we are disassembling Thumb-2 -- and (importantly) to
