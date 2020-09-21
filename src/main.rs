@@ -136,7 +136,16 @@ struct TraceState {
 }
 
 fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
-    crate::core::attach(&args.probe, &args.chip)
+    if let Some(dump) = &args.dump {
+        crate::core::attach_dump(dump)
+    } else {
+        let probe = match &args.probe {
+            Some(p) => p,
+            None => "auto",
+        };
+
+        crate::core::attach(probe, &args.chip)
+    }
 }
 
 const HUMILITY_ETM_SWOSCALER: u16 = 7;
@@ -1202,13 +1211,32 @@ fn readvar(
     buf.resize_with(v.size, Default::default);
     core.read_8(v.addr, buf.as_mut_slice())?;
 
-    let fmt = HubrisDumpFormat { indent: 0, newline: true, hex: true };
+    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: true };
     let name = subargs.variable.as_ref().unwrap();
-    let dumped = hubris.dumpfmt(&buf, v.goff, &fmt)?;
+    let dumped = hubris.printfmt(&buf, v.goff, &fmt)?;
 
     println!("{} (0x{:08x}) = {}", name, v.addr, dumped);
 
     Ok(())
+}
+
+#[derive(StructOpt, Debug)]
+struct DumpArgs {
+    dumpfile: Option<String>,
+}
+
+fn dump(hubris: &HubrisArchive, args: &Args, subargs: &DumpArgs) -> Result<()> {
+    let mut core = attach(&args)?;
+    hubris.validate(core.as_mut())?;
+    let _info = core.halt()?;
+    info!("core halted");
+
+    let rval = hubris.dump(core.as_mut(), subargs.dumpfile.as_deref());
+
+    core.run()?;
+    info!("core resumed");
+
+    rval
 }
 
 fn manifest(hubris: &HubrisArchive) -> Result<()> {
@@ -1285,16 +1313,16 @@ fn taskscmd(
             let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
 
             println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
-                hubris.dump(&taskblock[soffs..], state_enum.goff)?,
+                hubris.print(&taskblock[soffs..], state_enum.goff)?,
                 if addr == cur { " <-" } else { "" });
 
             if subargs.verbose {
                 let fmt =
-                    HubrisDumpFormat { indent: 16, newline: true, hex: true };
+                    HubrisPrintFormat { indent: 16, newline: true, hex: true };
 
                 println!(
                     "          |\n          +----> {}\n",
-                    hubris.dumpfmt(&taskblock[offs..], task.goff, &fmt)?
+                    hubris.printfmt(&taskblock[offs..], task.goff, &fmt)?
                 );
             }
         }
@@ -1446,13 +1474,13 @@ fn tracecmd_ingest(
                             time as f64 / 16_000_000 as f64,
                             task,
                             tasks.get(&task).unwrap_or(&"<invalid>".to_string()),
-                            hubris.dump(&spayload[..], schedstate.goff)?,
+                            hubris.print(&spayload[..], schedstate.goff)?,
                         );
                             return Ok(());
                         }
 
                         let state =
-                            hubris.dump(&spayload[..], schedstate.goff)?;
+                            hubris.print(&spayload[..], schedstate.goff)?;
 
                         println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
                         \"state\": {} }}",
@@ -1574,17 +1602,21 @@ struct Args {
     chip: String,
 
     /// chip probe to use
+    #[structopt(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
+    probe: Option<String>,
+
+    /// Hubris archive
     #[structopt(
         long,
         short,
-        env = "HUMILITY_PROBE",
-        default_value = "auto"
+        env = "HUMILITY_ARCHIVE",
+        conflicts_with = "dump"
     )]
-    probe: String,
-
-    /// Hubris archive
-    #[structopt(long, short, env = "HUMILITY_ARCHIVE")]
     archive: Option<String>,
+
+    /// Hubris dump
+    #[structopt(long, short, env = "HUMILITY_DUMP")]
+    dump: Option<String>,
 
     #[structopt(subcommand)]
     cmd: Subcommand,
@@ -1598,6 +1630,8 @@ enum Subcommand {
     Etm(EtmArgs),
     /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
     Itm(ItmArgs),
+    /// generate Hubris dump
+    Dump(DumpArgs),
     /// print tasks memory maps
     Map,
     /// print archive manifest
@@ -1629,9 +1663,14 @@ fn main() {
         if let Err(err) = hubris.load(&archive) {
             fatal!("failed to load archive: {}", err);
         }
+    } else if let Some(dump) = &args.dump {
+        if let Err(err) = hubris.load_dump(&dump) {
+            fatal!("failed to load dump: {}", err);
+        }
     } else {
         match &args.cmd {
-            Subcommand::Manifest
+            Subcommand::Dump(..)
+            | Subcommand::Manifest
             | Subcommand::Tasks(..)
             | Subcommand::Trace(..)
             | Subcommand::Map => {
@@ -1654,6 +1693,11 @@ fn main() {
 
         Subcommand::Itm(subargs) => match itmcmd(&hubris, &args, subargs) {
             Err(err) => fatal!("itm failed: {:?}", err),
+            _ => std::process::exit(0),
+        },
+
+        Subcommand::Dump(subargs) => match dump(&hubris, &args, subargs) {
+            Err(err) => fatal!("dump failed: {:?}", err),
             _ => std::process::exit(0),
         },
 

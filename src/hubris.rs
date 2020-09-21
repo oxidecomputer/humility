@@ -9,9 +9,13 @@ use std::convert::TryInto;
 use std::fmt;
 use std::fmt::Write;
 use std::fs;
+use std::fs::OpenOptions;
 use std::io::prelude::*;
+use std::io::Cursor;
+use std::mem::size_of;
 use std::path::Path;
 use std::str;
+use std::time::Instant;
 
 use fallible_iterator::FallibleIterator;
 
@@ -22,6 +26,11 @@ use capstone::InsnGroupType;
 use goblin::elf::Elf;
 use multimap::MultiMap;
 use rustc_demangle::demangle;
+use scroll::{IOwrite, Pwrite};
+
+const OXIDE_NT_NAME: &str = "Oxide Computer Company";
+const OXIDE_NT_BASE: u32 = 0x1de << 20;
+const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE | 1;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -31,10 +40,14 @@ pub struct HubrisManifest {
     board: Option<String>,
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
+    outputs: HashMap<String, (u32, u32)>,
 }
 
 #[derive(Debug)]
 pub struct HubrisArchive {
+    // the entire archive
+    archive: Vec<u8>,
+
     // constructed manifest
     manifest: HubrisManifest,
 
@@ -233,7 +246,7 @@ pub struct HubrisModule {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct HubrisDumpFormat {
+pub struct HubrisPrintFormat {
     pub indent: usize,
     pub newline: bool,
     pub hex: bool,
@@ -349,6 +362,7 @@ impl HubrisArchive {
             .build();
 
         Ok(Self {
+            archive: Vec::new(),
             manifest: Default::default(),
             cs: match cs {
                 Ok(mut cs) => {
@@ -1660,12 +1674,36 @@ impl HubrisArchive {
             }
         }
 
+        if let Some(toml::Value::Table(ref outputs)) = toml.get("outputs") {
+            for (output, config) in outputs.into_iter() {
+                let address = config.get("address");
+                let size = config.get("size");
+
+                match (address, size) {
+                    (
+                        Some(toml::Value::Integer(ref address)),
+                        Some(toml::Value::Integer(ref size)),
+                    ) => {
+                        manifest.outputs.insert(
+                            output.to_string(),
+                            (*address as u32, *size as u32),
+                        );
+                    }
+                    _ => {
+                        bail!("manifest outputs malformed for \"{}\"", output);
+                    }
+                }
+            }
+        } else {
+            bail!("manifest is missing outputs");
+        }
+
         Ok(())
     }
 
-    fn load_package(&mut self, package: &str) -> Result<()> {
-        let file = fs::File::open(package)?;
-        let mut archive = zip::ZipArchive::new(file)?;
+    fn load_archive(&mut self, archive: &[u8]) -> Result<()> {
+        let cursor = Cursor::new(archive);
+        let mut archive = zip::ZipArchive::new(cursor)?;
         let mut manifest = &mut self.manifest;
 
         macro_rules! byname {
@@ -1746,15 +1784,58 @@ impl HubrisArchive {
         Ok(())
     }
 
-    pub fn load(&mut self, package: &str) -> Result<()> {
-        let metadata = fs::metadata(package)?;
+    pub fn load(&mut self, archive: &str) -> Result<()> {
+        let metadata = fs::metadata(archive)?;
 
         if metadata.is_dir() {
-            bail!("a directory as a package is deprecated; \
+            bail!("a directory as a archive is deprecated; \
                 use archive instead");
         }
 
-        self.load_package(package)
+        let mut file = fs::File::open(archive)?;
+
+        /*
+         * We read the entire archive into memory (and hold onto it) -- we are
+         * going to need most of it anyway, and we want to have the entire
+         * archive in memory to be able to write it out to any generated dump.
+         */
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        self.load_archive(&contents)?;
+        self.archive = contents;
+
+        Ok(())
+    }
+
+    pub fn load_dump(&mut self, dumpfile: &str) -> Result<()> {
+        /*
+         * We expect the dump to be an ELF core dump.
+         */
+        let mut file = fs::File::open(dumpfile)?;
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        let elf = Elf::parse(&contents).map_err(|e| {
+            anyhow!("failed to parse {} as an ELF file: {}", dumpfile, e)
+        })?;
+
+        if let Some(notes) = elf.iter_note_headers(&contents) {
+            for note in notes {
+                if let Ok(note) = note {
+                    if note.name != OXIDE_NT_NAME {
+                        continue;
+                    }
+
+                    if note.n_type == OXIDE_NT_HUBRIS_ARCHIVE {
+                        self.load_archive(&note.desc)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     ///
@@ -1858,13 +1939,13 @@ impl HubrisArchive {
 
             if base != 0 {
                 Err(anyhow!("TASK_TABLE_SIZE is 0, \
-                    but TASK_TABLE_BASE is 0x{:x}; package mismatch?", base))
+                    but TASK_TABLE_BASE is 0x{:x}; archive mismatch?", base))
             } else {
                 Ok(())
             }
         } else if size != ntasks as u32 {
             Err(anyhow!("tasks in image ({}) exceeds tasks in \
-                package ({}); package mismatch?", size, ntasks))
+                archive ({}); archive mismatch?", size, ntasks))
         } else {
             Ok(())
         }
@@ -2034,11 +2115,11 @@ impl HubrisArchive {
         Err(anyhow!("unknown size for type {}", goff))
     }
 
-    pub fn dumpfmt(
+    pub fn printfmt(
         &self,
         buf: &[u8],
         goff: HubrisGoff,
-        fmt: &HubrisDumpFormat,
+        fmt: &HubrisPrintFormat,
     ) -> Result<String> {
         let mut rval = String::new();
         let delim = if fmt.newline { "\n" } else { " " };
@@ -2091,7 +2172,7 @@ impl HubrisArchive {
                         rval += &child.name;
                     }
 
-                    rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
+                    rval += &self.printfmt(&buf[m.offset..], m.goff, &f)?;
 
                     if i + 1 < v.members.len() {
                         rval += ", ";
@@ -2122,7 +2203,7 @@ impl HubrisArchive {
                     rval += &child.name;
                 }
 
-                rval += &self.dumpfmt(&buf[m.offset..], m.goff, &f)?;
+                rval += &self.printfmt(&buf[m.offset..], m.goff, &f)?;
 
                 if i + 1 < v.members.len() {
                     rval += ",";
@@ -2169,7 +2250,7 @@ impl HubrisArchive {
                             rval += &variant.name;
 
                             if let Some(goff) = variant.goff {
-                                rval += &self.dumpfmt(&buf[0..], goff, &f)?;
+                                rval += &self.printfmt(&buf[0..], goff, &f)?;
                             }
                         }
                     }
@@ -2193,7 +2274,7 @@ impl HubrisArchive {
                     rval += &variant.name;
 
                     if let Some(goff) = variant.goff {
-                        rval += &self.dumpfmt(&buf[0..], goff, &f)?;
+                        rval += &self.printfmt(&buf[0..], goff, &f)?;
                     }
 
                     return Ok(rval);
@@ -2219,7 +2300,7 @@ impl HubrisArchive {
                     rval += &format!("{:1$}", " ", f.indent);
                 }
 
-                rval += &self.dumpfmt(&buf[offset..], array.goff, &f)?;
+                rval += &self.printfmt(&buf[offset..], array.goff, &f)?;
                 offset += size;
 
                 if i + 1 < array.count {
@@ -2280,16 +2361,198 @@ impl HubrisArchive {
         Ok(rval)
     }
 
-    pub fn dump(&self, buf: &[u8], goff: HubrisGoff) -> Result<String> {
-        self.dumpfmt(
+    pub fn print(&self, buf: &[u8], goff: HubrisGoff) -> Result<String> {
+        self.printfmt(
             buf,
             goff,
-            &HubrisDumpFormat { indent: 0, newline: false, hex: true },
+            &HubrisPrintFormat { indent: 0, newline: false, hex: true },
         )
     }
 
+    pub fn dump(
+        &self,
+        core: &mut dyn crate::core::Core,
+        dumpfile: Option<&str>,
+    ) -> Result<()> {
+        use indicatif::{HumanBytes, HumanDuration};
+        use indicatif::{ProgressBar, ProgressStyle};
+        use std::io::Write;
+
+        let nsegs = self.manifest.outputs.len();
+
+        macro_rules! pad {
+            ($size:expr) => {
+                ((4 - ($size & 0b11)) & 0b11) as u32
+            };
+        }
+
+        let pad = [0u8; 4];
+
+        let ctx = goblin::container::Ctx::new(
+            goblin::container::Container::Little,
+            goblin::container::Endian::Little,
+        );
+
+        let oxide = String::from(OXIDE_NT_NAME);
+
+        let note = goblin::elf::note::Nhdr32 {
+            n_namesz: (oxide.len() + 1) as u32,
+            n_descsz: self.archive.len() as u32,
+            n_type: OXIDE_NT_HUBRIS_ARCHIVE,
+        };
+
+        let notesz = size_of::<goblin::elf::note::Nhdr32>() as u32
+            + note.n_namesz
+            + pad!(note.n_namesz)
+            + note.n_descsz
+            + pad!(note.n_descsz);
+
+        let mut header = goblin::elf::header::Header::new(ctx);
+        header.e_machine = goblin::elf::header::EM_ARM;
+        header.e_type = goblin::elf::header::ET_CORE;
+        header.e_phoff = header.e_ehsize as u64;
+        header.e_phnum = 1 + nsegs as u16;
+
+        let mut offset = header.e_phoff as u32
+            + (header.e_phentsize * header.e_phnum) as u32;
+
+        let filename = match dumpfile {
+            Some(filename) => filename.to_owned(),
+            None => {
+                let mut filename;
+                let mut i = 0;
+
+                loop {
+                    filename = format!("hubris.core.{}", i);
+
+                    if let Ok(_f) = fs::File::open(&filename) {
+                        i += 1;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                filename
+            }
+        };
+
+        /*
+         * Write our ELF header
+         */
+        let mut file =
+            OpenOptions::new().write(true).create_new(true).open(&filename)?;
+
+        info!("dumping to {}", filename);
+
+        file.iowrite_with(header, ctx)?;
+
+        /*
+         * Write our program headers, starting with our note header.
+         */
+        let note_phdr = goblin::elf32::program_header::ProgramHeader {
+            p_type: goblin::elf::program_header::PT_NOTE,
+            p_flags: goblin::elf::program_header::PF_R,
+            p_offset: offset,
+            p_filesz: notesz,
+            ..Default::default()
+        };
+
+        let mut bytes = [0x0u8; goblin::elf32::program_header::SIZEOF_PHDR];
+        bytes.pwrite_with(note_phdr, 0, ctx.le)?;
+        file.write_all(&bytes)?;
+
+        offset += notesz;
+
+        for seg in self.manifest.outputs.values() {
+            let seg_phdr = goblin::elf32::program_header::ProgramHeader {
+                p_type: goblin::elf::program_header::PT_LOAD,
+                p_flags: goblin::elf::program_header::PF_R,
+                p_offset: offset,
+                p_vaddr: seg.0,
+                p_filesz: seg.1,
+                p_memsz: seg.1,
+                ..Default::default()
+            };
+
+            bytes.pwrite_with(seg_phdr, 0, ctx.le)?;
+            file.write_all(&bytes)?;
+
+            offset += seg.1 + pad!(seg.1);
+        }
+
+        /*
+         * Now write our note section, starting with our note header...
+         */
+        let mut bytes = [0x0u8; size_of::<goblin::elf::note::Nhdr32>()];
+        bytes.pwrite_with(note, 0, ctx.le)?;
+        file.write_all(&bytes)?;
+
+        /*
+         * ...and our note name
+         */
+        let bytes = oxide.as_bytes();
+        file.write_all(&bytes)?;
+        let npad = 1 + pad!(note.n_namesz) as usize;
+        file.write_all(&pad[0..npad])?;
+
+        /*
+         * ...and finally, the note itself.
+         */
+        file.write_all(&self.archive)?;
+        let npad = pad!(note.n_descsz) as usize;
+        file.write_all(&pad[0..npad])?;
+
+        /*
+         * And now we write our segments.  This takes a little while, so
+         * we're going to indicate our progress as we go.
+         */
+        let total =
+            self.manifest.outputs.values().fold(0, |ttl, seg| ttl + seg.1);
+
+        let mut written = 0;
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(total as u64);
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("humility: dumping [{bar:30}] {bytes}/{total_bytes}"),
+        );
+
+        for seg in self.manifest.outputs.values() {
+            let mut remain = seg.1 as usize;
+            let mut bytes = vec![0; 1024];
+            let mut addr = seg.0;
+
+            while remain > 0 {
+                let nbytes =
+                    if remain > bytes.len() { bytes.len() } else { remain };
+
+                core.read_8(addr, &mut bytes[0..nbytes])?;
+                file.write_all(&bytes[0..nbytes])?;
+                remain -= nbytes;
+                written += nbytes;
+                addr += nbytes as u32;
+                bar.set_position(written as u64);
+            }
+
+            let npad = pad!(seg.1) as usize;
+            file.write_all(&pad[0..npad])?;
+        }
+
+        bar.finish_and_clear();
+
+        info!(
+            "dumped {} in {}",
+            HumanBytes(written as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        Ok(())
+    }
+
     pub fn manifest(&self) -> Result<()> {
-        ensure!(self.modules.len() > 0, "must specify a valid Hubris package");
+        ensure!(self.modules.len() > 0, "must specify a valid Hubris archive");
 
         let print = |what, val| {
             info!("{:>12} => {}", what, val);

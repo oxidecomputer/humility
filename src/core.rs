@@ -8,12 +8,16 @@ use probe_rs::Probe;
 use anyhow::{anyhow, bail, ensure, Result};
 
 use crate::debug::*;
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt;
+use std::fs;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
 use std::str;
+
+use goblin::elf::Elf;
 
 pub trait Core {
     fn read_word_32(&mut self, addr: u32) -> Result<u32>;
@@ -158,7 +162,7 @@ impl Core for OpenOCDCore {
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         ensure!(
-            data.len() < CORE_MAX_READSIZE,
+            data.len() <= CORE_MAX_READSIZE,
             "read of {} bytes at 0x{:x} exceeds max of {}",
             data.len(),
             addr,
@@ -610,6 +614,106 @@ impl Core for GDBCore {
     }
 }
 
+pub struct DumpCore {
+    contents: Vec<u8>,
+    regions: BTreeMap<u32, (u32, usize)>,
+}
+
+impl DumpCore {
+    fn new(dump: &str) -> Result<DumpCore> {
+        let mut file = fs::File::open(dump)?;
+        let mut regions = BTreeMap::new();
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        let elf = Elf::parse(&contents).map_err(|e| {
+            anyhow!("failed to parse {} as an ELF file: {}", dump, e)
+        })?;
+
+        for phdr in elf.program_headers.iter() {
+            if phdr.p_type != goblin::elf::program_header::PT_LOAD {
+                continue;
+            }
+
+            regions.insert(
+                phdr.p_vaddr as u32,
+                (phdr.p_memsz as u32, phdr.p_offset as usize),
+            );
+        }
+
+        Ok(Self { contents: contents, regions: regions })
+    }
+}
+
+impl Core for DumpCore {
+    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
+        let rsize: usize = 4;
+
+        for (base, (size, offset)) in self.regions.range(..=addr).rev() {
+            if *base > addr || (addr - *base) + rsize as u32 > *size {
+                break;
+            }
+
+            let offs = *offset + (addr - *base) as usize;
+
+            return Ok(u32::from_le_bytes(
+                self.contents[offs..offs + rsize].try_into().unwrap(),
+            ));
+        }
+
+        bail!("read from invalid address: 0x{:x}", addr);
+    }
+
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        let rsize = data.len();
+
+        for (base, (size, offset)) in self.regions.range(..=addr).rev() {
+            if *base > addr || (addr - *base) + rsize as u32 > *size {
+                break;
+            }
+
+            let offs = *offset + (addr - *base) as usize;
+
+            for i in 0..rsize {
+                data[i] = self.contents[offs + i];
+            }
+
+            return Ok(());
+        }
+
+        bail!("read of {} bytes from invalid address: 0x{:x}", rsize, addr);
+    }
+
+    fn read_reg(&mut self, _reg: ARMRegister) -> Result<u32> {
+        bail!("cannot yet read registers on a dump");
+    }
+
+    fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
+        bail!("cannot write a word on a dump");
+    }
+
+    fn halt(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn step(&mut self) -> Result<()> {
+        bail!("can't step a dump");
+    }
+
+    fn init_swv(&mut self) -> Result<()> {
+        bail!("cannot enable SWV on a dump");
+    }
+
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
+        bail!("cannot read SWV on a dump");
+    }
+}
+
 #[rustfmt::skip::macros(anyhow, bail)]
 pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
     match probe {
@@ -688,4 +792,10 @@ pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
         _ => Err(anyhow!("unrecognized probe: {}", probe)),
     }
+}
+
+pub fn attach_dump(dump: &str) -> Result<Box<dyn Core>> {
+    let core = DumpCore::new(dump)?;
+    info!("attached to dump");
+    Ok(Box::new(core))
 }

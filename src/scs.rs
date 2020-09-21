@@ -293,7 +293,7 @@ impl CoreSightComponent {
             | CoreSightComponent::DebugV81A
             | CoreSightComponent::DebugV82A
             | CoreSightComponent::Unknown { .. } => false,
-            _ => true
+            _ => true,
         }
     }
 }
