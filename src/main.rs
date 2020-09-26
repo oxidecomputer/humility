@@ -1221,6 +1221,149 @@ fn readvar(
 }
 
 #[derive(StructOpt, Debug)]
+struct ReadmemArgs {
+    /// print out as halfwords instead of as bytes
+    #[structopt(long, short, conflicts_with_all = &["word"])]
+    halfword: bool,
+
+    /// print out as words instead of as bytes
+    #[structopt(long, short)]
+    word: bool,
+
+    /// address to read
+    #[structopt(parse(try_from_str = parse_int::parse))]
+    address: u32,
+
+    /// length to read
+    #[structopt(parse(try_from_str = parse_int::parse))]
+    length: Option<usize>,
+}
+
+fn readmem(
+    _hubris: &HubrisArchive,
+    args: &Args,
+    subargs: &ReadmemArgs,
+) -> Result<()> {
+    let mut core = attach(&args)?;
+    let max = crate::core::CORE_MAX_READSIZE;
+    let width: usize = 16;
+    let size = if subargs.word {
+        4
+    } else if subargs.halfword {
+        2
+    } else {
+        1
+    };
+
+    let length = match subargs.length {
+        Some(length) => length,
+        None => 256,
+    };
+
+    if length & (size - 1) != 0 {
+        fatal!("length must be {}-byte aligned", size);
+    }
+
+    if subargs.address & (size - 1) as u32 != 0 {
+        fatal!("address must be {}-byte aligned", size);
+    }
+
+    if length > max {
+        fatal!("cannot read more than {} bytes", max);
+    }
+
+    let mut bytes = vec![0u8; length];
+
+    let _info = core.halt()?;
+    let rval = core.read_8(subargs.address, &mut bytes);
+    core.run()?;
+
+    if rval.is_err() {
+        return rval;
+    }
+
+    let print = |line: &[u8], addr, offs| {
+        print!("0x{:08x} | ", addr);
+
+        for i in (0..width).step_by(size) {
+            if i < offs || i - offs >= line.len() {
+                print!(" {:width$}", "", width = size * 2);
+                continue;
+            }
+
+            let slice = &line[i - offs..i - offs + size];
+
+            print!(
+                "{:0width$x} ",
+                match size {
+                    1 => line[i - offs] as u32,
+                    2 => u16::from_le_bytes(slice.try_into().unwrap()) as u32,
+                    4 => u32::from_le_bytes(slice.try_into().unwrap()) as u32,
+                    _ => {
+                        panic!("invalid size");
+                    }
+                },
+                width = size * 2
+            );
+        }
+
+        print!("| ");
+
+        for i in 0..width {
+            if i < offs || i - offs >= line.len() {
+                print!(" ");
+            } else {
+                let c = line[i - offs] as char;
+
+                if c.is_ascii() && !c.is_ascii_control() {
+                    print!("{}", c);
+                } else {
+                    print!(".");
+                }
+            }
+        }
+
+        println!("");
+    };
+
+    let mut addr = subargs.address;
+    let offs = (addr & (width - 1) as u32) as usize;
+    addr -= offs as u32;
+
+    /*
+     * Print out header line, OpenBoot PROM style
+     */
+    print!("  {:8}  ", "");
+
+    for i in (0..width).step_by(size) {
+        if i == offs {
+            print!(" {:>width$}", "\\/", width = size * 2);
+        } else {
+            print!(" {:>width$x}", i, width = size * 2);
+        }
+    }
+
+    println!("");
+
+    /*
+     * Print our first line.
+     */
+    let lim = std::cmp::min(width - offs, bytes.len());
+    print(&bytes[0..lim], addr, offs);
+
+    if lim < bytes.len() {
+        let lines = bytes[lim..].chunks(width);
+
+        for line in lines {
+            addr += width as u32;
+            print(line, addr, 0);
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(StructOpt, Debug)]
 struct DumpArgs {
     dumpfile: Option<String>,
 }
@@ -1636,6 +1779,8 @@ enum Subcommand {
     Map,
     /// print archive manifest
     Manifest,
+    /// read and print memory
+    Readmem(ReadmemArgs),
     /// read and print a Hubris variable
     Readvar(ReadvarArgs),
     /// list tasks
@@ -1670,6 +1815,7 @@ fn main() {
     } else {
         match &args.cmd {
             Subcommand::Dump(..)
+            | Subcommand::Readvar(..)
             | Subcommand::Manifest
             | Subcommand::Tasks(..)
             | Subcommand::Trace(..)
@@ -1714,6 +1860,13 @@ fn main() {
         Subcommand::Readvar(subargs) => {
             match readvar(&hubris, &args, subargs) {
                 Err(err) => fatal!("readvar failed: {:?}", err),
+                _ => std::process::exit(0),
+            }
+        }
+
+        Subcommand::Readmem(subargs) => {
+            match readmem(&hubris, &args, subargs) {
+                Err(err) => fatal!("readmem failed: {:?}", err),
                 _ => std::process::exit(0),
             }
         }

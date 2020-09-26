@@ -326,6 +326,74 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 (In this case, task 7, `oh_no`, has overflowed its stack -- which
 we can see from the `map` output has been sized to only 256 bytes.)
 
+### `humility readmem`
+
+`humility readmem` allows one to read a specified range of memory:
+
+```console
+% humility readmem 0x00011b00
+humility: attached via DAPLink
+humility: reading at 0x11b00 for 256 bytes
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00011b00 | 00 0f 1a bf 81 54 bc f1 01 0f d0 bd 02 44 bc f1 | .....T.......D..
+0x00011b10 | 02 0f 51 70 00 d1 d0 bd 91 70 d0 bd 69 00 01 00 | ..Qp.....p..i...
+0x00011b20 | 04 00 00 00 04 00 00 00 17 01 01 00 6b 00 01 00 | ............k...
+0x00011b30 | f1 00 01 00 65 78 70 6c 69 63 69 74 20 70 61 6e | ....explicit pan
+0x00011b40 | 69 63 00 00 3c 1f 01 00 49 00 00 00 0a 00 00 00 | ic..<...I.......
+0x00011b50 | 09 00 00 00 76 69 76 61 20 65 6c 20 6a 65 66 65 | ....viva el jefe
+0x00011b60 | 0a 54 61 73 6b 20 23 20 50 61 6e 69 63 21 0a 00 | .Task # Panic!..
+0x00011b70 | 61 1b 01 00 06 00 00 00 67 1b 01 00 08 00 00 00 | a.......g.......
+0x00011b80 | 20 42 61 64 20 53 79 73 63 61 6c 6c 20 55 73 61 |  Bad Syscall Usa
+0x00011b90 | 67 65 20 0a 61 1b 01 00 06 00 00 00 80 1b 01 00 | ge .a...........
+0x00011ba0 | 13 00 00 00 93 1b 01 00 01 00 00 00 20 53 74 61 | ............ Sta
+0x00011bb0 | 63 6b 20 6f 76 65 72 66 6c 6f 77 20 61 74 20 61 | ck overflow at a
+0x00011bc0 | 64 64 72 65 73 73 20 30 78 00 00 00 61 1b 01 00 | ddress 0x...a...
+0x00011bd0 | 06 00 00 00 ac 1b 01 00 1d 00 00 00 93 1b 01 00 | ................
+0x00011be0 | 01 00 00 00 20 4d 65 6d 6f 72 79 20 66 61 75 6c | .... Memory faul
+0x00011bf0 | 74 20 61 74 20 61 64 64 72 65 73 73 20 30 78 00 | t at address 0x.
+```
+
+If an argument is present, it is the number of bytes to read:
+
+```console
+$ humility readmem 0x00011d00 100
+humility: attached via DAPLink
+humility: reading at 0x11d00 for 100 bytes
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00011d00 | 20 62 6f 75 6e 64 73 3a 20 74 68 65 20 6c 65 6e |  bounds: the len
+0x00011d10 | 20 69 73 20 20 62 75 74 20 74 68 65 20 69 6e 64 |  is  but the ind
+0x00011d20 | 65 78 20 69 73 20 30 30 30 31 30 32 30 33 30 34 | ex is 0001020304
+0x00011d30 | 30 35 30 36 30 37 30 38 30 39 31 30 31 31 31 32 | 0506070809101112
+0x00011d40 | 31 33 31 34 31 35 31 36 31 37 31 38 31 39 32 30 | 1314151617181920
+0x00011d50 | 32 31 32 32 32 33 32 34 32 35 32 36 32 37 32 38 | 2122232425262728
+0x00011d60 | 32 39 33 30                                     | 2930
+```
+
+Both arguments can be in either hex, decimal, octal or binary (addresses
+and contents will always be prented in hex):
+
+```console
+humility readmem 0o216401 0b110
+humility: attached via DAPLink
+humility: reading at 0x11d01 for 6 bytes
+              0 \/  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00011d00 |    62 6f 75 6e 64 73                            |  bounds         
+```
+
+To display as half-words (16-bits) use `-h`; to display as words (32-bits)
+use `-w`.  (The addresses must be 2-byte and 4-byte aligned, respectively.)
+
+```console
+$ humility readmem -w 0x20000000 0x40
+humility: attached via DAPLink
+humility: reading at 0x20000000 for 64 bytes
+                   \/        4        8        c
+0x20000000 | 00000001 20000180 0000000b 00005020 | ....... .... P..
+0x20000010 | 00000002 200001f0 00838042 00000000 | ....... B.......
+0x20000020 | 00004db8 00004dc8 00004d28 00004d28 | .M...M..(M..(M..
+0x20000030 | 00004d28 00004d28 00004d28 00004d28 | (M..(M..(M..(M..
+```
+
 ### `humility readvar`
 
 `humility readvar` allows one to read a global static variable.
