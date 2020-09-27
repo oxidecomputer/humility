@@ -35,7 +35,7 @@ pub struct ProbeCore {
     pub session: probe_rs::Session,
 }
 
-const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
+pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
