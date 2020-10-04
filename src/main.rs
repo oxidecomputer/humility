@@ -1159,14 +1159,17 @@ fn map(hubris: &HubrisArchive, args: &Args) -> Result<()> {
 
     for (_, region) in regions.iter() {
         println!(
-            "0x{:08x} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{} {:2} {}",
-            region.daddr,
+            "{:10} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{} {:2} {}",
+            match region.daddr {
+                Some(daddr) => format!("0x{:08x}", daddr),
+                None => "-".to_owned(),
+            },
             region.base,
-            region.base + region.size - 1,
-            if region.size >= 1024 {
-                format!("{}KiB", region.size >> 10)
+            region.base + region.mapsize - 1,
+            if region.mapsize >= 1024 {
+                format!("{}KiB", region.mapsize >> 10)
             } else {
-                format!("{}", region.size)
+                format!("{}", region.mapsize)
             },
             if region.attr.read { "r" } else { "-" },
             if region.attr.write { "w" } else { "-" },
@@ -1275,6 +1278,7 @@ fn readmem(
     let mut bytes = vec![0u8; length];
 
     let _info = core.halt()?;
+
     let rval = core.read_8(subargs.address, &mut bytes);
     core.run()?;
 

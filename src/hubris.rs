@@ -51,6 +51,9 @@ pub struct HubrisArchive {
     // constructed manifest
     manifest: HubrisManifest,
 
+    // loaded regions
+    loaded: BTreeMap<u32, HubrisRegion>,
+
     // current object
     current: u32,
 
@@ -187,14 +190,14 @@ pub struct HubrisRegionAttr {
     pub execute: bool,
     pub device: bool,
     pub dma: bool,
-    pub raw: u32,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct HubrisRegion {
-    pub daddr: u32,
+    pub daddr: Option<u32>,
     pub base: u32,
     pub size: u32,
+    pub mapsize: u32,
     pub attr: HubrisRegionAttr,
     pub task: HubrisTask,
 }
@@ -243,6 +246,7 @@ pub struct HubrisModule {
     pub textbase: u32,
     pub textsize: u32,
     pub memsize: u32,
+    pub heap: (Option<u32>, Option<u32>),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -364,6 +368,7 @@ impl HubrisArchive {
         Ok(Self {
             archive: Vec::new(),
             manifest: Default::default(),
+            loaded: BTreeMap::new(),
             cs: match cs {
                 Ok(mut cs) => {
                     cs.set_skipdata(true).expect("failed to set skipdata");
@@ -1494,6 +1499,8 @@ impl HubrisArchive {
         task: HubrisTask,
         buffer: &[u8],
     ) -> Result<()> {
+        let mut heap = (None, None);
+
         let elf = Elf::parse(buffer).map_err(|e| {
             anyhow!("unrecognized ELF object: {}: {}", object, e)
         })?;
@@ -1505,7 +1512,7 @@ impl HubrisArchive {
         }
 
         for sym in elf.syms.iter() {
-            if sym.st_name == 0 || sym.st_size == 0 {
+            if sym.st_name == 0 {
                 continue;
             }
 
@@ -1515,6 +1522,18 @@ impl HubrisArchive {
                     bail!("bad symbol in {}: {}", object, sym.st_name);
                 }
             };
+
+            if name == "__sheap" {
+                heap.0 = Some(sym.st_value as u32);
+            }
+
+            if name == "__eheap" {
+                heap.1 = Some(sym.st_value as u32);
+            }
+
+            if sym.st_size == 0 {
+                continue;
+            }
 
             /*
              * On ARM, we must explicitly clear the low bit of the symbol
@@ -1536,6 +1555,29 @@ impl HubrisArchive {
                 .insert(name.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
         }
+
+        use goblin::elf::program_header::{PF_R, PF_W, PF_X};
+
+        elf.program_headers
+            .iter()
+            .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
+            .map(|h| HubrisRegion {
+                daddr: None,
+                base: h.p_vaddr as u32,
+                size: h.p_memsz as u32,
+                mapsize: h.p_memsz as u32,
+                attr: HubrisRegionAttr {
+                    read: h.p_flags & PF_R != 0,
+                    write: h.p_flags & PF_W != 0,
+                    execute: h.p_flags & PF_X != 0,
+                    device: false,
+                    dma: false,
+                },
+                task: task,
+            })
+            .for_each(|region| {
+                self.loaded.insert(region.base, region);
+            });
 
         let memsz = elf.program_headers.iter().fold(0, |ttl, hdr| {
             if hdr.p_type == goblin::elf::program_header::PT_LOAD {
@@ -1622,6 +1664,7 @@ impl HubrisArchive {
                 textbase: (textsec.sh_addr as u32),
                 textsize: size as u32,
                 memsize: memsz as u32,
+                heap: heap,
                 task: task,
             },
         );
@@ -2046,6 +2089,44 @@ impl HubrisArchive {
         let mut regions: BTreeMap<u32, HubrisRegion> = BTreeMap::new();
 
         /*
+         * Add our loaded kernel regions, which don't otherwise have
+         * descriptors.
+         */
+        for (_, region) in &self.loaded {
+            if region.task == HubrisTask::Kernel {
+                regions.insert(region.base, *region);
+            }
+        }
+
+        /*
+         * Add a region for our kernel heap, for which we don't have a
+         * descriptor.
+         */
+        for (_, module) in &self.modules {
+            if module.task == HubrisTask::Kernel {
+                if let (Some(sheap), Some(eheap)) = module.heap {
+                    regions.insert(
+                        sheap,
+                        HubrisRegion {
+                            daddr: None,
+                            base: sheap,
+                            size: eheap - sheap,
+                            mapsize: eheap - sheap,
+                            attr: HubrisRegionAttr {
+                                read: true,
+                                write: true,
+                                execute: false,
+                                device: false,
+                                dma: false,
+                            },
+                            task: HubrisTask::Kernel,
+                        },
+                    );
+                }
+            }
+        }
+
+        /*
          * Iterate over all tasks, reading their region descriptors.
          */
         for i in 0..self.ntasks() {
@@ -2067,16 +2148,23 @@ impl HubrisArchive {
                 regions.insert(
                     base,
                     HubrisRegion {
-                        daddr: daddr,
+                        daddr: Some(daddr),
                         base: base,
-                        size: size,
+                        size: if attr & WRITE != 0 {
+                            size
+                        } else {
+                            match self.loaded.get(&base) {
+                                Some(region) => region.size,
+                                None => size,
+                            }
+                        },
+                        mapsize: size,
                         attr: HubrisRegionAttr {
                             read: attr & READ != 0,
                             write: attr & WRITE != 0,
                             execute: attr & EXECUTE != 0,
                             device: attr & DEVICE != 0,
                             dma: attr & DMA != 0,
-                            raw: attr,
                         },
                         task: HubrisTask::Task(i as u32),
                     },
@@ -2378,7 +2466,8 @@ impl HubrisArchive {
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::Write;
 
-        let nsegs = self.manifest.outputs.len();
+        let regions = self.regions(core)?;
+        let nsegs = regions.len();
 
         macro_rules! pad {
             ($size:expr) => {
@@ -2464,21 +2553,24 @@ impl HubrisArchive {
 
         offset += notesz;
 
-        for seg in self.manifest.outputs.values() {
+        let mut total = 0;
+
+        for (_, region) in regions.iter() {
             let seg_phdr = goblin::elf32::program_header::ProgramHeader {
                 p_type: goblin::elf::program_header::PT_LOAD,
                 p_flags: goblin::elf::program_header::PF_R,
                 p_offset: offset,
-                p_vaddr: seg.0,
-                p_filesz: seg.1,
-                p_memsz: seg.1,
+                p_vaddr: region.base,
+                p_filesz: region.size,
+                p_memsz: region.size,
                 ..Default::default()
             };
 
             bytes.pwrite_with(seg_phdr, 0, ctx.le)?;
             file.write_all(&bytes)?;
 
-            offset += seg.1 + pad!(seg.1);
+            offset += region.size + pad!(region.size);
+            total += region.size;
         }
 
         /*
@@ -2507,9 +2599,6 @@ impl HubrisArchive {
          * And now we write our segments.  This takes a little while, so
          * we're going to indicate our progress as we go.
          */
-        let total =
-            self.manifest.outputs.values().fold(0, |ttl, seg| ttl + seg.1);
-
         let mut written = 0;
 
         let started = Instant::now();
@@ -2519,10 +2608,10 @@ impl HubrisArchive {
                 .template("humility: dumping [{bar:30}] {bytes}/{total_bytes}"),
         );
 
-        for seg in self.manifest.outputs.values() {
-            let mut remain = seg.1 as usize;
+        for (_, region) in regions.iter() {
+            let mut remain = region.size as usize;
             let mut bytes = vec![0; 1024];
-            let mut addr = seg.0;
+            let mut addr = region.base;
 
             while remain > 0 {
                 let nbytes =
@@ -2536,7 +2625,7 @@ impl HubrisArchive {
                 bar.set_position(written as u64);
             }
 
-            let npad = pad!(seg.1) as usize;
+            let npad = pad!(region.size) as usize;
             file.write_all(&pad[0..npad])?;
         }
 
