@@ -36,6 +36,9 @@ use hubris::*;
 mod scs;
 use scs::*;
 
+mod test;
+use test::*;
+
 mod core;
 
 use std::collections::HashMap;
@@ -1116,6 +1119,8 @@ fn itmcmd(
          */
         let stim = 0x0000_000f;
 
+        println!("stim is {:x}", stim);
+
         rval =
             itmcmd_enable(core, &coreinfo, subargs.clockscaler, traceid, stim);
     }
@@ -1135,6 +1140,97 @@ fn itmcmd(
     }
 
     rval
+}
+
+#[derive(StructOpt, Debug)]
+struct TestArgs {
+    /// sets ITM trace identifier
+    #[structopt(
+        long, short, default_value = "0x3a", value_name = "identifier",
+        parse(try_from_str = parse_int::parse)
+    )]
+    traceid: u8,
+    /// sets the value of SWOSCALER
+    #[structopt(long, short, value_name = "scaler", requires = "enable",
+        parse(try_from_str = parse_int::parse),
+    )]
+    clockscaler: Option<u16>,
+}
+
+fn testcmd_ingest(
+    core: &mut dyn core::Core,
+    coreinfo: &CoreInfo,
+    subargs: &TestArgs,
+    _hubris: &HubrisArchive,
+) -> Result<()> {
+    let mut bytes: Vec<u8> = vec![];
+    let mut ndx = 0;
+
+    let traceid = if coreinfo.address(CoreSightComponent::SWO).is_some() {
+        None
+    } else {
+        Some(subargs.traceid)
+    };
+
+    let start = Instant::now();
+
+    let mut testrun = TestRun::new();
+
+    itm_ingest(
+        traceid,
+        || {
+            while ndx == bytes.len() {
+                bytes = core.read_swv()?;
+                ndx = 0;
+            }
+            ndx += 1;
+            Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
+        },
+        |packet| match &packet.payload {
+            ITMPayload::Instrumentation { payload, port } => {
+                let source = match *port {
+                    0 => TestSource::KernelLog,
+                    1 => TestSource::UserLog,
+                    8 => TestSource::Suite,
+                    _ => {
+                        println!("{} {:x?}", port, payload);
+                        return Ok(());
+                    }
+                };
+
+                for p in payload {
+                    testrun.consume(source, *p as char)?;
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        },
+    )
+}
+
+fn testcmd(
+    hubris: &HubrisArchive,
+    args: &Args,
+    subargs: &TestArgs,
+) -> Result<()> {
+    let mut c = attach(args)?;
+    let core = c.as_mut();
+
+    let coreinfo = CoreInfo::read(core)?;
+
+    /*
+    let _info = core.halt();
+    info!("core halted");
+    */
+
+    core.init_swv()?;
+    let stim = 0x0000_ffff;
+
+    itmcmd_enable(core, &coreinfo, subargs.clockscaler, subargs.traceid, stim)?;
+    testcmd_ingest(core, &coreinfo, subargs, hubris)?;
+
+    Ok(())
 }
 
 fn probe(hubris: &HubrisArchive, args: &Args) -> Result<()> {
@@ -1388,6 +1484,73 @@ fn dump(hubris: &HubrisArchive, args: &Args, subargs: &DumpArgs) -> Result<()> {
 
 fn manifest(hubris: &HubrisArchive) -> Result<()> {
     hubris.manifest()?;
+    Ok(())
+}
+
+#[rustfmt::skip::macros(println, fatal)]
+fn apptable(hubris: &HubrisArchive) -> Result<()> {
+    let app = hubris.lookup_struct_byname("App")?;
+    let task = hubris.lookup_struct_byname("TaskDesc")?;
+    let region = hubris.lookup_struct_byname("RegionDesc")?;
+    let fmt = HubrisPrintFormat { indent: 4, newline: true, hex: true };
+    let apptable = hubris.apptable();
+
+    let fatal = |msg, expected| -> ! {
+        fatal!("short app table on {}: found {} bytes, expected at least {}",
+            msg, apptable.len(), expected);
+    };
+
+    if app.size > apptable.len() {
+        fatal("App header", app.size);
+    }
+
+    let lookup = |m| -> Result<u32> {
+        let o = app.lookup_member(m)?.offset;
+        Ok(u32::from_le_bytes(apptable[o..o + 4].try_into().unwrap()))
+    };
+
+    let task_count = lookup("task_count")?;
+    let region_count = lookup("region_count")?;
+
+    println!(
+        "App ={}\n",
+        hubris.printfmt(&apptable[0..app.size], app.goff, &fmt)?
+    );
+
+    let mut offs = app.size;
+
+    for i in 0..region_count {
+        let str = format!("RegionDesc[0x{:x}]", i);
+
+        if offs + region.size > apptable.len() {
+            fatal(&str, offs + region.size);
+        }
+
+        println!("{} ={}\n", str, hubris.printfmt(
+            &apptable[offs..offs + region.size],
+            region.goff,
+            &fmt
+        )?);
+
+        offs += region.size;
+    }
+
+    for i in 0..task_count {
+        let str = format!("TaskDesc[0x{:x}]", i);
+
+        if offs + task.size > apptable.len() {
+            fatal(&str, offs + task.size);
+        }
+
+        println!("{} ={}\n", str, hubris.printfmt(
+            &apptable[offs..offs + task.size],
+            task.goff,
+            &fmt)?
+        );
+
+        offs += task.size;
+    }
+
     Ok(())
 }
 
@@ -1771,6 +1934,8 @@ struct Args {
 
 #[derive(StructOpt)]
 enum Subcommand {
+    /// print apptable
+    Apptable,
     /// probe for attached devices
     Probe,
     /// commands for ARM's Embedded Trace Macrocell (ETM) facility
@@ -1787,6 +1952,8 @@ enum Subcommand {
     Readmem(ReadmemArgs),
     /// read and print a Hubris variable
     Readvar(ReadvarArgs),
+    /// run tests
+    Test(TestArgs),
     /// list tasks
     Tasks(TasksArgs),
     /// trace Hubris operations
@@ -1818,9 +1985,11 @@ fn main() {
         }
     } else {
         match &args.cmd {
-            Subcommand::Dump(..)
+            Subcommand::Apptable
+            | Subcommand::Dump(..)
             | Subcommand::Readvar(..)
             | Subcommand::Manifest
+            | Subcommand::Test(..)
             | Subcommand::Tasks(..)
             | Subcommand::Trace(..)
             | Subcommand::Map => {
@@ -1831,6 +2000,11 @@ fn main() {
     }
 
     match &args.cmd {
+        Subcommand::Apptable => match apptable(&hubris) {
+            Err(err) => fatal!("apptable failed: {:?}", err),
+            _ => std::process::exit(0),
+        },
+
         Subcommand::Probe => match probe(&hubris, &args) {
             Err(err) => fatal!("probe failed: {:?}", err),
             _ => std::process::exit(0),
@@ -1877,6 +2051,11 @@ fn main() {
 
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
             Err(err) => fatal!("tasks failed: {:?}", err),
+            _ => std::process::exit(0),
+        },
+
+        Subcommand::Test(subargs) => match testcmd(&hubris, &args, subargs) {
+            Err(err) => fatal!("test failed: {:?}", err),
             _ => std::process::exit(0),
         },
 

@@ -51,6 +51,9 @@ pub struct HubrisArchive {
     // constructed manifest
     manifest: HubrisManifest,
 
+    // app table
+    apptable: Vec<u8>,
+
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
 
@@ -367,6 +370,7 @@ impl HubrisArchive {
 
         Ok(Self {
             archive: Vec::new(),
+            apptable: Vec::new(),
             manifest: Default::default(),
             loaded: BTreeMap::new(),
             cs: match cs {
@@ -1587,6 +1591,28 @@ impl HubrisArchive {
             }
         });
 
+        if task == HubrisTask::Kernel {
+            let apptable = elf.section_headers.iter().find(|sh| {
+                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                    name == ".hubris_app_table"
+                } else {
+                    false
+                }
+            });
+
+            self.apptable = match apptable {
+                None => {
+                    bail!("kernel is missing .hubris_app_table");
+                }
+                Some(sec) => {
+                    let base = sec.sh_offset as usize;
+                    let len = sec.sh_size as usize;
+
+                    buffer[base..base + len].to_vec()
+                }
+            };
+        }
+
         let text = elf.section_headers.iter().find(|sh| {
             if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
                 name == ".text"
@@ -1987,7 +2013,7 @@ impl HubrisArchive {
                 Ok(())
             }
         } else if size != ntasks as u32 {
-            Err(anyhow!("tasks in image ({}) exceeds tasks in \
+            Err(anyhow!("tasks in image ({}) does not equal tasks in \
                 archive ({}); archive mismatch?", size, ntasks))
         } else {
             Ok(())
@@ -2739,5 +2765,9 @@ impl HubrisArchive {
             info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
         }
         Ok(())
+    }
+
+    pub fn apptable(&self) -> &[u8] {
+        &self.apptable
     }
 }
