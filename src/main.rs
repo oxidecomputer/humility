@@ -1487,6 +1487,12 @@ fn manifest(hubris: &HubrisArchive) -> Result<()> {
     Ok(())
 }
 
+#[derive(StructOpt, Debug)]
+struct ApptableArgs {
+    #[structopt(help = "path to kernel ELF object (in lieu of Hubris archive)")]
+    kernel: Option<String>,
+}
+
 #[rustfmt::skip::macros(println, fatal)]
 fn apptable(hubris: &HubrisArchive) -> Result<()> {
     let app = hubris.lookup_struct_byname("App")?;
@@ -1935,7 +1941,7 @@ struct Args {
 #[derive(StructOpt)]
 enum Subcommand {
     /// print apptable
-    Apptable,
+    Apptable(ApptableArgs),
     /// probe for attached devices
     Probe,
     /// commands for ARM's Embedded Trace Macrocell (ETM) facility
@@ -1985,8 +1991,13 @@ fn main() {
         }
     } else {
         match &args.cmd {
-            Subcommand::Apptable
-            | Subcommand::Dump(..)
+            Subcommand::Apptable(subargs) => {
+                if subargs.kernel.is_none() {
+                    fatal!("must provide a Hubris archive or kernel");
+                }
+            }
+
+            Subcommand::Dump(..)
             | Subcommand::Readvar(..)
             | Subcommand::Manifest
             | Subcommand::Test(..)
@@ -2000,9 +2011,18 @@ fn main() {
     }
 
     match &args.cmd {
-        Subcommand::Apptable => match apptable(&hubris) {
-            Err(err) => fatal!("apptable failed: {:?}", err),
-            _ => std::process::exit(0),
+        Subcommand::Apptable(subargs) => {
+            if let Some(ref kernel) = subargs.kernel {
+                match hubris.load_kernel(kernel) {
+                    Err(err) => fatal!("can't load {}: {:?}", kernel, err),
+                    _ => {}
+                }
+            }
+
+            match apptable(&hubris) {
+                Err(err) => fatal!("apptable failed: {:?}", err),
+                _ => std::process::exit(0),
+            }
         },
 
         Subcommand::Probe => match probe(&hubris, &args) {

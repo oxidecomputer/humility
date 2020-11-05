@@ -1907,6 +1907,25 @@ impl HubrisArchive {
         Ok(())
     }
 
+    /// Load *only* a kernel -- which itself is only useful when operating on
+    /// a file and not an archive.  This will fail if an archive has already
+    /// been loaded.
+    pub fn load_kernel(&mut self, kernel: &str) -> Result<()> {
+
+        if self.modules.len() > 0 {
+            bail!("cannot specify both an archive and a kernel");
+        }
+
+        let mut file = fs::File::open(kernel)?;
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        self.load_object("kernel", HubrisTask::Kernel, &contents)?;
+
+        Ok(())
+    }
+
     ///
     /// Looks up the specfied structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be
