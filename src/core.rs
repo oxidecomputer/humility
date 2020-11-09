@@ -73,7 +73,7 @@ impl Core for ProbeCore {
 
     fn halt(&mut self) -> Result<()> {
         let mut core = self.session.core(0)?;
-        core.halt()?;
+        core.halt(std::time::Duration::from_millis(1000))?;
         Ok(())
     }
 
@@ -90,11 +90,16 @@ impl Core for ProbeCore {
     }
 
     fn init_swv(&mut self) -> Result<()> {
+        use probe_rs::architecture::arm::swo::SwoConfig;
+
+        let config = SwoConfig::new(0).set_baud(2_000_000);
+        self.session.setup_swv(&config)?;
+
         Ok(())
     }
 
     fn read_swv(&mut self) -> Result<Vec<u8>> {
-        Ok(self.session.read_swv()?)
+        Ok(self.session.read_swo()?)
     }
 }
 
