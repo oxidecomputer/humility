@@ -922,6 +922,7 @@ impl HubrisArchive {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut name = None;
+        let mut linkage_name = None;
         let mut external = None;
         let mut tgoff = None;
 
@@ -937,6 +938,10 @@ impl HubrisArchive {
                     }
                 }
 
+                gimli::constants::DW_AT_linkage_name => {
+                    linkage_name = dwarf_name(dwarf, attr.value());
+                }
+
                 gimli::constants::DW_AT_type => {
                     tgoff = self.dwarf_value_goff(unit, &attr.value());
                 }
@@ -944,9 +949,18 @@ impl HubrisArchive {
             }
         }
 
-        match (external, name, tgoff) {
-            (Some(true), Some(name), Some(tgoff)) => {
-                if let Some(sym) = self.esyms_byname.get(name) {
+        if external.is_none() && linkage_name.is_none() {
+            return Ok(());
+        }
+
+        match (name, tgoff) {
+            (Some(name), Some(tgoff)) => {
+                let linkage = match linkage_name {
+                    Some(linkage_name) => linkage_name,
+                    None => name,
+                };
+
+                if let Some(sym) = self.esyms_byname.get(linkage) {
                     match self.dsyms.get(&sym.0) {
                         None => {
                             self.dsyms.insert(
@@ -1911,7 +1925,6 @@ impl HubrisArchive {
     /// a file and not an archive.  This will fail if an archive has already
     /// been loaded.
     pub fn load_kernel(&mut self, kernel: &str) -> Result<()> {
-
         if self.modules.len() > 0 {
             bail!("cannot specify both an archive and a kernel");
         }
