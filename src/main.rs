@@ -41,7 +41,9 @@ use test::*;
 
 mod core;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::Read;
@@ -148,6 +150,25 @@ fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
         };
 
         crate::core::attach(probe, &args.chip)
+    }
+}
+
+fn clock_scaler(
+    hubris: &HubrisArchive,
+    core: &mut dyn core::Core,
+    arg: Option<u16>,
+) -> Result<u16> {
+    let debug_clock_mhz = 2_000_000;
+
+    match arg {
+        Some(val) => Ok(val),
+        None => match hubris.clock(core)? {
+            None => Err(anyhow!(
+                "clock couldn't be determined; set clock scaler explicitly"
+            )),
+
+            Some(clock) => Ok(((clock * 1000) / debug_clock_mhz) as u16 - 1),
+        },
     }
 }
 
@@ -755,7 +776,7 @@ fn itmcmd_probe(core: &mut dyn core::Core, coreinfo: &CoreInfo) -> Result<()> {
 fn itmcmd_enable(
     core: &mut dyn core::Core,
     coreinfo: &CoreInfo,
-    clockscaler: Option<u16>,
+    clockscaler: u16,
     traceid: u8,
     stimuli: u32,
 ) -> Result<()> {
@@ -808,7 +829,7 @@ fn itmcmd_enable(
         _ => {}
     }
 
-    let swoscaler = clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into();
+    let swoscaler = clockscaler as u32;
 
     if let Some(swo) = coreinfo.address(CoreSightComponent::SWO) {
         /*
@@ -1068,7 +1089,7 @@ struct ItmArgs {
 }
 
 fn itmcmd(
-    _hubris: &HubrisArchive,
+    hubris: &HubrisArchive,
     args: &Args,
     subargs: &ItmArgs,
 ) -> Result<()> {
@@ -1118,11 +1139,8 @@ fn itmcmd(
          * By default, we enable all logging (ports 0-7).
          */
         let stim = 0x0000_000f;
-
-        println!("stim is {:x}", stim);
-
-        rval =
-            itmcmd_enable(core, &coreinfo, subargs.clockscaler, traceid, stim);
+        let clockscaler = clock_scaler(hubris, core, subargs.clockscaler)?;
+        rval = itmcmd_enable(core, &coreinfo, clockscaler, traceid, stim);
     }
 
     core.run()?;
@@ -1151,7 +1169,7 @@ struct TestArgs {
     )]
     traceid: u8,
     /// sets the value of SWOSCALER
-    #[structopt(long, short, value_name = "scaler", requires = "enable",
+    #[structopt(long, short, value_name = "scaler",
         parse(try_from_str = parse_int::parse),
     )]
     clockscaler: Option<u16>,
@@ -1161,10 +1179,11 @@ fn testcmd_ingest(
     core: &mut dyn core::Core,
     coreinfo: &CoreInfo,
     subargs: &TestArgs,
-    _hubris: &HubrisArchive,
+    hubris: &HubrisArchive,
 ) -> Result<()> {
-    let mut bytes: Vec<u8> = vec![];
+    let mut bufs: VecDeque<Vec<u8>> = VecDeque::new();
     let mut ndx = 0;
+    let mut current = None;
 
     let traceid = if coreinfo.address(CoreSightComponent::SWO).is_some() {
         None
@@ -1172,19 +1191,58 @@ fn testcmd_ingest(
         Some(subargs.traceid)
     };
 
+    let v = hubris.lookup_variable("TEST_KICK")?;
+
+    if v.size != 4 {
+        fatal!("expected TEST_KICK to be of size 4; found {}", v.size);
+    }
+
     let start = Instant::now();
 
     let mut testrun = TestRun::new();
+    let mut kicked = false;
+    let shared = RefCell::new(core);
 
     itm_ingest(
         traceid,
         || {
-            while ndx == bytes.len() {
-                bytes = core.read_swv()?;
-                ndx = 0;
+            loop {
+                /*
+                 * We will keep reading until we have a zero byte read, at
+                 * which time we will kick out and process one byte.
+                 */
+                let buf = shared.borrow_mut().read_swv()?;
+
+                if buf.len() != 0 {
+                    bufs.push_back(buf);
+                    continue;
+                }
+
+                match current {
+                    None => {
+                        current = bufs.pop_front();
+                        ndx = 0;
+                    }
+
+                    Some(ref buf) => {
+                        if ndx == buf.len() {
+                            current = bufs.pop_front();
+                            ndx = 0;
+                        }
+                    }
+                }
+
+                if current.is_none() {
+                    continue;
+                }
+
+                break;
             }
+
+            let buf = current.as_ref().unwrap();
             ndx += 1;
-            Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
+
+            Ok(Some((buf[ndx - 1], start.elapsed().as_secs_f64())))
         },
         |packet| match &packet.payload {
             ITMPayload::Instrumentation { payload, port } => {
@@ -1199,12 +1257,36 @@ fn testcmd_ingest(
                 };
 
                 for p in payload {
-                    testrun.consume(source, *p as char)?;
+                    match testrun.consume(source, *p as char) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            testrun.report();
+                            return Err(err);
+                        }
+                    }
                 }
 
                 Ok(())
             }
-            _ => Ok(()),
+            ITMPayload::None => {
+                match packet.header {
+                    ITMHeader::Sync => {
+                        if !kicked {
+                            shared.borrow_mut().halt()?;
+                            shared.borrow_mut().write_word_32(v.addr, 1)?;
+                            shared.borrow_mut().run()?;
+                            kicked = true;
+                        }
+                    }
+                    _ => {}
+                }
+
+                Ok(())
+            }
+            _ => {
+                println!("{:#x?}", packet);
+                Ok(())
+            }
         },
     )
 }
@@ -1216,18 +1298,16 @@ fn testcmd(
 ) -> Result<()> {
     let mut c = attach(args)?;
     let core = c.as_mut();
+    hubris.validate(core)?;
 
     let coreinfo = CoreInfo::read(core)?;
 
-    /*
-    let _info = core.halt();
-    info!("core halted");
-    */
-
     core.init_swv()?;
+
+    let clockscaler = clock_scaler(hubris, core, subargs.clockscaler)?;
     let stim = 0x0000_ffff;
 
-    itmcmd_enable(core, &coreinfo, subargs.clockscaler, subargs.traceid, stim)?;
+    itmcmd_enable(core, &coreinfo, clockscaler, subargs.traceid, stim)?;
     testcmd_ingest(core, &coreinfo, subargs, hubris)?;
 
     Ok(())
@@ -1489,7 +1569,9 @@ fn manifest(hubris: &HubrisArchive) -> Result<()> {
 
 #[derive(StructOpt, Debug)]
 struct ApptableArgs {
-    #[structopt(help = "path to kernel ELF object (in lieu of Hubris archive)")]
+    #[structopt(
+        help = "path to kernel ELF object (in lieu of Hubris archive)"
+    )]
     kernel: Option<String>,
 }
 
@@ -1895,7 +1977,8 @@ fn tracecmd(
      */
     core.init_swv()?;
     let stim = 0xf000_0000;
-    itmcmd_enable(core, &coreinfo, subargs.clockscaler, subargs.traceid, stim)?;
+    let clockscaler = clock_scaler(hubris, core, subargs.clockscaler)?;
+    itmcmd_enable(core, &coreinfo, clockscaler, subargs.traceid, stim)?;
     tracecmd_ingest(core, &coreinfo, subargs, hubris, &tasks)?;
 
     Ok(())
@@ -2023,7 +2106,7 @@ fn main() {
                 Err(err) => fatal!("apptable failed: {:?}", err),
                 _ => std::process::exit(0),
             }
-        },
+        }
 
         Subcommand::Probe => match probe(&hubris, &args) {
             Err(err) => fatal!("probe failed: {:?}", err),

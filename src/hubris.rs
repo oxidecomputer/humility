@@ -2799,6 +2799,30 @@ impl HubrisArchive {
         Ok(())
     }
 
+    pub fn clock(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Option<u32>> {
+        let name = "CLOCK_FREQ_KHZ";
+
+        trace!("determining clock requency via {}", name);
+
+        match self.variables.get(name) {
+            Some(variable) => {
+                if variable.size != 4 {
+                    Err(anyhow!(
+                        "{} has wrong size (expected 4, found {})",
+                        name, variable.size
+                    ))
+                } else {
+                    Ok(Some(core.read_word_32(variable.addr)?))
+                }
+            }
+
+            None => Ok(None),
+        }
+    }
+
     pub fn apptable(&self) -> &[u8] {
         &self.apptable
     }

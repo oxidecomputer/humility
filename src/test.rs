@@ -3,6 +3,9 @@
  */
 
 use anyhow::{bail, Result};
+use colored::Colorize;
+use std::fmt;
+use std::io::Write;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TestSource {
@@ -55,6 +58,17 @@ impl From<&str> for TestResult {
     }
 }
 
+#[rustfmt::skip::macros(write)]
+impl fmt::Display for TestResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            TestResult::Ok => "ok".green(),
+            TestResult::Fail => "fail".red(),
+            TestResult::Unknown(ref _str) => "unknown".bold(),
+        })
+    }
+}
+
 fn nargs(token: &TestToken) -> usize {
     match token {
         TestToken::Meta | TestToken::Run => 0,
@@ -74,6 +88,7 @@ struct TestCompletion {
 
 pub struct TestRun {
     log: Vec<(char, TestSource)>,
+    raw: Vec<char>,
     buffer: Vec<char>,
     case: usize,
     cases: Vec<String>,
@@ -87,6 +102,7 @@ impl TestRun {
     pub fn new() -> TestRun {
         Self {
             log: Vec::new(),
+            raw: Vec::new(),
             buffer: Vec::new(),
             expected: TestToken::Meta,
             case: 0,
@@ -139,7 +155,7 @@ impl TestRun {
             }
 
             TestToken::Run => {
-                println!("{:#?}", self.cases);
+                println!("humility: expecting {} cases", self.cases.len());
                 TestToken::Start
             }
 
@@ -148,6 +164,9 @@ impl TestRun {
                     bail!("starting case {}: expected case {}, found case {}",
                         self.case, self.cases[self.case], tokens[1]);
                 }
+
+                print!("humility: running {} ... ", self.cases[self.case]);
+                std::io::stdout().flush().unwrap();
 
                 TestToken::Finish
             }
@@ -185,11 +204,14 @@ impl TestRun {
                     log.push((l, s));
                 }
 
-                self.results.push(TestCompletion {
+                let completion = TestCompletion {
                     case: self.cases[self.case].clone(),
                     result: TestResult::from(tokens[1]),
                     log: log,
-                });
+                };
+
+                println!("{}", completion.result);
+                self.results.push(completion);
 
                 self.log.truncate(0);
                 self.case += 1;
@@ -202,7 +224,8 @@ impl TestRun {
             }
 
             TestToken::Done => {
-                println!("{:#?}", self.results);
+                let result = TestResult::from(tokens[1]);
+                info!("tests completed: {}", result);
                 std::process::exit(0);
             }
 
@@ -220,6 +243,8 @@ impl TestRun {
     pub fn consume(&mut self, source: TestSource, datum: char) -> Result<()> {
         match source {
             TestSource::Suite => {
+                self.raw.push(datum);
+
                 if datum == '\n' {
                     self.parse()?;
                 } else {
@@ -233,5 +258,13 @@ impl TestRun {
         }
 
         Ok(())
+    }
+
+    pub fn report(&mut self) {
+        let str: String = self.raw.iter().collect();
+        println!("==== Test output");
+        println!("{}", str);
+        println!("==== Test results");
+        println!("{:#?}", self.results);
     }
 }
