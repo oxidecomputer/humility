@@ -128,6 +128,7 @@ pub enum ITMHeader {
     Extension { c: bool, d: u8, s: bool },
     Instrumentation { a: u8, ss: u8 },
     Hardware { a: u8, ss: u8 },
+    Malformed(u8),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -177,6 +178,10 @@ fn encode(hdr: ITMHeader) -> u8 {
             assert!(ss != 0);
             assert!((a >> 5) == 0);
             0b0000_0100 | (a << 3) | ss
+        }
+
+        ITMHeader::Malformed(_) => {
+            panic!("attempt to encode malformed header");
         }
     }
 }
@@ -271,6 +276,9 @@ fn itm_packet_state(hdr: ITMHeader, payload: &[u8]) -> ITMPacketState {
             0b11 => 4,
             _ => panic!("invalid ss"),
         }),
+        ITMHeader::Malformed(_) => {
+            panic!("cannot determine packet state on malformed header");
+        }
     }
 }
 
@@ -346,10 +354,18 @@ pub fn itm_ingest(
                 hdr = match hdrs[packet.datum as usize] {
                     Some(hdr) => hdr,
                     None => {
+                        callback(&ITMPacket {
+                            header: ITMHeader::Malformed(packet.datum),
+                            payload: ITMPayload::None,
+                            offset: packet.offset,
+                            time: packet.time,
+                        })?;
+
                         info!(
                             "unrecognized ITM header 0x{:x} at offset {}",
                             packet.datum, packet.offset
                         );
+
                         state = IngestState::SyncSearching;
                         return Ok(());
                     }

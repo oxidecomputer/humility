@@ -2,9 +2,13 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+use crate::hubris::*;
 use anyhow::{bail, Result};
 use colored::Colorize;
 use std::fmt;
+use std::fs;
+use std::fs::OpenOptions;
+use std::io::BufWriter;
 use std::io::Write;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -23,6 +27,7 @@ enum TestToken {
     Start,
     Finish,
     Done,
+    None,
     Unknown(String),
 }
 
@@ -86,7 +91,8 @@ struct TestCompletion {
     log: Vec<(TestSource, String)>,
 }
 
-pub struct TestRun {
+pub struct TestRun<'a> {
+    hubris: &'a HubrisArchive,
     log: Vec<(char, TestSource)>,
     raw: Vec<char>,
     buffer: Vec<char>,
@@ -94,13 +100,15 @@ pub struct TestRun {
     cases: Vec<String>,
     expected: TestToken,
     ncases: Option<usize>,
+    result: Option<TestResult>,
     results: Vec<TestCompletion>,
 }
 
 #[rustfmt::skip::macros(bail)]
-impl TestRun {
-    pub fn new() -> TestRun {
+impl<'a> TestRun<'a> {
+    pub fn new(hubris: &'a HubrisArchive) -> TestRun<'a> {
         Self {
+            hubris: hubris,
             log: Vec::new(),
             raw: Vec::new(),
             buffer: Vec::new(),
@@ -108,6 +116,7 @@ impl TestRun {
             case: 0,
             cases: Vec::new(),
             ncases: None,
+            result: None,
             results: Vec::new(),
         }
     }
@@ -226,7 +235,8 @@ impl TestRun {
             TestToken::Done => {
                 let result = TestResult::from(tokens[1]);
                 info!("tests completed: {}", result);
-                std::process::exit(0);
+                self.result = Some(result);
+                TestToken::None
             }
 
             _ => {
@@ -260,11 +270,82 @@ impl TestRun {
         Ok(())
     }
 
-    pub fn report(&mut self) {
-        let str: String = self.raw.iter().collect();
-        println!("==== Test output");
-        println!("{}", str);
-        println!("==== Test results");
-        println!("{:#?}", self.results);
+    pub fn report(
+        &mut self,
+        output: Option<&String>,
+        wire: &Vec<(u8, f64)>,
+        err: Option<&anyhow::Error>,
+    ) -> Result<()> {
+        let filename = match output {
+            Some(ref filename) => (*filename).clone(),
+            None => {
+                let mut filename;
+                let mut i = 0;
+
+                loop {
+                    filename = format!("hubris.testout.{}", i);
+
+                    if let Ok(_f) = fs::File::open(&filename) {
+                        i += 1;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                filename
+            }
+        };
+
+        let file =
+            OpenOptions::new().write(true).create_new(true).open(&filename)?;
+        let mut out = BufWriter::new(&file);
+
+        writeln!(out, "==== Test archive details")?;
+        writeln!(out, "{:#?}", self.hubris.manifest)?;
+
+        writeln!(out, "==== Test result")?;
+
+        match &self.result {
+            None => match err {
+                Some(err) => {
+                    writeln!(out, "aborted due to error: {}", err)?;
+                }
+                None => {
+                    writeln!(out, "incomplete")?;
+                }
+            },
+            Some(result) => {
+                writeln!(out, "{:?}", result)?;
+            }
+        }
+
+        writeln!(out, "==== Raw SWO output")?;
+        for i in 0..wire.len() {
+            writeln!(out, "swo,{},{},0x{:02x},,", i, wire[i].1, wire[i].0)?;
+        }
+
+        writeln!(out, "==== Test output")?;
+        writeln!(out, "{}", self.raw.iter().collect::<String>())?;
+        writeln!(out, "==== Test results")?;
+        writeln!(out, "{:#?}", self.results)?;
+
+        info!("test output dumped to {}", filename);
+
+        Ok(())
+    }
+
+    pub fn completed(&mut self) -> bool {
+        match self.result {
+            None => false,
+            Some(_) => true,
+        }
+    }
+
+    pub fn failed(&mut self) -> bool {
+        match self.result {
+            Some(TestResult::Fail) => true,
+            _ => false,
+        }
     }
 }

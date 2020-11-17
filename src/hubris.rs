@@ -49,7 +49,7 @@ pub struct HubrisArchive {
     archive: Vec<u8>,
 
     // constructed manifest
-    manifest: HubrisManifest,
+    pub manifest: HubrisManifest,
 
     // app table
     apptable: Vec<u8>,

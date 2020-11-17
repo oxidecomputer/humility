@@ -1173,6 +1173,8 @@ struct TestArgs {
         parse(try_from_str = parse_int::parse),
     )]
     clockscaler: Option<u16>,
+    #[structopt(long, short, value_name = "filename")]
+    output: Option<String>,
 }
 
 fn testcmd_ingest(
@@ -1199,9 +1201,14 @@ fn testcmd_ingest(
 
     let start = Instant::now();
 
-    let mut testrun = TestRun::new();
+    let mut testrun = TestRun::new(hubris);
     let mut kicked = false;
     let shared = RefCell::new(core);
+
+    let wirebuf = vec![];
+    let wire = RefCell::new(wirebuf);
+
+    let output = subargs.output.as_ref();
 
     itm_ingest(
         traceid,
@@ -1242,7 +1249,10 @@ fn testcmd_ingest(
             let buf = current.as_ref().unwrap();
             ndx += 1;
 
-            Ok(Some((buf[ndx - 1], start.elapsed().as_secs_f64())))
+            let datum = (buf[ndx - 1], start.elapsed().as_secs_f64());
+            wire.borrow_mut().push(datum);
+
+            Ok(Some(datum))
         },
         |packet| match &packet.payload {
             ITMPayload::Instrumentation { payload, port } => {
@@ -1251,8 +1261,14 @@ fn testcmd_ingest(
                     1 => TestSource::UserLog,
                     8 => TestSource::Suite,
                     _ => {
-                        println!("{} {:x?}", port, payload);
-                        return Ok(());
+                        let err = anyhow!(
+                            "spurious data on port {}: {:x?}",
+                            port,
+                            payload
+                        );
+
+                        testrun.report(output, &wire.borrow(), Some(&err))?;
+                        return Err(err);
                     }
                 };
 
@@ -1260,9 +1276,22 @@ fn testcmd_ingest(
                     match testrun.consume(source, *p as char) {
                         Ok(_) => {}
                         Err(err) => {
-                            testrun.report();
+                            testrun.report(
+                                output,
+                                &wire.borrow(),
+                                Some(&err),
+                            )?;
                             return Err(err);
                         }
+                    }
+
+                    if testrun.completed() {
+                        if testrun.failed() {
+                            testrun.report(output, &wire.borrow(), None)?;
+                            std::process::exit(1);
+                        }
+
+                        std::process::exit(0);
                     }
                 }
 
@@ -1277,6 +1306,12 @@ fn testcmd_ingest(
                             shared.borrow_mut().run()?;
                             kicked = true;
                         }
+                    }
+                    ITMHeader::Malformed(datum) => {
+                        let err = anyhow!("malformed datum: 0x{:x}", datum);
+                        testrun.report(output, &wire.borrow(), Some(&err))?;
+
+                        return Err(err);
                     }
                     _ => {}
                 }
