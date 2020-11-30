@@ -621,7 +621,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "probe-rs"
 version = "0.9.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-stable#bf97d3fb296c9100ee11767f4ad3b15afa5c36ca"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-stable#3866ed13a5cff87ae783e736915c20e4ddef715a"
 dependencies = [
  "anyhow",
  "base64",
@@ -651,7 +651,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-t2rust"
 version = "0.6.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-stable#bf97d3fb296c9100ee11767f4ad3b15afa5c36ca"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-stable#3866ed13a5cff87ae783e736915c20e4ddef715a"
 dependencies = [
  "base64",
  "proc-macro2",

@@ -8,7 +8,7 @@ extern crate log;
 #[macro_use]
 extern crate num_derive;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 
 use structopt::StructOpt;
 
@@ -1173,6 +1173,10 @@ struct TestArgs {
         parse(try_from_str = parse_int::parse),
     )]
     clockscaler: Option<u16>,
+    /// dump full report even on success
+    #[structopt(long, short)]
+    dumpalways: bool,
+    /// sets the output file
     #[structopt(long, short, value_name = "filename")]
     output: Option<String>,
 }
@@ -1183,7 +1187,7 @@ fn testcmd_ingest(
     subargs: &TestArgs,
     hubris: &HubrisArchive,
 ) -> Result<()> {
-    let mut bufs: VecDeque<Vec<u8>> = VecDeque::new();
+    let mut bufs: VecDeque<(Vec<u8>, f64)> = VecDeque::new();
     let mut ndx = 0;
     let mut current = None;
 
@@ -1203,17 +1207,23 @@ fn testcmd_ingest(
 
     let mut testrun = TestRun::new(hubris);
     let mut kicked = false;
+
     let shared = RefCell::new(core);
 
     let wirebuf = vec![];
     let wire = RefCell::new(wirebuf);
 
     let output = subargs.output.as_ref();
+    let timeout = 30;
 
-    itm_ingest(
+    let rval = itm_ingest(
         traceid,
         || {
             loop {
+                if start.elapsed().as_secs() > timeout {
+                    bail!("timed out after {} seconds", timeout);
+                }
+
                 /*
                  * We will keep reading until we have a zero byte read, at
                  * which time we will kick out and process one byte.
@@ -1221,7 +1231,7 @@ fn testcmd_ingest(
                 let buf = shared.borrow_mut().read_swv()?;
 
                 if buf.len() != 0 {
-                    bufs.push_back(buf);
+                    bufs.push_back((buf, start.elapsed().as_secs_f64()));
                     continue;
                 }
 
@@ -1231,7 +1241,7 @@ fn testcmd_ingest(
                         ndx = 0;
                     }
 
-                    Some(ref buf) => {
+                    Some((ref buf, _)) => {
                         if ndx == buf.len() {
                             current = bufs.pop_front();
                             ndx = 0;
@@ -1246,11 +1256,11 @@ fn testcmd_ingest(
                 break;
             }
 
-            let buf = current.as_ref().unwrap();
+            let (buf, pulled) = current.as_ref().unwrap();
             ndx += 1;
 
             let datum = (buf[ndx - 1], start.elapsed().as_secs_f64());
-            wire.borrow_mut().push(datum);
+            wire.borrow_mut().push((datum.0, *pulled, datum.1));
 
             Ok(Some(datum))
         },
@@ -1261,14 +1271,7 @@ fn testcmd_ingest(
                     1 => TestSource::UserLog,
                     8 => TestSource::Suite,
                     _ => {
-                        let err = anyhow!(
-                            "spurious data on port {}: {:x?}",
-                            port,
-                            payload
-                        );
-
-                        testrun.report(output, &wire.borrow(), Some(&err))?;
-                        return Err(err);
+                        bail!("spurious data on port {}: {:x?}", port, payload);
                     }
                 };
 
@@ -1291,6 +1294,10 @@ fn testcmd_ingest(
                             std::process::exit(1);
                         }
 
+                        if subargs.dumpalways {
+                            testrun.report(output, &wire.borrow(), None)?;
+                        }
+
                         std::process::exit(0);
                     }
                 }
@@ -1308,10 +1315,7 @@ fn testcmd_ingest(
                         }
                     }
                     ITMHeader::Malformed(datum) => {
-                        let err = anyhow!("malformed datum: 0x{:x}", datum);
-                        testrun.report(output, &wire.borrow(), Some(&err))?;
-
-                        return Err(err);
+                        bail!("malformed datum: 0x{:x}", datum);
                     }
                     _ => {}
                 }
@@ -1319,11 +1323,18 @@ fn testcmd_ingest(
                 Ok(())
             }
             _ => {
-                println!("{:#x?}", packet);
-                Ok(())
+                bail!("unknown packet: {:x?}", packet);
             }
         },
-    )
+    );
+
+    match rval {
+        Ok(_) => rval,
+        Err(err) => {
+            testrun.report(output, &wire.borrow(), Some(&err))?;
+            Err(err)
+        }
+    }
 }
 
 fn testcmd(
@@ -1336,13 +1347,16 @@ fn testcmd(
     hubris.validate(core)?;
 
     let coreinfo = CoreInfo::read(core)?;
-
+    let _info = core.halt();
     core.init_swv()?;
 
     let clockscaler = clock_scaler(hubris, core, subargs.clockscaler)?;
     let stim = 0x0000_ffff;
 
     itmcmd_enable(core, &coreinfo, clockscaler, subargs.traceid, stim)?;
+
+    core.run()?;
+
     testcmd_ingest(core, &coreinfo, subargs, hubris)?;
 
     Ok(())

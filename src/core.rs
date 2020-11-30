@@ -95,6 +95,12 @@ impl Core for ProbeCore {
         let config = SwoConfig::new(0).set_baud(2_000_000);
         self.session.setup_swv(&config)?;
 
+        /*
+         * Because the probe can have sticky errors, we perform one read
+         * (and discard the results) to assure that any further errors
+         * are legit.
+         */
+        let _discard = self.session.read_swo();
         Ok(())
     }
 

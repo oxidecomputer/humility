@@ -74,6 +74,34 @@ impl fmt::Display for TestResult {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum TestRunResult {
+    Pass,
+    Fail,
+    Unknown(String),
+}
+
+impl From<&str> for TestRunResult {
+    fn from(input: &str) -> Self {
+        match input {
+            "pass" => TestRunResult::Pass,
+            "FAIL" => TestRunResult::Fail,
+            _ => TestRunResult::Unknown(input.to_owned()),
+        }
+    }
+}
+
+#[rustfmt::skip::macros(write)]
+impl fmt::Display for TestRunResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            TestRunResult::Pass => "pass".green(),
+            TestRunResult::Fail => "fail".red(),
+            TestRunResult::Unknown(ref _str) => "unknown".bold(),
+        })
+    }
+}
+
 fn nargs(token: &TestToken) -> usize {
     match token {
         TestToken::Meta | TestToken::Run => 0,
@@ -100,7 +128,7 @@ pub struct TestRun<'a> {
     cases: Vec<String>,
     expected: TestToken,
     ncases: Option<usize>,
-    result: Option<TestResult>,
+    result: Option<TestRunResult>,
     results: Vec<TestCompletion>,
 }
 
@@ -233,7 +261,7 @@ impl<'a> TestRun<'a> {
             }
 
             TestToken::Done => {
-                let result = TestResult::from(tokens[1]);
+                let result = TestRunResult::from(tokens[1]);
                 info!("tests completed: {}", result);
                 self.result = Some(result);
                 TestToken::None
@@ -273,7 +301,7 @@ impl<'a> TestRun<'a> {
     pub fn report(
         &mut self,
         output: Option<&String>,
-        wire: &Vec<(u8, f64)>,
+        wire: &Vec<(u8, f64, f64)>,
         err: Option<&anyhow::Error>,
     ) -> Result<()> {
         let filename = match output {
@@ -309,20 +337,24 @@ impl<'a> TestRun<'a> {
         match &self.result {
             None => match err {
                 Some(err) => {
-                    writeln!(out, "aborted due to error: {}", err)?;
+                    writeln!(out, "result=aborted due to error: {:?}", err)?;
                 }
                 None => {
-                    writeln!(out, "incomplete")?;
+                    writeln!(out, "result=incomplete")?;
                 }
             },
             Some(result) => {
-                writeln!(out, "{:?}", result)?;
+                writeln!(out, "result={:?}", result)?;
             }
         }
 
         writeln!(out, "==== Raw SWO output")?;
         for i in 0..wire.len() {
-            writeln!(out, "swo,{},{},0x{:02x},,", i, wire[i].1, wire[i].0)?;
+            writeln!(
+                out,
+                "swo,{},{},{},0x{:02x},,",
+                i, wire[i].1, wire[i].2, wire[i].0
+            )?;
         }
 
         writeln!(out, "==== Test output")?;
@@ -344,7 +376,7 @@ impl<'a> TestRun<'a> {
 
     pub fn failed(&mut self) -> bool {
         match self.result {
-            Some(TestResult::Fail) => true,
+            Some(TestRunResult::Fail) => true,
             _ => false,
         }
     }
