@@ -16,6 +16,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
 use std::str;
+use std::time::Instant;
 
 use goblin::elf::Elf;
 
@@ -116,6 +117,7 @@ const OPENOCD_TRACE_DATA_END: &str = "\r\n";
 pub struct OpenOCDCore {
     stream: TcpStream,
     swv: bool,
+    last_swv: Option<Instant>,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -160,7 +162,7 @@ impl OpenOCDCore {
             anyhow!("can't connect to OpenOCD on port 6666; is it running?")
         })?;
 
-        Ok(Self { stream: stream, swv: false })
+        Ok(Self { stream: stream, swv: false, last_swv: None })
     }
 }
 
@@ -267,20 +269,46 @@ impl Core for OpenOCDCore {
         let mut rbuf = vec![0; 8192];
         let mut swv: Vec<u8> = Vec::with_capacity(8192);
 
+        if let Some(last_swv) = self.last_swv {
+            /*
+             * When we read from SWV from OpenOCD, it will block until data
+             * becomes available.  To better approximate the (non-blocking)
+             * behavior we see on a directly attached debugger, we return a
+             * zero byte read if it has been less than 100 ms since our last
+             * read -- relying on OpenOCD to buffer things a bit.
+             */
+            if last_swv.elapsed().as_secs_f64() < 0.1 {
+                return Ok(swv);
+            }
+        }
+
         let rval = self.stream.read(&mut rbuf)?;
+        self.last_swv = Some(Instant::now());
 
         if rbuf[rval - 1] != OPENOCD_COMMAND_DELIMITER {
             bail!("missing trace data delimiter: {:?}", rval);
         }
 
-        let rstr = str::from_utf8(&rbuf[0..rval - 1])?;
+        /*
+         * OpenOCD can sometimes send multiple command delimters -- or
+         * none at all.
+         */
+        if rval == 1 {
+            return Ok(swv);
+        }
+
+        let rstr = if rbuf[0] == OPENOCD_COMMAND_DELIMITER {
+            str::from_utf8(&rbuf[1..rval - 1])?
+        } else {
+            str::from_utf8(&rbuf[0..rval - 1])?
+        };
 
         if !rstr.starts_with(OPENOCD_TRACE_DATA_BEGIN) {
-            bail!("bogus trace data (bad start): {:?}", rval);
+            bail!("bogus trace data (bad start): {:?}", rstr);
         }
 
         if !rstr.ends_with(OPENOCD_TRACE_DATA_END) {
-            bail!("bogus trace data (bad end): {:?}", rval);
+            bail!("bogus trace data (bad end): {:?}", rstr);
         }
 
         let begin = OPENOCD_TRACE_DATA_BEGIN.len();
