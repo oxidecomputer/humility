@@ -1871,7 +1871,7 @@ impl HubrisArchive {
         let metadata = fs::metadata(archive)?;
 
         if metadata.is_dir() {
-            bail!("a directory as a archive is deprecated; \
+            bail!("a directory as an archive is deprecated; \
                 use archive instead");
         }
 
