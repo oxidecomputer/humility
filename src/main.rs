@@ -8,7 +8,7 @@ extern crate log;
 #[macro_use]
 extern crate num_derive;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 
 use structopt::StructOpt;
 
@@ -150,6 +150,14 @@ fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
         };
 
         crate::core::attach(probe, &args.chip)
+    }
+}
+
+fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
+    if let Some(_) = &args.dump {
+        bail!("must be run against a live system");
+    } else {
+        attach(args)
     }
 }
 
@@ -1197,7 +1205,9 @@ fn testcmd_ingest(
         Some(subargs.traceid)
     };
 
-    let v = hubris.lookup_variable("TEST_KICK")?;
+    let v = hubris
+        .lookup_variable("TEST_KICK")
+        .context("does not appear to be a test archive")?;
 
     if v.size != 4 {
         fatal!("expected TEST_KICK to be of size 4; found {}", v.size);
@@ -1342,7 +1352,7 @@ fn testcmd(
     args: &Args,
     subargs: &TestArgs,
 ) -> Result<()> {
-    let mut c = attach(args)?;
+    let mut c = attach_live(args)?;
     let core = c.as_mut();
     hubris.validate(core)?;
 
@@ -2072,27 +2082,27 @@ struct Args {
 
 #[derive(StructOpt)]
 enum Subcommand {
-    /// print apptable
+    /// print Hubris apptable
     Apptable(ApptableArgs),
-    /// probe for attached devices
+    /// probe for any attached devices
     Probe,
-    /// commands for ARM's Embedded Trace Macrocell (ETM) facility
+    /// commands for ARM's Embedded Trace Macrocell (ETM)
     Etm(EtmArgs),
-    /// commands for ARM's Instrumentation Trace Macrocell (ITM) facility
+    /// commands for ARM's Instrumentation Trace Macrocell (ITM)
     Itm(ItmArgs),
     /// generate Hubris dump
     Dump(DumpArgs),
-    /// print tasks memory maps
+    /// print memory map, with association of regions to tasks
     Map,
     /// print archive manifest
     Manifest,
-    /// read and print memory
+    /// read and display memory region
     Readmem(ReadmemArgs),
-    /// read and print a Hubris variable
+    /// read and display a specified Hubris variable
     Readvar(ReadvarArgs),
-    /// run tests
+    /// run Hubris test suite and parse results
     Test(TestArgs),
-    /// list tasks
+    /// list Hubris tasks
     Tasks(TasksArgs),
     /// trace Hubris operations
     Trace(TraceArgs),
