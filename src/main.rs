@@ -2185,6 +2185,7 @@ fn main() {
                             frames[position],
                             frames[position + 1],
                         ]);
+
                         // this is duplicated from hubris, probably want to de-duplicate someday
                         let task_index = task_id & (1 << 10) - 1;
 
@@ -2200,18 +2201,25 @@ fn main() {
                             let start = position + 4;
                             let end = start + frame_len;
 
-                            let table = hubris
+                            let table = {
+                                let table = hubris
                                 .task_elf_map()
-                                .get(&task_index)
-                                .ok_or(anyhow!(
-                                    "couldn't find task #{}",
-                                    task_index
-                                ))?
-                                .as_ref()
-                                .ok_or(anyhow!(
-                                    "couldn't find log messages for task #{}",
-                                    task_index
-                                ))?;
+                                .get(&task_index);
+
+                                if table.is_none() {
+                                    println!("warning: couldn't find task #{}, continuing", task_index);
+                                    return Ok(());
+                                }
+
+                                let table = table.unwrap().as_ref();
+
+                                if table.is_none() {
+                                    println!("warning: couldn't find log messages for task #{}, continuing", task_index);
+                                    return Ok(());
+                                }
+
+                                table.unwrap()
+                            };
 
                             if let Ok((frame, consumed)) =
                                 defmt_decoder::decode(&frames[start..end], &table)
