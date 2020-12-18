@@ -1149,7 +1149,7 @@ where
     if rval.is_ok() && subargs.attach {
         match itmcmd_ingest_attached(core, &coreinfo, subargs, callback) {
             Err(e) => {
-                fatal!("failed to ingest from attached device: {}", e);
+                panic!("failed to ingest from attached device: {}", e);
             }
             _ => {
                 return Ok(());
@@ -2174,21 +2174,21 @@ fn main() {
 
                 // find the first byte of our frame, add two since it's two bytes long
                 if let Some(position) =
-                    frames.windows(2).position(|bytes| bytes == [0x1, 0xde])
+                    frames.windows(2).position(|bytes| bytes == [0xde, 0x01])
                 {
                     let position = position + 2;
 
                     // do we have a task id + frame length? we need two bytes for each of them, four total
                     if frames.len() > position + 4 {
                         // these are u16, but we want to use them as usize, so we cast after constructing it
-                        let task_id = u16::from_be_bytes([
+                        let task_id = u16::from_le_bytes([
                             frames[position],
                             frames[position + 1],
                         ]);
                         // this is duplicated from hubris, probably want to de-duplicate someday
                         let task_index = task_id & (1 << 10) - 1;
 
-                        let frame_len = u16::from_be_bytes([
+                        let frame_len = u16::from_le_bytes([
                             frames[position + 2],
                             frames[position + 3],
                         ]) as usize;
