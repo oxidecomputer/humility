@@ -351,6 +351,53 @@ impl HubrisEnum {
 
         bail!("missing variant: {}.{}", self.name, name)
     }
+
+    pub fn determine_variant(
+        &self,
+        hubris: &HubrisArchive,
+        buf: &[u8],
+    ) -> Result<&HubrisEnumVariant> {
+        let readval = |b: &[u8], o, sz| -> Result<u64> {
+            Ok(match sz {
+                1 => b[o] as u64,
+                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
+                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
+                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
+                _ => {
+                    bail!("bad size!");
+                }
+            })
+        };
+
+        if let HubrisDiscriminant::Value(goff, offs) = self.discriminant {
+            let size = match hubris.basetypes.get(&goff) {
+                Some(v) => v.size,
+                None => {
+                    bail!("enum has discriminant of unknown type: {}", goff);
+                }
+            };
+
+            let val = readval(buf, offs, size)?;
+
+            match self.lookup_variant(val) {
+                None => {
+                    bail!("unknown variant: 0x{:x}", val);
+                }
+
+                Some(variant) => Ok(variant),
+            }
+        } else {
+            if self.variants.len() == 0 {
+                bail!("enum {} has no variants");
+            }
+
+            if self.variants.len() > 1 {
+                bail!("enum has multiple variants but no discriminant");
+            }
+
+            Ok(&self.variants[0])
+        }
+    }
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -1971,6 +2018,20 @@ impl HubrisArchive {
         match self.enums.get(&goff) {
             Some(union) => Ok(union),
             None => Err(anyhow!("expected enum {} not found", goff)),
+        }
+    }
+
+    pub fn lookup_array(&self, goff: HubrisGoff) -> Result<&HubrisArray> {
+        match self.arrays.get(&goff) {
+            Some(array) => Ok(array),
+            None => Err(anyhow!("expected {} to be an array", goff)),
+        }
+    }
+
+    pub fn lookup_basetype(&self, goff: HubrisGoff) -> Result<&HubrisBasetype> {
+        match self.basetypes.get(&goff) {
+            Some(basetype) => Ok(basetype),
+            None => Err(anyhow!("expected {} to be a basetype", goff)),
         }
     }
 

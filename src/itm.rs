@@ -117,7 +117,7 @@ pub enum ITMPayload {
     },
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ITMHeader {
     Sync,
     Overflow,

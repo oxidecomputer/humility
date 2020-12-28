@@ -47,6 +47,8 @@ use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::Read;
+use std::thread;
+use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
@@ -1372,6 +1374,472 @@ fn testcmd(
     Ok(())
 }
 
+#[derive(StructOpt, Debug)]
+struct I2cArgs {
+    /// sets ITM trace identifier
+    #[structopt(
+        long, default_value = "0x3a", value_name = "identifier",
+        parse(try_from_str = parse_int::parse)
+    )]
+    traceid: u8,
+    /// sets the value of SWOSCALER
+    #[structopt(long, short, value_name = "scaler",
+        parse(try_from_str = parse_int::parse),
+    )]
+    clockscaler: Option<u16>,
+
+    /// sets ITM trace identifier
+    #[structopt(
+        long, short, default_value = "5000", value_name = "timeout_ms`",
+        parse(try_from_str = parse_int::parse)
+    )]
+    timeout: u32,
+
+    /// enables ITM logging
+    #[structopt(long, short)]
+    log: bool,
+
+    /// scan a bus for devices or a bus+device for registers
+    #[structopt(long, short, conflicts_with = "read")]
+    scan: bool,
+
+    /// specifies an I2C bus
+    #[structopt(long, short, value_name = "bus",
+        parse(try_from_str = parse_int::parse),
+    )]
+    bus: u8,
+
+    /// specifies an I2C device address
+    #[structopt(long, short, value_name = "address",
+        parse(try_from_str = parse_int::parse),
+    )]
+    device: Option<u8>,
+
+    /// read a register
+    #[structopt(long, short, value_name = "register",
+        parse(try_from_str = parse_int::parse),
+    )]
+    read: Option<u8>,
+
+    /// read as halfwords instead of as bytes
+    #[structopt(long, short, conflicts_with = "word")]
+    halfword: bool,
+
+    /// read as words instead of as bytes
+    #[structopt(long, short)]
+    word: bool,
+}
+
+#[derive(Debug)]
+struct I2cVariables<'a> {
+    ready: &'a HubrisVariable,
+    kick: &'a HubrisVariable,
+    bus: &'a HubrisVariable,
+    device: &'a HubrisVariable,
+    register: &'a HubrisVariable,
+    requests: &'a HubrisVariable,
+    errors: &'a HubrisVariable,
+    results: &'a HubrisVariable,
+    cached: Option<(u32, u32)>,
+    kicked: Option<Instant>,
+    timeout: u32,
+    timedout: bool,
+}
+
+impl<'a> I2cVariables<'a> {
+    fn variable(
+        hubris: &'a HubrisArchive,
+        name: &str,
+        wordsize: bool,
+    ) -> Result<&'a HubrisVariable> {
+        let v = hubris
+            .lookup_variable(name)
+            .context("expected i2c debugging interface not found")?;
+
+        if wordsize && v.size != 4 {
+            bail!("expected {} to be size 4, found {}", name, v.size);
+        }
+
+        Ok(v)
+    }
+
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        timeout: u32,
+    ) -> Result<I2cVariables> {
+        Ok(Self {
+            ready: Self::variable(hubris, "I2C_DEBUG_READY", true)?,
+            kick: Self::variable(hubris, "I2C_DEBUG_KICK", true)?,
+            bus: Self::variable(hubris, "I2C_DEBUG_BUS", true)?,
+            device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
+            register: Self::variable(hubris, "I2C_DEBUG_REGISTER", true)?,
+            requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
+            errors: Self::variable(hubris, "I2C_DEBUG_ERRORS", true)?,
+            results: Self::variable(hubris, "I2C_DEBUG_RESULTS", false)?,
+            cached: None,
+            kicked: None,
+            timeout: timeout,
+            timedout: false,
+        })
+    }
+
+    fn kickit(
+        &mut self,
+        core: &mut dyn core::Core,
+        subargs: &I2cArgs,
+    ) -> Result<()> {
+        if core.read_word_32(self.ready.addr)? != 1 {
+            bail!("i2c debugging facility unavailable");
+        }
+
+        core.halt()?;
+        core.write_word_32(self.bus.addr, subargs.bus as u32)?;
+
+        if let Some(device) = subargs.device {
+            core.write_word_32(self.device.addr, device as u32)?;
+        }
+
+        if let Some(register) = subargs.read {
+            core.write_word_32(self.register.addr, register as u32)?;
+        }
+
+        core.write_word_32(self.kick.addr, 1)?;
+
+        self.cached = Some((
+            core.read_word_32(self.requests.addr)?,
+            core.read_word_32(self.errors.addr)?,
+        ));
+
+        self.kicked = Some(Instant::now());
+
+        core.run()?;
+        Ok(())
+    }
+
+    fn done(&mut self, core: &mut dyn core::Core) -> Result<bool> {
+        core.halt()?;
+
+        let vars = Some((
+            core.read_word_32(self.requests.addr)?,
+            core.read_word_32(self.errors.addr)?,
+        ));
+
+        core.run()?;
+
+        if let Some(kicked) = self.kicked {
+            if kicked.elapsed().as_millis() > self.timeout.into() {
+                self.timedout = true;
+
+                return Ok(true);
+            }
+        }
+
+        Ok(self.cached.is_some() && vars != self.cached)
+    }
+
+    fn error(&self, core: &mut dyn core::Core) -> Result<bool> {
+        if let Some((_, errors)) = self.cached {
+            core.halt()?;
+            let rval = core.read_word_32(self.errors.addr)? > errors;
+            core.run()?;
+            Ok(rval)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+fn i2ccmd_results<'a>(
+    hubris: &'a HubrisArchive,
+    vars: &I2cVariables,
+    buf: &[u8],
+) -> Result<Vec<Option<Result<u32, &'a HubrisEnumVariant>>>> {
+    let variant_enum = |variant: &HubrisEnumVariant| {
+        let t = match variant.goff {
+            None => bail!("expected tuple"),
+            Some(goff) => hubris.lookup_struct(goff)?.lookup_member("__0")?,
+        };
+
+        Ok((hubris.lookup_enum(t.goff)?, t.offset))
+    };
+
+    let variant_basetype = |variant: &HubrisEnumVariant| {
+        let t = match variant.goff {
+            None => bail!("expected tuple"),
+            Some(goff) => hubris.lookup_struct(goff)?.lookup_member("__0")?,
+        };
+
+        Ok((hubris.lookup_basetype(t.goff)?, t.offset))
+    };
+
+    let array = hubris
+        .lookup_array(vars.results.goff)
+        .context("expected results to be an array")?;
+
+    let option = hubris
+        .lookup_enum(array.goff)
+        .context("expected results to be an array of Option")?;
+
+    let some = option.lookup_variant_byname("Some")?;
+    let result = variant_enum(some)?;
+
+    let ok = result.0.lookup_variant_byname("Ok")?;
+    let err = result.0.lookup_variant_byname("Err")?;
+
+    let err_payload = variant_enum(err)?;
+    let ok_payload = variant_basetype(ok)?;
+
+    let mut results: Vec<Option<Result<u32, &HubrisEnumVariant>>> = vec![];
+
+    for i in 0..array.count {
+        let offs = i * option.size;
+        let b = &buf[offs..];
+
+        let variant = option.determine_variant(hubris, b)?;
+
+        if variant.goff == some.goff {
+            let r =
+                result.0.determine_variant(hubris, &buf[offs + result.1..])?;
+
+            if r.goff == err.goff {
+                let details = err_payload
+                    .0
+                    .determine_variant(hubris, &buf[offs + err_payload.1..])?;
+
+                results.push(Some(Err(details)));
+            } else {
+                let o = offs + ok_payload.1;
+
+                results.push(Some(Ok(u32::from_le_bytes(
+                    buf[o..o + 4].try_into()?,
+                ))));
+            }
+        } else {
+            results.push(None);
+        }
+    }
+
+    Ok(results)
+}
+
+fn i2ccmd_done(
+    core: &mut dyn core::Core,
+    subargs: &I2cArgs,
+    hubris: &HubrisArchive,
+    vars: &I2cVariables,
+) -> Result<()> {
+    if vars.error(core)? {
+        if subargs.log {
+            fatal!("i2c command failed on target");
+        } else {
+            fatal!("i2c command failed on target; run with -l for more detail");
+        }
+    }
+
+    let mut buf: Vec<u8> = vec![];
+    buf.resize_with(vars.results.size, Default::default);
+    core.read_8(vars.results.addr, buf.as_mut_slice())?;
+
+    let results = i2ccmd_results(hubris, vars, &buf)?;
+
+    if vars.timedout {
+        warn!("operation timed out");
+    }
+
+    if subargs.scan && subargs.device.is_none() {
+        println!("\nDevice scan on I2C{}:\n", subargs.bus);
+
+        println!(
+            "    R = Reserved   - = No device   \
+            \\o/ = Device found   X = Timed out\n"
+        );
+
+        print!("{:<8}", "ADDR");
+
+        for i in 0..16 {
+            print!(" 0x{:x}", i);
+        }
+
+        println!("");
+
+        for i in 0..128 {
+            if i % 16 == 0 {
+                print!("0x{:02x}    ", i);
+            }
+
+            print!(
+                "{:>4}",
+                match results[i] {
+                    None => {
+                        "X"
+                    }
+                    Some(Ok(_)) => {
+                        "\\o/"
+                    }
+                    Some(Err(err)) => {
+                        if err.name == "NoDevice" {
+                            "-"
+                        } else if err.name == "ReservedAddress" {
+                            "R"
+                        } else {
+                            "?"
+                        }
+                    }
+                }
+            );
+
+            if i % 16 == 15 {
+                println!("");
+            }
+        }
+
+        std::process::exit(0);
+    }
+
+    if subargs.scan && subargs.device.is_some() {
+        print!("{:5}", "");
+
+        for i in 0..16 {
+            print!(" 0x{:x}", i);
+        }
+
+        println!("");
+
+        for i in 0..256 {
+            if i % 16 == 0 {
+                print!("0x{:02x} ", i);
+            }
+
+            match results[i] {
+                Some(Ok(val)) => {
+                    print!("  {:02x}", val);
+                }
+                None => {
+                    print!("{:4}", "X");
+                }
+                Some(Err(_)) => {
+                    print!("{:4}", "Err");
+                }
+            }
+
+            if i % 16 == 15 {
+                println!("");
+            }
+        }
+    }
+
+    std::process::exit(0);
+}
+
+fn i2ccmd_ingest(
+    core: &mut dyn core::Core,
+    coreinfo: &CoreInfo,
+    subargs: &I2cArgs,
+    hubris: &HubrisArchive,
+    vars: &mut I2cVariables,
+) -> Result<()> {
+    let traceid = if coreinfo.address(CoreSightComponent::SWO).is_some() {
+        None
+    } else {
+        Some(subargs.traceid)
+    };
+
+    let shared = RefCell::new(core);
+    let vars = RefCell::new(vars);
+    let mut bytes: Vec<u8> = vec![];
+    let mut ndx = 0;
+    let mut kicked = false;
+    let start = Instant::now();
+    let mut last = Instant::now();
+    let check_ms = 100;
+
+    itm_ingest(
+        traceid,
+        || {
+            while ndx == bytes.len() {
+                if ndx == 0 && last.elapsed().as_millis() > check_ms {
+                    last = Instant::now();
+
+                    if vars.borrow_mut().done(*shared.borrow_mut())? {
+                        i2ccmd_done(
+                            *shared.borrow_mut(),
+                            subargs,
+                            hubris,
+                            *vars.borrow(),
+                        )?;
+                    }
+                }
+                bytes = shared.borrow_mut().read_swv()?;
+                ndx = 0;
+            }
+            ndx += 1;
+            Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
+        },
+        |packet| {
+            if packet.header == ITMHeader::Sync {
+                if !kicked {
+                    vars.borrow_mut().kickit(*shared.borrow_mut(), subargs)?;
+                    kicked = true;
+                }
+            }
+
+            match &packet.payload {
+                ITMPayload::Instrumentation { payload, port } => {
+                    if *port > 1 {
+                        println!("{:x?}", payload);
+                        return Ok(());
+                    }
+
+                    for p in payload {
+                        print!("{}", *p as char);
+                    }
+                }
+                _ => {}
+            }
+
+            Ok(())
+        },
+    )
+}
+
+fn i2ccmd(
+    hubris: &HubrisArchive,
+    args: &Args,
+    subargs: &I2cArgs,
+) -> Result<()> {
+    let mut c = attach_live(args)?;
+    let core = c.as_mut();
+    hubris.validate(core)?;
+
+    let mut vars = I2cVariables::new(hubris, subargs.timeout)?;
+
+    let coreinfo = CoreInfo::read(core)?;
+
+    if !subargs.log {
+        vars.kickit(core, subargs)?;
+
+        loop {
+            thread::sleep(Duration::from_millis(100));
+            if vars.done(core)? {
+                i2ccmd_done(core, subargs, hubris, &vars)?;
+            }
+        }
+    }
+
+    let _info = core.halt();
+    core.init_swv()?;
+
+    let stim = 0x0000_000f;
+    let clockscaler = clock_scaler(hubris, core, subargs.clockscaler)?;
+    itmcmd_enable(core, &coreinfo, clockscaler, subargs.traceid, stim)?;
+
+    core.run()?;
+
+    i2ccmd_ingest(core, &coreinfo, subargs, hubris, &mut vars)?;
+
+    Ok(())
+}
+
 fn probe(hubris: &HubrisArchive, args: &Args) -> Result<()> {
     let mut core = attach(args)?;
 
@@ -2084,18 +2552,20 @@ struct Args {
 enum Subcommand {
     /// print Hubris apptable
     Apptable(ApptableArgs),
-    /// probe for any attached devices
-    Probe,
-    /// commands for ARM's Embedded Trace Macrocell (ETM)
-    Etm(EtmArgs),
-    /// commands for ARM's Instrumentation Trace Macrocell (ITM)
-    Itm(ItmArgs),
     /// generate Hubris dump
     Dump(DumpArgs),
+    /// commands for ARM's Embedded Trace Macrocell (ETM)
+    Etm(EtmArgs),
+    /// scan for and read I2C devices
+    I2c(I2cArgs),
+    /// commands for ARM's Instrumentation Trace Macrocell (ITM)
+    Itm(ItmArgs),
     /// print memory map, with association of regions to tasks
     Map,
     /// print archive manifest
     Manifest,
+    /// probe for any attached devices
+    Probe,
     /// read and display memory region
     Readmem(ReadmemArgs),
     /// read and display a specified Hubris variable
@@ -2140,6 +2610,7 @@ fn main() {
             }
 
             Subcommand::Dump(..)
+            | Subcommand::I2c(..)
             | Subcommand::Readvar(..)
             | Subcommand::Manifest
             | Subcommand::Test(..)
@@ -2184,6 +2655,11 @@ fn main() {
 
         Subcommand::Dump(subargs) => match dump(&hubris, &args, subargs) {
             Err(err) => fatal!("dump failed: {:?}", err),
+            _ => std::process::exit(0),
+        },
+
+        Subcommand::I2c(subargs) => match i2ccmd(&hubris, &args, subargs) {
+            Err(err) => fatal!("i2c failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
