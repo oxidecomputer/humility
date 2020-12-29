@@ -1383,7 +1383,7 @@ struct I2cArgs {
     )]
     traceid: u8,
     /// sets the value of SWOSCALER
-    #[structopt(long, short, value_name = "scaler",
+    #[structopt(long, value_name = "scaler",
         parse(try_from_str = parse_int::parse),
     )]
     clockscaler: Option<u16>,
@@ -1399,15 +1399,15 @@ struct I2cArgs {
     #[structopt(long, short)]
     log: bool,
 
-    /// scan a bus for devices or a bus+device for registers
+    /// scan a controller for devices or a device for registers
     #[structopt(long, short, conflicts_with = "read")]
     scan: bool,
 
     /// specifies an I2C bus
-    #[structopt(long, short, value_name = "bus",
+    #[structopt(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
-    bus: u8,
+    controller: u8,
 
     /// specifies an I2C device address
     #[structopt(long, short, value_name = "address",
@@ -1434,7 +1434,10 @@ struct I2cArgs {
 struct I2cVariables<'a> {
     ready: &'a HubrisVariable,
     kick: &'a HubrisVariable,
-    bus: &'a HubrisVariable,
+    controller: &'a HubrisVariable,
+    port: &'a HubrisVariable,
+    mux: &'a HubrisVariable,
+    segment: &'a HubrisVariable,
     device: &'a HubrisVariable,
     register: &'a HubrisVariable,
     requests: &'a HubrisVariable,
@@ -1470,7 +1473,10 @@ impl<'a> I2cVariables<'a> {
         Ok(Self {
             ready: Self::variable(hubris, "I2C_DEBUG_READY", true)?,
             kick: Self::variable(hubris, "I2C_DEBUG_KICK", true)?,
-            bus: Self::variable(hubris, "I2C_DEBUG_BUS", true)?,
+            controller: Self::variable(hubris, "I2C_DEBUG_CONTROLLER", true)?,
+            port: Self::variable(hubris, "I2C_DEBUG_PORT", true)?,
+            mux: Self::variable(hubris, "I2C_DEBUG_MUX", true)?,
+            segment: Self::variable(hubris, "I2C_DEBUG_SEGMENT", true)?,
             device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
             register: Self::variable(hubris, "I2C_DEBUG_REGISTER", true)?,
             requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
@@ -1493,7 +1499,7 @@ impl<'a> I2cVariables<'a> {
         }
 
         core.halt()?;
-        core.write_word_32(self.bus.addr, subargs.bus as u32)?;
+        core.write_word_32(self.controller.addr, subargs.controller as u32)?;
 
         if let Some(device) = subargs.device {
             core.write_word_32(self.device.addr, device as u32)?;
@@ -1647,7 +1653,7 @@ fn i2ccmd_done(
     }
 
     if subargs.scan && subargs.device.is_none() {
-        println!("\nDevice scan on I2C{}:\n", subargs.bus);
+        println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
 
         println!(
             "    R = Reserved   - = No device   \
@@ -1715,10 +1721,10 @@ fn i2ccmd_done(
                     print!("  {:02x}", val);
                 }
                 None => {
-                    print!("{:4}", "X");
+                    print!("{:>4}", "X");
                 }
                 Some(Err(_)) => {
-                    print!("{:4}", "Err");
+                    print!("{:>4}", "Err");
                 }
             }
 
