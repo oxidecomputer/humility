@@ -27,6 +27,7 @@ pub trait Core {
     fn init_swv(&mut self) -> Result<()>;
     fn read_swv(&mut self) -> Result<Vec<u8>>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
+    fn write_8(&mut self, addr: u32, data: u8) -> Result<()>;
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
@@ -69,6 +70,12 @@ impl Core for ProbeCore {
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.write_word_32(addr, data)?;
+        Ok(())
+    }
+
+    fn write_8(&mut self, addr: u32, data: u8) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.write_8(addr, &[data])?;
         Ok(())
     }
 
@@ -330,13 +337,24 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
+    fn write_8(&mut self, addr: u32, data: u8) -> Result<()> {
+        self.sendcmd(&format!("mwb 0x{:x} 0x{:x}", addr, data))?;
+        Ok(())
+    }
+
     fn halt(&mut self) -> Result<()> {
-        self.sendcmd("halt")?;
+        /*
+         * On OpenOCD, we don't halt. If GDB is connected, it gets really,
+         * really confused!  This should probably be configurable at
+         * some point...
+         */
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
-        self.sendcmd("resume")?;
+        /*
+         * Well, see above.
+         */
         Ok(())
     }
 
@@ -612,7 +630,15 @@ impl Core for GDBCore {
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
-        Err(anyhow!("{} GDB target does not support modifying state", self.server))
+        Err(anyhow!(
+            "{} GDB target does not support modifying state", self.server
+        ))
+    }
+
+    fn write_8(&mut self, _addr: u32, _data: u8) -> Result<()> {
+        Err(anyhow!(
+            "{} GDB target does not support modifying state", self.server
+        ))
     }
 
     fn halt(&mut self) -> Result<()> {
@@ -730,6 +756,10 @@ impl Core for DumpCore {
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
         bail!("cannot write a word on a dump");
+    }
+
+    fn write_8(&mut self, _addr: u32, _data: u8) -> Result<()> {
+        bail!("cannot write a byte on a dump");
     }
 
     fn halt(&mut self) -> Result<()> {

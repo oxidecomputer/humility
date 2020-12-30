@@ -1409,6 +1409,10 @@ struct I2cArgs {
     )]
     controller: u8,
 
+    /// specifies an I2C controller port
+    #[structopt(long, short, value_name = "port")]
+    port: Option<String>,
+
     /// specifies an I2C device address
     #[structopt(long, short, value_name = "address",
         parse(try_from_str = parse_int::parse),
@@ -1432,6 +1436,7 @@ struct I2cArgs {
 
 #[derive(Debug)]
 struct I2cVariables<'a> {
+    hubris: &'a HubrisArchive,
     ready: &'a HubrisVariable,
     kick: &'a HubrisVariable,
     controller: &'a HubrisVariable,
@@ -1471,10 +1476,11 @@ impl<'a> I2cVariables<'a> {
         timeout: u32,
     ) -> Result<I2cVariables> {
         Ok(Self {
+            hubris: hubris,
             ready: Self::variable(hubris, "I2C_DEBUG_READY", true)?,
             kick: Self::variable(hubris, "I2C_DEBUG_KICK", true)?,
             controller: Self::variable(hubris, "I2C_DEBUG_CONTROLLER", true)?,
-            port: Self::variable(hubris, "I2C_DEBUG_PORT", true)?,
+            port: Self::variable(hubris, "I2C_DEBUG_PORT", false)?,
             mux: Self::variable(hubris, "I2C_DEBUG_MUX", true)?,
             segment: Self::variable(hubris, "I2C_DEBUG_SEGMENT", true)?,
             device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
@@ -1494,8 +1500,42 @@ impl<'a> I2cVariables<'a> {
         core: &mut dyn core::Core,
         subargs: &I2cArgs,
     ) -> Result<()> {
+        let mut port = None;
+
         if core.read_word_32(self.ready.addr)? != 1 {
             bail!("i2c debugging facility unavailable");
+        }
+
+        if let Some(ref portarg) = subargs.port {
+            let p = self
+                .hubris
+                .lookup_enum(self.port.goff)
+                .context("expected port to be an enum")?;
+
+            if p.size != 1 {
+                fatal!("expected port to be a 1-byte enum");
+            }
+
+            for variant in &p.variants {
+                if variant.name.eq_ignore_ascii_case(&portarg) {
+                    port = variant.tag;
+                    break;
+                }
+            }
+
+            if port.is_none() {
+                let mut vals: Vec<String> = vec![];
+
+                for variant in &p.variants {
+                    vals.push(variant.name.to_string());
+                }
+
+                fatal!(
+                    "invalid port \"{}\" (must be one of: {})",
+                    portarg,
+                    vals.join(", ")
+                );
+            }
         }
 
         core.halt()?;
@@ -1507,6 +1547,10 @@ impl<'a> I2cVariables<'a> {
 
         if let Some(register) = subargs.read {
             core.write_word_32(self.register.addr, register as u32)?;
+        }
+
+        if let Some(port) = port {
+            core.write_8(self.port.addr, port as u8)?;
         }
 
         core.write_word_32(self.kick.addr, 1)?;
@@ -1816,6 +1860,10 @@ fn i2ccmd(
     let mut c = attach_live(args)?;
     let core = c.as_mut();
     hubris.validate(core)?;
+
+    if !subargs.scan && subargs.read.is_none() {
+        fatal!("must specify either 'scan' or 'read'");
+    }
 
     let mut vars = I2cVariables::new(hubris, subargs.timeout)?;
 
