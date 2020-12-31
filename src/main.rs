@@ -2161,6 +2161,7 @@ fn apptable(hubris: &HubrisArchive) -> Result<()> {
     let app = hubris.lookup_struct_byname("App")?;
     let task = hubris.lookup_struct_byname("TaskDesc")?;
     let region = hubris.lookup_struct_byname("RegionDesc")?;
+    let interrupt = hubris.lookup_struct_byname("Interrupt")?;
     let fmt = HubrisPrintFormat { indent: 4, newline: true, hex: true };
     let apptable = hubris.apptable();
 
@@ -2180,6 +2181,7 @@ fn apptable(hubris: &HubrisArchive) -> Result<()> {
 
     let task_count = lookup("task_count")?;
     let region_count = lookup("region_count")?;
+    let irq_count = lookup("irq_count")?;
 
     println!(
         "App ={}\n",
@@ -2218,6 +2220,22 @@ fn apptable(hubris: &HubrisArchive) -> Result<()> {
         );
 
         offs += task.size;
+    }
+
+    for i in 0..irq_count {
+        let str = format!("Interrupt[0x{:x}]", i);
+
+        if offs + interrupt.size > apptable.len() {
+            fatal(&str, offs + interrupt.size);
+        }
+
+        println!("{} ={}\n", str, hubris.printfmt(
+            &apptable[offs..offs + interrupt.size],
+            interrupt.goff,
+            &fmt)?
+        );
+
+        offs += interrupt.size;
     }
 
     Ok(())
