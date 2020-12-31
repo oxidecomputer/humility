@@ -2289,12 +2289,13 @@ fn taskscmd(
 
         let descriptor = task.lookup_member("descriptor")?.offset as u32;
         let generation = task.lookup_member("generation")?.offset as u32;
+        let priority = task.lookup_member("priority")?.offset as u32;
         let state = task.lookup_member("state")?.offset as u32;
 
         let entry_point = taskdesc.lookup_member("entry_point")?.offset as u32;
 
-        println!("{:2} {:8} {:18} {:3} {:9}",
-            "ID", "ADDR", "TASK", "GEN", "STATE");
+        println!("{:2} {:8} {:18} {:3} {:3} {:9}",
+            "ID", "ADDR", "TASK", "GEN", "PRI", "STATE");
 
         let taskblock32 =
             |o| u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
@@ -2305,12 +2306,13 @@ fn taskscmd(
             let soffs = offs + state as usize;
 
             let gen = taskblock[offs + generation as usize];
+            let pri = taskblock[offs + priority as usize];
             let daddr = taskblock32(offs + descriptor as usize);
             let entry = core.read_word_32(daddr + entry_point)?;
             let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
 
-            println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
-                hubris.print(&taskblock[soffs..], state_enum.goff)?,
+            println!("{:2} {:08x} {:18} {:3} {:3} {:25} {}", i, addr, module,
+                gen, pri, hubris.print(&taskblock[soffs..], state_enum.goff)?,
                 if addr == cur { " <-" } else { "" });
 
             if subargs.verbose {
