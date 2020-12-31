@@ -41,6 +41,7 @@ pub struct HubrisManifest {
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
     outputs: HashMap<String, (u32, u32)>,
+    peripherals: HashMap<String, u32>,
 }
 
 #[derive(Debug)]
@@ -1828,6 +1829,21 @@ impl HubrisArchive {
             bail!("manifest is missing outputs");
         }
 
+        if let Some(toml::Value::Table(ref p)) = toml.get("peripherals") {
+            for (peripheral, config) in p.into_iter() {
+                let address = config.get("address");
+
+                if let Some(toml::Value::Integer(ref address)) = address {
+                    manifest
+                        .peripherals
+                        .insert(peripheral.to_string(), *address as u32);
+                    continue;
+                }
+
+                bail!("manifest peripherals malformed for \"{}\"", peripheral);
+            }
+        }
+
         Ok(())
     }
 
@@ -2858,6 +2874,29 @@ impl HubrisArchive {
             info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
         }
         Ok(())
+    }
+
+    pub fn lookup_peripheral(&self, name: &str) -> Result<u32> {
+        ensure!(
+            self.modules.len() > 0,
+            "Hubris archive required to specify a peripheral"
+        );
+
+        if let Some(addr) = self.manifest.peripherals.get(name) {
+            Ok(*addr)
+        } else {
+            let mut peripherals: Vec<String> = self
+                .manifest
+                .peripherals
+                .keys()
+                .map(|x| x.to_owned())
+                .collect();
+
+            peripherals.sort();
+
+            bail!("{} does not correspond to a peripheral; \
+                expected one of: {}", name, peripherals.join(", "));
+        }
     }
 
     pub fn clock(

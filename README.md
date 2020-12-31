@@ -404,6 +404,20 @@ humility: reading at 0x20000000 for 64 bytes
 0x20000030 | 00004d28 00004d28 00004d28 00004d28 | (M..(M..(M..(M..
 ```
 
+A frequent use of `readmem` is to read peripheral memory; as a
+convenience, a peripheral name can be used in lieu of an address, provided
+that an archive or dump is also specified:
+
+```console
+$ humility -a ~/hubris/target/gemini-bu/dist/build-gemini-bu.zip readmem -w i2c4
+0x30
+humility: attached via ST-Link
+                   \/        4        8        c
+0x58001c00 | 000000f7 00020490 00008000 00008000 | ................
+0x58001c10 | 10c0ecff 00000000 00000021 00000000 | ........!.......
+0x58001c20 | 00000000 00000080 00000000 00000000 | ................
+```
+
 ### `humility readvar`
 
 `humility readvar` allows one to read a global static variable.

@@ -1991,8 +1991,7 @@ struct ReadmemArgs {
     word: bool,
 
     /// address to read
-    #[structopt(parse(try_from_str = parse_int::parse))]
-    address: u32,
+    address: String,
 
     /// length to read
     #[structopt(parse(try_from_str = parse_int::parse))]
@@ -2000,7 +1999,7 @@ struct ReadmemArgs {
 }
 
 fn readmem(
-    _hubris: &HubrisArchive,
+    hubris: &HubrisArchive,
     args: &Args,
     subargs: &ReadmemArgs,
 ) -> Result<()> {
@@ -2024,7 +2023,12 @@ fn readmem(
         fatal!("length must be {}-byte aligned", size);
     }
 
-    if subargs.address & (size - 1) as u32 != 0 {
+    let mut addr = match parse_int::parse::<u32>(&subargs.address) {
+        Ok(addr) => addr,
+        _ => hubris.lookup_peripheral(&subargs.address)?,
+    };
+
+    if addr & (size - 1) as u32 != 0 {
         fatal!("address must be {}-byte aligned", size);
     }
 
@@ -2036,7 +2040,7 @@ fn readmem(
 
     let _info = core.halt()?;
 
-    let rval = core.read_8(subargs.address, &mut bytes);
+    let rval = core.read_8(addr, &mut bytes);
     core.run()?;
 
     if rval.is_err() {
@@ -2087,7 +2091,6 @@ fn readmem(
         println!("");
     };
 
-    let mut addr = subargs.address;
     let offs = (addr & (width - 1) as u32) as usize;
     addr -= offs as u32;
 
