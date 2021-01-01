@@ -1732,7 +1732,7 @@ fn i2ccmd_done(
                         } else if err.name == "ReservedAddress" {
                             "R"
                         } else {
-                            "?"
+                            "Err"
                         }
                     }
                 }
@@ -1747,7 +1747,17 @@ fn i2ccmd_done(
     }
 
     if subargs.scan && subargs.device.is_some() {
-        print!("{:5}", "");
+        println!(
+            "\nRegister scan for device 0x{:x} on I2C{}:\n",
+            subargs.device.unwrap(),
+            subargs.controller
+        );
+
+        println!(
+            "      - = No register        ! = No device        X = Timed out\n"
+        );
+
+        print!("{:<5}", "ADDR");
 
         for i in 0..16 {
             print!(" 0x{:x}", i);
@@ -1767,8 +1777,17 @@ fn i2ccmd_done(
                 None => {
                     print!("{:>4}", "X");
                 }
-                Some(Err(_)) => {
-                    print!("{:>4}", "Err");
+                Some(Err(err)) => {
+                    print!(
+                        "{:>4}",
+                        if err.name == "NoRegister" {
+                            "-"
+                        } else if err.name == "NoDevice" {
+                            "!"
+                        } else {
+                            "Err"
+                        }
+                    );
                 }
             }
 
