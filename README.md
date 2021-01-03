@@ -66,9 +66,10 @@ of these probes on ARM parts, see <a
 href="https://65.rfd.oxide.computer">RFD 65</a>.)
 
 For most evaluation boards, this debug probe is available on the board, and
-is connected to a host via USB, e.g.  ST's STLink/V2 on the STM32F407
-Discovery or the LPC-Link2 present on the LPCXpresso55S69.  (When we deploy
-Hubris on our own board, we will debug via either JTAG or a SWD header.)
+is connected to a host via USB, e.g. ST's STLink/V2 on the STM32F407
+Discovery or the LPC-Link2 present on the LPCXpresso55S69.
+(On the Gemini board, there are two SWD headers, one for the LPC55S28
+and the other for the STM32H753.)
 While Humility allows for direct attachment to an on-chip debugger, doing so
 precludes other connections (from, for example, OpenOCD), making it to
 disruptive to development workflows. To allow for easier development
@@ -93,7 +94,10 @@ the `-p` option (long form `--probe`), which can have the following values:
   a halt. To recover from this condition, send an explicit ^C to the
   running GDB and continue from the resulting stop.
 
-- `usb`: Attach directly via USB to a debug probe
+- `usb`: Attach directly via USB to a debug probe.  When multiple probes
+  are plugged in via USB, a probe index must be specified as a suffix
+  (e.g., `usb-0`, `usb-1`, etc.)  To determine which probe is which,
+  examine the serial number in the output of `humility probe`.
 
 ### Archive
 
@@ -115,7 +119,7 @@ the `-d` option (long form `--dump`).
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
-- [humility probe](#humility-probe): probe for any attached devices
+- [humility probe](#humility-probe): probe attached devices
 - [humility readmem](#humility-readmem): read and display memory region
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
 - [humility tasks](#humility-tasks): list Hubris tasks
@@ -159,32 +163,44 @@ can, e.g.:
 ```console
 % humility probe
 humility: attached via ST-Link
+humility:        probe => STLink V3, VID 0483, PID 374e
+humility: probe serial => 003700303137511139383538
 humility:         core => Cortex-M7
 humility: manufacturer => STMicroelectronics
-humility:         chip => STM32H7A3/STM32H7B3/STM32H7B0, revision 0x1001
-humility:  debug units => CSTF CTI DWT ETM FPB ITM SCS SWO TMC TPIU
+humility:         chip => STM32H7, revision 0x2003
 humility:       status => executing
-humility:          ITM => TRCENA enabled, TCR enabled, TER=0x3
-humility:           R0 => 0x20002a00 
-humility:           R1 => 0x8018038  
-humility:           R2 => 0x20002a00 
-humility:           R3 => 0x0        
-humility:           R4 => 0x0        
-humility:           R5 => 0x0        
-humility:           R6 => 0x0        
-humility:           R7 => 0x0        
-humility:           R8 => 0x0        
-humility:           R9 => 0x0        
-humility:          R10 => 0x0        
-humility:          R11 => 0x0        
-humility:          R12 => 0x0        
-humility:           SP => 0x20002b00 
-humility:           LR => 0xffffffff 
-humility:           PC => 0x8018020  
-humility:         xPSR => 0x61000000 
-humility:          MSP => 0x20000f48 
-humility:          PSP => 0x20002b00 
-humility:          SPR => 0x7000000  
+humility:  debug units => CSTF(x2) CTI(x2) DWT ETM FPB ITM SCS SWO TMC TPIU
+humility:         CSTF => 0x5c004000, 0x5c013000
+humility:          CTI => 0x5c011000, 0xe0043000
+humility:          DWT => 0xe0001000
+humility:          ETM => 0xe0041000
+humility:          FPB => 0xe0002000
+humility:          ITM => 0xe0000000
+humility:          SCS => 0xe000e000
+humility:          SWO => 0x5c003000
+humility:          TMC => 0x5c014000
+humility:         TPIU => 0x5c015000
+humility:   ITM status => TRCENA enabled, TCR disabled, TER=0x0
+humility:           R0 => 0x20006000
+humility:           R1 => 0x20006000
+humility:           R2 => 0x0
+humility:           R3 => 0x0
+humility:           R4 => 0x0
+humility:           R5 => 0x0
+humility:           R6 => 0x0
+humility:           R7 => 0x0
+humility:           R8 => 0x0
+humility:           R9 => 0x0
+humility:          R10 => 0x0
+humility:          R11 => 0x0
+humility:          R12 => 0x0
+humility:           SP => 0x20006100
+humility:           LR => 0x802404f
+humility:           PC => 0x8024052
+humility:         xPSR => 0x61000000
+humility:          MSP => 0x20000f48
+humility:          PSP => 0x20006100
+humility:          SPR => 0x7000000
 ```
 
 If provided a Hubris archive, `humility probe` will display any register
@@ -193,6 +209,8 @@ contents symbolically, e.g.:
 ```console
 % humility -a ~/hubris/target/demo/dist/build-demo.zip probe
 humility: attached via ST-Link
+humility:        probe => STLink V2-1, VID 0483, PID 374b
+humility: probe serial => 066DFF383032534E43132614
 humility:         core => Cortex-M4
 humility: manufacturer => STMicroelectronics
 humility:         chip => STM32F40x/STM32F41x, revision 0x1007

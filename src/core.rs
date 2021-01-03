@@ -21,6 +21,7 @@ use std::time::Instant;
 use goblin::elf::Elf;
 
 pub trait Core {
+    fn info(&self) -> (String, Option<String>);
     fn read_word_32(&mut self, addr: u32) -> Result<u32>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
@@ -35,12 +36,30 @@ pub trait Core {
 
 pub struct ProbeCore {
     pub session: probe_rs::Session,
+    pub identifier: String,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub serial_number: Option<String>,
 }
 
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
+    fn info(&self) -> (String, Option<String>) {
+        let ident = format!(
+            "{}, VID {:04x}, PID {:04x}",
+            self.identifier, self.vendor_id, self.product_id
+        );
+
+        let serial = match self.serial_number {
+            Some(ref serial) => Some(serial.clone()),
+            None => None,
+        };
+
+        (ident, serial)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         trace!("reading word at {:x}", addr);
         let mut core = self.session.core(0)?;
@@ -175,6 +194,10 @@ impl OpenOCDCore {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for OpenOCDCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("OpenOCD".to_string(), None)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
         Ok(result.parse::<u32>()?)
@@ -587,6 +610,10 @@ impl GDBCore {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for GDBCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("GDB".to_string(), None)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         self.send_32(&format!("m{:x},4", addr))
     }
@@ -712,6 +739,10 @@ impl DumpCore {
 }
 
 impl Core for DumpCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("core dump".to_string(), None)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let rsize: usize = 4;
 
@@ -807,18 +838,18 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 bail!("no debug probe found; is it plugged in?");
             }
 
-            let res = if probes.len() == 1 {
-                probes[0].open()
+            let (selected, res) = if let Some(index) = index {
+                if index < probes.len() {
+                    (index, probes[index].open())
+                } else {
+                    bail!(
+                        "index ({}) exceeds max probe index ({})",
+                        index, probes.len() - 1
+                    );
+                }
             } else {
-                if let Some(index) = index {
-                    if index < probes.len() {
-                        probes[index].open()
-                    } else {
-                        bail!(
-                            "index ({}) exceeds max probe index ({})",
-                            index, probes.len() - 1
-                        );
-                    }
+                if probes.len() == 1 {
+                    (0, probes[0].open())
                 } else {
                     bail!("multiple USB probes detected; must \
                         explicitly append index (e.g., \"-p usb-0\")");
@@ -847,7 +878,16 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
             info!("attached via {}", name);
 
-            Ok(Box::new(ProbeCore { session: session }))
+            Ok(Box::new(ProbeCore {
+                session: session,
+                identifier: probes[selected].identifier.clone(),
+                vendor_id: probes[selected].vendor_id,
+                product_id: probes[selected].product_id,
+                serial_number: match probes[selected].serial_number {
+                    Some(ref serial_number) => Some(serial_number.clone()),
+                    None => None,
+                },
+            }))
         }
 
         "ocd" => {

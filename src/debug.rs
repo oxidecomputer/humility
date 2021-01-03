@@ -563,6 +563,16 @@ pub fn cpuinfo(
     let dhcsr = DHCSR::read(core)?;
     let dfsr = DFSR::read(core)?;
 
+    let info = core.info();
+    print("probe", info.0);
+    print(
+        "probe serial",
+        match info.1 {
+            Some(ref serial) => serial.to_string(),
+            None => "-".to_string(),
+        },
+    );
+
     /*
      * Start with information about our core and chip...
      */
