@@ -784,7 +784,21 @@ impl Core for DumpCore {
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+    let mut index: Option<usize> = None;
+
+    if probe.find("-").is_some() {
+        let str = probe.to_owned();
+        let pieces: Vec<&str> = str.split("-").collect();
+
+        if pieces[0] == "usb" && pieces.len() == 2 {
+            if let Ok(val) = pieces[1].parse::<usize>() {
+                index = Some(val);
+                probe = "usb";
+            }
+        }
+    }
+
     match probe {
         "usb" => {
             let probes = Probe::list_all();
@@ -793,7 +807,23 @@ pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 bail!("no debug probe found; is it plugged in?");
             }
 
-            let res = probes[0].open();
+            let res = if probes.len() == 1 {
+                probes[0].open()
+            } else {
+                if let Some(index) = index {
+                    if index < probes.len() {
+                        probes[index].open()
+                    } else {
+                        bail!(
+                            "index ({}) exceeds max probe index ({})",
+                            index, probes.len() - 1
+                        );
+                    }
+                } else {
+                    bail!("multiple USB probes detected; must \
+                        explicitly append index (e.g., \"-p usb-0\")");
+                }
+            };
 
             /*
              * By far the most common error is to not be able to attach to a
