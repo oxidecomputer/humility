@@ -2002,6 +2002,14 @@ impl HubrisArchive {
         Ok(())
     }
 
+    pub fn loaded(&self) -> bool {
+        if self.modules.len() > 0 {
+            true
+        } else {
+            false
+        }
+    }
+
     ///
     /// Looks up the specfied structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be

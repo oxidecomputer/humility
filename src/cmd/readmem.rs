@@ -3,7 +3,7 @@
  */
 
 use crate::attach;
-use crate::cmd::HumilityCommand;
+use crate::cmd::{Archive, HumilityCommand};
 use crate::hubris::HubrisArchive;
 use crate::Args;
 use anyhow::{bail, Result};
@@ -161,5 +161,12 @@ fn readmem(
 }
 
 pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
-    (HumilityCommand { name: "readmem", run: readmem }, ReadmemArgs::clap())
+    (
+        HumilityCommand {
+            name: "readmem",
+            archive: Archive::Optional,
+            run: readmem,
+        },
+        ReadmemArgs::clap(),
+    )
 }
