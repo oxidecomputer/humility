@@ -41,6 +41,8 @@ use test::*;
 
 mod core;
 
+mod cmd;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -2000,153 +2002,6 @@ fn readvar(
 }
 
 #[derive(StructOpt, Debug)]
-struct ReadmemArgs {
-    /// print out as halfwords instead of as bytes
-    #[structopt(long, short, conflicts_with_all = &["word"])]
-    halfword: bool,
-
-    /// print out as words instead of as bytes
-    #[structopt(long, short)]
-    word: bool,
-
-    /// address to read
-    address: String,
-
-    /// length to read
-    #[structopt(parse(try_from_str = parse_int::parse))]
-    length: Option<usize>,
-}
-
-fn readmem(
-    hubris: &HubrisArchive,
-    args: &Args,
-    subargs: &ReadmemArgs,
-) -> Result<()> {
-    let mut core = attach(&args)?;
-    let max = crate::core::CORE_MAX_READSIZE;
-    let width: usize = 16;
-    let size = if subargs.word {
-        4
-    } else if subargs.halfword {
-        2
-    } else {
-        1
-    };
-
-    let length = match subargs.length {
-        Some(length) => length,
-        None => 256,
-    };
-
-    if length & (size - 1) != 0 {
-        fatal!("length must be {}-byte aligned", size);
-    }
-
-    let mut addr = match parse_int::parse::<u32>(&subargs.address) {
-        Ok(addr) => addr,
-        _ => hubris.lookup_peripheral(&subargs.address)?,
-    };
-
-    if addr & (size - 1) as u32 != 0 {
-        fatal!("address must be {}-byte aligned", size);
-    }
-
-    if length > max {
-        fatal!("cannot read more than {} bytes", max);
-    }
-
-    let mut bytes = vec![0u8; length];
-
-    let _info = core.halt()?;
-
-    let rval = core.read_8(addr, &mut bytes);
-    core.run()?;
-
-    if rval.is_err() {
-        return rval;
-    }
-
-    let print = |line: &[u8], addr, offs| {
-        print!("0x{:08x} | ", addr);
-
-        for i in (0..width).step_by(size) {
-            if i < offs || i - offs >= line.len() {
-                print!(" {:width$}", "", width = size * 2);
-                continue;
-            }
-
-            let slice = &line[i - offs..i - offs + size];
-
-            print!(
-                "{:0width$x} ",
-                match size {
-                    1 => line[i - offs] as u32,
-                    2 => u16::from_le_bytes(slice.try_into().unwrap()) as u32,
-                    4 => u32::from_le_bytes(slice.try_into().unwrap()) as u32,
-                    _ => {
-                        panic!("invalid size");
-                    }
-                },
-                width = size * 2
-            );
-        }
-
-        print!("| ");
-
-        for i in 0..width {
-            if i < offs || i - offs >= line.len() {
-                print!(" ");
-            } else {
-                let c = line[i - offs] as char;
-
-                if c.is_ascii() && !c.is_ascii_control() {
-                    print!("{}", c);
-                } else {
-                    print!(".");
-                }
-            }
-        }
-
-        println!("");
-    };
-
-    let offs = (addr & (width - 1) as u32) as usize;
-    addr -= offs as u32;
-
-    /*
-     * Print out header line, OpenBoot PROM style
-     */
-    print!("  {:8}  ", "");
-
-    for i in (0..width).step_by(size) {
-        if i == offs {
-            print!(" {:>width$}", "\\/", width = size * 2);
-        } else {
-            print!(" {:>width$x}", i, width = size * 2);
-        }
-    }
-
-    println!("");
-
-    /*
-     * Print our first line.
-     */
-    let lim = std::cmp::min(width - offs, bytes.len());
-    print(&bytes[0..lim], addr, offs);
-
-    if lim < bytes.len() {
-        let lines = bytes[lim..].chunks(width);
-
-        for line in lines {
-            addr += width as u32;
-            print(line, addr, 0);
-        }
-    }
-
-    Ok(())
-}
-
-#[derive(StructOpt, Debug)]
 struct DumpArgs {
     dumpfile: Option<String>,
 }
@@ -2609,7 +2464,7 @@ fn tracecmd(
 
 #[derive(StructOpt)]
 #[structopt(name = "humility", max_term_width = 80)]
-struct Args {
+pub struct Args {
     /// verbose messages
     #[structopt(long, short)]
     verbose: bool,
@@ -2662,8 +2517,6 @@ enum Subcommand {
     Manifest,
     /// probe for any attached devices
     Probe,
-    /// read and display memory region
-    Readmem(ReadmemArgs),
     /// read and display a specified Hubris variable
     Readvar(ReadvarArgs),
     /// run Hubris test suite and parse results
@@ -2672,9 +2525,27 @@ enum Subcommand {
     Tasks(TasksArgs),
     /// trace Hubris operations
     Trace(TraceArgs),
+
+    #[structopt(external_subcommand)]
+    Other(Vec<String>),
 }
 
 fn main() {
+    /*
+     * This isn't hugely efficient, but we actually parse our arguments twice:
+     * the first is with our subcommands grafted into our arguments to get us
+     * a unified help and error message in the event of any parsing value or
+     * request for a help message; if that works, we parse our arguments again
+     * but relying on the external_subcommand to directive to allow our
+     * subcommand to do any parsing on its own.
+     */
+    let (commands, clap) = cmd::init(Args::clap());
+    let _args = Args::from_clap(&clap.get_matches());
+
+    /*
+     * If we're here, we know that our arguments pass muster from the Structopt/
+     * Clap perspective.
+     */
     let args = Args::from_args();
 
     if args.verbose {
@@ -2776,13 +2647,6 @@ fn main() {
             }
         }
 
-        Subcommand::Readmem(subargs) => {
-            match readmem(&hubris, &args, subargs) {
-                Err(err) => fatal!("readmem failed: {:?}", err),
-                _ => std::process::exit(0),
-            }
-        }
-
         Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
             Err(err) => fatal!("tasks failed: {:?}", err),
             _ => std::process::exit(0),
@@ -2797,5 +2661,12 @@ fn main() {
             Err(err) => fatal!("trace failed: {:?}", err),
             _ => std::process::exit(0),
         },
+
+        Subcommand::Other(ref subargs) => {
+            match cmd::subcommand(&commands, &hubris, &args, subargs) {
+                Err(err) => fatal!("{} failed: {:?}", subargs[0], err),
+                _ => std::process::exit(0),
+            }
+        }
     }
 }
