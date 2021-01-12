@@ -545,9 +545,9 @@ pub fn swoscaler(
     let debug_clock_mhz = 2_000_000;
 
     match hubris.clock(core)? {
-        None => {
-            Err(anyhow!("clock couldn't be determined from Hubris archive"))
-        }
+        None => Err(anyhow!(
+            "clock couldn't be determined; set clock scaler explicitly"
+        )),
         Some(clock) => Ok(((clock * 1000) / debug_clock_mhz) as u16 - 1),
     }
 }

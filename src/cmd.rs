@@ -8,6 +8,7 @@ mod readmem;
 mod readvar;
 mod tasks;
 mod test;
+mod trace;
 
 use crate::hubris::HubrisArchive;
 use crate::Args;
@@ -41,6 +42,7 @@ pub fn init<'a, 'b>(
         readvar::init,
         tasks::init,
         test::init,
+        trace::init,
     ];
 
     for dcmd in &dcmds {
