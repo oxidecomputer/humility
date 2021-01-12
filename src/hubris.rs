@@ -2944,7 +2944,9 @@ impl HubrisArchive {
         &self.apptable
     }
 
-    pub fn task_elf_map(&self) -> &HashMap<u16, Option<defmt_elf2table::Table>> {
+    pub fn task_elf_map(
+        &self,
+    ) -> &HashMap<u16, Option<defmt_elf2table::Table>> {
         &self.task_elf_map
     }
 }

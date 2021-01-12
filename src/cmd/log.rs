@@ -51,7 +51,9 @@ fn logcmd_ingest(
             Ok(Some((bytes[ndx - 1], ts)))
         },
         |packet| {
-            if let ITMPayload::Instrumentation { payload, port: _ } = &packet.payload {
+            if let ITMPayload::Instrumentation { payload, port: _ } =
+                &packet.payload
+            {
                 //
                 // XXX: We will want to look at the port here, and if it's
                 // not a defmt-encoded port, display it accordingly
@@ -93,9 +95,8 @@ fn logcmd_ingest(
                             let end = start + frame_len;
 
                             let table = {
-                                let table = hubris
-                                .task_elf_map()
-                                .get(&task_index);
+                                let table =
+                                    hubris.task_elf_map().get(&task_index);
 
                                 if table.is_none() {
                                     println!("warning: couldn't find task #{}, continuing", task_index);
@@ -112,9 +113,10 @@ fn logcmd_ingest(
                                 table.unwrap()
                             };
 
-                            if let Ok((frame, consumed)) =
-                                defmt_decoder::decode(&frames[start..end], &table)
-                            {
+                            if let Ok((frame, consumed)) = defmt_decoder::decode(
+                                &frames[start..end],
+                                &table,
+                            ) {
                                 // just to be on the safe side
                                 assert_eq!(frame_len, consumed);
 
@@ -133,7 +135,7 @@ fn logcmd_ingest(
                 }
             }
             Ok(())
-        }
+        },
     )
 }
 
@@ -148,7 +150,7 @@ fn logcmd(
     let mut c = attach(args)?;
     let core = c.as_mut();
 
-    // 
+    //
     // First, read the task block to get a mapping of IDs to names.
     //
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
@@ -178,7 +180,7 @@ fn logcmd(
 
     //
     // Now enable ITM and ingest.
-    // 
+    //
     let traceid = itm_enable_ingest(core, hubris, 0x0000_000f)?;
     logcmd_ingest(core, subargs, hubris, &tasks, traceid)?;
 
