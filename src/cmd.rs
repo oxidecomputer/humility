@@ -3,6 +3,7 @@
  */
 
 mod i2c;
+mod itm;
 mod readmem;
 mod readvar;
 mod tasks;
@@ -33,8 +34,14 @@ pub fn init<'a, 'b>(
     let mut cmds = HashMap::new();
     let mut rval = app;
 
-    let dcmds =
-        [i2c::init, readmem::init, readvar::init, tasks::init, test::init];
+    let dcmds = [
+        i2c::init,
+        itm::init,
+        readmem::init,
+        readvar::init,
+        tasks::init,
+        test::init,
+    ];
 
     for dcmd in &dcmds {
         let (cmd, subcmd) = dcmd();

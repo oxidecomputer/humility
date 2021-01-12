@@ -3,7 +3,6 @@
  */
 
 use crate::core::Core;
-use crate::debug::Register;
 use crate::debug::*;
 use crate::dwt::*;
 use crate::hubris::HubrisArchive;
