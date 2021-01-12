@@ -2,6 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+mod i2c;
 mod readmem;
 mod readvar;
 mod tasks;
@@ -31,7 +32,7 @@ pub fn init<'a, 'b>(
     let mut cmds = HashMap::new();
     let mut rval = app;
 
-    let dcmds = [readmem::init, readvar::init, tasks::init];
+    let dcmds = [i2c::init, readmem::init, readvar::init, tasks::init];
 
     for dcmd in &dcmds {
         let (cmd, subcmd) = dcmd();

@@ -2,7 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::hubris::*;
 use crate::itm::*;
@@ -536,6 +536,20 @@ pub fn stm32_chipname(partno: u32) -> String {
         }
     }
     .to_string()
+}
+
+pub fn swoscaler(
+    hubris: &HubrisArchive,
+    core: &mut dyn crate::core::Core,
+) -> Result<u16> {
+    let debug_clock_mhz = 2_000_000;
+
+    match hubris.clock(core)? {
+        None => {
+            Err(anyhow!("clock couldn't be determined from Hubris archive"))
+        }
+        Some(clock) => Ok(((clock * 1000) / debug_clock_mhz) as u16 - 1),
+    }
 }
 
 #[rustfmt::skip::macros(format)]
