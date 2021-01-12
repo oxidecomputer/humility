@@ -2,6 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+mod etm;
 mod i2c;
 mod itm;
 mod readmem;
@@ -36,6 +37,7 @@ pub fn init<'a, 'b>(
     let mut rval = app;
 
     let dcmds = [
+        etm::init,
         i2c::init,
         itm::init,
         readmem::init,
