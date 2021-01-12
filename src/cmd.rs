@@ -2,9 +2,15 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+mod etm;
+mod i2c;
+mod itm;
+mod log;
 mod readmem;
 mod readvar;
 mod tasks;
+mod test;
+mod trace;
 
 use crate::hubris::HubrisArchive;
 use crate::Args;
@@ -12,6 +18,7 @@ use anyhow::{bail, Result};
 use std::collections::HashMap;
 use structopt::clap::App;
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 enum Archive {
     Required,
@@ -31,7 +38,17 @@ pub fn init<'a, 'b>(
     let mut cmds = HashMap::new();
     let mut rval = app;
 
-    let dcmds = [readmem::init, readvar::init, tasks::init];
+    let dcmds = [
+        etm::init,
+        i2c::init,
+        itm::init,
+        log::init,
+        readmem::init,
+        readvar::init,
+        tasks::init,
+        test::init,
+        trace::init,
+    ];
 
     for dcmd in &dcmds {
         let (cmd, subcmd) = dcmd();

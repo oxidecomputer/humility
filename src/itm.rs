@@ -2,8 +2,13 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::debug::Register;
+use crate::core::Core;
+use crate::debug::*;
+use crate::dwt::*;
+use crate::hubris::HubrisArchive;
 use crate::register;
+use crate::scs::*;
+use crate::swo::*;
 use crate::tpiu::*;
 use anyhow::Result;
 use bitfield::bitfield;
@@ -417,4 +422,189 @@ pub fn itm_ingest(
         }
         None => tpiu_ingest_bypass(&mut readnext, process),
     }
+}
+
+///
+/// Enables ITM with an explict clockscaler and traceid.
+///
+pub fn itm_enable_explicit(
+    core: &mut dyn Core,
+    coreinfo: &CoreInfo,
+    clockscaler: u16,
+    traceid: u8,
+    stimuli: u32,
+) -> Result<()> {
+    /*
+     * First, enable TRCENA in the DEMCR.
+     */
+    let mut val = DEMCR::read(core)?;
+    val.set_trcena(true);
+    val.write(core)?;
+
+    match (coreinfo.vendor, coreinfo.part) {
+        (Vendor::ST, ARMCore::CortexM4) => {
+            /*
+             * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and set
+             * the trace mode to be asynchronous.
+             */
+            let mut val = STM32F4_DBGMCU_CR::read(core)?;
+            val.set_trace_ioen(true);
+            val.set_trace_mode(0);
+            val.write(core)?;
+        }
+
+        (Vendor::ST, ARMCore::CortexM7) => {
+            /*
+             * STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
+             */
+            let mut cr = STM32H7_DBGMCU_CR::read(core)?;
+            cr.set_srdbgcken(true);
+            cr.set_cddbgcken(true);
+            cr.set_traceclken(true);
+            cr.write(core)?;
+
+            let components = &coreinfo.components;
+
+            if let Some(cstf) = components.get_vec(&CoreSightComponent::CSTF) {
+                /*
+                 * If we have two funnels, the first is in D3 -- and it needs
+                 * to be unlocked and enabled.
+                 */
+                if cstf.len() > 1 {
+                    trace!("SWTF found at {:x}", cstf[0]);
+                    SWO_LAR::unlock(core, cstf[0])?;
+                    let mut swtf = SWTF_CTRL::read(core, cstf[0])?;
+                    swtf.register.set_es0(true);
+                    swtf.write(core)?;
+                }
+            }
+        }
+
+        _ => {}
+    }
+
+    let swoscaler = clockscaler as u32;
+
+    if let Some(swo) = coreinfo.address(CoreSightComponent::SWO) {
+        /*
+         * If we have a SWO unit, configure it instead of the TPIU
+         */
+        trace!("SWO found at {:x}", swo);
+
+        SWO_LAR::unlock(core, swo)?;
+
+        let mut codr = SWO_CODR::read(core, swo)?;
+        codr.register.set_prescaler(swoscaler);
+        codr.write(core)?;
+
+        let mut sppr = SWO_SPPR::read(core, swo)?;
+        sppr.register.set_pprot(SWOMode::NRZ.into());
+        sppr.write(core)?;
+    } else {
+        /*
+         * Otherwise setup the TPIU.
+         */
+        let mut val = TPIU_SPPR::read(core)?;
+        val.set_txmode(TPIUMode::NRZ);
+        val.write(core)?;
+
+        let mut val = TPIU_FFCR::read(core)?;
+        val.set_continuous_formatting(true);
+        val.write(core)?;
+
+        let mut acpr = TPIU_ACPR::read(core)?;
+        acpr.set_swoscaler(swoscaler);
+        acpr.write(core)?;
+        trace!("{:#x?}", TPIU_ACPR::read(core)?);
+    }
+
+    /*
+     * Unlock the ITM.
+     */
+    ITM_LAR::unlock(core)?;
+
+    /*
+     * Disable the ITM.
+     */
+    let mut tcr = ITM_TCR::read(core)?;
+    tcr.set_itm_enable(false);
+    tcr.write(core)?;
+
+    /*
+     * Spin until the ITM is not busy
+     */
+    while ITM_TCR::read(core)?.itm_busy() {
+        continue;
+    }
+
+    /*
+     * Enable the DWT to generate a synchronization packet every 8M cycles.
+     */
+    let mut dwt = DWT_CTRL::read(core)?;
+    dwt.set_synctap(DWTSyncTapFrequency::CycCnt8M);
+    dwt.set_cyccnt_enabled(true);
+    dwt.write(core)?;
+
+    /*
+     * Enable stimuli
+     */
+    let mut ter = ITM_TER::read(core)?;
+    ter.set_enabled(stimuli);
+    ter.write(core)?;
+
+    /*
+     * Allow unprivileged access to all stimulus ports
+     */
+    let mut tpr = ITM_TPR::read(core)?;
+    tpr.set_privmask(0);
+    tpr.write(core)?;
+
+    /*
+     * Set the trace ID
+     */
+    tcr = ITM_TCR::read(core)?;
+    tcr.set_traceid(traceid.into());
+    tcr.set_timestamp_enable(if stimuli & 0xffff_0000 != 0 {
+        true
+    } else {
+        false
+    });
+
+    tcr.set_sync_enable(true);
+    tcr.set_itm_enable(true);
+    tcr.write(core)?;
+
+    Ok(())
+}
+
+///
+/// Enables ITM by pulling clock scaler values from the specified Hubris
+/// archive.
+///
+pub fn itm_enable_ingest(
+    core: &mut dyn Core,
+    hubris: &HubrisArchive,
+    stim: u32,
+) -> Result<Option<u8>> {
+    let coreinfo = CoreInfo::read(core)?;
+
+    let _info = core.halt();
+    core.init_swv()?;
+
+    /*
+     * Pull our clock scaler from the Hubris archive -- and set our traceid
+     * to be a recognizable value.
+     */
+    let clockscaler = swoscaler(hubris, core)?;
+    let traceid = 0x3a;
+
+    itm_enable_explicit(core, &coreinfo, clockscaler, traceid, stim)?;
+
+    core.run()?;
+
+    Ok(if coreinfo.address(CoreSightComponent::SWO).is_some() {
+        None
+    } else {
+        Some(traceid)
+    })
 }
