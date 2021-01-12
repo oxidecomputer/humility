@@ -41,6 +41,7 @@ pub struct HubrisManifest {
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
     outputs: HashMap<String, (u32, u32)>,
+    peripherals: HashMap<String, u32>,
 }
 
 #[derive(Debug)]
@@ -353,6 +354,53 @@ impl HubrisEnum {
         }
 
         bail!("missing variant: {}.{}", self.name, name)
+    }
+
+    pub fn determine_variant(
+        &self,
+        hubris: &HubrisArchive,
+        buf: &[u8],
+    ) -> Result<&HubrisEnumVariant> {
+        let readval = |b: &[u8], o, sz| -> Result<u64> {
+            Ok(match sz {
+                1 => b[o] as u64,
+                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
+                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
+                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
+                _ => {
+                    bail!("bad size!");
+                }
+            })
+        };
+
+        if let HubrisDiscriminant::Value(goff, offs) = self.discriminant {
+            let size = match hubris.basetypes.get(&goff) {
+                Some(v) => v.size,
+                None => {
+                    bail!("enum has discriminant of unknown type: {}", goff);
+                }
+            };
+
+            let val = readval(buf, offs, size)?;
+
+            match self.lookup_variant(val) {
+                None => {
+                    bail!("unknown variant: 0x{:x}", val);
+                }
+
+                Some(variant) => Ok(variant),
+            }
+        } else {
+            if self.variants.len() == 0 {
+                bail!("enum {} has no variants");
+            }
+
+            if self.variants.len() > 1 {
+                bail!("enum has multiple variants but no discriminant");
+            }
+
+            Ok(&self.variants[0])
+        }
     }
 }
 
@@ -1785,6 +1833,21 @@ impl HubrisArchive {
             bail!("manifest is missing outputs");
         }
 
+        if let Some(toml::Value::Table(ref p)) = toml.get("peripherals") {
+            for (peripheral, config) in p.into_iter() {
+                let address = config.get("address");
+
+                if let Some(toml::Value::Integer(ref address)) = address {
+                    manifest
+                        .peripherals
+                        .insert(peripheral.to_string(), *address as u32);
+                    continue;
+                }
+
+                bail!("manifest peripherals malformed for \"{}\"", peripheral);
+            }
+        }
+
         Ok(())
     }
 
@@ -1948,6 +2011,14 @@ impl HubrisArchive {
         Ok(())
     }
 
+    pub fn loaded(&self) -> bool {
+        if self.modules.len() > 0 {
+            true
+        } else {
+            false
+        }
+    }
+
     ///
     /// Looks up the specfied structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be
@@ -1980,6 +2051,20 @@ impl HubrisArchive {
         match self.enums.get(&goff) {
             Some(union) => Ok(union),
             None => Err(anyhow!("expected enum {} not found", goff)),
+        }
+    }
+
+    pub fn lookup_array(&self, goff: HubrisGoff) -> Result<&HubrisArray> {
+        match self.arrays.get(&goff) {
+            Some(array) => Ok(array),
+            None => Err(anyhow!("expected {} to be an array", goff)),
+        }
+    }
+
+    pub fn lookup_basetype(&self, goff: HubrisGoff) -> Result<&HubrisBasetype> {
+        match self.basetypes.get(&goff) {
+            Some(basetype) => Ok(basetype),
+            None => Err(anyhow!("expected {} to be a basetype", goff)),
         }
     }
 
@@ -2806,6 +2891,29 @@ impl HubrisArchive {
             info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
         }
         Ok(())
+    }
+
+    pub fn lookup_peripheral(&self, name: &str) -> Result<u32> {
+        ensure!(
+            self.modules.len() > 0,
+            "Hubris archive required to specify a peripheral"
+        );
+
+        if let Some(addr) = self.manifest.peripherals.get(name) {
+            Ok(*addr)
+        } else {
+            let mut peripherals: Vec<String> = self
+                .manifest
+                .peripherals
+                .keys()
+                .map(|x| x.to_owned())
+                .collect();
+
+            peripherals.sort();
+
+            bail!("{} does not correspond to a peripheral; \
+                expected one of: {}", name, peripherals.join(", "));
+        }
     }
 
     pub fn clock(

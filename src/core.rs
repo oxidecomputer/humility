@@ -21,12 +21,14 @@ use std::time::Instant;
 use goblin::elf::Elf;
 
 pub trait Core {
+    fn info(&self) -> (String, Option<String>);
     fn read_word_32(&mut self, addr: u32) -> Result<u32>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
     fn init_swv(&mut self) -> Result<()>;
     fn read_swv(&mut self) -> Result<Vec<u8>>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
+    fn write_8(&mut self, addr: u32, data: u8) -> Result<()>;
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
@@ -34,12 +36,30 @@ pub trait Core {
 
 pub struct ProbeCore {
     pub session: probe_rs::Session,
+    pub identifier: String,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub serial_number: Option<String>,
 }
 
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for ProbeCore {
+    fn info(&self) -> (String, Option<String>) {
+        let ident = format!(
+            "{}, VID {:04x}, PID {:04x}",
+            self.identifier, self.vendor_id, self.product_id
+        );
+
+        let serial = match self.serial_number {
+            Some(ref serial) => Some(serial.clone()),
+            None => None,
+        };
+
+        (ident, serial)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         trace!("reading word at {:x}", addr);
         let mut core = self.session.core(0)?;
@@ -69,6 +89,12 @@ impl Core for ProbeCore {
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.write_word_32(addr, data)?;
+        Ok(())
+    }
+
+    fn write_8(&mut self, addr: u32, data: u8) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.write_8(addr, &[data])?;
         Ok(())
     }
 
@@ -168,6 +194,10 @@ impl OpenOCDCore {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for OpenOCDCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("OpenOCD".to_string(), None)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
         Ok(result.parse::<u32>()?)
@@ -330,13 +360,24 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
+    fn write_8(&mut self, addr: u32, data: u8) -> Result<()> {
+        self.sendcmd(&format!("mwb 0x{:x} 0x{:x}", addr, data))?;
+        Ok(())
+    }
+
     fn halt(&mut self) -> Result<()> {
-        self.sendcmd("halt")?;
+        /*
+         * On OpenOCD, we don't halt. If GDB is connected, it gets really,
+         * really confused!  This should probably be configurable at
+         * some point...
+         */
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
-        self.sendcmd("resume")?;
+        /*
+         * Well, see above.
+         */
         Ok(())
     }
 
@@ -569,6 +610,10 @@ impl GDBCore {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl Core for GDBCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("GDB".to_string(), None)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         self.send_32(&format!("m{:x},4", addr))
     }
@@ -612,7 +657,15 @@ impl Core for GDBCore {
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
-        Err(anyhow!("{} GDB target does not support modifying state", self.server))
+        Err(anyhow!(
+            "{} GDB target does not support modifying state", self.server
+        ))
+    }
+
+    fn write_8(&mut self, _addr: u32, _data: u8) -> Result<()> {
+        Err(anyhow!(
+            "{} GDB target does not support modifying state", self.server
+        ))
     }
 
     fn halt(&mut self) -> Result<()> {
@@ -686,6 +739,10 @@ impl DumpCore {
 }
 
 impl Core for DumpCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("core dump".to_string(), None)
+    }
+
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let rsize: usize = 4;
 
@@ -732,6 +789,10 @@ impl Core for DumpCore {
         bail!("cannot write a word on a dump");
     }
 
+    fn write_8(&mut self, _addr: u32, _data: u8) -> Result<()> {
+        bail!("cannot write a byte on a dump");
+    }
+
     fn halt(&mut self) -> Result<()> {
         Ok(())
     }
@@ -754,7 +815,21 @@ impl Core for DumpCore {
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+    let mut index: Option<usize> = None;
+
+    if probe.find("-").is_some() {
+        let str = probe.to_owned();
+        let pieces: Vec<&str> = str.split("-").collect();
+
+        if pieces[0] == "usb" && pieces.len() == 2 {
+            if let Ok(val) = pieces[1].parse::<usize>() {
+                index = Some(val);
+                probe = "usb";
+            }
+        }
+    }
+
     match probe {
         "usb" => {
             let probes = Probe::list_all();
@@ -763,7 +838,23 @@ pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 bail!("no debug probe found; is it plugged in?");
             }
 
-            let res = probes[0].open();
+            let (selected, res) = if let Some(index) = index {
+                if index < probes.len() {
+                    (index, probes[index].open())
+                } else {
+                    bail!(
+                        "index ({}) exceeds max probe index ({})",
+                        index, probes.len() - 1
+                    );
+                }
+            } else {
+                if probes.len() == 1 {
+                    (0, probes[0].open())
+                } else {
+                    bail!("multiple USB probes detected; must \
+                        explicitly append index (e.g., \"-p usb-0\")");
+                }
+            };
 
             /*
              * By far the most common error is to not be able to attach to a
@@ -787,7 +878,16 @@ pub fn attach(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
             info!("attached via {}", name);
 
-            Ok(Box::new(ProbeCore { session: session }))
+            Ok(Box::new(ProbeCore {
+                session: session,
+                identifier: probes[selected].identifier.clone(),
+                vendor_id: probes[selected].vendor_id,
+                product_id: probes[selected].product_id,
+                serial_number: match probes[selected].serial_number {
+                    Some(ref serial_number) => Some(serial_number.clone()),
+                    None => None,
+                },
+            }))
         }
 
         "ocd" => {

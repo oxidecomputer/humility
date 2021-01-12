@@ -41,12 +41,16 @@ use test::*;
 
 mod core;
 
+mod cmd;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::Read;
+use std::thread;
+use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 
@@ -1364,6 +1368,545 @@ fn testcmd(
     Ok(())
 }
 
+#[derive(StructOpt, Debug)]
+struct I2cArgs {
+    /// sets ITM trace identifier
+    #[structopt(
+        long, default_value = "0x3a", value_name = "identifier",
+        parse(try_from_str = parse_int::parse)
+    )]
+    traceid: u8,
+    /// sets the value of SWOSCALER
+    #[structopt(long, value_name = "scaler",
+        parse(try_from_str = parse_int::parse),
+    )]
+    clockscaler: Option<u16>,
+
+    /// sets ITM trace identifier
+    #[structopt(
+        long, short, default_value = "5000", value_name = "timeout_ms`",
+        parse(try_from_str = parse_int::parse)
+    )]
+    timeout: u32,
+
+    /// enables ITM logging
+    #[structopt(long, short)]
+    log: bool,
+
+    /// scan a controller for devices or a device for registers
+    #[structopt(long, short, conflicts_with = "read")]
+    scan: bool,
+
+    /// specifies an I2C bus
+    #[structopt(long, short, value_name = "controller",
+        parse(try_from_str = parse_int::parse),
+    )]
+    controller: u8,
+
+    /// specifies an I2C controller port
+    #[structopt(long, short, value_name = "port")]
+    port: Option<String>,
+
+    /// specifies an I2C device address
+    #[structopt(long, short, value_name = "address",
+        parse(try_from_str = parse_int::parse),
+    )]
+    device: Option<u8>,
+
+    /// read a register
+    #[structopt(long, short, value_name = "register",
+        parse(try_from_str = parse_int::parse),
+    )]
+    read: Option<u8>,
+
+    /// read as halfwords instead of as bytes
+    #[structopt(long, short, conflicts_with = "word")]
+    halfword: bool,
+
+    /// read as words instead of as bytes
+    #[structopt(long, short)]
+    word: bool,
+}
+
+#[derive(Debug)]
+struct I2cVariables<'a> {
+    hubris: &'a HubrisArchive,
+    ready: &'a HubrisVariable,
+    kick: &'a HubrisVariable,
+    controller: &'a HubrisVariable,
+    port: &'a HubrisVariable,
+    mux: &'a HubrisVariable,
+    segment: &'a HubrisVariable,
+    device: &'a HubrisVariable,
+    register: &'a HubrisVariable,
+    requests: &'a HubrisVariable,
+    errors: &'a HubrisVariable,
+    results: &'a HubrisVariable,
+    cached: Option<(u32, u32)>,
+    kicked: Option<Instant>,
+    timeout: u32,
+    timedout: bool,
+}
+
+impl<'a> I2cVariables<'a> {
+    fn variable(
+        hubris: &'a HubrisArchive,
+        name: &str,
+        wordsize: bool,
+    ) -> Result<&'a HubrisVariable> {
+        let v = hubris
+            .lookup_variable(name)
+            .context("expected i2c debugging interface not found")?;
+
+        if wordsize && v.size != 4 {
+            bail!("expected {} to be size 4, found {}", name, v.size);
+        }
+
+        Ok(v)
+    }
+
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        timeout: u32,
+    ) -> Result<I2cVariables> {
+        Ok(Self {
+            hubris: hubris,
+            ready: Self::variable(hubris, "I2C_DEBUG_READY", true)?,
+            kick: Self::variable(hubris, "I2C_DEBUG_KICK", true)?,
+            controller: Self::variable(hubris, "I2C_DEBUG_CONTROLLER", true)?,
+            port: Self::variable(hubris, "I2C_DEBUG_PORT", false)?,
+            mux: Self::variable(hubris, "I2C_DEBUG_MUX", true)?,
+            segment: Self::variable(hubris, "I2C_DEBUG_SEGMENT", true)?,
+            device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
+            register: Self::variable(hubris, "I2C_DEBUG_REGISTER", true)?,
+            requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
+            errors: Self::variable(hubris, "I2C_DEBUG_ERRORS", true)?,
+            results: Self::variable(hubris, "I2C_DEBUG_RESULTS", false)?,
+            cached: None,
+            kicked: None,
+            timeout: timeout,
+            timedout: false,
+        })
+    }
+
+    fn kickit(
+        &mut self,
+        core: &mut dyn core::Core,
+        subargs: &I2cArgs,
+    ) -> Result<()> {
+        let mut port = None;
+
+        if core.read_word_32(self.ready.addr)? != 1 {
+            bail!("i2c debugging facility unavailable");
+        }
+
+        if let Some(ref portarg) = subargs.port {
+            let p = self
+                .hubris
+                .lookup_enum(self.port.goff)
+                .context("expected port to be an enum")?;
+
+            if p.size != 1 {
+                fatal!("expected port to be a 1-byte enum");
+            }
+
+            for variant in &p.variants {
+                if variant.name.eq_ignore_ascii_case(&portarg) {
+                    port = variant.tag;
+                    break;
+                }
+            }
+
+            if port.is_none() {
+                let mut vals: Vec<String> = vec![];
+
+                for variant in &p.variants {
+                    vals.push(variant.name.to_string());
+                }
+
+                fatal!(
+                    "invalid port \"{}\" (must be one of: {})",
+                    portarg,
+                    vals.join(", ")
+                );
+            }
+        }
+
+        core.halt()?;
+        core.write_word_32(self.controller.addr, subargs.controller as u32)?;
+
+        if let Some(device) = subargs.device {
+            core.write_word_32(self.device.addr, device as u32)?;
+        }
+
+        if let Some(register) = subargs.read {
+            core.write_word_32(self.register.addr, register as u32)?;
+        }
+
+        if let Some(port) = port {
+            core.write_8(self.port.addr, port as u8)?;
+        }
+
+        core.write_word_32(self.kick.addr, 1)?;
+
+        self.cached = Some((
+            core.read_word_32(self.requests.addr)?,
+            core.read_word_32(self.errors.addr)?,
+        ));
+
+        self.kicked = Some(Instant::now());
+
+        core.run()?;
+        Ok(())
+    }
+
+    fn done(&mut self, core: &mut dyn core::Core) -> Result<bool> {
+        core.halt()?;
+
+        let vars = Some((
+            core.read_word_32(self.requests.addr)?,
+            core.read_word_32(self.errors.addr)?,
+        ));
+
+        core.run()?;
+
+        if let Some(kicked) = self.kicked {
+            if kicked.elapsed().as_millis() > self.timeout.into() {
+                self.timedout = true;
+
+                return Ok(true);
+            }
+        }
+
+        Ok(self.cached.is_some() && vars != self.cached)
+    }
+
+    fn error(&self, core: &mut dyn core::Core) -> Result<bool> {
+        if let Some((_, errors)) = self.cached {
+            core.halt()?;
+            let rval = core.read_word_32(self.errors.addr)? > errors;
+            core.run()?;
+            Ok(rval)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+fn i2ccmd_results<'a>(
+    hubris: &'a HubrisArchive,
+    vars: &I2cVariables,
+    buf: &[u8],
+) -> Result<Vec<Option<Result<u32, &'a HubrisEnumVariant>>>> {
+    let variant_enum = |variant: &HubrisEnumVariant| {
+        let t = match variant.goff {
+            None => bail!("expected tuple"),
+            Some(goff) => hubris.lookup_struct(goff)?.lookup_member("__0")?,
+        };
+
+        Ok((hubris.lookup_enum(t.goff)?, t.offset))
+    };
+
+    let variant_basetype = |variant: &HubrisEnumVariant| {
+        let t = match variant.goff {
+            None => bail!("expected tuple"),
+            Some(goff) => hubris.lookup_struct(goff)?.lookup_member("__0")?,
+        };
+
+        Ok((hubris.lookup_basetype(t.goff)?, t.offset))
+    };
+
+    let array = hubris
+        .lookup_array(vars.results.goff)
+        .context("expected results to be an array")?;
+
+    let option = hubris
+        .lookup_enum(array.goff)
+        .context("expected results to be an array of Option")?;
+
+    let some = option.lookup_variant_byname("Some")?;
+    let result = variant_enum(some)?;
+
+    let ok = result.0.lookup_variant_byname("Ok")?;
+    let err = result.0.lookup_variant_byname("Err")?;
+
+    let err_payload = variant_enum(err)?;
+    let ok_payload = variant_basetype(ok)?;
+
+    let mut results: Vec<Option<Result<u32, &HubrisEnumVariant>>> = vec![];
+
+    for i in 0..array.count {
+        let offs = i * option.size;
+        let b = &buf[offs..];
+
+        let variant = option.determine_variant(hubris, b)?;
+
+        if variant.goff == some.goff {
+            let r =
+                result.0.determine_variant(hubris, &buf[offs + result.1..])?;
+
+            if r.goff == err.goff {
+                let details = err_payload
+                    .0
+                    .determine_variant(hubris, &buf[offs + err_payload.1..])?;
+
+                results.push(Some(Err(details)));
+            } else {
+                let o = offs + ok_payload.1;
+
+                results.push(Some(Ok(u32::from_le_bytes(
+                    buf[o..o + 4].try_into()?,
+                ))));
+            }
+        } else {
+            results.push(None);
+        }
+    }
+
+    Ok(results)
+}
+
+fn i2ccmd_done(
+    core: &mut dyn core::Core,
+    subargs: &I2cArgs,
+    hubris: &HubrisArchive,
+    vars: &I2cVariables,
+) -> Result<()> {
+    if vars.error(core)? {
+        if subargs.log {
+            fatal!("i2c command failed on target");
+        } else {
+            fatal!("i2c command failed on target; run with -l for more detail");
+        }
+    }
+
+    let mut buf: Vec<u8> = vec![];
+    buf.resize_with(vars.results.size, Default::default);
+    core.read_8(vars.results.addr, buf.as_mut_slice())?;
+
+    let results = i2ccmd_results(hubris, vars, &buf)?;
+
+    if vars.timedout {
+        warn!("operation timed out");
+    }
+
+    if subargs.scan && subargs.device.is_none() {
+        println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
+
+        println!(
+            "    R = Reserved   - = No device   \
+            \\o/ = Device found   X = Timed out\n"
+        );
+
+        print!("{:<8}", "ADDR");
+
+        for i in 0..16 {
+            print!(" 0x{:x}", i);
+        }
+
+        println!("");
+
+        for i in 0..128 {
+            if i % 16 == 0 {
+                print!("0x{:02x}    ", i);
+            }
+
+            print!(
+                "{:>4}",
+                match results[i] {
+                    None => {
+                        "X"
+                    }
+                    Some(Ok(_)) => {
+                        "\\o/"
+                    }
+                    Some(Err(err)) => {
+                        if err.name == "NoDevice" {
+                            "-"
+                        } else if err.name == "ReservedAddress" {
+                            "R"
+                        } else {
+                            "Err"
+                        }
+                    }
+                }
+            );
+
+            if i % 16 == 15 {
+                println!("");
+            }
+        }
+
+        std::process::exit(0);
+    }
+
+    if subargs.scan && subargs.device.is_some() {
+        println!(
+            "\nRegister scan for device 0x{:x} on I2C{}:\n",
+            subargs.device.unwrap(),
+            subargs.controller
+        );
+
+        println!(
+            "      - = No register        ! = No device        X = Timed out\n"
+        );
+
+        print!("{:<5}", "ADDR");
+
+        for i in 0..16 {
+            print!(" 0x{:x}", i);
+        }
+
+        println!("");
+
+        for i in 0..256 {
+            if i % 16 == 0 {
+                print!("0x{:02x} ", i);
+            }
+
+            match results[i] {
+                Some(Ok(val)) => {
+                    print!("  {:02x}", val);
+                }
+                None => {
+                    print!("{:>4}", "X");
+                }
+                Some(Err(err)) => {
+                    print!(
+                        "{:>4}",
+                        if err.name == "NoRegister" {
+                            "-"
+                        } else if err.name == "NoDevice" {
+                            "!"
+                        } else {
+                            "Err"
+                        }
+                    );
+                }
+            }
+
+            if i % 16 == 15 {
+                println!("");
+            }
+        }
+    }
+
+    std::process::exit(0);
+}
+
+fn i2ccmd_ingest(
+    core: &mut dyn core::Core,
+    coreinfo: &CoreInfo,
+    subargs: &I2cArgs,
+    hubris: &HubrisArchive,
+    vars: &mut I2cVariables,
+) -> Result<()> {
+    let traceid = if coreinfo.address(CoreSightComponent::SWO).is_some() {
+        None
+    } else {
+        Some(subargs.traceid)
+    };
+
+    let shared = RefCell::new(core);
+    let vars = RefCell::new(vars);
+    let mut bytes: Vec<u8> = vec![];
+    let mut ndx = 0;
+    let mut kicked = false;
+    let start = Instant::now();
+    let mut last = Instant::now();
+    let check_ms = 100;
+
+    itm_ingest(
+        traceid,
+        || {
+            while ndx == bytes.len() {
+                if ndx == 0 && last.elapsed().as_millis() > check_ms {
+                    last = Instant::now();
+
+                    if vars.borrow_mut().done(*shared.borrow_mut())? {
+                        i2ccmd_done(
+                            *shared.borrow_mut(),
+                            subargs,
+                            hubris,
+                            *vars.borrow(),
+                        )?;
+                    }
+                }
+                bytes = shared.borrow_mut().read_swv()?;
+                ndx = 0;
+            }
+            ndx += 1;
+            Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
+        },
+        |packet| {
+            if packet.header == ITMHeader::Sync {
+                if !kicked {
+                    vars.borrow_mut().kickit(*shared.borrow_mut(), subargs)?;
+                    kicked = true;
+                }
+            }
+
+            match &packet.payload {
+                ITMPayload::Instrumentation { payload, port } => {
+                    if *port > 1 {
+                        println!("{:x?}", payload);
+                        return Ok(());
+                    }
+
+                    for p in payload {
+                        print!("{}", *p as char);
+                    }
+                }
+                _ => {}
+            }
+
+            Ok(())
+        },
+    )
+}
+
+fn i2ccmd(
+    hubris: &HubrisArchive,
+    args: &Args,
+    subargs: &I2cArgs,
+) -> Result<()> {
+    let mut c = attach_live(args)?;
+    let core = c.as_mut();
+    hubris.validate(core)?;
+
+    if !subargs.scan && subargs.read.is_none() {
+        fatal!("must specify either 'scan' or 'read'");
+    }
+
+    let mut vars = I2cVariables::new(hubris, subargs.timeout)?;
+
+    let coreinfo = CoreInfo::read(core)?;
+
+    if !subargs.log {
+        vars.kickit(core, subargs)?;
+
+        loop {
+            thread::sleep(Duration::from_millis(100));
+            if vars.done(core)? {
+                i2ccmd_done(core, subargs, hubris, &vars)?;
+            }
+        }
+    }
+
+    let _info = core.halt();
+    core.init_swv()?;
+
+    let stim = 0x0000_000f;
+    let clockscaler = clock_scaler(hubris, core, subargs.clockscaler)?;
+    itmcmd_enable(core, &coreinfo, clockscaler, subargs.traceid, stim)?;
+
+    core.run()?;
+
+    i2ccmd_ingest(core, &coreinfo, subargs, hubris, &mut vars)?;
+
+    Ok(())
+}
+
 fn probe(hubris: &HubrisArchive, args: &Args) -> Result<()> {
     let mut core = attach(args)?;
 
@@ -1412,189 +1955,6 @@ fn map(hubris: &HubrisArchive, args: &Args) -> Result<()> {
 }
 
 #[derive(StructOpt, Debug)]
-struct ReadvarArgs {
-    /// list variables
-    #[structopt(long, short)]
-    list: bool,
-    #[structopt(conflicts_with = "list")]
-    variable: Option<String>,
-}
-
-fn readvar(
-    hubris: &HubrisArchive,
-    args: &Args,
-    subargs: &ReadvarArgs,
-) -> Result<()> {
-    if subargs.list {
-        return hubris.list_variables();
-    }
-
-    let v = match subargs.variable {
-        Some(ref variable) => hubris.lookup_variable(variable)?,
-        None => fatal!("expected variable (use \"-l\" to list)"),
-    };
-
-    let mut core = attach(&args)?;
-    hubris.validate(core.as_mut())?;
-
-    let mut buf: Vec<u8> = vec![];
-    buf.resize_with(v.size, Default::default);
-    core.read_8(v.addr, buf.as_mut_slice())?;
-
-    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: true };
-    let name = subargs.variable.as_ref().unwrap();
-    let dumped = hubris.printfmt(&buf, v.goff, &fmt)?;
-
-    println!("{} (0x{:08x}) = {}", name, v.addr, dumped);
-
-    Ok(())
-}
-
-#[derive(StructOpt, Debug)]
-struct ReadmemArgs {
-    /// print out as halfwords instead of as bytes
-    #[structopt(long, short, conflicts_with_all = &["word"])]
-    halfword: bool,
-
-    /// print out as words instead of as bytes
-    #[structopt(long, short)]
-    word: bool,
-
-    /// address to read
-    #[structopt(parse(try_from_str = parse_int::parse))]
-    address: u32,
-
-    /// length to read
-    #[structopt(parse(try_from_str = parse_int::parse))]
-    length: Option<usize>,
-}
-
-fn readmem(
-    _hubris: &HubrisArchive,
-    args: &Args,
-    subargs: &ReadmemArgs,
-) -> Result<()> {
-    let mut core = attach(&args)?;
-    let max = crate::core::CORE_MAX_READSIZE;
-    let width: usize = 16;
-    let size = if subargs.word {
-        4
-    } else if subargs.halfword {
-        2
-    } else {
-        1
-    };
-
-    let length = match subargs.length {
-        Some(length) => length,
-        None => 256,
-    };
-
-    if length & (size - 1) != 0 {
-        fatal!("length must be {}-byte aligned", size);
-    }
-
-    if subargs.address & (size - 1) as u32 != 0 {
-        fatal!("address must be {}-byte aligned", size);
-    }
-
-    if length > max {
-        fatal!("cannot read more than {} bytes", max);
-    }
-
-    let mut bytes = vec![0u8; length];
-
-    let _info = core.halt()?;
-
-    let rval = core.read_8(subargs.address, &mut bytes);
-    core.run()?;
-
-    if rval.is_err() {
-        return rval;
-    }
-
-    let print = |line: &[u8], addr, offs| {
-        print!("0x{:08x} | ", addr);
-
-        for i in (0..width).step_by(size) {
-            if i < offs || i - offs >= line.len() {
-                print!(" {:width$}", "", width = size * 2);
-                continue;
-            }
-
-            let slice = &line[i - offs..i - offs + size];
-
-            print!(
-                "{:0width$x} ",
-                match size {
-                    1 => line[i - offs] as u32,
-                    2 => u16::from_le_bytes(slice.try_into().unwrap()) as u32,
-                    4 => u32::from_le_bytes(slice.try_into().unwrap()) as u32,
-                    _ => {
-                        panic!("invalid size");
-                    }
-                },
-                width = size * 2
-            );
-        }
-
-        print!("| ");
-
-        for i in 0..width {
-            if i < offs || i - offs >= line.len() {
-                print!(" ");
-            } else {
-                let c = line[i - offs] as char;
-
-                if c.is_ascii() && !c.is_ascii_control() {
-                    print!("{}", c);
-                } else {
-                    print!(".");
-                }
-            }
-        }
-
-        println!("");
-    };
-
-    let mut addr = subargs.address;
-    let offs = (addr & (width - 1) as u32) as usize;
-    addr -= offs as u32;
-
-    /*
-     * Print out header line, OpenBoot PROM style
-     */
-    print!("  {:8}  ", "");
-
-    for i in (0..width).step_by(size) {
-        if i == offs {
-            print!(" {:>width$}", "\\/", width = size * 2);
-        } else {
-            print!(" {:>width$x}", i, width = size * 2);
-        }
-    }
-
-    println!("");
-
-    /*
-     * Print our first line.
-     */
-    let lim = std::cmp::min(width - offs, bytes.len());
-    print(&bytes[0..lim], addr, offs);
-
-    if lim < bytes.len() {
-        let lines = bytes[lim..].chunks(width);
-
-        for line in lines {
-            addr += width as u32;
-            print(line, addr, 0);
-        }
-    }
-
-    Ok(())
-}
-
-#[derive(StructOpt, Debug)]
 struct DumpArgs {
     dumpfile: Option<String>,
 }
@@ -1631,6 +1991,7 @@ fn apptable(hubris: &HubrisArchive) -> Result<()> {
     let app = hubris.lookup_struct_byname("App")?;
     let task = hubris.lookup_struct_byname("TaskDesc")?;
     let region = hubris.lookup_struct_byname("RegionDesc")?;
+    let interrupt = hubris.lookup_struct_byname("Interrupt")?;
     let fmt = HubrisPrintFormat { indent: 4, newline: true, hex: true };
     let apptable = hubris.apptable();
 
@@ -1650,6 +2011,7 @@ fn apptable(hubris: &HubrisArchive) -> Result<()> {
 
     let task_count = lookup("task_count")?;
     let region_count = lookup("region_count")?;
+    let irq_count = lookup("irq_count")?;
 
     println!(
         "App ={}\n",
@@ -1690,95 +2052,20 @@ fn apptable(hubris: &HubrisArchive) -> Result<()> {
         offs += task.size;
     }
 
-    Ok(())
-}
+    for i in 0..irq_count {
+        let str = format!("Interrupt[0x{:x}]", i);
 
-#[derive(StructOpt)]
-struct TasksArgs {
-    /// spin pulling tasks
-    #[structopt(long, short)]
-    spin: bool,
-    /// verbose task output
-    #[structopt(long, short)]
-    verbose: bool,
-}
-
-#[rustfmt::skip::macros(println)]
-
-fn taskscmd(
-    hubris: &HubrisArchive,
-    args: &Args,
-    subargs: &TasksArgs,
-) -> Result<()> {
-    let mut core = attach(&args)?;
-
-    hubris.validate(core.as_mut())?;
-
-    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
-
-    let task = hubris.lookup_struct_byname("Task")?;
-    let taskdesc = hubris.lookup_struct_byname("TaskDesc")?;
-
-    let state = task.lookup_member("state")?;
-    let state_enum = hubris.lookup_enum(state.goff)?;
-
-    loop {
-        core.halt()?;
-
-        let cur =
-            core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
-
-        /*
-         * We read the entire task table at a go to get as consistent a
-         * snapshot as possible.
-         */
-        let mut taskblock: Vec<u8> = vec![];
-        taskblock.resize_with(task.size * size as usize, Default::default);
-        core.read_8(base, taskblock.as_mut_slice())?;
-
-        core.run()?;
-
-        let descriptor = task.lookup_member("descriptor")?.offset as u32;
-        let generation = task.lookup_member("generation")?.offset as u32;
-        let state = task.lookup_member("state")?.offset as u32;
-
-        let entry_point = taskdesc.lookup_member("entry_point")?.offset as u32;
-
-        println!("{:2} {:8} {:18} {:3} {:9}",
-            "ID", "ADDR", "TASK", "GEN", "STATE");
-
-        let taskblock32 =
-            |o| u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
-
-        for i in 0..size {
-            let addr = base + i * task.size as u32;
-            let offs = i as usize * task.size;
-            let soffs = offs + state as usize;
-
-            let gen = taskblock[offs + generation as usize];
-            let daddr = taskblock32(offs + descriptor as usize);
-            let entry = core.read_word_32(daddr + entry_point)?;
-            let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
-
-            println!("{:2} {:08x} {:18} {:3} {:25} {}", i, addr, module, gen,
-                hubris.print(&taskblock[soffs..], state_enum.goff)?,
-                if addr == cur { " <-" } else { "" });
-
-            if subargs.verbose {
-                let fmt =
-                    HubrisPrintFormat { indent: 16, newline: true, hex: true };
-
-                println!(
-                    "          |\n          +----> {}\n",
-                    hubris.printfmt(&taskblock[offs..], task.goff, &fmt)?
-                );
-            }
+        if offs + interrupt.size > apptable.len() {
+            fatal(&str, offs + interrupt.size);
         }
 
-        if !subargs.spin {
-            break;
-        }
+        println!("{} ={}\n", str, hubris.printfmt(
+            &apptable[offs..offs + interrupt.size],
+            interrupt.goff,
+            &fmt)?
+        );
+
+        offs += interrupt.size;
     }
 
     Ok(())
@@ -2037,7 +2324,7 @@ fn tracecmd(
 
 #[derive(StructOpt)]
 #[structopt(name = "humility", max_term_width = 80)]
-struct Args {
+pub struct Args {
     /// verbose messages
     #[structopt(long, short)]
     verbose: bool,
@@ -2076,33 +2363,47 @@ struct Args {
 enum Subcommand {
     /// print Hubris apptable
     Apptable(ApptableArgs),
-    /// probe for any attached devices
-    Probe,
-    /// commands for ARM's Embedded Trace Macrocell (ETM)
-    Etm(EtmArgs),
-    /// commands for ARM's Instrumentation Trace Macrocell (ITM)
-    Itm(ItmArgs),
     /// generate Hubris dump
     Dump(DumpArgs),
+    /// commands for ARM's Embedded Trace Macrocell (ETM)
+    Etm(EtmArgs),
+    /// scan for and read I2C devices
+    I2c(I2cArgs),
+    /// commands for ARM's Instrumentation Trace Macrocell (ITM)
+    Itm(ItmArgs),
     /// Get logging over ITM
     Log(ItmArgs),
     /// print memory map, with association of regions to tasks
     Map,
     /// print archive manifest
     Manifest,
-    /// read and display memory region
-    Readmem(ReadmemArgs),
-    /// read and display a specified Hubris variable
-    Readvar(ReadvarArgs),
+    /// probe for any attached devices
+    Probe,
     /// run Hubris test suite and parse results
     Test(TestArgs),
-    /// list Hubris tasks
-    Tasks(TasksArgs),
     /// trace Hubris operations
     Trace(TraceArgs),
+
+    #[structopt(external_subcommand)]
+    Other(Vec<String>),
 }
 
 fn main() {
+    /*
+     * This isn't hugely efficient, but we actually parse our arguments twice:
+     * the first is with our subcommands grafted into our arguments to get us
+     * a unified help and error message in the event of any parsing value or
+     * request for a help message; if that works, we parse our arguments again
+     * but relying on the external_subcommand to directive to allow our
+     * subcommand to do any parsing on its own.
+     */
+    let (commands, clap) = cmd::init(Args::clap());
+    let _args = Args::from_clap(&clap.get_matches());
+
+    /*
+     * If we're here, we know that our arguments pass muster from the Structopt/
+     * Clap perspective.
+     */
     let args = Args::from_args();
 
     if args.verbose {
@@ -2134,11 +2435,10 @@ fn main() {
             }
 
             Subcommand::Dump(..)
-            | Subcommand::Readvar(..)
+            | Subcommand::I2c(..)
             | Subcommand::Manifest
             | Subcommand::Test(..)
             | Subcommand::Log(..)
-            | Subcommand::Tasks(..)
             | Subcommand::Trace(..)
             | Subcommand::Map => {
                 fatal!("must provide a Hubris archive");
@@ -2290,6 +2590,11 @@ fn main() {
             _ => std::process::exit(0),
         },
 
+        Subcommand::I2c(subargs) => match i2ccmd(&hubris, &args, subargs) {
+            Err(err) => fatal!("i2c failed: {:?}", err),
+            _ => std::process::exit(0),
+        },
+
         Subcommand::Manifest => match manifest(&hubris) {
             Err(err) => fatal!("manifest failed: {:?}", err),
             _ => std::process::exit(0),
@@ -2297,25 +2602,6 @@ fn main() {
 
         Subcommand::Map => match map(&hubris, &args) {
             Err(err) => fatal!("map failed: {:?}", err),
-            _ => std::process::exit(0),
-        },
-
-        Subcommand::Readvar(subargs) => {
-            match readvar(&hubris, &args, subargs) {
-                Err(err) => fatal!("readvar failed: {:?}", err),
-                _ => std::process::exit(0),
-            }
-        }
-
-        Subcommand::Readmem(subargs) => {
-            match readmem(&hubris, &args, subargs) {
-                Err(err) => fatal!("readmem failed: {:?}", err),
-                _ => std::process::exit(0),
-            }
-        }
-
-        Subcommand::Tasks(subargs) => match taskscmd(&hubris, &args, subargs) {
-            Err(err) => fatal!("tasks failed: {:?}", err),
             _ => std::process::exit(0),
         },
 
@@ -2328,5 +2614,12 @@ fn main() {
             Err(err) => fatal!("trace failed: {:?}", err),
             _ => std::process::exit(0),
         },
+
+        Subcommand::Other(ref subargs) => {
+            match cmd::subcommand(&commands, &hubris, &args, subargs) {
+                Err(err) => fatal!("{} failed: {:?}", subargs[0], err),
+                _ => std::process::exit(0),
+            }
+        }
     }
 }
