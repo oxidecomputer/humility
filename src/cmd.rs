@@ -5,6 +5,7 @@
 mod etm;
 mod i2c;
 mod itm;
+mod map;
 mod readmem;
 mod readvar;
 mod tasks;
@@ -17,6 +18,7 @@ use anyhow::{bail, Result};
 use std::collections::HashMap;
 use structopt::clap::App;
 
+#[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 enum Archive {
     Required,
@@ -40,6 +42,7 @@ pub fn init<'a, 'b>(
         etm::init,
         i2c::init,
         itm::init,
+        map::init,
         readmem::init,
         readvar::init,
         tasks::init,
