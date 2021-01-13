@@ -25,7 +25,7 @@ struct TasksArgs {
 #[rustfmt::skip::macros(println)]
 
 fn tasks(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

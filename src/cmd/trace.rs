@@ -200,7 +200,7 @@ fn tracecmd_ingest(
 }
 
 fn tracecmd(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

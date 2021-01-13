@@ -494,7 +494,7 @@ fn i2c_ingest(
 }
 
 fn i2c(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

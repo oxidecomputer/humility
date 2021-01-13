@@ -24,7 +24,7 @@ struct ReadvarArgs {
 }
 
 fn readvar(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

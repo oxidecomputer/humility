@@ -557,7 +557,7 @@ fn etmcmd_output(core: &mut dyn Core) -> Result<()> {
 }
 
 fn etmcmd(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

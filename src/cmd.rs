@@ -2,6 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+mod apptable;
 mod etm;
 mod i2c;
 mod itm;
@@ -29,7 +30,7 @@ enum Archive {
 pub struct HumilityCommand {
     name: &'static str,
     archive: Archive,
-    run: fn(&HubrisArchive, &Args, &Vec<String>) -> Result<()>,
+    run: fn(&mut HubrisArchive, &Args, &Vec<String>) -> Result<()>,
 }
 
 pub fn init<'a, 'b>(
@@ -39,6 +40,7 @@ pub fn init<'a, 'b>(
     let mut rval = app;
 
     let dcmds = [
+        apptable::init,
         etm::init,
         i2c::init,
         itm::init,
@@ -61,7 +63,7 @@ pub fn init<'a, 'b>(
 
 pub fn subcommand(
     commands: &HashMap<&'static str, HumilityCommand>,
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

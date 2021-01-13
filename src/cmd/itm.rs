@@ -218,7 +218,7 @@ fn itmcmd_ingest_attached(
 }
 
 fn itmcmd(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

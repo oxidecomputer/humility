@@ -28,8 +28,6 @@ mod swo;
 mod test;
 mod tpiu;
 
-use std::convert::TryInto;
-
 macro_rules! fatal {
     ($fmt:expr) => ({
         eprint!(concat!("humility: ", $fmt, "\n"));
@@ -146,99 +144,6 @@ fn manifest(hubris: &HubrisArchive) -> Result<()> {
     Ok(())
 }
 
-#[derive(StructOpt, Debug)]
-struct ApptableArgs {
-    #[structopt(
-        help = "path to kernel ELF object (in lieu of Hubris archive)"
-    )]
-    kernel: Option<String>,
-}
-
-#[rustfmt::skip::macros(println, fatal)]
-fn apptable(hubris: &HubrisArchive) -> Result<()> {
-    let app = hubris.lookup_struct_byname("App")?;
-    let task = hubris.lookup_struct_byname("TaskDesc")?;
-    let region = hubris.lookup_struct_byname("RegionDesc")?;
-    let interrupt = hubris.lookup_struct_byname("Interrupt")?;
-    let fmt = HubrisPrintFormat { indent: 4, newline: true, hex: true };
-    let apptable = hubris.apptable();
-
-    let fatal = |msg, expected| -> ! {
-        fatal!("short app table on {}: found {} bytes, expected at least {}",
-            msg, apptable.len(), expected);
-    };
-
-    if app.size > apptable.len() {
-        fatal("App header", app.size);
-    }
-
-    let lookup = |m| -> Result<u32> {
-        let o = app.lookup_member(m)?.offset;
-        Ok(u32::from_le_bytes(apptable[o..o + 4].try_into().unwrap()))
-    };
-
-    let task_count = lookup("task_count")?;
-    let region_count = lookup("region_count")?;
-    let irq_count = lookup("irq_count")?;
-
-    println!(
-        "App ={}\n",
-        hubris.printfmt(&apptable[0..app.size], app.goff, &fmt)?
-    );
-
-    let mut offs = app.size;
-
-    for i in 0..region_count {
-        let str = format!("RegionDesc[0x{:x}]", i);
-
-        if offs + region.size > apptable.len() {
-            fatal(&str, offs + region.size);
-        }
-
-        println!("{} ={}\n", str, hubris.printfmt(
-            &apptable[offs..offs + region.size],
-            region.goff,
-            &fmt
-        )?);
-
-        offs += region.size;
-    }
-
-    for i in 0..task_count {
-        let str = format!("TaskDesc[0x{:x}]", i);
-
-        if offs + task.size > apptable.len() {
-            fatal(&str, offs + task.size);
-        }
-
-        println!("{} ={}\n", str, hubris.printfmt(
-            &apptable[offs..offs + task.size],
-            task.goff,
-            &fmt)?
-        );
-
-        offs += task.size;
-    }
-
-    for i in 0..irq_count {
-        let str = format!("Interrupt[0x{:x}]", i);
-
-        if offs + interrupt.size > apptable.len() {
-            fatal(&str, offs + interrupt.size);
-        }
-
-        println!("{} ={}\n", str, hubris.printfmt(
-            &apptable[offs..offs + interrupt.size],
-            interrupt.goff,
-            &fmt)?
-        );
-
-        offs += interrupt.size;
-    }
-
-    Ok(())
-}
-
 #[derive(StructOpt)]
 #[structopt(name = "humility", max_term_width = 80)]
 pub struct Args {
@@ -278,8 +183,6 @@ pub struct Args {
 
 #[derive(StructOpt)]
 enum Subcommand {
-    /// print Hubris apptable
-    Apptable(ApptableArgs),
     /// generate Hubris dump
     Dump(DumpArgs),
     /// print archive manifest
@@ -331,12 +234,6 @@ fn main() {
         }
     } else {
         match &args.cmd {
-            Subcommand::Apptable(subargs) => {
-                if subargs.kernel.is_none() {
-                    fatal!("must provide a Hubris archive or kernel");
-                }
-            }
-
             Subcommand::Dump(..) | Subcommand::Manifest => {
                 fatal!("must provide a Hubris archive");
             }
@@ -345,20 +242,6 @@ fn main() {
     }
 
     match &args.cmd {
-        Subcommand::Apptable(subargs) => {
-            if let Some(ref kernel) = subargs.kernel {
-                match hubris.load_kernel(kernel) {
-                    Err(err) => fatal!("can't load {}: {:?}", kernel, err),
-                    _ => {}
-                }
-            }
-
-            match apptable(&hubris) {
-                Err(err) => fatal!("apptable failed: {:?}", err),
-                _ => std::process::exit(0),
-            }
-        }
-
         Subcommand::Probe => match probe(&hubris, &args) {
             Err(err) => fatal!("probe failed: {:?}", err),
             _ => std::process::exit(0),
@@ -375,7 +258,7 @@ fn main() {
         },
 
         Subcommand::Other(ref subargs) => {
-            match cmd::subcommand(&commands, &hubris, &args, subargs) {
+            match cmd::subcommand(&commands, &mut hubris, &args, subargs) {
                 Err(err) => fatal!("{} failed: {:?}", subargs[0], err),
                 _ => std::process::exit(0),
             }

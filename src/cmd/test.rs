@@ -180,7 +180,7 @@ fn test_ingest(
 }
 
 fn test(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {

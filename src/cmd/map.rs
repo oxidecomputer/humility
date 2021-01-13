@@ -18,7 +18,7 @@ use structopt::StructOpt;
 struct MapArgs {}
 
 fn mapcmd(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     _subargs: &Vec<String>,
 ) -> Result<()> {

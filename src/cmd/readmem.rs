@@ -31,7 +31,7 @@ struct ReadmemArgs {
 }
 
 fn readmem(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
