@@ -109,25 +109,6 @@ fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
     }
 }
 
-#[derive(StructOpt, Debug)]
-struct DumpArgs {
-    dumpfile: Option<String>,
-}
-
-fn dump(hubris: &HubrisArchive, args: &Args, subargs: &DumpArgs) -> Result<()> {
-    let mut core = attach(&args)?;
-    hubris.validate(core.as_mut())?;
-    let _info = core.halt()?;
-    info!("core halted");
-
-    let rval = hubris.dump(core.as_mut(), subargs.dumpfile.as_deref());
-
-    core.run()?;
-    info!("core resumed");
-
-    rval
-}
-
 #[derive(StructOpt)]
 #[structopt(name = "humility", max_term_width = 80)]
 pub struct Args {
@@ -167,8 +148,6 @@ pub struct Args {
 
 #[derive(StructOpt)]
 enum Subcommand {
-    /// generate Hubris dump
-    Dump(DumpArgs),
     #[structopt(external_subcommand)]
     Other(Vec<String>),
 }
@@ -211,21 +190,9 @@ fn main() {
         if let Err(err) = hubris.load_dump(&dump) {
             fatal!("failed to load dump: {}", err);
         }
-    } else {
-        match &args.cmd {
-            Subcommand::Dump(..) => {
-                fatal!("must provide a Hubris archive");
-            }
-            _ => {}
-        }
     }
 
     match &args.cmd {
-        Subcommand::Dump(subargs) => match dump(&hubris, &args, subargs) {
-            Err(err) => fatal!("dump failed: {:?}", err),
-            _ => std::process::exit(0),
-        },
-
         Subcommand::Other(ref subargs) => {
             match cmd::subcommand(&commands, &mut hubris, &args, subargs) {
                 Err(err) => fatal!("{} failed: {:?}", subargs[0], err),

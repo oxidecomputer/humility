@@ -3,6 +3,7 @@
  */
 
 mod apptable;
+mod dump;
 mod etm;
 mod i2c;
 mod itm;
@@ -43,6 +44,7 @@ pub fn init<'a, 'b>(
 
     let dcmds = [
         apptable::init,
+        dump::init,
         etm::init,
         i2c::init,
         itm::init,
