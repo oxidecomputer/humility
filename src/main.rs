@@ -12,14 +12,12 @@ use anyhow::{bail, Result};
 
 use structopt::StructOpt;
 
-mod debug;
-use debug::*;
-
 mod hubris;
 use hubris::*;
 
 mod cmd;
 mod core;
+mod debug;
 mod dwt;
 mod etm;
 mod itm;
@@ -111,15 +109,6 @@ fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
     }
 }
 
-fn probe(hubris: &HubrisArchive, args: &Args) -> Result<()> {
-    let mut core = attach(args)?;
-
-    hubris.validate(core.as_mut())?;
-    cpuinfo(hubris, core.as_mut())?;
-
-    Ok(())
-}
-
 #[derive(StructOpt, Debug)]
 struct DumpArgs {
     dumpfile: Option<String>,
@@ -187,9 +176,6 @@ enum Subcommand {
     Dump(DumpArgs),
     /// print archive manifest
     Manifest,
-    /// probe for any attached devices
-    Probe,
-
     #[structopt(external_subcommand)]
     Other(Vec<String>),
 }
@@ -242,11 +228,6 @@ fn main() {
     }
 
     match &args.cmd {
-        Subcommand::Probe => match probe(&hubris, &args) {
-            Err(err) => fatal!("probe failed: {:?}", err),
-            _ => std::process::exit(0),
-        },
-
         Subcommand::Dump(subargs) => match dump(&hubris, &args, subargs) {
             Err(err) => fatal!("dump failed: {:?}", err),
             _ => std::process::exit(0),

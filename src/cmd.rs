@@ -7,6 +7,7 @@ mod etm;
 mod i2c;
 mod itm;
 mod map;
+mod probe;
 mod readmem;
 mod readvar;
 mod tasks;
@@ -45,6 +46,7 @@ pub fn init<'a, 'b>(
         i2c::init,
         itm::init,
         map::init,
+        probe::init,
         readmem::init,
         readvar::init,
         tasks::init,
