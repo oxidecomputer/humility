@@ -140,7 +140,7 @@ fn logcmd_ingest(
 }
 
 fn logcmd(
-    hubris: &HubrisArchive,
+    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
@@ -149,6 +149,9 @@ fn logcmd(
 
     let mut c = attach(args)?;
     let core = c.as_mut();
+
+    // make sure to validate
+    hubris.validate(core, HubrisValidate::Booted)?;
 
     //
     // First, read the task block to get a mapping of IDs to names.

@@ -51,13 +51,10 @@ pub fn init<'a, 'b>(
         etm::init,
         i2c::init,
         itm::init,
-<<<<<<< HEAD
         manifest::init,
         map::init,
         probe::init,
-=======
         log::init,
->>>>>>> 40bd7da (Read log frames over itm)
         readmem::init,
         readvar::init,
         ringbuf::init,
