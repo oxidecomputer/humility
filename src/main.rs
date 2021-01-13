@@ -128,11 +128,6 @@ fn dump(hubris: &HubrisArchive, args: &Args, subargs: &DumpArgs) -> Result<()> {
     rval
 }
 
-fn manifest(hubris: &HubrisArchive) -> Result<()> {
-    hubris.manifest()?;
-    Ok(())
-}
-
 #[derive(StructOpt)]
 #[structopt(name = "humility", max_term_width = 80)]
 pub struct Args {
@@ -174,8 +169,6 @@ pub struct Args {
 enum Subcommand {
     /// generate Hubris dump
     Dump(DumpArgs),
-    /// print archive manifest
-    Manifest,
     #[structopt(external_subcommand)]
     Other(Vec<String>),
 }
@@ -220,7 +213,7 @@ fn main() {
         }
     } else {
         match &args.cmd {
-            Subcommand::Dump(..) | Subcommand::Manifest => {
+            Subcommand::Dump(..) => {
                 fatal!("must provide a Hubris archive");
             }
             _ => {}
@@ -230,11 +223,6 @@ fn main() {
     match &args.cmd {
         Subcommand::Dump(subargs) => match dump(&hubris, &args, subargs) {
             Err(err) => fatal!("dump failed: {:?}", err),
-            _ => std::process::exit(0),
-        },
-
-        Subcommand::Manifest => match manifest(&hubris) {
-            Err(err) => fatal!("manifest failed: {:?}", err),
             _ => std::process::exit(0),
         },
 

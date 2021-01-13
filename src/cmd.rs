@@ -6,6 +6,7 @@ mod apptable;
 mod etm;
 mod i2c;
 mod itm;
+mod manifest;
 mod map;
 mod probe;
 mod readmem;
@@ -45,6 +46,7 @@ pub fn init<'a, 'b>(
         etm::init,
         i2c::init,
         itm::init,
+        manifest::init,
         map::init,
         probe::init,
         readmem::init,

@@ -15,17 +15,11 @@ use structopt::clap::App;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(
-    name = "probe",
-    about = "probe for any attached devices"
-)]
+#[structopt(name = "probe", about = "probe for any attached devices")]
 struct ProbeArgs {}
 
 #[rustfmt::skip::macros(format)]
-fn probe(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-) -> Result<()> {
+fn probe(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     use num_traits::FromPrimitive;
     let mut status = vec![];
 
@@ -280,7 +274,7 @@ fn probe(
 fn probecmd(
     hubris: &mut HubrisArchive,
     args: &Args,
-    _subargs: &Vec<String>
+    _subargs: &Vec<String>,
 ) -> Result<()> {
     let mut core = attach_live(args)?;
 
