@@ -278,7 +278,7 @@ fn probecmd(
 ) -> Result<()> {
     let mut core = attach_live(args)?;
 
-    hubris.validate(core.as_mut())?;
+    hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
     probe(hubris, core.as_mut())
 }
 

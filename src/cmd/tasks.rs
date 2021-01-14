@@ -4,7 +4,7 @@
 
 use crate::attach;
 use crate::cmd::{Archive, HumilityCommand};
-use crate::hubris::{HubrisArchive, HubrisPrintFormat};
+use crate::hubris::*;
 use crate::Args;
 use anyhow::Result;
 use std::convert::TryInto;
@@ -32,7 +32,7 @@ fn tasks(
     let subargs = TasksArgs::from_iter_safe(subargs)?;
     let mut core = attach(&args)?;
 
-    hubris.validate(core.as_mut())?;
+    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;

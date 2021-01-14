@@ -5,7 +5,7 @@
 use crate::attach_live;
 use crate::cmd::{Archive, HumilityCommand};
 use crate::core::Core;
-use crate::hubris::HubrisArchive;
+use crate::hubris::*;
 use crate::itm::*;
 use crate::test::*;
 use crate::Args;
@@ -188,7 +188,7 @@ fn test(
     let mut c = attach_live(args)?;
     let core = c.as_mut();
 
-    hubris.validate(core)?;
+    hubris.validate(core, HubrisValidate::Booted)?;
 
     let stim = 0x0000_ffff;
     let traceid = itm_enable_ingest(core, hubris, stim)?;

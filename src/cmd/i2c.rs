@@ -501,7 +501,7 @@ fn i2c(
     let subargs = I2cArgs::from_iter_safe(subargs)?;
     let mut c = attach_live(args)?;
     let core = c.as_mut();
-    hubris.validate(core)?;
+    hubris.validate(core, HubrisValidate::Booted)?;
 
     if !subargs.scan && subargs.read.is_none() {
         bail!("must specify either 'scan' or 'read'");

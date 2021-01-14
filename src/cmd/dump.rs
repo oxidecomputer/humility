@@ -4,7 +4,7 @@
 
 use crate::attach_live;
 use crate::cmd::{Archive, HumilityCommand};
-use crate::hubris::HubrisArchive;
+use crate::hubris::*;
 use crate::Args;
 use anyhow::Result;
 use structopt::clap::App;
@@ -24,7 +24,7 @@ fn dumpcmd(
     let subargs = DumpArgs::from_iter_safe(subargs)?;
 
     let mut core = attach_live(&args)?;
-    hubris.validate(core.as_mut())?;
+    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
     let _info = core.halt()?;
     info!("core halted");
 

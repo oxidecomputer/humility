@@ -4,7 +4,7 @@
 
 use crate::attach;
 use crate::cmd::{Archive, HumilityCommand};
-use crate::hubris::{HubrisArchive, HubrisPrintFormat};
+use crate::hubris::*;
 use crate::Args;
 use anyhow::{bail, Result};
 use structopt::clap::App;
@@ -40,7 +40,7 @@ fn readvar(
     };
 
     let mut core = attach(&args)?;
-    hubris.validate(core.as_mut())?;
+    hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
 
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(v.size, Default::default);

@@ -4,7 +4,7 @@
 
 use crate::attach;
 use crate::cmd::{Archive, HumilityCommand};
-use crate::hubris::HubrisArchive;
+use crate::hubris::*;
 use crate::Args;
 use anyhow::Result;
 use structopt::clap::App;
@@ -23,7 +23,7 @@ fn mapcmd(
     _subargs: &Vec<String>,
 ) -> Result<()> {
     let mut core = attach(&args)?;
-    hubris.validate(core.as_mut())?;
+    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
 
     let regions = hubris.regions(core.as_mut())?;
 

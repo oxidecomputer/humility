@@ -19,7 +19,7 @@ use std::time::Instant;
 
 use fallible_iterator::FallibleIterator;
 
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 
 use capstone::prelude::*;
 use capstone::InsnGroupType;
@@ -27,6 +27,8 @@ use goblin::elf::Elf;
 use multimap::MultiMap;
 use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
+
+use crate::debug::*;
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
@@ -53,7 +55,7 @@ pub struct HubrisArchive {
     pub manifest: HubrisManifest,
 
     // app table
-    apptable: Vec<u8>,
+    apptable: (u32, Vec<u8>),
 
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
@@ -260,6 +262,12 @@ pub struct HubrisPrintFormat {
     pub hex: bool,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum HubrisValidate {
+    ArchiveMatch,
+    Booted,
+}
+
 impl fmt::Display for HubrisGoff {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.object > 0 {
@@ -418,7 +426,7 @@ impl HubrisArchive {
 
         Ok(Self {
             archive: Vec::new(),
-            apptable: Vec::new(),
+            apptable: (0, Vec::new()),
             manifest: Default::default(),
             loaded: BTreeMap::new(),
             cs: match cs {
@@ -1670,7 +1678,7 @@ impl HubrisArchive {
                     let base = sec.sh_offset as usize;
                     let len = sec.sh_size as usize;
 
-                    buffer[base..base + len].to_vec()
+                    (sec.sh_addr as u32, buffer[base..base + len].to_vec())
                 }
             };
         }
@@ -2098,7 +2106,11 @@ impl HubrisArchive {
         }
     }
 
-    pub fn validate(&self, core: &mut dyn crate::core::Core) -> Result<()> {
+    pub fn validate(
+        &self,
+        core: &mut dyn crate::core::Core,
+        criteria: HubrisValidate,
+    ) -> Result<()> {
         let ntasks = self.ntasks();
 
         if self.current == 0 {
@@ -2110,31 +2122,50 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        let size =
-            core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
+        let addr = self.apptable.0;
+        let nbytes = self.apptable.1.len();
+        assert!(nbytes > 0);
 
-        if size == 0 {
-            /*
-             * The TASK_TABLE_SIZE is set dynamically by Hubris on boot -- so
-             * it can be 0 if the kernel hasn't booted.  If this is the case,
-             * we expect the TASK_TABLE_BASE to also be 0, so as an added
-             * check, we check that as well.
-             */
-            let base =
-                core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
+        let mut apptable = vec![0; nbytes];
+        core.read_8(addr, &mut apptable[0..nbytes]).context(format!(
+            "failed to read .hubris_app_table at 0x{:x}; board mismatch?",
+            addr
+        ))?;
 
-            if base != 0 {
-                Err(anyhow!("TASK_TABLE_SIZE is 0, \
-                    but TASK_TABLE_BASE is 0x{:x}; archive mismatch?", base))
-            } else {
-                Ok(())
-            }
-        } else if size != ntasks as u32 {
-            Err(anyhow!("tasks in image ({}) does not equal tasks in \
-                archive ({}); archive mismatch?", size, ntasks))
-        } else {
-            Ok(())
+        let deltas = apptable
+            .iter()
+            .zip(self.apptable.1.iter())
+            .filter(|&(lhs, rhs)| lhs != rhs)
+            .count();
+
+        if deltas > 0 || apptable.len() != self.apptable.1.len() {
+            bail!("apptable at 0x{:x} does not match archive apptable", addr);
         }
+
+        if criteria == HubrisValidate::ArchiveMatch {
+            return Ok(());
+        }
+
+        let n = core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
+
+        if n == ntasks as u32 {
+            return Ok(());
+        }
+
+        /*
+         * We appear to not have booted, so we're going to fail -- but let's
+         * see if it's the common case of being actually in Reset itself to
+         * give a more certain message.
+         */
+        if let Some(sym) = self.esyms_byname.get("Reset") {
+            if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+                if pc >= sym.0 && pc < sym.0 + sym.1 {
+                    bail!("target is not yet booted (currently in Reset)");
+                }
+            }
+        }
+
+        bail!("target does not appear to be booted");
     }
 
     pub fn member_offset(
@@ -2932,6 +2963,6 @@ impl HubrisArchive {
     }
 
     pub fn apptable(&self) -> &[u8] {
-        &self.apptable
+        &self.apptable.1
     }
 }
