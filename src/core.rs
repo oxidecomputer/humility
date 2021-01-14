@@ -224,13 +224,26 @@ impl Core for OpenOCDCore {
         let mut index = None;
         let mut seen = vec![false; data.len()];
 
+        let result = self.sendcmd("return $output")?;
+
+        /*
+         * Entirely on-brand, if the mem2array command has failed wildly,
+         * OpenOCD won't actually return an error to us -- it will merely fail
+         * to set the variable (and we will therefore fail when we attempt to
+         * retrieve the variable).  If we fail to retrieve the variable, we
+         * infer it to be a failure to perform the read and bail explicitly.
+         */
+        if result.contains("no such variable") {
+            bail!("read at 0x{:x} for {} bytes failed", addr, data.len());
+        }
+
         /*
          * The output here is bonkers: instead of being (merely) the array,
          * it's an (undelimited) set of 2-tuples of (index, value) -- sorted
          * in strict alphabetical order by index (!!).  (That is, index 100
          * comes before, say, index 11.)
          */
-        for val in self.sendcmd("return $output")?.split(" ") {
+        for val in result.split(" ") {
             match index {
                 None => {
                     let idx = val.parse::<usize>()?;
