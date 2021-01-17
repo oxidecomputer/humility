@@ -370,11 +370,7 @@ fn i2c_done(
                 println!("");
             }
         }
-
-        std::process::exit(0);
-    }
-
-    if subargs.scan && subargs.device.is_some() {
+    } else if subargs.scan && subargs.device.is_some() {
         println!(
             "\nRegister scan for device 0x{:x} on I2C{}:\n",
             subargs.device.unwrap(),
@@ -423,6 +419,14 @@ fn i2c_done(
                 println!("");
             }
         }
+    } else {
+        println!(
+            "Controller I2C{}, device 0x{:x}, register 0x{:x} = {:x?}",
+            subargs.controller,
+            subargs.device.unwrap(),
+            subargs.read.unwrap(),
+            results[0]
+        );
     }
 
     std::process::exit(0);
