@@ -4,6 +4,7 @@
 
 use crate::attach;
 use crate::cmd::{Archive, HumilityCommand};
+use crate::core::Core;
 use crate::hubris::*;
 use crate::Args;
 use anyhow::{bail, Result};
@@ -23,6 +24,25 @@ struct ReadvarArgs {
     variable: Option<String>,
 }
 
+fn readvar_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    variable: &HubrisVariable,
+    subargs: &ReadvarArgs,
+) -> Result<()> {
+    let mut buf: Vec<u8> = vec![];
+    buf.resize_with(variable.size, Default::default);
+    core.read_8(variable.addr, buf.as_mut_slice())?;
+
+    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: true };
+    let name = subargs.variable.as_ref().unwrap();
+    let dumped = hubris.printfmt(&buf, variable.goff, &fmt)?;
+
+    println!("{} (0x{:08x}) = {}", name, variable.addr, dumped);
+
+    Ok(())
+}
+
 fn readvar(
     hubris: &mut HubrisArchive,
     args: &Args,
@@ -34,23 +54,17 @@ fn readvar(
         return hubris.list_variables();
     }
 
-    let v = match subargs.variable {
-        Some(ref variable) => hubris.lookup_variable(variable)?,
+    let variables = match subargs.variable {
+        Some(ref variable) => hubris.lookup_variables(variable)?,
         None => bail!("expected variable (use \"-l\" to list)"),
     };
 
     let mut core = attach(&args)?;
     hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
 
-    let mut buf: Vec<u8> = vec![];
-    buf.resize_with(v.size, Default::default);
-    core.read_8(v.addr, buf.as_mut_slice())?;
-
-    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: true };
-    let name = subargs.variable.as_ref().unwrap();
-    let dumped = hubris.printfmt(&buf, v.goff, &fmt)?;
-
-    println!("{} (0x{:08x}) = {}", name, v.addr, dumped);
+    for v in variables {
+        readvar_dump(hubris, core.as_mut(), v, &subargs)?;
+    }
 
     Ok(())
 }
