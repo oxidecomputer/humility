@@ -122,6 +122,7 @@ the `-d` option (long form `--dump`).
 - [humility probe](#humility-probe): probe attached devices
 - [humility readmem](#humility-readmem): read and display memory region
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
+- [humility ringbuf](#humility-ringbuf): read and display any ring buffers
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubris test suite and parse results
 
@@ -468,6 +469,35 @@ CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
         pointer: 0x20000558 (*const kern::task::Task)
     })
 ```
+
+### `humility ringbuf`
+
+`humility ringbuf` reads and displays any Hubris ring buffers (as created
+via the `ringbuf!` macro in the Hubris `ringbuf` crate).  e.g.:
+
+```console
+% humility -d ./hubris.core.5 ringbuf
+ADDR        NDX LINE  GEN    COUNT PAYLOAD
+0x2000a288  552   92    1        5 (21.5, 70.69999694824219)
+0x2000a298  553   92    1        1 (21.4375, 70.58749389648438)
+0x2000a2a8  554   92    1        1 (21.5, 70.69999694824219)
+0x2000a2b8  555   92    1        1 (21.4375, 70.58749389648438)
+0x2000a2c8  556   92    1        5 (21.5, 70.69999694824219)
+0x2000a2d8  557   92    1        1 (21.5625, 70.8125)
+0x2000a2e8  558   92    1       15 (21.5, 70.69999694824219)
+0x2000a2f8  559   92    1        1 (21.4375, 70.58749389648438)
+0x2000a308  560   92    1       10 (21.5, 70.69999694824219)
+0x2000a318  561   92    1        2 (21.4375, 70.58749389648438)
+0x2000a328  562   92    1        2 (21.5, 70.69999694824219)
+0x2000a338  563   92    1        1 (21.4375, 70.58749389648438)
+0x2000a348  564   92    1        9 (21.5, 70.69999694824219)
+0x2000a358  565   92    1        3 (21.4375, 70.58749389648438)
+0x2000a368  566   92    1        4 (21.5, 70.69999694824219)
+0x2000a378  567   92    1        1 (21.4375, 70.58749389648438)
+...
+```
+
+See the `ringbuf` documentation for more details.
 
 ### `humility dump`
 

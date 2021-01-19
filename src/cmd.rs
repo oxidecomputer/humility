@@ -12,6 +12,7 @@ mod map;
 mod probe;
 mod readmem;
 mod readvar;
+mod ringbuf;
 mod tasks;
 mod test;
 mod trace;
@@ -53,6 +54,7 @@ pub fn init<'a, 'b>(
         probe::init,
         readmem::init,
         readvar::init,
+        ringbuf::init,
         tasks::init,
         test::init,
         trace::init,

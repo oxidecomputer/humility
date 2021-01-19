@@ -79,7 +79,7 @@ pub struct HubrisArchive {
     esyms: BTreeMap<u32, (String, u32)>,
 
     // ELF symbols: name to value/length
-    esyms_byname: HashMap<String, (u32, u32)>,
+    esyms_byname: MultiMap<String, (u32, u32)>,
 
     // Inlined: address/nesting tuple to length/goff/origin tuple
     inlined: BTreeMap<(u32, isize), (u32, HubrisGoff, HubrisGoff)>,
@@ -109,7 +109,7 @@ pub struct HubrisArchive {
     arrays: HashMap<HubrisGoff, HubrisArray>,
 
     // Variables: name to goff/address/size tuple
-    variables: HashMap<String, HubrisVariable>,
+    variables: MultiMap<String, HubrisVariable>,
 
     // Unions: goff to size
     unions: HashMap<HubrisGoff, usize>,
@@ -443,7 +443,7 @@ impl HubrisArchive {
             modules: BTreeMap::new(),
             dsyms: BTreeMap::new(),
             esyms: BTreeMap::new(),
-            esyms_byname: HashMap::new(),
+            esyms_byname: MultiMap::new(),
             inlined: BTreeMap::new(),
             subprograms: HashMap::new(),
             basetypes: HashMap::new(),
@@ -453,7 +453,7 @@ impl HubrisArchive {
             enums: HashMap::new(),
             enums_byname: MultiMap::new(),
             arrays: HashMap::new(),
-            variables: HashMap::new(),
+            variables: MultiMap::new(),
             unions: HashMap::new(),
         })
     }
@@ -1016,23 +1016,25 @@ impl HubrisArchive {
                     None => name,
                 };
 
-                if let Some(sym) = self.esyms_byname.get(linkage) {
-                    match self.dsyms.get(&sym.0) {
-                        None => {
-                            self.dsyms.insert(
-                                sym.0,
-                                (String::from(name), sym.1, goff),
-                            );
-                            self.variables.insert(
-                                String::from(name),
-                                HubrisVariable {
-                                    goff: tgoff,
-                                    addr: sym.0,
-                                    size: sym.1 as usize,
-                                },
-                            );
+                if let Some(syms) = self.esyms_byname.get_vec(linkage) {
+                    for sym in syms {
+                        match self.dsyms.get(&sym.0) {
+                            None => {
+                                self.dsyms.insert(
+                                    sym.0,
+                                    (String::from(name), sym.1, goff),
+                                );
+                                self.variables.insert(
+                                    String::from(name),
+                                    HubrisVariable {
+                                        goff: tgoff,
+                                        addr: sym.0,
+                                        size: sym.1 as usize,
+                                    },
+                                );
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
             }
@@ -2038,7 +2040,6 @@ impl HubrisArchive {
         }
     }
 
-    #[allow(dead_code)]
     pub fn lookup_struct(&self, goff: HubrisGoff) -> Result<&HubrisStruct> {
         match self.structs.get(&goff) {
             Some(s) => Ok(s),
@@ -2088,6 +2089,13 @@ impl HubrisArchive {
         match self.variables.get(name) {
             Some(variable) => Ok(variable),
             None => Err(anyhow!("variable {} not found", name)),
+        }
+    }
+
+    pub fn lookup_variables(&self, name: &str) -> Result<&Vec<HubrisVariable>> {
+        match self.variables.get_vec(name) {
+            None => Err(anyhow!("variable {} not found", name)),
+            Some(variables) => Ok(variables),
         }
     }
 
@@ -2901,7 +2909,9 @@ impl HubrisArchive {
         let mut variables = vec![];
 
         for (name, variable) in &self.variables {
-            variables.push((HubrisTask::from(variable.goff), name, variable));
+            for v in variable {
+                variables.push((HubrisTask::from(v.goff), name, v));
+            }
         }
 
         variables.sort();
