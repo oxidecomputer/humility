@@ -713,7 +713,7 @@ pub fn etm_ingest(
         ASyncSearching,
         ISyncSearching,
         Ingesting,
-    };
+    }
 
     let mut state: IngestState = IngestState::ASyncSearching;
     let mut pstate: ETM3PacketState = ETM3PacketState::AwaitingHeader;

@@ -321,7 +321,7 @@ pub fn itm_ingest(
     enum IngestState {
         SyncSearching,
         Ingesting,
-    };
+    }
 
     let mut state: IngestState = IngestState::SyncSearching;
     let mut pstate: ITMPacketState = ITMPacketState::AwaitingHeader;
