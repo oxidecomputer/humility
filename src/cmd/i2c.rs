@@ -45,25 +45,27 @@ struct I2cArgs {
     #[structopt(long, short, value_name = "port")]
     port: Option<String>,
 
+    /// specifies I2C multiplexer and segment
+    #[structopt(long, short, value_name = "mux:segment")]
+    mux: Option<String>,
+
     /// specifies an I2C device address
     #[structopt(long, short, value_name = "address",
         parse(try_from_str = parse_int::parse),
     )]
     device: Option<u8>,
 
-    /// read a register
+    /// specifies register
     #[structopt(long, short, value_name = "register",
         parse(try_from_str = parse_int::parse),
     )]
-    read: Option<u8>,
+    register: Option<u8>,
 
-    /// read as halfwords instead of as bytes
-    #[structopt(long, short, conflicts_with = "word")]
-    halfword: bool,
-
-    /// read as words instead of as bytes
-    #[structopt(long, short)]
-    word: bool,
+    /// specifies write value
+    #[structopt(long, short, value_name = "register",
+        parse(try_from_str = parse_int::parse),
+    )]
+    write: Option<u8>,
 }
 
 #[derive(Debug)]
@@ -77,6 +79,7 @@ struct I2cVariables<'a> {
     segment: &'a HubrisVariable,
     device: &'a HubrisVariable,
     register: &'a HubrisVariable,
+    value: &'a HubrisVariable,
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
     results: &'a HubrisVariable,
@@ -117,6 +120,7 @@ impl<'a> I2cVariables<'a> {
             segment: Self::variable(hubris, "I2C_DEBUG_SEGMENT", true)?,
             device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
             register: Self::variable(hubris, "I2C_DEBUG_REGISTER", true)?,
+            value: Self::variable(hubris, "I2C_DEBUG_VALUE", true)?,
             requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
             errors: Self::variable(hubris, "I2C_DEBUG_ERRORS", true)?,
             results: Self::variable(hubris, "I2C_DEBUG_RESULTS", false)?,
@@ -166,6 +170,24 @@ impl<'a> I2cVariables<'a> {
             }
         }
 
+        let mux = if let Some(mux) = &subargs.mux {
+            let s = mux
+                .split(":")
+                .map(|v| parse_int::parse::<u32>(v))
+                .collect::<Result<Vec<_>, _>>()
+                .context("expected multiplexer and segment to be integers")?;
+
+            if s.len() == 2 {
+                Some((s[0], s[1]))
+            } else if s.len() == 1 {
+                Some((0, s[0]))
+            } else {
+                bail!("expected only multiplexer and segment identifiers");
+            }
+        } else {
+            None
+        };
+
         core.halt()?;
         core.write_word_32(self.controller.addr, subargs.controller as u32)?;
 
@@ -173,12 +195,21 @@ impl<'a> I2cVariables<'a> {
             core.write_word_32(self.device.addr, device as u32)?;
         }
 
-        if let Some(register) = subargs.read {
+        if let Some(register) = subargs.register {
             core.write_word_32(self.register.addr, register as u32)?;
+        }
+
+        if let Some(value) = subargs.write {
+            core.write_word_32(self.value.addr, value as u32)?;
         }
 
         if let Some(port) = port {
             core.write_8(self.port.addr, port as u8)?;
+        }
+
+        if let Some(mux) = mux {
+            core.write_word_32(self.mux.addr, mux.0 as u32)?;
+            core.write_word_32(self.segment.addr, mux.1 as u32)?;
         }
 
         core.write_word_32(self.kick.addr, 1)?;
@@ -424,7 +455,7 @@ fn i2c_done(
             "Controller I2C{}, device 0x{:x}, register 0x{:x} = {:x?}",
             subargs.controller,
             subargs.device.unwrap(),
-            subargs.read.unwrap(),
+            subargs.register.unwrap(),
             results[0]
         );
     }
@@ -507,8 +538,8 @@ fn i2c(
     let core = c.as_mut();
     hubris.validate(core, HubrisValidate::Booted)?;
 
-    if !subargs.scan && subargs.read.is_none() {
-        bail!("must specify either 'scan' or 'read'");
+    if !subargs.scan && subargs.register.is_none() {
+        bail!("must specify either 'scan' or specify a register");
     }
 
     let mut vars = I2cVariables::new(hubris, subargs.timeout)?;
