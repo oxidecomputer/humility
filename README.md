@@ -123,6 +123,8 @@ the `-d` option (long form `--dump`).
 - [humility readmem](#humility-readmem): read and display memory region
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
 - [humility ringbuf](#humility-ringbuf): read and display any ring buffers
+- [humility stackmargin](#humility-stackmargin): calculate and print stack
+  margins by task
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubris test suite and parse results
 
@@ -498,6 +500,30 @@ ADDR        NDX LINE  GEN    COUNT PAYLOAD
 ```
 
 See the `ringbuf` documentation for more details.
+
+### `humility stackmargin`
+
+`humility stackmargin` calculates and print stack margins by task. The
+margin is determined by walking up each stack, looking for the first
+word that does not contain the uninitialized pattern (`0xbaddcafe`),
+from which it infers maximum depth, and therefore margin:
+
+```console
+% humility -d ./hubris.core.10 stackmargin
+humility: attached to dump
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20001000       1024        768        256
+ 1 rcc_driver         0x20001400       1024        176        848
+ 2 usart_driver       0x20001800       1024        216        808
+ 3 user_leds          0x20001c00       1024        208        816
+ 4 ping               0x20002000        512        224        288
+ 5 pong               0x20002400       1024        208        816
+ 6 idle               0x20002800        256        104        152
+```
+
+Note that the margin is only valid for the task's lifetime -- and in
+particular, will not be correct if the task has restarted due to a
+stack overflow!
 
 ### `humility dump`
 
