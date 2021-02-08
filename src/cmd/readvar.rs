@@ -17,6 +17,9 @@ use structopt::StructOpt;
     about = "read and display a specified Hubris variable"
 )]
 struct ReadvarArgs {
+    /// values in decimal instead of hex
+    #[structopt(long, short)]
+    decimal: bool,
     /// list variables
     #[structopt(long, short)]
     list: bool,
@@ -33,8 +36,9 @@ fn readvar_dump(
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(variable.size, Default::default);
     core.read_8(variable.addr, buf.as_mut_slice())?;
+    let hex = !subargs.decimal;
 
-    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: true };
+    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: hex };
     let name = subargs.variable.as_ref().unwrap();
     let dumped = hubris.printfmt(&buf, variable.goff, &fmt)?;
 
