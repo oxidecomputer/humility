@@ -10,7 +10,6 @@ use crate::itm::*;
 use crate::Args;
 use anyhow::{bail, Context, Result};
 use std::cell::RefCell;
-use std::convert::TryInto;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -22,7 +21,7 @@ use structopt::StructOpt;
 struct I2cArgs {
     /// sets timeout
     #[structopt(
-        long, short, default_value = "5000", value_name = "timeout_ms`",
+        long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -32,7 +31,7 @@ struct I2cArgs {
     log: bool,
 
     /// scan a controller for devices or a device for registers
-    #[structopt(long, short, conflicts_with = "read")]
+    #[structopt(long, short, conflicts_with = "register")]
     scan: bool,
 
     /// specifies an I2C bus
@@ -66,6 +65,13 @@ struct I2cArgs {
         parse(try_from_str = parse_int::parse),
     )]
     write: Option<u8>,
+
+    /// number of bytes to read from register
+    #[structopt(long, short, value_name = "nbytes",
+        requires = "register", conflicts_with = "write",
+        parse(try_from_str = parse_int::parse),
+    )]
+    nbytes: Option<u8>,
 }
 
 #[derive(Debug)]
@@ -79,6 +85,7 @@ struct I2cVariables<'a> {
     segment: &'a HubrisVariable,
     device: &'a HubrisVariable,
     register: &'a HubrisVariable,
+    nbytes: &'a HubrisVariable,
     value: &'a HubrisVariable,
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
@@ -120,6 +127,7 @@ impl<'a> I2cVariables<'a> {
             segment: Self::variable(hubris, "I2C_DEBUG_SEGMENT", true)?,
             device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
             register: Self::variable(hubris, "I2C_DEBUG_REGISTER", true)?,
+            nbytes: Self::variable(hubris, "I2C_DEBUG_NBYTES", true)?,
             value: Self::variable(hubris, "I2C_DEBUG_VALUE", true)?,
             requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
             errors: Self::variable(hubris, "I2C_DEBUG_ERRORS", true)?,
@@ -196,6 +204,17 @@ impl<'a> I2cVariables<'a> {
         }
 
         if let Some(register) = subargs.register {
+            if let Some(nbytes) = subargs.nbytes {
+                match nbytes {
+                    1 | 2 => {
+                        core.write_word_32(self.nbytes.addr, nbytes as u32)?;
+                    }
+                    _ => {
+                        bail!("illegal value for nbytes");
+                    }
+                }
+            }
+
             core.write_word_32(self.register.addr, register as u32)?;
         }
 
@@ -262,7 +281,7 @@ fn i2c_results<'a>(
     hubris: &'a HubrisArchive,
     vars: &I2cVariables,
     buf: &[u8],
-) -> Result<Vec<Option<Result<u32, &'a HubrisEnumVariant>>>> {
+) -> Result<Vec<Option<Result<u8, &'a HubrisEnumVariant>>>> {
     let variant_enum = |variant: &HubrisEnumVariant| {
         let t = match variant.goff {
             None => bail!("expected tuple"),
@@ -298,7 +317,7 @@ fn i2c_results<'a>(
     let err_payload = variant_enum(err)?;
     let ok_payload = variant_basetype(ok)?;
 
-    let mut results: Vec<Option<Result<u32, &HubrisEnumVariant>>> = vec![];
+    let mut results: Vec<Option<Result<u8, &HubrisEnumVariant>>> = vec![];
 
     for i in 0..array.count {
         let offs = i * option.size;
@@ -319,9 +338,7 @@ fn i2c_results<'a>(
             } else {
                 let o = offs + ok_payload.1;
 
-                results.push(Some(Ok(u32::from_le_bytes(
-                    buf[o..o + 4].try_into()?,
-                ))));
+                results.push(Some(Ok(buf[o])));
             }
         } else {
             results.push(None);
@@ -452,11 +469,32 @@ fn i2c_done(
         }
     } else {
         println!(
-            "Controller I2C{}, device 0x{:x}, register 0x{:x} = {:x?}",
+            "Controller I2C{}, device 0x{:x}, register 0x{:x} = {}",
             subargs.controller,
             subargs.device.unwrap(),
             subargs.register.unwrap(),
-            results[0]
+            match results[0] {
+                Some(Err(err)) => {
+                    format!("Err({})", err.name)
+                }
+                None => {
+                    "Timed out".to_string()
+                }
+                Some(Ok(val)) => {
+                    match subargs.nbytes {
+                        Some(2) => {
+                            if let Some(Ok(msb)) = results[1] {
+                                format!("0x{:02x} 0x{:02x}", val, msb)
+                            } else {
+                                format!("{:x?} {:x?}", results[0], results[1])
+                            }
+                        }
+                        _ => {
+                            format!("0x{:02x}", val)
+                        }
+                    }
+                }
+            }
         );
     }
 
