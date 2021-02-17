@@ -4,7 +4,7 @@
 
 use crate::attach;
 use crate::cmd::{Archive, HumilityCommand};
-use crate::hubris::HubrisArchive;
+use crate::hubris::*;
 use crate::Args;
 use anyhow::{bail, Result};
 use std::convert::TryInto;
@@ -58,7 +58,10 @@ fn readmem(
 
     let mut addr = match parse_int::parse::<u32>(&subargs.address) {
         Ok(addr) => addr,
-        _ => hubris.lookup_peripheral(&subargs.address)?,
+        _ => {
+            hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
+            hubris.lookup_peripheral(&subargs.address)?
+        }
     };
 
     if addr & (size - 1) as u32 != 0 {
