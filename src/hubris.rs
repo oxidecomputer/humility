@@ -2099,6 +2099,18 @@ impl HubrisArchive {
         }
     }
 
+    pub fn variables(&self) -> Vec<(&String, &HubrisVariable)> {
+        let mut variables = vec![];
+
+        for (name, variable) in &self.variables {
+            for v in variable {
+                variables.push((name, v));
+            }
+        }
+
+        variables
+    }
+
     pub fn lookup_task(&self, task: HubrisTask) -> Result<&HubrisModule> {
         match self.modules.values().find(|m| m.task == task) {
             Some(module) => Ok(module),

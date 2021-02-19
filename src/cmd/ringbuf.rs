@@ -132,6 +132,13 @@ fn ringbuf_dump(
     Ok(())
 }
 
+fn taskname<'a>(
+    hubris: &'a HubrisArchive,
+    variable: &'a HubrisVariable,
+) -> Result<&'a String> {
+    Ok(&hubris.lookup_task(HubrisTask::from(variable.goff))?.name)
+}
+
 fn ringbuf(
     hubris: &mut HubrisArchive,
     args: &Args,
@@ -139,19 +146,49 @@ fn ringbuf(
 ) -> Result<()> {
     let subargs = RingbufArgs::from_iter_safe(subargs)?;
 
-    if subargs.list {
-        return hubris.list_variables();
-    }
-
     let mut core = attach(&args)?;
     hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
 
-    let ringbufs =
-        hubris.lookup_variables("RINGBUF").context("no ring buffers found")?;
+    let vars = hubris.variables();
+    let mut ringbufs = vec![];
 
-    for ringbuf in ringbufs {
-        let def = hubris.lookup_struct(ringbuf.goff)?;
-        ringbuf_dump(hubris, core.as_mut(), def, &ringbuf)?;
+    for v in vars {
+        if let Some(ref variable) = subargs.variable {
+            if v.0.eq(variable) {
+                ringbufs.push(v);
+            }
+        } else {
+            if v.0.ends_with("RINGBUF") {
+                ringbufs.push(v);
+            }
+        }
+    }
+
+    if ringbufs.len() == 0 {
+        if let Some(variable) = subargs.variable {
+            bail!("ring buffer \"{}\" not found (-l to list)", variable);
+        } else {
+            bail!("no ring buffers found");
+        }
+    }
+
+    ringbufs.sort();
+
+    if subargs.list {
+        info!("{:18} {:<30} {:<10} {}", "MODULE", "BUFFER", "ADDR", "SIZE");
+
+        for v in ringbufs {
+            let t = taskname(hubris, &v.1)?;
+            info!("{:18} {:<30} 0x{:08x} {:<}", t, v.0, v.1.addr, v.1.size);
+        }
+
+        return Ok(());
+    }
+
+    for v in ringbufs {
+        info!("ring buffer {} in {}:", v.0, taskname(hubris, &v.1)?);
+        let def = hubris.lookup_struct(v.1.goff)?;
+        ringbuf_dump(hubris, core.as_mut(), def, &v.1)?;
     }
 
     Ok(())
