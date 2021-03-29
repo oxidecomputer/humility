@@ -60,6 +60,10 @@ struct I2cArgs {
     )]
     register: Option<u8>,
 
+    /// indicates a raw operation
+    #[structopt(long, short = "R", conflicts_with = "register")]
+    raw: bool,
+
     /// specifies write value
     #[structopt(long, short, value_name = "register",
         parse(try_from_str = parse_int::parse),
@@ -68,7 +72,7 @@ struct I2cArgs {
 
     /// number of bytes to read from register
     #[structopt(long, short, value_name = "nbytes",
-        requires = "register", conflicts_with = "write",
+        conflicts_with = "write",
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<u8>,
@@ -203,19 +207,25 @@ impl<'a> I2cVariables<'a> {
             core.write_word_32(self.device.addr, device as u32)?;
         }
 
-        if let Some(register) = subargs.register {
-            if let Some(nbytes) = subargs.nbytes {
-                match nbytes {
-                    1 | 2 => {
-                        core.write_word_32(self.nbytes.addr, nbytes as u32)?;
-                    }
-                    _ => {
-                        bail!("illegal value for nbytes");
-                    }
-                }
+        if let Some(nbytes) = subargs.nbytes {
+            if subargs.register.is_none() && !subargs.raw {
+                bail!("must specify register or raw to specify nbytes");
             }
 
+            match nbytes {
+                1 | 2 => {
+                    core.write_word_32(self.nbytes.addr, nbytes as u32)?;
+                }
+                _ => {
+                    bail!("illegal value for nbytes");
+                }
+            }
+        }
+
+        if let Some(register) = subargs.register {
             core.write_word_32(self.register.addr, register as u32)?;
+        } else if subargs.raw {
+            core.write_word_32(self.register.addr, u8::MAX as u32 + 1)?;
         }
 
         if let Some(value) = subargs.write {
@@ -467,6 +477,34 @@ fn i2c_done(
                 println!("");
             }
         }
+    } else if subargs.raw {
+        println!(
+            "Controller I2C{}, device 0x{:x}, raw read = {}",
+            subargs.controller,
+            subargs.device.unwrap(),
+            match results[0] {
+                Some(Err(err)) => {
+                    format!("Err({})", err.name)
+                }
+                None => {
+                    "Timed out".to_string()
+                }
+                Some(Ok(val)) => {
+                    match subargs.nbytes {
+                        Some(2) => {
+                            if let Some(Ok(msb)) = results[1] {
+                                format!("0x{:02x} 0x{:02x}", val, msb)
+                            } else {
+                                format!("{:x?} {:x?}", results[0], results[1])
+                            }
+                        }
+                        _ => {
+                            format!("0x{:02x}", val)
+                        }
+                    }
+                }
+            }
+        );
     } else {
         println!(
             "Controller I2C{}, device 0x{:x}, register 0x{:x} = {}",
@@ -576,7 +614,7 @@ fn i2c(
     let core = c.as_mut();
     hubris.validate(core, HubrisValidate::Booted)?;
 
-    if !subargs.scan && subargs.register.is_none() {
+    if !subargs.scan && subargs.register.is_none() && !subargs.raw {
         bail!("must specify either 'scan' or specify a register");
     }
 
