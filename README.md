@@ -439,6 +439,30 @@ humility: attached via ST-Link
 0x58001c20 | 00000000 00000080 00000000 00000000 | ................
 ```
 
+It can also be useful to interpret memory contents symbolically; to do this,
+specify the `-s` option, e.g.:
+
+```console
+$ humility  -a ~/hubris/target/gemini-bu-rot/dist/build-gemini-bu-rot.zip readmem -s 0x20004b30 0x40
+humility: attached via DAPLink
+0x20004b30 | 0x20004bdc
+0x20004b34 | 0x0000000a <- __EXCEPTIONS+0x2
+0x20004b38 | 0x80000000
+0x20004b3c | 0x00002e2e <- syscall_entry+0xcf6
+0x20004b40 | 0x00000000
+0x20004b44 | 0x0003c2e3 <- spi:main+0x5b
+0x20004b48 | 0x0003ceda <- spi:sys_send_stub+0xe
+0x20004b4c | 0x01000000
+0x20004b50 | 0x00000000
+0x20004b54 | 0x00000000
+0x20004b58 | 0x00000000
+0x20004b5c | 0x00000000
+0x20004b60 | 0x00000000
+0x20004b64 | 0x00000000
+0x20004b68 | 0x00000000
+0x20004b6c | 0x00000000
+```
+
 ### `humility readvar`
 
 `humility readvar` allows one to read a global static variable.

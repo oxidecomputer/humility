@@ -15,12 +15,16 @@ use structopt::StructOpt;
 #[structopt(name = "readmem", about = "read and display memory region")]
 struct ReadmemArgs {
     /// print out as halfwords instead of as bytes
-    #[structopt(long, short, conflicts_with_all = &["word"])]
+    #[structopt(long, short, conflicts_with_all = &["word", "symbol"])]
     halfword: bool,
 
     /// print out as words instead of as bytes
-    #[structopt(long, short)]
+    #[structopt(long, short, conflicts_with_all = &["symbol"])]
     word: bool,
+
+    /// print out as symbols
+    #[structopt(long, short)]
+    symbol: bool,
 
     /// address to read
     address: String,
@@ -39,7 +43,7 @@ fn readmem(
     let mut core = attach(&args)?;
     let max = crate::core::CORE_MAX_READSIZE;
     let width: usize = 16;
-    let size = if subargs.word {
+    let size = if subargs.word || subargs.symbol {
         4
     } else if subargs.halfword {
         2
@@ -54,6 +58,10 @@ fn readmem(
 
     if length & (size - 1) != 0 {
         bail!("length must be {}-byte aligned", size);
+    }
+
+    if subargs.symbol {
+        hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
     }
 
     let mut addr = match parse_int::parse::<u32>(&subargs.address) {
@@ -81,6 +89,35 @@ fn readmem(
 
     if rval.is_err() {
         return rval;
+    }
+
+    if subargs.symbol {
+        for offs in (0..length).step_by(size) {
+            let slice = &bytes[offs..offs + size];
+            let val = u32::from_le_bytes(slice.try_into().unwrap());
+            println!(
+                "0x{:08x} | 0x{:08x}{}",
+                addr + offs as u32,
+                val,
+                if let Some(sval) = hubris.instr_sym(val) {
+                    format!(
+                        " <- {}{}+0x{:x}",
+                        match hubris.instr_mod(val) {
+                            Some(module) if module != "kernel" => {
+                                format!("{}:", module)
+                            }
+                            _ => "".to_string(),
+                        },
+                        sval.0,
+                        val - sval.1
+                    )
+                } else {
+                    "".to_string()
+                }
+            );
+        }
+
+        return Ok(());
     }
 
     let print = |line: &[u8], addr, offs| {
