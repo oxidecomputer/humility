@@ -28,6 +28,9 @@ use multimap::MultiMap;
 use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
 
+use gimli::UnwindSection;
+use num_traits::FromPrimitive;
+
 use crate::debug::*;
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
@@ -69,8 +72,17 @@ pub struct HubrisArchive {
     // Instructions: address to bytes/target tuple
     instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>,
 
+    // Manual stack pushes before a syscall
+    syscall_pushes: HashMap<u32, Option<Vec<ARMRegister>>>,
+
     // Modules: text address to module
     modules: BTreeMap<u32, HubrisModule>,
+
+    // DWARF call frame debugging sections: task to raw bytes
+    frames: HashMap<HubrisTask, Vec<u8>>,
+
+    // DWARF source code: goff to file/line
+    src: HashMap<HubrisGoff, HubrisSrc>,
 
     // DWARF symbols: address to name/length/goff tuple
     dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
@@ -115,7 +127,7 @@ pub struct HubrisArchive {
     unions: HashMap<HubrisGoff, usize>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum HubrisTask {
     Kernel,
     Task(u32),
@@ -135,7 +147,7 @@ pub struct HubrisGoff {
 pub struct HubrisSymbol<'a> {
     pub addr: u32,
     pub name: &'a str,
-    pub goff: Option<HubrisGoff>,
+    pub goff: HubrisGoff,
 }
 
 #[derive(Debug)]
@@ -242,6 +254,20 @@ pub enum HubrisTarget {
     Call(u32),
     IndirectCall,
     Return,
+}
+
+#[derive(Debug)]
+pub struct HubrisStackFrame<'a> {
+    pub cfa: u32,
+    pub sym: Option<HubrisSymbol<'a>>,
+    pub registers: HashMap<ARMRegister, u32>,
+    pub inlined: Option<Vec<HubrisInlined<'a>>>,
+}
+
+#[derive(Debug)]
+pub struct HubrisSrc {
+    pub file: String,
+    pub line: u64,
 }
 
 #[derive(Debug)]
@@ -440,7 +466,10 @@ impl HubrisArchive {
             },
             current: 0,
             instrs: HashMap::new(),
+            syscall_pushes: HashMap::new(),
             modules: BTreeMap::new(),
+            frames: HashMap::new(),
+            src: HashMap::new(),
             dsyms: BTreeMap::new(),
             esyms: BTreeMap::new(),
             esyms_byname: MultiMap::new(),
@@ -643,6 +672,21 @@ impl HubrisArchive {
         HubrisTarget::None
     }
 
+    fn instr_operands(&self, instr: &capstone::Insn) -> Vec<ARMRegister> {
+        let detail = self.cs.insn_detail(&instr).unwrap();
+        let mut rval: Vec<ARMRegister> = Vec::new();
+
+        for op in detail.arch_detail().operands() {
+            if let arch::ArchOperand::ArmOperand(op) = op {
+                if let arch::arm::ArmOperandType::Reg(id) = op.op_type {
+                    rval.push(id.into());
+                }
+            }
+        }
+
+        rval
+    }
+
     fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
         &self,
         unit: &gimli::Unit<R>,
@@ -687,6 +731,61 @@ impl HubrisArchive {
         }
 
         Some(HubrisGoff { object: self.current, goff })
+    }
+
+    fn dwarf_fileline<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<R>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let mut file = None;
+        let mut line = None;
+
+        let goff = self.dwarf_goff(unit, entry);
+
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_decl_file,
+                    gimli::AttributeValue::FileIndex(value),
+                ) => {
+                    file = Some(value);
+                }
+                (
+                    gimli::constants::DW_AT_decl_line,
+                    gimli::AttributeValue::Udata(value),
+                ) => {
+                    line = Some(value);
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(file), Some(line)) = (file, line) {
+            let header = match unit.line_program {
+                Some(ref program) => program.header(),
+                None => return Ok(()),
+            };
+            let file = match header.file(file) {
+                Some(header) => header,
+                None => {
+                    bail!("no header at {}", goff);
+                }
+            };
+
+            let s = dwarf.attr_string(unit, file.path_name())?;
+            let d = s.to_string_lossy()?;
+
+            self.src
+                .insert(goff, HubrisSrc { file: d.to_string(), line: line });
+        }
+
+        Ok(())
     }
 
     fn dwarf_inlined<R: gimli::Reader<Offset = usize>>(
@@ -1443,6 +1542,7 @@ impl HubrisArchive {
                 depth += delta;
 
                 let goff = self.dwarf_goff(&unit, entry);
+                self.dwarf_fileline(&dwarf, &unit, &entry)?;
 
                 if depth as usize >= stack.len() {
                     stack.push(goff);
@@ -1565,6 +1665,35 @@ impl HubrisArchive {
         }
 
         self.current += 1;
+
+        Ok(())
+    }
+
+    fn load_object_frames(
+        &mut self,
+        task: HubrisTask,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<()> {
+        let id = gimli::SectionId::DebugFrame.name();
+
+        let sh = elf
+            .section_headers
+            .iter()
+            .find(|sh| {
+                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                    name == id
+                } else {
+                    false
+                }
+            })
+            .ok_or_else(|| anyhow!("couldn't find {}", id))?;
+
+        let offs = sh.sh_offset as usize;
+        let size = sh.sh_size as usize;
+
+        let buf = buffer.get(offs..offs + size).unwrap();
+        self.frames.insert(task, buf.to_vec());
 
         Ok(())
     }
@@ -1704,8 +1833,14 @@ impl HubrisArchive {
         let size = textsec.sh_size as usize;
 
         trace!("loading {} as object {}", object, self.current);
+
+        self.load_object_dwarf(buffer, &elf)
+            .context(format!("{}: failed to load DWARF", object))?;
+
+        self.load_object_frames(task, buffer, &elf)
+            .context(format!("{}: failed to load debug frames", object))?;
+
         let t = buffer.get(offset..offset + size).unwrap();
-        self.load_object_dwarf(buffer, &elf)?;
 
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => instrs,
@@ -1718,6 +1853,7 @@ impl HubrisArchive {
         };
 
         let mut last: (u32, usize) = (0, 0);
+        let mut lastpush = None;
 
         for instr in instrs.iter() {
             let addr: u32 = instr.address() as u32;
@@ -1737,6 +1873,25 @@ impl HubrisArchive {
 
             let target = self.instr_branch_target(&instr);
             self.instrs.insert(addr, (v, target));
+
+            //
+            // We need to keep track of the hand-written push before any
+            // system call in order to be able to successfully unwind the
+            // stack.
+            //
+            const ARM_INSN_PUSH: u32 = arch::arm::ArmInsn::ARM_INS_PUSH as u32;
+            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
+
+            match instr.id() {
+                InsnId(ARM_INSN_PUSH) => {
+                    lastpush = Some(self.instr_operands(&instr));
+                }
+                InsnId(ARM_INSN_SVC) => {
+                    self.syscall_pushes.insert(addr + b.len() as u32, lastpush);
+                    lastpush = None;
+                }
+                _ => {}
+            }
         }
 
         /*
@@ -2118,6 +2273,10 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_src(&self, goff: HubrisGoff) -> Option<&HubrisSrc> {
+        self.src.get(&goff)
+    }
+
     fn ntasks(&self) -> usize {
         if self.current >= 1 {
             self.current as usize - 1
@@ -2367,6 +2526,233 @@ impl HubrisArchive {
         }
 
         Ok(regions)
+    }
+
+    pub fn registers(
+        &self,
+        core: &mut dyn crate::core::Core,
+        task: HubrisTask,
+    ) -> Result<HashMap<ARMRegister, u32>> {
+        let base =
+            core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
+        let module = self.lookup_task(task)?;
+        let mut rval = HashMap::new();
+
+        let ndx = match module.task {
+            HubrisTask::Task(ndx) => ndx,
+            _ => {
+                bail!("must provide a user task")
+            }
+        };
+
+        let task = self.lookup_struct_byname("Task")?;
+        let save = task.lookup_member("save")?.offset as u32;
+        let state = self.lookup_struct_byname("SavedState")?;
+
+        let mut regs: Vec<u8> = vec![];
+        regs.resize_with(state.size, Default::default);
+
+        let offset = base + (ndx * task.size as u32) + save;
+        core.read_8(offset, regs.as_mut_slice())?;
+
+        let readreg = |rname| -> Result<u32> {
+            let o = state.lookup_member(rname)?.offset as usize;
+            Ok(u32::from_le_bytes(regs[o..o + 4].try_into().unwrap()))
+        };
+
+        //
+        // R4-R11 are found in the structure.
+        //
+        for r in 4..=11 {
+            let rname = format!("r{}", r);
+            let o = state.lookup_member(&rname)?.offset as usize;
+            let val = u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
+
+            rval.insert(ARMRegister::from_usize(r).unwrap(), val);
+        }
+
+        let sp = readreg("psp")?;
+
+        const NREGS_CORE: usize = 8;
+        const NREGS_FP: usize = 17;
+        const NREGS_FRAME: usize = NREGS_CORE + NREGS_FP + 1;
+
+        let mut stack: Vec<u8> = vec![];
+        stack.resize_with(NREGS_CORE * 4, Default::default);
+        core.read_8(sp, stack.as_mut_slice())?;
+
+        //
+        // We manually adjust our stack pointer to peel off the entire frame
+        //
+        rval.insert(ARMRegister::SP, sp + (NREGS_FRAME as u32) * 4);
+
+        //
+        // R0-R3, and then R12, LR and the PSR are found on the stack
+        //
+        for r in 0..NREGS_CORE {
+            let o = r * 4;
+            let val = u32::from_le_bytes(stack[o..o + 4].try_into().unwrap());
+
+            let reg = match r {
+                0 | 1 | 2 | 3 => ARMRegister::from_usize(r).unwrap(),
+                4 => ARMRegister::R12,
+                5 => ARMRegister::LR,
+                6 => ARMRegister::PC,
+                7 => ARMRegister::xPSR,
+                _ => panic!("bad register value"),
+            };
+
+            rval.insert(reg, val);
+        }
+
+        Ok(rval)
+    }
+
+    pub fn stack(
+        &self,
+        core: &mut dyn crate::core::Core,
+        task: HubrisTask,
+        limit: u32,
+        regs: &HashMap<ARMRegister, u32>,
+    ) -> Result<Vec<HubrisStackFrame>> {
+        let regions = self.regions(core)?;
+        let sp = regs.get(&ARMRegister::SP).unwrap();
+        let pc = regs.get(&ARMRegister::PC).unwrap();
+
+        let mut rval: Vec<HubrisStackFrame> = Vec::new();
+        let mut frameregs = regs.clone();
+
+        //
+        // First, find the region that contains our stack pointer.  We want
+        // to read that entire region.
+        //
+        let (_, ref region) = regions.range(..=sp).last().ok_or_else(|| {
+            anyhow!("could not find memory region containing sp 0x{:x}", sp)
+        })?;
+
+        let mut buf: Vec<u8> = vec![];
+        buf.resize_with(region.size as usize, Default::default);
+        core.read_8(region.base, buf.as_mut_slice())?;
+
+        let readval = |addr| {
+            let o = (addr - region.base) as usize;
+            u32::from_le_bytes(buf[o..o + 4].try_into().unwrap())
+        };
+
+        //
+        // If our PC is in a system call (highly likely), we need to determine
+        // what has been pushed on our stack via asm!().
+        //
+        if let Some(lastpush) = self.syscall_pushes.get(&pc) {
+            if let Some(pushed) = lastpush {
+                for i in 0..pushed.len() {
+                    let val = readval(sp + (i * 4) as u32);
+                    frameregs.insert(pushed[i], val);
+                }
+
+                frameregs
+                    .insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
+            }
+        }
+
+        let frames = self.frames.get(&task).unwrap();
+        let frame = gimli::DebugFrame::new(frames, gimli::LittleEndian);
+
+        loop {
+            let bases = gimli::BaseAddresses::default();
+            let mut ctx = gimli::UninitializedUnwindContext::new();
+            let pc = *frameregs.get(&ARMRegister::PC).unwrap();
+
+            //
+            // Now we want to iterate up our frames
+            //
+            let unwind_info = frame.unwind_info_for_address(
+                &bases,
+                &mut ctx,
+                pc as u64,
+                gimli::DebugFrame::cie_from_offset,
+            )?;
+
+            //
+            // Determine the CFA (Canonical Frame Address)
+            //
+            let cfa = match unwind_info.cfa() {
+                gimli::CfaRule::RegisterAndOffset { register, offset } => {
+                    let reg = ARMRegister::from_u16(register.0).unwrap();
+                    *frameregs.get(&reg).unwrap() + *offset as u32
+                }
+                _ => {
+                    panic!("unimplemented CFA rule");
+                }
+            };
+
+            //
+            // Now iterate over all of our register rules to transform
+            // our registers.
+            //
+            for (register, rule) in unwind_info.registers() {
+                let val = match rule {
+                    gimli::RegisterRule::Offset(offset) => {
+                        readval((i64::from(cfa) + offset) as u32)
+                    }
+                    _ => {
+                        panic!("unimplemented register rule");
+                    }
+                };
+
+                let reg = ARMRegister::from_u16(register.0).unwrap();
+                frameregs.insert(reg, val);
+            }
+
+            frameregs.insert(ARMRegister::SP, cfa);
+
+            //
+            // Lookup the DWARF symbol associated with our PC
+            //
+            let sym = match self.dsyms.range(..=pc).next_back() {
+                Some(sym) if pc < *sym.0 + (sym.1).1 => Some(HubrisSymbol {
+                    addr: *sym.0 as u32,
+                    name: &(sym.1).0,
+                    goff: (sym.1).2,
+                }),
+                _ => None,
+            };
+
+            //
+            // Determine if there is, in fact, an inlined stack here.
+            //
+            let inlined = match sym {
+                Some(sym) => {
+                    let mut inlined = self.instr_inlined(pc, sym.addr);
+                    inlined.reverse();
+                    Some(inlined)
+                }
+                None => None,
+            };
+
+            //
+            // Our frame is complete -- push it and continue!
+            //
+            rval.push(HubrisStackFrame {
+                cfa: cfa,
+                sym: sym,
+                inlined: inlined,
+                registers: frameregs.clone(),
+            });
+
+            //
+            // Get our LR, and make sure that the low (Thumb) bit is clear
+            //
+            let lr = *frameregs.get(&ARMRegister::LR).unwrap() & !1;
+
+            frameregs.insert(ARMRegister::PC, lr);
+
+            if cfa >= limit {
+                break;
+            }
+        }
+
+        Ok(rval)
     }
 
     pub fn typesize(&self, goff: HubrisGoff) -> Result<usize> {
