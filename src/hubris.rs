@@ -123,8 +123,8 @@ pub struct HubrisArchive {
     // Variables: name to goff/address/size tuple
     variables: MultiMap<String, HubrisVariable>,
 
-    // Unions: goff to size
-    unions: HashMap<HubrisGoff, usize>,
+    // Unions: goff to union
+    unions: HashMap<HubrisGoff, HubrisUnion>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -243,6 +243,14 @@ pub struct HubrisEnum {
     pub discriminant: HubrisDiscriminant,
     /// temporary to hold tag of next variant
     pub tag: Option<u64>,
+    pub variants: Vec<HubrisEnumVariant>,
+}
+
+#[derive(Debug)]
+pub struct HubrisUnion {
+    pub name: String,
+    pub goff: HubrisGoff,
+    pub size: usize,
     pub variants: Vec<HubrisEnumVariant>,
 }
 
@@ -399,7 +407,7 @@ impl HubrisEnum {
                 4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
                 8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
                 _ => {
-                    bail!("bad size!");
+                    bail!("bad variant size!");
                 }
             })
         };
@@ -432,6 +440,32 @@ impl HubrisEnum {
 
             Ok(&self.variants[0])
         }
+    }
+}
+
+impl HubrisUnion {
+    /*
+     * This is really horrid, but we are going to heuristically determine if
+     * this is a MaybeUninit -- and if so, return the GOFF of the "value"
+     * member.  It should go without saying that this is brittle in obvious
+     * ways:  if another union has the same two members as MaybeUninit or
+     * MaybeUninit starts naming its members differently, this will break --
+     * and it will deserve to be broken.
+     */
+    pub fn maybe_uninit(&self) -> Option<HubrisGoff> {
+        if self.variants.len() != 2 {
+            return None;
+        }
+
+        if self.variants[0].name != "uninit" {
+            return None;
+        }
+
+        if self.variants[1].name != "value" {
+            return None;
+        }
+
+        self.variants[1].goff
     }
 }
 
@@ -1379,6 +1413,7 @@ impl HubrisArchive {
 
     fn dwarf_union<'a, R: gimli::Reader<Offset = usize>>(
         &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1388,9 +1423,14 @@ impl HubrisArchive {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
+        let mut name = None;
 
         while let Some(attr) = attrs.next()? {
             match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
                 gimli::constants::DW_AT_byte_size => {
                     if let gimli::AttributeValue::Udata(value) = attr.value() {
                         size = Some(value as usize)
@@ -1400,8 +1440,16 @@ impl HubrisArchive {
             }
         }
 
-        if let Some(size) = size {
-            self.unions.insert(goff, size);
+        if let (Some(name), Some(size)) = (name, size) {
+            self.unions.insert(
+                goff,
+                HubrisUnion {
+                    name: name.to_string(),
+                    goff: goff,
+                    size: size,
+                    variants: Vec::new(),
+                },
+            );
         }
 
         Ok(())
@@ -1483,11 +1531,23 @@ impl HubrisArchive {
             } else {
                 bail!("enum variant {} is incomplete", member);
             }
-        } else {
+        } else if let Some(union) = self.unions.get_mut(&parent) {
             /*
              * This is possible because of Rust's (unsafe-only) support for
-             * C-style unions, which we ignore.
+             * C-style unions.  We track these because some structures are
+             * implemented in terms of them (in particular, MaybeUninit).
              */
+            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
+                union.variants.push(HubrisEnumVariant {
+                    name: n.to_string(),
+                    offset: offs,
+                    goff: Some(g),
+                    tag: None,
+                });
+            } else {
+                bail!("union {} is incomplete", parent);
+            }
+        } else {
             trace!("no struct/enum found for {}", parent);
         }
 
@@ -1651,7 +1711,7 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_union_type => {
-                        self.dwarf_union(&unit, &entry)?;
+                        self.dwarf_union(&dwarf, &unit, &entry)?;
                     }
 
                     _ => {}
@@ -2772,8 +2832,8 @@ impl HubrisArchive {
             return Ok(v.size);
         }
 
-        if let Some(size) = self.unions.get(&goff) {
-            return Ok(*size);
+        if let Some(union) = self.unions.get(&goff) {
+            return Ok(union.size);
         }
 
         if let Some(v) = self.arrays.get(&goff) {
@@ -2907,7 +2967,8 @@ impl HubrisArchive {
                         }
                     };
 
-                    let val = readval(buf, offs, size)?;
+                    let val = readval(buf, offs, size)
+                        .context(format!("failed to read discriminant"))?;
 
                     match union.lookup_variant(val) {
                         None => {
@@ -2992,7 +3053,8 @@ impl HubrisArchive {
             if v.encoding == HubrisEncoding::Float {
                 write!(rval, "{}", readfloat(buf, 0, v.size)?)?;
             } else {
-                let val = readval(buf, 0, v.size)?;
+                let val = readval(buf, 0, v.size)
+                    .context(format!("failed to read base type {}", goff))?;
 
                 if fmt.hex {
                     write!(rval, "0x{:x}", val)?;
@@ -3004,20 +3066,26 @@ impl HubrisArchive {
             return Ok(rval);
         }
 
-        if let Some(size) = self.unions.get(&goff) {
-            let val = readval(buf, 0, *size)?;
-
-            if fmt.hex {
-                write!(rval, "0x{:x}", val)?;
+        if let Some(union) = self.unions.get(&goff) {
+            if let Some(goff) = union.maybe_uninit() {
+                rval += &self.printfmt(&buf[0..], goff, &f)?;
             } else {
-                write!(rval, "{}", val)?;
+                let val = readval(buf, 0, union.size)
+                    .context(format!("failed to read union {}", goff))?;
+
+                if fmt.hex {
+                    write!(rval, "0x{:x}", val)?;
+                } else {
+                    write!(rval, "{}", val)?;
+                }
             }
 
             return Ok(rval);
         }
 
         if let Some((name, _ptr)) = self.ptrtypes.get(&goff) {
-            let val = readval(buf, 0, 4)?;
+            let val = readval(buf, 0, 4)
+                .context(format!("failed to read pointer type {}", goff))?;
 
             write!(rval, "0x{:x} ({})", val, name)?;
 
