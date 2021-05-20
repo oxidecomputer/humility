@@ -2,7 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::{Archive, Command};
 use crate::hubris::HubrisArchive;
 use crate::Args;
 use anyhow::Result;
@@ -22,9 +22,9 @@ fn manifestcmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Unattached {
             name: "manifest",
             archive: Archive::Required,
             run: manifestcmd,

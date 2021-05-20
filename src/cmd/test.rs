@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach_live;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::core::Core;
 use crate::hubris::*;
 use crate::itm::*;
@@ -181,12 +180,11 @@ fn test_ingest(
 
 fn test(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = TestArgs::from_iter_safe(subargs)?;
-    let mut c = attach_live(args)?;
-    let core = c.as_mut();
 
     hubris.validate(core, HubrisValidate::Booted)?;
 
@@ -197,9 +195,15 @@ fn test(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand { name: "test", archive: Archive::Required, run: test },
+        Command::Attached {
+            name: "test",
+            archive: Archive::Required,
+            attach: Attach::LiveOnly,
+            validate: Validate::Booted,
+            run: test,
+        },
         TestArgs::clap(),
     )
 }

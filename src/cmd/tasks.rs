@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
+use crate::core::Core;
 use crate::debug::*;
 use crate::hubris::*;
 use crate::Args;
@@ -57,12 +57,15 @@ fn print_stack(
 
         if let Some(ref inlined) = frame.inlined {
             for inline in inlined {
-                println!("0x{:08x} {}()", frame.cfa, inline.name);
+                println!(
+                    "0x{:08x} 0x{:08x} {}()",
+                    frame.cfa, inline.addr, inline.name
+                );
                 print!("   {}      ", bar);
 
                 if subargs.line {
                     if let Some(src) = hubris.lookup_src(inline.origin) {
-                        println!("{:11}@ {}:{}", "", src.file, src.line);
+                        println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
                         print!("   {}      ", bar);
                     }
                 }
@@ -70,12 +73,12 @@ fn print_stack(
         }
 
         if let Some(sym) = frame.sym {
-            println!("0x{:08x} {}()", frame.cfa, sym.name);
+            println!("0x{:08x} 0x{:08x} {}()", frame.cfa, *pc, sym.name);
 
             if subargs.line {
                 if let Some(src) = hubris.lookup_src(sym.goff) {
                     print!("   {}      ", bar);
-                    println!("{:11}@ {}:{}", "", src.file, src.line);
+                    println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
                 }
             }
         } else {
@@ -118,13 +121,11 @@ fn print_regs(regs: &HashMap<ARMRegister, u32>, additional: bool) {
 
 fn tasks(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = TasksArgs::from_iter_safe(subargs)?;
-    let mut core = attach(&args)?;
-
-    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
@@ -154,7 +155,9 @@ fn tasks(
         taskblock.resize_with(task.size * size as usize, Default::default);
         core.read_8(base, taskblock.as_mut_slice())?;
 
-        core.run()?;
+        if !subargs.stack {
+            core.run()?;
+        }
 
         let descriptor = task.lookup_member("descriptor")?.offset as u32;
         let generation = task.lookup_member("generation")?.offset as u32;
@@ -193,10 +196,10 @@ fn tasks(
 
             if subargs.stack || subargs.registers {
                 let t = HubrisTask::Task(i);
-                let regs = hubris.registers(core.as_mut(), t)?;
+                let regs = hubris.registers(core, t)?;
 
                 if subargs.stack {
-                    let stack = hubris.stack(core.as_mut(), t, limit, &regs)?;
+                    let stack = hubris.stack(core, t, limit, &regs)?;
                     print_stack(hubris, &stack, &subargs);
                 }
 
@@ -220,6 +223,10 @@ fn tasks(
             }
         }
 
+        if subargs.stack {
+            core.run()?;
+        }
+
         if subargs.task.is_some() && !found {
             bail!("\"{}\" is not a valid task", subargs.task.unwrap());
         }
@@ -232,11 +239,13 @@ fn tasks(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "tasks",
             archive: Archive::Required,
+            attach: Attach::Any,
+            validate: Validate::Booted,
             run: tasks,
         },
         TasksArgs::clap(),

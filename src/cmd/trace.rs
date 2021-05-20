@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::core::Core;
 use crate::hubris::*;
 use crate::itm::*;
@@ -201,14 +200,12 @@ fn tracecmd_ingest(
 
 fn tracecmd(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = &TraceArgs::from_iter_safe(subargs)?;
     let mut tasks: HashMap<u32, String> = HashMap::new();
-
-    let mut c = attach(args)?;
-    let core = c.as_mut();
 
     /*
      * First, read the task block to get a mapping of IDs to names.
@@ -247,11 +244,13 @@ fn tracecmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "trace",
             archive: Archive::Required,
+            attach: Attach::LiveOnly,
+            validate: Validate::Match,
             run: tracecmd,
         },
         TraceArgs::clap(),

@@ -88,9 +88,9 @@ impl HumilityLog {
     }
 }
 
-fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
-    if let Some(dump) = &args.dump {
-        crate::core::attach_dump(dump)
+fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
+    if let Some(_) = &args.dump {
+        bail!("must be run against a live system");
     } else {
         let probe = match &args.probe {
             Some(p) => p,
@@ -101,11 +101,14 @@ fn attach(args: &Args) -> Result<Box<dyn core::Core>> {
     }
 }
 
-fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
-    if let Some(_) = &args.dump {
-        bail!("must be run against a live system");
+fn attach_dump(
+    args: &Args,
+    hubris: &HubrisArchive,
+) -> Result<Box<dyn core::Core>> {
+    if let Some(dump) = &args.dump {
+        crate::core::attach_dump(dump, hubris)
     } else {
-        attach(args)
+        bail!("must be run against a dump");
     }
 }
 

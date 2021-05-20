@@ -35,7 +35,8 @@ use crate::debug::*;
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
-const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE | 1;
+const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
+const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -74,6 +75,9 @@ pub struct HubrisArchive {
 
     // Manual stack pushes before a syscall
     syscall_pushes: HashMap<u32, Option<Vec<ARMRegister>>>,
+
+    // Current registers (if a dump)
+    registers: HashMap<ARMRegister, u32>,
 
     // Modules: text address to module
     modules: BTreeMap<u32, HubrisModule>,
@@ -275,6 +279,8 @@ pub struct HubrisStackFrame<'a> {
 #[derive(Debug)]
 pub struct HubrisSrc {
     pub file: String,
+    pub directory: Option<String>,
+    pub comp_directory: Option<String>,
     pub line: u64,
 }
 
@@ -469,6 +475,25 @@ impl HubrisUnion {
     }
 }
 
+impl HubrisSrc {
+    pub fn fullpath(&self) -> String {
+        format!(
+            "{}{}{}",
+            if let Some(ref dir) = self.comp_directory {
+                format!("{}/", dir)
+            } else {
+                "".to_string()
+            },
+            if let Some(ref dir) = self.directory {
+                format!("{}/", dir)
+            } else {
+                "".to_string()
+            },
+            self.file
+        )
+    }
+}
+
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
@@ -501,6 +526,7 @@ impl HubrisArchive {
             current: 0,
             instrs: HashMap::new(),
             syscall_pushes: HashMap::new(),
+            registers: HashMap::new(),
             modules: BTreeMap::new(),
             frames: HashMap::new(),
             src: HashMap::new(),
@@ -801,10 +827,14 @@ impl HubrisArchive {
         }
 
         if let (Some(file), Some(line)) = (file, line) {
+            let mut comp = None;
+            let mut dir = None;
+
             let header = match unit.line_program {
                 Some(ref program) => program.header(),
                 None => return Ok(()),
             };
+
             let file = match header.file(file) {
                 Some(header) => header,
                 None => {
@@ -812,11 +842,31 @@ impl HubrisArchive {
                 }
             };
 
+            if let Some(directory) = file.directory(header) {
+                let directory = dwarf.attr_string(unit, directory)?;
+                let directory = directory.to_string_lossy()?;
+
+                if !directory.starts_with('/') {
+                    if let Some(ref comp_dir) = unit.comp_dir {
+                        comp = Some(comp_dir.to_string_lossy()?.to_string());
+                    }
+                }
+
+                dir = Some(directory.to_string());
+            }
+
             let s = dwarf.attr_string(unit, file.path_name())?;
             let d = s.to_string_lossy()?;
 
-            self.src
-                .insert(goff, HubrisSrc { file: d.to_string(), line: line });
+            self.src.insert(
+                goff,
+                HubrisSrc {
+                    file: d.to_string(),
+                    directory: dir,
+                    comp_directory: comp,
+                    line: line,
+                },
+            );
         }
 
         Ok(())
@@ -2179,6 +2229,34 @@ impl HubrisArchive {
         Ok(())
     }
 
+    fn load_registers(&mut self, r: &[u8]) -> Result<()> {
+        if r.len() % 8 != 0 {
+            bail!("bad length {} in registers note", r.len());
+        }
+
+        let nregs = r.len() / 8;
+
+        for i in 0..nregs {
+            let o = i * 8;
+
+            let id = u32::from_le_bytes(r[o..o + 4].try_into()?);
+            let val = u32::from_le_bytes(r[o + 4..o + 8].try_into()?);
+
+            let reg = match ARMRegister::from_u32(id) {
+                Some(r) => r,
+                None => {
+                    bail!("illegal register 0x{:x} at offset {}", id, o);
+                }
+            };
+
+            if let Some(_) = self.registers.insert(reg, val) {
+                bail!("duplicate register {} ({}) at offset {}", reg, id, o);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn load_dump(&mut self, dumpfile: &str) -> Result<()> {
         /*
          * We expect the dump to be an ELF core dump.
@@ -2194,13 +2272,26 @@ impl HubrisArchive {
 
         if let Some(notes) = elf.iter_note_headers(&contents) {
             for note in notes {
-                if let Ok(note) = note {
-                    if note.name != OXIDE_NT_NAME {
-                        continue;
-                    }
+                match note {
+                    Ok(note) => {
+                        if note.name != OXIDE_NT_NAME {
+                            continue;
+                        }
 
-                    if note.n_type == OXIDE_NT_HUBRIS_ARCHIVE {
-                        self.load_archive(&note.desc)?;
+                        match note.n_type {
+                            OXIDE_NT_HUBRIS_ARCHIVE => {
+                                self.load_archive(&note.desc)?;
+                            }
+                            OXIDE_NT_HUBRIS_REGISTERS => {
+                                self.load_registers(&note.desc)?;
+                            }
+                            _ => {
+                                bail!("unrecognized note 0x{:x}", note.n_type);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        bail!("failed to parse note: {}", e);
                     }
                 }
             }
@@ -2588,14 +2679,21 @@ impl HubrisArchive {
         Ok(regions)
     }
 
+    pub fn dump_registers(&self) -> HashMap<ARMRegister, u32> {
+        self.registers.clone()
+    }
+
     pub fn registers(
         &self,
         core: &mut dyn crate::core::Core,
-        task: HubrisTask,
+        t: HubrisTask,
     ) -> Result<HashMap<ARMRegister, u32>> {
         let base =
             core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
-        let module = self.lookup_task(task)?;
+        let cur =
+            core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
+
+        let module = self.lookup_task(t)?;
         let mut rval = HashMap::new();
 
         let ndx = match module.task {
@@ -2614,6 +2712,41 @@ impl HubrisArchive {
 
         let offset = base + (ndx * task.size as u32) + save;
         core.read_8(offset, regs.as_mut_slice())?;
+
+        //
+        // If this is the current task, we want to pull the current PC.
+        //
+        if offset - save == cur {
+            let pc = core.read_reg(ARMRegister::PC)?;
+
+            //
+            // If the PC falls within the task, then we are at user-level,
+            // and we should take our register state directly rather than
+            // from the stack.
+            //
+            let userland =
+                if let Some(module) = self.modules.range(..=pc).next_back() {
+                    pc < *module.0 + (module.1).textsize && module.1.task == t
+                } else {
+                    false
+                };
+
+            if userland {
+                for i in 0..=31 {
+                    let reg = match ARMRegister::from_u16(i) {
+                        Some(r) => r,
+                        None => {
+                            continue;
+                        }
+                    };
+
+                    let val = core.read_reg(reg)?;
+                    rval.insert(reg, val);
+                }
+
+                return Ok(rval);
+            }
+        };
 
         let readreg = |rname| -> Result<u32> {
             let o = state.lookup_member(rname)?.offset as usize;
@@ -3115,7 +3248,9 @@ impl HubrisArchive {
         use std::io::Write;
 
         let regions = self.regions(core)?;
-        let nsegs = regions.len();
+        let nsegs = regions
+            .values()
+            .fold(0, |ttl, r| ttl + if !r.attr.device { 1 } else { 0 });
 
         macro_rules! pad {
             ($size:expr) => {
@@ -3132,23 +3267,41 @@ impl HubrisArchive {
 
         let oxide = String::from(OXIDE_NT_NAME);
 
-        let note = goblin::elf::note::Nhdr32 {
+        let notesz = |note: &goblin::elf::note::Nhdr32| {
+            size_of::<goblin::elf::note::Nhdr32>() as u32
+                + note.n_namesz
+                + pad!(note.n_namesz)
+                + note.n_descsz
+                + pad!(note.n_descsz)
+        };
+
+        let mut notes = vec![];
+        let mut regs = vec![];
+
+        for i in 0..31 {
+            if let Some(reg) = ARMRegister::from_u16(i) {
+                let val = core.read_reg(reg)?;
+                regs.push((i, val));
+            }
+        }
+
+        notes.push(goblin::elf::note::Nhdr32 {
+            n_namesz: (oxide.len() + 1) as u32,
+            n_descsz: regs.len() as u32 * 8,
+            n_type: OXIDE_NT_HUBRIS_REGISTERS,
+        });
+
+        notes.push(goblin::elf::note::Nhdr32 {
             n_namesz: (oxide.len() + 1) as u32,
             n_descsz: self.archive.len() as u32,
             n_type: OXIDE_NT_HUBRIS_ARCHIVE,
-        };
-
-        let notesz = size_of::<goblin::elf::note::Nhdr32>() as u32
-            + note.n_namesz
-            + pad!(note.n_namesz)
-            + note.n_descsz
-            + pad!(note.n_descsz);
+        });
 
         let mut header = goblin::elf::header::Header::new(ctx);
         header.e_machine = goblin::elf::header::EM_ARM;
         header.e_type = goblin::elf::header::ET_CORE;
         header.e_phoff = header.e_ehsize as u64;
-        header.e_phnum = 1 + nsegs as u16;
+        header.e_phnum = (notes.len() + nsegs) as u16;
 
         let mut offset = header.e_phoff as u32
             + (header.e_phentsize * header.e_phnum) as u32;
@@ -3184,26 +3337,35 @@ impl HubrisArchive {
 
         file.iowrite_with(header, ctx)?;
 
-        /*
-         * Write our program headers, starting with our note header.
-         */
-        let note_phdr = goblin::elf32::program_header::ProgramHeader {
-            p_type: goblin::elf::program_header::PT_NOTE,
-            p_flags: goblin::elf::program_header::PF_R,
-            p_offset: offset,
-            p_filesz: notesz,
-            ..Default::default()
-        };
-
         let mut bytes = [0x0u8; goblin::elf32::program_header::SIZEOF_PHDR];
-        bytes.pwrite_with(note_phdr, 0, ctx.le)?;
-        file.write_all(&bytes)?;
 
-        offset += notesz;
+        /*
+         * Write our program headers, starting with our note headers.
+         */
+        for note in &notes {
+            let size = notesz(note);
+
+            let phdr = goblin::elf32::program_header::ProgramHeader {
+                p_type: goblin::elf::program_header::PT_NOTE,
+                p_flags: goblin::elf::program_header::PF_R,
+                p_offset: offset,
+                p_filesz: size,
+                ..Default::default()
+            };
+
+            bytes.pwrite_with(phdr, 0, ctx.le)?;
+            file.write_all(&bytes)?;
+
+            offset += size;
+        }
 
         let mut total = 0;
 
         for (_, region) in regions.iter() {
+            if region.attr.device {
+                continue;
+            }
+
             let seg_phdr = goblin::elf32::program_header::ProgramHeader {
                 p_type: goblin::elf::program_header::PT_LOAD,
                 p_flags: goblin::elf::program_header::PF_R,
@@ -3221,27 +3383,46 @@ impl HubrisArchive {
             total += region.size;
         }
 
-        /*
-         * Now write our note section, starting with our note header...
-         */
-        let mut bytes = [0x0u8; size_of::<goblin::elf::note::Nhdr32>()];
-        bytes.pwrite_with(note, 0, ctx.le)?;
-        file.write_all(&bytes)?;
+        for note in &notes {
+            /*
+             * Now write our note section, starting with our note header...
+             */
+            let mut bytes = [0x0u8; size_of::<goblin::elf::note::Nhdr32>()];
+            bytes.pwrite_with(note, 0, ctx.le)?;
+            file.write_all(&bytes)?;
 
-        /*
-         * ...and our note name
-         */
-        let bytes = oxide.as_bytes();
-        file.write_all(&bytes)?;
-        let npad = 1 + pad!(note.n_namesz) as usize;
-        file.write_all(&pad[0..npad])?;
+            /*
+             * ...and our note name
+             */
+            let bytes = oxide.as_bytes();
+            file.write_all(&bytes)?;
+            let npad = 1 + pad!(note.n_namesz) as usize;
+            file.write_all(&pad[0..npad])?;
 
-        /*
-         * ...and finally, the note itself.
-         */
-        file.write_all(&self.archive)?;
-        let npad = pad!(note.n_descsz) as usize;
-        file.write_all(&pad[0..npad])?;
+            /*
+             * ...and finally, the note itself.
+             */
+            match note.n_type {
+                OXIDE_NT_HUBRIS_REGISTERS => {
+                    let mut bytes = [0x0u8; 8];
+
+                    for (reg, val) in regs.iter() {
+                        bytes.pwrite_with(reg, 0, ctx.le)?;
+                        bytes.pwrite_with(val, 4, ctx.le)?;
+                        file.write_all(&bytes)?;
+                    }
+                }
+                OXIDE_NT_HUBRIS_ARCHIVE => {
+                    file.write_all(&self.archive)?;
+                }
+                _ => {
+                    panic!("unimplemented note");
+                }
+            }
+
+            let npad = pad!(note.n_descsz) as usize;
+            file.write_all(&pad[0..npad])?;
+        }
 
         /*
          * And now we write our segments.  This takes a little while, so
@@ -3257,6 +3438,10 @@ impl HubrisArchive {
         );
 
         for (_, region) in regions.iter() {
+            if region.attr.device {
+                continue;
+            }
+
             let mut remain = region.size as usize;
             let mut bytes = vec![0; 1024];
             let mut addr = region.base;

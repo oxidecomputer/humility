@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach_live;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::hubris::*;
 use crate::Args;
 use anyhow::Result;
@@ -18,17 +17,16 @@ struct DumpArgs {
 
 fn dumpcmd(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = DumpArgs::from_iter_safe(subargs)?;
 
-    let mut core = attach_live(&args)?;
-    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
     let _info = core.halt()?;
     info!("core halted");
 
-    let rval = hubris.dump(core.as_mut(), subargs.dumpfile.as_deref());
+    let rval = hubris.dump(core, subargs.dumpfile.as_deref());
 
     core.run()?;
     info!("core resumed");
@@ -36,11 +34,13 @@ fn dumpcmd(
     rval
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "dump",
             archive: Archive::Required,
+            attach: Attach::LiveOnly,
+            validate: Validate::Booted,
             run: dumpcmd,
         },
         DumpArgs::clap(),

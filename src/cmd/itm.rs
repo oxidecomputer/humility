@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::attach_live;
+use crate::cmd::{Archive, Command};
 use crate::core::Core;
 use crate::debug::*;
 use crate::dwt::*;
@@ -245,7 +245,7 @@ fn itmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let mut c = attach(args)?;
+    let mut c = attach_live(args)?;
     let core = c.as_mut();
     let coreinfo = CoreInfo::read(core)?;
 
@@ -294,9 +294,9 @@ fn itmcmd(
     rval
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Unattached {
             name: "itm",
             archive: Archive::Optional,
             run: itmcmd,

@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach_live;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::core::Core;
 use crate::hubris::*;
 use crate::itm::*;
@@ -63,6 +62,10 @@ struct I2cArgs {
     /// indicates a raw operation
     #[structopt(long, short = "R", conflicts_with = "register")]
     raw: bool,
+
+    /// read block
+    #[structopt(long, short, conflicts_with_all = &["write", "nbytes"])]
+    block: bool,
 
     /// specifies write value
     #[structopt(long, short, value_name = "register",
@@ -220,6 +223,8 @@ impl<'a> I2cVariables<'a> {
                     bail!("illegal value for nbytes");
                 }
             }
+        } else if subargs.block {
+            core.write_word_32(self.nbytes.addr, 256u32)?;
         }
 
         if let Some(register) = subargs.register {
@@ -606,13 +611,11 @@ fn i2c_ingest(
 
 fn i2c(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = I2cArgs::from_iter_safe(subargs)?;
-    let mut c = attach_live(args)?;
-    let core = c.as_mut();
-    hubris.validate(core, HubrisValidate::Booted)?;
 
     if !subargs.scan && subargs.register.is_none() && !subargs.raw {
         bail!("must specify either 'scan' or specify a register");
@@ -637,9 +640,15 @@ fn i2c(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand { name: "i2c", archive: Archive::Required, run: i2c },
+        Command::Attached {
+            name: "i2c",
+            archive: Archive::Required,
+            attach: Attach::LiveOnly,
+            validate: Validate::Booted,
+            run: i2c,
+        },
         I2cArgs::clap(),
     )
 }

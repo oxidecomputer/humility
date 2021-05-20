@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::attach_live;
+use crate::cmd::{Archive, Command};
 use crate::core::Core;
 use crate::debug::*;
 use crate::etm::*;
@@ -590,7 +590,7 @@ fn etmcmd(
     /*
      * For all of the other commands, we need to actually attach to the chip.
      */
-    let mut core = attach(args)?;
+    let mut core = attach_live(args)?;
     let _info = core.halt()?;
 
     info!("core halted");
@@ -624,9 +624,9 @@ fn etmcmd(
     rval
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Unattached {
             name: "etm",
             archive: Archive::Required,
             run: etmcmd,

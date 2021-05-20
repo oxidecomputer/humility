@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach_live;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::core::Core;
 use crate::debug::*;
 use crate::hubris::*;
@@ -19,7 +18,12 @@ use structopt::StructOpt;
 struct ProbeArgs {}
 
 #[rustfmt::skip::macros(format)]
-fn probe(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
+fn probecmd(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn Core,
+    _args: &Args,
+    _subargs: &Vec<String>,
+) -> Result<()> {
     use num_traits::FromPrimitive;
     let mut status = vec![];
 
@@ -271,22 +275,13 @@ fn probe(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-fn probecmd(
-    hubris: &mut HubrisArchive,
-    args: &Args,
-    _subargs: &Vec<String>,
-) -> Result<()> {
-    let mut core = attach_live(args)?;
-
-    hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
-    probe(hubris, core.as_mut())
-}
-
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "probe",
             archive: Archive::Optional,
+            attach: Attach::LiveOnly,
+            validate: Validate::Match,
             run: probecmd,
         },
         ProbeArgs::clap(),

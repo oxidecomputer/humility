@@ -18,29 +18,61 @@ mod tasks;
 mod test;
 mod trace;
 
-use crate::hubris::HubrisArchive;
+use crate::core::Core;
+use crate::hubris::*;
 use crate::Args;
+use crate::{attach_dump, attach_live};
 use anyhow::{bail, Result};
 use std::collections::HashMap;
 use structopt::clap::App;
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
-enum Archive {
+pub enum Archive {
     Required,
     Optional,
     Prohibited,
 }
 
-pub struct HumilityCommand {
-    name: &'static str,
-    archive: Archive,
-    run: fn(&mut HubrisArchive, &Args, &Vec<String>) -> Result<()>,
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug)]
+pub enum Attach {
+    LiveOnly,
+    DumpOnly,
+    Any,
+}
+
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug)]
+pub enum Validate {
+    Match,
+    Booted,
+    None,
+}
+
+pub enum Command {
+    Attached {
+        name: &'static str,
+        archive: Archive,
+        attach: Attach,
+        validate: Validate,
+        run: fn(
+            &mut HubrisArchive,
+            &mut dyn Core,
+            &Args,
+            &Vec<String>,
+        ) -> Result<()>,
+    },
+    Unattached {
+        name: &'static str,
+        archive: Archive,
+        run: fn(&mut HubrisArchive, &Args, &Vec<String>) -> Result<()>,
+    },
 }
 
 pub fn init<'a, 'b>(
     app: App<'a, 'b>,
-) -> (HashMap<&'static str, HumilityCommand>, App<'a, 'b>) {
+) -> (HashMap<&'static str, Command>, App<'a, 'b>) {
     let mut cmds = HashMap::new();
     let mut rval = app;
 
@@ -64,7 +96,13 @@ pub fn init<'a, 'b>(
 
     for dcmd in &dcmds {
         let (cmd, subcmd) = dcmd();
-        cmds.insert(cmd.name, cmd);
+
+        let name = match cmd {
+            Command::Attached { name, .. } => name,
+            Command::Unattached { name, .. } => name,
+        };
+
+        cmds.insert(name, cmd);
         rval = rval.subcommand(subcmd);
     }
 
@@ -72,13 +110,18 @@ pub fn init<'a, 'b>(
 }
 
 pub fn subcommand(
-    commands: &HashMap<&'static str, HumilityCommand>,
+    commands: &HashMap<&'static str, Command>,
     hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     if let Some(command) = commands.get(&subargs[0].as_str()) {
-        match (command.archive, hubris.loaded()) {
+        let archive = match command {
+            Command::Attached { archive, .. } => archive,
+            Command::Unattached { archive, .. } => archive,
+        };
+
+        match (archive, hubris.loaded()) {
             (Archive::Required, false) => {
                 bail!("must provide a Hubris archive or dump");
             }
@@ -90,7 +133,36 @@ pub fn subcommand(
             (_, _) => {}
         }
 
-        (command.run)(hubris, args, subargs)
+        match command {
+            Command::Attached { run, attach, validate, .. } => {
+                let mut c = match attach {
+                    Attach::LiveOnly => attach_live(&args),
+                    Attach::DumpOnly => attach_dump(&args, hubris),
+                    Attach::Any => {
+                        if let Some(_) = &args.dump {
+                            attach_dump(&args, hubris)
+                        } else {
+                            attach_live(&args)
+                        }
+                    }
+                }?;
+
+                let core = c.as_mut();
+
+                match validate {
+                    Validate::Booted => {
+                        hubris.validate(core, HubrisValidate::Booted)?;
+                    }
+                    Validate::Match => {
+                        hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+                    }
+                    Validate::None => {}
+                }
+
+                (run)(hubris, core, args, subargs)
+            }
+            Command::Unattached { run, .. } => (run)(hubris, args, subargs),
+        }
     } else {
         bail!("command {} not found", subargs[0]);
     }

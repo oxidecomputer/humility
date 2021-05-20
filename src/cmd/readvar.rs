@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::core::Core;
 use crate::hubris::*;
 use crate::Args;
@@ -49,7 +48,8 @@ fn readvar_dump(
 
 fn readvar(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = ReadvarArgs::from_iter_safe(subargs)?;
@@ -63,21 +63,20 @@ fn readvar(
         None => bail!("expected variable (use \"-l\" to list)"),
     };
 
-    let mut core = attach(&args)?;
-    hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
-
     for v in variables {
-        readvar_dump(hubris, core.as_mut(), v, &subargs)?;
+        readvar_dump(hubris, core, v, &subargs)?;
     }
 
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "readvar",
             archive: Archive::Required,
+            attach: Attach::Any,
+            validate: Validate::Match,
             run: readvar,
         },
         ReadvarArgs::clap(),

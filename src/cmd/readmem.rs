@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::hubris::*;
 use crate::Args;
 use anyhow::{bail, Result};
@@ -36,11 +35,11 @@ struct ReadmemArgs {
 
 fn readmem(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn crate::core::Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = ReadmemArgs::from_iter_safe(subargs)?;
-    let mut core = attach(&args)?;
     let max = crate::core::CORE_MAX_READSIZE;
     let width: usize = 16;
     let size = if subargs.word || subargs.symbol {
@@ -61,13 +60,13 @@ fn readmem(
     }
 
     if subargs.symbol {
-        hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
+        hubris.validate(core, HubrisValidate::ArchiveMatch)?;
     }
 
     let mut addr = match parse_int::parse::<u32>(&subargs.address) {
         Ok(addr) => addr,
         _ => {
-            hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
+            hubris.validate(core, HubrisValidate::ArchiveMatch)?;
             hubris.lookup_peripheral(&subargs.address)?
         }
     };
@@ -200,11 +199,13 @@ fn readmem(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "readmem",
             archive: Archive::Optional,
+            attach: Attach::Any,
+            validate: Validate::None,
             run: readmem,
         },
         ReadmemArgs::clap(),

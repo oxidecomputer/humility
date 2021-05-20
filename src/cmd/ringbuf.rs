@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::core::Core;
 use crate::hubris::*;
 use crate::Args;
@@ -99,7 +98,7 @@ fn ringbuf_dump(
     let fmt = HubrisPrintFormat { indent: 0, newline: false, hex: true };
 
     println!(
-        "{:10} {:>4} {:>4} {:>4} {:>8} {}",
+        "{:10} {:>4} {:>4} {:>8} {:>8} {}",
         "ADDR", "NDX", "LINE", "GEN", "COUNT", "PAYLOAD"
     );
 
@@ -119,7 +118,7 @@ fn ringbuf_dump(
         )?;
 
         println!(
-            "0x{:08x} {:4} {:4} {:4} {:8} {}",
+            "0x{:08x} {:4} {:4} {:8} {:8} {}",
             ringbuf.addr as usize + offset,
             slot,
             read_basetype(&buf, line.0, offset + line.1),
@@ -141,13 +140,11 @@ fn taskname<'a>(
 
 fn ringbuf(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = RingbufArgs::from_iter_safe(subargs)?;
-
-    let mut core = attach(&args)?;
-    hubris.validate(core.as_mut(), HubrisValidate::ArchiveMatch)?;
 
     let vars = hubris.variables();
     let mut ringbufs = vec![];
@@ -188,17 +185,19 @@ fn ringbuf(
     for v in ringbufs {
         info!("ring buffer {} in {}:", v.0, taskname(hubris, &v.1)?);
         let def = hubris.lookup_struct(v.1.goff)?;
-        ringbuf_dump(hubris, core.as_mut(), def, &v.1)?;
+        ringbuf_dump(hubris, core, def, &v.1)?;
     }
 
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "ringbuf",
             archive: Archive::Required,
+            attach: Attach::Any,
+            validate: Validate::Match,
             run: ringbuf,
         },
         RingbufArgs::clap(),

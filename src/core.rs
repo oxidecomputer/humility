@@ -8,7 +8,9 @@ use probe_rs::Probe;
 use anyhow::{anyhow, bail, ensure, Result};
 
 use crate::debug::*;
+use crate::hubris::*;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
 use std::fs;
@@ -722,10 +724,11 @@ impl Core for GDBCore {
 pub struct DumpCore {
     contents: Vec<u8>,
     regions: BTreeMap<u32, (u32, usize)>,
+    registers: HashMap<ARMRegister, u32>,
 }
 
 impl DumpCore {
-    fn new(dump: &str) -> Result<DumpCore> {
+    fn new(dump: &str, hubris: &HubrisArchive) -> Result<DumpCore> {
         let mut file = fs::File::open(dump)?;
         let mut regions = BTreeMap::new();
 
@@ -747,7 +750,11 @@ impl DumpCore {
             );
         }
 
-        Ok(Self { contents: contents, regions: regions })
+        Ok(Self {
+            contents: contents,
+            regions: regions,
+            registers: hubris.dump_registers(),
+        })
     }
 }
 
@@ -794,8 +801,12 @@ impl Core for DumpCore {
         bail!("read of {} bytes from invalid address: 0x{:x}", rsize, addr);
     }
 
-    fn read_reg(&mut self, _reg: ARMRegister) -> Result<u32> {
-        bail!("cannot yet read registers on a dump");
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+        if let Some(val) = self.registers.get(&reg) {
+            Ok(*val)
+        } else {
+            bail!("register {} not found in dump", reg);
+        }
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
@@ -946,8 +957,11 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
     }
 }
 
-pub fn attach_dump(dump: &str) -> Result<Box<dyn Core>> {
-    let core = DumpCore::new(dump)?;
+pub fn attach_dump(
+    dump: &str,
+    hubris: &HubrisArchive,
+) -> Result<Box<dyn Core>> {
+    let core = DumpCore::new(dump, hubris)?;
     info!("attached to dump");
     Ok(Box::new(core))
 }

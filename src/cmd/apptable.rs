@@ -2,7 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::{Archive, Command};
 use crate::hubris::{HubrisArchive, HubrisPrintFormat};
 use crate::Args;
 use anyhow::{bail, Result};
@@ -127,9 +127,9 @@ fn apptablecmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Unattached {
             name: "apptable",
             archive: Archive::Optional,
             run: apptablecmd,

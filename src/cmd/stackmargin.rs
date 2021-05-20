@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
+use crate::core::Core;
 use crate::hubris::*;
 use crate::Args;
 use anyhow::{bail, Result};
@@ -21,13 +21,11 @@ struct StackmarginArgs {}
 #[rustfmt::skip::macros(println, bail)]
 fn stackmargin(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn Core,
+    _args: &Args,
     _subargs: &Vec<String>,
 ) -> Result<()> {
-    let mut core = attach(&args)?;
-
-    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
-    let regions = hubris.regions(core.as_mut())?;
+    let regions = hubris.regions(core)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
@@ -98,11 +96,13 @@ fn stackmargin(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "stackmargin",
             archive: Archive::Required,
+            attach: Attach::Any,
+            validate: Validate::Booted,
             run: stackmargin,
         },
         StackmarginArgs::clap(),

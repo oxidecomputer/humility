@@ -2,8 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::attach;
-use crate::cmd::{Archive, HumilityCommand};
+use crate::cmd::*;
 use crate::hubris::*;
 use crate::Args;
 use anyhow::Result;
@@ -19,13 +18,11 @@ struct MapArgs {}
 
 fn mapcmd(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    core: &mut dyn crate::core::Core,
+    _args: &Args,
     _subargs: &Vec<String>,
 ) -> Result<()> {
-    let mut core = attach(&args)?;
-    hubris.validate(core.as_mut(), HubrisValidate::Booted)?;
-
-    let regions = hubris.regions(core.as_mut())?;
+    let regions = hubris.regions(core)?;
 
     println!(
         "{:10} {:10}   {:10} {:>7} {:5} {:2} {}",
@@ -59,11 +56,13 @@ fn mapcmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (HumilityCommand, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        HumilityCommand {
+        Command::Attached {
             name: "map",
             archive: Archive::Required,
+            attach: Attach::Any,
+            validate: Validate::Booted,
             run: mapcmd,
         },
         MapArgs::clap(),
