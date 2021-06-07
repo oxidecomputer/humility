@@ -61,7 +61,7 @@ fn stackmargin(
         let daddr = taskblock32(offs + descriptor as usize);
         let initial = core.read_word_32(daddr + initial_stack)?;
 
-        let module = hubris.lookup_task(HubrisTask::Task(i))?;
+        let module = hubris.lookup_module(HubrisTask::Task(i))?;
         let region = find(initial)?;
 
         if region.task != module.task {

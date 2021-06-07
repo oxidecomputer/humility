@@ -135,7 +135,7 @@ fn taskname<'a>(
     hubris: &'a HubrisArchive,
     variable: &'a HubrisVariable,
 ) -> Result<&'a String> {
-    Ok(&hubris.lookup_task(HubrisTask::from(variable.goff))?.name)
+    Ok(&hubris.lookup_module(HubrisTask::from(variable.goff))?.name)
 }
 
 fn ringbuf(

@@ -82,6 +82,9 @@ pub struct HubrisArchive {
     // Modules: text address to module
     modules: BTreeMap<u32, HubrisModule>,
 
+    // Tasks: name of task to ID
+    tasks: HashMap<String, HubrisTask>,
+
     // DWARF call frame debugging sections: task to raw bytes
     frames: HashMap<HubrisTask, Vec<u8>>,
 
@@ -528,6 +531,7 @@ impl HubrisArchive {
             syscall_pushes: HashMap::new(),
             registers: HashMap::new(),
             modules: BTreeMap::new(),
+            tasks: HashMap::new(),
             frames: HashMap::new(),
             src: HashMap::new(),
             dsyms: BTreeMap::new(),
@@ -2032,6 +2036,8 @@ impl HubrisArchive {
             },
         );
 
+        self.tasks.insert(object.to_string(), task);
+
         Ok(())
     }
 
@@ -2417,11 +2423,15 @@ impl HubrisArchive {
         variables
     }
 
-    pub fn lookup_task(&self, task: HubrisTask) -> Result<&HubrisModule> {
+    pub fn lookup_module(&self, task: HubrisTask) -> Result<&HubrisModule> {
         match self.modules.values().find(|m| m.task == task) {
             Some(module) => Ok(module),
             None => Err(anyhow!("no such task: {}", task)),
         }
+    }
+
+    pub fn lookup_task(&self, name: &str) -> Option<&HubrisTask> {
+        self.tasks.get(name)
     }
 
     pub fn lookup_src(&self, goff: HubrisGoff) -> Option<&HubrisSrc> {
@@ -2693,7 +2703,7 @@ impl HubrisArchive {
         let cur =
             core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
 
-        let module = self.lookup_task(t)?;
+        let module = self.lookup_module(t)?;
         let mut rval = HashMap::new();
 
         let ndx = match module.task {
@@ -3570,7 +3580,7 @@ impl HubrisArchive {
         info!("{:18} {:<30} {:<10} {}", "MODULE", "VARIABLE", "ADDR", "SIZE");
 
         for v in variables {
-            let task = &self.lookup_task(v.0)?.name;
+            let task = &self.lookup_module(v.0)?.name;
             info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
         }
         Ok(())

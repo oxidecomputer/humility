@@ -7,6 +7,7 @@ mod dump;
 mod etm;
 mod i2c;
 mod itm;
+mod jefe;
 mod manifest;
 mod map;
 mod probe;
@@ -82,6 +83,7 @@ pub fn init<'a, 'b>(
         etm::init,
         i2c::init,
         itm::init,
+        jefe::init,
         manifest::init,
         map::init,
         probe::init,

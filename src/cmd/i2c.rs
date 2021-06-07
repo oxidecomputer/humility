@@ -541,7 +541,7 @@ fn i2c_done(
         );
     }
 
-    std::process::exit(0);
+    Ok(())
 }
 
 fn i2c_ingest(
@@ -630,6 +630,7 @@ fn i2c(
             thread::sleep(Duration::from_millis(100));
             if vars.done(core)? {
                 i2c_done(core, &subargs, hubris, &vars)?;
+                return Ok(());
             }
         }
     }

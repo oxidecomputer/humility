@@ -49,7 +49,7 @@ fn mapcmd(
             if region.attr.device { "d" } else { "-" },
             if region.attr.dma { "m" } else { "-" },
             region.task.id(),
-            hubris.lookup_task(region.task)?.name
+            hubris.lookup_module(region.task)?.name
         );
     }
 
