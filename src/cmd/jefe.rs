@@ -23,6 +23,10 @@ struct JefeArgs {
     )]
     timeout: u32,
 
+    /// fault the specified task
+    #[structopt(long, short, conflicts_with_all = &["start", "release", "hold"])]
+    fault: bool,
+
     /// start the specified task
     #[structopt(long, short, conflicts_with_all = &["release", "hold"])]
     start: bool,
@@ -58,6 +62,7 @@ enum JefeRequest {
     Start = 1,
     Hold = 2,
     Release = 3,
+    Fault = 4,
 }
 
 impl<'a> JefeVariables<'a> {
@@ -162,14 +167,16 @@ fn jefe(
 ) -> Result<()> {
     let subargs = JefeArgs::from_iter_safe(subargs)?;
 
-    let request = if subargs.start {
+    let request = if subargs.fault {
+        JefeRequest::Fault
+    } else if subargs.start {
         JefeRequest::Start
     } else if subargs.hold {
         JefeRequest::Hold
     } else if subargs.release {
         JefeRequest::Release
     } else {
-        bail!("one of start, hold, or release must be specified");
+        bail!("one of fault, start, hold, or release must be specified");
     };
 
     let task = hubris
