@@ -68,7 +68,7 @@ struct I2cArgs {
     block: bool,
 
     /// specifies write value
-    #[structopt(long, short, value_name = "register",
+    #[structopt(long, short, value_name = "value",
         parse(try_from_str = parse_int::parse),
     )]
     write: Option<u8>,
@@ -574,6 +574,7 @@ fn i2c_ingest(
                             hubris,
                             *vars.borrow(),
                         )?;
+                        std::process::exit(0);
                     }
                 }
                 bytes = shared.borrow_mut().read_swv()?;
