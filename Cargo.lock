@@ -390,6 +390,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "paste",
+ "pmbus",
  "probe-rs",
  "rusb 0.5.5",
  "rustc-demangle",
@@ -490,6 +491,12 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
+
+[[package]]
+name = "libm"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "libusb1-sys"
@@ -619,6 +626,16 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "pmbus"
+version = "0.1.0"
+source = "git+ssh://github.com/oxidecomputer/pmbus.git#ce8a002decb21548237a8e922bd88d1d781f1549"
+dependencies = [
+ "libm",
+ "num-derive",
+ "num-traits",
+]
 
 [[package]]
 name = "probe-rs"

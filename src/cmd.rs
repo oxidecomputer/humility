@@ -10,6 +10,7 @@ mod itm;
 mod jefe;
 mod manifest;
 mod map;
+mod pmbus;
 mod probe;
 mod readmem;
 mod readvar;
@@ -86,6 +87,7 @@ pub fn init<'a, 'b>(
         jefe::init,
         manifest::init,
         map::init,
+        pmbus::init,
         probe::init,
         readmem::init,
         readvar::init,

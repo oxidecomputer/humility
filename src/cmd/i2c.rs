@@ -15,9 +15,9 @@ use std::time::Instant;
 use structopt::clap::App;
 use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Default)]
 #[structopt(name = "i2c", about = "scan for and read I2C devices")]
-struct I2cArgs {
+pub struct I2cArgs {
     /// sets timeout
     #[structopt(
         long, short, default_value = "5000", value_name = "timeout_ms",
@@ -81,8 +81,38 @@ struct I2cArgs {
     nbytes: Option<u8>,
 }
 
+impl I2cArgs {
+    pub fn from_caller(
+        controller: u8,
+        device: u8,
+        port: Option<String>,
+        mux: Option<String>,
+    ) -> Self {
+        I2cArgs {
+            timeout: 5000,
+            controller: controller,
+            device: Some(device),
+            port: port,
+            mux: mux,
+            ..Default::default()
+        }
+    }
+
+    pub fn set_register(&mut self, register: u8) {
+        self.register = Some(register);
+    }
+
+    pub fn set_block(&mut self, block: bool) {
+        self.block = block;
+    }
+
+    pub fn set_nbytes(&mut self, nbytes: Option<u8>) {
+        self.nbytes = nbytes;
+    }
+}
+
 #[derive(Debug)]
-struct I2cVariables<'a> {
+pub struct I2cVariables<'a> {
     hubris: &'a HubrisArchive,
     ready: &'a HubrisVariable,
     kick: &'a HubrisVariable,
@@ -100,7 +130,8 @@ struct I2cVariables<'a> {
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
     timeout: u32,
-    timedout: bool,
+    buf: Vec<u8>,
+    pub timedout: bool,
 }
 
 impl<'a> I2cVariables<'a> {
@@ -122,8 +153,13 @@ impl<'a> I2cVariables<'a> {
 
     pub fn new(
         hubris: &'a HubrisArchive,
-        timeout: u32,
-    ) -> Result<I2cVariables> {
+        subargs: &I2cArgs,
+    ) -> Result<I2cVariables<'a>> {
+        let results = Self::variable(hubris, "I2C_DEBUG_RESULTS", false)?;
+
+        let mut buf: Vec<u8> = vec![];
+        buf.resize_with(results.size, Default::default);
+
         Ok(Self {
             hubris: hubris,
             ready: Self::variable(hubris, "I2C_DEBUG_READY", true)?,
@@ -138,15 +174,20 @@ impl<'a> I2cVariables<'a> {
             value: Self::variable(hubris, "I2C_DEBUG_VALUE", true)?,
             requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
             errors: Self::variable(hubris, "I2C_DEBUG_ERRORS", true)?,
-            results: Self::variable(hubris, "I2C_DEBUG_RESULTS", false)?,
+            results: results,
             cached: None,
             kicked: None,
-            timeout: timeout,
+            timeout: subargs.timeout,
             timedout: false,
+            buf: buf,
         })
     }
 
-    fn kickit(&mut self, core: &mut dyn Core, subargs: &I2cArgs) -> Result<()> {
+    pub fn kickit(
+        &mut self,
+        core: &mut dyn Core,
+        subargs: &I2cArgs,
+    ) -> Result<()> {
         let mut port = None;
 
         if core.read_word_32(self.ready.addr)? != 1 {
@@ -259,7 +300,7 @@ impl<'a> I2cVariables<'a> {
         Ok(())
     }
 
-    fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
+    pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
         core.halt()?;
 
         let vars = Some((
@@ -280,7 +321,7 @@ impl<'a> I2cVariables<'a> {
         Ok(self.cached.is_some() && vars != self.cached)
     }
 
-    fn error(&self, core: &mut dyn Core) -> Result<bool> {
+    pub fn error(&self, core: &mut dyn Core) -> Result<bool> {
         if let Some((_, errors)) = self.cached {
             core.halt()?;
             let rval = core.read_word_32(self.errors.addr)? > errors;
@@ -290,84 +331,101 @@ impl<'a> I2cVariables<'a> {
             Ok(false)
         }
     }
-}
 
-fn i2c_results<'a>(
-    hubris: &'a HubrisArchive,
-    vars: &I2cVariables,
-    buf: &[u8],
-) -> Result<Vec<Option<Result<u8, &'a HubrisEnumVariant>>>> {
-    let variant_enum = |variant: &HubrisEnumVariant| {
-        let t = match variant.goff {
-            None => bail!("expected tuple"),
-            Some(goff) => hubris.lookup_struct(goff)?.lookup_member("__0")?,
+    pub fn results(
+        &mut self,
+        core: &mut dyn Core,
+        nresults: Option<u8>,
+    ) -> Result<Vec<Option<Result<u8, &'a HubrisEnumVariant>>>> {
+        let hubris = self.hubris;
+
+        let variant_enum = |variant: &HubrisEnumVariant| {
+            let t = match variant.goff {
+                None => bail!("expected tuple"),
+                Some(goff) => {
+                    hubris.lookup_struct(goff)?.lookup_member("__0")?
+                }
+            };
+
+            Ok((hubris.lookup_enum(t.goff)?, t.offset))
         };
 
-        Ok((hubris.lookup_enum(t.goff)?, t.offset))
-    };
+        let variant_basetype = |variant: &HubrisEnumVariant| {
+            let t = match variant.goff {
+                None => bail!("expected tuple"),
+                Some(goff) => {
+                    hubris.lookup_struct(goff)?.lookup_member("__0")?
+                }
+            };
 
-    let variant_basetype = |variant: &HubrisEnumVariant| {
-        let t = match variant.goff {
-            None => bail!("expected tuple"),
-            Some(goff) => hubris.lookup_struct(goff)?.lookup_member("__0")?,
+            Ok((hubris.lookup_basetype(t.goff)?, t.offset))
         };
 
-        Ok((hubris.lookup_basetype(t.goff)?, t.offset))
-    };
+        let array = hubris
+            .lookup_array(self.results.goff)
+            .context("expected results to be an array")?;
 
-    let array = hubris
-        .lookup_array(vars.results.goff)
-        .context("expected results to be an array")?;
+        let nresults = match nresults {
+            Some(nresults) => nresults as usize,
+            None => array.count,
+        };
 
-    let option = hubris
-        .lookup_enum(array.goff)
-        .context("expected results to be an array of Option")?;
+        let option = hubris
+            .lookup_enum(array.goff)
+            .context("expected results to be an array of Option")?;
 
-    let some = option.lookup_variant_byname("Some")?;
-    let result = variant_enum(some)?;
+        assert!(nresults <= array.count);
+        let nbytes = option.size * nresults;
+        core.read_8(self.results.addr, &mut self.buf[..nbytes])?;
 
-    let ok = result.0.lookup_variant_byname("Ok")?;
-    let err = result.0.lookup_variant_byname("Err")?;
+        let some = option.lookup_variant_byname("Some")?;
+        let result = variant_enum(some)?;
 
-    let err_payload = variant_enum(err)?;
-    let ok_payload = variant_basetype(ok)?;
+        let ok = result.0.lookup_variant_byname("Ok")?;
+        let err = result.0.lookup_variant_byname("Err")?;
 
-    let mut results: Vec<Option<Result<u8, &HubrisEnumVariant>>> = vec![];
+        let err_payload = variant_enum(err)?;
+        let ok_payload = variant_basetype(ok)?;
 
-    for i in 0..array.count {
-        let offs = i * option.size;
-        let b = &buf[offs..];
+        let mut results: Vec<Option<Result<u8, &HubrisEnumVariant>>> = vec![];
 
-        let variant = option.determine_variant(hubris, b)?;
+        for i in 0..nresults {
+            let offs = i * option.size;
+            let buf = &self.buf;
+            let b = &buf[offs..];
 
-        if variant.goff == some.goff {
-            let r =
-                result.0.determine_variant(hubris, &buf[offs + result.1..])?;
+            let variant = option.determine_variant(hubris, b)?;
 
-            if r.goff == err.goff {
-                let details = err_payload
+            if variant.goff == some.goff {
+                let r = result
                     .0
-                    .determine_variant(hubris, &buf[offs + err_payload.1..])?;
+                    .determine_variant(hubris, &buf[offs + result.1..])?;
 
-                results.push(Some(Err(details)));
+                if r.goff == err.goff {
+                    let details = err_payload.0.determine_variant(
+                        hubris,
+                        &buf[offs + err_payload.1..],
+                    )?;
+
+                    results.push(Some(Err(details)));
+                } else {
+                    let o = offs + ok_payload.1;
+
+                    results.push(Some(Ok(buf[o])));
+                }
             } else {
-                let o = offs + ok_payload.1;
-
-                results.push(Some(Ok(buf[o])));
+                results.push(None);
             }
-        } else {
-            results.push(None);
         }
-    }
 
-    Ok(results)
+        Ok(results)
+    }
 }
 
 fn i2c_done(
     core: &mut dyn Core,
     subargs: &I2cArgs,
-    hubris: &HubrisArchive,
-    vars: &I2cVariables,
+    vars: &mut I2cVariables,
 ) -> Result<()> {
     if vars.error(core)? {
         if subargs.log {
@@ -377,11 +435,7 @@ fn i2c_done(
         }
     }
 
-    let mut buf: Vec<u8> = vec![];
-    buf.resize_with(vars.results.size, Default::default);
-    core.read_8(vars.results.addr, buf.as_mut_slice())?;
-
-    let results = i2c_results(hubris, vars, &buf)?;
+    let results = vars.results(core, None)?;
 
     if vars.timedout {
         warn!("operation timed out");
@@ -547,7 +601,6 @@ fn i2c_done(
 fn i2c_ingest(
     core: &mut dyn Core,
     subargs: &I2cArgs,
-    hubris: &HubrisArchive,
     vars: &mut I2cVariables,
     traceid: Option<u8>,
 ) -> Result<()> {
@@ -571,8 +624,7 @@ fn i2c_ingest(
                         i2c_done(
                             *shared.borrow_mut(),
                             subargs,
-                            hubris,
-                            *vars.borrow(),
+                            *vars.borrow_mut(),
                         )?;
                         std::process::exit(0);
                     }
@@ -622,7 +674,7 @@ fn i2c(
         bail!("must specify either 'scan' or specify a register");
     }
 
-    let mut vars = I2cVariables::new(hubris, subargs.timeout)?;
+    let mut vars = I2cVariables::new(hubris, &subargs)?;
 
     if !subargs.log {
         vars.kickit(core, &subargs)?;
@@ -630,14 +682,14 @@ fn i2c(
         loop {
             thread::sleep(Duration::from_millis(100));
             if vars.done(core)? {
-                i2c_done(core, &subargs, hubris, &vars)?;
+                i2c_done(core, &subargs, &mut vars)?;
                 return Ok(());
             }
         }
     }
 
     let traceid = itm_enable_ingest(core, hubris, 0x0000_000f)?;
-    i2c_ingest(core, &subargs, hubris, &mut vars, traceid)?;
+    i2c_ingest(core, &subargs, &mut vars, traceid)?;
 
     Ok(())
 }
