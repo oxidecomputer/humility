@@ -30,7 +30,7 @@ pub trait Core {
     fn init_swv(&mut self) -> Result<()>;
     fn read_swv(&mut self) -> Result<Vec<u8>>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
-    fn write_8(&mut self, addr: u32, data: u8) -> Result<()>;
+    fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()>;
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
@@ -94,9 +94,9 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn write_8(&mut self, addr: u32, data: u8) -> Result<()> {
+    fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()> {
         let mut core = self.session.core(0)?;
-        core.write_8(addr, &[data])?;
+        core.write_8(addr, data)?;
         Ok(())
     }
 
@@ -375,9 +375,8 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
-    fn write_8(&mut self, addr: u32, data: u8) -> Result<()> {
-        self.sendcmd(&format!("mwb 0x{:x} 0x{:x}", addr, data))?;
-        Ok(())
+    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
+        bail!("OpenOCD target does not support modifying state");
     }
 
     fn halt(&mut self) -> Result<()> {
@@ -677,7 +676,7 @@ impl Core for GDBCore {
         ))
     }
 
-    fn write_8(&mut self, _addr: u32, _data: u8) -> Result<()> {
+    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
         Err(anyhow!(
             "{} GDB target does not support modifying state", self.server
         ))
@@ -813,7 +812,7 @@ impl Core for DumpCore {
         bail!("cannot write a word on a dump");
     }
 
-    fn write_8(&mut self, _addr: u32, _data: u8) -> Result<()> {
+    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
         bail!("cannot write a byte on a dump");
     }
 

@@ -5,6 +5,7 @@
 mod apptable;
 mod dump;
 mod etm;
+mod hiffy;
 mod i2c;
 mod itm;
 mod jefe;
@@ -82,6 +83,7 @@ pub fn init<'a, 'b>(
         apptable::init,
         dump::init,
         etm::init,
+        hiffy::init,
         i2c::init,
         itm::init,
         jefe::init,

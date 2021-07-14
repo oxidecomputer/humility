@@ -20,6 +20,7 @@ mod core;
 mod debug;
 mod dwt;
 mod etm;
+mod hiffy;
 mod itm;
 mod scs;
 mod swo;

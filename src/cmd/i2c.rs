@@ -4,14 +4,15 @@
 
 use crate::cmd::*;
 use crate::core::Core;
+use crate::hiffy::*;
 use crate::hubris::*;
-use crate::itm::*;
 use crate::Args;
-use anyhow::{bail, Context, Result};
-use std::cell::RefCell;
+use anyhow::{anyhow, bail, Context, Result};
+use hif::*;
+use std::convert::TryFrom;
+use std::io::{Cursor, Write};
 use std::thread;
 use std::time::Duration;
-use std::time::Instant;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -24,10 +25,6 @@ pub struct I2cArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
-
-    /// enables ITM logging
-    #[structopt(long, short)]
-    log: bool,
 
     /// scan a controller for devices or a device for registers
     #[structopt(long, short, conflicts_with = "register")]
@@ -70,10 +67,11 @@ pub struct I2cArgs {
     /// specifies write value
     #[structopt(long, short, value_name = "value",
         parse(try_from_str = parse_int::parse),
+        requires = "register",
     )]
     write: Option<u8>,
 
-    /// number of bytes to read from register
+    /// number of bytes to read from (or write to) register
     #[structopt(long, short, value_name = "nbytes",
         conflicts_with = "write",
         parse(try_from_str = parse_int::parse),
@@ -81,366 +79,11 @@ pub struct I2cArgs {
     nbytes: Option<u8>,
 }
 
-impl I2cArgs {
-    pub fn from_caller(
-        controller: u8,
-        device: u8,
-        port: Option<String>,
-        mux: Option<String>,
-    ) -> Self {
-        I2cArgs {
-            timeout: 5000,
-            controller: controller,
-            device: Some(device),
-            port: port,
-            mux: mux,
-            ..Default::default()
-        }
-    }
-
-    pub fn set_register(&mut self, register: u8) {
-        self.register = Some(register);
-    }
-
-    pub fn set_block(&mut self, block: bool) {
-        self.block = block;
-    }
-
-    pub fn set_nbytes(&mut self, nbytes: Option<u8>) {
-        self.nbytes = nbytes;
-    }
-}
-
-#[derive(Debug)]
-pub struct I2cVariables<'a> {
-    hubris: &'a HubrisArchive,
-    ready: &'a HubrisVariable,
-    kick: &'a HubrisVariable,
-    controller: &'a HubrisVariable,
-    port: &'a HubrisVariable,
-    mux: &'a HubrisVariable,
-    segment: &'a HubrisVariable,
-    device: &'a HubrisVariable,
-    register: &'a HubrisVariable,
-    nbytes: &'a HubrisVariable,
-    value: &'a HubrisVariable,
-    requests: &'a HubrisVariable,
-    errors: &'a HubrisVariable,
-    results: &'a HubrisVariable,
-    cached: Option<(u32, u32)>,
-    kicked: Option<Instant>,
-    timeout: u32,
-    buf: Vec<u8>,
-    pub timedout: bool,
-}
-
-impl<'a> I2cVariables<'a> {
-    fn variable(
-        hubris: &'a HubrisArchive,
-        name: &str,
-        wordsize: bool,
-    ) -> Result<&'a HubrisVariable> {
-        let v = hubris
-            .lookup_variable(name)
-            .context("expected i2c debugging interface not found")?;
-
-        if wordsize && v.size != 4 {
-            bail!("expected {} to be size 4, found {}", name, v.size);
-        }
-
-        Ok(v)
-    }
-
-    pub fn new(
-        hubris: &'a HubrisArchive,
-        subargs: &I2cArgs,
-    ) -> Result<I2cVariables<'a>> {
-        let results = Self::variable(hubris, "I2C_DEBUG_RESULTS", false)?;
-
-        let mut buf: Vec<u8> = vec![];
-        buf.resize_with(results.size, Default::default);
-
-        Ok(Self {
-            hubris: hubris,
-            ready: Self::variable(hubris, "I2C_DEBUG_READY", true)?,
-            kick: Self::variable(hubris, "I2C_DEBUG_KICK", true)?,
-            controller: Self::variable(hubris, "I2C_DEBUG_CONTROLLER", true)?,
-            port: Self::variable(hubris, "I2C_DEBUG_PORT", false)?,
-            mux: Self::variable(hubris, "I2C_DEBUG_MUX", true)?,
-            segment: Self::variable(hubris, "I2C_DEBUG_SEGMENT", true)?,
-            device: Self::variable(hubris, "I2C_DEBUG_DEVICE", true)?,
-            register: Self::variable(hubris, "I2C_DEBUG_REGISTER", true)?,
-            nbytes: Self::variable(hubris, "I2C_DEBUG_NBYTES", true)?,
-            value: Self::variable(hubris, "I2C_DEBUG_VALUE", true)?,
-            requests: Self::variable(hubris, "I2C_DEBUG_REQUESTS", true)?,
-            errors: Self::variable(hubris, "I2C_DEBUG_ERRORS", true)?,
-            results: results,
-            cached: None,
-            kicked: None,
-            timeout: subargs.timeout,
-            timedout: false,
-            buf: buf,
-        })
-    }
-
-    pub fn kickit(
-        &mut self,
-        core: &mut dyn Core,
-        subargs: &I2cArgs,
-    ) -> Result<()> {
-        let mut port = None;
-
-        if core.read_word_32(self.ready.addr)? != 1 {
-            bail!("i2c debugging facility unavailable");
-        }
-
-        if let Some(ref portarg) = subargs.port {
-            let p = self
-                .hubris
-                .lookup_enum(self.port.goff)
-                .context("expected port to be an enum")?;
-
-            if p.size != 1 {
-                bail!("expected port to be a 1-byte enum");
-            }
-
-            for variant in &p.variants {
-                if variant.name.eq_ignore_ascii_case(&portarg) {
-                    port = variant.tag;
-                    break;
-                }
-            }
-
-            if port.is_none() {
-                let mut vals: Vec<String> = vec![];
-
-                for variant in &p.variants {
-                    vals.push(variant.name.to_string());
-                }
-
-                bail!(
-                    "invalid port \"{}\" (must be one of: {})",
-                    portarg,
-                    vals.join(", ")
-                );
-            }
-        }
-
-        let mux = if let Some(mux) = &subargs.mux {
-            let s = mux
-                .split(":")
-                .map(|v| parse_int::parse::<u32>(v))
-                .collect::<Result<Vec<_>, _>>()
-                .context("expected multiplexer and segment to be integers")?;
-
-            if s.len() == 2 {
-                Some((s[0], s[1]))
-            } else if s.len() == 1 {
-                Some((0, s[0]))
-            } else {
-                bail!("expected only multiplexer and segment identifiers");
-            }
-        } else {
-            None
-        };
-
-        core.halt()?;
-        core.write_word_32(self.controller.addr, subargs.controller as u32)?;
-
-        if let Some(device) = subargs.device {
-            core.write_word_32(self.device.addr, device as u32)?;
-        }
-
-        if let Some(nbytes) = subargs.nbytes {
-            if subargs.register.is_none() && !subargs.raw {
-                bail!("must specify register or raw to specify nbytes");
-            }
-
-            match nbytes {
-                1 | 2 => {
-                    core.write_word_32(self.nbytes.addr, nbytes as u32)?;
-                }
-                _ => {
-                    bail!("illegal value for nbytes");
-                }
-            }
-        } else if subargs.block {
-            core.write_word_32(self.nbytes.addr, 256u32)?;
-        }
-
-        if let Some(register) = subargs.register {
-            core.write_word_32(self.register.addr, register as u32)?;
-        } else if subargs.raw {
-            core.write_word_32(self.register.addr, u8::MAX as u32 + 1)?;
-        }
-
-        if let Some(value) = subargs.write {
-            core.write_word_32(self.value.addr, value as u32)?;
-        }
-
-        if let Some(port) = port {
-            core.write_8(self.port.addr, port as u8)?;
-        }
-
-        if let Some(mux) = mux {
-            core.write_word_32(self.mux.addr, mux.0 as u32)?;
-            core.write_word_32(self.segment.addr, mux.1 as u32)?;
-        }
-
-        core.write_word_32(self.kick.addr, 1)?;
-
-        self.cached = Some((
-            core.read_word_32(self.requests.addr)?,
-            core.read_word_32(self.errors.addr)?,
-        ));
-
-        self.kicked = Some(Instant::now());
-
-        core.run()?;
-        Ok(())
-    }
-
-    pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
-        core.halt()?;
-
-        let vars = Some((
-            core.read_word_32(self.requests.addr)?,
-            core.read_word_32(self.errors.addr)?,
-        ));
-
-        core.run()?;
-
-        if let Some(kicked) = self.kicked {
-            if kicked.elapsed().as_millis() > self.timeout.into() {
-                self.timedout = true;
-
-                return Ok(true);
-            }
-        }
-
-        Ok(self.cached.is_some() && vars != self.cached)
-    }
-
-    pub fn error(&self, core: &mut dyn Core) -> Result<bool> {
-        if let Some((_, errors)) = self.cached {
-            core.halt()?;
-            let rval = core.read_word_32(self.errors.addr)? > errors;
-            core.run()?;
-            Ok(rval)
-        } else {
-            Ok(false)
-        }
-    }
-
-    pub fn results(
-        &mut self,
-        core: &mut dyn Core,
-        nresults: Option<u8>,
-    ) -> Result<Vec<Option<Result<u8, &'a HubrisEnumVariant>>>> {
-        let hubris = self.hubris;
-
-        let variant_enum = |variant: &HubrisEnumVariant| {
-            let t = match variant.goff {
-                None => bail!("expected tuple"),
-                Some(goff) => {
-                    hubris.lookup_struct(goff)?.lookup_member("__0")?
-                }
-            };
-
-            Ok((hubris.lookup_enum(t.goff)?, t.offset))
-        };
-
-        let variant_basetype = |variant: &HubrisEnumVariant| {
-            let t = match variant.goff {
-                None => bail!("expected tuple"),
-                Some(goff) => {
-                    hubris.lookup_struct(goff)?.lookup_member("__0")?
-                }
-            };
-
-            Ok((hubris.lookup_basetype(t.goff)?, t.offset))
-        };
-
-        let array = hubris
-            .lookup_array(self.results.goff)
-            .context("expected results to be an array")?;
-
-        let nresults = match nresults {
-            Some(nresults) => nresults as usize,
-            None => array.count,
-        };
-
-        let option = hubris
-            .lookup_enum(array.goff)
-            .context("expected results to be an array of Option")?;
-
-        assert!(nresults <= array.count);
-        let nbytes = option.size * nresults;
-        core.read_8(self.results.addr, &mut self.buf[..nbytes])?;
-
-        let some = option.lookup_variant_byname("Some")?;
-        let result = variant_enum(some)?;
-
-        let ok = result.0.lookup_variant_byname("Ok")?;
-        let err = result.0.lookup_variant_byname("Err")?;
-
-        let err_payload = variant_enum(err)?;
-        let ok_payload = variant_basetype(ok)?;
-
-        let mut results: Vec<Option<Result<u8, &HubrisEnumVariant>>> = vec![];
-
-        for i in 0..nresults {
-            let offs = i * option.size;
-            let buf = &self.buf;
-            let b = &buf[offs..];
-
-            let variant = option.determine_variant(hubris, b)?;
-
-            if variant.goff == some.goff {
-                let r = result
-                    .0
-                    .determine_variant(hubris, &buf[offs + result.1..])?;
-
-                if r.goff == err.goff {
-                    let details = err_payload.0.determine_variant(
-                        hubris,
-                        &buf[offs + err_payload.1..],
-                    )?;
-
-                    results.push(Some(Err(details)));
-                } else {
-                    let o = offs + ok_payload.1;
-
-                    results.push(Some(Ok(buf[o])));
-                }
-            } else {
-                results.push(None);
-            }
-        }
-
-        Ok(results)
-    }
-}
-
 fn i2c_done(
-    core: &mut dyn Core,
     subargs: &I2cArgs,
-    vars: &mut I2cVariables,
+    results: &Vec<Result<Vec<u8>, u32>>,
+    errmap: &HashMap<u32, String>,
 ) -> Result<()> {
-    if vars.error(core)? {
-        if subargs.log {
-            bail!("i2c command failed on target");
-        } else {
-            bail!("i2c command failed on target; run with -l for more detail");
-        }
-    }
-
-    let results = vars.results(core, None)?;
-
-    if vars.timedout {
-        warn!("operation timed out");
-    }
-
     if subargs.scan && subargs.device.is_none() {
         println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
 
@@ -464,20 +107,23 @@ fn i2c_done(
 
             print!(
                 "{:>4}",
-                match results[i] {
-                    None => {
-                        "X"
-                    }
-                    Some(Ok(_)) => {
-                        "\\o/"
-                    }
-                    Some(Err(err)) => {
-                        if err.name == "NoDevice" {
-                            "-"
-                        } else if err.name == "ReservedAddress" {
-                            "R"
-                        } else {
-                            "Err"
+                if i >= results.len() {
+                    "X"
+                } else {
+                    match &results[i] {
+                        Ok(_) => "\\o/",
+                        Err(err) => {
+                            if let Some(name) = errmap.get(&err) {
+                                if name == "NoDevice" {
+                                    "-"
+                                } else if name == "ReservedAddress" {
+                                    "R"
+                                } else {
+                                    "Err"
+                                }
+                            } else {
+                                "???"
+                            }
                         }
                     }
                 }
@@ -511,24 +157,29 @@ fn i2c_done(
                 print!("0x{:02x} ", i);
             }
 
-            match results[i] {
-                Some(Ok(val)) => {
-                    print!("  {:02x}", val);
-                }
-                None => {
-                    print!("{:>4}", "X");
-                }
-                Some(Err(err)) => {
-                    print!(
-                        "{:>4}",
-                        if err.name == "NoRegister" {
-                            "-"
-                        } else if err.name == "NoDevice" {
-                            "!"
-                        } else {
-                            "Err"
-                        }
-                    );
+            if i >= results.len() {
+                print!("{:>4}", "X");
+            } else {
+                match &results[i] {
+                    Ok(val) => {
+                        print!("  {:02x}", val[0]);
+                    }
+                    Err(err) => {
+                        print!(
+                            "{:>4}",
+                            if let Some(name) = errmap.get(&err) {
+                                if name == "NoRegister" {
+                                    "-"
+                                } else if name == "NoDevice" {
+                                    "!"
+                                } else {
+                                    "Err"
+                                }
+                            } else {
+                                "???"
+                            }
+                        );
+                    }
                 }
             }
 
@@ -541,26 +192,21 @@ fn i2c_done(
             "Controller I2C{}, device 0x{:x}, raw read = {}",
             subargs.controller,
             subargs.device.unwrap(),
-            match results[0] {
-                Some(Err(err)) => {
-                    format!("Err({})", err.name)
-                }
-                None => {
-                    "Timed out".to_string()
-                }
-                Some(Ok(val)) => {
-                    match subargs.nbytes {
+            if results.len() == 0 {
+                "Timed out".to_string()
+            } else {
+                match &results[0] {
+                    Err(err) => {
+                        format!("Err({})", errmap.get(&err).unwrap())
+                    }
+                    Ok(val) => match subargs.nbytes {
                         Some(2) => {
-                            if let Some(Ok(msb)) = results[1] {
-                                format!("0x{:02x} 0x{:02x}", val, msb)
-                            } else {
-                                format!("{:x?} {:x?}", results[0], results[1])
-                            }
+                            format!("0x{:02x} 0x{:02x}", val[0], val[1])
                         }
                         _ => {
-                            format!("0x{:02x}", val)
+                            format!("0x{:02x}", val[0])
                         }
-                    }
+                    },
                 }
             }
         );
@@ -570,96 +216,45 @@ fn i2c_done(
             subargs.controller,
             subargs.device.unwrap(),
             subargs.register.unwrap(),
-            match results[0] {
-                Some(Err(err)) => {
-                    format!("Err({})", err.name)
-                }
-                None => {
-                    "Timed out".to_string()
-                }
-                Some(Ok(val)) => {
-                    match subargs.nbytes {
+            if results.len() == 0 {
+                "Timed out".to_string()
+            } else {
+                match &results[0] {
+                    Err(err) => {
+                        format!("Err({})", errmap.get(&err).unwrap())
+                    }
+                    Ok(val) if subargs.block => {
+                        let mut buf = [0u8; 1024];
+
+                        let mut cursor = Cursor::new(&mut buf[..]);
+                        for i in 0..val.len() {
+                            write!(
+                                cursor,
+                                "0x{:02x}{}",
+                                val[i],
+                                if i < val.len() - 1 { " " } else { "" }
+                            )
+                            .unwrap();
+                        }
+
+                        let len = cursor.position() as usize;
+                        format!("{}", std::str::from_utf8(&buf[..len]).unwrap())
+                    }
+
+                    Ok(val) => match subargs.nbytes {
                         Some(2) => {
-                            if let Some(Ok(msb)) = results[1] {
-                                format!("0x{:02x} 0x{:02x}", val, msb)
-                            } else {
-                                format!("{:x?} {:x?}", results[0], results[1])
-                            }
+                            format!("0x{:02x} 0x{:02x}", val[0], val[1])
                         }
                         _ => {
-                            format!("0x{:02x}", val)
+                            format!("0x{:02x}", val[0])
                         }
-                    }
+                    },
                 }
             }
         );
     }
 
     Ok(())
-}
-
-fn i2c_ingest(
-    core: &mut dyn Core,
-    subargs: &I2cArgs,
-    vars: &mut I2cVariables,
-    traceid: Option<u8>,
-) -> Result<()> {
-    let shared = RefCell::new(core);
-    let vars = RefCell::new(vars);
-    let mut bytes: Vec<u8> = vec![];
-    let mut ndx = 0;
-    let mut kicked = false;
-    let start = Instant::now();
-    let mut last = Instant::now();
-    let check_ms = 100;
-
-    itm_ingest(
-        traceid,
-        || {
-            while ndx == bytes.len() {
-                if ndx == 0 && last.elapsed().as_millis() > check_ms {
-                    last = Instant::now();
-
-                    if vars.borrow_mut().done(*shared.borrow_mut())? {
-                        i2c_done(
-                            *shared.borrow_mut(),
-                            subargs,
-                            *vars.borrow_mut(),
-                        )?;
-                        std::process::exit(0);
-                    }
-                }
-                bytes = shared.borrow_mut().read_swv()?;
-                ndx = 0;
-            }
-            ndx += 1;
-            Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
-        },
-        |packet| {
-            if packet.header == ITMHeader::Sync {
-                if !kicked {
-                    vars.borrow_mut().kickit(*shared.borrow_mut(), subargs)?;
-                    kicked = true;
-                }
-            }
-
-            match &packet.payload {
-                ITMPayload::Instrumentation { payload, port } => {
-                    if *port > 1 {
-                        println!("{:x?}", payload);
-                        return Ok(());
-                    }
-
-                    for p in payload {
-                        print!("{}", *p as char);
-                    }
-                }
-                _ => {}
-            }
-
-            Ok(())
-        },
-    )
 }
 
 fn i2c(
@@ -674,22 +269,162 @@ fn i2c(
         bail!("must specify either 'scan' or specify a register");
     }
 
-    let mut vars = I2cVariables::new(hubris, &subargs)?;
+    let mut context = HiffyContext::new(hubris, subargs.timeout)?;
+    let funcs = context.functions()?;
+    let func = funcs
+        .get("I2cRead")
+        .ok_or_else(|| anyhow!("did not find I2cRead function"))?;
 
-    if !subargs.log {
-        vars.kickit(core, &subargs)?;
+    if func.args.len() != 7 {
+        bail!("mismatched function signature on I2cRead");
+    }
 
-        loop {
-            thread::sleep(Duration::from_millis(100));
-            if vars.done(core)? {
-                i2c_done(core, &subargs, &mut vars)?;
-                return Ok(());
+    let mut port = None;
+
+    if let Some(ref portarg) = subargs.port {
+        let p = hubris
+            .lookup_enum(func.args[1])
+            .context("expected port to be an enum")?;
+
+        if p.size != 1 {
+            bail!("expected port to be a 1-byte enum");
+        }
+
+        for variant in &p.variants {
+            if variant.name.eq_ignore_ascii_case(&portarg) {
+                port = Some(u8::try_from(variant.tag.unwrap())?);
+                break;
             }
+        }
+
+        if port.is_none() {
+            let mut vals: Vec<String> = vec![];
+
+            for variant in &p.variants {
+                vals.push(variant.name.to_string());
+            }
+
+            bail!(
+                "invalid port \"{}\" (must be one of: {})",
+                portarg,
+                vals.join(", ")
+            );
         }
     }
 
-    let traceid = itm_enable_ingest(core, hubris, 0x0000_000f)?;
-    i2c_ingest(core, &subargs, &mut vars, traceid)?;
+    let mux = if let Some(mux) = &subargs.mux {
+        let s = mux
+            .split(":")
+            .map(|v| parse_int::parse::<u8>(v))
+            .collect::<Result<Vec<_>, _>>()
+            .context("expected multiplexer and segment to be integers")?;
+
+        if s.len() == 2 {
+            Some((s[0], s[1]))
+        } else if s.len() == 1 {
+            Some((0, s[0]))
+        } else {
+            bail!("expected only multiplexer and segment identifiers");
+        }
+    } else {
+        None
+    };
+
+    let mut ops = vec![];
+
+    ops.push(Op::Push(subargs.controller));
+
+    if let Some(port) = port {
+        ops.push(Op::Push(port));
+    } else {
+        ops.push(Op::PushNone);
+    }
+
+    if let Some(mux) = mux {
+        ops.push(Op::Push(mux.0));
+        ops.push(Op::Push(mux.1));
+    } else {
+        ops.push(Op::PushNone);
+        ops.push(Op::PushNone);
+    }
+
+    if !subargs.scan {
+        if let Some(device) = subargs.device {
+            ops.push(Op::Push(device));
+        } else {
+            bail!("expected device");
+        }
+
+        if let Some(register) = subargs.register {
+            ops.push(Op::Push(register));
+        } else {
+            bail!("expected register");
+        }
+
+        if let Some(nbytes) = subargs.nbytes {
+            if nbytes != 1 && nbytes != 2 {
+                bail!("nbytes must be 1 or 2");
+            }
+
+            ops.push(Op::Push(nbytes));
+        } else {
+            if subargs.block {
+                ops.push(Op::PushNone);
+            } else {
+                ops.push(Op::Push(1));
+            }
+        }
+
+        if subargs.write.is_some() {
+            bail!("writes not yet supported");
+        }
+
+        ops.push(Op::Call(func.id));
+    } else {
+        if let Some(device) = subargs.device {
+            ops.push(Op::Push(device));
+            ops.push(Op::Push(0));
+            ops.push(Op::PushNone);
+            ops.push(Op::Label(Target(0)));
+            ops.push(Op::Drop);
+            ops.push(Op::Push(1));
+            ops.push(Op::Call(func.id));
+            ops.push(Op::Add);
+            ops.push(Op::Push(0xff));
+            ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
+        } else {
+            ops.push(Op::PushNone);
+            ops.push(Op::Push(0));
+            ops.push(Op::PushNone);
+            ops.push(Op::Label(Target(0)));
+            ops.push(Op::Drop);
+            ops.push(Op::Swap);
+            ops.push(Op::Push(1));
+            ops.push(Op::Call(func.id));
+            ops.push(Op::Drop);
+            ops.push(Op::Swap);
+            ops.push(Op::Push(1));
+            ops.push(Op::Add);
+            ops.push(Op::Push(128));
+            ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
+        }
+    }
+
+    ops.push(Op::Done);
+
+    context.execute(core, ops.as_slice())?;
+
+    loop {
+        if context.done(core)? {
+            break;
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    let results = context.results(core)?;
+
+    i2c_done(&subargs, &results, &func.errmap)?;
 
     Ok(())
 }

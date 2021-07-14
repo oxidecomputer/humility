@@ -132,6 +132,9 @@ pub struct HubrisArchive {
 
     // Unions: goff to union
     unions: HashMap<HubrisGoff, HubrisUnion>,
+
+    // Definitions: name to goff
+    definitions: MultiMap<String, HubrisGoff>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -548,6 +551,7 @@ impl HubrisArchive {
             arrays: HashMap::new(),
             variables: MultiMap::new(),
             unions: HashMap::new(),
+            definitions: MultiMap::new(),
         })
     }
 
@@ -1223,6 +1227,8 @@ impl HubrisArchive {
                             _ => {}
                         }
                     }
+                } else {
+                    self.definitions.insert(String::from(name), tgoff);
                 }
             }
             _ => {}
@@ -2380,6 +2386,13 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_ptrtype(&self, goff: HubrisGoff) -> Result<HubrisGoff> {
+        match self.ptrtypes.get(&goff) {
+            Some((_name, ptr)) => Ok(*ptr),
+            None => Err(anyhow!("pointer type {} not found", goff)),
+        }
+    }
+
     ///
     /// Looks up the specified symbol.  This is more of a convenience routine
     /// that turns an Option into a Result.
@@ -2408,6 +2421,13 @@ impl HubrisArchive {
         match self.variables.get_vec(name) {
             None => Err(anyhow!("variable {} not found", name)),
             Some(variables) => Ok(variables),
+        }
+    }
+
+    pub fn lookup_definition(&self, name: &str) -> Result<&HubrisGoff> {
+        match self.definitions.get(name) {
+            Some(goff) => Ok(goff),
+            None => Err(anyhow!("definition {} not found", name)),
         }
     }
 
