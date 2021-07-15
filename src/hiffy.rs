@@ -11,6 +11,14 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::Instant;
 
+#[derive(Debug, PartialEq)]
+enum State {
+    Initialized,
+    Kicked,
+    ResultsReady,
+    ResultsConsumed,
+}
+
 #[derive(Debug)]
 pub struct HiffyContext<'a> {
     hubris: &'a HubrisArchive,
@@ -25,13 +33,45 @@ pub struct HiffyContext<'a> {
     kicked: Option<Instant>,
     timeout: u32,
     timedout: bool,
+    state: State,
 }
 
 #[derive(Debug)]
 pub struct HiffyFunction {
     pub id: TargetFunction,
+    pub name: String,
     pub args: Vec<HubrisGoff>,
     pub errmap: HashMap<u32, String>,
+}
+
+impl HiffyFunction {
+    pub fn strerror(&self, code: u32) -> String {
+        match self.errmap.get(&code) {
+            Some(name) => name.clone(),
+            None => format!("<Unknown {} error: {}>", self.name, code),
+        }
+    }
+
+    pub fn lookup_argument(
+        &self,
+        hubris: &HubrisArchive,
+        ndx: usize,
+        name: &str,
+    ) -> Result<u16> {
+        let arg = hubris.lookup_enum(self.args[ndx])?;
+
+        for v in &arg.variants {
+            let tag = v.tag.ok_or_else(|| {
+                anyhow!("function {}: malformed args", self.name)
+            })?;
+
+            if v.name == name {
+                return Ok(u16::try_from(tag)?);
+            }
+        }
+
+        bail!("for {}, did not find {} in arg {}", self.name, name, ndx);
+    }
 }
 
 impl<'a> HiffyContext<'a> {
@@ -76,6 +116,7 @@ impl<'a> HiffyContext<'a> {
             kicked: None,
             timeout: timeout,
             timedout: false,
+            state: State::Initialized,
         })
     }
 
@@ -104,6 +145,7 @@ impl<'a> HiffyContext<'a> {
 
             let mut func = HiffyFunction {
                 id: TargetFunction(u8::try_from(tag)?),
+                name: f.name.to_string(),
                 args: Vec::new(),
                 errmap: HashMap::new(),
             };
@@ -138,13 +180,17 @@ impl<'a> HiffyContext<'a> {
                 }
             }
 
-            rval.insert(f.name.to_string(), func);
+            rval.insert(func.name.clone(), func);
         }
 
         Ok(rval)
     }
 
     pub fn execute(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
+        if self.state != State::Initialized {
+            bail!("invalid state for execution: {:?}", self.state);
+        }
+
         let mut text: Vec<u8> = vec![];
         text.resize_with(self.text.size, Default::default);
 
@@ -171,12 +217,18 @@ impl<'a> HiffyContext<'a> {
 
         self.kicked = Some(Instant::now());
 
+        self.state = State::Kicked;
+
         core.run()?;
 
         Ok(())
     }
 
     pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
+        if self.state != State::Kicked {
+            bail!("invalid state for waiting: {:?}", self.state);
+        }
+
         core.halt()?;
 
         let vars = (
@@ -194,6 +246,7 @@ impl<'a> HiffyContext<'a> {
 
         if let Some(cached) = self.cached {
             if vars.0 != cached.0 {
+                self.state = State::ResultsReady;
                 Ok(true)
             } else if vars.1 != cached.1 {
                 bail!("request failed");
@@ -209,6 +262,10 @@ impl<'a> HiffyContext<'a> {
         &mut self,
         core: &mut dyn Core,
     ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+        if self.state != State::ResultsReady {
+            bail!("invalid state for consuming results: {:?}", self.state);
+        }
+
         let mut rstack: Vec<u8> = vec![];
         rstack.resize_with(self.rstack.size, Default::default);
 
@@ -238,6 +295,8 @@ impl<'a> HiffyContext<'a> {
 
             result = next;
         }
+
+        self.state = State::ResultsConsumed;
 
         Ok(rvec)
     }

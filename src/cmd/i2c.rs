@@ -82,8 +82,10 @@ pub struct I2cArgs {
 fn i2c_done(
     subargs: &I2cArgs,
     results: &Vec<Result<Vec<u8>, u32>>,
-    errmap: &HashMap<u32, String>,
+    func: &HiffyFunction,
 ) -> Result<()> {
+    let errmap = &func.errmap;
+
     if subargs.scan && subargs.device.is_none() {
         println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
 
@@ -197,7 +199,7 @@ fn i2c_done(
             } else {
                 match &results[0] {
                     Err(err) => {
-                        format!("Err({})", errmap.get(&err).unwrap())
+                        format!("Err({})", func.strerror(*err))
                     }
                     Ok(val) => match subargs.nbytes {
                         Some(2) => {
@@ -221,7 +223,7 @@ fn i2c_done(
             } else {
                 match &results[0] {
                     Err(err) => {
-                        format!("Err({})", errmap.get(&err).unwrap())
+                        format!("Err({})", func.strerror(*err))
                     }
                     Ok(val) if subargs.block => {
                         let mut buf = [0u8; 1024];
@@ -424,7 +426,7 @@ fn i2c(
 
     let results = context.results(core)?;
 
-    i2c_done(&subargs, &results, &func.errmap)?;
+    i2c_done(&subargs, &results, &func)?;
 
     Ok(())
 }
