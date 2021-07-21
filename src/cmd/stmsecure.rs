@@ -58,6 +58,9 @@ enum StmSecureArgs {
     /// Unset the secure region. Read out protection must be enabled.
     /// !!! This will erase all the flash as well !!!
     UnsetSecureRegion,
+    /// Swap the flash banks (Bank 1 -> Bank 2 or Bank 2 -> Bank 1)
+    /// !!! Make sure secure regions are appropriately programmed !!!
+    SwapBanks,
 }
 
 fn stmsecure_unlock_flash(core: &mut dyn Core) -> Result<()> {
@@ -252,6 +255,21 @@ fn stmsecure_unsetsecureregion(core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
+fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
+    println!("Swapping banks");
+    stmsecure_unlock_option(core)?;
+    let optsr = core.read_word_32(FLASH_OPTSR_CUR)?;
+    // Bit 31 is used to swap banks. If it's set, unset it etc.
+    if (optsr & 0x8000_0000) == 0x8000_0000 {
+        core.write_word_32(FLASH_OPTSR_PRG, optsr & !0x8000_0000)?;
+    } else {
+        core.write_word_32(FLASH_OPTSR_PRG, optsr | 0x8000_0000)?;
+    }
+    stmsecure_commit_option(core)?;
+    println!("done.");
+    Ok(())
+}
+
 #[rustfmt::skip::macros(format)]
 fn stmsecure(
     _hubris: &mut HubrisArchive,
@@ -271,6 +289,7 @@ fn stmsecure(
         StmSecureArgs::UnsetSecureRegion => stmsecure_unsetsecureregion(core),
         StmSecureArgs::SetRDP => stmsecure_rdpset(core),
         StmSecureArgs::UnsetRDP => stmsecure_rdpunset(core),
+        StmSecureArgs::SwapBanks => stmsecure_swapbanks(core),
     }
 }
 
