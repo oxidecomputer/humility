@@ -39,6 +39,6 @@ anyhow = "1.0.31"
 scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"
-pmbus = { git = "ssh://github.com/oxidecomputer/pmbus.git" }
+pmbus = { git = "ssh://github.com/oxidecomputer/pmbus.git", branch = "rework" }
 hif = { git = "ssh://github.com/oxidecomputer/hif.git" }
 postcard = "0.7.0"

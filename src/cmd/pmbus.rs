@@ -17,8 +17,6 @@ use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
-use num_traits::FromPrimitive;
-
 #[derive(StructOpt, Debug)]
 #[structopt(name = "pmbus", about = "scan for and read PMBus devices")]
 struct PmbusArgs {
@@ -32,6 +30,14 @@ struct PmbusArgs {
     /// verbose output
     #[structopt(long, short)]
     verbose: bool,
+
+    /// show errors
+    #[structopt(long, short)]
+    errors: bool,
+
+    /// specifies a PMBus driver
+    #[structopt(long, short = "D")]
+    driver: Option<String>,
 
     /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller",
@@ -48,7 +54,7 @@ struct PmbusArgs {
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short, value_name = "address",
+    #[structopt(long, short = "d", value_name = "address",
         parse(try_from_str = parse_int::parse),
     )]
     device: u8,
@@ -56,7 +62,9 @@ struct PmbusArgs {
 
 fn pmbus_result(
     subargs: &PmbusArgs,
-    command: pmbus::Command,
+    device: pmbus::Device,
+    code: u8,
+    command: &dyn pmbus::Command,
     result: &Result<Vec<u8>, u32>,
     errmap: &HashMap<u32, String>,
 ) -> Result<()> {
@@ -70,26 +78,27 @@ fn pmbus_result(
     };
 
     let name = format!("{:?}", command);
-    let cmdstr = format!("0x{:02x} {:<25}", command as u8, name);
+    let cmdstr = format!("0x{:02x} {:<25}", code, name);
 
     match result {
         Err(err) => {
-            if subargs.verbose {
+            if subargs.errors {
                 println!("{} Err({})", cmdstr, errmap.get(err).unwrap());
             }
         }
 
         Ok(val) => {
             if val.len() == 0 {
-                if subargs.verbose {
+                if subargs.errors {
                     println!("{} Timed out", cmdstr);
                     return Ok(());
                 }
             }
 
-            match nbytes {
+            let n = match nbytes {
                 Some(1) => {
                     println!("{} 0x{:02x}", cmdstr, val[0]);
+                    1
                 }
 
                 Some(2) => {
@@ -99,6 +108,7 @@ fn pmbus_result(
                     } else {
                         println!("{} Short: {:?}", cmdstr, val);
                     }
+                    2
                 }
 
                 Some(_) => {
@@ -111,7 +121,36 @@ fn pmbus_result(
                         print!(" 0x{:02x}", val[i]);
                     }
                     println!();
+                    val.len()
                 }
+            };
+
+            if !subargs.verbose {
+                return Ok(());
+            }
+
+            let mut printed = false;
+
+            let _ = pmbus::fields(device, code, &val[0..n], |field, value| {
+                let (pos, width) = field.bits();
+
+                let bits = if width.0 == 1 {
+                    format!("b{}", pos.0)
+                } else {
+                    format!("b{}:{}", pos.0 + width.0 - 1, pos.0)
+                };
+
+                let value = format!("{}", value);
+
+                println!("     | {:6} {:<30} <= {}", bits, value, field.name());
+                printed = true;
+            });
+
+            if printed {
+                println!(
+                    "     +------------------------------------------\
+                    -----------------------------\n"
+                );
             }
         }
     }
@@ -188,6 +227,17 @@ fn pmbus(
         None
     };
 
+    let device = if let Some(driver) = &subargs.driver {
+        match pmbus::Device::from_str(driver) {
+            Some(device) => device,
+            None => {
+                bail!("unknown device \"{}\"", driver);
+            }
+        }
+    } else {
+        pmbus::Device::Common
+    };
+
     let mut ops = vec![];
     let mut cmds = vec![];
 
@@ -210,13 +260,13 @@ fn pmbus(
     ops.push(Op::Push(subargs.device));
 
     for i in 0..=255u8 {
-        if let Some(cmd) = pmbus::Command::from_u8(i) {
+        pmbus::command(device, i, |cmd| {
             let op = match cmd.read_op() {
                 pmbus::Operation::ReadByte => Op::Push(1),
                 pmbus::Operation::ReadWord => Op::Push(2),
                 pmbus::Operation::ReadBlock => Op::PushNone,
                 _ => {
-                    continue;
+                    return;
                 }
             };
 
@@ -226,7 +276,7 @@ fn pmbus(
             ops.push(Op::Drop);
             ops.push(Op::Drop);
             cmds.push(i);
-        }
+        });
     }
 
     ops.push(Op::Done);
@@ -244,9 +294,20 @@ fn pmbus(
     let results = context.results(core)?;
 
     for i in 0..results.len() {
-        let cmd = pmbus::Command::from_u8(cmds[i]).unwrap();
+        let mut r = Ok(());
 
-        pmbus_result(&subargs, cmd, &results[i], &func.errmap)?;
+        pmbus::command(device, cmds[i], |cmd| {
+            r = pmbus_result(
+                &subargs,
+                device,
+                cmds[i],
+                cmd,
+                &results[i],
+                &func.errmap,
+            );
+        });
+
+        r?;
     }
 
     Ok(())
