@@ -247,9 +247,10 @@ fn i2c_done(
                         Some(2) => {
                             format!("0x{:02x} 0x{:02x}", val[0], val[1])
                         }
-                        _ => {
+                        Some(1) => {
                             format!("0x{:02x}", val[0])
                         }
+                        _ => "Success".to_string(),
                     },
                 }
             }
@@ -271,14 +272,19 @@ fn i2c(
         bail!("must specify either 'scan' or specify a register");
     }
 
-    let mut context = HiffyContext::new(hubris, subargs.timeout)?;
+    let (fname, args) = match subargs.write {
+        None => ("I2cRead", 7),
+        Some(_) => ("I2cWrite", 8),
+    };
+
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let func = funcs
-        .get("I2cRead")
-        .ok_or_else(|| anyhow!("did not find I2cRead function"))?;
+        .get(fname)
+        .ok_or_else(|| anyhow!("did not find {} function", fname))?;
 
-    if func.args.len() != 7 {
-        bail!("mismatched function signature on I2cRead");
+    if func.args.len() != args {
+        bail!("mismatched function signature on {}", fname);
     }
 
     let mut port = None;
@@ -357,28 +363,35 @@ fn i2c(
             bail!("expected device");
         }
 
-        if let Some(register) = subargs.register {
-            ops.push(Op::Push(register));
-        } else {
-            bail!("expected register");
-        }
-
-        if let Some(nbytes) = subargs.nbytes {
-            if nbytes != 1 && nbytes != 2 {
-                bail!("nbytes must be 1 or 2");
-            }
-
-            ops.push(Op::Push(nbytes));
-        } else {
-            if subargs.block {
-                ops.push(Op::PushNone);
+        if let Some(write) = subargs.write {
+            if let Some(register) = subargs.register {
+                ops.push(Op::Push(register));
             } else {
-                ops.push(Op::Push(1));
+                ops.push(Op::PushNone);
             }
-        }
 
-        if subargs.write.is_some() {
-            bail!("writes not yet supported");
+            ops.push(Op::Push(write));
+            ops.push(Op::Push(1));
+        } else {
+            if let Some(register) = subargs.register {
+                ops.push(Op::Push(register));
+            } else {
+                bail!("expected register");
+            }
+
+            if let Some(nbytes) = subargs.nbytes {
+                if nbytes != 1 && nbytes != 2 {
+                    bail!("nbytes must be 1 or 2");
+                }
+
+                ops.push(Op::Push(nbytes));
+            } else {
+                if subargs.block {
+                    ops.push(Op::PushNone);
+                } else {
+                    ops.push(Op::Push(1));
+                }
+            }
         }
 
         ops.push(Op::Call(func.id));

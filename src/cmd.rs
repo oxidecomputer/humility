@@ -16,6 +16,7 @@ mod probe;
 mod readmem;
 mod readvar;
 mod ringbuf;
+mod spd;
 mod stackmargin;
 mod tasks;
 mod test;
@@ -94,6 +95,7 @@ pub fn init<'a, 'b>(
         readmem::init,
         readvar::init,
         ringbuf::init,
+        spd::init,
         stackmargin::init,
         tasks::init,
         test::init,

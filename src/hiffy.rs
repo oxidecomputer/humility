@@ -91,6 +91,20 @@ impl<'a> HiffyContext<'a> {
         Ok(v)
     }
 
+    fn read_word(
+        hubris: &'a HubrisArchive,
+        core: &mut dyn Core,
+        name: &str,
+    ) -> Result<u32> {
+        let v = Self::variable(hubris, name, true)?;
+
+        let result = core
+            .read_word_32(v.addr)
+            .context(format!("couldn't read {}", name))?;
+
+        Ok(result)
+    }
+
     fn definition(hubris: &'a HubrisArchive, name: &str) -> Result<HubrisGoff> {
         let goff = hubris
             .lookup_definition(name)
@@ -101,8 +115,29 @@ impl<'a> HiffyContext<'a> {
 
     pub fn new(
         hubris: &'a HubrisArchive,
+        core: &mut dyn Core,
         timeout: u32,
-    ) -> Result<HiffyContext> {
+    ) -> Result<HiffyContext<'a>> {
+        let (major, minor) = (
+            Self::read_word(hubris, core, "HIFFY_VERSION_MAJOR")?,
+            Self::read_word(hubris, core, "HIFFY_VERSION_MINOR")?,
+        );
+
+        let target = (major, minor);
+        let ours = (HIF_VERSION_MAJOR, HIF_VERSION_MINOR);
+
+        //
+        // For now, we insist on an exact version match between Humility
+        // and Hubris.
+        //
+        if ours != target {
+            #[rustfmt::skip]
+            bail!(
+                "HIF version mismatch: target has {}.{}; ours is {}.{}",
+                target.0, target.1, ours.0, ours.1
+            );
+        }
+
         Ok(Self {
             hubris: hubris,
             ready: Self::variable(hubris, "HIFFY_READY", true)?,
@@ -187,8 +222,11 @@ impl<'a> HiffyContext<'a> {
     }
 
     pub fn execute(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
-        if self.state != State::Initialized {
-            bail!("invalid state for execution: {:?}", self.state);
+        match self.state {
+            State::Initialized | State::ResultsConsumed => {}
+            _ => {
+                bail!("invalid state for execution: {:?}", self.state);
+            }
         }
 
         let mut text: Vec<u8> = vec![];

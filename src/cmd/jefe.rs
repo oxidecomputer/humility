@@ -51,7 +51,7 @@ fn jefe(
 ) -> Result<()> {
     let subargs = JefeArgs::from_iter_safe(subargs)?;
 
-    let mut context = HiffyContext::new(hubris, subargs.timeout)?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let func = funcs
         .get("JefeSetDisposition")

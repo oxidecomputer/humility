@@ -28,7 +28,7 @@ struct HiffyArgs {
 
 fn hiffy(
     hubris: &mut HubrisArchive,
-    _core: &mut dyn Core,
+    core: &mut dyn Core,
     _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
@@ -38,7 +38,7 @@ fn hiffy(
         bail!("expected -l");
     }
 
-    let mut context = HiffyContext::new(hubris, subargs.timeout)?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     let funcs = context.functions()?;
     let mut byid: Vec<Option<(&String, &HiffyFunction)>> = vec![];

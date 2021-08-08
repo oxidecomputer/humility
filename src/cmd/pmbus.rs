@@ -166,7 +166,7 @@ fn pmbus(
 ) -> Result<()> {
     let subargs = PmbusArgs::from_iter_safe(subargs)?;
 
-    let mut context = HiffyContext::new(hubris, subargs.timeout)?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let func = funcs
         .get("I2cRead")

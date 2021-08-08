@@ -40,5 +40,6 @@ scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"
 pmbus = { git = "ssh://github.com/oxidecomputer/pmbus.git", branch = "rework" }
-hif = { git = "ssh://github.com/oxidecomputer/hif.git" }
+hif = { git = "ssh://github.com/oxidecomputer/hif.git", version = "0.2" }
+spd = { path = "../spd" }
 postcard = "0.7.0"
