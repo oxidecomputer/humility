@@ -131,7 +131,7 @@ fn pmbus_result(
 
             let mut printed = false;
 
-            let _ = pmbus::fields(device, code, &val[0..n], |field, value| {
+            let _ = device.interpret(code, &val[0..n], |field, value| {
                 let (pos, width) = field.bits();
 
                 let bits = if width.0 == 1 {
@@ -260,7 +260,7 @@ fn pmbus(
     ops.push(Op::Push(subargs.device));
 
     for i in 0..=255u8 {
-        pmbus::command(device, i, |cmd| {
+        device.command(i, |cmd| {
             let op = match cmd.read_op() {
                 pmbus::Operation::ReadByte => Op::Push(1),
                 pmbus::Operation::ReadWord => Op::Push(2),
@@ -296,7 +296,7 @@ fn pmbus(
     for i in 0..results.len() {
         let mut r = Ok(());
 
-        pmbus::command(device, cmds[i], |cmd| {
+        device.command(cmds[i], |cmd| {
             r = pmbus_result(
                 &subargs,
                 device,
