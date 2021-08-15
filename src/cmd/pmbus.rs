@@ -35,9 +35,17 @@ struct PmbusArgs {
     #[structopt(long, short)]
     errors: bool,
 
+    /// dry-run; show commands instead of running them
+    #[structopt(long = "dry-run", short = "n")]
+    dryrun: bool,
+
     /// specifies a PMBus driver
     #[structopt(long, short = "D")]
     driver: Option<String>,
+
+    /// specifies commands to run
+    #[structopt(long, short = "C")]
+    commands: Option<Vec<String>>,
 
     /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller",
@@ -259,7 +267,40 @@ fn pmbus(
 
     ops.push(Op::Push(subargs.device));
 
+    let mut run = [true; 256];
+
+    if let Some(ref commands) = subargs.commands {
+        for i in 0..run.len() {
+            run[i] = false;
+        }
+
+        let mut all: HashMap<String, u8> = HashMap::new();
+
+        for i in 0..=255u8 {
+            device.command(i, |cmd| {
+                let c = format!("{:?}", cmd);
+                all.insert(c, i);
+            });
+        }
+
+        for cmd in commands {
+            if let Some(code) = all.get(cmd) {
+                run[*code as usize] = true;
+            } else {
+                if let Ok(code) = parse_int::parse::<u8>(cmd) {
+                    run[code as usize] = true;
+                } else {
+                    bail!("unrecognized PMBus command {}", cmd);
+                }
+            }
+        }
+    }
+
     for i in 0..=255u8 {
+        if !run[i as usize] {
+            continue;
+        }
+
         device.command(i, |cmd| {
             let op = match cmd.read_op() {
                 pmbus::Operation::ReadByte => Op::Push(1),
@@ -270,6 +311,10 @@ fn pmbus(
                 }
             };
 
+            if subargs.dryrun {
+                println!("0x{:02x} {:?}", i, cmd);
+            }
+
             ops.push(Op::Push(i));
             ops.push(op);
             ops.push(Op::Call(func.id));
@@ -277,6 +322,14 @@ fn pmbus(
             ops.push(Op::Drop);
             cmds.push(i);
         });
+    }
+
+    if subargs.dryrun {
+        return Ok(());
+    }
+
+    if cmds.len() == 0 {
+        bail!("no command to run");
     }
 
     ops.push(Op::Done);
