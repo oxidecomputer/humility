@@ -750,7 +750,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.0"
-source = "git+ssh://github.com/oxidecomputer/pmbus.git?branch=rework#d26de84af331225cbd47a703cc073f2e5771a265"
+source = "git+ssh://github.com/oxidecomputer/pmbus.git?branch=rework#bf2319089bd64e11f8e3c745989cb0af1e6baa74"
 dependencies = [
  "anyhow",
  "convert_case",
@@ -1039,6 +1039,11 @@ checksum = "fbee7696b84bbf3d89a1c2eccff0850e3047ed46bfcd2e92c29a2d074d57e252"
 [[package]]
 name = "spd"
 version = "0.1.0"
+source = "git+ssh://github.com/oxidecomputer/spd.git#2e8209e21128140f419501b800a95b93f0254f85"
+dependencies = [
+ "num-derive",
+ "num-traits",
+]
 
 [[package]]
 name = "stable_deref_trait"

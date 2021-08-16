@@ -12,6 +12,7 @@ use std::thread;
 
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
+use pmbus::commands::*;
 use std::collections::HashMap;
 use std::time::Duration;
 use structopt::clap::App;
@@ -68,10 +69,12 @@ struct PmbusArgs {
     device: u8,
 }
 
+#[rustfmt::skip::macros(println)]
 fn pmbus_result(
     subargs: &PmbusArgs,
     device: pmbus::Device,
     code: u8,
+    mode: VOUT_MODE::CommandData,
     command: &dyn pmbus::Command,
     result: &Result<Vec<u8>, u32>,
     errmap: &HashMap<u32, String>,
@@ -88,6 +91,16 @@ fn pmbus_result(
     let name = format!("{:?}", command);
     let cmdstr = format!("0x{:02x} {:<25}", code, name);
 
+    fn printchar(val: u8) {
+        let c = val as char;
+
+        if c.is_ascii() && !c.is_ascii_control() {
+            print!("{}", c);
+        } else {
+            print!(".");
+        }
+    }
+
     match result {
         Err(err) => {
             if subargs.errors {
@@ -103,43 +116,83 @@ fn pmbus_result(
                 }
             }
 
-            let n = match nbytes {
-                Some(1) => {
-                    println!("{} 0x{:02x}", cmdstr, val[0]);
-                    1
+            if let Some(nbytes) = nbytes {
+                if val.len() != nbytes {
+                    println!("{} Short read: {:x?}", cmdstr, val);
+                    return Ok(());
                 }
-
-                Some(2) => {
-                    if val.len() > 1 {
-                        let word = ((val[1] as u16) << 8) | (val[0] as u16);
-                        println!("{} 0x{:04x}", cmdstr, word);
-                    } else {
-                        println!("{} Short: {:?}", cmdstr, val);
-                    }
-                    2
-                }
-
-                Some(_) => {
-                    unreachable!();
-                }
-
-                None => {
-                    print!("{}", cmdstr);
-                    for i in 0..val.len() {
-                        print!(" 0x{:02x}", val[i]);
-                    }
-                    println!();
-                    val.len()
-                }
-            };
-
-            if !subargs.verbose {
-                return Ok(());
             }
 
             let mut printed = false;
+            let mut interpreted = false;
 
-            let _ = device.interpret(code, &val[0..n], |field, value| {
+            let printraw = |interpret: bool| {
+                print!("{}", cmdstr);
+
+                if nbytes.is_none() {
+                    let w = 8;
+
+                    for i in 0..val.len() {
+                        if i > 0 && i % w == 0 {
+                            print!(" |");
+
+                            for j in (i - w)..i {
+                                printchar(val[j]);
+                            }
+
+                            if !interpret {
+                                print!("\n{:30}", "");
+                            } else {
+                                print!("\n     | {:22} ", "");
+                            }
+                        }
+
+                        print!(" 0x{:02x}", val[i]);
+                    }
+
+                    let rem = val.len() % w;
+
+                    if rem != 0 {
+                        print!("{:width$} |", "", width = (w - rem) * 5);
+                        let base = val.len() - rem;
+
+                        for i in 0..rem {
+                            printchar(val[base + i]);
+                        }
+                    }
+                } else {
+                    print!(" 0x");
+                    for i in (0..val.len()).rev() {
+                        print!("{:02x}", val[i]);
+                    }
+                }
+
+                println!();
+            };
+
+            let err = device.interpret(code, val, || mode, |field, value| {
+                if !field.bitfield() {
+                    let width = (field.bits().1.0 / 4) as usize;
+
+                    println!(
+                       "{} 0x{:0width$x} = {}",
+                       cmdstr, value.raw(), value, width = width
+                    );
+
+                    interpreted = true;
+                    return;
+                }
+
+                if !subargs.verbose {
+                    return;
+                }
+
+                if !interpreted {
+                    printraw(true);
+                    println!("     |");
+                    interpreted = true;
+                }
+
                 let (pos, width) = field.bits();
 
                 let bits = if width.0 == 1 {
@@ -153,6 +206,14 @@ fn pmbus_result(
                 println!("     | {:6} {:<30} <= {}", bits, value, field.name());
                 printed = true;
             });
+
+            if !err.is_ok() {
+                bail!("could not interpret {:?}: {:?}", command, err);
+            }
+
+            if !interpreted {
+                printraw(false);
+            }
 
             if printed {
                 println!(
@@ -296,32 +357,36 @@ fn pmbus(
         }
     }
 
-    for i in 0..=255u8 {
-        if !run[i as usize] {
-            continue;
+    let vout = pmbus::commands::CommandCode::VOUT_MODE as u8;
+
+    let mut addcmd = |cmd: &dyn Command, code| {
+        let op = match cmd.read_op() {
+            pmbus::Operation::ReadByte => Op::Push(1),
+            pmbus::Operation::ReadWord => Op::Push(2),
+            pmbus::Operation::ReadBlock => Op::PushNone,
+            _ => {
+                return;
+            }
+        };
+
+        if subargs.dryrun {
+            println!("0x{:02x} {:?}", code, cmd);
         }
 
-        device.command(i, |cmd| {
-            let op = match cmd.read_op() {
-                pmbus::Operation::ReadByte => Op::Push(1),
-                pmbus::Operation::ReadWord => Op::Push(2),
-                pmbus::Operation::ReadBlock => Op::PushNone,
-                _ => {
-                    return;
-                }
-            };
+        ops.push(Op::Push(code));
+        ops.push(op);
+        ops.push(Op::Call(func.id));
+        ops.push(Op::Drop);
+        ops.push(Op::Drop);
+        cmds.push(code);
+    };
 
-            if subargs.dryrun {
-                println!("0x{:02x} {:?}", i, cmd);
-            }
+    device.command(vout, |cmd| addcmd(cmd, vout));
 
-            ops.push(Op::Push(i));
-            ops.push(op);
-            ops.push(Op::Call(func.id));
-            ops.push(Op::Drop);
-            ops.push(Op::Drop);
-            cmds.push(i);
-        });
+    for i in 0..=255u8 {
+        if run[i as usize] {
+            device.command(i, |cmd| addcmd(cmd, i));
+        }
     }
 
     if subargs.dryrun {
@@ -346,7 +411,15 @@ fn pmbus(
 
     let results = context.results(core)?;
 
-    for i in 0..results.len() {
+    let mode = match results[0] {
+        Err(code) => {
+            bail!("can't read VOUT_MODE: {}", func.strerror(code));
+        }
+
+        Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
+    };
+
+    for i in 1..results.len() {
         let mut r = Ok(());
 
         device.command(cmds[i], |cmd| {
@@ -354,6 +427,7 @@ fn pmbus(
                 &subargs,
                 device,
                 cmds[i],
+                mode,
                 cmd,
                 &results[i],
                 &func.errmap,

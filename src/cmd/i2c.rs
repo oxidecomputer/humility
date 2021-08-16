@@ -376,7 +376,7 @@ fn i2c(
             if let Some(register) = subargs.register {
                 ops.push(Op::Push(register));
             } else {
-                bail!("expected register");
+                ops.push(Op::PushNone);
             }
 
             if let Some(nbytes) = subargs.nbytes {
