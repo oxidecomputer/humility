@@ -188,18 +188,18 @@ fn main() {
 
     if let Some(archive) = &args.archive {
         if let Err(err) = hubris.load(&archive) {
-            fatal!("failed to load archive: {}", err);
+            fatal!("failed to load archive: {:#}", err);
         }
     } else if let Some(dump) = &args.dump {
         if let Err(err) = hubris.load_dump(&dump) {
-            fatal!("failed to load dump: {}", err);
+            fatal!("failed to load dump: {:#}", err);
         }
     }
 
     match &args.cmd {
         Subcommand::Other(ref subargs) => {
             match cmd::subcommand(&commands, &mut hubris, &args, subargs) {
-                Err(err) => fatal!("{} failed: {:?}", subargs[0], err),
+                Err(err) => fatal!("{} failed: {:#}", subargs[0], err),
                 _ => std::process::exit(0),
             }
         }
