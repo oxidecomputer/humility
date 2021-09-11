@@ -69,7 +69,7 @@ fn jefe(
         bail!("one of fault, start, hold, or release must be specified");
     };
 
-    let val = func.lookup_argument(hubris, 1, request)?;
+    let val = func.lookup_argument(hubris, "request", 1, request)?;
 
     let task = hubris
         .lookup_task(&subargs.task)

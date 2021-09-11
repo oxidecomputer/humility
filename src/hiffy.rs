@@ -28,6 +28,7 @@ pub struct HiffyContext<'a> {
     rstack: &'a HubrisVariable,
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
+    failure: &'a HubrisVariable,
     functions: HubrisGoff,
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
@@ -52,17 +53,42 @@ impl HiffyFunction {
         }
     }
 
-    pub fn lookup_argument(
+    pub fn argument_variants(
         &self,
         hubris: &HubrisArchive,
         ndx: usize,
-        name: &str,
-    ) -> Result<u16> {
-        let arg = hubris.lookup_enum(self.args[ndx])?;
+    ) -> Result<Vec<(String, u16)>> {
+        let arg = hubris
+            .lookup_enum(self.args[ndx])
+            .context(format!("expected enum for arg #{}", ndx))?;
+
+        let mut variants = vec![];
 
         for v in &arg.variants {
             let tag = v.tag.ok_or_else(|| {
-                anyhow!("function {}: malformed args", self.name)
+                anyhow!("{}: malformed variant in arg #{}", ndx, self.args[ndx])
+            })?;
+
+            variants.push((v.name.to_string(), u16::try_from(tag)?));
+        }
+
+        Ok(variants)
+    }
+
+    pub fn lookup_argument(
+        &self,
+        hubris: &HubrisArchive,
+        what: &str,
+        ndx: usize,
+        name: &str,
+    ) -> Result<u16> {
+        let arg = hubris
+            .lookup_enum(self.args[ndx])
+            .context(format!("expected enum for {}", what))?;
+
+        for v in &arg.variants {
+            let tag = v.tag.ok_or_else(|| {
+                anyhow!("{}: malformed variant in {}", what, self.args[ndx])
             })?;
 
             if v.name == name {
@@ -70,7 +96,14 @@ impl HiffyFunction {
             }
         }
 
-        bail!("for {}, did not find {} in arg {}", self.name, name, ndx);
+        let mut vals: Vec<String> = vec![];
+
+        for variant in &arg.variants {
+            vals.push(variant.name.to_string());
+        }
+
+        let list = vals.join(", ");
+        bail!("invalid {} \"{}\" (must be one of: {})", what, name, list);
     }
 }
 
@@ -118,12 +151,16 @@ impl<'a> HiffyContext<'a> {
         core: &mut dyn Core,
         timeout: u32,
     ) -> Result<HiffyContext<'a>> {
+        core.halt()?;
+
         let (major, minor) = (
-            Self::read_word(hubris, core, "HIFFY_VERSION_MAJOR")?,
-            Self::read_word(hubris, core, "HIFFY_VERSION_MINOR")?,
+            Self::read_word(hubris, core, "HIFFY_VERSION_MAJOR"),
+            Self::read_word(hubris, core, "HIFFY_VERSION_MINOR"),
         );
 
-        let target = (major, minor);
+        core.run()?;
+
+        let target = (major?, minor?);
         let ours = (HIF_VERSION_MAJOR, HIF_VERSION_MINOR);
 
         //
@@ -146,6 +183,7 @@ impl<'a> HiffyContext<'a> {
             rstack: Self::variable(hubris, "HIFFY_RSTACK", false)?,
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
+            failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
             functions: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
             cached: None,
             kicked: None,
@@ -170,12 +208,20 @@ impl<'a> HiffyContext<'a> {
         let mut rval = HashMap::new();
 
         for f in &functions.variants {
-            let tag = f.tag.ok_or_else(|| {
-                anyhow!("function {}: missing an identifier", f.name)
-            })?;
+            //
+            // We expect every function to have a tag (unless there is only
+            // one function present in which case we know that the index is 0).
+            //
+            let tag = match f.tag {
+                Some(tag) => tag,
+                None if functions.variants.len() == 1 => 0,
+                _ => {
+                    bail!("function {} in {}: missing tag", f.name, goff);
+                }
+            };
 
             let goff = f.goff.ok_or_else(|| {
-                anyhow!("function {}: missing a type", f.name)
+                anyhow!("function {} in {}: missing a type", f.name, goff)
             })?;
 
             let mut func = HiffyFunction {
@@ -207,7 +253,11 @@ impl<'a> HiffyContext<'a> {
             if let Ok(err) = hubris.lookup_enum(err) {
                 for e in &err.variants {
                     let tag = e.tag.ok_or_else(|| {
-                        anyhow!("function {}: malformed errors", f.name)
+                        anyhow!(
+                            "function {}: malformed error type {}",
+                            f.name,
+                            err.goff,
+                        )
                     })?;
 
                     let val = u32::try_from(tag)?;
@@ -232,7 +282,10 @@ impl<'a> HiffyContext<'a> {
         let mut text: Vec<u8> = vec![];
         text.resize_with(self.text.size, Default::default);
 
+        core.halt()?;
+
         if core.read_word_32(self.ready.addr)? != 1 {
+            core.run()?;
             bail!("HIF execution facility unavailable");
         }
 
@@ -244,7 +297,6 @@ impl<'a> HiffyContext<'a> {
             current += serialized.len();
         }
 
-        core.halt()?;
         core.write_8(self.text.addr, &buf[0..])?;
         core.write_word_32(self.kick.addr, 1)?;
 
@@ -287,7 +339,35 @@ impl<'a> HiffyContext<'a> {
                 self.state = State::ResultsReady;
                 Ok(true)
             } else if vars.1 != cached.1 {
-                bail!("request failed");
+                //
+                // If we have died because our HIF failed fatally (which we
+                // only expect due to programmer error), we want to print
+                // HIFFY_FAILURE to provide some additional context.
+                //
+                let mut buf: Vec<u8> = vec![];
+                buf.resize_with(self.failure.size, Default::default);
+
+                core.halt()?;
+                let r = core.read_8(self.failure.addr, buf.as_mut_slice());
+                core.run()?;
+
+                match r {
+                    Ok(_) => {
+                        let fmt = HubrisPrintFormat {
+                            indent: 0,
+                            newline: false,
+                            hex: true,
+                        };
+
+                        let hubris = self.hubris;
+                        let f =
+                            hubris.printfmt(&buf, self.failure.goff, &fmt)?;
+                        bail!("request failed: {}", f);
+                    }
+                    _ => {
+                        bail!("request failed");
+                    }
+                }
             } else {
                 Ok(false)
             }

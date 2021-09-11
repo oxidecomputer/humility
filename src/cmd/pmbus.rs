@@ -14,6 +14,7 @@ use std::thread;
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use pmbus::commands::*;
+use pmbus::*;
 use std::collections::HashMap;
 use std::time::Duration;
 use structopt::clap::App;
@@ -95,7 +96,7 @@ fn print_result(
     subargs: &PmbusArgs,
     device: pmbus::Device,
     code: u8,
-    mode: VOUT_MODE::CommandData,
+    mode: impl Fn() -> VOutMode,
     command: &dyn pmbus::Command,
     result: &Result<Vec<u8>, u32>,
     errmap: &HashMap<u32, String>,
@@ -192,9 +193,9 @@ fn print_result(
                 println!();
             };
 
-            let err = device.interpret(code, val, || mode, |field, value| {
+            let err = device.interpret(code, val, mode, |field, value| {
                 if !field.bitfield() {
-                    let width = (field.bits().1.0 / 4) as usize;
+                    let width = (field.bits().1 .0 / 4) as usize;
 
                     println!(
                        "{} 0x{:0width$x} = {}",
@@ -252,7 +253,7 @@ fn print_result(
 fn prepare_write(
     device: pmbus::Device,
     code: u8,
-    mode: VOUT_MODE::CommandData,
+    mode: impl Fn() -> VOutMode,
     command: &dyn pmbus::Command,
     payload: &Vec<u8>,
     writes: &Vec<(Bitpos, Replacement)>,
@@ -261,23 +262,18 @@ fn prepare_write(
     let mut rval = payload.clone();
     let mut replaced = vec![false; writes.len()];
 
-    let err = device.mutate(
-        code,
-        &mut rval,
-        || mode,
-        |field, _| {
-            let pos = field.bits().0;
+    let err = device.mutate(code, &mut rval, mode, |field, _| {
+        let pos = field.bits().0;
 
-            for i in 0..writes.len() {
-                if writes[i].0 == pos {
-                    replaced[i] = true;
-                    return Some(writes[i].1);
-                }
+        for i in 0..writes.len() {
+            if writes[i].0 == pos {
+                replaced[i] = true;
+                return Some(writes[i].1);
             }
+        }
 
-            None
-        },
-    );
+        None
+    });
 
     if !err.is_ok() {
         bail!("failed to mutate {}: {:?}", name, err);
@@ -573,8 +569,6 @@ fn pmbus(
         write_ops = ops.clone();
     }
 
-    let vout = pmbus::commands::CommandCode::VOUT_MODE as u8;
-
     let mut addcmd = |cmd: &dyn Command, code| {
         let op = match cmd.read_op() {
             pmbus::Operation::ReadByte => Op::Push(1),
@@ -598,6 +592,8 @@ fn pmbus(
         cmds.push(code);
     };
 
+    let vout = pmbus::commands::CommandCode::VOUT_MODE as u8;
+
     device.command(vout, |cmd| addcmd(cmd, vout));
 
     for i in 0..=255u8 {
@@ -614,6 +610,8 @@ fn pmbus(
         bail!("no command to run");
     }
 
+    let mndx = if cmds[0] == vout { Some(0) } else { None };
+
     ops.push(Op::Done);
 
     context.execute(core, ops.as_slice())?;
@@ -628,16 +626,29 @@ fn pmbus(
 
     let results = context.results(core)?;
 
-    let mode = match results[0] {
-        Err(code) => {
-            bail!("can't read VOUT_MODE: {}", func.strerror(code));
-        }
+    let (mode, ndx) = match mndx {
+        Some(mndx) => {
+            let mode = match results[mndx] {
+                Err(code) => {
+                    bail!("can't read VOUT_MODE: {}", func.strerror(code));
+                }
+                Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
+            };
 
-        Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
+            (Some(mode), 1)
+        }
+        None => (None, 0),
+    };
+
+    let getmode = || match mode {
+        Some(mode) => mode,
+        None => {
+            panic!("unexpected call to get VOutMode");
+        }
     };
 
     if writes.len() > 0 {
-        for i in 1..results.len() {
+        for i in ndx..results.len() {
             let payload = match results[i] {
                 Err(code) => {
                     bail!(
@@ -654,7 +665,7 @@ fn pmbus(
 
                 device.command(cmds[i], |cmd| {
                     r = Some(prepare_write(
-                        device, cmds[i], mode, cmd, payload, write,
+                        device, cmds[i], getmode, cmd, payload, write,
                     ));
                 });
 
@@ -687,7 +698,7 @@ fn pmbus(
         let wresults = context.results(core)?;
 
         for i in 0..wresults.len() {
-            let name = bycode.get(&cmds[i + 1]).unwrap();
+            let name = bycode.get(&cmds[i + ndx]).unwrap();
 
             match wresults[i] {
                 Err(code) => {
@@ -703,7 +714,7 @@ fn pmbus(
             }
         }
     } else {
-        for i in 1..results.len() {
+        for i in ndx..results.len() {
             let mut r = Ok(());
 
             device.command(cmds[i], |cmd| {
@@ -711,7 +722,7 @@ fn pmbus(
                     &subargs,
                     device,
                     cmds[i],
-                    mode,
+                    getmode,
                     cmd,
                     &results[i],
                     &func.errmap,
