@@ -3606,6 +3606,34 @@ impl HubrisArchive {
         Ok(())
     }
 
+    pub fn lookup_feature(&self, feature: &str) -> Result<Vec<HubrisTask>> {
+        let mut rval = vec![];
+
+        ensure!(
+            self.modules.len() > 0,
+            "Hubris archive required specify a task feature"
+        );
+
+        for module in self.modules.values() {
+            if module.task == HubrisTask::Kernel {
+                continue;
+            }
+
+            match self.manifest.task_features.get(&module.name) {
+                Some(features) => {
+                    for f in features {
+                        if f == feature {
+                            rval.push(module.task);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(rval)
+    }
+
     pub fn lookup_peripheral(&self, name: &str) -> Result<u32> {
         ensure!(
             self.modules.len() > 0,

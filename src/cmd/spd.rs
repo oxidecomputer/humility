@@ -260,7 +260,7 @@ fn spd(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice())?;
+    context.execute(core, ops.as_slice(), None)?;
 
     loop {
         if context.done(core)? {
@@ -328,7 +328,7 @@ fn spd(
 
             ops.push(Op::Done);
 
-            context.execute(core, ops.as_slice())?;
+            context.execute(core, ops.as_slice(), None)?;
 
             loop {
                 if context.done(core)? {

@@ -62,7 +62,10 @@ fn ringbuf_dump(
 
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(ringbuf.size, Default::default);
+
+    let _info = core.halt()?;
     core.read_8(ringbuf.addr, buf.as_mut_slice())?;
+    core.run()?;
 
     let last = definition.lookup_member("last")?;
     let buffer = definition.lookup_member("buffer")?;

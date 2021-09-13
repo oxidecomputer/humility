@@ -89,7 +89,7 @@ fn jefe(
     ops.push(Op::Call(func.id));
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice())?;
+    context.execute(core, ops.as_slice(), None)?;
 
     loop {
         if context.done(core)? {

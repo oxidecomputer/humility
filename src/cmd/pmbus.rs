@@ -614,7 +614,7 @@ fn pmbus(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice())?;
+    context.execute(core, ops.as_slice(), None)?;
 
     loop {
         if context.done(core)? {
@@ -685,7 +685,7 @@ fn pmbus(
 
         write_ops.push(Op::Done);
 
-        context.execute(core, write_ops.as_slice())?;
+        context.execute(core, write_ops.as_slice(), None)?;
 
         loop {
             if context.done(core)? {

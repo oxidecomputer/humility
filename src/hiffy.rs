@@ -25,6 +25,7 @@ pub struct HiffyContext<'a> {
     ready: &'a HubrisVariable,
     kick: &'a HubrisVariable,
     text: &'a HubrisVariable,
+    data: &'a HubrisVariable,
     rstack: &'a HubrisVariable,
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
@@ -180,6 +181,7 @@ impl<'a> HiffyContext<'a> {
             ready: Self::variable(hubris, "HIFFY_READY", true)?,
             kick: Self::variable(hubris, "HIFFY_KICK", true)?,
             text: Self::variable(hubris, "HIFFY_TEXT", false)?,
+            data: Self::variable(hubris, "HIFFY_DATA", false)?,
             rstack: Self::variable(hubris, "HIFFY_RSTACK", false)?,
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
@@ -271,11 +273,26 @@ impl<'a> HiffyContext<'a> {
         Ok(rval)
     }
 
-    pub fn execute(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
+    pub fn execute(
+        &mut self,
+        core: &mut dyn Core,
+        ops: &[Op],
+        data: Option<&[u8]>,
+    ) -> Result<()> {
         match self.state {
             State::Initialized | State::ResultsConsumed => {}
             _ => {
                 bail!("invalid state for execution: {:?}", self.state);
+            }
+        }
+
+        if let Some(data) = data {
+            if data.len() > self.data.size {
+                bail!(
+                    "data size ({}) exceeds maximum data size ({})",
+                    data.len(),
+                    self.data.size
+                );
             }
         }
 
@@ -298,6 +315,11 @@ impl<'a> HiffyContext<'a> {
         }
 
         core.write_8(self.text.addr, &buf[0..])?;
+
+        if let Some(data) = data {
+            core.write_8(self.data.addr, data)?;
+        }
+
         core.write_word_32(self.kick.addr, 1)?;
 
         self.cached = Some((
