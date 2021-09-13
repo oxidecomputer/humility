@@ -42,4 +42,4 @@ anyhow = "1.0.31"
 scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"
-pmbus = { git = "ssh://github.com/oxidecomputer/pmbus.git" }
+pmbus = { git = "ssh://github.com/oxidecomputer/pmbus.git", rev = "ce8a002decb21548237a8e922bd88d1d781f1549" }
