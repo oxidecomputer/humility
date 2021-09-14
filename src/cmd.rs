@@ -16,6 +16,7 @@ mod readmem;
 mod readvar;
 mod ringbuf;
 mod stackmargin;
+mod stmsecure;
 mod tasks;
 mod test;
 mod trace;
@@ -96,6 +97,7 @@ pub fn init<'a, 'b>(
         tasks::init,
         test::init,
         trace::init,
+        stmsecure::init,
     ];
 
     for dcmd in &dcmds {
