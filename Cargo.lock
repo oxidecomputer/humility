@@ -444,8 +444,7 @@ dependencies = [
 
 [[package]]
 name = "hif"
-version = "0.2.1"
-source = "git+ssh://git@github.com/oxidecomputer/hif.git#6c48aec7dfd200acfae22fafc3e80b9d97d751c9"
+version = "0.2.3"
 dependencies = [
  "pkg-version",
  "postcard",
@@ -911,9 +910,9 @@ checksum = "cabe4fa914dec5870285fa7f71f602645da47c486e68486d2b4ceb4a343e90ac"
 
 [[package]]
 name = "ron"
-version = "0.6.4"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "064ea8613fb712a19faf920022ec8ddf134984f100090764a4e1d768f3827f1f"
+checksum = "45005aa836116903a49cf3461474da697cfe66221762c6e95871092009ec86d6"
 dependencies = [
  "base64 0.13.0",
  "bitflags",
@@ -1038,7 +1037,6 @@ checksum = "fbee7696b84bbf3d89a1c2eccff0850e3047ed46bfcd2e92c29a2d074d57e252"
 [[package]]
 name = "spd"
 version = "0.1.0"
-source = "git+ssh://git@github.com/oxidecomputer/spd.git#2e8209e21128140f419501b800a95b93f0254f85"
 dependencies = [
  "num-derive",
  "num-traits",
