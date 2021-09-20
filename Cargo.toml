@@ -11,6 +11,7 @@ debug = true
 pmbus = { path = "./pmbus" }
 hif = { path = "./hif" }
 spd = { path = "./spd" }
+idt8a3xxxx = { path = "./idt8a3xxxx" }
 
 gimli = "0.20.0"
 fallible-iterator = "0.2.0"
@@ -44,3 +45,4 @@ scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"
 postcard = "0.7.0"
+itertools = "0.10.1"

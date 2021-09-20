@@ -465,7 +465,9 @@ dependencies = [
  "gimli 0.20.0",
  "goblin",
  "hif",
+ "idt8a3xxxx",
  "indicatif",
+ "itertools",
  "jep106",
  "log",
  "multimap",
@@ -484,6 +486,15 @@ dependencies = [
  "structopt",
  "toml",
  "zip",
+]
+
+[[package]]
+name = "idt8a3xxxx"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ron",
+ "serde",
 ]
 
 [[package]]
@@ -512,6 +523,15 @@ dependencies = [
  "lazy_static",
  "number_prefix",
  "regex",
+]
+
+[[package]]
+name = "itertools"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69ddb889f9d0d08a67338271fa9b62996bc788c7796a5c18cf057420aaed5eaf"
+dependencies = [
+ "either",
 ]
 
 [[package]]

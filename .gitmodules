@@ -7,3 +7,6 @@
 [submodule "spd"]
 	path = spd
 	url = git@github.com:oxidecomputer/spd.git
+[submodule "idt8a3xxxx"]
+	path = idt8a3xxxx
+	url = git@github.com:oxidecomputer/idt8a3xxxx.git

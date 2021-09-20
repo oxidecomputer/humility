@@ -16,6 +16,7 @@ mod pmbus;
 mod probe;
 mod readmem;
 mod readvar;
+mod rencm;
 mod ringbuf;
 mod spd;
 mod spi;
@@ -97,6 +98,7 @@ pub fn init<'a, 'b>(
         probe::init,
         readmem::init,
         readvar::init,
+        rencm::init,
         ringbuf::init,
         spd::init,
         spi::init,
