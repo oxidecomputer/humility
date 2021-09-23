@@ -67,7 +67,6 @@ pub struct I2cArgs {
     /// specifies write value
     #[structopt(long, short, value_name = "value",
         parse(try_from_str = parse_int::parse),
-        requires = "register",
     )]
     write: Option<u8>,
 
@@ -191,9 +190,10 @@ fn i2c_done(
         }
     } else if subargs.raw {
         println!(
-            "Controller I2C{}, device 0x{:x}, raw read = {}",
+            "Controller I2C{}, device 0x{:x}, raw {} = {}",
             subargs.controller,
             subargs.device.unwrap(),
+            if subargs.write.is_some() { "write" } else { "read" },
             if results.len() == 0 {
                 "Timed out".to_string()
             } else {
@@ -205,9 +205,10 @@ fn i2c_done(
                         Some(2) => {
                             format!("0x{:02x} 0x{:02x}", val[0], val[1])
                         }
-                        _ => {
+                        Some(1) => {
                             format!("0x{:02x}", val[0])
                         }
+                        _ => "Success".to_string(),
                     },
                 }
             }
@@ -269,7 +270,10 @@ fn i2c(
     let subargs = I2cArgs::from_iter_safe(subargs)?;
 
     if !subargs.scan && subargs.register.is_none() && !subargs.raw {
-        bail!("must specify either 'scan' or specify a register");
+        bail!(
+            "must indicate a scan (-s), specify a register (-r), \
+            or indicate raw (-R)"
+        );
     }
 
     let (fname, args) = match subargs.write {
