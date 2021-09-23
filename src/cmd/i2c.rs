@@ -70,6 +70,15 @@ pub struct I2cArgs {
     )]
     write: Option<u8>,
 
+    /// perform a zero-byte write to the specified register
+    #[structopt(
+        long,
+        short = "W",
+        conflicts_with_all = &["write", "raw", "nbytes"],
+        requires = "register"
+    )]
+    writeraw: bool,
+
     /// number of bytes to read from (or write to) register
     #[structopt(long, short, value_name = "nbytes",
         conflicts_with = "write",
@@ -215,9 +224,10 @@ fn i2c_done(
         );
     } else {
         println!(
-            "Controller I2C{}, device 0x{:x}, register 0x{:x} = {}",
+            "Controller I2C{}, device 0x{:x}, {}register 0x{:x} = {}",
             subargs.controller,
             subargs.device.unwrap(),
+            if subargs.writeraw { "raw write to " } else { "" },
             subargs.register.unwrap(),
             if results.len() == 0 {
                 "Timed out".to_string()
@@ -276,9 +286,9 @@ fn i2c(
         );
     }
 
-    let (fname, args) = match subargs.write {
-        None => ("I2cRead", 7),
-        Some(_) => ("I2cWrite", 8),
+    let (fname, args) = match (subargs.write, subargs.writeraw) {
+        (Some(_), _) | (None, true) => ("I2cWrite", 8),
+        (None, false) => ("I2cRead", 7),
     };
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
@@ -375,6 +385,14 @@ fn i2c(
             }
 
             ops.push(Op::Push(write));
+            ops.push(Op::Push(1));
+        } else if subargs.writeraw {
+            //
+            // We know that we have a register when -W has been specified; use
+            // this as our 1-byte payload and set our register to None
+            //
+            ops.push(Op::PushNone);
+            ops.push(Op::Push(subargs.register.unwrap()));
             ops.push(Op::Push(1));
         } else {
             if let Some(register) = subargs.register {
