@@ -384,27 +384,27 @@ fn validate_write(
     }
 }
 
-fn split_write(write: &str) -> Result<(&str, Option<&str>, &str)> {
+fn split_write(write: &str) -> Result<(&str, Option<&str>, Option<&str>)> {
     let expr: Vec<&str> = write.split('=').collect();
-
-    if expr.len() < 2 {
-        bail!("write \"{}\" needs a value, e.g. COMMAND=value", write);
-    }
 
     if expr.len() > 2 {
         bail!("write \"{}\" has an ambiguous value", write);
     }
 
-    let field: Vec<&str> = expr[0].split('.').collect();
-
-    if field.len() > 1 {
-        if field.len() > 2 {
-            bail!("write \"{}\" has too many field delimiters", write);
-        }
-
-        Ok((field[0], Some(field[1]), expr[1]))
+    if expr.len() < 2 {
+        Ok((expr[0], None, None))
     } else {
-        Ok((expr[0], None, expr[1]))
+        let field: Vec<&str> = expr[0].split('.').collect();
+
+        if field.len() > 1 {
+            if field.len() > 2 {
+                bail!("write \"{}\" has too many field delimiters", write);
+            }
+
+            Ok((field[0], Some(field[1]), Some(expr[1])))
+        } else {
+            Ok((expr[0], None, Some(expr[1])))
+        }
     }
 }
 
@@ -540,6 +540,7 @@ fn pmbus(
 
     let mut writes = MultiMap::new();
     let mut write_ops = vec![];
+    let mut send_bytes = vec![];
 
     if let Some(ref writecmds) = subargs.writes {
         for i in 0..run.len() {
@@ -551,12 +552,42 @@ fn pmbus(
 
             match all.get(cmd) {
                 Some(code) => {
-                    run[*code as usize] = true;
+                    //
+                    // We need to determine if this command is of  XXX
+                    //
+                    let mut send_byte = false;
 
-                    writes.insert(
-                        *code,
-                        validate_write(device, cmd, *code, field, value)?,
-                    );
+                    device.command(*code, |cmd| {
+                        if cmd.write_op() == pmbus::Operation::SendByte {
+                            send_byte = true;
+                        }
+                    });
+
+                    if send_byte {
+                        if value.is_some() {
+                            bail!("write of \"{}\" cannot take a value", cmd);
+                        }
+
+                        send_bytes.push((*code, cmd));
+                    } else {
+                        run[*code as usize] = true;
+
+                        let value = match value {
+                            None => {
+                                bail!(
+                                    "write \"{}\" needs a value, \
+                                    e.g. COMMAND=value",
+                                    cmd
+                                );
+                            }
+                            Some(value) => value,
+                        };
+
+                        writes.insert(
+                            *code,
+                            validate_write(device, cmd, *code, field, value)?,
+                        );
+                    }
                 }
                 None => {
                     bail!("unrecognized PMBus command {}", cmd);
@@ -602,6 +633,25 @@ fn pmbus(
         }
     }
 
+    //
+    // Now add any SendByte commands that we might have.
+    //
+    for (code, cmd) in &send_bytes {
+        //
+        // For SendByte operations, we issue a 1-byte raw write that is the
+        // command by indicating the register to be None.
+        //
+        ops.push(Op::PushNone);
+        ops.push(Op::Push(*code));
+        ops.push(Op::Push(1));
+        ops.push(Op::Call(write_func.id));
+        ops.push(Op::DropN(3));
+
+        if subargs.dryrun {
+            println!("0x{:02x} {} SendByte", code, cmd);
+        }
+    }
+
     if subargs.dryrun {
         return Ok(());
     }
@@ -635,9 +685,9 @@ fn pmbus(
                 Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
             };
 
-            (Some(mode), 1)
+            (Some(mode), 1 + send_bytes.len())
         }
-        None => (None, 0),
+        None => (None, send_bytes.len()),
     };
 
     let getmode = || match mode {
@@ -646,6 +696,27 @@ fn pmbus(
             panic!("unexpected call to get VOutMode");
         }
     };
+
+    if send_bytes.len() != 0 {
+        let offs = ndx - send_bytes.len();
+
+        for i in 0..send_bytes.len() {
+            let (_, cmd) = &send_bytes[i];
+
+            match results[i + offs] {
+                Err(code) => {
+                    bail!(
+                        "failed to write {}: Err({})",
+                        cmd,
+                        write_func.strerror(code)
+                    );
+                }
+                Ok(_) => {
+                    info!("successfully wrote {}", cmd);
+                }
+            }
+        }
+    }
 
     if writes.len() > 0 {
         for i in ndx..results.len() {
