@@ -18,6 +18,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
 use std::str;
+use std::time::Duration;
 use std::time::Instant;
 
 use goblin::elf::Elf;
@@ -201,7 +202,9 @@ impl OpenOCDCore {
     }
 
     fn new() -> Result<OpenOCDCore> {
-        let stream = TcpStream::connect("localhost:6666").map_err(|_| {
+        let addr = "127.0.0.1:6666".parse()?;
+        let timeout = Duration::from_millis(100);
+        let stream = TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
             anyhow!("can't connect to OpenOCD on port 6666; is it running?")
         })?;
 
@@ -619,9 +622,11 @@ impl GDBCore {
             GDBServer::JLink => 2331,
         };
 
-        let host = format!("localhost:{}", port);
+        let host = format!("127.0.0.1:{}", port);
+        let addr = host.parse()?;
+        let timeout = Duration::from_millis(100);
 
-        let stream = TcpStream::connect(host).map_err(|_| {
+        let stream = TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
             anyhow!(
                 "can't connect to {} GDB server on \
                     port {}; is it running?",
