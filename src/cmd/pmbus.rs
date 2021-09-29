@@ -30,6 +30,10 @@ struct PmbusArgs {
     )]
     timeout: u32,
 
+    /// command-specific help
+    #[structopt(long, short = "H", value_name = "command")]
+    commandhelp: Option<Vec<String>>,
+
     /// verbose output
     #[structopt(long, short)]
     verbose: bool,
@@ -47,7 +51,12 @@ struct PmbusArgs {
     driver: Option<String>,
 
     /// specifies commands to run
-    #[structopt(long, short = "C", conflicts_with = "writes")]
+    #[structopt(
+        long,
+        short = "C",
+        conflicts_with = "writes",
+        value_name = "command"
+    )]
     commands: Option<Vec<String>>,
 
     /// specifies writes to perform
@@ -89,6 +98,63 @@ fn all_commands(
     }
 
     (all, bycode)
+}
+
+fn print_command(
+    device: pmbus::Device,
+    code: u8,
+    command: &dyn pmbus::Command,
+) {
+    use std::*;
+
+    println!("0x{:02x} {}", code, command.name());
+
+    let mut bitfields = false;
+
+    let fields = |field: &dyn Field| {
+        let bits = field.bits();
+        let nbits = bits.1 .0 as usize;
+
+        let b = if nbits == 1 {
+            format!("b{}", bits.0 .0)
+        } else {
+            format!("b{}:{}", bits.0 .0 + bits.1 .0 - 1, bits.0 .0)
+        };
+
+        if field.bitfield() {
+            bitfields = true;
+
+            println!("     | {:6} {:30} <= {}", b, field.name(), field.desc());
+
+            let mut last = None;
+
+            let sentinels = |val: &dyn Value| {
+                let v =
+                    format!("0b{:0w$b} = {}", val.raw(), val.name(), w = nbits);
+
+                println!("     | {:6} {:30} <- {}", "", v, val.desc());
+
+                if let Some(last) = last {
+                    if last >= val.raw() {
+                        panic!("values are out of order");
+                    }
+                }
+
+                last = Some(val.raw());
+            };
+
+            device.sentinels(code, field.bits().0, sentinels).unwrap();
+        }
+    };
+
+    device.fields(code, fields).unwrap();
+
+    if bitfields {
+        println!(
+            "     +------------------------------------------\
+            -----------------------------\n"
+        );
+    }
 }
 
 #[rustfmt::skip::macros(println)]
@@ -496,6 +562,42 @@ fn pmbus(
         pmbus::Device::Common
     };
 
+    let (all, bycode) = all_commands(device);
+
+    if let Some(ref commands) = subargs.commandhelp {
+        if commands.len() == 0 || commands[0] == "all" {
+            for code in 0..0xffu8 {
+                device.command(code, |cmd| {
+                    print_command(device, code, cmd);
+                });
+            }
+
+            return Ok(());
+        }
+
+        for cmd in commands {
+            let code = match all.get(cmd) {
+                Some(code) => *code,
+                None => match parse_int::parse::<u8>(cmd) {
+                    Ok(code) => code,
+                    Err(_) => {
+                        bail!(
+                            "unrecognized PMBus command {}; \
+                              use 'all' for all commands",
+                            cmd
+                        );
+                    }
+                },
+            };
+
+            device.command(code, |cmd| {
+                print_command(device, code, cmd);
+            });
+        }
+
+        return Ok(());
+    }
+
     let mut ops = vec![];
     let mut cmds = vec![];
 
@@ -518,9 +620,12 @@ fn pmbus(
     ops.push(Op::Push(subargs.device));
 
     let mut run = [true; 256];
-    let (all, bycode) = all_commands(device);
 
     if let Some(ref commands) = subargs.commands {
+        if commands.len() == 0 {
+            bail!("expected a command");
+        }
+
         for i in 0..run.len() {
             run[i] = false;
         }
@@ -532,7 +637,11 @@ fn pmbus(
                 if let Ok(code) = parse_int::parse::<u8>(cmd) {
                     run[code as usize] = true;
                 } else {
-                    bail!("unrecognized PMBus command {}", cmd);
+                    bail!(
+                        "unrecognized PMBus command {}; \
+                        use -H for command help",
+                        cmd
+                    );
                 }
             }
         }
