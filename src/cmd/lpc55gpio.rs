@@ -103,12 +103,12 @@ fn gpio(
         Ok(f)
     };
 
-    let gpio_toggle = func("GpioToggle", 2)?;
-    let gpio_set = func("GpioSet", 2)?;
-    let gpio_reset = func("GpioReset", 2)?;
-    let gpio_input = func("GpioInput", 2)?;
-    let gpio_configure = func("GpioConfigure", 8)?;
-    let gpio_direction = func("GpioDirection", 3)?;
+    let gpio_toggle = func("GpioToggle", 1)?;
+    let gpio_set = func("GpioSet", 1)?;
+    let gpio_reset = func("GpioReset", 1)?;
+    let gpio_input = func("GpioInput", 1)?;
+    let gpio_configure = func("GpioConfigure", 7)?;
+    let gpio_direction = func("GpioDirection", 2)?;
     let mut configure_args = vec![];
     let mut direction_args = vec![];
 
@@ -130,7 +130,7 @@ fn gpio(
             configure_args.push(gpio_configure.lookup_argument(
                 hubris,
                 args[i],
-                2 + i,
+                1 + i,
                 params[i],
             )?);
         }
@@ -148,7 +148,7 @@ fn gpio(
             direction_args.push(gpio_direction.lookup_argument(
                 hubris,
                 args[i],
-                2 + i,
+                1 + i,
                 params[i],
             )?);
         }
@@ -160,20 +160,13 @@ fn gpio(
         bail!("expected one of input, toggle, set, or reset to be specified");
     };
 
-    let mut args: Vec<(u16, u8, String)> = vec![];
+    let mut args: Vec<(u16, String)> = vec![];
 
     if let Some(ref pins) = subargs.pins {
         for pin in pins {
-            let p: Vec<&str> = pin.split(":").collect();
+            let pin = gpio_toggle.lookup_argument(hubris, "pin", 0, pin)?;
 
-            if p.len() != 2 {
-                bail!("expected both a port and a pin number");
-            }
-
-            let port = gpio_toggle.lookup_argument(hubris, "port", 0, p[0])?;
-            let pin = gpio_toggle.lookup_argument(hubris, "pin", 1, p[1])?;
-
-            args.push((port, pin as u8, p[0].to_string()));
+            args.push((pin, pin.to_string()));
         }
     }
 
@@ -181,52 +174,45 @@ fn gpio(
 
     if subargs.input {
         if args.len() == 0 {
-            let ports = gpio_input.argument_variants(hubris, 0)?;
-            let pins = gpio_input.argument_variants(hubris, 1)?;
+            let pins = gpio_input.argument_variants(hubris, 0)?;
 
-            for port in &ports {
-                for pin in &pins {
-                    args.push((port.1, pin.1 as u8, port.0.clone()));
-                }
+            for pin in &pins {
+                args.push((pin.1, pin.0.clone()));
             }
         }
 
         for arg in &args {
             ops.push(Op::Push16(arg.0));
-            ops.push(Op::Push(arg.1));
             ops.push(Op::Call(target));
-            ops.push(Op::DropN(2));
+            ops.push(Op::DropN(1));
         }
     } else if subargs.configure.is_some() {
         for arg in &args {
             ops.push(Op::Push16(arg.0));
-            ops.push(Op::Push(arg.1));
 
             for configure_arg in &configure_args {
                 ops.push(Op::Push16(*configure_arg));
             }
 
             ops.push(Op::Call(target));
-            ops.push(Op::DropN(8));
+            ops.push(Op::DropN(7));
         }
     } else if subargs.direction.is_some() {
         for arg in &args {
             ops.push(Op::Push16(arg.0));
-            ops.push(Op::Push(arg.1));
 
             for direction_arg in &direction_args {
                 ops.push(Op::Push16(*direction_arg));
             }
 
             ops.push(Op::Call(target));
-            ops.push(Op::DropN(3));
+            ops.push(Op::DropN(2));
         }
     } else {
         for arg in &args {
             ops.push(Op::Push16(arg.0));
-            ops.push(Op::Push(arg.1));
             ops.push(Op::Call(target));
-            ops.push(Op::DropN(2));
+            ops.push(Op::DropN(1));
         }
     }
 
@@ -248,8 +234,7 @@ fn gpio(
         let mut ndx = 0;
         for arg in &args {
             println!(
-                "{}:{:<2} = {}",
-                arg.2,
+                "{} = {}",
                 arg.1,
                 match results[ndx] {
                     Err(code) => {
