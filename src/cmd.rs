@@ -10,6 +10,7 @@ mod hiffy;
 mod i2c;
 mod itm;
 mod jefe;
+mod lpc55gpio;
 mod manifest;
 mod map;
 mod pmbus;
@@ -88,6 +89,7 @@ pub fn init<'a, 'b>(
         dump::init,
         etm::init,
         gpio::init,
+        lpc55gpio::init,
         hiffy::init,
         i2c::init,
         itm::init,
