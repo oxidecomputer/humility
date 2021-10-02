@@ -1162,3 +1162,28 @@ ID ADDR     TASK               GEN PRI STATE
 itself; the next step in debugging this would be determining the state of
 that task.)
 
+### `humility stmsecure`
+
+Humility has support to manage the Root Security Services (RSS) and various
+flash options bits
+
+A typical sequence to set the secure region at 0x08000000
+
+```
+humility stmsecure set-secure-bit
+humility stmsecure set-secure-region 0x08000000 0xa000
+```
+
+To undo the secure region:
+
+```
+humility stmsecure unset-secure-region
+humility stmsecure unset-secure-bit
+```
+
+The STM32 has support for flash bank swapping as well
+
+```
+humility stmsecure bank-swap
+```
+

@@ -18,6 +18,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
 use std::str;
+use std::time::Duration;
 use std::time::Instant;
 
 use goblin::elf::Elf;
@@ -27,6 +28,7 @@ pub trait Core {
     fn read_word_32(&mut self, addr: u32) -> Result<u32>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
+    fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()>;
     fn init_swv(&mut self) -> Result<()>;
     fn read_swv(&mut self) -> Result<Vec<u8>>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
@@ -86,6 +88,20 @@ impl Core for ProbeCore {
         Ok(core.read_core_reg(Into::<probe_rs::CoreRegisterAddress>::into(
             ARMRegister::to_u16(&reg).unwrap(),
         ))?)
+    }
+
+    fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        use num_traits::ToPrimitive;
+
+        core.write_core_reg(
+            Into::<probe_rs::CoreRegisterAddress>::into(
+                ARMRegister::to_u16(&reg).unwrap(),
+            ),
+            value,
+        )?;
+
+        Ok(())
     }
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
@@ -186,7 +202,9 @@ impl OpenOCDCore {
     }
 
     fn new() -> Result<OpenOCDCore> {
-        let stream = TcpStream::connect("localhost:6666").map_err(|_| {
+        let addr = "127.0.0.1:6666".parse()?;
+        let timeout = Duration::from_millis(100);
+        let stream = TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
             anyhow!("can't connect to OpenOCD on port 6666; is it running?")
         })?;
 
@@ -274,6 +292,14 @@ impl Core for OpenOCDCore {
         }
 
         Ok(())
+    }
+
+    fn write_reg(&mut self, _reg: ARMRegister, _val: u32) -> Result<()> {
+        // This does not work right now, TODO?
+        //
+        Err(anyhow!(
+            "Writing registers is not currently supported with OpenOCD"
+        ))
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
@@ -595,9 +621,11 @@ impl GDBCore {
             GDBServer::JLink => 2331,
         };
 
-        let host = format!("localhost:{}", port);
+        let host = format!("127.0.0.1:{}", port);
+        let addr = host.parse()?;
+        let timeout = Duration::from_millis(100);
 
-        let stream = TcpStream::connect(host).map_err(|_| {
+        let stream = TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
             anyhow!(
                 "can't connect to {} GDB server on \
                     port {}; is it running?",
@@ -668,6 +696,12 @@ impl Core for GDBCore {
         }
 
         rval
+    }
+
+    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
+        Err(anyhow!(
+            "{} GDB target does not support modifying state", self.server
+        ))
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
@@ -806,6 +840,10 @@ impl Core for DumpCore {
         } else {
             bail!("register {} not found in dump", reg);
         }
+    }
+
+    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
+        bail!("cannot write register on a dump");
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
