@@ -34,7 +34,11 @@ fn readvar_dump(
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(variable.size, Default::default);
+
+    let _info = core.halt()?;
     core.read_8(variable.addr, buf.as_mut_slice())?;
+    core.run()?;
+
     let hex = !subargs.decimal;
 
     let fmt = HubrisPrintFormat { indent: 0, newline: true, hex: hex };

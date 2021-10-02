@@ -2,29 +2,66 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::cmd::i2c::*;
 use crate::cmd::{Archive, Attach, Validate};
 use crate::core::Core;
+use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
+use multimap::MultiMap;
+use std::convert::TryFrom;
+use std::thread;
 
-use anyhow::Result;
-use std::time::Instant;
+use anyhow::{anyhow, bail, Context, Result};
+use hif::*;
+use pmbus::commands::*;
+use pmbus::*;
+use std::collections::HashMap;
+use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
-
-use num_traits::FromPrimitive;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "pmbus", about = "scan for and read PMBus devices")]
 struct PmbusArgs {
+    /// sets timeout
+    #[structopt(
+        long, short, default_value = "5000", value_name = "timeout_ms",
+        parse(try_from_str = parse_int::parse)
+    )]
+    timeout: u32,
+
+    /// command-specific help
+    #[structopt(long, short = "H", value_name = "command")]
+    commandhelp: Option<Vec<String>>,
+
     /// verbose output
     #[structopt(long, short)]
     verbose: bool,
 
-    /// scan a device
-    #[structopt(long, short, conflicts_with = "register")]
-    scan: bool,
+    /// show errors
+    #[structopt(long, short)]
+    errors: bool,
+
+    /// dry-run; show commands instead of running them
+    #[structopt(long = "dry-run", short = "n")]
+    dryrun: bool,
+
+    /// specifies a PMBus driver
+    #[structopt(long, short = "D")]
+    driver: Option<String>,
+
+    /// specifies commands to run
+    #[structopt(
+        long,
+        short = "C",
+        conflicts_with = "writes",
+        value_name = "command"
+    )]
+    commands: Option<Vec<String>>,
+
+    /// specifies writes to perform
+    #[structopt(long, short = "w")]
+    writes: Option<Vec<String>>,
 
     /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller",
@@ -41,98 +78,400 @@ struct PmbusArgs {
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short, value_name = "address",
+    #[structopt(long, short = "d", value_name = "address",
         parse(try_from_str = parse_int::parse),
     )]
     device: u8,
 }
 
-fn pmbus_read(
-    core: &mut dyn Core,
-    subargs: &PmbusArgs,
-    i2c: &mut I2cArgs,
-    vars: &mut I2cVariables,
-    command: pmbus::Command,
-) -> Result<()> {
-    let (nbytes, block) = match command.read_op() {
-        pmbus::Operation::ReadByte => (Some(1), false),
-        pmbus::Operation::ReadWord => (Some(2), false),
-        pmbus::Operation::ReadBlock => (None, true),
-        _ => {
-            return Ok(());
+fn all_commands(
+    device: pmbus::Device,
+) -> (HashMap<String, u8>, HashMap<u8, String>) {
+    let mut all: HashMap<String, u8> = HashMap::new();
+    let mut bycode: HashMap<u8, String> = HashMap::new();
+
+    for i in 0..=255u8 {
+        device.command(i, |cmd| {
+            all.insert(cmd.name().to_string(), i);
+            bycode.insert(i, cmd.name().to_string());
+        });
+    }
+
+    (all, bycode)
+}
+
+fn print_command(
+    device: pmbus::Device,
+    code: u8,
+    command: &dyn pmbus::Command,
+) {
+    use std::*;
+
+    println!("0x{:02x} {}", code, command.name());
+
+    let mut bitfields = false;
+
+    let fields = |field: &dyn Field| {
+        let bits = field.bits();
+        let nbits = bits.1 .0 as usize;
+
+        let b = if nbits == 1 {
+            format!("b{}", bits.0 .0)
+        } else {
+            format!("b{}:{}", bits.0 .0 + bits.1 .0 - 1, bits.0 .0)
+        };
+
+        if field.bitfield() {
+            bitfields = true;
+
+            println!("     | {:6} {:30} <= {}", b, field.name(), field.desc());
+
+            let mut last = None;
+
+            let sentinels = |val: &dyn Value| {
+                let v =
+                    format!("0b{:0w$b} = {}", val.raw(), val.name(), w = nbits);
+
+                println!("     | {:6} {:30} <- {}", "", v, val.desc());
+
+                if let Some(last) = last {
+                    if last >= val.raw() {
+                        panic!("values are out of order");
+                    }
+                }
+
+                last = Some(val.raw());
+            };
+
+            device.sentinels(code, field.bits().0, sentinels).unwrap();
         }
     };
 
-    i2c.set_nbytes(nbytes);
-    i2c.set_block(block);
-    i2c.set_register(command as u8);
+    device.fields(code, fields).unwrap();
 
-    let mut ts = vec![];
-    ts.push(Instant::now());
+    if bitfields {
+        println!(
+            "     +------------------------------------------\
+            -----------------------------\n"
+        );
+    }
+}
 
-    vars.kickit(core, &i2c)?;
-    ts.push(Instant::now());
+#[rustfmt::skip::macros(println)]
+fn print_result(
+    subargs: &PmbusArgs,
+    device: pmbus::Device,
+    code: u8,
+    mode: impl Fn() -> VOutMode,
+    command: &dyn pmbus::Command,
+    result: &Result<Vec<u8>, u32>,
+    errmap: &HashMap<u32, String>,
+) -> Result<()> {
+    let nbytes = match command.read_op() {
+        pmbus::Operation::ReadByte => Some(1),
+        pmbus::Operation::ReadWord => Some(2),
+        pmbus::Operation::ReadWord32 => Some(4),
+        pmbus::Operation::ReadBlock => None,
+        _ => {
+            unreachable!();
+        }
+    };
 
-    loop {
-        if vars.done(core)? {
-            break;
+    let name = command.name();
+    let cmdstr = format!("0x{:02x} {:<25}", code, name);
+
+    fn printchar(val: u8) {
+        let c = val as char;
+
+        if c.is_ascii() && !c.is_ascii_control() {
+            print!("{}", c);
+        } else {
+            print!(".");
         }
     }
 
-    ts.push(Instant::now());
-
-    let results = vars.results(core, nbytes)?;
-    ts.push(Instant::now());
-
-    let name = format!("{:?}", command);
-    let cmdstr = format!("0x{:02x} {:<25}", command as u8, name);
-
-    match results[0] {
-        Some(Err(err)) => {
-            if subargs.verbose {
-                println!("{} Err({})", cmdstr, err.name);
+    match result {
+        Err(err) => {
+            if subargs.errors {
+                println!("{} Err({})", cmdstr, errmap.get(err).unwrap());
             }
         }
 
-        None => {
-            if subargs.verbose {
-                println!("{} Timed out", cmdstr);
-            }
-        }
-
-        Some(Ok(val)) => match nbytes {
-            Some(1) => {
-                println!("{} 0x{:02x}", cmdstr, val);
+        Ok(val) => {
+            if val.len() == 0 {
+                if subargs.errors {
+                    println!("{} Timed out", cmdstr);
+                    return Ok(());
+                }
             }
 
-            Some(2) => {
-                if results.len() > 1 {
-                    if let Some(Ok(msb)) = results[1] {
-                        let word = ((msb as u16) << 8) | (val as u16);
-                        println!("{} 0x{:04x}", cmdstr, word);
+            if let Some(nbytes) = nbytes {
+                if val.len() != nbytes {
+                    println!("{} Short read: {:x?}", cmdstr, val);
+                    return Ok(());
+                }
+            }
+
+            let mut printed = false;
+            let mut interpreted = false;
+
+            let printraw = |interpret: bool| {
+                print!("{}", cmdstr);
+
+                if nbytes.is_none() {
+                    let w = 8;
+
+                    for i in 0..val.len() {
+                        if i > 0 && i % w == 0 {
+                            print!(" |");
+
+                            for j in (i - w)..i {
+                                printchar(val[j]);
+                            }
+
+                            if !interpret {
+                                print!("\n{:30}", "");
+                            } else {
+                                print!("\n     | {:22} ", "");
+                            }
+                        }
+
+                        print!(" 0x{:02x}", val[i]);
+                    }
+
+                    let rem = val.len() % w;
+
+                    if rem != 0 {
+                        print!("{:width$} |", "", width = (w - rem) * 5);
+                        let base = val.len() - rem;
+
+                        for i in 0..rem {
+                            printchar(val[base + i]);
+                        }
                     }
                 } else {
-                    println!("{} Short: {:?}", cmdstr, results);
-                }
-            }
-            None => {
-                print!("{}", cmdstr);
-                for i in 0..results.len() {
-                    if let Some(Ok(val)) = results[i] {
-                        print!(" 0x{:02x}", val);
-                    } else {
-                        break;
+                    print!(" 0x");
+                    for i in (0..val.len()).rev() {
+                        print!("{:02x}", val[i]);
                     }
                 }
+
                 println!();
+            };
+
+            let err = device.interpret(code, val, mode, |field, value| {
+                if !field.bitfield() {
+                    let width = (field.bits().1 .0 / 4) as usize;
+
+                    println!(
+                       "{} 0x{:0width$x} = {}",
+                       cmdstr, value.raw(), value, width = width
+                    );
+
+                    interpreted = true;
+                    return;
+                }
+
+                if !subargs.verbose {
+                    return;
+                }
+
+                if !interpreted {
+                    printraw(true);
+                    println!("     |");
+                    interpreted = true;
+                }
+
+                let (pos, width) = field.bits();
+
+                let bits = if width.0 == 1 {
+                    format!("b{}", pos.0)
+                } else {
+                    format!("b{}:{}", pos.0 + width.0 - 1, pos.0)
+                };
+
+                let value = format!("{}", value);
+
+                println!("     | {:6} {:<30} <= {}", bits, value, field.name());
+                printed = true;
+            });
+
+            if !err.is_ok() && subargs.errors {
+                println!("{} {:?}", cmdstr, err);
             }
-            _ => {
-                unreachable!();
+
+            if !interpreted {
+                printraw(false);
             }
-        },
+
+            if printed {
+                println!(
+                    "     +------------------------------------------\
+                    -----------------------------\n"
+                );
+            }
+        }
     }
 
     Ok(())
+}
+
+fn prepare_write(
+    device: pmbus::Device,
+    code: u8,
+    mode: impl Fn() -> VOutMode,
+    command: &dyn pmbus::Command,
+    payload: &Vec<u8>,
+    writes: &Vec<(Bitpos, Replacement)>,
+) -> Result<Vec<u8>> {
+    let name = command.name();
+    let mut rval = payload.clone();
+    let mut replaced = vec![false; writes.len()];
+
+    let err = device.mutate(code, &mut rval, mode, |field, _| {
+        let pos = field.bits().0;
+
+        for i in 0..writes.len() {
+            if writes[i].0 == pos {
+                replaced[i] = true;
+                return Some(writes[i].1);
+            }
+        }
+
+        None
+    });
+
+    if !err.is_ok() {
+        bail!("failed to mutate {}: {:?}", name, err);
+    }
+
+    for i in 0..writes.len() {
+        if !replaced[i] {
+            bail!("failed to replace {} at position {}", name, writes[i].0 .0);
+        }
+    }
+
+    Ok(rval.to_vec())
+}
+
+fn validate_write(
+    device: pmbus::Device,
+    cmd: &str,
+    code: u8,
+    field: Option<&str>,
+    value: &str,
+) -> Result<(Bitpos, Replacement)> {
+    if let Some(field) = field {
+        //
+        // Iterate over the fields for this command to make sure we have
+        // the specified field
+        //
+        let mut all = vec![];
+        let mut found = None;
+
+        device
+            .fields(code, |f| {
+                if f.name() == field {
+                    found = Some(f.bits());
+                }
+
+                all.push(f.name());
+            })
+            .unwrap();
+
+        match found {
+            None => {
+                bail!(
+                    "field {} not found in {}; expected one of: {}",
+                    field,
+                    cmd,
+                    all.join(", ")
+                );
+            }
+            Some(bits) => {
+                let mut replacement: Option<Replacement> = None;
+                let mut all = vec![];
+
+                device
+                    .sentinels(code, bits.0, |s| {
+                        if s.name() == value {
+                            replacement = Some(Replacement::Integer(s.raw()));
+                        }
+
+                        all.push(s.name());
+                    })
+                    .unwrap();
+
+                match replacement {
+                    Some(replacement) => Ok((bits.0, replacement)),
+
+                    None => {
+                        bail!(
+                            "field {} of {} cannot be set to {}; \
+                            expected one of: {}",
+                            field,
+                            cmd,
+                            value,
+                            all.join(", ")
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        let mut bits = None;
+        let mut bitfields = false;
+
+        device
+            .fields(code, |f| {
+                if !f.bitfield() {
+                    bits = Some(f.bits());
+                } else {
+                    bitfields = true;
+                }
+            })
+            .unwrap();
+
+        if let Some(bits) = bits {
+            if let Ok(val) = parse_int::parse::<u32>(value) {
+                Ok((bits.0, Replacement::Integer(val)))
+            } else if let Ok(val) = value.parse::<f32>() {
+                Ok((bits.0, Replacement::Float(val)))
+            } else {
+                bail!("illegal value: {}", value);
+            }
+        } else {
+            if bitfields {
+                bail!("{} has bitfields which must be set explicitly", cmd);
+            } else {
+                bail!("can't write to {}: data has unknown type", cmd);
+            }
+        }
+    }
+}
+
+fn split_write(write: &str) -> Result<(&str, Option<&str>, Option<&str>)> {
+    let expr: Vec<&str> = write.split('=').collect();
+
+    if expr.len() > 2 {
+        bail!("write \"{}\" has an ambiguous value", write);
+    }
+
+    if expr.len() < 2 {
+        Ok((expr[0], None, None))
+    } else {
+        let field: Vec<&str> = expr[0].split('.').collect();
+
+        if field.len() > 1 {
+            if field.len() > 2 {
+                bail!("write \"{}\" has too many field delimiters", write);
+            }
+
+            Ok((field[0], Some(field[1]), Some(expr[1])))
+        } else {
+            Ok((expr[0], None, Some(expr[1])))
+        }
+    }
 }
 
 fn pmbus(
@@ -143,27 +482,434 @@ fn pmbus(
 ) -> Result<()> {
     let subargs = PmbusArgs::from_iter_safe(subargs)?;
 
-    let mux = match subargs.mux {
-        Some(ref str) => Some(str.clone()),
-        None => None,
-    };
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let funcs = context.functions()?;
+    let func = funcs
+        .get("I2cRead")
+        .ok_or_else(|| anyhow!("did not find I2cRead function"))?;
 
-    let port = match subargs.port {
-        Some(ref str) => Some(str.clone()),
-        None => None,
-    };
+    if func.args.len() != 7 {
+        bail!("mismatched function signature on I2cRead");
+    }
 
-    let mut i2c =
-        I2cArgs::from_caller(subargs.controller, subargs.device, port, mux);
+    let write_func = funcs
+        .get("I2cWrite")
+        .ok_or_else(|| anyhow!("did not find I2cWrite function"))?;
 
-    let mut vars = I2cVariables::new(hubris, &i2c)?;
+    if write_func.args.len() != 8 {
+        bail!("mismatched function signature on I2cWrite");
+    }
 
-    for i in 0..=255 {
-        match pmbus::Command::from_u8(i) {
-            Some(cmd) => {
-                pmbus_read(core, &subargs, &mut i2c, &mut vars, cmd)?;
+    let mut port = None;
+
+    if let Some(ref portarg) = subargs.port {
+        let p = hubris
+            .lookup_enum(func.args[1])
+            .context("expected port to be an enum")?;
+
+        if p.size != 1 {
+            bail!("expected port to be a 1-byte enum");
+        }
+
+        for variant in &p.variants {
+            if variant.name.eq_ignore_ascii_case(&portarg) {
+                port = Some(u8::try_from(variant.tag.unwrap())?);
+                break;
             }
-            None => {}
+        }
+
+        if port.is_none() {
+            let mut vals: Vec<String> = vec![];
+
+            for variant in &p.variants {
+                vals.push(variant.name.to_string());
+            }
+
+            bail!(
+                "invalid port \"{}\" (must be one of: {})",
+                portarg,
+                vals.join(", ")
+            );
+        }
+    }
+
+    let mux = if let Some(mux) = &subargs.mux {
+        let s = mux
+            .split(":")
+            .map(|v| parse_int::parse::<u8>(v))
+            .collect::<Result<Vec<_>, _>>()
+            .context("expected multiplexer and segment to be integers")?;
+
+        if s.len() == 2 {
+            Some((s[0], s[1]))
+        } else if s.len() == 1 {
+            Some((0, s[0]))
+        } else {
+            bail!("expected only multiplexer and segment identifiers");
+        }
+    } else {
+        None
+    };
+
+    let device = if let Some(driver) = &subargs.driver {
+        match pmbus::Device::from_str(driver) {
+            Some(device) => device,
+            None => {
+                bail!("unknown device \"{}\"", driver);
+            }
+        }
+    } else {
+        pmbus::Device::Common
+    };
+
+    let (all, bycode) = all_commands(device);
+
+    if let Some(ref commands) = subargs.commandhelp {
+        if commands.len() == 0 || commands[0] == "all" {
+            for code in 0..0xffu8 {
+                device.command(code, |cmd| {
+                    print_command(device, code, cmd);
+                });
+            }
+
+            return Ok(());
+        }
+
+        for cmd in commands {
+            let code = match all.get(cmd) {
+                Some(code) => *code,
+                None => match parse_int::parse::<u8>(cmd) {
+                    Ok(code) => code,
+                    Err(_) => {
+                        bail!(
+                            "unrecognized PMBus command {}; \
+                              use 'all' for all commands",
+                            cmd
+                        );
+                    }
+                },
+            };
+
+            device.command(code, |cmd| {
+                print_command(device, code, cmd);
+            });
+        }
+
+        return Ok(());
+    }
+
+    let mut ops = vec![];
+    let mut cmds = vec![];
+
+    ops.push(Op::Push(subargs.controller));
+
+    if let Some(port) = port {
+        ops.push(Op::Push(port));
+    } else {
+        ops.push(Op::PushNone);
+    }
+
+    if let Some(mux) = mux {
+        ops.push(Op::Push(mux.0));
+        ops.push(Op::Push(mux.1));
+    } else {
+        ops.push(Op::PushNone);
+        ops.push(Op::PushNone);
+    }
+
+    ops.push(Op::Push(subargs.device));
+
+    let mut run = [true; 256];
+
+    if let Some(ref commands) = subargs.commands {
+        if commands.len() == 0 {
+            bail!("expected a command");
+        }
+
+        for i in 0..run.len() {
+            run[i] = false;
+        }
+
+        for cmd in commands {
+            if let Some(code) = all.get(cmd) {
+                run[*code as usize] = true;
+            } else {
+                if let Ok(code) = parse_int::parse::<u8>(cmd) {
+                    run[code as usize] = true;
+                } else {
+                    bail!(
+                        "unrecognized PMBus command {}; \
+                        use -H for command help",
+                        cmd
+                    );
+                }
+            }
+        }
+    }
+
+    let mut writes = MultiMap::new();
+    let mut write_ops = vec![];
+    let mut send_bytes = vec![];
+
+    if let Some(ref writecmds) = subargs.writes {
+        for i in 0..run.len() {
+            run[i] = false;
+        }
+
+        for write in writecmds {
+            let (cmd, field, value) = split_write(write)?;
+
+            match all.get(cmd) {
+                Some(code) => {
+                    //
+                    // We need to determine if this command is of  XXX
+                    //
+                    let mut send_byte = false;
+
+                    device.command(*code, |cmd| {
+                        if cmd.write_op() == pmbus::Operation::SendByte {
+                            send_byte = true;
+                        }
+                    });
+
+                    if send_byte {
+                        if value.is_some() {
+                            bail!("write of \"{}\" cannot take a value", cmd);
+                        }
+
+                        send_bytes.push((*code, cmd));
+                    } else {
+                        run[*code as usize] = true;
+
+                        let value = match value {
+                            None => {
+                                bail!(
+                                    "write \"{}\" needs a value, \
+                                    e.g. COMMAND=value",
+                                    cmd
+                                );
+                            }
+                            Some(value) => value,
+                        };
+
+                        writes.insert(
+                            *code,
+                            validate_write(device, cmd, *code, field, value)?,
+                        );
+                    }
+                }
+                None => {
+                    bail!("unrecognized PMBus command {}", cmd);
+                }
+            }
+        }
+    }
+
+    if writes.len() > 0 {
+        write_ops = ops.clone();
+    }
+
+    let mut addcmd = |cmd: &dyn Command, code| {
+        let op = match cmd.read_op() {
+            pmbus::Operation::ReadByte => Op::Push(1),
+            pmbus::Operation::ReadWord => Op::Push(2),
+            pmbus::Operation::ReadWord32 => Op::Push(4),
+            pmbus::Operation::ReadBlock => Op::PushNone,
+            _ => {
+                return;
+            }
+        };
+
+        if subargs.dryrun {
+            println!("0x{:02x} {:?}", code, cmd);
+        }
+
+        ops.push(Op::Push(code));
+        ops.push(op);
+        ops.push(Op::Call(func.id));
+        ops.push(Op::Drop);
+        ops.push(Op::Drop);
+        cmds.push(code);
+    };
+
+    let vout = pmbus::commands::CommandCode::VOUT_MODE as u8;
+
+    device.command(vout, |cmd| addcmd(cmd, vout));
+
+    for i in 0..=255u8 {
+        if run[i as usize] {
+            device.command(i, |cmd| addcmd(cmd, i));
+        }
+    }
+
+    //
+    // Now add any SendByte commands that we might have.
+    //
+    for (code, cmd) in &send_bytes {
+        //
+        // For SendByte operations, we issue a 1-byte raw write that is the
+        // command by indicating the register to be None.
+        //
+        ops.push(Op::PushNone);
+        ops.push(Op::Push(*code));
+        ops.push(Op::Push(1));
+        ops.push(Op::Call(write_func.id));
+        ops.push(Op::DropN(3));
+
+        if subargs.dryrun {
+            println!("0x{:02x} {} SendByte", code, cmd);
+        }
+    }
+
+    if subargs.dryrun {
+        return Ok(());
+    }
+
+    if cmds.len() == 0 {
+        bail!("no command to run");
+    }
+
+    let mndx = if cmds[0] == vout { Some(0) } else { None };
+
+    ops.push(Op::Done);
+
+    context.execute(core, ops.as_slice(), None)?;
+
+    loop {
+        if context.done(core)? {
+            break;
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    let results = context.results(core)?;
+
+    let (mode, ndx) = match mndx {
+        Some(mndx) => {
+            let mode = match results[mndx] {
+                Err(code) => {
+                    bail!("can't read VOUT_MODE: {}", func.strerror(code));
+                }
+                Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
+            };
+
+            (Some(mode), 1 + send_bytes.len())
+        }
+        None => (None, send_bytes.len()),
+    };
+
+    let getmode = || match mode {
+        Some(mode) => mode,
+        None => {
+            panic!("unexpected call to get VOutMode");
+        }
+    };
+
+    if send_bytes.len() != 0 {
+        let offs = ndx - send_bytes.len();
+
+        for i in 0..send_bytes.len() {
+            let (_, cmd) = &send_bytes[i];
+
+            match results[i + offs] {
+                Err(code) => {
+                    bail!(
+                        "failed to write {}: Err({})",
+                        cmd,
+                        write_func.strerror(code)
+                    );
+                }
+                Ok(_) => {
+                    info!("successfully wrote {}", cmd);
+                }
+            }
+        }
+    }
+
+    if writes.len() > 0 {
+        for i in ndx..results.len() {
+            let payload = match results[i] {
+                Err(code) => {
+                    bail!(
+                        "failed to read {:x}: Err({})",
+                        cmds[i],
+                        func.strerror(code)
+                    );
+                }
+                Ok(ref val) => val,
+            };
+
+            if let Some(write) = writes.get_vec(&cmds[i]) {
+                let mut r = None;
+
+                device.command(cmds[i], |cmd| {
+                    r = Some(prepare_write(
+                        device, cmds[i], getmode, cmd, payload, write,
+                    ));
+                });
+
+                let v = r.unwrap()?;
+
+                write_ops.push(Op::Push(cmds[i]));
+
+                for i in 0..v.len() {
+                    write_ops.push(Op::Push(v[i]));
+                }
+
+                write_ops.push(Op::Push(v.len() as u8));
+                write_ops.push(Op::Call(write_func.id));
+                write_ops.push(Op::DropN(v.len() as u8 + 2));
+            }
+        }
+
+        write_ops.push(Op::Done);
+
+        context.execute(core, write_ops.as_slice(), None)?;
+
+        loop {
+            if context.done(core)? {
+                break;
+            }
+
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        let wresults = context.results(core)?;
+
+        for i in 0..wresults.len() {
+            let name = bycode.get(&cmds[i + ndx]).unwrap();
+
+            match wresults[i] {
+                Err(code) => {
+                    bail!(
+                        "failed to write {}: Err({})",
+                        name,
+                        write_func.strerror(code)
+                    );
+                }
+                Ok(_) => {
+                    info!("successfully wrote {}", name);
+                }
+            }
+        }
+    } else {
+        for i in ndx..results.len() {
+            let mut r = Ok(());
+
+            device.command(cmds[i], |cmd| {
+                r = print_result(
+                    &subargs,
+                    device,
+                    cmds[i],
+                    getmode,
+                    cmd,
+                    &results[i],
+                    &func.errmap,
+                );
+            });
+
+            r?;
         }
     }
 

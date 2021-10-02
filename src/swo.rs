@@ -11,7 +11,6 @@ use num_traits::ToPrimitive;
 /*
  * SWO Current Output Divisor Register
  */
-#[allow(non_camel_case_types)]
 register_offs!(SWO_CODR, 0x10,
     pub prescaler, set_prescaler: 15, 0;
 );

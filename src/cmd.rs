@@ -5,6 +5,8 @@
 mod apptable;
 mod dump;
 mod etm;
+mod gpio;
+mod hiffy;
 mod i2c;
 mod itm;
 mod jefe;
@@ -14,7 +16,10 @@ mod pmbus;
 mod probe;
 mod readmem;
 mod readvar;
+mod rencm;
 mod ringbuf;
+mod spd;
+mod spi;
 mod stackmargin;
 mod stmsecure;
 mod tasks;
@@ -83,6 +88,8 @@ pub fn init<'a, 'b>(
         apptable::init,
         dump::init,
         etm::init,
+        gpio::init,
+        hiffy::init,
         i2c::init,
         itm::init,
         jefe::init,
@@ -92,7 +99,10 @@ pub fn init<'a, 'b>(
         probe::init,
         readmem::init,
         readvar::init,
+        rencm::init,
         ringbuf::init,
+        spd::init,
+        spi::init,
         stackmargin::init,
         tasks::init,
         test::init,

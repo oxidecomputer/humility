@@ -3,6 +3,8 @@
 
 Humility is the debugger for
 <a href="https://github.com/oxidecomputer/hubris">Hubris</a>.
+Note that to build it, you will need to initialize submodule, either
+via `git clone --recursive`, or `git submodule update --init` or similar.
 
 ## Guiding principles
 
@@ -31,6 +33,15 @@ advantage of microcontroller-specific debug facilities where applicable.
 While Hubris may make decisions in the name of greater portability,
 Humility will generally make decisions to maximize debuggability, even
 where these facilities are highly specific to a particular MCU.
+
+### Device-specific
+
+Humility is unafraid to offer device-specific functionality where that
+functionality is useful for system debuggability.  (For example,
+`humility i2c` functions as an I^2^C analyzer.)  That said, all device
+interaction uses Hubris as a proxy to actually communicate with the devices
+themselves (e.g., via [HIF](https://github.com/oxidecomputer/hif));
+Humility does not seek to create second I/O path.
 
 ### Pragmatic
 
