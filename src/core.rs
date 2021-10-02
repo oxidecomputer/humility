@@ -204,9 +204,10 @@ impl OpenOCDCore {
     fn new() -> Result<OpenOCDCore> {
         let addr = "127.0.0.1:6666".parse()?;
         let timeout = Duration::from_millis(100);
-        let stream = TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
-            anyhow!("can't connect to OpenOCD on port 6666; is it running?")
-        })?;
+        let stream =
+            TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
+                anyhow!("can't connect to OpenOCD on port 6666; is it running?")
+            })?;
 
         Ok(Self { stream: stream, swv: false, last_swv: None })
     }
@@ -626,13 +627,14 @@ impl GDBCore {
         let addr = host.parse()?;
         let timeout = Duration::from_millis(100);
 
-        let stream = TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
-            anyhow!(
+        let stream =
+            TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
+                anyhow!(
                 "can't connect to {} GDB server on \
                     port {}; is it running?",
                 server, port
             )
-        })?;
+            })?;
 
         /*
          * Both the OpenOCD and JLink GDB servers stop the target upon
