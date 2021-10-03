@@ -298,7 +298,7 @@ pub struct HubrisModule {
     pub textbase: u32,
     pub textsize: u32,
     pub memsize: u32,
-    pub heap: (Option<u32>, Option<u32>),
+    pub heapbss: (Option<u32>, Option<u32>),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -1824,7 +1824,7 @@ impl HubrisArchive {
         task: HubrisTask,
         buffer: &[u8],
     ) -> Result<()> {
-        let mut heap = (None, None);
+        let mut heapbss = (None, None);
 
         let elf = Elf::parse(buffer).map_err(|e| {
             anyhow!("unrecognized ELF object: {}: {}", object, e)
@@ -1848,12 +1848,15 @@ impl HubrisArchive {
                 }
             };
 
-            if name == "__sheap" {
-                heap.0 = Some(sym.st_value as u32);
+            //
+            // We track from the start of our BSS to the end of our heap
+            //
+            if name == "__sbss" {
+                heapbss.0 = Some(sym.st_value as u32);
             }
 
             if name == "__eheap" {
-                heap.1 = Some(sym.st_value as u32);
+                heapbss.1 = Some(sym.st_value as u32);
             }
 
             if sym.st_size == 0 {
@@ -2037,7 +2040,7 @@ impl HubrisArchive {
                 textbase: (textsec.sh_addr as u32),
                 textsize: size as u32,
                 memsize: memsz as u32,
-                heap: heap,
+                heapbss: heapbss,
                 task: task,
             },
         );
@@ -2633,19 +2636,19 @@ impl HubrisArchive {
         }
 
         /*
-         * Add a region for our kernel heap, for which we don't have a
+         * Add a region for our kernel heap+bss, for which we don't have a
          * descriptor.
          */
         for (_, module) in &self.modules {
             if module.task == HubrisTask::Kernel {
-                if let (Some(sheap), Some(eheap)) = module.heap {
+                if let (Some(sheapbss), Some(eheapbss)) = module.heapbss {
                     regions.insert(
-                        sheap,
+                        sheapbss,
                         HubrisRegion {
                             daddr: None,
-                            base: sheap,
-                            size: eheap - sheap,
-                            mapsize: eheap - sheap,
+                            base: sheapbss,
+                            size: eheapbss - sheapbss,
+                            mapsize: eheapbss - sheapbss,
                             attr: HubrisRegionAttr {
                                 read: true,
                                 write: true,
