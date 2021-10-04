@@ -248,11 +248,11 @@ fn spd(
     set_page(&mut ops, &i2c_write, 0);
 
     //
-    // Now issue single byte reads to determine where our devices are.
+    // Now issue single byte register reads to determine where our devices are.
     //
     for addr in 0..spd::MAX_DEVICES {
         ops.push(Op::Push(spd::Function::Memory(addr).to_code().unwrap()));
-        ops.push(Op::PushNone);
+        ops.push(Op::Push(0));
         ops.push(Op::Push(1));
         ops.push(Op::Call(i2c_read.id));
         ops.push(Op::DropN(3));
