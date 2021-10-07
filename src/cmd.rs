@@ -103,6 +103,7 @@ pub fn init<'a, 'b>(
         ringbuf::init,
         spd::init,
         spi::init,
+        spi::init2,
         stackmargin::init,
         tasks::init,
         test::init,
