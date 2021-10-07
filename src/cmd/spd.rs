@@ -31,10 +31,6 @@ struct SpdArgs {
     #[structopt(long, short)]
     verbose: bool,
 
-    /// show errors
-    #[structopt(long, short)]
-    errors: bool,
-
     /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),

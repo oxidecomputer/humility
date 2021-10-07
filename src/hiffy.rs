@@ -34,7 +34,6 @@ pub struct HiffyContext<'a> {
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
     timeout: u32,
-    timedout: bool,
     state: State,
 }
 
@@ -190,7 +189,6 @@ impl<'a> HiffyContext<'a> {
             cached: None,
             kicked: None,
             timeout: timeout,
-            timedout: false,
             state: State::Initialized,
         })
     }

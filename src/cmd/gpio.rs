@@ -28,10 +28,6 @@ struct GpioArgs {
     )]
     timeout: u32,
 
-    /// verbose output
-    #[structopt(long, short)]
-    verbose: bool,
-
     /// toggle specified pins
     #[structopt(
         long, short,

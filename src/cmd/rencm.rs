@@ -29,10 +29,6 @@ struct RencmArgs {
     )]
     timeout: u32,
 
-    /// verbose output
-    #[structopt(long, short)]
-    verbose: bool,
-
     /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),

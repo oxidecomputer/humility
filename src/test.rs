@@ -113,6 +113,7 @@ fn nargs(token: &TestToken) -> usize {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct TestCompletion {
     case: String,
     result: TestResult,
