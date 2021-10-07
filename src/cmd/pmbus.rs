@@ -162,7 +162,7 @@ fn print_result(
     subargs: &PmbusArgs,
     device: pmbus::Device,
     code: u8,
-    mode: impl Fn() -> VOutMode,
+    mode: impl Fn() -> VOutModeCommandData,
     command: &dyn pmbus::Command,
     result: &Result<Vec<u8>, u32>,
     errmap: &HashMap<u32, String>,
@@ -319,7 +319,7 @@ fn print_result(
 fn prepare_write(
     device: pmbus::Device,
     code: u8,
-    mode: impl Fn() -> VOutMode,
+    mode: impl Fn() -> VOutModeCommandData,
     command: &dyn pmbus::Command,
     payload: &Vec<u8>,
     writes: &Vec<(Bitpos, Replacement)>,
