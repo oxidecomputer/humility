@@ -949,6 +949,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             }
 
             let probe = res?;
+
             let name = probe.get_name();
             let session = probe.attach(chip)?;
 
@@ -1002,7 +1003,35 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             Ok(Box::new(core))
         }
 
-        _ => Err(anyhow!("unrecognized probe: {}", probe)),
+        _ => match TryInto::<probe_rs::DebugProbeSelector>::try_into(probe) {
+            Ok(selector) => {
+                let vidpid = probe;
+
+                let vendor_id = selector.vendor_id;
+                let product_id = selector.product_id;
+                let serial_number = match selector.serial_number {
+                    Some(ref serial_number) => Some(serial_number.clone()),
+                    None => None,
+                };
+
+                let res = probe_rs::Probe::open(selector);
+                let probe = res?;
+
+                let name = probe.get_name();
+                let session = probe.attach(chip)?;
+
+                info!("attached to {} via {}", vidpid, name);
+
+                Ok(Box::new(ProbeCore {
+                    session: session,
+                    identifier: name,
+                    vendor_id: vendor_id,
+                    product_id: product_id,
+                    serial_number: serial_number,
+                }))
+            }
+            Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
+        },
     }
 }
 
