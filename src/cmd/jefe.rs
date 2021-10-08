@@ -1,16 +1,15 @@
 /*
- * Copyright 2021 Oxide Computer Company
+ * Copyright 2020 Oxide Computer Company
  */
 
 use crate::cmd::*;
 use crate::core::Core;
-use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
-use anyhow::{anyhow, bail, Result};
-use hif::*;
+use anyhow::{anyhow, bail, Context, Result};
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -43,6 +42,123 @@ struct JefeArgs {
     task: String,
 }
 
+#[derive(Debug)]
+struct JefeVariables<'a> {
+    hubris: &'a HubrisArchive,
+    ready: &'a HubrisVariable,
+    kick: &'a HubrisVariable,
+    request: &'a HubrisVariable,
+    requests: &'a HubrisVariable,
+    errors: &'a HubrisVariable,
+    task: &'a HubrisVariable,
+    cached: Option<(u32, u32)>,
+    kicked: Option<Instant>,
+    timeout: u32,
+    timedout: bool,
+}
+
+#[repr(u32)]
+enum JefeRequest {
+    Start = 1,
+    Hold = 2,
+    Release = 3,
+    Fault = 4,
+}
+
+impl<'a> JefeVariables<'a> {
+    fn variable(
+        hubris: &'a HubrisArchive,
+        name: &str,
+        wordsize: bool,
+    ) -> Result<&'a HubrisVariable> {
+        let v = hubris
+            .lookup_variable(name)
+            .context("expected jefe external interface not found")?;
+
+        if wordsize && v.size != 4 {
+            bail!("expected {} to be size 4, found {}", name, v.size);
+        }
+
+        Ok(v)
+    }
+
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        timeout: u32,
+    ) -> Result<JefeVariables> {
+        Ok(Self {
+            hubris: hubris,
+            ready: Self::variable(hubris, "JEFE_EXTERNAL_READY", true)?,
+            kick: Self::variable(hubris, "JEFE_EXTERNAL_KICK", true)?,
+            request: Self::variable(hubris, "JEFE_EXTERNAL_REQUEST", true)?,
+            requests: Self::variable(hubris, "JEFE_EXTERNAL_REQUESTS", true)?,
+            errors: Self::variable(hubris, "JEFE_EXTERNAL_ERRORS", true)?,
+            task: Self::variable(hubris, "JEFE_EXTERNAL_TASKINDEX", true)?,
+            cached: None,
+            kicked: None,
+            timeout: timeout,
+            timedout: false,
+        })
+    }
+
+    fn kickit(
+        &mut self,
+        core: &mut dyn Core,
+        request: JefeRequest,
+        taskid: u32,
+    ) -> Result<()> {
+        if core.read_word_32(self.ready.addr)? != 1 {
+            bail!("jefe external control facility unavailable");
+        }
+
+        core.halt()?;
+
+        core.write_word_32(self.request.addr, request as u32)?;
+        core.write_word_32(self.task.addr, taskid)?;
+
+        core.write_word_32(self.kick.addr, 1)?;
+
+        self.cached = Some((
+            core.read_word_32(self.requests.addr)?,
+            core.read_word_32(self.errors.addr)?,
+        ));
+
+        self.kicked = Some(Instant::now());
+
+        core.run()?;
+        Ok(())
+    }
+
+    fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
+        core.halt()?;
+
+        let vars = (
+            core.read_word_32(self.requests.addr)?,
+            core.read_word_32(self.errors.addr)?,
+        );
+
+        core.run()?;
+
+        if let Some(kicked) = self.kicked {
+            if kicked.elapsed().as_millis() > self.timeout.into() {
+                bail!("operation timed out");
+            }
+        }
+
+        if let Some(cached) = self.cached {
+            if vars.0 != cached.0 {
+                Ok(true)
+            } else if vars.1 != cached.1 {
+                bail!("request failed");
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(false)
+        }
+    }
+}
+
 fn jefe(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
@@ -51,25 +167,17 @@ fn jefe(
 ) -> Result<()> {
     let subargs = JefeArgs::from_iter_safe(subargs)?;
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
-    let func = funcs
-        .get("JefeSetDisposition")
-        .ok_or_else(|| anyhow!("did not find JefeSetDisposition function"))?;
-
     let request = if subargs.fault {
-        "Fault"
+        JefeRequest::Fault
     } else if subargs.start {
-        "Start"
+        JefeRequest::Start
     } else if subargs.hold {
-        "Hold"
+        JefeRequest::Hold
     } else if subargs.release {
-        "Restart"
+        JefeRequest::Release
     } else {
         bail!("one of fault, start, hold, or release must be specified");
     };
-
-    let val = func.lookup_argument(hubris, "request", 1, request)?;
 
     let task = hubris
         .lookup_task(&subargs.task)
@@ -82,37 +190,18 @@ fn jefe(
         HubrisTask::Task(id) => *id,
     };
 
-    let mut ops = vec![];
+    let mut vars = JefeVariables::new(hubris, subargs.timeout)?;
 
-    ops.push(Op::Push16(id as u16));
-    ops.push(Op::Push16(val));
-    ops.push(Op::Call(func.id));
-    ops.push(Op::Done);
-
-    context.execute(core, ops.as_slice(), None)?;
+    vars.kickit(core, request, id)?;
 
     loop {
-        if context.done(core)? {
+        thread::sleep(Duration::from_millis(100));
+        if vars.done(core)? {
             break;
         }
-
-        thread::sleep(Duration::from_millis(100));
     }
 
-    let results = context.results(core)?;
-
-    if results.len() == 0 {
-        bail!("command timed out");
-    }
-
-    match results[0] {
-        Ok(_) => {
-            info!("successfully changed disposition for {}", subargs.task);
-        }
-        Err(err) => {
-            bail!("command failed: {}", func.strerror(err))
-        }
-    }
+    info!("successfully changed disposition for {}", subargs.task);
 
     Ok(())
 }
