@@ -26,9 +26,18 @@ pub struct I2cArgs {
     )]
     timeout: u32,
 
-    /// scan a controller for devices or a device for registers
+    /// scan a controller for devices (by performing a raw read) or a device
+    /// for registers (by doing a write followed by a read)
     #[structopt(long, short, conflicts_with = "register")]
     scan: bool,
+
+    /// scan a controller for devices at a particular register, which may
+    /// have side-effects on unsporting devices
+    #[structopt(long, short = "S", value_name = "register",
+        conflicts_with_all = &["scan", "register", "device"],
+        parse(try_from_str = parse_int::parse),
+    )]
+    scanreg: Option<u8>,
 
     /// specifies an I2C bus
     #[structopt(long, short, value_name = "controller",
@@ -93,14 +102,22 @@ fn i2c_done(
     func: &HiffyFunction,
 ) -> Result<()> {
     let errmap = &func.errmap;
+    let mut errs: HashMap<u32, u32> = HashMap::new();
 
-    if subargs.scan && subargs.device.is_none() {
+    if (subargs.scan || subargs.scanreg.is_some()) && subargs.device.is_none() {
         println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
 
-        println!(
-            "    R = Reserved   - = No device   \
-            \\o/ = Device found   X = Timed out\n"
-        );
+        if subargs.scan {
+            println!(
+                "    R = Reserved   - = No device   \
+                \\o/ = Device found   X = Timed out\n"
+            );
+        } else {
+            println!(
+                "     R = Reserved   - = No device   \
+                ! = No register   X = Timed out\n"
+            );
+        }
 
         print!("{:<8}", "ADDR");
 
@@ -115,6 +132,18 @@ fn i2c_done(
                 print!("0x{:02x}    ", i);
             }
 
+            if subargs.scanreg.is_some() && i < results.len() {
+                if let Ok(val) = &results[i] {
+                    print!("  {:02x}", val[0]);
+
+                    if i % 16 == 15 {
+                        println!("");
+                    }
+
+                    continue;
+                }
+            }
+
             print!(
                 "{:>4}",
                 if i >= results.len() {
@@ -126,12 +155,16 @@ fn i2c_done(
                             if let Some(name) = errmap.get(&err) {
                                 if name == "NoDevice" {
                                     "-"
+                                } else if name == "NoRegister" {
+                                    "!"
                                 } else if name == "ReservedAddress" {
                                     "R"
                                 } else {
+                                    *errs.entry(*err).or_insert(0) += 1;
                                     "Err"
                                 }
                             } else {
+                                *errs.entry(*err).or_insert(0) += 1;
                                 "???"
                             }
                         }
@@ -183,9 +216,11 @@ fn i2c_done(
                                 } else if name == "NoDevice" {
                                     "!"
                                 } else {
+                                    *errs.entry(*err).or_insert(0) += 1;
                                     "Err"
                                 }
                             } else {
+                                *errs.entry(*err).or_insert(0) += 1;
                                 "???"
                             }
                         );
@@ -268,6 +303,16 @@ fn i2c_done(
         );
     }
 
+    if errs.len() != 0 {
+        println!("\nError summary:\n\n  COUNT ERROR");
+
+        for (err, count) in errs {
+            println!("  {:>5} {}", count, func.strerror(err));
+        }
+
+        println!("");
+    }
+
     Ok(())
 }
 
@@ -279,9 +324,13 @@ fn i2c(
 ) -> Result<()> {
     let subargs = I2cArgs::from_iter_safe(subargs)?;
 
-    if !subargs.scan && subargs.register.is_none() && !subargs.raw {
+    if !subargs.scan
+        && subargs.scanreg.is_none()
+        && subargs.register.is_none()
+        && !subargs.raw
+    {
         bail!(
-            "must indicate a scan (-s), specify a register (-r), \
+            "must indicate a scan (-s/-S), specify a register (-r), \
             or indicate raw (-R)"
         );
     }
@@ -370,7 +419,7 @@ fn i2c(
         ops.push(Op::PushNone);
     }
 
-    if !subargs.scan {
+    if !subargs.scan && subargs.scanreg.is_none() {
         if let Some(device) = subargs.device {
             ops.push(Op::Push(device));
         } else {
@@ -430,7 +479,11 @@ fn i2c(
             ops.push(Op::Push(0xff));
             ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
         } else {
-            ops.push(Op::PushNone);
+            match subargs.scanreg {
+                Some(reg) => ops.push(Op::Push(reg)),
+                None => ops.push(Op::PushNone),
+            }
+
             ops.push(Op::Push(0));
             ops.push(Op::PushNone);
             ops.push(Op::Label(Target(0)));
