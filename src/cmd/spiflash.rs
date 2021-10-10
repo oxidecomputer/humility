@@ -152,9 +152,9 @@ fn spiflash(
         Ok(f)
     };
 
-    let spiflash_read = func("SpiFlashRead", 3)?;
-    let spiflash_write = func("SpiFlashWrite", 3)?;
-    let spiflash_get = func("SpiFlashGet", 3)?;
+    let spiflash_read = func("SpiFlashRead", 4)?;
+    let spiflash_write = func("SpiFlashWrite", 4)?;
+    let spiflash_get = func("SpiFlashGet", 4)?;
 
     let tasks = hubris.lookup_feature("spiflash");
     if !tasks.is_ok() {
