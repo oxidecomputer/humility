@@ -20,6 +20,7 @@ mod rencm;
 mod ringbuf;
 mod spd;
 mod spi;
+mod spiflash;
 mod stackmargin;
 mod stmsecure;
 mod tasks;
@@ -103,6 +104,7 @@ pub fn init<'a, 'b>(
         ringbuf::init,
         spd::init,
         spi::init,
+        spiflash::init,
         stackmargin::init,
         tasks::init,
         test::init,
