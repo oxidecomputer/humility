@@ -26,16 +26,43 @@ struct QspiArgs {
     timeout: u32,
 
     /// pull status string
-    #[structopt(long, short, conflicts_with_all = &["id", "erase"])]
+    #[structopt(
+        long, short, conflicts_with_all = &["id", "erase", "read", "write"]
+    )]
     status: bool,
 
     /// pull identifier
-    #[structopt(long, short, conflicts_with_all = &["erase"])]
+    #[structopt(
+        long, short, conflicts_with_all = &["erase", "read", "write"]
+    )]
     id: bool,
 
     /// perform an erase
-    #[structopt(long, short)]
+    #[structopt(long, short, conflicts_with_all = &["read", "write"])]
     erase: bool,
+
+    /// perform a read
+    #[structopt(
+        long, short,
+        conflicts_with_all = &["write"],
+        requires_all = &["nbytes", "addr"]
+    )]
+    read: bool,
+
+    /// specify flash address in bytes
+    #[structopt(long, short, value_name = "address",
+        parse(try_from_str = parse_int::parse),
+    )]
+    addr: Option<usize>,
+
+    /// specify size in bytes
+    #[structopt(long, short, value_name = "nbytes",
+        parse(try_from_str = parse_int::parse),
+    )]
+    nbytes: Option<usize>,
+
+    /// perform a write
+    write: Option<String>
 }
 
 fn qspi(
@@ -71,6 +98,35 @@ fn qspi(
     } else if subargs.erase {
         let qspi_bulk_erase = func("QspiBulkErase", 0)?;
         ops.push(Op::Call(qspi_bulk_erase.id));
+    } else if subargs.read {
+        let qspi_read = func("QspiRead", 2)?;
+        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
+        ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
+        ops.push(Op::Call(qspi_read.id));
+    } else if let Some(ref write) = subargs.write {
+        bail!("not yet on write");
+/*
+        let qspi_page_program = func("QspiPageProgram", 2)?;
+        let bytes: Vec<&str> = write.split(",").collect();
+        let mut arr = vec![];
+
+        for byte in &bytes {
+            if let Ok(val) = parse_int::parse::<u8>(byte) {
+                arr.push(val);
+            } else {
+                bail!("invalid byte {}", byte)
+            }
+        }
+
+        ops.push(Op::Push32(arr.len() as u32));
+        ops.push(Op::Call(func.id));
+
+        context.execute(
+            core,
+            ops.as_slice(),
+            arr,
+        )?;
+        */
     }
 
     ops.push(Op::Done);
