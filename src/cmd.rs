@@ -14,6 +14,7 @@ mod manifest;
 mod map;
 mod pmbus;
 mod probe;
+mod qspi;
 mod readmem;
 mod readvar;
 mod rencm;
@@ -97,6 +98,7 @@ pub fn init<'a, 'b>(
         map::init,
         pmbus::init,
         probe::init,
+        qspi::init,
         readmem::init,
         readvar::init,
         rencm::init,
