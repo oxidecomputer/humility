@@ -37,9 +37,17 @@ struct QspiArgs {
     )]
     id: bool,
 
-    /// perform an erase
-    #[structopt(long, short, conflicts_with_all = &["read", "write"])]
+    /// perform a sector erase
+    #[structopt(
+        long, short,
+        conflicts_with_all = &["read", "write", "bulkerase"],
+        requires_all = &["addr"]
+    )]
     erase: bool,
+
+    /// perform a bulk erase
+    #[structopt(long, short = "E", conflicts_with_all = &["read", "write"])]
+    bulkerase: bool,
 
     /// perform a read
     #[structopt(
@@ -99,6 +107,11 @@ fn qspi(
         ops.push(Op::Call(qspi_read_id.id));
         None
     } else if subargs.erase {
+        let qspi_sector_erase = func("QspiSectorErase", 1)?;
+        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
+        ops.push(Op::Call(qspi_sector_erase.id));
+        None
+    } else if subargs.bulkerase {
         let qspi_bulk_erase = func("QspiBulkErase", 0)?;
         ops.push(Op::Call(qspi_bulk_erase.id));
         None
