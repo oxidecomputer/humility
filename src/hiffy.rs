@@ -242,7 +242,16 @@ impl<'a> HiffyContext<'a> {
                     func.args.push(arg.goff);
                 }
             } else {
-                func.args.push(args);
+                //
+                // This isn't a structure argument; if it's not an empty
+                // tuple (denoting no argument), push our single argument.
+                //
+                match hubris.lookup_basetype(args) {
+                    Ok(basetype) if basetype.size == 0 => {}
+                    _ => {
+                        func.args.push(args);
+                    }
+                }
             }
 
             let err = sig.lookup_member("__1")?.goff;
