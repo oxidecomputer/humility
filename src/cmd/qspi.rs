@@ -90,20 +90,24 @@ fn qspi(
 
     let mut ops = vec![];
 
-    if subargs.status {
+    let data = if subargs.status {
         let qspi_read_status = func("QspiReadStatus", 0)?;
         ops.push(Op::Call(qspi_read_status.id));
+        None
     } else if subargs.id {
         let qspi_read_id = func("QspiReadId", 0)?;
         ops.push(Op::Call(qspi_read_id.id));
+        None
     } else if subargs.erase {
         let qspi_bulk_erase = func("QspiBulkErase", 0)?;
         ops.push(Op::Call(qspi_bulk_erase.id));
+        None
     } else if subargs.read {
         let qspi_read = func("QspiRead", 2)?;
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
         ops.push(Op::Call(qspi_read.id));
+        None
     } else if let Some(ref write) = subargs.write {
         let qspi_page_program = func("QspiPageProgram", 2)?;
         let bytes: Vec<&str> = write.split(",").collect();
@@ -120,14 +124,20 @@ fn qspi(
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Push32(arr.len() as u32));
         ops.push(Op::Call(qspi_page_program.id));
-    }
+        Some(arr)
+    } else {
+        bail!("expected an operation");
+    };
 
     ops.push(Op::Done);
 
     context.execute(
         core,
         ops.as_slice(),
-        None,
+        match data {
+            Some(ref data) => Some(data.as_slice()),
+            _ => None,
+        },
     )?;
 
     loop {
