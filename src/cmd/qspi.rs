@@ -61,7 +61,8 @@ struct QspiArgs {
     )]
     nbytes: Option<usize>,
 
-    /// perform a write
+    /// comma-separated bytes to write
+    #[structopt(long, short, value_name = "bytes")]
     write: Option<String>
 }
 
@@ -104,8 +105,6 @@ fn qspi(
         ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
         ops.push(Op::Call(qspi_read.id));
     } else if let Some(ref write) = subargs.write {
-        bail!("not yet on write");
-/*
         let qspi_page_program = func("QspiPageProgram", 2)?;
         let bytes: Vec<&str> = write.split(",").collect();
         let mut arr = vec![];
@@ -118,15 +117,9 @@ fn qspi(
             }
         }
 
+        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Push32(arr.len() as u32));
-        ops.push(Op::Call(func.id));
-
-        context.execute(
-            core,
-            ops.as_slice(),
-            arr,
-        )?;
-        */
+        ops.push(Op::Call(qspi_page_program.id));
     }
 
     ops.push(Op::Done);
