@@ -193,6 +193,10 @@ impl<'a> HiffyContext<'a> {
         })
     }
 
+    pub fn data_size(&self) -> usize {
+        self.data.size
+    }
+
     pub fn functions(&mut self) -> Result<HashMap<String, HiffyFunction>> {
         let hubris = self.hubris;
 

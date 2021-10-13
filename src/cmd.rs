@@ -14,6 +14,7 @@ mod manifest;
 mod map;
 mod pmbus;
 mod probe;
+mod qspi;
 mod readmem;
 mod readvar;
 mod rencm;
@@ -32,6 +33,7 @@ use crate::Args;
 use crate::{attach_dump, attach_live};
 use anyhow::{bail, Result};
 use std::collections::HashMap;
+use std::convert::TryInto;
 use structopt::clap::App;
 
 #[allow(dead_code)]
@@ -97,6 +99,7 @@ pub fn init<'a, 'b>(
         map::init,
         pmbus::init,
         probe::init,
+        qspi::init,
         readmem::init,
         readvar::init,
         rencm::init,
@@ -181,5 +184,86 @@ pub fn subcommand(
         }
     } else {
         bail!("command {} not found", subargs[0]);
+    }
+}
+
+fn printmem(bytes: &[u8], addr: u32, size: usize, width: usize) {
+    let mut addr = addr;
+
+    let print = |line: &[u8], addr, offs| {
+        print!("0x{:08x} | ", addr);
+
+        for i in (0..width).step_by(size) {
+            if i < offs || i - offs >= line.len() {
+                print!(" {:width$}", "", width = size * 2);
+                continue;
+            }
+
+            let slice = &line[i - offs..i - offs + size];
+
+            print!(
+                "{:0width$x} ",
+                match size {
+                    1 => line[i - offs] as u32,
+                    2 => u16::from_le_bytes(slice.try_into().unwrap()) as u32,
+                    4 => u32::from_le_bytes(slice.try_into().unwrap()) as u32,
+                    _ => {
+                        panic!("invalid size");
+                    }
+                },
+                width = size * 2
+            );
+        }
+
+        print!("| ");
+
+        for i in 0..width {
+            if i < offs || i - offs >= line.len() {
+                print!(" ");
+            } else {
+                let c = line[i - offs] as char;
+
+                if c.is_ascii() && !c.is_ascii_control() {
+                    print!("{}", c);
+                } else {
+                    print!(".");
+                }
+            }
+        }
+
+        println!("");
+    };
+
+    let offs = (addr & (width - 1) as u32) as usize;
+    addr -= offs as u32;
+
+    /*
+     * Print out header line, OpenBoot PROM style
+     */
+    print!("  {:8}  ", "");
+
+    for i in (0..width).step_by(size) {
+        if i == offs {
+            print!(" {:>width$}", "\\/", width = size * 2);
+        } else {
+            print!(" {:>width$x}", i, width = size * 2);
+        }
+    }
+
+    println!("");
+
+    /*
+     * Print our first line.
+     */
+    let lim = std::cmp::min(width - offs, bytes.len());
+    print(&bytes[0..lim], addr, offs);
+
+    if lim < bytes.len() {
+        let lines = bytes[lim..].chunks(width);
+
+        for line in lines {
+            addr += width as u32;
+            print(line, addr, 0);
+        }
     }
 }
