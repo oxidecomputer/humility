@@ -41,7 +41,6 @@ fn readmem(
 ) -> Result<()> {
     let subargs = ReadmemArgs::from_iter_safe(subargs)?;
     let max = crate::core::CORE_MAX_READSIZE;
-    let width: usize = 16;
     let size = if subargs.word || subargs.symbol {
         4
     } else if subargs.halfword {
@@ -63,7 +62,7 @@ fn readmem(
         hubris.validate(core, HubrisValidate::ArchiveMatch)?;
     }
 
-    let mut addr = match parse_int::parse::<u32>(&subargs.address) {
+    let addr = match parse_int::parse::<u32>(&subargs.address) {
         Ok(addr) => addr,
         _ => {
             hubris.validate(core, HubrisValidate::ArchiveMatch)?;
@@ -119,82 +118,7 @@ fn readmem(
         return Ok(());
     }
 
-    let print = |line: &[u8], addr, offs| {
-        print!("0x{:08x} | ", addr);
-
-        for i in (0..width).step_by(size) {
-            if i < offs || i - offs >= line.len() {
-                print!(" {:width$}", "", width = size * 2);
-                continue;
-            }
-
-            let slice = &line[i - offs..i - offs + size];
-
-            print!(
-                "{:0width$x} ",
-                match size {
-                    1 => line[i - offs] as u32,
-                    2 => u16::from_le_bytes(slice.try_into().unwrap()) as u32,
-                    4 => u32::from_le_bytes(slice.try_into().unwrap()) as u32,
-                    _ => {
-                        panic!("invalid size");
-                    }
-                },
-                width = size * 2
-            );
-        }
-
-        print!("| ");
-
-        for i in 0..width {
-            if i < offs || i - offs >= line.len() {
-                print!(" ");
-            } else {
-                let c = line[i - offs] as char;
-
-                if c.is_ascii() && !c.is_ascii_control() {
-                    print!("{}", c);
-                } else {
-                    print!(".");
-                }
-            }
-        }
-
-        println!("");
-    };
-
-    let offs = (addr & (width - 1) as u32) as usize;
-    addr -= offs as u32;
-
-    /*
-     * Print out header line, OpenBoot PROM style
-     */
-    print!("  {:8}  ", "");
-
-    for i in (0..width).step_by(size) {
-        if i == offs {
-            print!(" {:>width$}", "\\/", width = size * 2);
-        } else {
-            print!(" {:>width$x}", i, width = size * 2);
-        }
-    }
-
-    println!("");
-
-    /*
-     * Print our first line.
-     */
-    let lim = std::cmp::min(width - offs, bytes.len());
-    print(&bytes[0..lim], addr, offs);
-
-    if lim < bytes.len() {
-        let lines = bytes[lim..].chunks(width);
-
-        for line in lines {
-            addr += width as u32;
-            print(line, addr, 0);
-        }
-    }
+    printmem(&bytes, addr, size, 16);
 
     Ok(())
 }

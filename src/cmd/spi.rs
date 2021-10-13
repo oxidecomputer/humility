@@ -43,6 +43,10 @@ struct SpiArgs {
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<u32>,
+
+    /// print out data read as words rather than bytes
+    #[structopt(long, short = "W", requires = "read")]
+    word: bool,
 }
 
 fn spi(
@@ -177,6 +181,14 @@ fn spi(
     }
 
     let results = context.results(core)?;
+
+    if subargs.read {
+        if let Ok(results) = &results[0] {
+            let size = if subargs.word { 4 } else { 1 };
+            crate::cmd::printmem(results, 0, size, 16);
+            return Ok(());
+        }
+    }
 
     println!("{:x?}", results);
 
