@@ -164,7 +164,6 @@ fn qspi(
         // First, we need to erase the sectors
         //
         let filelen = fs::metadata(filename.clone())?.len() as u32;
-        let start = 0;
 
         ops.push(Op::Push32(filelen));
         ops.push(Op::Push32(0));
