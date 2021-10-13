@@ -9,6 +9,7 @@ use crate::hubris::*;
 use crate::Args;
 use std::str;
 use std::thread;
+use std::convert::TryInto;
 
 use anyhow::{anyhow, bail, Result};
 use hif::*;
@@ -42,11 +43,30 @@ struct SpiArgs {
     #[structopt(long, short, value_name = "nbytes",
         parse(try_from_str = parse_int::parse),
     )]
-    nbytes: Option<u32>,
+    nbytes: Option<usize>,
 
     /// print out data read as words rather than bytes
     #[structopt(long, short = "W", requires = "read")]
     word: bool,
+
+    /// interpret the specified number of trailing bytes on a write as a
+    /// bigendian address 
+    #[structopt(
+        long, short = "A", requires_all = &["read", "write", "discard"]
+    )]
+    bigendian_address: Option<usize>,
+
+    /// interpret the specified number of trailing bytes on a write as a
+    /// bigendian address 
+    #[structopt(
+        long, short = "a", requires_all = &["read", "write", "discard"],
+        conflicts_with = "bigendian_address"
+    )]
+    littleendian_address: Option<usize>,
+
+    /// number of bytes to discard when printing read result
+    #[structopt(long, short, value_name = "nbytes", requires = "read")]
+    discard: Option<usize>
 }
 
 fn spi(
@@ -131,6 +151,8 @@ fn spi(
 
     info!("SPI master is {}", hubris.lookup_module(task)?.name);
 
+    let mut addr = 0;
+
     let data = if let Some(ref write) = subargs.write {
         let bytes: Vec<&str> = write.split(",").collect();
         let mut arr = vec![];
@@ -143,6 +165,40 @@ fn spi(
             }
         }
 
+        if let Some(size) = subargs.littleendian_address {
+            let l = arr.len();
+
+            if size > l {
+                bail!("number of address bytes cannot exceed bytes to write");
+            }
+
+            addr = match size {
+                1 => arr[l - size] as u32,
+                2 => u16::from_le_bytes(arr[l - size..l].try_into().unwrap()) as u32,
+                4 => u32::from_le_bytes(arr[l - size..l].try_into().unwrap()) as u32,
+                _ => {
+                    bail!("invalid address size");
+                }
+            };
+        }
+
+        if let Some(size) = subargs.bigendian_address {
+            let l = arr.len();
+
+            if size > l {
+                bail!("number of address bytes cannot exceed bytes to write");
+            }
+
+            addr = match size {
+                1 => arr[l - size] as u32,
+                2 => u16::from_be_bytes(arr[l - size..l].try_into().unwrap()) as u32,
+                4 => u32::from_be_bytes(arr[l - size..l].try_into().unwrap()) as u32,
+                _ => {
+                    bail!("invalid address size");
+                }
+            };
+        }
+ 
         ops.push(Op::Push32(arr.len() as u32));
         Some(arr)
     } else {
@@ -154,8 +210,17 @@ fn spi(
         None
     };
 
+    let discard = if let Some(discard) = subargs.discard {
+        if discard > subargs.nbytes.unwrap() {
+            bail!("cannot discard more than specified number of bytes");
+        }
+        discard
+    } else {
+        0
+    };
+
     if subargs.read {
-        ops.push(Op::Push32(subargs.nbytes.unwrap()));
+        ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
         ops.push(Op::Call(spi_read.id));
     } else {
         ops.push(Op::Call(spi_write.id));
@@ -184,8 +249,12 @@ fn spi(
 
     if subargs.read {
         if let Ok(results) = &results[0] {
+            if results.len() < discard {
+                bail!("short read: {:x?}", results);
+            }
+
             let size = if subargs.word { 4 } else { 1 };
-            crate::cmd::printmem(results, 0, size, 16);
+            crate::cmd::printmem(&results[discard..], addr, size, 16);
             return Ok(());
         }
     }
