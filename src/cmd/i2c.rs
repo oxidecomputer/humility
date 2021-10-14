@@ -16,6 +16,15 @@ use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::time::Instant;
+
+use indicatif::{HumanBytes, HumanDuration};
+use indicatif::{ProgressBar, ProgressStyle};
+
+
 #[derive(StructOpt, Debug, Default)]
 #[structopt(name = "i2c", about = "scan for and read I2C devices")]
 pub struct I2cArgs {
@@ -74,10 +83,8 @@ pub struct I2cArgs {
     block: bool,
 
     /// specifies write value
-    #[structopt(long, short, value_name = "value",
-        parse(try_from_str = parse_int::parse),
-    )]
-    write: Option<u8>,
+    #[structopt(long, short, value_name = "bytes")]
+    write: Option<String>,
 
     /// perform a zero-byte write to the specified register
     #[structopt(
@@ -94,6 +101,15 @@ pub struct I2cArgs {
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<u8>,
+
+    /// flash the specified file, assuming two byte addressing
+    #[structopt(long, short,
+        conflicts_with_all = &[
+            "write", "raw", "nbytes", "read", "writeall", "register", "scan"
+        ],
+        requires = "device",
+    )]
+    flash: Option<String>,
 }
 
 fn i2c_done(
@@ -335,9 +351,13 @@ fn i2c(
         );
     }
 
-    let (fname, args) = match (subargs.write, subargs.writeraw) {
-        (Some(_), _) | (None, true) => ("I2cWrite", 8),
-        (None, false) => ("I2cRead", 7),
+    let (fname, args) = if subargs.flash.is_some() {
+        ("I2cBulkWrite", 9)
+    } else {
+        match (subargs.write.is_some(), subargs.writeraw) {
+            (true, _) | (false, true) => ("I2cWrite", 8),
+            (false, false) => ("I2cRead", 7),
+        }
     };
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
@@ -419,6 +439,130 @@ fn i2c(
         ops.push(Op::PushNone);
     }
 
+    if let Some(filename) = subargs.flash {
+        ops.push(Op::Push(subargs.device.unwrap()));
+        ops.push(Op::PushNone);
+
+        let filelen = {
+            let len = fs::metadata(filename.clone())?.len() as u32;
+
+            if len > u16::MAX.into() {
+                info!("file will be clamped at {}", u16::MAX);
+                u16::MAX
+            } else {
+                len as u16
+            }
+        };
+
+        let addr_size = 2;
+        let block_size = 128u16;
+        let nibble_size = block_size + addr_size;
+
+        let data_size = context.data_size();
+        let chunk: usize = data_size - (data_size % nibble_size as usize);
+        let mut offset = 0u16;
+
+        let mut buf = vec![0u8; chunk];
+        let mut file = File::open(filename)?;
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(filelen as u64);
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}"),
+        );
+
+        let base = ops;
+
+        loop {
+            let mut noffs = 0usize;
+
+            loop {
+                if noffs + nibble_size as usize > chunk || offset >= filelen {
+                    //
+                    // No more room -- or we are out of file.  Either way, we
+                    // are going to zero the rest of our chunk to keep our HIF
+                    // simpler.
+                    //
+                    for i in noffs..chunk {
+                        buf[i as usize] = 0;
+                    }
+
+                    break;
+                }
+
+                let len = if offset + block_size > filelen {
+                    filelen - offset
+                } else {
+                    block_size
+                };
+
+                // Plop in our address, 16-bit big endian
+                let b = offset.to_be_bytes();
+                buf[noffs] = b[0];
+                buf[noffs + 1] = b[1];
+                noffs += 2;
+
+                // Read the file contents
+                file.read(&mut buf[noffs..noffs + len as usize])?;
+                noffs += len as usize;
+                offset += len;
+            }
+
+            //
+            // We have our chunk; now a HIF loop to write our chunk in
+            // block_size nibbles -- making for a nibble_size write.
+            //
+            let mut ops = base.clone();
+
+            ops.push(Op::Push32(0));
+            ops.push(Op::PushNone);
+            ops.push(Op::Label(Target(0)));
+            ops.push(Op::Drop);
+            ops.push(Op::Push16(nibble_size));
+            ops.push(Op::Call(func.id));
+            ops.push(Op::Add);
+            ops.push(Op::Push32(chunk as u32));
+            ops.push(Op::BranchGreaterThan(Target(0)));
+            ops.push(Op::Done);
+
+            context.execute(core, ops.as_slice(), Some(&buf))?;
+
+            loop {
+                if context.done(core)? {
+                    break;
+                }
+
+                thread::sleep(Duration::from_millis(100));
+            }
+
+            let results = context.results(core)?;
+
+            bar.set_position(offset.into());
+
+            for i in 0..results.len() {
+                if let Err(err) = results[i] {
+                    bail!("failed to write block {} at offset {}: {}",
+                        i, offset, func.strerror(err));
+                }
+            }
+
+            if offset >= filelen {
+                break;
+            }
+        }
+
+        bar.finish_and_clear();
+
+        info!(
+            "flashed {} in {}",
+            HumanBytes(filelen as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        return Ok(());
+    }
+
     if !subargs.scan && subargs.scanreg.is_none() {
         if let Some(device) = subargs.device {
             ops.push(Op::Push(device));
@@ -426,15 +570,29 @@ fn i2c(
             bail!("expected device");
         }
 
-        if let Some(write) = subargs.write {
+        if let Some(ref write) = subargs.write {
             if let Some(register) = subargs.register {
                 ops.push(Op::Push(register));
             } else {
                 ops.push(Op::PushNone);
             }
 
-            ops.push(Op::Push(write));
-            ops.push(Op::Push(1));
+            let bytes: Vec<&str> = write.split(",").collect();
+            let mut arr = vec![];
+
+            for byte in &bytes {
+                if let Ok(val) = parse_int::parse::<u8>(byte) {
+                    arr.push(val);
+                } else {
+                    bail!("invalid byte {}", byte)
+                }
+            }
+
+            for i in 0..arr.len() {
+                ops.push(Op::Push(arr[i]));
+            }
+
+            ops.push(Op::Push32(arr.len() as u32));
         } else if subargs.writeraw {
             //
             // We know that we have a register when -W has been specified; use

@@ -288,7 +288,7 @@ fn qspi(
             HumanDuration(started.elapsed())
         );
 
-        bail!("all done");
+        return Ok(());
     } else {
         bail!("expected an operation");
     };
