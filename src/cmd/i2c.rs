@@ -105,8 +105,10 @@ pub struct I2cArgs {
     /// flash the specified file, assuming two byte addressing
     #[structopt(long, short,
         conflicts_with_all = &[
-            "write", "raw", "nbytes", "read", "writeall", "register", "scan"
+            "write", "raw", "nbytes", "read", "writeall", "register", "scan",
+            "writeraw"
         ],
+        value_name = "filename",
         requires = "device",
     )]
     flash: Option<String>,
@@ -249,30 +251,37 @@ fn i2c_done(
             }
         }
     } else if subargs.raw {
-        println!(
-            "Controller I2C{}, device 0x{:x}, raw {} = {}",
+        print!(
+            "Controller I2C{}, device 0x{:x}, raw {} = ",
             subargs.controller,
             subargs.device.unwrap(),
             if subargs.write.is_some() { "write" } else { "read" },
-            if results.len() == 0 {
-                "Timed out".to_string()
-            } else {
-                match &results[0] {
-                    Err(err) => {
-                        format!("Err({})", func.strerror(*err))
+        );
+
+        if results.len() == 0 {
+            println!("Timed out");
+        } else {
+            match &results[0] {
+                Err(err) => {
+                    println!("Err({})", func.strerror(*err));
+                }
+                Ok(val) => match subargs.nbytes {
+                    Some(n) if n > 2 => {
+                        println!("");
+                        crate::cmd::printmem(val, 0, 1, 16);
                     }
-                    Ok(val) => match subargs.nbytes {
-                        Some(2) => {
-                            format!("0x{:02x} 0x{:02x}", val[0], val[1])
-                        }
-                        Some(1) => {
-                            format!("0x{:02x}", val[0])
-                        }
-                        _ => "Success".to_string(),
-                    },
+                    Some(2) => {
+                        println!("0x{:02x} 0x{:02x}", val[0], val[1]);
+                    }
+                    Some(1) => {
+                        println!("0x{:02x}", val[0]);
+                    }
+                    _ => {
+                        println!("Success");
+                    }
                 }
             }
-        );
+        }
     } else {
         println!(
             "Controller I2C{}, device 0x{:x}, {}register 0x{:x} = {}",
@@ -344,15 +353,16 @@ fn i2c(
         && subargs.scanreg.is_none()
         && subargs.register.is_none()
         && !subargs.raw
+        && subargs.flash.is_none()
     {
         bail!(
             "must indicate a scan (-s/-S), specify a register (-r), \
-            or indicate raw (-R)"
+            indicate raw (-R) or flash (-f)"
         );
     }
 
     let (fname, args) = if subargs.flash.is_some() {
-        ("I2cBulkWrite", 9)
+        ("I2cBulkWrite", 8)
     } else {
         match (subargs.write.is_some(), subargs.writeraw) {
             (true, _) | (false, true) => ("I2cWrite", 8),
@@ -459,11 +469,12 @@ fn i2c(
         let nibble_size = block_size + addr_size;
 
         let data_size = context.data_size();
-        let chunk: usize = data_size - (data_size % nibble_size as usize);
+        let mut chunk: usize = data_size - (data_size % nibble_size as usize);
         let mut offset = 0u16;
 
         let mut buf = vec![0u8; chunk];
         let mut file = File::open(filename)?;
+        let mut last = false;
 
         let started = Instant::now();
         let bar = ProgressBar::new(filelen as u64);
@@ -478,16 +489,12 @@ fn i2c(
             let mut noffs = 0usize;
 
             loop {
-                if noffs + nibble_size as usize > chunk || offset >= filelen {
-                    //
-                    // No more room -- or we are out of file.  Either way, we
-                    // are going to zero the rest of our chunk to keep our HIF
-                    // simpler.
-                    //
-                    for i in noffs..chunk {
-                        buf[i as usize] = 0;
-                    }
+                assert!(offset < filelen);
 
+                if noffs + nibble_size as usize > chunk {
+                    //
+                    // No more room; we have filled up our chunk.
+                    //
                     break;
                 }
 
@@ -506,6 +513,18 @@ fn i2c(
                 // Read the file contents
                 file.read(&mut buf[noffs..noffs + len as usize])?;
                 noffs += len as usize;
+
+                if offset as u32 + len as u32 > filelen as u32 {
+                    //
+                    // We are at the end of our file; clamp our chunk size at
+                    // the amount of nibbles we actually took to prevent any
+                    // spurious writes
+                    //
+                    chunk = noffs;
+                    last = true;
+                    break;
+                }
+
                 offset += len;
             }
 
@@ -547,7 +566,7 @@ fn i2c(
                 }
             }
 
-            if offset >= filelen {
+            if offset >= filelen || last {
                 break;
             }
         }
@@ -609,10 +628,6 @@ fn i2c(
             }
 
             if let Some(nbytes) = subargs.nbytes {
-                if nbytes != 1 && nbytes != 2 {
-                    bail!("nbytes must be 1 or 2");
-                }
-
                 ops.push(Op::Push(nbytes));
             } else {
                 if subargs.block {

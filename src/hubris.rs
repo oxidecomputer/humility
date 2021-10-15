@@ -3510,7 +3510,7 @@ impl HubrisArchive {
         ensure!(self.modules.len() > 0, "must specify a valid Hubris archive");
 
         let print = |what, val| {
-            info!("{:>12} => {}", what, val);
+            println!("{:>12} => {}", what, val);
         };
 
         let size = |task| {
@@ -3557,10 +3557,10 @@ impl HubrisArchive {
 
         let ttl = self.modules.iter().fold(0, |ttl, m| ttl + (m.1).memsize);
 
-        info!("{:>12} => {}K", "total size", ttl / 1024);
-        info!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
-        info!("{:>12} => {}", "tasks", self.modules.len() - 1);
-        info!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
+        println!("{:>12} => {}K", "total size", ttl / 1024);
+        println!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
+        println!("{:>12} => {}", "tasks", self.modules.len() - 1);
+        println!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
 
         let mut id = 0;
 
@@ -3571,7 +3571,7 @@ impl HubrisArchive {
 
             let features = self.manifest.task_features.get(&module.name);
 
-            info!(
+            println!(
                 "{:>18} {:18} {:>4.1}K {}",
                 id,
                 module.name,
@@ -3600,11 +3600,11 @@ impl HubrisArchive {
 
         variables.sort();
 
-        info!("{:18} {:<30} {:<10} {}", "MODULE", "VARIABLE", "ADDR", "SIZE");
+        println!("{:18} {:<30} {:<10} {}", "MODULE", "VARIABLE", "ADDR", "SIZE");
 
         for v in variables {
             let task = &self.lookup_module(v.0)?.name;
-            info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
+            println!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
         }
         Ok(())
     }
