@@ -46,6 +46,7 @@ pub struct HubrisManifest {
     board: Option<String>,
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
+    pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     outputs: HashMap<String, (u32, u32)>,
     peripherals: HashMap<String, u32>,
 }
@@ -143,11 +144,11 @@ pub enum HubrisTask {
     Task(u32),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 ///
 /// An identifier that corresponds to a global offset within a particular DWARF
 /// object.
 ///
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 pub struct HubrisGoff {
     pub object: u32,
     pub goff: usize,
@@ -2090,6 +2091,18 @@ impl HubrisArchive {
                             .into_iter()
                             .map(|f| f.as_str().unwrap().to_string())
                             .collect::<Vec<String>>(),
+                    );
+                }
+
+                let irqs = config.get("interrupts");
+
+                if let Some(toml::Value::Table(irqs)) = irqs {
+                    manifest.task_irqs.insert(
+                        task.to_string(),
+                        irqs
+                            .into_iter()
+                            .map(|(n, m)| (m.as_integer().unwrap() as u32, n.parse::<u32>().unwrap()))
+                            .collect::<Vec<_>>(),
                     );
                 }
             }

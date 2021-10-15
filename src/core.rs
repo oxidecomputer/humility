@@ -36,6 +36,12 @@ pub trait Core {
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
+
+    fn read_word_64(&mut self, addr: u32) -> Result<u64> {
+        let mut buf = [0; 8];
+        self.read_8(addr, &mut buf)?;
+        Ok(u64::from_le_bytes(buf))
+    }
 }
 
 pub struct ProbeCore {
