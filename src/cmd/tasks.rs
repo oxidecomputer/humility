@@ -454,8 +454,12 @@ fn explain_fault_info(
         "IllegalText" => print!("jump to non-executable mem"),
         "IllegalInstruction" => print!("illegal instruction"),
         "InvalidOperation" => {
-            // TODO this case is rare in practice but needs payload decoding.
-            print!("unexpected fault?");
+            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
+            let memb = anon_struct_t.lookup_member("__0")?;
+            let next = &buf[memb.offset..];
+            let info = u32::from_le_bytes(next[..4].try_into().unwrap());
+
+            print!("general fault, cfsr=0x{:x}", info);
         }
         "StackOverflow" => {
             let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
@@ -474,12 +478,70 @@ fn explain_fault_info(
             print!("killed by task 0x{:04x}", tid);
         },
         "MemoryAccess" => {
-            print!("illegal mem access");
-            // TODO decode fields
+            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
+            let addr_m = anon_struct_t.lookup_member("address")?;
+            let opt_u32_t = hubris.lookup_enum(addr_m.goff)?;
+           
+            let addr_bytes = &buf[addr_m.offset..];
+            let addr_v = opt_u32_t.determine_variant(hubris, addr_bytes)?;
+            let addr = if addr_v.name == "Some" {
+                let anon_struct_t = hubris.lookup_struct(addr_v.goff.unwrap())?;
+                let memb = anon_struct_t.lookup_member("__0")?;
+                let addr_bytes = &addr_bytes[memb.offset..];
+                Some(u32::from_le_bytes(addr_bytes[..4].try_into().unwrap()))
+            } else {
+                None
+            };
+
+            print!("mem fault (");
+            if let Some(addr) = addr {
+                print!("precise: 0x{:x}", addr);
+            } else {
+                print!("imprecise");
+            }
+            print!(")");
+
+            let source_m = anon_struct_t.lookup_member("source")?;
+            let fault_source_t = hubris.lookup_enum(source_m.goff)?;
+            let fault_source_bytes = &buf[source_m.offset..];
+            explain_fault_source(
+                hubris,
+                fault_source_bytes,
+                fault_source_t,
+            )?;
         }
         "BusError" => {
-            print!("bus error");
-            // TODO decode fields
+            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
+            let addr_m = anon_struct_t.lookup_member("address")?;
+            let opt_u32_t = hubris.lookup_enum(addr_m.goff)?;
+           
+            let addr_bytes = &buf[addr_m.offset..];
+            let addr_v = opt_u32_t.determine_variant(hubris, addr_bytes)?;
+            let addr = if addr_v.name == "Some" {
+                let anon_struct_t = hubris.lookup_struct(addr_v.goff.unwrap())?;
+                let memb = anon_struct_t.lookup_member("__0")?;
+                let addr_bytes = &addr_bytes[memb.offset..];
+                Some(u32::from_le_bytes(addr_bytes[..4].try_into().unwrap()))
+            } else {
+                None
+            };
+
+            print!("bus error (");
+            if let Some(addr) = addr {
+                print!("precise: 0x{:x}", addr);
+            } else {
+                print!("imprecise");
+            }
+            print!(")");
+
+            let source_m = anon_struct_t.lookup_member("source")?;
+            let fault_source_t = hubris.lookup_enum(source_m.goff)?;
+            let fault_source_bytes = &buf[source_m.offset..];
+            explain_fault_source(
+                hubris,
+                fault_source_bytes,
+                fault_source_t,
+            )?;
         }
         "SyscallUsage" => {
             print!("in syscall: ");
@@ -526,6 +588,20 @@ fn explain_usage_error(
         "NoIrq" => print!("referred to undefined interrupt"),
         "BadKernelMessage" => print!("sent nonsense IPC to kernel"),
         _ => print!("???"),
+    }
+    Ok(())
+}
+
+fn explain_fault_source(
+    hubris: &HubrisArchive,
+    buf: &[u8],
+    fault_source_t: &HubrisEnum,
+) -> Result<()> {
+    let var = fault_source_t.determine_variant(hubris, buf)?;
+    match &*var.name {
+        "User" => print!(" in task code"),
+        "Kernel" => print!(" in syscall"),
+        _ => print!(" ???"),
     }
     Ok(())
 }
