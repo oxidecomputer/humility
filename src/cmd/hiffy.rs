@@ -59,7 +59,7 @@ fn hiffy(
         byid[ndx] = Some((name, func));
     }
 
-    println!("{:>3} {:30} {}", "ID", "FUNCTION", "#ARGS");
+    println!("{:>3} {:30} #ARGS", "ID", "FUNCTION");
 
     for (i, id) in byid.iter().enumerate() {
         if let Some((name, func)) = id {

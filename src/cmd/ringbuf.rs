@@ -101,8 +101,8 @@ fn ringbuf_dump(
     let fmt = HubrisPrintFormat { indent: 0, newline: false, hex: true };
 
     println!(
-        "{:10} {:>4} {:>4} {:>8} {:>8} {}",
-        "ADDR", "NDX", "LINE", "GEN", "COUNT", "PAYLOAD"
+        "{:10} {:>4} {:>4} {:>8} {:>8} PAYLOAD",
+        "ADDR", "NDX", "LINE", "GEN", "COUNT",
     );
 
     for i in 0..array.count {

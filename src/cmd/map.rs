@@ -25,8 +25,8 @@ fn mapcmd(
     let regions = hubris.regions(core)?;
 
     println!(
-        "{:10} {:10}   {:10} {:>7} {:5} {:2} {}",
-        "DESC", "LOW", "HIGH", "SIZE", "ATTR", "ID", "TASK"
+        "{:10} {:10}   {:10} {:>7} {:5} {:2} TASK",
+        "DESC", "LOW", "HIGH", "SIZE", "ATTR", "ID",
     );
 
     for (_, region) in regions.iter() {
