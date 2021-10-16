@@ -313,54 +313,30 @@ fn explain_state(
     irqs: Option<&Vec<(u32, u32)>>,
     timer: Option<(i64, u32)>,
 ) -> Result<()> {
-    let v = state_enum.determine_variant(hubris, buf)?;
-    match &*v.name {
+    let e = crate::reflect::load_enum(hubris, buf, state_enum, 0)?;
+    match e.disc() {
         "Healthy" => {
-            let anon_struct_t = hubris.lookup_struct(v.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let next = &buf[memb.offset..];
-            let sched_state_t = hubris.lookup_enum(memb.goff)?;
-
             explain_sched_state(
                 hubris,
                 core,
                 task_index,
-                next,
-                sched_state_t,
                 current,
                 irqs,
                 timer,
+                &e.contents().unwrap().as_struct().unwrap()["__0"]
+                    .as_enum()
+                    .unwrap(),
             )?;
         }
         "Faulted" => {
-            let anon_struct_t = hubris.lookup_struct(v.goff.unwrap())?;
-            let fault_m = anon_struct_t.lookup_member("fault")?;
-            let fault_info_t = hubris.lookup_enum(fault_m.goff)?;
-            let orig_m = anon_struct_t.lookup_member("original_state")?;
-            let sched_state_t = hubris.lookup_enum(orig_m.goff)?;
+            let contents = e.contents().unwrap().as_struct().unwrap();
+            let fault = contents["fault"].as_enum().unwrap();
+            let orig = contents["original_state"].as_enum().unwrap();
 
-            let fault_info_bytes =
-                &buf[fault_m.offset..fault_m.offset + fault_info_t.size];
-            explain_fault_info(
-                hubris,
-                core,
-                task_index,
-                fault_info_bytes,
-                fault_info_t,
-            )?;
-
-            let orig_bytes =
-                &buf[orig_m.offset..orig_m.offset + sched_state_t.size];
+            explain_fault_info(hubris, core, task_index, fault)?;
             print!(" (was: ");
             explain_sched_state(
-                hubris,
-                core,
-                task_index,
-                orig_bytes,
-                sched_state_t,
-                current,
-                irqs,
-                timer,
+                hubris, core, task_index, current, irqs, timer, orig,
             )?;
             print!(")");
         }
@@ -373,14 +349,12 @@ fn explain_sched_state(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
-    buf: &[u8],
-    sched_state_t: &HubrisEnum,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
     timer: Option<(i64, u32)>,
+    e: &crate::reflect::Enum,
 ) -> Result<()> {
-    let ssv = sched_state_t.determine_variant(hubris, buf)?;
-    match &*ssv.name {
+    match e.disc() {
         "Stopped" => print!("not started"),
         "Runnable" => {
             if current {
@@ -390,12 +364,12 @@ fn explain_sched_state(
             }
         }
         "InSend" => {
-            let anon_struct_t = hubris.lookup_struct(ssv.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let next = &buf[memb.offset..];
-            let _task_id_t = hubris.lookup_struct(memb.goff)?;
-
-            let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
+            let task_id = &e.contents().unwrap().as_struct().unwrap()["__0"];
+            let tid = task_id.as_struct().unwrap()["__0"]
+                .as_base()
+                .unwrap()
+                .as_u16()
+                .unwrap();
             if tid == 0xFFFF {
                 print!("HALT: send to kernel");
             } else {
@@ -403,36 +377,30 @@ fn explain_sched_state(
             }
         }
         "InReply" => {
-            let anon_struct_t = hubris.lookup_struct(ssv.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let next = &buf[memb.offset..];
-            let _task_id_t = hubris.lookup_struct(memb.goff)?;
-
-            let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
+            let task_id = &e.contents().unwrap().as_struct().unwrap()["__0"];
+            let tid = task_id.as_struct().unwrap()["__0"]
+                .as_base()
+                .unwrap()
+                .as_u16()
+                .unwrap();
             print!("wait: reply from 0x{:04x}", tid);
         }
         "InRecv" => {
+            let option_task_id =
+                &e.contents().unwrap().as_struct().unwrap()["__0"];
+            let tid =
+                option_task_id.as_enum().unwrap().as_option().map(|task_id| {
+                    task_id.as_struct().unwrap()["__0"]
+                        .as_base()
+                        .unwrap()
+                        .as_u16()
+                        .unwrap()
+                });
+
             let r = hubris.registers(core, HubrisTask::Task(task_index))?;
             let notmask = *r.get(&ARMRegister::R6).unwrap();
-            let anon_struct_t = hubris.lookup_struct(ssv.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let next = &buf[memb.offset..];
-            let opt_task_id_t = hubris.lookup_enum(memb.goff)?;
-            let otv = opt_task_id_t.determine_variant(hubris, next)?;
-            match &*otv.name {
-                "Some" => {
-                    let anon_struct_t =
-                        hubris.lookup_struct(otv.goff.unwrap())?;
-                    let memb = anon_struct_t.lookup_member("__0")?;
-                    let next = &next[memb.offset..];
-                    let _task_id_t = hubris.lookup_struct(memb.goff)?;
-                    let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
-                    explain_recv(Some(tid), notmask, irqs, timer);
-                }
-                _ => {
-                    explain_recv(None, notmask, irqs, timer);
-                }
-            }
+
+            explain_recv(tid, notmask, irqs, timer);
         }
         _ => print!("???"),
     }
@@ -443,55 +411,49 @@ fn explain_fault_info(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
-    buf: &[u8],
-    fault_info_t: &HubrisEnum,
+    e: &crate::reflect::Enum,
 ) -> Result<()> {
-    let var = fault_info_t.determine_variant(hubris, buf)?;
     print!("FAULT: ");
-    match &*var.name {
+    match e.disc() {
         "DivideByZero" => print!("divide by zero"),
         "IllegalText" => print!("jump to non-executable mem"),
         "IllegalInstruction" => print!("illegal instruction"),
         "InvalidOperation" => {
-            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let next = &buf[memb.offset..];
-            let info = u32::from_le_bytes(next[..4].try_into().unwrap());
+            let info = e.contents().unwrap().as_struct().unwrap()["__0"]
+                .as_base()
+                .unwrap()
+                .as_u32()
+                .unwrap();
 
             print!("general fault, cfsr=0x{:x}", info);
         }
         "StackOverflow" => {
-            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("address")?;
-            let next = &buf[memb.offset..];
-            let addr = u32::from_le_bytes(next[..4].try_into().unwrap());
+            let addr = e.contents().unwrap().as_struct().unwrap()["address"]
+                .as_base()
+                .unwrap()
+                .as_u32()
+                .unwrap();
 
             print!("stack overflow; sp=0x{:x}", addr);
         }
         "Injected" => {
-            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let next = &buf[memb.offset..];
-            let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
+            let tid = e.contents().unwrap().as_struct().unwrap()["__0"]
+                .as_struct()
+                .unwrap()["__0"]
+                .as_base()
+                .unwrap()
+                .as_u16()
+                .unwrap();
 
             print!("killed by task 0x{:04x}", tid);
         }
         "MemoryAccess" => {
-            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
-            let addr_m = anon_struct_t.lookup_member("address")?;
-            let opt_u32_t = hubris.lookup_enum(addr_m.goff)?;
-
-            let addr_bytes = &buf[addr_m.offset..];
-            let addr_v = opt_u32_t.determine_variant(hubris, addr_bytes)?;
-            let addr = if addr_v.name == "Some" {
-                let anon_struct_t =
-                    hubris.lookup_struct(addr_v.goff.unwrap())?;
-                let memb = anon_struct_t.lookup_member("__0")?;
-                let addr_bytes = &addr_bytes[memb.offset..];
-                Some(u32::from_le_bytes(addr_bytes[..4].try_into().unwrap()))
-            } else {
-                None
-            };
+            let contents = e.contents().unwrap().as_struct().unwrap();
+            let addr = contents["address"]
+                .as_enum()
+                .unwrap()
+                .as_option()
+                .map(|v| v.as_base().unwrap().as_u32().unwrap());
 
             print!("mem fault (");
             if let Some(addr) = addr {
@@ -501,29 +463,17 @@ fn explain_fault_info(
             }
             print!(")");
 
-            let source_m = anon_struct_t.lookup_member("source")?;
-            let fault_source_t = hubris.lookup_enum(source_m.goff)?;
-            let fault_source_bytes = &buf[source_m.offset..];
-            explain_fault_source(hubris, fault_source_bytes, fault_source_t)?;
+            explain_fault_source(contents["source"].as_enum().unwrap())?;
         }
         "BusError" => {
-            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
-            let addr_m = anon_struct_t.lookup_member("address")?;
-            let opt_u32_t = hubris.lookup_enum(addr_m.goff)?;
+            let contents = e.contents().unwrap().as_struct().unwrap();
+            let addr = contents["address"]
+                .as_enum()
+                .unwrap()
+                .as_option()
+                .map(|v| v.as_base().unwrap().as_u32().unwrap());
 
-            let addr_bytes = &buf[addr_m.offset..];
-            let addr_v = opt_u32_t.determine_variant(hubris, addr_bytes)?;
-            let addr = if addr_v.name == "Some" {
-                let anon_struct_t =
-                    hubris.lookup_struct(addr_v.goff.unwrap())?;
-                let memb = anon_struct_t.lookup_member("__0")?;
-                let addr_bytes = &addr_bytes[memb.offset..];
-                Some(u32::from_le_bytes(addr_bytes[..4].try_into().unwrap()))
-            } else {
-                None
-            };
-
-            print!("bus error (");
+            print!("bus fault (");
             if let Some(addr) = addr {
                 print!("precise: 0x{:x}", addr);
             } else {
@@ -531,18 +481,15 @@ fn explain_fault_info(
             }
             print!(")");
 
-            let source_m = anon_struct_t.lookup_member("source")?;
-            let fault_source_t = hubris.lookup_enum(source_m.goff)?;
-            let fault_source_bytes = &buf[source_m.offset..];
-            explain_fault_source(hubris, fault_source_bytes, fault_source_t)?;
+            explain_fault_source(contents["source"].as_enum().unwrap())?;
         }
         "SyscallUsage" => {
             print!("in syscall: ");
-            let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
-            let memb = anon_struct_t.lookup_member("__0")?;
-            let usage_error_t = hubris.lookup_enum(memb.goff)?;
-            let next = &buf[memb.offset..];
-            explain_usage_error(hubris, next, usage_error_t)?;
+            explain_usage_error(
+                e.contents().unwrap().as_struct().unwrap()["__0"]
+                    .as_enum()
+                    .unwrap(),
+            )?;
         }
         "Panic" => {
             let r = hubris.registers(core, HubrisTask::Task(task_index))?;
@@ -561,13 +508,8 @@ fn explain_fault_info(
     Ok(())
 }
 
-fn explain_usage_error(
-    hubris: &HubrisArchive,
-    buf: &[u8],
-    usage_error_t: &HubrisEnum,
-) -> Result<()> {
-    let var = usage_error_t.determine_variant(hubris, buf)?;
-    match &*var.name {
+fn explain_usage_error(e: &crate::reflect::Enum) -> Result<()> {
+    match e.disc() {
         "BadSyscallNumber" => print!("undefined syscall number"),
         "InvalidSlice" => print!("sent malformed slice to kernel"),
         "TaskOutOfRange" => print!("used bogus task index"),
@@ -581,13 +523,8 @@ fn explain_usage_error(
     Ok(())
 }
 
-fn explain_fault_source(
-    hubris: &HubrisArchive,
-    buf: &[u8],
-    fault_source_t: &HubrisEnum,
-) -> Result<()> {
-    let var = fault_source_t.determine_variant(hubris, buf)?;
-    match &*var.name {
+fn explain_fault_source(e: &crate::reflect::Enum) -> Result<()> {
+    match e.disc() {
         "User" => print!(" in task code"),
         "Kernel" => print!(" in syscall"),
         _ => print!(" ???"),

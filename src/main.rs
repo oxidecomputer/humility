@@ -27,6 +27,8 @@ mod swo;
 mod test;
 mod tpiu;
 
+mod reflect;
+
 macro_rules! fatal {
     ($fmt:expr) => ({
         eprint!(concat!("humility: ", $fmt, "\n"));

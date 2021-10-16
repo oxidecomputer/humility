@@ -169,7 +169,7 @@ pub struct HubrisInlined<'a> {
     pub origin: HubrisGoff,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisEncoding {
     Unknown,
     Signed,
@@ -263,6 +263,61 @@ pub struct HubrisUnion {
     pub goff: HubrisGoff,
     pub size: usize,
     pub variants: Vec<HubrisEnumVariant>,
+}
+
+pub enum HubrisType<'a> {
+    Base(&'a HubrisBasetype),
+    Struct(&'a HubrisStruct),
+    Enum(&'a HubrisEnum),
+    Array(&'a HubrisArray),
+    Union(&'a HubrisUnion),
+    Ptr(HubrisGoff), // TODO better type
+}
+
+impl HubrisType<'_> {
+    pub fn size(&self, hubris: &HubrisArchive) -> Result<usize> {
+        match self {
+            Self::Base(t) => Ok(t.size),
+            Self::Struct(t) => Ok(t.size),
+            Self::Enum(t) => Ok(t.size),
+            Self::Union(t) => Ok(t.size),
+            Self::Ptr(_) => Ok(4), // TODO
+            Self::Array(t) => {
+                let elt_size = hubris.lookup_type(t.goff)?.size(hubris)?;
+                Ok(elt_size * t.count)
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a HubrisBasetype> for HubrisType<'a> {
+    fn from(x: &'a HubrisBasetype) -> Self {
+        Self::Base(x)
+    }
+}
+
+impl<'a> From<&'a HubrisStruct> for HubrisType<'a> {
+    fn from(x: &'a HubrisStruct) -> Self {
+        Self::Struct(x)
+    }
+}
+
+impl<'a> From<&'a HubrisEnum> for HubrisType<'a> {
+    fn from(x: &'a HubrisEnum) -> Self {
+        Self::Enum(x)
+    }
+}
+
+impl<'a> From<&'a HubrisArray> for HubrisType<'a> {
+    fn from(x: &'a HubrisArray) -> Self {
+        Self::Array(x)
+    }
+}
+
+impl<'a> From<&'a HubrisUnion> for HubrisType<'a> {
+    fn from(x: &'a HubrisUnion) -> Self {
+        Self::Union(x)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -2351,6 +2406,16 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType> {
+        self.lookup_struct(goff)
+            .map(HubrisType::Struct)
+            .or_else(|_| self.lookup_enum(goff).map(HubrisType::Enum))
+            .or_else(|_| self.lookup_array(goff).map(HubrisType::Array))
+            .or_else(|_| self.lookup_union(goff).map(HubrisType::Union))
+            .or_else(|_| self.lookup_basetype(goff).map(HubrisType::Base))
+            .or_else(|_| self.lookup_ptrtype(goff).map(HubrisType::Ptr))
+    }
+
     pub fn lookup_struct(&self, goff: HubrisGoff) -> Result<&HubrisStruct> {
         match self.structs.get(&goff) {
             Some(s) => Ok(s),
@@ -2362,6 +2427,13 @@ impl HubrisArchive {
         match self.enums.get(&goff) {
             Some(union) => Ok(union),
             None => Err(anyhow!("expected enum {} not found", goff)),
+        }
+    }
+
+    pub fn lookup_union(&self, goff: HubrisGoff) -> Result<&HubrisUnion> {
+        match self.unions.get(&goff) {
+            Some(union) => Ok(union),
+            None => Err(anyhow!("expected union {} not found", goff)),
         }
     }
 
