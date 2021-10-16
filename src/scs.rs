@@ -122,7 +122,7 @@ impl CoreSightPage {
         let jep_cc = pidr4.des_3() as u8;
 
         Ok(Self {
-            base: base,
+            base,
             class: cidr1.class().into(),
             preamble: (cidr3.preamble_3() << 20)
                 | (cidr2.preamble_2() << 12)
@@ -276,8 +276,8 @@ impl CoreSightComponent {
                         _ => CoreSightComponent::Unknown {
                             arch: archid,
                             part: page.part,
-                            major: major,
-                            sub: sub,
+                            major,
+                            sub,
                         },
                     },
                 }
@@ -475,9 +475,9 @@ impl CoreInfo {
         read_rom(core, rom, &mut components)?;
 
         Ok(Self {
-            part: part,
-            vendor: vendor,
-            components: components,
+            part,
+            vendor,
+            components,
             manufacturer: id.manufacturer,
             manufacturer_part: id.part,
         })

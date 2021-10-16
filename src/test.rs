@@ -137,7 +137,7 @@ pub struct TestRun<'a> {
 impl<'a> TestRun<'a> {
     pub fn new(hubris: &'a HubrisArchive) -> TestRun<'a> {
         Self {
-            hubris: hubris,
+            hubris,
             log: Vec::new(),
             raw: Vec::new(),
             buffer: Vec::new(),
@@ -245,7 +245,7 @@ impl<'a> TestRun<'a> {
                 let completion = TestCompletion {
                     case: self.cases[self.case].clone(),
                     result: TestResult::from(tokens[1]),
-                    log: log,
+                    log,
                 };
 
                 println!("{}", completion.result);

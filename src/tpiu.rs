@@ -380,12 +380,7 @@ pub fn tpiu_ingest_bypass(
 
         offs += 1;
 
-        callback(&TPIUPacket {
-            id: None,
-            datum: datum,
-            time: time,
-            offset: offs,
-        })?
+        callback(&TPIUPacket { id: None, datum, time, offset: offs })?
     }
 
     Ok(())

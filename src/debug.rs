@@ -99,7 +99,7 @@ macro_rules! register_offs {
                     base: u32
                 ) -> anyhow::Result<$reg> {
                     Ok(Self {
-                        base: base,
+                        base,
                         register: [<mod_ $reg>]::$reg(
                             core.read_word_32(base + $offs)?
                         )

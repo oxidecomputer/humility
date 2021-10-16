@@ -210,7 +210,7 @@ impl OpenOCDCore {
                 anyhow!("can't connect to OpenOCD on port 6666; is it running?")
             })?;
 
-        Ok(Self { stream: stream, swv: false, last_swv: None })
+        Ok(Self { stream, swv: false, last_swv: None })
     }
 }
 
@@ -640,7 +640,7 @@ impl GDBCore {
          * we're in -- but it's also not the state that we want to be
          * in.  We explicitly run the target before returning.
          */
-        let mut core = Self { stream: stream, server: server, halted: true };
+        let mut core = Self { stream, server, halted: true };
 
         let supported = core.sendcmd("qSupported")?;
         trace!("{} supported string: {}", server, supported);
@@ -781,11 +781,7 @@ impl DumpCore {
             );
         }
 
-        Ok(Self {
-            contents: contents,
-            regions: regions,
-            registers: hubris.dump_registers(),
-        })
+        Ok(Self { contents, regions, registers: hubris.dump_registers() })
     }
 }
 
@@ -938,7 +934,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             info!("attached via {}", name);
 
             Ok(Box::new(ProbeCore {
-                session: session,
+                session,
                 identifier: probes[selected].identifier.clone(),
                 vendor_id: probes[selected].vendor_id,
                 product_id: probes[selected].product_id,

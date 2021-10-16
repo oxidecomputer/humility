@@ -870,7 +870,7 @@ impl HubrisArchive {
                     file: d.to_string(),
                     directory: dir,
                     comp_directory: comp,
-                    line: line,
+                    line,
                 },
             );
         }
@@ -1075,10 +1075,7 @@ impl HubrisArchive {
         }
 
         if let (Some(size), Some(encoding)) = (size, encoding) {
-            self.basetypes.insert(
-                goff,
-                HubrisBasetype { encoding: encoding, size: size },
-            );
+            self.basetypes.insert(goff, HubrisBasetype { encoding, size });
         }
 
         Ok(())
@@ -1256,8 +1253,8 @@ impl HubrisArchive {
                 goff,
                 HubrisStruct {
                     name: name.to_string(),
-                    size: size,
-                    goff: goff,
+                    size,
+                    goff,
                     members: Vec::new(),
                 },
             );
@@ -1308,8 +1305,8 @@ impl HubrisArchive {
                 goff,
                 HubrisEnum {
                     name: name.to_string(),
-                    goff: goff,
-                    size: size,
+                    goff,
+                    size,
                     discriminant: HubrisDiscriminant::Value(dgoff, 0),
                     tag: None,
                     variants: Vec::new(),
@@ -1408,7 +1405,7 @@ impl HubrisArchive {
             goff,
             HubrisEnum {
                 name: union.name.clone(),
-                goff: goff,
+                goff,
                 size: union.size,
                 discriminant: match discr {
                     Some(discr) => HubrisDiscriminant::Expected(discr),
@@ -1489,8 +1486,8 @@ impl HubrisArchive {
                 goff,
                 HubrisUnion {
                     name: name.to_string(),
-                    goff: goff,
-                    size: size,
+                    goff,
+                    size,
                     variants: Vec::new(),
                 },
             );
@@ -1884,7 +1881,7 @@ impl HubrisArchive {
                     device: false,
                     dma: false,
                 },
-                task: task,
+                task,
             })
             .for_each(|region| {
                 self.loaded.insert(region.base, region);
@@ -2023,8 +2020,8 @@ impl HubrisArchive {
                 textbase: (textsec.sh_addr as u32),
                 textsize: size as u32,
                 memsize: memsz as u32,
-                heapbss: heapbss,
-                task: task,
+                heapbss,
+                task,
             },
         );
 
@@ -2679,7 +2676,7 @@ impl HubrisArchive {
                     base,
                     HubrisRegion {
                         daddr: Some(daddr),
-                        base: base,
+                        base,
                         size: if attr & WRITE != 0 {
                             size
                         } else {
@@ -2950,9 +2947,9 @@ impl HubrisArchive {
             // Our frame is complete -- push it and continue!
             //
             rval.push(HubrisStackFrame {
-                cfa: cfa,
-                sym: sym,
-                inlined: inlined,
+                cfa,
+                sym,
+                inlined,
                 registers: frameregs.clone(),
             });
 

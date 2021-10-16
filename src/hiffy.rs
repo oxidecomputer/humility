@@ -176,7 +176,7 @@ impl<'a> HiffyContext<'a> {
         }
 
         Ok(Self {
-            hubris: hubris,
+            hubris,
             ready: Self::variable(hubris, "HIFFY_READY", true)?,
             kick: Self::variable(hubris, "HIFFY_KICK", true)?,
             text: Self::variable(hubris, "HIFFY_TEXT", false)?,
@@ -188,7 +188,7 @@ impl<'a> HiffyContext<'a> {
             functions: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
             cached: None,
             kicked: None,
-            timeout: timeout,
+            timeout,
             state: State::Initialized,
         })
     }
