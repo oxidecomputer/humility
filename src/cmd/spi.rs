@@ -7,9 +7,9 @@ use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
+use std::convert::TryInto;
 use std::str;
 use std::thread;
-use std::convert::TryInto;
 
 use anyhow::{anyhow, bail, Result};
 use hif::*;
@@ -50,14 +50,14 @@ struct SpiArgs {
     word: bool,
 
     /// interpret the specified number of trailing bytes on a write as a
-    /// bigendian address 
+    /// bigendian address
     #[structopt(
         long, short = "A", requires_all = &["read", "write", "discard"]
     )]
     bigendian_address: Option<usize>,
 
     /// interpret the specified number of trailing bytes on a write as a
-    /// bigendian address 
+    /// bigendian address
     #[structopt(
         long, short = "a", requires_all = &["read", "write", "discard"],
         conflicts_with = "bigendian_address"
@@ -66,7 +66,7 @@ struct SpiArgs {
 
     /// number of bytes to discard when printing read result
     #[structopt(long, short, value_name = "nbytes", requires = "read")]
-    discard: Option<usize>
+    discard: Option<usize>,
 }
 
 fn spi(
@@ -154,7 +154,7 @@ fn spi(
     let mut addr = 0;
 
     let data = if let Some(ref write) = subargs.write {
-        let bytes: Vec<&str> = write.split(",").collect();
+        let bytes: Vec<&str> = write.split(',').collect();
         let mut arr = vec![];
 
         for byte in &bytes {
@@ -174,8 +174,10 @@ fn spi(
 
             addr = match size {
                 1 => arr[l - size] as u32,
-                2 => u16::from_le_bytes(arr[l - size..l].try_into().unwrap()) as u32,
-                4 => u32::from_le_bytes(arr[l - size..l].try_into().unwrap()) as u32,
+                2 => u16::from_le_bytes(arr[l - size..l].try_into().unwrap())
+                    as u32,
+                4 => u32::from_le_bytes(arr[l - size..l].try_into().unwrap())
+                    as u32,
                 _ => {
                     bail!("invalid address size");
                 }
@@ -191,14 +193,16 @@ fn spi(
 
             addr = match size {
                 1 => arr[l - size] as u32,
-                2 => u16::from_be_bytes(arr[l - size..l].try_into().unwrap()) as u32,
-                4 => u32::from_be_bytes(arr[l - size..l].try_into().unwrap()) as u32,
+                2 => u16::from_be_bytes(arr[l - size..l].try_into().unwrap())
+                    as u32,
+                4 => u32::from_be_bytes(arr[l - size..l].try_into().unwrap())
+                    as u32,
                 _ => {
                     bail!("invalid address size");
                 }
             };
         }
- 
+
         ops.push(Op::Push32(arr.len() as u32));
         Some(arr)
     } else {

@@ -388,7 +388,7 @@ pub fn itm_ingest(
             }
         }
 
-        pstate = itm_packet_state(hdr, &payload);
+        pstate = itm_packet_state(hdr, payload);
 
         match pstate {
             ITMPacketState::AwaitingHeader
@@ -564,11 +564,7 @@ pub fn itm_enable_explicit(
      */
     tcr = ITM_TCR::read(core)?;
     tcr.set_traceid(traceid.into());
-    tcr.set_timestamp_enable(if stimuli & 0xffff_0000 != 0 {
-        true
-    } else {
-        false
-    });
+    tcr.set_timestamp_enable(stimuli & 0xffff_0000 != 0);
 
     tcr.set_sync_enable(true);
     tcr.set_itm_enable(true);

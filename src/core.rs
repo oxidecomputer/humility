@@ -62,12 +62,7 @@ impl Core for ProbeCore {
             self.identifier, self.vendor_id, self.product_id
         );
 
-        let serial = match self.serial_number {
-            Some(ref serial) => Some(serial.clone()),
-            None => None,
-        };
-
-        (ident, serial)
+        (ident, self.serial_number.clone())
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
@@ -179,7 +174,7 @@ impl OpenOCDCore {
         let mut str = String::from(cmd);
         str.push(OPENOCD_COMMAND_DELIMITER as char);
 
-        self.stream.write(str.as_bytes())?;
+        self.stream.write_all(str.as_bytes())?;
 
         loop {
             let rval = self.stream.read(&mut rbuf)?;
@@ -270,7 +265,7 @@ impl Core for OpenOCDCore {
          * in strict alphabetical order by index (!!).  (That is, index 100
          * comes before, say, index 11.)
          */
-        for val in result.split(" ") {
+        for val in result.split(' ') {
             match index {
                 None => {
                     let idx = val.parse::<usize>()?;
@@ -466,9 +461,7 @@ const GDB_PACKET_HALT: u8 = 3;
 #[rustfmt::skip::macros(anyhow, bail)]
 impl GDBCore {
     fn prepcmd(&mut self, cmd: &str) -> Vec<u8> {
-        let mut payload = vec![];
-
-        payload.push(GDB_PACKET_START as u8);
+        let mut payload = vec![GDB_PACKET_START as u8];
 
         let mut cksum = 0;
 
@@ -494,7 +487,7 @@ impl GDBCore {
         let mut rbuf = vec![0; 1024];
         let payload = self.prepcmd(cmd);
 
-        self.stream.write(&payload)?;
+        self.stream.write_all(&payload)?;
 
         /*
          * We are expecting no result -- just an ack.
@@ -514,7 +507,7 @@ impl GDBCore {
     }
 
     fn sendack(&mut self) -> Result<()> {
-        self.stream.write(&[GDB_PACKET_ACK as u8])?;
+        self.stream.write_all(&[GDB_PACKET_ACK as u8])?;
         Ok(())
     }
 
@@ -586,7 +579,7 @@ impl GDBCore {
 
     fn sendcmd(&mut self, cmd: &str) -> Result<String> {
         let payload = self.prepcmd(cmd);
-        self.stream.write(&payload)?;
+        self.stream.write_all(&payload)?;
         self.recv(true)
     }
 
@@ -679,11 +672,8 @@ impl Core for GDBCore {
                 cmd, data.len() * 2, rstr.len(), rstr);
         }
 
-        let mut idx = 0;
-
-        for i in (0..rstr.len()).step_by(2) {
+        for (idx, i) in (0..rstr.len()).step_by(2).enumerate() {
             data[idx] = u8::from_str_radix(&rstr[i..=i + 1], 16)?;
-            idx += 1;
         }
 
         Ok(())
@@ -725,7 +715,7 @@ impl Core for GDBCore {
     }
 
     fn halt(&mut self) -> Result<()> {
-        self.stream.write(&[GDB_PACKET_HALT])?;
+        self.stream.write_all(&[GDB_PACKET_HALT])?;
 
         let reply = self.recv(false)?;
         trace!("halt reply: {}", reply);
@@ -807,36 +797,38 @@ impl Core for DumpCore {
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let rsize: usize = 4;
 
-        for (base, (size, offset)) in self.regions.range(..=addr).rev() {
-            if *base > addr || (addr - *base) + rsize as u32 > *size {
-                break;
+        if let Some((&base, &(size, offset))) =
+            self.regions.range(..=addr).rev().next()
+        {
+            if base > addr || (addr - base) + rsize as u32 > size {
+                // fall out to the bail below.
+            } else {
+                let offs = offset + (addr - base) as usize;
+
+                return Ok(u32::from_le_bytes(
+                    self.contents[offs..offs + rsize].try_into().unwrap(),
+                ));
             }
-
-            let offs = *offset + (addr - *base) as usize;
-
-            return Ok(u32::from_le_bytes(
-                self.contents[offs..offs + rsize].try_into().unwrap(),
-            ));
         }
-
         bail!("read from invalid address: 0x{:x}", addr);
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         let rsize = data.len();
 
-        for (base, (size, offset)) in self.regions.range(..=addr).rev() {
-            if *base > addr || (addr - *base) + rsize as u32 > *size {
-                break;
+        if let Some((&base, &(size, offset))) =
+            self.regions.range(..=addr).rev().next()
+        {
+            if base > addr || (addr - base) + rsize as u32 > size {
+                // fall out to the bail below.
+            } else {
+                let offs = offset + (addr - base) as usize;
+
+                data[..rsize]
+                    .copy_from_slice(&self.contents[offs..rsize + offs]);
+
+                return Ok(());
             }
-
-            let offs = *offset + (addr - *base) as usize;
-
-            for i in 0..rsize {
-                data[i] = self.contents[offs + i];
-            }
-
-            return Ok(());
         }
 
         bail!("read of {} bytes from invalid address: 0x{:x}", rsize, addr);
@@ -887,9 +879,9 @@ impl Core for DumpCore {
 pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
     let mut index: Option<usize> = None;
 
-    if probe.find("-").is_some() {
+    if probe.contains('-') {
         let str = probe.to_owned();
-        let pieces: Vec<&str> = str.split("-").collect();
+        let pieces: Vec<&str> = str.split('-').collect();
 
         if pieces[0] == "usb" && pieces.len() == 2 {
             if let Ok(val) = pieces[1].parse::<usize>() {
@@ -916,13 +908,11 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                         index, probes.len() - 1
                     );
                 }
+            } else if probes.len() == 1 {
+                (0, probes[0].open())
             } else {
-                if probes.len() == 1 {
-                    (0, probes[0].open())
-                } else {
-                    bail!("multiple USB probes detected; must \
-                        explicitly append index (e.g., \"-p usb-0\")");
-                }
+                bail!("multiple USB probes detected; must \
+                       explicitly append index (e.g., \"-p usb-0\")");
             };
 
             /*
@@ -952,10 +942,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 identifier: probes[selected].identifier.clone(),
                 vendor_id: probes[selected].vendor_id,
                 product_id: probes[selected].product_id,
-                serial_number: match probes[selected].serial_number {
-                    Some(ref serial_number) => Some(serial_number.clone()),
-                    None => None,
-                },
+                serial_number: probes[selected].serial_number.clone(),
             }))
         }
 

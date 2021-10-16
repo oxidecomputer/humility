@@ -100,7 +100,7 @@ fn gpio(
     } else if subargs.reset {
         gpio_reset.id
     } else if let Some(ref configure) = subargs.configure {
-        let params: Vec<&str> = configure.split(":").collect();
+        let params: Vec<&str> = configure.split(':').collect();
         let args = ["Mode", "OutputType", "Speed", "Pull", "Alternate"];
 
         if params.len() != args.len() {
@@ -127,7 +127,7 @@ fn gpio(
 
     if let Some(ref pins) = subargs.pins {
         for pin in pins {
-            let p: Vec<&str> = pin.split(":").collect();
+            let p: Vec<&str> = pin.split(':').collect();
 
             if p.len() != 2 {
                 bail!("expected both a port and a pin number");
@@ -197,10 +197,9 @@ fn gpio(
     let results = context.results(core)?;
 
     if subargs.input {
-        let mut ndx = 0;
         let mut header = false;
 
-        for arg in &args {
+        for (ndx, arg) in args.iter().enumerate() {
             match arg.1 {
                 Some(pin) => {
                     println!(
@@ -231,15 +230,15 @@ fn gpio(
                             print!("{:4}", i);
                         }
 
-                        println!("");
+                        println!();
 
-                        print!("{}", "-------");
+                        print!("-------");
 
                         for _i in 0..16 {
                             print!("----");
                         }
 
-                        println!("");
+                        println!();
                         header = true;
                     }
 
@@ -258,13 +257,11 @@ fn gpio(
                                     if v & (1 << i) != 0 { 1 } else { 0 }
                                 )
                             }
-                            println!("");
+                            println!();
                         }
                     }
                 }
             }
-
-            ndx += 1;
         }
     } else {
         println!("{:?}", results);

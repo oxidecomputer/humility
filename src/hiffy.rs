@@ -437,7 +437,7 @@ impl<'a> HiffyContext<'a> {
                     break;
                 }
 
-                FunctionResult::Success(ref payload) => {
+                FunctionResult::Success(payload) => {
                     rvec.push(Ok(payload.to_vec()))
                 }
 

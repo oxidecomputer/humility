@@ -49,10 +49,7 @@ fn readmem(
         1
     };
 
-    let length = match subargs.length {
-        Some(length) => length,
-        None => 256,
-    };
+    let length = subargs.length.unwrap_or(256);
 
     if length & (size - 1) != 0 {
         bail!("length must be {}-byte aligned", size);

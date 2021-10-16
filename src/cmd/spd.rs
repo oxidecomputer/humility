@@ -83,14 +83,8 @@ fn dump_spd(
     println!(
         "{:4} {:25} {:20} {:4} {:4}",
         addr,
-        match manufacturer.get() {
-            Some(ref m) => m,
-            _ => "<unknown>",
-        },
-        match part {
-            Ok(part) => part,
-            _ => "<unknown>",
-        },
+        manufacturer.get().unwrap_or("<unknown>"),
+        part.unwrap_or("<unknown>"),
         week,
         2000 + (year as u16),
     );
@@ -106,7 +100,7 @@ fn dump_spd(
         print!(" {:02x}", i);
     }
 
-    println!("");
+    println!();
 
     for offs in (0..512).step_by(width) {
         print!("    0x{:03x} | ", offs);
@@ -127,7 +121,7 @@ fn dump_spd(
             }
         }
 
-        println!("");
+        println!();
     }
 
     Ok(())
@@ -178,7 +172,7 @@ fn spd(
         }
 
         for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(&portarg) {
+            if variant.name.eq_ignore_ascii_case(portarg) {
                 port = Some(u8::try_from(variant.tag.unwrap())?);
                 break;
             }
@@ -201,7 +195,7 @@ fn spd(
 
     let mux = if let Some(mux) = &subargs.mux {
         let s = mux
-            .split(":")
+            .split(':')
             .map(|v| parse_int::parse::<u8>(v))
             .collect::<Result<Vec<_>, _>>()
             .context("expected multiplexer and segment to be integers")?;
@@ -217,9 +211,7 @@ fn spd(
         None
     };
 
-    let mut ops = vec![];
-
-    ops.push(Op::Push(subargs.controller));
+    let mut ops = vec![Op::Push(subargs.controller)];
 
     if let Some(port) = port {
         ops.push(Op::Push(port));
@@ -241,7 +233,7 @@ fn spd(
     // First, we want to have all SPDs on the specified bus flip to
     // their 0 page
     //
-    set_page(&mut ops, &i2c_write, 0);
+    set_page(&mut ops, i2c_write, 0);
 
     //
     // Now issue single byte register reads to determine where our devices are.
@@ -274,7 +266,7 @@ fn spd(
     }
 
     for addr in 0..spd::MAX_DEVICES {
-        if let Ok(_) = &results[addr as usize + 1] {
+        if results[addr as usize + 1].is_ok() {
             let mut ops = base.clone();
 
             //
@@ -298,7 +290,7 @@ fn spd(
             // Switch to the 1 page
             //
             ops.push(Op::DropN(3));
-            set_page(&mut ops, &i2c_write, 1);
+            set_page(&mut ops, i2c_write, 1);
 
             //
             // Issue an identical read for the bottom 128 bytes...
@@ -320,7 +312,7 @@ fn spd(
             //
             // Finally, set ourselves back to the 0 page
             //
-            set_page(&mut ops, &i2c_write, 0);
+            set_page(&mut ops, i2c_write, 0);
 
             ops.push(Op::Done);
 

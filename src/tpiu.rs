@@ -460,7 +460,7 @@ pub fn tpiu_ingest(
                             continue;
                         }
                         TPIUState::Searching => {
-                            if !tpiu_check_byte(datum, &valid) {
+                            if !tpiu_check_byte(datum, valid) {
                                 continue;
                             }
                         }
@@ -481,7 +481,7 @@ pub fn tpiu_ingest(
                  * We have a complete frame.  We need to now check the entire
                  * frame.
                  */
-                if tpiu_check_frame(&frame, &valid, true) {
+                if tpiu_check_frame(&frame, valid, true) {
                     info!("valid TPIU frame starting at offset {}", frame[0].2);
                     id = Some(tpiu_process_frame(&frame, id, &mut filter)?);
                     state = TPIUState::Framing;
@@ -528,7 +528,7 @@ pub fn tpiu_ingest(
                  * be correct.  If this fails, we need to go back in time
                  * and resume our search for a frame.
                  */
-                if !tpiu_check_frame(&frame, &valid, true) {
+                if !tpiu_check_frame(&frame, valid, true) {
                     warn!(
                         "after {} frame{}, invalid frame at offset {}",
                         nvalid,

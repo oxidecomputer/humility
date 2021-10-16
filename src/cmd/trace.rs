@@ -65,6 +65,9 @@ fn tracecmd_ingest(
         states.insert("Runnable".to_string(), 1);
         states.insert("InRecv(None)".to_string(), 2);
 
+        // TODO: this algorithm is broken for images with more than eight tasks,
+        // which makes using iterators hard.
+        #[allow(clippy::needless_range_loop)]
         for i in 0..tasks.len() {
             let name = tasks.get(&(i as u32)).unwrap();
             let s = format!("InReply(({}))", i);
@@ -135,7 +138,7 @@ fn tracecmd_ingest(
                         if !subargs.statemap {
                             println!(
                             "{:.9} {} ({}): {}",
-                            time as f64 / 16_000_000 as f64,
+                            time as f64 / 16_000_000_f64,
                             task,
                             tasks.get(&task).unwrap_or(&"<invalid>".to_string()),
                             hubris.print(&spayload[..], schedstate.goff)?,
@@ -148,8 +151,8 @@ fn tracecmd_ingest(
 
                         println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
                         \"state\": {} }}",
-                        ((time as f64 / 16_000_000 as f64) *
-                        1_000_000_000 as f64) as u64,
+                        ((time as f64 / 16_000_000_f64) *
+                        1_000_000_000_f64) as u64,
                         task, states.get(&state).unwrap_or(&-1)
                     );
 
@@ -174,14 +177,14 @@ fn tracecmd_ingest(
                         if subargs.statemap {
                             println!("{{ \"time\": \"{}\", \"entity\": \"{}\", \
                             \"state\": 0 }}",
-                            ((time as f64 / 16_000_000 as f64) *
-                            1_000_000_000 as f64) as u64,
+                            ((time as f64 / 16_000_000_f64) *
+                            1_000_000_000_f64) as u64,
                             task
                         );
                         } else {
                             println!(
                             "{:.9} {} ({}): Running",
-                            time as f64 / 16_000_000 as f64,
+                            time as f64 / 16_000_000_f64,
                             task,
                             tasks.get(&task).unwrap_or(&"<invalid>".to_string())
                         );

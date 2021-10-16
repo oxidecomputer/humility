@@ -108,7 +108,7 @@ fn rencm(
         }
 
         for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(&portarg) {
+            if variant.name.eq_ignore_ascii_case(portarg) {
                 port = Some(u8::try_from(variant.tag.unwrap())?);
                 break;
             }
@@ -131,7 +131,7 @@ fn rencm(
 
     let mux = if let Some(mux) = &subargs.mux {
         let s = mux
-            .split(":")
+            .split(':')
             .map(|v| parse_int::parse::<u8>(v))
             .collect::<Result<Vec<_>, _>>()
             .context("expected multiplexer and segment to be integers")?;
@@ -179,7 +179,7 @@ fn rencm(
 
     if let Some(registers) = &subargs.register {
         for register in registers {
-            let val = register.split("=").collect::<Vec<&str>>();
+            let val = register.split('=').collect::<Vec<&str>>();
 
             let write = if val.len() > 1 {
                 if val.len() != 2 {
@@ -195,7 +195,7 @@ fn rencm(
                 None
             };
 
-            let s = val[0].split(".").collect::<Vec<&str>>();
+            let s = val[0].split('.').collect::<Vec<&str>>();
 
             let (module, register) = if s.len() == 2 {
                 //
@@ -415,9 +415,9 @@ fn rencm(
         }
 
         for rndx in 0..results.len() {
-            match results[rndx] {
-                Ok(ref r) => {
-                    if r.len() == 0 {
+            match &results[rndx] {
+                Ok(r) => {
+                    if r.is_empty() {
                         if let Some(ndx) = calls[rndx] {
                             let job = work[ndx];
 
@@ -473,8 +473,8 @@ fn rencm(
                         let job = work[ndx];
 
                         let err = match job.3 {
-                            None => ("read", read_func.strerror(code)),
-                            Some(_) => ("write", write_func.strerror(code)),
+                            None => ("read", read_func.strerror(*code)),
+                            Some(_) => ("write", write_func.strerror(*code)),
                         };
 
                         bail!(
@@ -488,7 +488,7 @@ fn rencm(
                     } else {
                         bail!(
                             "failed to page write: {}: {:?}",
-                            write_func.strerror(code),
+                            write_func.strerror(*code),
                             results,
                         );
                     }

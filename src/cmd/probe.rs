@@ -144,7 +144,7 @@ fn probecmd(
              */
             let rval = core
                 .halt()
-                .and_then(|_| Ok(core.read_reg(ARMRegister::PC)?))
+                .and_then(|_| core.read_reg(ARMRegister::PC))
                 .and_then(|val| {
                     core.step()?;
                     Ok(val)
@@ -183,7 +183,7 @@ fn probecmd(
         if len > 1 {
             format!("{}(x{})", k.0, len)
         } else {
-            format!("{}", k.0)
+            k.0.to_string()
         }
     };
 

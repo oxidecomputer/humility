@@ -43,7 +43,7 @@ struct TasksArgs {
 
 fn print_stack(
     hubris: &HubrisArchive,
-    stack: &Vec<HubrisStackFrame>,
+    stack: &[HubrisStackFrame],
     subargs: &TasksArgs,
 ) {
     let additional = subargs.registers || subargs.verbose;
@@ -93,7 +93,7 @@ fn print_stack(
     if additional {
         println!("   {}", bar);
     } else {
-        println!("");
+        println!();
     }
 }
 
@@ -112,7 +112,7 @@ fn print_regs(regs: &HashMap<ARMRegister, u32>, additional: bool) {
         print!("  {:>3} = 0x{:08x}", reg, regs.get(&reg).unwrap());
 
         if r % 4 == 3 {
-            println!("");
+            println!();
         }
     }
 }
@@ -127,7 +127,8 @@ fn tasks(
     let subargs = TasksArgs::from_iter_safe(subargs)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let task_count = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+    let task_count =
+        core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
     let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
 
     let task = hubris.lookup_struct_byname("Task")?;
@@ -143,7 +144,8 @@ fn tasks(
     let timer_state_t = hubris.lookup_struct(timer_state.goff)?;
     let timer_state_deadline_m = timer_state_t.lookup_member("deadline")?;
     let timer_state_to_post_m = timer_state_t.lookup_member("to_post")?;
-    let timer_state_deadline_opt_t = hubris.lookup_enum(timer_state_deadline_m.goff)?;
+    let timer_state_deadline_opt_t =
+        hubris.lookup_enum(timer_state_deadline_m.goff)?;
 
     let mut found = false;
 
@@ -158,7 +160,8 @@ fn tasks(
          * snapshot as possible.
          */
         let mut taskblock: Vec<u8> = vec![];
-        taskblock.resize_with(task.size * task_count as usize, Default::default);
+        taskblock
+            .resize_with(task.size * task_count as usize, Default::default);
         core.read_8(base, taskblock.as_mut_slice())?;
 
         if !subargs.stack {
@@ -206,19 +209,25 @@ fn tasks(
                 let timerblock = &taskblock[toffs..];
                 let timerblock = &timerblock[..timer_state_t.size];
                 let tstpm = timer_state_to_post_m.offset as usize;
-                let to_post = u32::from_le_bytes(timerblock[tstpm..tstpm + 4].try_into().unwrap());
+                let to_post = u32::from_le_bytes(
+                    timerblock[tstpm..tstpm + 4].try_into().unwrap(),
+                );
 
                 let tsdm = timer_state_deadline_m.offset as usize;
-                let dv = timer_state_deadline_opt_t.determine_variant(hubris, &timerblock[tsdm..])?;
+                let dv = timer_state_deadline_opt_t
+                    .determine_variant(hubris, &timerblock[tsdm..])?;
                 match &*dv.name {
                     "Some" => {
-                        let anon_struct_t = hubris.lookup_struct(dv.goff.unwrap())?;
+                        let anon_struct_t =
+                            hubris.lookup_struct(dv.goff.unwrap())?;
                         let memb = anon_struct_t.lookup_member("__0")?;
                         let dlbytes = &timerblock[tsdm..];
                         let dlbytes = &dlbytes[memb.offset..];
-                        let dl = u64::from_le_bytes(dlbytes[..8].try_into().unwrap());
+                        let dl = u64::from_le_bytes(
+                            dlbytes[..8].try_into().unwrap(),
+                        );
                         Some((dl as i64 - ticks as i64, to_post))
-                    },
+                    }
                     _ => None,
                 }
             };
@@ -230,11 +239,7 @@ fn tasks(
                     modname.push('…');
                     any_names_truncated = true;
                 }
-                print!("{:2} {:15} {:3} {:3} ",
-                    i,
-                    modname,
-                    gen,
-                    pri);
+                print!("{:2} {:15} {:3} {:3} ", i, modname, gen, pri);
             }
             explain_state(
                 hubris,
@@ -273,7 +278,7 @@ fn tasks(
             }
 
             if subargs.registers && !subargs.verbose {
-                println!("");
+                println!();
             }
         }
 
@@ -295,7 +300,6 @@ fn tasks(
         }
     }
 
-
     Ok(())
 }
 
@@ -309,7 +313,7 @@ fn explain_state(
     irqs: Option<&Vec<(u32, u32)>>,
     timer: Option<(i64, u32)>,
 ) -> Result<()> {
-    let v = state_enum.determine_variant(hubris, &buf)?;
+    let v = state_enum.determine_variant(hubris, buf)?;
     match &*v.name {
         "Healthy" => {
             let anon_struct_t = hubris.lookup_struct(v.goff.unwrap())?;
@@ -335,7 +339,8 @@ fn explain_state(
             let orig_m = anon_struct_t.lookup_member("original_state")?;
             let sched_state_t = hubris.lookup_enum(orig_m.goff)?;
 
-            let fault_info_bytes = &buf[fault_m.offset..fault_m.offset + fault_info_t.size];
+            let fault_info_bytes =
+                &buf[fault_m.offset..fault_m.offset + fault_info_t.size];
             explain_fault_info(
                 hubris,
                 core,
@@ -343,8 +348,9 @@ fn explain_state(
                 fault_info_bytes,
                 fault_info_t,
             )?;
-            
-            let orig_bytes = &buf[orig_m.offset..orig_m.offset + sched_state_t.size];
+
+            let orig_bytes =
+                &buf[orig_m.offset..orig_m.offset + sched_state_t.size];
             print!(" (was: ");
             explain_sched_state(
                 hubris,
@@ -376,11 +382,13 @@ fn explain_sched_state(
     let ssv = sched_state_t.determine_variant(hubris, buf)?;
     match &*ssv.name {
         "Stopped" => print!("not started"),
-        "Runnable" => if current {
-            print!("RUNNING")
-        } else {
-            print!("ready")
-        },
+        "Runnable" => {
+            if current {
+                print!("RUNNING")
+            } else {
+                print!("ready")
+            }
+        }
         "InSend" => {
             let anon_struct_t = hubris.lookup_struct(ssv.goff.unwrap())?;
             let memb = anon_struct_t.lookup_member("__0")?;
@@ -393,7 +401,7 @@ fn explain_sched_state(
             } else {
                 print!("wait: send to 0x{:04x}", tid);
             }
-        },
+        }
         "InReply" => {
             let anon_struct_t = hubris.lookup_struct(ssv.goff.unwrap())?;
             let memb = anon_struct_t.lookup_member("__0")?;
@@ -402,7 +410,7 @@ fn explain_sched_state(
 
             let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
             print!("wait: reply from 0x{:04x}", tid);
-        },
+        }
         "InRecv" => {
             let r = hubris.registers(core, HubrisTask::Task(task_index))?;
             let notmask = *r.get(&ARMRegister::R6).unwrap();
@@ -413,28 +421,19 @@ fn explain_sched_state(
             let otv = opt_task_id_t.determine_variant(hubris, next)?;
             match &*otv.name {
                 "Some" => {
-                    let anon_struct_t = hubris.lookup_struct(otv.goff.unwrap())?;
+                    let anon_struct_t =
+                        hubris.lookup_struct(otv.goff.unwrap())?;
                     let memb = anon_struct_t.lookup_member("__0")?;
                     let next = &next[memb.offset..];
                     let _task_id_t = hubris.lookup_struct(memb.goff)?;
                     let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
-                    explain_recv(
-                        Some(tid),
-                        notmask,
-                        irqs,
-                        timer,
-                    );
+                    explain_recv(Some(tid), notmask, irqs, timer);
                 }
                 _ => {
-                    explain_recv(
-                        None,
-                        notmask,
-                        irqs,
-                        timer,
-                    );
+                    explain_recv(None, notmask, irqs, timer);
                 }
             }
-        },
+        }
         _ => print!("???"),
     }
     Ok(())
@@ -468,7 +467,7 @@ fn explain_fault_info(
             let addr = u32::from_le_bytes(next[..4].try_into().unwrap());
 
             print!("stack overflow; sp=0x{:x}", addr);
-        },
+        }
         "Injected" => {
             let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
             let memb = anon_struct_t.lookup_member("__0")?;
@@ -476,16 +475,17 @@ fn explain_fault_info(
             let tid = u16::from_le_bytes(next[..2].try_into().unwrap());
 
             print!("killed by task 0x{:04x}", tid);
-        },
+        }
         "MemoryAccess" => {
             let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
             let addr_m = anon_struct_t.lookup_member("address")?;
             let opt_u32_t = hubris.lookup_enum(addr_m.goff)?;
-           
+
             let addr_bytes = &buf[addr_m.offset..];
             let addr_v = opt_u32_t.determine_variant(hubris, addr_bytes)?;
             let addr = if addr_v.name == "Some" {
-                let anon_struct_t = hubris.lookup_struct(addr_v.goff.unwrap())?;
+                let anon_struct_t =
+                    hubris.lookup_struct(addr_v.goff.unwrap())?;
                 let memb = anon_struct_t.lookup_member("__0")?;
                 let addr_bytes = &addr_bytes[memb.offset..];
                 Some(u32::from_le_bytes(addr_bytes[..4].try_into().unwrap()))
@@ -504,21 +504,18 @@ fn explain_fault_info(
             let source_m = anon_struct_t.lookup_member("source")?;
             let fault_source_t = hubris.lookup_enum(source_m.goff)?;
             let fault_source_bytes = &buf[source_m.offset..];
-            explain_fault_source(
-                hubris,
-                fault_source_bytes,
-                fault_source_t,
-            )?;
+            explain_fault_source(hubris, fault_source_bytes, fault_source_t)?;
         }
         "BusError" => {
             let anon_struct_t = hubris.lookup_struct(var.goff.unwrap())?;
             let addr_m = anon_struct_t.lookup_member("address")?;
             let opt_u32_t = hubris.lookup_enum(addr_m.goff)?;
-           
+
             let addr_bytes = &buf[addr_m.offset..];
             let addr_v = opt_u32_t.determine_variant(hubris, addr_bytes)?;
             let addr = if addr_v.name == "Some" {
-                let anon_struct_t = hubris.lookup_struct(addr_v.goff.unwrap())?;
+                let anon_struct_t =
+                    hubris.lookup_struct(addr_v.goff.unwrap())?;
                 let memb = anon_struct_t.lookup_member("__0")?;
                 let addr_bytes = &addr_bytes[memb.offset..];
                 Some(u32::from_le_bytes(addr_bytes[..4].try_into().unwrap()))
@@ -537,11 +534,7 @@ fn explain_fault_info(
             let source_m = anon_struct_t.lookup_member("source")?;
             let fault_source_t = hubris.lookup_enum(source_m.goff)?;
             let fault_source_bytes = &buf[source_m.offset..];
-            explain_fault_source(
-                hubris,
-                fault_source_bytes,
-                fault_source_t,
-            )?;
+            explain_fault_source(hubris, fault_source_bytes, fault_source_t)?;
         }
         "SyscallUsage" => {
             print!("in syscall: ");
@@ -549,11 +542,7 @@ fn explain_fault_info(
             let memb = anon_struct_t.lookup_member("__0")?;
             let usage_error_t = hubris.lookup_enum(memb.goff)?;
             let next = &buf[memb.offset..];
-            explain_usage_error(
-                hubris,
-                next,
-                usage_error_t,
-            )?;
+            explain_usage_error(hubris, next, usage_error_t)?;
         }
         "Panic" => {
             let r = hubris.registers(core, HubrisTask::Task(task_index))?;
@@ -632,7 +621,9 @@ fn explain_recv(
     let mut note_types = vec![];
     for i in 0..32 {
         let bitmask = 1 << i;
-        if notmask & bitmask == 0 { continue; }
+        if notmask & bitmask == 0 {
+            continue;
+        }
 
         // Collect the IRQs that correspond to this enabled notification mask
         // bit.
@@ -644,12 +635,11 @@ fn explain_recv(
         } else {
             vec![]
         };
-        let timer_assoc = timer
-            .and_then(|(ts, mask)| if mask & bitmask != 0 { Some(ts) } else { None });
-        note_types.push(NoteInfo {
-            irqs: irqnums,
-            timer: timer_assoc,
-        });
+        let timer_assoc =
+            timer.and_then(
+                |(ts, mask)| if mask & bitmask != 0 { Some(ts) } else { None },
+            );
+        note_types.push(NoteInfo { irqs: irqnums, timer: timer_assoc });
     }
 
     // Display kernel receives as "wait" and others as "recv", noting the

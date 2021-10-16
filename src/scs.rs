@@ -484,9 +484,6 @@ impl CoreInfo {
     }
 
     pub fn address(&self, component: CoreSightComponent) -> Option<u32> {
-        match self.components.get(&component) {
-            Some(addr) => Some(*addr),
-            None => None,
-        }
+        self.components.get(&component).cloned()
     }
 }

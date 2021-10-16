@@ -157,10 +157,8 @@ fn ringbuf(
             if v.0.eq(variable) {
                 ringbufs.push(v);
             }
-        } else {
-            if v.0.ends_with("RINGBUF") {
-                ringbufs.push(v);
-            }
+        } else if v.0.ends_with("RINGBUF") {
+            ringbufs.push(v);
         }
     }
 
@@ -178,7 +176,7 @@ fn ringbuf(
         info!("{:18} {:<30} {:<10} {}", "MODULE", "BUFFER", "ADDR", "SIZE");
 
         for v in ringbufs {
-            let t = taskname(hubris, &v.1)?;
+            let t = taskname(hubris, v.1)?;
             info!("{:18} {:<30} 0x{:08x} {:<}", t, v.0, v.1.addr, v.1.size);
         }
 
@@ -186,9 +184,9 @@ fn ringbuf(
     }
 
     for v in ringbufs {
-        info!("ring buffer {} in {}:", v.0, taskname(hubris, &v.1)?);
+        info!("ring buffer {} in {}:", v.0, taskname(hubris, v.1)?);
         let def = hubris.lookup_struct(v.1.goff)?;
-        ringbuf_dump(hubris, core, def, &v.1)?;
+        ringbuf_dump(hubris, core, def, v.1)?;
     }
 
     Ok(())

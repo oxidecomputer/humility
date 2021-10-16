@@ -302,11 +302,11 @@ impl<'a> TestRun<'a> {
     pub fn report(
         &mut self,
         output: Option<&String>,
-        wire: &Vec<(u8, f64, f64)>,
+        wire: &[(u8, f64, f64)],
         err: Option<&anyhow::Error>,
     ) -> Result<()> {
         let filename = match output {
-            Some(ref filename) => (*filename).clone(),
+            Some(filename) => filename.clone(),
             None => {
                 let mut filename;
                 let mut i = 0;
@@ -350,12 +350,8 @@ impl<'a> TestRun<'a> {
         }
 
         writeln!(out, "==== Raw SWO output")?;
-        for i in 0..wire.len() {
-            writeln!(
-                out,
-                "swo,{},{},{},0x{:02x},,",
-                i, wire[i].1, wire[i].2, wire[i].0
-            )?;
+        for (i, w) in wire.iter().enumerate() {
+            writeln!(out, "swo,{},{},{},0x{:02x},,", i, w.1, w.2, w.0)?;
         }
 
         writeln!(out, "==== Test output")?;
@@ -369,16 +365,10 @@ impl<'a> TestRun<'a> {
     }
 
     pub fn completed(&mut self) -> bool {
-        match self.result {
-            None => false,
-            Some(_) => true,
-        }
+        self.result.is_some()
     }
 
     pub fn failed(&mut self) -> bool {
-        match self.result {
-            Some(TestRunResult::Fail) => true,
-            _ => false,
-        }
+        self.result == Some(TestRunResult::Fail)
     }
 }

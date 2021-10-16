@@ -111,10 +111,10 @@ macro_rules! register_offs {
                     &self,
                     core: &mut dyn crate::core::Core
                 ) -> anyhow::Result<()> {
-                    Ok(core.write_word_32(
+                    core.write_word_32(
                         self.base + $offs,
                         self.register.into()
-                    )?)
+                    )
                 }
 
                 #[allow(dead_code)]
@@ -473,7 +473,7 @@ impl From<RegId> for ARMRegister {
 
 impl std::fmt::Display for ARMRegister {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.pad(&format!("{:?}", self).to_string())
+        formatter.pad(&format!("{:?}", self))
     }
 }
 

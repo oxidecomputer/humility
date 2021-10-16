@@ -317,9 +317,7 @@ fn etmcmd_trace(
             width = state.indent + (i * 2) + sigil);
     }
 
-    while let Some(_) = state.inlined.pop() {
-        continue;
-    }
+    state.inlined.clear();
 
     state.target = Some(instr.target);
 
@@ -396,7 +394,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
     let mut state = TraceState::default();
 
     etm_ingest(
-        &econfig,
+        econfig,
         || {
             if let Some(line) = iter.next() {
                 let record: SaleaeTraceRecord = line?;

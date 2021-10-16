@@ -2,8 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::{btree_map, BTreeMap};
 use std::convert::Infallible;
 use std::convert::TryInto;
 use std::fmt;
@@ -48,7 +48,7 @@ pub struct HubrisManifest {
     task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     outputs: HashMap<String, (u32, u32)>,
-    peripherals: HashMap<String, u32>,
+    peripherals: BTreeMap<String, u32>,
 }
 
 #[derive(Debug)]
@@ -557,17 +557,14 @@ impl HubrisArchive {
     }
 
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
-        match self.instrs.get(&addr) {
-            Some(instr) => Some(instr.0.len() as u32),
-            None => None,
-        }
+        self.instrs.get(&addr).map(|instr| instr.0.len() as u32)
     }
 
     pub fn instr_target(&self, addr: u32) -> HubrisTarget {
-        match self.instrs.get(&addr) {
-            Some(instr) => instr.1,
-            None => HubrisTarget::None,
-        }
+        self.instrs
+            .get(&addr)
+            .map(|instr| instr.1)
+            .unwrap_or(HubrisTarget::None)
     }
 
     pub fn instr_mod(&self, addr: u32) -> Option<&str> {
@@ -634,7 +631,7 @@ impl HubrisArchive {
             if let Some(func) = self.subprograms.get(origin) {
                 inlined.push(HubrisInlined {
                     addr: *addr as u32,
-                    name: &func,
+                    name: func,
                     id: *goff,
                     origin: *origin,
                 });
@@ -646,7 +643,7 @@ impl HubrisArchive {
     }
 
     fn instr_branch_target(&self, instr: &capstone::Insn) -> HubrisTarget {
-        let detail = match self.cs.insn_detail(&instr) {
+        let detail = match self.cs.insn_detail(instr) {
             Ok(detail) => detail,
             _ => return HubrisTarget::None,
         };
@@ -710,10 +707,10 @@ impl HubrisArchive {
         if jump {
             for op in detail.arch_detail().operands() {
                 if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(reg) = op.op_type {
-                        if let RegId(ARM_REG_LR) = reg {
-                            return HubrisTarget::Return;
-                        }
+                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
+                        op.op_type
+                    {
+                        return HubrisTarget::Return;
                     }
                 }
             }
@@ -729,10 +726,10 @@ impl HubrisArchive {
         if let InsnId(ARM_INSN_POP) = instr.id() {
             for op in detail.arch_detail().operands() {
                 if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(reg) = op.op_type {
-                        if let RegId(ARM_REG_PC) = reg {
-                            return HubrisTarget::Return;
-                        }
+                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
+                        op.op_type
+                    {
+                        return HubrisTarget::Return;
                     }
                 }
             }
@@ -742,7 +739,7 @@ impl HubrisArchive {
     }
 
     fn instr_operands(&self, instr: &capstone::Insn) -> Vec<ARMRegister> {
-        let detail = self.cs.insn_detail(&instr).unwrap();
+        let detail = self.cs.insn_detail(instr).unwrap();
         let mut rval: Vec<ARMRegister> = Vec::new();
 
         for op in detail.arch_detail().operands() {
@@ -1030,7 +1027,7 @@ impl HubrisArchive {
         }
     }
 
-    fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
@@ -1120,7 +1117,7 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_array<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_array<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
@@ -1140,11 +1137,8 @@ impl HubrisArchive {
         };
 
         while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_count => {
-                    count = attr.udata_value();
-                }
-                _ => {}
+            if attr.name() == gimli::constants::DW_AT_count {
+                count = attr.udata_value();
             }
         }
 
@@ -1201,38 +1195,27 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        match (name, tgoff) {
-            (Some(name), Some(tgoff)) => {
-                let linkage = match linkage_name {
-                    Some(linkage_name) => linkage_name,
-                    None => name,
-                };
+        if let (Some(name), Some(tgoff)) = (name, tgoff) {
+            let linkage = linkage_name.unwrap_or(name);
 
-                if let Some(syms) = self.esyms_byname.get_vec(linkage) {
-                    for sym in syms {
-                        match self.dsyms.get(&sym.0) {
-                            None => {
-                                self.dsyms.insert(
-                                    sym.0,
-                                    (String::from(name), sym.1, goff),
-                                );
-                                self.variables.insert(
-                                    String::from(name),
-                                    HubrisVariable {
-                                        goff: tgoff,
-                                        addr: sym.0,
-                                        size: sym.1 as usize,
-                                    },
-                                );
-                            }
-                            _ => {}
-                        }
+            if let Some(syms) = self.esyms_byname.get_vec(linkage) {
+                for sym in syms {
+                    if let btree_map::Entry::Vacant(e) = self.dsyms.entry(sym.0)
+                    {
+                        e.insert((String::from(name), sym.1, goff));
+                        self.variables.insert(
+                            String::from(name),
+                            HubrisVariable {
+                                goff: tgoff,
+                                addr: sym.0,
+                                size: sym.1 as usize,
+                            },
+                        );
                     }
-                } else {
-                    self.definitions.insert(String::from(name), tgoff);
                 }
+            } else {
+                self.definitions.insert(String::from(name), tgoff);
             }
-            _ => {}
         }
 
         Ok(())
@@ -1391,7 +1374,7 @@ impl HubrisArchive {
         }
     }
 
-    fn dwarf_enum<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_enum<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
@@ -1441,7 +1424,7 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_variant<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_variant<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
@@ -1663,7 +1646,7 @@ impl HubrisArchive {
                 depth += delta;
 
                 let goff = self.dwarf_goff(&unit, entry);
-                self.dwarf_fileline(&dwarf, &unit, &entry)?;
+                self.dwarf_fileline(&dwarf, &unit, entry)?;
 
                 if depth as usize >= stack.len() {
                     stack.push(goff);
@@ -1673,27 +1656,27 @@ impl HubrisArchive {
 
                 match entry.tag() {
                     gimli::constants::DW_TAG_inlined_subroutine => {
-                        self.dwarf_inlined(&dwarf, &unit, &entry, depth)?;
+                        self.dwarf_inlined(&dwarf, &unit, entry, depth)?;
                     }
 
                     gimli::constants::DW_TAG_subprogram => {
-                        self.dwarf_subprogram(&dwarf, &unit, &entry)?;
+                        self.dwarf_subprogram(&dwarf, &unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_variable => {
-                        self.dwarf_variable(&dwarf, &unit, &entry)?;
+                        self.dwarf_variable(&dwarf, &unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_structure_type => {
-                        self.dwarf_struct(&dwarf, &unit, &entry)?;
+                        self.dwarf_struct(&dwarf, &unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_base_type => {
-                        self.dwarf_basetype(&unit, &entry)?;
+                        self.dwarf_basetype(&unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_pointer_type => {
-                        self.dwarf_ptrtype(&dwarf, &unit, &entry)?;
+                        self.dwarf_ptrtype(&dwarf, &unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_array_type => {
@@ -1715,18 +1698,18 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        self.dwarf_array(&unit, &entry, parent, array)?;
+                        self.dwarf_array(&unit, entry, parent, array)?;
                         array = None;
                     }
 
                     gimli::constants::DW_TAG_enumeration_type => {
-                        self.dwarf_const_enum(&dwarf, &unit, &entry, goff)?;
+                        self.dwarf_const_enum(&dwarf, &unit, entry, goff)?;
                     }
 
                     gimli::constants::DW_TAG_enumerator => {
                         let parent = stack[depth as usize - 1];
 
-                        self.dwarf_enum_variant(&dwarf, &unit, &entry, parent)?;
+                        self.dwarf_enum_variant(&dwarf, &unit, entry, parent)?;
                     }
 
                     gimli::constants::DW_TAG_variant_part => {
@@ -1735,7 +1718,7 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        self.dwarf_enum(&unit, &entry, parent)?;
+                        self.dwarf_enum(&unit, entry, parent)?;
 
                         /*
                          * The discriminant is a (grand)child member; we need
@@ -1751,7 +1734,7 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        self.dwarf_variant(&unit, &entry, parent)?;
+                        self.dwarf_variant(&unit, entry, parent)?;
 
                         /*
                          * Our discriminant is still below us as a child
@@ -1768,20 +1751,19 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        self.dwarf_member(&dwarf, &unit, &entry, parent)?;
+                        self.dwarf_member(&dwarf, &unit, entry, parent)?;
                     }
 
                     gimli::constants::DW_TAG_union_type => {
-                        self.dwarf_union(&dwarf, &unit, &entry)?;
+                        self.dwarf_union(&dwarf, &unit, entry)?;
                     }
 
                     _ => {}
                 }
             }
 
-            match array {
-                Some(array) => bail!("missing subrange for array {}", array),
-                None => {}
+            if let Some(array) = array {
+                bail!("missing subrange for array {}", array);
             }
         }
 
@@ -2055,9 +2037,7 @@ impl HubrisArchive {
         let mut manifest = &mut self.manifest;
 
         let conf = |member| {
-            toml.get(member)
-                .and_then(|m| m.as_str())
-                .and_then(|s| Some(s.to_string()))
+            toml.get(member).and_then(|m| m.as_str()).map(|s| s.to_string())
         };
 
         manifest.board = conf("board");
@@ -2071,7 +2051,7 @@ impl HubrisArchive {
 
         if let Some(toml::Value::Array(ref features)) = features {
             manifest.features = features
-                .into_iter()
+                .iter()
                 .map(|f| f.as_str().unwrap().to_string())
                 .collect::<Vec<String>>();
         }
@@ -2080,15 +2060,15 @@ impl HubrisArchive {
          * Now we want to iterate over our tasks to discover their features as
          * well.
          */
-        if let Some(toml::Value::Table(ref tasks)) = toml.get("tasks") {
-            for (task, config) in tasks.into_iter() {
+        if let Some(toml::Value::Table(tasks)) = toml.get("tasks") {
+            for (task, config) in tasks {
                 let features = config.get("features");
 
                 if let Some(toml::Value::Array(ref features)) = features {
                     manifest.task_features.insert(
                         task.to_string(),
                         features
-                            .into_iter()
+                            .iter()
                             .map(|f| f.as_str().unwrap().to_string())
                             .collect::<Vec<String>>(),
                     );
@@ -2099,9 +2079,13 @@ impl HubrisArchive {
                 if let Some(toml::Value::Table(irqs)) = irqs {
                     manifest.task_irqs.insert(
                         task.to_string(),
-                        irqs
-                            .into_iter()
-                            .map(|(n, m)| (m.as_integer().unwrap() as u32, n.parse::<u32>().unwrap()))
+                        irqs.iter()
+                            .map(|(n, m)| {
+                                (
+                                    m.as_integer().unwrap() as u32,
+                                    n.parse::<u32>().unwrap(),
+                                )
+                            })
                             .collect::<Vec<_>>(),
                     );
                 }
@@ -2179,7 +2163,7 @@ impl HubrisArchive {
 
         match app.parse::<toml::Value>() {
             Ok(toml::Value::Table(ref toml)) => {
-                self.load_config(&toml)?;
+                self.load_config(toml)?;
             }
             Ok(_) => {
                 bail!("app.toml valid TOML but malformed");
@@ -2227,7 +2211,7 @@ impl HubrisArchive {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
             self.load_object(&object, HubrisTask::Task(id), &buffer)?;
-            id = id + 1;
+            id += 1;
         }
 
         Ok(())
@@ -2277,7 +2261,7 @@ impl HubrisArchive {
                 }
             };
 
-            if let Some(_) = self.registers.insert(reg, val) {
+            if self.registers.insert(reg, val).is_some() {
                 bail!("duplicate register {} ({}) at offset {}", reg, id, o);
             }
         }
@@ -2308,10 +2292,10 @@ impl HubrisArchive {
 
                         match note.n_type {
                             OXIDE_NT_HUBRIS_ARCHIVE => {
-                                self.load_archive(&note.desc)?;
+                                self.load_archive(note.desc)?;
                             }
                             OXIDE_NT_HUBRIS_REGISTERS => {
-                                self.load_registers(&note.desc)?;
+                                self.load_registers(note.desc)?;
                             }
                             _ => {
                                 bail!("unrecognized note 0x{:x}", note.n_type);
@@ -2347,11 +2331,7 @@ impl HubrisArchive {
     }
 
     pub fn loaded(&self) -> bool {
-        if self.modules.len() > 0 {
-            true
-        } else {
-            false
-        }
+        !self.modules.is_empty()
     }
 
     ///
@@ -2552,7 +2532,7 @@ impl HubrisArchive {
         let mut s = structure;
         let mut offset = 0;
 
-        let fields: Vec<&str> = member.split(".").collect();
+        let fields: Vec<&str> = member.split('.').collect();
 
         for i in 0..fields.len() {
             let field = fields[i];
@@ -2580,7 +2560,7 @@ impl HubrisArchive {
                             member, structure.name, structure.goff, v.size
                         ));
                     }
-                } else if let Some(_) = self.ptrtypes.get(&m.goff) {
+                } else if self.ptrtypes.contains_key(&m.goff) {
                     break;
                 } else {
                     return Err(anyhow!(
@@ -2642,7 +2622,7 @@ impl HubrisArchive {
          * Add our loaded kernel regions, which don't otherwise have
          * descriptors.
          */
-        for (_, region) in &self.loaded {
+        for region in self.loaded.values() {
             if region.task == HubrisTask::Kernel {
                 regions.insert(region.base, *region);
             }
@@ -2652,27 +2632,27 @@ impl HubrisArchive {
          * Add a region for our kernel heap+bss, for which we don't have a
          * descriptor.
          */
-        for (_, module) in &self.modules {
-            if module.task == HubrisTask::Kernel {
-                if let (Some(sheapbss), Some(eheapbss)) = module.heapbss {
-                    regions.insert(
-                        sheapbss,
-                        HubrisRegion {
-                            daddr: None,
-                            base: sheapbss,
-                            size: eheapbss - sheapbss,
-                            mapsize: eheapbss - sheapbss,
-                            attr: HubrisRegionAttr {
-                                read: true,
-                                write: true,
-                                execute: false,
-                                device: false,
-                                dma: false,
-                            },
-                            task: HubrisTask::Kernel,
+        for module in
+            self.modules.values().filter(|m| m.task == HubrisTask::Kernel)
+        {
+            if let (Some(sheapbss), Some(eheapbss)) = module.heapbss {
+                regions.insert(
+                    sheapbss,
+                    HubrisRegion {
+                        daddr: None,
+                        base: sheapbss,
+                        size: eheapbss - sheapbss,
+                        mapsize: eheapbss - sheapbss,
+                        attr: HubrisRegionAttr {
+                            read: true,
+                            write: true,
+                            execute: false,
+                            device: false,
+                            dma: false,
                         },
-                    );
-                }
+                        task: HubrisTask::Kernel,
+                    },
+                );
             }
         }
 
@@ -2865,7 +2845,7 @@ impl HubrisArchive {
         // First, find the region that contains our stack pointer.  We want
         // to read that entire region.
         //
-        let (_, ref region) = regions.range(..=sp).last().ok_or_else(|| {
+        let (_, region) = regions.range(..=sp).last().ok_or_else(|| {
             anyhow!("could not find memory region containing sp 0x{:x}", sp)
         })?;
 
@@ -2882,16 +2862,13 @@ impl HubrisArchive {
         // If our PC is in a system call (highly likely), we need to determine
         // what has been pushed on our stack via asm!().
         //
-        if let Some(lastpush) = self.syscall_pushes.get(&pc) {
-            if let Some(pushed) = lastpush {
-                for i in 0..pushed.len() {
-                    let val = readval(sp + (i * 4) as u32);
-                    frameregs.insert(pushed[i], val);
-                }
-
-                frameregs
-                    .insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
+        if let Some(Some(pushed)) = self.syscall_pushes.get(pc) {
+            for (i, &p) in pushed.iter().enumerate() {
+                let val = readval(sp + (i * 4) as u32);
+                frameregs.insert(p, val);
             }
+
+            frameregs.insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
         }
 
         let frames = self.frames.get(&task).unwrap();
@@ -3147,7 +3124,7 @@ impl HubrisArchive {
                     };
 
                     let val = readval(buf, offs, size)
-                        .context(format!("failed to read discriminant"))?;
+                        .context("failed to read discriminant".to_string())?;
 
                     match union.lookup_variant(val) {
                         None => {
@@ -3441,7 +3418,7 @@ impl HubrisArchive {
              * ...and our note name
              */
             let bytes = oxide.as_bytes();
-            file.write_all(&bytes)?;
+            file.write_all(bytes)?;
             let npad = 1 + pad!(note.n_namesz) as usize;
             file.write_all(&pad[0..npad])?;
 
@@ -3529,8 +3506,8 @@ impl HubrisArchive {
         let size = |task| {
             self.modules
                 .iter()
-                .find(|m| if (m.1).task == task { true } else { false })
-                .and_then(|module| Some((module.1).memsize))
+                .find(|m| m.1.task == task)
+                .map(|module| module.1.memsize)
                 .unwrap()
         };
 
@@ -3588,7 +3565,7 @@ impl HubrisArchive {
                 "{:>18} {:18} {:>4.1}K {}",
                 id,
                 module.name,
-                module.memsize as f64 / 1024 as f64,
+                module.memsize as f64 / 1024_f64,
                 if let Some(f) = features {
                     f.join(", ")
                 } else {
@@ -3635,15 +3612,14 @@ impl HubrisArchive {
                 continue;
             }
 
-            match self.manifest.task_features.get(&module.name) {
-                Some(features) => {
-                    for f in features {
-                        if f == feature {
-                            rval.push(module.task);
-                        }
+            if let Some(features) =
+                self.manifest.task_features.get(&module.name)
+            {
+                for f in features {
+                    if f == feature {
+                        rval.push(module.task);
                     }
                 }
-                _ => {}
             }
         }
 
@@ -3659,14 +3635,8 @@ impl HubrisArchive {
         if let Some(addr) = self.manifest.peripherals.get(name) {
             Ok(*addr)
         } else {
-            let mut peripherals: Vec<String> = self
-                .manifest
-                .peripherals
-                .keys()
-                .map(|x| x.to_owned())
-                .collect();
-
-            peripherals.sort();
+            let peripherals: Vec<&str> =
+                self.manifest.peripherals.keys().map(String::as_str).collect();
 
             bail!("{} does not correspond to a peripheral; \
                 expected one of: {}", name, peripherals.join(", "));

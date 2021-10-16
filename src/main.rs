@@ -90,7 +90,7 @@ impl HumilityLog {
 }
 
 fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
-    if let Some(_) = &args.dump {
+    if args.dump.is_some() {
         bail!("must be run against a live system");
     } else {
         let probe = match &args.probe {
@@ -187,11 +187,11 @@ fn main() {
         .unwrap();
 
     if let Some(archive) = &args.archive {
-        if let Err(err) = hubris.load(&archive) {
+        if let Err(err) = hubris.load(archive) {
             fatal!("failed to load archive: {:#}", err);
         }
     } else if let Some(dump) = &args.dump {
-        if let Err(err) = hubris.load_dump(&dump) {
+        if let Err(err) = hubris.load_dump(dump) {
             fatal!("failed to load dump: {:#}", err);
         }
     }

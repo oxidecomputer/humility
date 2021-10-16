@@ -98,7 +98,7 @@ pub struct I2cArgs {
 
 fn i2c_done(
     subargs: &I2cArgs,
-    results: &Vec<Result<Vec<u8>, u32>>,
+    results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
 ) -> Result<()> {
     let errmap = &func.errmap;
@@ -125,7 +125,7 @@ fn i2c_done(
             print!(" 0x{:x}", i);
         }
 
-        println!("");
+        println!();
 
         for i in 0..128 {
             if i % 16 == 0 {
@@ -137,7 +137,7 @@ fn i2c_done(
                     print!("  {:02x}", val[0]);
 
                     if i % 16 == 15 {
-                        println!("");
+                        println!();
                     }
 
                     continue;
@@ -152,7 +152,7 @@ fn i2c_done(
                     match &results[i] {
                         Ok(_) => "\\o/",
                         Err(err) => {
-                            if let Some(name) = errmap.get(&err) {
+                            if let Some(name) = errmap.get(err) {
                                 if name == "NoDevice" {
                                     "-"
                                 } else if name == "NoRegister" {
@@ -173,7 +173,7 @@ fn i2c_done(
             );
 
             if i % 16 == 15 {
-                println!("");
+                println!();
             }
         }
     } else if subargs.scan && subargs.device.is_some() {
@@ -193,7 +193,7 @@ fn i2c_done(
             print!(" 0x{:x}", i);
         }
 
-        println!("");
+        println!();
 
         for i in 0..256 {
             if i % 16 == 0 {
@@ -210,7 +210,7 @@ fn i2c_done(
                     Err(err) => {
                         print!(
                             "{:>4}",
-                            if let Some(name) = errmap.get(&err) {
+                            if let Some(name) = errmap.get(err) {
                                 if name == "NoRegister" {
                                     "-"
                                 } else if name == "NoDevice" {
@@ -229,7 +229,7 @@ fn i2c_done(
             }
 
             if i % 16 == 15 {
-                println!("");
+                println!();
             }
         }
     } else if subargs.raw {
@@ -286,7 +286,7 @@ fn i2c_done(
                         }
 
                         let len = cursor.position() as usize;
-                        format!("{}", std::str::from_utf8(&buf[..len]).unwrap())
+                        String::from_utf8(buf[..len].to_vec()).unwrap()
                     }
 
                     Ok(val) => match subargs.nbytes {
@@ -310,7 +310,7 @@ fn i2c_done(
             println!("  {:>5} {}", count, func.strerror(err));
         }
 
-        println!("");
+        println!();
     }
 
     Ok(())
@@ -362,7 +362,7 @@ fn i2c(
         }
 
         for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(&portarg) {
+            if variant.name.eq_ignore_ascii_case(portarg) {
                 port = Some(u8::try_from(variant.tag.unwrap())?);
                 break;
             }
@@ -385,7 +385,7 @@ fn i2c(
 
     let mux = if let Some(mux) = &subargs.mux {
         let s = mux
-            .split(":")
+            .split(':')
             .map(|v| parse_int::parse::<u8>(v))
             .collect::<Result<Vec<_>, _>>()
             .context("expected multiplexer and segment to be integers")?;
@@ -401,9 +401,7 @@ fn i2c(
         None
     };
 
-    let mut ops = vec![];
-
-    ops.push(Op::Push(subargs.controller));
+    let mut ops = vec![Op::Push(subargs.controller)];
 
     if let Some(port) = port {
         ops.push(Op::Push(port));
@@ -456,48 +454,44 @@ fn i2c(
                 }
 
                 ops.push(Op::Push(nbytes));
+            } else if subargs.block {
+                ops.push(Op::PushNone);
             } else {
-                if subargs.block {
-                    ops.push(Op::PushNone);
-                } else {
-                    ops.push(Op::Push(1));
-                }
+                ops.push(Op::Push(1));
             }
         }
 
         ops.push(Op::Call(func.id));
+    } else if let Some(device) = subargs.device {
+        ops.push(Op::Push(device));
+        ops.push(Op::Push(0));
+        ops.push(Op::PushNone);
+        ops.push(Op::Label(Target(0)));
+        ops.push(Op::Drop);
+        ops.push(Op::Push(1));
+        ops.push(Op::Call(func.id));
+        ops.push(Op::Add);
+        ops.push(Op::Push(0xff));
+        ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
     } else {
-        if let Some(device) = subargs.device {
-            ops.push(Op::Push(device));
-            ops.push(Op::Push(0));
-            ops.push(Op::PushNone);
-            ops.push(Op::Label(Target(0)));
-            ops.push(Op::Drop);
-            ops.push(Op::Push(1));
-            ops.push(Op::Call(func.id));
-            ops.push(Op::Add);
-            ops.push(Op::Push(0xff));
-            ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
-        } else {
-            match subargs.scanreg {
-                Some(reg) => ops.push(Op::Push(reg)),
-                None => ops.push(Op::PushNone),
-            }
-
-            ops.push(Op::Push(0));
-            ops.push(Op::PushNone);
-            ops.push(Op::Label(Target(0)));
-            ops.push(Op::Drop);
-            ops.push(Op::Swap);
-            ops.push(Op::Push(1));
-            ops.push(Op::Call(func.id));
-            ops.push(Op::Drop);
-            ops.push(Op::Swap);
-            ops.push(Op::Push(1));
-            ops.push(Op::Add);
-            ops.push(Op::Push(128));
-            ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
+        match subargs.scanreg {
+            Some(reg) => ops.push(Op::Push(reg)),
+            None => ops.push(Op::PushNone),
         }
+
+        ops.push(Op::Push(0));
+        ops.push(Op::PushNone);
+        ops.push(Op::Label(Target(0)));
+        ops.push(Op::Drop);
+        ops.push(Op::Swap);
+        ops.push(Op::Push(1));
+        ops.push(Op::Call(func.id));
+        ops.push(Op::Drop);
+        ops.push(Op::Swap);
+        ops.push(Op::Push(1));
+        ops.push(Op::Add);
+        ops.push(Op::Push(128));
+        ops.push(Op::BranchGreaterThanOrEqualTo(Target(0)));
     }
 
     ops.push(Op::Done);
@@ -514,7 +508,7 @@ fn i2c(
 
     let results = context.results(core)?;
 
-    i2c_done(&subargs, &results, &func)?;
+    i2c_done(&subargs, &results, func)?;
 
     Ok(())
 }
