@@ -129,7 +129,7 @@ fn probecmd(
 
     print(
         "status",
-        if status.len() == 0 {
+        if status.is_empty() {
             /*
              * If the status is unknown, it doesn't mean very much; from the
              * ARMv7-M ARM on the meaning of S_RETIRE_ST:

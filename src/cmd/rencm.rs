@@ -291,7 +291,7 @@ fn rencm(
     let mut ndx = 0;
     let maxops = 1000;
 
-    if work.len() == 0 {
+    if work.is_empty() {
         bail!("must specify -s, -M, or -r");
     }
 

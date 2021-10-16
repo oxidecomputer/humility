@@ -154,7 +154,7 @@ impl<'a> TestRun<'a> {
         let s: String = self.buffer.iter().collect();
         let tokens: Vec<&str> = s.split(' ').collect();
 
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             bail!("expected {:?} token, found blank line", self.expected);
         }
 

@@ -123,7 +123,7 @@ fn spi(
             }
         }
 
-        if found.len() == 0 {
+        if found.is_empty() {
             bail!("no SPI peripherals found")
         }
 

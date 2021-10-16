@@ -198,7 +198,7 @@ fn print_result(
         }
 
         Ok(val) => {
-            if val.len() == 0 && subargs.errors {
+            if val.is_empty() && subargs.errors {
                 println!("{} Timed out", cmdstr);
                 return Ok(());
             }
@@ -561,7 +561,7 @@ fn pmbus(
     let (all, bycode) = all_commands(device);
 
     if let Some(ref commands) = subargs.commandhelp {
-        if commands.len() == 0 || commands[0] == "all" {
+        if commands.is_empty() || commands[0] == "all" {
             for code in 0..0xffu8 {
                 device.command(code, |cmd| {
                     print_command(device, code, cmd);
@@ -618,7 +618,7 @@ fn pmbus(
     let mut run = [true; 256];
 
     if let Some(ref commands) = subargs.commands {
-        if commands.len() == 0 {
+        if commands.is_empty() {
             bail!("expected a command");
         }
 
@@ -695,7 +695,7 @@ fn pmbus(
         }
     }
 
-    if writes.len() > 0 {
+    if !writes.is_empty() {
         write_ops = ops.clone();
     }
 
@@ -755,7 +755,7 @@ fn pmbus(
         return Ok(());
     }
 
-    if cmds.len() == 0 {
+    if cmds.is_empty() {
         bail!("no command to run");
     }
 
@@ -796,7 +796,7 @@ fn pmbus(
         }
     };
 
-    if send_bytes.len() != 0 {
+    if !send_bytes.is_empty() {
         let offs = ndx - send_bytes.len();
 
         for i in 0..send_bytes.len() {
@@ -817,7 +817,7 @@ fn pmbus(
         }
     }
 
-    if writes.len() > 0 {
+    if !writes.is_empty() {
         for i in ndx..results.len() {
             let payload = match results[i] {
                 Err(code) => {

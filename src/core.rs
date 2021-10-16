@@ -891,7 +891,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
         "usb" => {
             let probes = Probe::list_all();
 
-            if probes.len() == 0 {
+            if probes.is_empty() {
                 bail!("no debug probe found; is it plugged in?");
             }
 

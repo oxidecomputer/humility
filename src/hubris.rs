@@ -443,7 +443,7 @@ impl HubrisEnum {
                 Some(variant) => Ok(variant),
             }
         } else {
-            if self.variants.len() == 0 {
+            if self.variants.is_empty() {
                 bail!("enum {} has no variants");
             }
 
@@ -2313,7 +2313,7 @@ impl HubrisArchive {
     /// a file and not an archive.  This will fail if an archive has already
     /// been loaded.
     pub fn load_kernel(&mut self, kernel: &str) -> Result<()> {
-        if self.modules.len() > 0 {
+        if !self.modules.is_empty() {
             bail!("cannot specify both an archive and a kernel");
         }
 
@@ -3033,14 +3033,14 @@ impl HubrisArchive {
             /*
              * This is a structure; iterate over its members.
              */
-            if v.members.len() == 0 {
+            if v.members.is_empty() {
                 return Ok(rval);
             }
 
             f.indent += 4;
 
             if v.members[0].name == "__0" {
-                let paren = v.members.len() != 0;
+                let paren = !v.members.is_empty();
 
                 if paren {
                     rval += "(";
@@ -3141,7 +3141,7 @@ impl HubrisArchive {
                 }
 
                 HubrisDiscriminant::None => {
-                    if union.variants.len() == 0 {
+                    if union.variants.is_empty() {
                         bail!("enum {} has no variants", goff);
                     }
 
@@ -3494,7 +3494,10 @@ impl HubrisArchive {
     }
 
     pub fn manifest(&self) -> Result<()> {
-        ensure!(self.modules.len() > 0, "must specify a valid Hubris archive");
+        ensure!(
+            !self.modules.is_empty(),
+            "must specify a valid Hubris archive"
+        );
 
         let print = |what, val| {
             info!("{:>12} => {}", what, val);
@@ -3600,7 +3603,7 @@ impl HubrisArchive {
         let mut rval = vec![];
 
         ensure!(
-            self.modules.len() > 0,
+            !self.modules.is_empty(),
             "Hubris archive required specify a task feature"
         );
 
@@ -3625,7 +3628,7 @@ impl HubrisArchive {
 
     pub fn lookup_peripheral(&self, name: &str) -> Result<u32> {
         ensure!(
-            self.modules.len() > 0,
+            !self.modules.is_empty(),
             "Hubris archive required to specify a peripheral"
         );
 

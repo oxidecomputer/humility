@@ -412,7 +412,7 @@ pub fn tpiu_ingest(
     };
 
     loop {
-        if replay.len() > 0 {
+        if !replay.is_empty() {
             let popped = replay.pop().unwrap();
 
             datum = popped.0;

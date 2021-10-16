@@ -238,7 +238,7 @@ fn i2c_done(
             subargs.controller,
             subargs.device.unwrap(),
             if subargs.write.is_some() { "write" } else { "read" },
-            if results.len() == 0 {
+            if results.is_empty() {
                 "Timed out".to_string()
             } else {
                 match &results[0] {
@@ -264,7 +264,7 @@ fn i2c_done(
             subargs.device.unwrap(),
             if subargs.writeraw { "raw write to " } else { "" },
             subargs.register.unwrap(),
-            if results.len() == 0 {
+            if results.is_empty() {
                 "Timed out".to_string()
             } else {
                 match &results[0] {
@@ -303,7 +303,7 @@ fn i2c_done(
         );
     }
 
-    if errs.len() != 0 {
+    if !errs.is_empty() {
         println!("\nError summary:\n\n  COUNT ERROR");
 
         for (err, count) in errs {

@@ -162,7 +162,7 @@ fn ringbuf(
         }
     }
 
-    if ringbufs.len() == 0 {
+    if ringbufs.is_empty() {
         if let Some(variable) = subargs.variable {
             bail!("ring buffer \"{}\" not found (-l to list)", variable);
         } else {

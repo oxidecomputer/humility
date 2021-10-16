@@ -148,7 +148,7 @@ fn gpio(
     let mut ops = vec![];
 
     if subargs.input {
-        if args.len() == 0 {
+        if args.is_empty() {
             let variants = gpio_input.argument_variants(hubris, 0)?;
 
             for v in &variants {
