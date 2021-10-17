@@ -212,9 +212,13 @@ fn tasks(
                 let regs = hubris.registers(core, t)?;
 
                 if subargs.stack {
-                    let stack =
-                        hubris.stack(core, t, desc.initial_stack, &regs)?;
-                    print_stack(hubris, &stack, &subargs);
+                    if let Ok(stack) =
+                        hubris.stack(core, t, desc.initial_stack, &regs)
+                    {
+                        print_stack(hubris, &stack, &subargs);
+                    } else {
+                        println!("   (stack unwind info unavailable for task)");
+                    }
                 }
 
                 if subargs.registers {
