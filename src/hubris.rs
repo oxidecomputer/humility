@@ -265,6 +265,7 @@ pub struct HubrisUnion {
     pub variants: Vec<HubrisEnumVariant>,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum HubrisType<'a> {
     Base(&'a HubrisBasetype),
     Struct(&'a HubrisStruct),
@@ -2407,13 +2408,15 @@ impl HubrisArchive {
     }
 
     pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType> {
-        self.lookup_struct(goff)
+        let r = self
+            .lookup_struct(goff)
             .map(HubrisType::Struct)
             .or_else(|_| self.lookup_enum(goff).map(HubrisType::Enum))
             .or_else(|_| self.lookup_array(goff).map(HubrisType::Array))
             .or_else(|_| self.lookup_union(goff).map(HubrisType::Union))
             .or_else(|_| self.lookup_basetype(goff).map(HubrisType::Base))
-            .or_else(|_| self.lookup_ptrtype(goff).map(HubrisType::Ptr))
+            .or_else(|_| self.lookup_ptrtype(goff).map(HubrisType::Ptr))?;
+        Ok(r)
     }
 
     pub fn lookup_struct(&self, goff: HubrisGoff) -> Result<&HubrisStruct> {
@@ -2517,6 +2520,13 @@ impl HubrisArchive {
 
     pub fn lookup_task(&self, name: &str) -> Option<&HubrisTask> {
         self.tasks.get(name)
+    }
+
+    pub fn task_name(&self, index: usize) -> Option<&str> {
+        let index = HubrisTask::Task(index as u32);
+        // TODO this is super gross but we don't have the inverse of the tasks
+        // mapping at the moment.
+        self.tasks.iter().find(|(_, &i)| i == index).map(|(name, _)| &**name)
     }
 
     pub fn lookup_src(&self, goff: HubrisGoff) -> Option<&HubrisSrc> {

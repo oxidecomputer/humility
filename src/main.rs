@@ -27,6 +27,7 @@ mod swo;
 mod test;
 mod tpiu;
 
+mod doppel;
 mod reflect;
 
 macro_rules! fatal {
