@@ -7,6 +7,7 @@ use crate::core::Core;
 use crate::hubris::*;
 use crate::Args;
 use anyhow::{anyhow, bail, Context, Result};
+use std::num::NonZeroU32;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -43,7 +44,7 @@ struct JefeArgs {
 }
 
 #[derive(Debug)]
-struct JefeVariables<'a> {
+pub struct JefeVariables<'a> {
     hubris: &'a HubrisArchive,
     ready: &'a HubrisVariable,
     kick: &'a HubrisVariable,
@@ -57,8 +58,9 @@ struct JefeVariables<'a> {
     timedout: bool,
 }
 
+#[derive(Copy, Clone, Debug)]
 #[repr(u32)]
-enum JefeRequest {
+pub enum JefeRequest {
     Start = 1,
     Hold = 2,
     Release = 3,
@@ -105,7 +107,7 @@ impl<'a> JefeVariables<'a> {
         &mut self,
         core: &mut dyn Core,
         request: JefeRequest,
-        taskid: u32,
+        taskid: NonZeroU32,
     ) -> Result<()> {
         if core.read_word_32(self.ready.addr)? != 1 {
             bail!("jefe external control facility unavailable");
@@ -114,7 +116,7 @@ impl<'a> JefeVariables<'a> {
         core.halt()?;
 
         core.write_word_32(self.request.addr, request as u32)?;
-        core.write_word_32(self.task.addr, taskid)?;
+        core.write_word_32(self.task.addr, taskid.into())?;
 
         core.write_word_32(self.kick.addr, 1)?;
 
@@ -184,13 +186,33 @@ fn jefe(
         .ok_or_else(|| anyhow!("couldn't find task {}", subargs.task))?;
 
     let id = match task {
-        HubrisTask::Kernel | HubrisTask::Task(0) => {
-            bail!("cannot change disposition of {}", subargs.task);
+        HubrisTask::Kernel => {
+            bail!("cannot change disposition of kernel");
         }
-        HubrisTask::Task(id) => *id,
+        HubrisTask::Task(id) => {
+            if let Some(id) = NonZeroU32::new(*id) {
+                id
+            } else {
+                bail!("cannot change disposition of supervisor task");
+            }
+        }
     };
 
-    let mut vars = JefeVariables::new(hubris, subargs.timeout)?;
+    send_request(hubris, core, request, id, subargs.timeout)?;
+
+    info!("successfully changed disposition for {}", subargs.task);
+
+    Ok(())
+}
+
+pub fn send_request(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn Core,
+    request: JefeRequest,
+    id: NonZeroU32,
+    timeout: u32,
+) -> Result<()> {
+    let mut vars = JefeVariables::new(hubris, timeout)?;
 
     vars.kickit(core, request, id)?;
 
@@ -200,8 +222,6 @@ fn jefe(
             break;
         }
     }
-
-    info!("successfully changed disposition for {}", subargs.task);
 
     Ok(())
 }

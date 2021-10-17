@@ -191,14 +191,14 @@ pub struct HubrisBasetype {
     pub size: usize,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HubrisStructMember {
     pub offset: usize,
     pub name: String,
     pub goff: HubrisGoff,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HubrisStruct {
     pub name: String,
     pub goff: HubrisGoff,
