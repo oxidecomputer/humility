@@ -27,6 +27,9 @@ mod swo;
 mod test;
 mod tpiu;
 
+mod doppel;
+mod reflect;
+
 macro_rules! fatal {
     ($fmt:expr) => ({
         eprint!(concat!("humility: ", $fmt, "\n"));
@@ -199,7 +202,7 @@ fn main() {
     match &args.cmd {
         Subcommand::Other(ref subargs) => {
             match cmd::subcommand(&commands, &mut hubris, &args, subargs) {
-                Err(err) => fatal!("{} failed: {:#}", subargs[0], err),
+                Err(err) => fatal!("{} failed: {:?}", subargs[0], err),
                 _ => std::process::exit(0),
             }
         }
