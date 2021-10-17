@@ -83,6 +83,8 @@ use crate::hubris::{
     HubrisStruct, HubrisType,
 };
 
+pub use humility_load_derive::Load;
+
 /// A dynamic representation of some data extracted from a program image.
 ///
 /// Each variant of `Value` captures a different class of types, and thus

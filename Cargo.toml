@@ -12,6 +12,7 @@ pmbus = { path = "./pmbus" }
 hif = { path = "./hif" }
 spd = { path = "./spd" }
 idt8a3xxxx = { path = "./idt8a3xxxx" }
+humility_load_derive = {path = "./load_derive"}
 
 gimli = "0.20.0"
 fallible-iterator = "0.2.0"
