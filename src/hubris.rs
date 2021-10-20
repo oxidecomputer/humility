@@ -2,37 +2,30 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::collections::{btree_map, BTreeMap};
-use std::convert::Infallible;
-use std::convert::TryInto;
-use std::fmt;
-use std::fmt::Write;
-use std::fs;
-use std::fs::OpenOptions;
+use crate::debug::*;
+use capstone::prelude::*;
 use std::io::prelude::*;
+
+use std::borrow::Cow;
+use std::collections::{btree_map, BTreeMap, HashMap};
+use std::convert::{Infallible, TryInto};
+use std::fmt::{self, Write};
+use std::fs::{self, OpenOptions};
 use std::io::Cursor;
 use std::mem::size_of;
 use std::path::Path;
 use std::str;
 use std::time::Instant;
 
-use fallible_iterator::FallibleIterator;
-
 use anyhow::{anyhow, bail, ensure, Context, Result};
-
-use capstone::prelude::*;
 use capstone::InsnGroupType;
+use fallible_iterator::FallibleIterator;
+use gimli::UnwindSection;
 use goblin::elf::Elf;
 use multimap::MultiMap;
+use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
-
-use gimli::UnwindSection;
-use num_traits::FromPrimitive;
-
-use crate::debug::*;
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
