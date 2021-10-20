@@ -358,7 +358,7 @@ pub struct HubrisModule {
     pub heapbss: (Option<u32>, Option<u32>),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct HubrisPrintFormat {
     pub indent: usize,
     pub newline: bool,
@@ -3336,7 +3336,7 @@ impl HubrisArchive {
         self.printfmt(
             buf,
             goff,
-            &HubrisPrintFormat { indent: 0, newline: false, hex: true },
+            &HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() },
         )
     }
 

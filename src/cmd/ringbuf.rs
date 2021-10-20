@@ -98,7 +98,7 @@ fn ringbuf_dump(
     let line = member_basetype(entry, "line")?;
     let gen = member_basetype(entry, "generation")?;
     let count = member_basetype(entry, "count")?;
-    let fmt = HubrisPrintFormat { indent: 0, newline: false, hex: true };
+    let fmt = HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
 
     println!(
         "{:10} {:>4} {:>4} {:>8} {:>8} PAYLOAD",

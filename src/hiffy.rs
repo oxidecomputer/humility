@@ -387,9 +387,8 @@ impl<'a> HiffyContext<'a> {
                 match r {
                     Ok(_) => {
                         let fmt = HubrisPrintFormat {
-                            indent: 0,
-                            newline: false,
                             hex: true,
+                            ..HubrisPrintFormat::default()
                         };
 
                         let hubris = self.hubris;

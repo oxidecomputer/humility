@@ -227,8 +227,12 @@ fn tasks(
             }
 
             if subargs.verbose {
-                let fmt =
-                    HubrisPrintFormat { indent: 16, newline: true, hex: true };
+                let fmt = HubrisPrintFormat {
+                    indent: 16,
+                    newline: true,
+                    hex: true,
+                    ..HubrisPrintFormat::default()
+                };
 
                 println!(
                     "   |\n   +-----------> {}\n",
