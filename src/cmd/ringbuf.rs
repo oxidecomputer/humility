@@ -74,7 +74,7 @@ fn ringbuf_dump(
 fn taskname<'a>(
     hubris: &'a HubrisArchive,
     variable: &'a HubrisVariable,
-) -> Result<&'a String> {
+) -> Result<&'a str> {
     Ok(&hubris.lookup_module(HubrisTask::from(variable.goff))?.name)
 }
 
@@ -121,9 +121,16 @@ fn ringbuf(
     }
 
     for v in ringbufs {
-        info!("ring buffer {} in {}:", v.0, taskname(hubris, v.1)?);
-        let def = hubris.lookup_struct(v.1.goff)?;
-        ringbuf_dump(hubris, core, def, v.1)?;
+        // Try not to use `?` here, because it causes one bad ringbuf to make
+        // them all unavailable.
+        info!("ring buffer {} in {}:", v.0, taskname(hubris, v.1).unwrap_or("???"));
+        if let Ok(def) = hubris.lookup_struct(v.1.goff) {
+            if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
+                info!("ringbuf dump failed: {}", e);
+            }
+        } else {
+            info!("could not look up type: {:?}", v.1.goff);
+        }
     }
 
     Ok(())
