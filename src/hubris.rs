@@ -129,8 +129,14 @@ pub struct HubrisArchive {
     // Arrays: goff to array
     arrays: HashMap<HubrisGoff, HubrisArray>,
 
-    // Variables: name to goff/address/size tuple
+    // Variables: name to goff/address/size tuple. Note that variables declared
+    // in different modules will appear to have the same name here. Consider
+    // using qualified_variables instead.
     variables: MultiMap<String, HubrisVariable>,
+
+    // Qualified Variables: fully qualified Rust demangled name to
+    // goff/address/size tuple.
+    qualified_variables: MultiMap<String, HubrisVariable>,
 
     // Unions: goff to union
     unions: HashMap<HubrisGoff, HubrisUnion>,
@@ -666,6 +672,7 @@ impl HubrisArchive {
             enums_byname: MultiMap::new(),
             arrays: HashMap::new(),
             variables: MultiMap::new(),
+            qualified_variables: MultiMap::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
         })
@@ -1317,6 +1324,20 @@ impl HubrisArchive {
                         e.insert((String::from(name), sym.1, goff));
                         self.variables.insert(
                             String::from(name),
+                            HubrisVariable {
+                                goff: tgoff,
+                                addr: sym.0,
+                                size: sym.1 as usize,
+                            },
+                        );
+                        // Note: alternate format (#) removes trailing hash.
+                        // This makes duplicates possible, but, we already
+                        // handle duplicates in unqualified names, and the
+                        // hashes are gross.
+                        let qname =
+                            format!("{:#}", rustc_demangle::demangle(linkage));
+                        self.qualified_variables.insert(
+                            qname,
                             HubrisVariable {
                                 goff: tgoff,
                                 addr: sym.0,
@@ -2564,16 +2585,10 @@ impl HubrisArchive {
         }
     }
 
-    pub fn variables(&self) -> Vec<(&String, &HubrisVariable)> {
-        let mut variables = vec![];
-
-        for (name, variable) in &self.variables {
-            for v in variable {
-                variables.push((name, v));
-            }
-        }
-
-        variables
+    pub fn qualified_variables(
+        &self,
+    ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
+        self.qualified_variables.iter().map(|(n, v)| (n.as_str(), v))
     }
 
     pub fn lookup_module(&self, task: HubrisTask) -> Result<&HubrisModule> {
