@@ -546,6 +546,7 @@ dependencies = [
  "hif",
  "humility_load_derive",
  "idt8a3xxxx",
+ "indexmap",
  "indicatif",
  "itertools",
  "jep106",

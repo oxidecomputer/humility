@@ -41,7 +41,11 @@ fn readvar_dump(
 
     let hex = !subargs.decimal;
 
-    let fmt = HubrisPrintFormat { indent: 0, newline: true, hex };
+    let fmt = HubrisPrintFormat {
+        newline: true,
+        hex,
+        ..HubrisPrintFormat::default()
+    };
     let name = subargs.variable.as_ref().unwrap();
     let dumped = hubris.printfmt(&buf, variable.goff, &fmt)?;
 

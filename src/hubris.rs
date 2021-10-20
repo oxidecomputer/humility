@@ -2,6 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::convert::Infallible;
@@ -275,7 +276,54 @@ pub enum HubrisType<'a> {
     Ptr(HubrisGoff), // TODO better type
 }
 
-impl HubrisType<'_> {
+impl<'a> HubrisType<'a> {
+    pub fn name(&self, hubris: &'a HubrisArchive) -> Result<Cow<'a, str>> {
+        match self {
+            Self::Base(t) => {
+                use HubrisEncoding::*;
+                let s = match (t.encoding, t.size) {
+                    (Signed, 1) => "i8",
+                    (Signed, 2) => "i16",
+                    (Signed, 4) => "i32",
+                    (Signed, 8) => "i64",
+                    (Signed, 16) => "i128",
+
+                    (Unsigned, 1) => "u8",
+                    (Unsigned, 2) => "u16",
+                    (Unsigned, 4) => "u32",
+                    (Unsigned, 8) => "u64",
+                    (Unsigned, 16) => "u128",
+
+                    (Float, 4) => "f32",
+                    (Float, 8) => "f64",
+
+                    (Bool, 1) => "bool",
+
+                    _ => "???",
+                };
+                Ok(s.into())
+            }
+            Self::Struct(t) => Ok(Cow::from(&t.name)),
+            Self::Enum(t) => Ok(Cow::from(&t.name)),
+            Self::Union(t) => Ok(Cow::from(&t.name)),
+            Self::Ptr(g) => {
+                let name = &hubris
+                    .ptrtypes
+                    .get(&g)
+                    .ok_or_else(|| anyhow!("not a pointer: {:?}", g))?
+                    .0;
+                Ok(name.into())
+            }
+            Self::Array(t) => {
+                let mut name = String::new();
+                name += "[";
+                name += &hubris.lookup_type(t.goff)?.name(hubris)?;
+                write!(name, "; {}]", t.count)?;
+                Ok(name.into())
+            }
+        }
+    }
+
     pub fn size(&self, hubris: &HubrisArchive) -> Result<usize> {
         match self {
             Self::Base(t) => Ok(t.size),
@@ -358,11 +406,22 @@ pub struct HubrisModule {
     pub heapbss: (Option<u32>, Option<u32>),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct HubrisPrintFormat {
     pub indent: usize,
     pub newline: bool,
     pub hex: bool,
+    pub no_name: bool,
+}
+
+impl HubrisPrintFormat {
+    pub fn delim(&self) -> &'static str {
+        if self.newline {
+            "\n"
+        } else {
+            " "
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -2415,7 +2474,13 @@ impl HubrisArchive {
             .or_else(|_| self.lookup_array(goff).map(HubrisType::Array))
             .or_else(|_| self.lookup_union(goff).map(HubrisType::Union))
             .or_else(|_| self.lookup_basetype(goff).map(HubrisType::Base))
-            .or_else(|_| self.lookup_ptrtype(goff).map(HubrisType::Ptr))?;
+            .or_else(|_| {
+                if self.ptrtypes.contains_key(&goff) {
+                    Ok(HubrisType::Ptr(goff))
+                } else {
+                    bail!("not a pointer type");
+                }
+            })?;
         Ok(r)
     }
 
@@ -3336,7 +3401,7 @@ impl HubrisArchive {
         self.printfmt(
             buf,
             goff,
-            &HubrisPrintFormat { indent: 0, newline: false, hex: true },
+            &HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() },
         )
     }
 

@@ -41,7 +41,12 @@ fn apptablecmd(
     let task = hubris.lookup_struct_byname("TaskDesc")?;
     let region = hubris.lookup_struct_byname("RegionDesc")?;
     let interrupt = hubris.lookup_struct_byname("Interrupt")?;
-    let fmt = HubrisPrintFormat { indent: 4, newline: true, hex: true };
+    let fmt = HubrisPrintFormat {
+        indent: 4,
+        newline: true,
+        hex: true,
+        ..HubrisPrintFormat::default()
+    };
     let apptable = hubris.apptable();
 
     macro_rules! appbail {
