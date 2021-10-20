@@ -650,3 +650,14 @@ tuple_load_impl!(5, A, B, C, D, E);
 tuple_load_impl!(6, A, B, C, D, E, F);
 tuple_load_impl!(7, A, B, C, D, E, F, G);
 tuple_load_impl!(8, A, B, C, D, E, F, G, H);
+
+impl<T: Load> Load for Vec<T> {
+    fn from_value(v: &Value) -> Result<Self> {
+        let v = v.as_array()?;
+        let mut out = Vec::with_capacity(v.len());
+        for elt in v.iter() {
+            out.push(T::from_value(elt)?);
+        }
+        Ok(out)
+    }
+}
