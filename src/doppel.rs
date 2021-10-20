@@ -209,3 +209,25 @@ impl crate::reflect::Load for TaskId {
         Ok(Self(bits))
     }
 }
+
+/// Double of the struct from `ringbuf`.
+///
+/// The Hubris equivalent has a type parameter. We're dynamic instead: the
+/// `payload` is just read in as a generic `Value`.
+#[derive(Clone, Debug, Load)]
+pub struct RingbufEntry {
+    pub line: u16,
+    pub generation: u16,
+    pub count: u32,
+    pub payload: Value,
+}
+
+/// Double of the struct from `ringbuf`.
+///
+/// The Hubris equivalent has a type parameter. We're dynamic instead; see
+/// `RingbufEntry`.
+#[derive(Clone, Debug, Load)]
+pub struct Ringbuf {
+    pub last: Option<u32>,
+    pub buffer: Vec<RingbufEntry>,
+}
