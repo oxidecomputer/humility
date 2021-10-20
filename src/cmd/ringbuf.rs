@@ -4,9 +4,9 @@
 
 use crate::cmd::*;
 use crate::core::Core;
-use crate::doppel::Ringbuf;
+use crate::doppel::{Ringbuf, StaticCell};
 use crate::hubris::*;
-use crate::reflect::{self, Format};
+use crate::reflect::{self, Format, Load, Value};
 use crate::Args;
 use anyhow::{bail, Result};
 use structopt::clap::App;
@@ -21,6 +21,7 @@ struct RingbufArgs {
     /// list variables
     #[structopt(long, short)]
     list: bool,
+    /// print only a single ringbuffer by name
     #[structopt(conflicts_with = "list")]
     variable: Option<String>,
 }
@@ -38,7 +39,19 @@ fn ringbuf_dump(
     core.read_8(ringbuf_var.addr, buf.as_mut_slice())?;
     core.run()?;
 
-    let ringbuf: Ringbuf = reflect::load(hubris, &buf, definition, 0)?;
+    // There are two possible shapes of ringbufs, depending on the age of the
+    // firmware.
+    // - Raw Ringbuf that is not wrapped by anything.
+    // - Safe Ringbuf that is inside a StaticCell.
+    //
+    // Here we will attempt to handle them both -- first raw, then fallback.
+    let ringbuf_val: Value =
+        Value::Struct(reflect::load_struct(hubris, &buf, definition, 0)?);
+
+    let ringbuf: Ringbuf = Ringbuf::from_value(&ringbuf_val).or_else(|_e| {
+        let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
+        Ringbuf::from_value(&cell.cell.value)
+    })?;
 
     let ndx = if let Some(x) = ringbuf.last {
         x as usize
@@ -74,7 +87,7 @@ fn ringbuf_dump(
 fn taskname<'a>(
     hubris: &'a HubrisArchive,
     variable: &'a HubrisVariable,
-) -> Result<&'a String> {
+) -> Result<&'a str> {
     Ok(&hubris.lookup_module(HubrisTask::from(variable.goff))?.name)
 }
 
@@ -86,10 +99,9 @@ fn ringbuf(
 ) -> Result<()> {
     let subargs = RingbufArgs::from_iter_safe(subargs)?;
 
-    let vars = hubris.variables();
     let mut ringbufs = vec![];
 
-    for v in vars {
+    for v in hubris.qualified_variables() {
         if let Some(ref variable) = subargs.variable {
             if v.0.eq(variable) {
                 ringbufs.push(v);
@@ -121,9 +133,20 @@ fn ringbuf(
     }
 
     for v in ringbufs {
-        info!("ring buffer {} in {}:", v.0, taskname(hubris, v.1)?);
-        let def = hubris.lookup_struct(v.1.goff)?;
-        ringbuf_dump(hubris, core, def, v.1)?;
+        // Try not to use `?` here, because it causes one bad ringbuf to make
+        // them all unavailable.
+        info!(
+            "ring buffer {} in {}:",
+            v.0,
+            taskname(hubris, v.1).unwrap_or("???")
+        );
+        if let Ok(def) = hubris.lookup_struct(v.1.goff) {
+            if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
+                info!("ringbuf dump failed: {}", e);
+            }
+        } else {
+            info!("could not look up type: {:?}", v.1.goff);
+        }
     }
 
     Ok(())

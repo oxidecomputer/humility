@@ -231,3 +231,13 @@ pub struct Ringbuf {
     pub last: Option<u32>,
     pub buffer: Vec<RingbufEntry>,
 }
+
+#[derive(Clone, Debug, Load)]
+pub struct StaticCell {
+    pub cell: UnsafeCell,
+}
+
+#[derive(Clone, Debug, Load)]
+pub struct UnsafeCell {
+    pub value: Value,
+}
