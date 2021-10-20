@@ -2,6 +2,8 @@
  * Copyright 2020 Oxide Computer Company
  */
 
+use indexmap::IndexMap;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::convert::Infallible;
@@ -47,8 +49,42 @@ pub struct HubrisManifest {
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
-    outputs: HashMap<String, (u32, u32)>,
     peripherals: BTreeMap<String, u32>,
+}
+
+type HubrisConfigPeripheral = HubrisConfigAddress;
+type HubrisConfigOutput = HubrisConfigAddress;
+
+//
+// This structure (and the structures that it refers to) contain everything
+// that we might want to pull out of the config TOML -- which will be a subset
+// of the entire config.  Unless it is known that the field has always existed
+// (like `target` and `board`), the fields should be `Option`s.
+//
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfig {
+    target: String,
+    board: String,
+    kernel: HubrisConfigKernel,
+    tasks: IndexMap<String, HubrisConfigTask>,
+    peripherals: IndexMap<String, HubrisConfigPeripheral>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigKernel {
+    features: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigTask {
+    features: Option<Vec<String>>,
+    interrupts: Option<IndexMap<String, u32>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigAddress {
+    address: u32,
+    size: u32,
 }
 
 #[derive(Debug)]
@@ -2086,102 +2122,30 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn load_config(&mut self, toml: &toml::value::Table) -> Result<()> {
-        let mut manifest = &mut self.manifest;
+    fn load_config(&mut self, config: &HubrisConfig) -> Result<()> {
+        self.manifest.board = Some(config.board.clone());
+        self.manifest.target = Some(config.target.clone());
+        self.manifest.features = config.kernel.features.clone();
 
-        let conf = |member| {
-            toml.get(member).and_then(|m| m.as_str()).map(|s| s.to_string())
-        };
+        for (name, task) in &config.tasks {
+            if let Some(ref features) = task.features {
+                self.manifest
+                    .task_features
+                    .insert(name.clone(), features.clone());
+            }
 
-        manifest.board = conf("board");
-        manifest.target = conf("target");
-
-        /*
-         * It can be useful to see which features the kernel was compiled with,
-         * so we go fishing for that explicitly.
-         */
-        let features = toml.get("kernel").and_then(|k| k.get("features"));
-
-        if let Some(toml::Value::Array(ref features)) = features {
-            manifest.features = features
-                .iter()
-                .map(|f| f.as_str().unwrap().to_string())
-                .collect::<Vec<String>>();
-        }
-
-        /*
-         * Now we want to iterate over our tasks to discover their features as
-         * well.
-         */
-        if let Some(toml::Value::Table(tasks)) = toml.get("tasks") {
-            for (task, config) in tasks {
-                let features = config.get("features");
-
-                if let Some(toml::Value::Array(ref features)) = features {
-                    manifest.task_features.insert(
-                        task.to_string(),
-                        features
-                            .iter()
-                            .map(|f| f.as_str().unwrap().to_string())
-                            .collect::<Vec<String>>(),
-                    );
-                }
-
-                let irqs = config.get("interrupts");
-
-                if let Some(toml::Value::Table(irqs)) = irqs {
-                    manifest.task_irqs.insert(
-                        task.to_string(),
-                        irqs.iter()
-                            .map(|(n, m)| {
-                                (
-                                    m.as_integer().unwrap() as u32,
-                                    n.parse::<u32>().unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>(),
-                    );
-                }
+            if let Some(ref irqs) = task.interrupts {
+                self.manifest.task_irqs.insert(
+                    name.clone(),
+                    irqs.iter()
+                        .map(|(n, m)| (*m, n.parse::<u32>().unwrap()))
+                        .collect::<Vec<_>>(),
+                );
             }
         }
 
-        if let Some(toml::Value::Table(ref outputs)) = toml.get("outputs") {
-            for (output, config) in outputs.into_iter() {
-                let address = config.get("address");
-                let size = config.get("size");
-
-                match (address, size) {
-                    (
-                        Some(toml::Value::Integer(ref address)),
-                        Some(toml::Value::Integer(ref size)),
-                    ) => {
-                        manifest.outputs.insert(
-                            output.to_string(),
-                            (*address as u32, *size as u32),
-                        );
-                    }
-                    _ => {
-                        bail!("manifest outputs malformed for \"{}\"", output);
-                    }
-                }
-            }
-        } else {
-            bail!("manifest is missing outputs");
-        }
-
-        if let Some(toml::Value::Table(ref p)) = toml.get("peripherals") {
-            for (peripheral, config) in p.into_iter() {
-                let address = config.get("address");
-
-                if let Some(toml::Value::Integer(ref address)) = address {
-                    manifest
-                        .peripherals
-                        .insert(peripheral.to_string(), *address as u32);
-                    continue;
-                }
-
-                bail!("manifest peripherals malformed for \"{}\"", peripheral);
-            }
+        for (name, peripheral) in &config.peripherals {
+            self.manifest.peripherals.insert(name.clone(), peripheral.address);
         }
 
         Ok(())
@@ -2214,17 +2178,8 @@ impl HubrisArchive {
         let mut app = String::new();
         byname!("app.toml")?.read_to_string(&mut app)?;
 
-        match app.parse::<toml::Value>() {
-            Ok(toml::Value::Table(ref toml)) => {
-                self.load_config(toml)?;
-            }
-            Ok(_) => {
-                bail!("app.toml valid TOML but malformed");
-            }
-            Err(err) => {
-                bail!("failed to parse app.toml: {}", err);
-            }
-        }
+        let config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+        self.load_config(&config)?;
 
         /*
          * Next up is the kernel.  Note that we refer to it explicitly with a
@@ -3630,7 +3585,11 @@ impl HubrisArchive {
         let ttl = self.modules.iter().fold(0, |ttl, m| ttl + (m.1).memsize);
 
         println!("{:>12} => {}K", "total size", ttl / 1024);
-        println!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
+        println!(
+            "{:>12} => {}K",
+            "kernel size",
+            size(HubrisTask::Kernel) / 1024
+        );
         println!("{:>12} => {}", "tasks", self.modules.len() - 1);
         println!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
 
@@ -3672,11 +3631,17 @@ impl HubrisArchive {
 
         variables.sort();
 
-        println!("{:18} {:<30} {:<10} {}", "MODULE", "VARIABLE", "ADDR", "SIZE");
+        println!(
+            "{:18} {:<30} {:<10} {}",
+            "MODULE", "VARIABLE", "ADDR", "SIZE"
+        );
 
         for v in variables {
             let task = &self.lookup_module(v.0)?.name;
-            println!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
+            println!(
+                "{:18} {:<30} 0x{:08x} {:<}",
+                task, v.1, v.2.addr, v.2.size
+            );
         }
         Ok(())
     }

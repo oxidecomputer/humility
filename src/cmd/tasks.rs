@@ -5,8 +5,8 @@
 use crate::cmd::*;
 use crate::core::Core;
 use crate::debug::*;
-use crate::hubris::*;
 use crate::doppel::{self, Task, TaskDesc, TaskId, TaskState};
+use crate::hubris::*;
 use crate::reflect;
 use crate::Args;
 use anyhow::{bail, Result};

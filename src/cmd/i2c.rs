@@ -23,7 +23,6 @@ use std::time::Instant;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 
-
 #[derive(StructOpt, Debug, Default)]
 #[structopt(name = "i2c", about = "scan for and read I2C devices")]
 pub struct I2cArgs {
@@ -278,7 +277,7 @@ fn i2c_done(
                     _ => {
                         println!("Success");
                     }
-                }
+                },
             }
         }
     } else {
@@ -289,7 +288,6 @@ fn i2c_done(
             if subargs.writeraw { "raw write to " } else { "" },
             subargs.register.unwrap()
         );
-
 
         if results.is_empty() {
             println!("Timed out");
@@ -323,9 +321,8 @@ fn i2c_done(
                     }
                     _ => {
                         println!("Success")
-
-                    },
-                }
+                    }
+                },
             }
         }
     }
@@ -479,8 +476,9 @@ fn i2c(
         let started = Instant::now();
         let bar = ProgressBar::new(filelen as u64);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}"),
+            ProgressStyle::default_bar().template(
+                "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
+            ),
         );
 
         let base = ops;
@@ -561,8 +559,12 @@ fn i2c(
 
             for i in 0..results.len() {
                 if let Err(err) = results[i] {
-                    bail!("failed to write block {} at offset {}: {}",
-                        i, offset, func.strerror(err));
+                    bail!(
+                        "failed to write block {} at offset {}: {}",
+                        i,
+                        offset,
+                        func.strerror(err)
+                    );
                 }
             }
 

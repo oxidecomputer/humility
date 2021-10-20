@@ -47,3 +47,4 @@ indicatif = "0.15"
 colored = "2.0.0"
 postcard = "0.7.0"
 itertools = "0.10.1"
+indexmap = { version = "1.4.0", features = ["serde-1"] }

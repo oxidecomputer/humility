@@ -293,10 +293,10 @@ fn qspi(
                 HumanDuration(started.elapsed())
             );
 
-        return Ok(());
-    } else {
-        bail!("expected an operation");
-    };
+            return Ok(());
+        } else {
+            bail!("expected an operation");
+        };
 
     ops.push(Op::Done);
 
