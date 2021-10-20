@@ -72,7 +72,7 @@
 //! newer ones. You can write a `Load` impl that matches on `Value` and handles
 //! either. There's an example of this in `doppel`.
 
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
 use std::convert::TryInto;
 
 use anyhow::{anyhow, bail, Result};
@@ -282,7 +282,7 @@ impl Base {
 /// A struct with named fields.
 #[derive(Clone, Debug, Default)]
 pub struct Struct {
-    members: BTreeMap<String, Box<Value>>,
+    members: IndexMap<String, Box<Value>>,
 }
 
 impl Struct {
