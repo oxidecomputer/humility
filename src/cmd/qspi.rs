@@ -13,6 +13,8 @@ use std::fs::File;
 use std::io::Read;
 use std::thread;
 use std::time::Instant;
+use std::mem;
+use std::fmt;
 
 use anyhow::{anyhow, bail, Result};
 use hif::*;
@@ -324,12 +326,100 @@ fn qspi(
             printmem(results, 0, 1, 16);
             return Ok(());
         }
+    } else if subargs.id {
+        // If the response is well formatted, print it out in addition to raw hex.
+        if let Ok(results) = &results[0] {
+            if mem::size_of::<DeviceIdData>() == results.len() {
+                let did: DeviceIdData = unsafe { std::ptr::read(results.as_ptr() as *const _)};
+                println!("{}", did);
+            } else {
+                println!("Unexpected result length: {} != {}",
+                    mem::size_of::<DeviceIdData>(),
+                    results.len());
+            }
+        }
     }
 
     println!("{:x?}", results);
 
     Ok(())
 }
+
+/// Micron's Device ID Data
+// Responses to the Read ID family of instructions can be more flexible than
+// the struct below, but until we need support beyond Micron MT25Q, this will do.
+#[derive(Debug, Copy, Clone)]
+#[repr(C, packed)]
+struct DeviceIdData {
+    manufacturer_id: u8,
+    memory_type: u8,
+    memory_capacity: u8,
+    uid_n: u8,
+    ext_device_id: u8,
+    device_configuration_info: u8,
+    uid: [u8;14],
+}
+
+impl fmt::Display for DeviceIdData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mfg = match self.manufacturer_id {
+            0x20 => format!("Micron"),
+            _ => format!("unknown({:x?}", self.manufacturer_id),
+        };
+        let memtype: String = match self.memory_type {
+            0xBA => "3V".to_string(),
+            0xBB => "1.8V".to_string(),
+            _ => format!("unknown({:x?}", self.memory_type),
+        };
+        let capacity = match self.memory_capacity {
+            0x17..=0x22 => format!("{}MB", 1u32 << (self.memory_capacity - 20)),
+            _ => format!("unknown code {:x?}h", self.memory_capacity),
+        };
+
+        write!(f, "DeviceIdData {{\n\
+            \tmanufacturer_id: {}\n\
+            \tmemory_type: {}\n\
+            \tmemory_capacity: {}\n\
+            \tuid_n: {}\n\
+            \text_device_id: 0b{:b}\n\
+            \t\t{} device generation,\n\
+            \t\t{} BP scheme,\n\
+            \t\tHOLD#/RESET#={}\n\
+            \t\tAdditional HW RESET# is {}available,\n\
+            \t\tSector size is {},\n\
+            \tdevice_configuration_info: {}\n\
+            \tuid: {:02x?}\n}}",
+            mfg, memtype, capacity, self.uid_n,
+            self.ext_device_id,
+            if (self.ext_device_id & 0b01000000) != 0 {
+                "2nd"
+            } else {
+                "1st"
+            },
+            if (self.ext_device_id & 0b00100000) != 0 {
+                "Athernate"
+            } else {
+                "Standard"
+            },
+            if (self.ext_device_id & 0b00001000) != 0 {
+                "RESET"
+            } else {
+                "HOLD"
+            },
+            if (self.ext_device_id & 0b00000100) != 0 {
+                ""
+            } else {
+                "not "
+            },
+            if (self.ext_device_id & 0b00000011) == 0b00 {
+                "Uniform 64KB"
+            } else {
+                "unknown"
+            },
+            self.device_configuration_info, self.uid)
+    }
+}
+
 
 pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
     (
