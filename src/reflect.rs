@@ -80,10 +80,21 @@ use anyhow::{anyhow, bail, Result};
 use crate::core::Core;
 use crate::hubris::{
     HubrisArchive, HubrisArray, HubrisBasetype, HubrisEnum, HubrisGoff,
-    HubrisStruct, HubrisType,
+    HubrisPrintFormat, HubrisStruct, HubrisType,
 };
 
 pub use humility_load_derive::Load;
+
+/// Trait for formatting reflected values, approximately the same way a
+/// default-derived `Debug` impl would.
+pub trait Format {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()>;
+}
 
 /// A dynamic representation of some data extracted from a program image.
 ///
@@ -172,6 +183,24 @@ impl Value {
     }
 }
 
+impl Format for Value {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        match self {
+            Self::Struct(s) => s.format(hubris, fmt, out),
+            Self::Enum(s) => s.format(hubris, fmt, out),
+            Self::Base(s) => s.format(hubris, fmt, out),
+            Self::Tuple(s) => s.format(hubris, fmt, out),
+            Self::Array(s) => s.format(hubris, fmt, out),
+            Self::Ptr(s) => s.format(hubris, fmt, out),
+        }
+    }
+}
+
 /// A value of an enumeration.
 #[derive(Clone, Debug, Default)]
 pub struct Enum(String, Option<Box<Value>>);
@@ -205,6 +234,24 @@ impl Enum {
             ("None", _) => Ok(None),
             _ => bail!("not an option: {:?}", self),
         }
+    }
+}
+
+impl Format for Enum {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        if !fmt.no_name {
+            write!(out, "{}", self.disc())?;
+        }
+        if let Some(c) = self.contents() {
+            c.format(hubris, HubrisPrintFormat { no_name: true, ..fmt }, out)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -279,13 +326,95 @@ impl Base {
     }
 }
 
+impl core::fmt::Display for Base {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Self::U8(x) => x.fmt(f),
+            Self::U16(x) => x.fmt(f),
+            Self::U32(x) => x.fmt(f),
+            Self::U64(x) => x.fmt(f),
+            Self::U128(x) => x.fmt(f),
+
+            Self::I8(x) => x.fmt(f),
+            Self::I16(x) => x.fmt(f),
+            Self::I32(x) => x.fmt(f),
+            Self::I64(x) => x.fmt(f),
+            Self::I128(x) => x.fmt(f),
+
+            Self::F32(x) => x.fmt(f),
+            Self::F64(x) => x.fmt(f),
+
+            Self::Bool(x) => x.fmt(f),
+        }
+    }
+}
+
+impl core::fmt::LowerHex for Base {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        use core::fmt::{Display, LowerHex};
+
+        match self {
+            Self::U8(x) => LowerHex::fmt(&x, f),
+            Self::U16(x) => LowerHex::fmt(&x, f),
+            Self::U32(x) => LowerHex::fmt(&x, f),
+            Self::U64(x) => LowerHex::fmt(&x, f),
+            Self::U128(x) => LowerHex::fmt(&x, f),
+
+            Self::I8(x) => LowerHex::fmt(&x, f),
+            Self::I16(x) => LowerHex::fmt(&x, f),
+            Self::I32(x) => LowerHex::fmt(&x, f),
+            Self::I64(x) => LowerHex::fmt(&x, f),
+            Self::I128(x) => LowerHex::fmt(&x, f),
+
+            // Things that aren't integers get formatted normally here, because
+            // e.g. floats don't implement LowerHex.
+            Self::F32(x) => Display::fmt(&x, f),
+            Self::F64(x) => Display::fmt(&x, f),
+            Self::Bool(x) => Display::fmt(&x, f),
+        }
+    }
+}
+
+impl Format for Base {
+    fn format(
+        &self,
+        _hubris: &HubrisArchive,
+        fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        if fmt.hex {
+            write!(out, "0x{:x}", self)?;
+        } else {
+            write!(out, "{}", self)?;
+        }
+        Ok(())
+    }
+}
+
 /// A struct with named fields.
 #[derive(Clone, Debug, Default)]
 pub struct Struct {
+    name: String,
     members: IndexMap<String, Box<Value>>,
 }
 
 impl Struct {
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn len(&self) -> usize {
+        self.members.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.members.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
+        self.members.iter().map(|(s, v)| (s.as_str(), &**v))
+    }
+
     /// Verifies that the struct contains _at least_ members with the given
     /// `names`. If not, returns an error.
     pub fn check_members(&self, names: &[&str]) -> Result<()> {
@@ -307,16 +436,106 @@ impl std::ops::Index<&str> for Struct {
     }
 }
 
+impl Format for Struct {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        mut fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        if self.is_empty() {
+            return Ok(());
+        }
+
+        fmt.indent += 4;
+
+        let print_name = if fmt.no_name { "" } else { self.name() };
+        write!(out, "{} {{{}", print_name, fmt.delim())?;
+        fmt.no_name = false;
+
+        for (i, (name, value)) in self.iter().enumerate() {
+            if fmt.newline && fmt.indent > 0 {
+                write!(out, "{:1$}", " ", fmt.indent)?;
+            }
+
+            write!(out, "{}: ", name)?;
+
+            value.format(hubris, fmt, out)?;
+
+            if i + 1 < self.len() {
+                write!(out, ",{}", fmt.delim())?;
+            }
+        }
+
+        write!(out, "{}", fmt.delim())?;
+
+        fmt.indent -= 4;
+
+        if fmt.newline && fmt.indent > 0 {
+            write!(out, "{:1$}", " ", fmt.indent)?;
+        }
+
+        write!(out, "}}")?;
+        Ok(())
+    }
+}
+
 /// A tuple or tuple struct.
 #[derive(Clone, Debug, Default)]
-pub struct Tuple(Vec<Value>);
+pub struct Tuple(String, Vec<Value>);
+
+impl Tuple {
+    pub fn name(&self) -> &str {
+        self.0.as_str()
+    }
+}
 
 /// Allows the tuple to be treated like a slice, e.g. with `len()` and indexing.
 impl std::ops::Deref for Tuple {
     type Target = [Value];
 
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        self.1.deref()
+    }
+}
+
+impl Format for Tuple {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        mut fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        fmt.indent += 4;
+
+        // We only want to print the tuple name if this is a
+        // user-defined tuple type.
+        if !fmt.no_name
+            && (!self.name().starts_with('(') || !self.name().ends_with(')'))
+        {
+            write!(out, "{}", self.name())?;
+        }
+        fmt.no_name = false;
+
+        let paren = !self.is_empty();
+
+        if paren {
+            write!(out, "(")?;
+        }
+
+        for (i, m) in self.iter().enumerate() {
+            m.format(hubris, fmt, out)?;
+
+            if i + 1 < self.len() {
+                write!(out, ", ")?;
+            }
+        }
+
+        if paren {
+            write!(out, ")")?;
+        }
+
+        Ok(())
     }
 }
 
@@ -333,14 +552,60 @@ impl std::ops::Deref for Array {
     }
 }
 
+impl Format for Array {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        mut fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        fmt.indent += 4;
+        fmt.no_name = false;
+
+        write!(out, "[{}", fmt.delim())?;
+
+        for (i, e) in self.iter().enumerate() {
+            if fmt.newline && fmt.indent > 0 {
+                write!(out, "{:1$}", " ", fmt.indent)?;
+            }
+
+            e.format(hubris, fmt, out)?;
+
+            if i + 1 < self.len() {
+                write!(out, ",{}", fmt.delim())?;
+            }
+        }
+
+        write!(out, "{}", fmt.delim())?;
+
+        fmt.indent -= 4;
+
+        if fmt.newline && fmt.indent > 0 {
+            write!(out, "{:1$}", " ", fmt.indent)?;
+        }
+
+        write!(out, "]")?;
+
+        Ok(())
+    }
+}
+
 /// A pointer with an embedded type.
+///
+/// The type is of the _pointer_, not the pointed-to item, so that we can
+/// recover information about pointer vs reference and constness, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Ptr(HubrisGoff, u32);
 
 impl Ptr {
-    /// Retrieves the goff associated with the pointed-to type.
-    pub fn goff(&self) -> HubrisGoff {
+    /// Retrieves the goff associated with the pointer type.
+    pub fn ptr_goff(&self) -> HubrisGoff {
         self.0
+    }
+
+    /// Retrieves the goff associated with the pointed-to type.
+    pub fn dest_goff(&self, hubris: &HubrisArchive) -> Result<HubrisGoff> {
+        hubris.lookup_ptrtype(self.ptr_goff())
     }
 
     /// Retrieves the address being pointed to.
@@ -354,10 +619,23 @@ impl Ptr {
         hubris: &HubrisArchive,
         core: &mut dyn Core,
     ) -> Result<T> {
-        let ty = hubris.lookup_type(self.goff())?;
+        let ty = hubris.lookup_type(self.dest_goff(hubris)?)?;
         let mut buf = vec![0; ty.size(hubris)?];
         core.read_8(self.addr(), &mut buf)?;
         load(hubris, &buf, ty, 0)
+    }
+}
+
+impl Format for Ptr {
+    fn format(
+        &self,
+        hubris: &HubrisArchive,
+        _fmt: HubrisPrintFormat,
+        out: &mut dyn std::io::Write,
+    ) -> Result<()> {
+        let name = hubris.lookup_type(self.ptr_goff())?.name(hubris)?;
+        write!(out, "0x{:x} ({})", self.addr(), name)?;
+        Ok(())
     }
 }
 
@@ -464,7 +742,7 @@ pub fn load_struct_or_tuple(
             contents[index] = v;
         }
 
-        Ok(Value::Tuple(Tuple(contents)))
+        Ok(Value::Tuple(Tuple(ty.name.clone(), contents)))
     } else {
         load_struct(hubris, buf, ty, addr).map(Value::Struct)
     }
@@ -478,6 +756,7 @@ pub fn load_struct(
     addr: usize,
 ) -> Result<Struct> {
     let mut s = Struct::default();
+    s.name = ty.name.clone();
 
     for m in &ty.members {
         let maddr = addr + m.offset;

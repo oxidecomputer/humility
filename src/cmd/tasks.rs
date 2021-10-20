@@ -7,7 +7,7 @@ use crate::core::Core;
 use crate::debug::*;
 use crate::doppel::{self, Task, TaskDesc, TaskId, TaskState};
 use crate::hubris::*;
-use crate::reflect;
+use crate::reflect::{self, Format, Load};
 use crate::Args;
 use anyhow::{bail, Result};
 use num_traits::FromPrimitive;
@@ -163,7 +163,9 @@ fn tasks(
             let addr = base + i * task_t.size as u32;
             let offs = i as usize * task_t.size;
 
-            let task: Task = reflect::load(hubris, &taskblock, task_t, offs)?;
+            let task_value: reflect::Value =
+                reflect::load(hubris, &taskblock, task_t, offs)?;
+            let task: Task = Task::from_value(&task_value)?;
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
             let module =
                 hubris.instr_mod(desc.entry_point).unwrap_or("<unknown>");
@@ -234,10 +236,9 @@ fn tasks(
                     ..HubrisPrintFormat::default()
                 };
 
-                println!(
-                    "   |\n   +-----------> {}\n",
-                    hubris.printfmt(&taskblock[offs..], task_t.goff, &fmt)?
-                );
+                print!("   |\n   +-----------> ");
+                task_value.format(hubris, fmt, &mut std::io::stdout())?;
+                println!("\n");
             }
 
             if subargs.registers && !subargs.verbose {
