@@ -12,6 +12,7 @@ pmbus = { path = "./pmbus" }
 hif = { path = "./hif" }
 spd = { path = "./spd" }
 idt8a3xxxx = { path = "./idt8a3xxxx" }
+humility_load_derive = {path = "./load_derive"}
 
 gimli = "0.20.0"
 fallible-iterator = "0.2.0"
@@ -40,7 +41,7 @@ paste = "0.1"
 jep106 = "0.2"
 zip = "0.5"
 toml = "0.5"
-anyhow = "1.0.31"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
 scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"

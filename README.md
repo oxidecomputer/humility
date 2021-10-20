@@ -26,7 +26,7 @@ archives and tasks.
 
 ### Microcontroller-specific
 
-Debuggers must cut through abstractions, which 
+Debuggers must cut through abstractions, which
 often requires knowledge of underlying
 implementation detail.  For Humility, this means being willing to take
 advantage of microcontroller-specific debug facilities where applicable.
@@ -52,8 +52,8 @@ instrumentation, etc.
 ## Operation
 
 Humility operates by specifying a subcommand.  There are options that
-are Humility-wide (that is, applying to every subcommand), as well as 
-options that are specific to particular subcommands.  
+are Humility-wide (that is, applying to every subcommand), as well as
+options that are specific to particular subcommands.
 
 ### Chip
 
@@ -62,7 +62,7 @@ aware of the specifics of the target chip.  Supported chips include:
 
 - `STM32F407VGTx` (default): STM32F407 as found on the reference Discovery board
 - `LPC55S69JBD100`: LPC55S69 as found on the LPCXpresso55S69
-- `STM32H7B3LIHxQ`: STM32H7B3 as found on the STM32H7B3I-DK 
+- `STM32H7B3LIHxQ`: STM32H7B3 as found on the STM32H7B3I-DK
 
 The target chip can be specified via the `-c` option or the `HUMILITY_CHIP`
 environment variable.
@@ -89,7 +89,7 @@ workflows, Humility also has the option to attach via OpenOCD.
 The debug probe to use is specified to Humility via
 the `-p` option (long form `--probe`), which can have the following values:
 
-- `auto` (default): Automatically determine how to attach to the 
+- `auto` (default): Automatically determine how to attach to the
   microcontroller.
 
 - `ocd`: Attach via OpenOCD, which is presumed to have the TCL interface
@@ -97,7 +97,7 @@ the `-p` option (long form `--probe`), which can have the following values:
 
 - `jlink`: Attach via Segger JLink, which is presumed to have the GDB
   interface available on localhost on port 2331 (its default).  Note that
-  when semihosting is being used by Hubris, the Segger JLink GDB server 
+  when semihosting is being used by Hubris, the Segger JLink GDB server
   will become confused when Humility attaches to it -- and subsequent
   calls to semihosting will cause a halt.  A subsequent Humility invocation
   will resume the target (directing semihosting output correctly to the
@@ -234,26 +234,26 @@ humility:         chip => STM32F40x/STM32F41x, revision 0x1007
 humility:  debug units => DWT ETM FPB ITM SCS TPIU
 humility:       status => executing
 humility:          ITM => TRCENA enabled, TCR enabled, TER=0x3
-humility:           R0 => 0x0        
-humility:           R1 => 0x0        
-humility:           R2 => 0x1        
-humility:           R3 => 0x20001bd4 
-humility:           R4 => 0x20001bd4 
-humility:           R5 => 0x801d988  
-humility:           R6 => 0xb004     
-humility:           R7 => 0x20001bf0 
-humility:           R8 => 0x40004400 
-humility:           R9 => 0x1        
-humility:          R10 => 0x0        
-humility:          R11 => 0xffff     
-humility:          R12 => 0x0        
-humility:           SP => 0x20001ba8 
+humility:           R0 => 0x0
+humility:           R1 => 0x0
+humility:           R2 => 0x1
+humility:           R3 => 0x20001bd4
+humility:           R4 => 0x20001bd4
+humility:           R5 => 0x801d988
+humility:           R6 => 0xb004
+humility:           R7 => 0x20001bf0
+humility:           R8 => 0x40004400
+humility:           R9 => 0x1
+humility:          R10 => 0x0
+humility:          R11 => 0xffff
+humility:          R12 => 0x0
+humility:           SP => 0x20001ba8
 humility:           LR => 0x801c12b   <- main+0xef
 humility:           PC => 0x801d290   <- sys_recv_stub+0x1e
-humility:         xPSR => 0x61000000 
-humility:          MSP => 0x20000f48 
-humility:          PSP => 0x20001ba8 
-humility:          SPR => 0x7000000  
+humility:         xPSR => 0x61000000
+humility:          MSP => 0x20000f48
+humility:          PSP => 0x20001ba8
+humility:          SPR => 0x7000000
 ```
 
 ### `humility tasks`
@@ -261,19 +261,23 @@ humility:          SPR => 0x7000000
 `humility tasks` offers a ps-like view of a system, e.g.:
 
 ```console
-% humility -a ~/hubris/target/lpc55/dist/build-lpc55.zip tasks
-humility: attached via DAPLink
-ID ADDR     TASK               GEN STATE
- 0 20000160 jefe                 0 Healthy(InRecv(None))
- 1 200001d0 idle                 0 Healthy(Runnable)          <-
- 2 20000240 syscon_driver        0 Healthy(InRecv(None))
- 3 200002b0 gpio_driver          0 Healthy(InRecv(None))
- 4 20000320 user_leds            0 Healthy(InRecv(None))
- 5 20000390 usart_driver         0 Healthy(InRecv(None))
- 6 20000400 i2c_driver           0 Healthy(InRecv(None))
- 7 20000470 ping                11 Healthy(InReply(5))
- 8 200004e0 pong                 0 Healthy(InRecv(None))
- 9 20000550 spam                 0 Healthy(Stopped)
+% humility -a ~/hubris/target/gemini-bu/dist/build-gemini-bu.zip tasks
+humility: attached via STLink
+system time = 83329
+ID TASK            GEN PRI STATE
+ 0 jefe              0   0 FAULT: stack overflow; sp=0x20000fa0 (was: ready)
+ 1 rcc_driver        0   1 recv
+ 2 gpio_driver       0   2 recv
+ 3 usart_driver      0   2 recv, notif: bit0(irq39)
+ 4 i2c_driver        0   2 recv
+ 5 spd               0   2 notif: bit0(irq33/irq34)
+ 6 spi_driver        0   2 RUNNING
+ 7 spi               0   3 wait: reply from 0x0006
+ 8 user_leds         0   2 recv
+ 9 pong              0   3 FAULT: killed by task 0x0000 (was: recv, notif: bit0)
+10 i2c_debug         0   3 notif: bit0(T+671)
+11 thermal           0   3 notif: bit0(T+552)
+12 idle              0   5 ready
 ```
 
 To see every field in each task, you can use the `-v` flag:
@@ -281,7 +285,7 @@ To see every field in each task, you can use the `-v` flag:
 ```console
 % humility -d hubris.core.4 tasks -v
 ...
- 6 20000408 pong                 0 Healthy(InRecv(None))
+ 9 pong              0   3 FAULT: killed by task 0x0000 (was: recv, notif: bit0)
           |
           +---->  {
                     save: SavedState {
@@ -297,18 +301,7 @@ To see every field in each task, you can use the `-v` flag:
                         exc_return: 0xffffffed
                     },
                     priority: Priority(0x3),
-                    state: Healthy(InRecv(None)),
-                    timer: TimerState {
-                        deadline: Some(Timestamp(0xf80c)),
-                        to_post: NotificationSet(0x1)
-                    },
-                    generation: Generation(0x0),
-                    region_table: &[&abi::RegionDesc] {
-                        data_ptr: 0x200000e8 (*const &abi::RegionDesc),
-                        length: 0x8
-                    },
-                    notifications: 0x0,
-                    descriptor: 0x8005034 (&abi::TaskDesc)
+            ...
 ...
 ```
 
@@ -317,8 +310,8 @@ To see a task's registers, use the `-r` flag:
 ```console
 % humility tasks -r user_leds
 ...
-ID ADDR     TASK               GEN PRI STATE
- 3 20000318 user_leds            0   2 Healthy(InRecv(None))
+ID TASK            GEN PRI STATE
+ 8 user_leds         0   2 recv
    |
    +--->   R0 = 0x200023d8   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200023dc
            R4 = 0x200023d8   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
@@ -331,8 +324,8 @@ To see a task's stack backtrace, use the `-s` flag:
 ```console
 % humility tasks -s user_leds
 ...
-ID ADDR     TASK               GEN PRI STATE    
- 3 20000318 user_leds            0   2 Healthy(InRecv(None))     
+ID TASK            GEN PRI STATE
+ 8 user_leds         0   2 recv
    |
    +--->  0x200023d0 0x08021052 sys_recv_stub()
           0x20002400 0x0802009c sys_recv()
@@ -345,8 +338,8 @@ To additionally see line number information on a stack backtrace, also provide
 ```console
 % humility tasks -sl user_leds
 ...
-ID ADDR     TASK               GEN PRI STATE
- 3 20000318 user_leds            0   2 Healthy(InRecv(None))
+ID TASK            GEN PRI STATE
+ 8 user_leds         0   2 recv
    |
    +--->  0x200023d0 0x08021052 sys_recv_stub()
                      @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -384,8 +377,8 @@ This can be particularly useful to couple with either `humility dump` or
 ```console
 % humility tasks -sl ping
 humility: attached via ST-Link
-ID ADDR     TASK               GEN PRI STATE    
- 4 200003c8 ping                35   4 Faulted { fault: DivideByZero, original_state: Runnable } 
+ID ADDR     TASK               GEN PRI STATE
+ 4 200003c8 ping                35   4 Faulted { fault: DivideByZero, original_state: Runnable }
    |
    +--->  0x200025b0 0x0802405e divzero()
                      @ /home/bmc/hubris/task-ping/src/main.rs:28
@@ -531,7 +524,7 @@ humility readmem 0o216401 0b110
 humility: attached via DAPLink
 humility: reading at 0x11d01 for 6 bytes
               0 \/  2  3  4  5  6  7  8  9  a  b  c  d  e  f
-0x00011d00 |    62 6f 75 6e 64 73                            |  bounds         
+0x00011d00 |    62 6f 75 6e 64 73                            |  bounds
 ```
 
 To display as half-words (16-bits) use `-h`; to display as words (32-bits)
@@ -680,7 +673,7 @@ stack overflow!
 core file:
 
 ```console
-% humility -a ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip dump 
+% humility -a ~/hubris/target/demo-stm32h7b3/dist/build-demo-stm32h7b3.zip dump
 humility: attached via ST-Link
 humility: core halted
 humility: dumping to hubris.core.0
@@ -1009,7 +1002,7 @@ More details about these errors can be found by reading the `I2C_DEBUG_RESULTS`
 variable:
 
 ```console
-humility -a ~/hubris/target/gimletlet/dist/build-gimletlet.zip readvar I2C_DEBUG_RESULTS 
+humility -a ~/hubris/target/gimletlet/dist/build-gimletlet.zip readvar I2C_DEBUG_RESULTS
 humility: attached via ST-Link
 I2C_DEBUG_RESULTS (0x20004400) = [
     Some(Err(ReservedAddress)),
@@ -1104,7 +1097,7 @@ In some cases (particularly with bad input), a command may fail to execute
 entirely.  In these cases, use the `-l` option to also enable ITM-based logging:
 
 ```console
-% humility -a ~/hubris/target/gimletlet/dist/build-gimletlet.zip i2c -c 10 -s 
+% humility -a ~/hubris/target/gimletlet/dist/build-gimletlet.zip i2c -c 10 -s
 humility: attached via ST-Link
 humility: i2c failed: i2c command failed on target; run with -l for more detail
 % humility -a ~/hubris/target/gimletlet/dist/build-gimletlet.zip i2c -c 10 -s -l
@@ -1144,8 +1137,8 @@ In this case, check this task:
 ```console
 % humility -a ~/hubris/target/gemini-bu/dist/build-gemini-bu.zip tasks -sl i2c_debug
 humility: attached via ST-Link
-ID ADDR     TASK               GEN PRI STATE    
-10 200008b0 i2c_debug            0   3 Healthy(InSend(TaskId(0x4))) 
+ID ADDR     TASK               GEN PRI STATE
+10 200008b0 i2c_debug            0   3 Healthy(InSend(TaskId(0x4)))
    |
    +--->  0x20006330 0x08028ea0 sys_send_stub()
                      @ /home/bmc/hubris/userlib/src/lib.rs:125

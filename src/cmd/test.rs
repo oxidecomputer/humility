@@ -71,7 +71,7 @@ fn test_ingest(
                  */
                 let buf = shared.borrow_mut().read_swv()?;
 
-                if buf.len() != 0 {
+                if !buf.is_empty() {
                     bufs.push_back((buf, start.elapsed().as_secs_f64()));
                     continue;
                 }

@@ -87,7 +87,7 @@ impl<'a> JefeVariables<'a> {
         timeout: u32,
     ) -> Result<JefeVariables> {
         Ok(Self {
-            hubris: hubris,
+            hubris,
             ready: Self::variable(hubris, "JEFE_EXTERNAL_READY", true)?,
             kick: Self::variable(hubris, "JEFE_EXTERNAL_KICK", true)?,
             request: Self::variable(hubris, "JEFE_EXTERNAL_REQUEST", true)?,
@@ -96,7 +96,7 @@ impl<'a> JefeVariables<'a> {
             task: Self::variable(hubris, "JEFE_EXTERNAL_TASKINDEX", true)?,
             cached: None,
             kicked: None,
-            timeout: timeout,
+            timeout,
             timedout: false,
         })
     }

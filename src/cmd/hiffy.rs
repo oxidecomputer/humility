@@ -59,10 +59,10 @@ fn hiffy(
         byid[ndx] = Some((name, func));
     }
 
-    println!("{:>3} {:30} {}", "ID", "FUNCTION", "#ARGS");
+    println!("{:>3} {:30} #ARGS", "ID", "FUNCTION");
 
-    for i in 0..byid.len() {
-        if let Some((name, func)) = byid[i] {
+    for (i, id) in byid.iter().enumerate() {
+        if let Some((name, func)) = id {
             println!("{:3} {:30} {}", i, name, func.args.len());
         } else {
             bail!("missing function for ID {}", i);

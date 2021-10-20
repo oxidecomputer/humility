@@ -198,18 +198,17 @@ fn itmcmd_ingest_attached(
             Ok(Some((bytes[ndx - 1], start.elapsed().as_secs_f64())))
         },
         |packet| {
-            match &packet.payload {
-                ITMPayload::Instrumentation { payload, port } => {
-                    if *port > 1 {
-                        println!("{:x?}", payload);
-                        return Ok(());
-                    }
-
-                    for p in payload {
-                        print!("{}", *p as char);
-                    }
+            if let ITMPayload::Instrumentation { payload, port } =
+                &packet.payload
+            {
+                if *port > 1 {
+                    println!("{:x?}", payload);
+                    return Ok(());
                 }
-                _ => {}
+
+                for p in payload {
+                    print!("{}", *p as char);
+                }
             }
 
             Ok(())

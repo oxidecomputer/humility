@@ -155,13 +155,13 @@ pub fn subcommand(
         match command {
             Command::Attached { run, attach, validate, .. } => {
                 let mut c = match attach {
-                    Attach::LiveOnly => attach_live(&args),
-                    Attach::DumpOnly => attach_dump(&args, hubris),
+                    Attach::LiveOnly => attach_live(args),
+                    Attach::DumpOnly => attach_dump(args, hubris),
                     Attach::Any => {
-                        if let Some(_) = &args.dump {
-                            attach_dump(&args, hubris)
+                        if args.dump.is_some() {
+                            attach_dump(args, hubris)
                         } else {
-                            attach_live(&args)
+                            attach_live(args)
                         }
                     }
                 }?;
@@ -231,7 +231,7 @@ fn printmem(bytes: &[u8], addr: u32, size: usize, width: usize) {
             }
         }
 
-        println!("");
+        println!();
     };
 
     let offs = (addr & (width - 1) as u32) as usize;
@@ -250,7 +250,7 @@ fn printmem(bytes: &[u8], addr: u32, size: usize, width: usize) {
         }
     }
 
-    println!("");
+    println!();
 
     /*
      * Print our first line.

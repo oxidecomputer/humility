@@ -160,13 +160,13 @@ fn stmsecure_setsecureregion(
     commit: bool,
 ) -> Result<()> {
     // Basic checks to make sure we're not doing anything too weird
-    if address < 0x0800_0000 || address >= 0x081f_ffff {
+    if !(0x0800_0000..0x081f_ffff).contains(&address) {
         return Err(anyhow!("Secure address out of range: {:x}", address));
     }
 
     // Secure ranges are per bank
     if let Some(result) = address.checked_add(size) {
-        if result < 0x0800_0000 || result >= 0x080f_ffff {
+        if !(0x0800_0000..0x080f_ffff).contains(&result) {
             return Err(anyhow!(
                 "secure address end size out of range {:x}-{:x}",
                 address,

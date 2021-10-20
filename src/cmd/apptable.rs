@@ -29,9 +29,8 @@ fn apptablecmd(
 
     if !hubris.loaded() {
         if let Some(ref kernel) = subargs.kernel {
-            match hubris.load_kernel(kernel) {
-                Err(err) => bail!("can't load {}: {:?}", kernel, err),
-                _ => {}
+            if let Err(err) = hubris.load_kernel(kernel) {
+                bail!("can't load {}: {:?}", kernel, err);
             }
         } else {
             bail!("must provide an archive, dump or kernel");

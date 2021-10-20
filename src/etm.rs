@@ -503,19 +503,16 @@ fn etm_packet_state(
             } else {
                 let last = payload[payload.len() - 1];
 
-                if (last & 0b1000_0000) != 0 {
-                    /*
-                     * If the high order bit is set, we are always awaiting
-                     * more payload -- regardless of whether that is in one
-                     * of the address bytes (up to five) or one of the
-                     * exception bytes (up to three).
-                     */
-                    ETM3PacketState::AwaitingPayload
-                } else if (last & 0b0100_0000) != 0 {
-                    /*
-                     * If bit 6 is set, we are awaiting an Exception
-                     * Information Byte.
-                     */
+                /*
+                 * If the high order bit is set, we are always awaiting more
+                 * payload -- regardless of whether that is in one of the
+                 * address bytes (up to five) or one of the exception bytes (up
+                 * to three).
+                 *
+                 * If bit 6 is set, we are awaiting an Exception Information
+                 * Byte.
+                 */
+                if (last & 0b1000_0000) != 0 || (last & 0b0100_0000) != 0 {
                     ETM3PacketState::AwaitingPayload
                 } else {
                     ETM3PacketState::Complete
@@ -774,7 +771,7 @@ pub fn etm_ingest(
             }
         }
 
-        pstate = etm_packet_state(hdr, &payload, config);
+        pstate = etm_packet_state(hdr, payload, config);
 
         match pstate {
             ETM3PacketState::AwaitingHeader

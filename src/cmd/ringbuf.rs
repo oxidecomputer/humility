@@ -101,8 +101,8 @@ fn ringbuf_dump(
     let fmt = HubrisPrintFormat { indent: 0, newline: false, hex: true };
 
     println!(
-        "{:10} {:>4} {:>4} {:>8} {:>8} {}",
-        "ADDR", "NDX", "LINE", "GEN", "COUNT", "PAYLOAD"
+        "{:10} {:>4} {:>4} {:>8} {:>8} PAYLOAD",
+        "ADDR", "NDX", "LINE", "GEN", "COUNT",
     );
 
     for i in 0..array.count {
@@ -157,14 +157,12 @@ fn ringbuf(
             if v.0.eq(variable) {
                 ringbufs.push(v);
             }
-        } else {
-            if v.0.ends_with("RINGBUF") {
-                ringbufs.push(v);
-            }
+        } else if v.0.ends_with("RINGBUF") {
+            ringbufs.push(v);
         }
     }
 
-    if ringbufs.len() == 0 {
+    if ringbufs.is_empty() {
         if let Some(variable) = subargs.variable {
             bail!("ring buffer \"{}\" not found (-l to list)", variable);
         } else {
@@ -178,7 +176,7 @@ fn ringbuf(
         info!("{:18} {:<30} {:<10} {}", "MODULE", "BUFFER", "ADDR", "SIZE");
 
         for v in ringbufs {
-            let t = taskname(hubris, &v.1)?;
+            let t = taskname(hubris, v.1)?;
             info!("{:18} {:<30} 0x{:08x} {:<}", t, v.0, v.1.addr, v.1.size);
         }
 
@@ -186,9 +184,9 @@ fn ringbuf(
     }
 
     for v in ringbufs {
-        info!("ring buffer {} in {}:", v.0, taskname(hubris, &v.1)?);
+        info!("ring buffer {} in {}:", v.0, taskname(hubris, v.1)?);
         let def = hubris.lookup_struct(v.1.goff)?;
-        ringbuf_dump(hubris, core, def, &v.1)?;
+        ringbuf_dump(hubris, core, def, v.1)?;
     }
 
     Ok(())

@@ -198,11 +198,9 @@ fn print_result(
         }
 
         Ok(val) => {
-            if val.len() == 0 {
-                if subargs.errors {
-                    println!("{} Timed out", cmdstr);
-                    return Ok(());
-                }
+            if val.is_empty() && subargs.errors {
+                println!("{} Timed out", cmdstr);
+                return Ok(());
             }
 
             if let Some(nbytes) = nbytes {
@@ -225,8 +223,8 @@ fn print_result(
                         if i > 0 && i % w == 0 {
                             print!(" |");
 
-                            for j in (i - w)..i {
-                                printchar(val[j]);
+                            for &j in val[(i - w)..i].iter() {
+                                printchar(j);
                             }
 
                             if !interpret {
@@ -296,7 +294,7 @@ fn print_result(
                 printed = true;
             });
 
-            if !err.is_ok() && subargs.errors {
+            if err.is_err() && subargs.errors {
                 println!("{} {:?}", cmdstr, err);
             }
 
@@ -321,11 +319,11 @@ fn prepare_write(
     code: u8,
     mode: impl Fn() -> VOutModeCommandData,
     command: &dyn pmbus::Command,
-    payload: &Vec<u8>,
+    payload: &[u8],
     writes: &Vec<(Bitpos, Replacement)>,
 ) -> Result<Vec<u8>> {
     let name = command.name();
-    let mut rval = payload.clone();
+    let mut rval = payload.to_vec();
     let mut replaced = vec![false; writes.len()];
 
     let err = device.mutate(code, &mut rval, mode, |field, _| {
@@ -341,7 +339,7 @@ fn prepare_write(
         None
     });
 
-    if !err.is_ok() {
+    if err.is_err() {
         bail!("failed to mutate {}: {:?}", name, err);
     }
 
@@ -440,12 +438,10 @@ fn validate_write(
             } else {
                 bail!("illegal value: {}", value);
             }
+        } else if bitfields {
+            bail!("{} has bitfields which must be set explicitly", cmd);
         } else {
-            if bitfields {
-                bail!("{} has bitfields which must be set explicitly", cmd);
-            } else {
-                bail!("can't write to {}: data has unknown type", cmd);
-            }
+            bail!("can't write to {}: data has unknown type", cmd);
         }
     }
 }
@@ -512,7 +508,7 @@ fn pmbus(
         }
 
         for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(&portarg) {
+            if variant.name.eq_ignore_ascii_case(portarg) {
                 port = Some(u8::try_from(variant.tag.unwrap())?);
                 break;
             }
@@ -535,7 +531,7 @@ fn pmbus(
 
     let mux = if let Some(mux) = &subargs.mux {
         let s = mux
-            .split(":")
+            .split(':')
             .map(|v| parse_int::parse::<u8>(v))
             .collect::<Result<Vec<_>, _>>()
             .context("expected multiplexer and segment to be integers")?;
@@ -565,7 +561,7 @@ fn pmbus(
     let (all, bycode) = all_commands(device);
 
     if let Some(ref commands) = subargs.commandhelp {
-        if commands.len() == 0 || commands[0] == "all" {
+        if commands.is_empty() || commands[0] == "all" {
             for code in 0..0xffu8 {
                 device.command(code, |cmd| {
                     print_command(device, code, cmd);
@@ -622,27 +618,23 @@ fn pmbus(
     let mut run = [true; 256];
 
     if let Some(ref commands) = subargs.commands {
-        if commands.len() == 0 {
+        if commands.is_empty() {
             bail!("expected a command");
         }
 
-        for i in 0..run.len() {
-            run[i] = false;
-        }
+        run.fill(false);
 
         for cmd in commands {
             if let Some(code) = all.get(cmd) {
                 run[*code as usize] = true;
+            } else if let Ok(code) = parse_int::parse::<u8>(cmd) {
+                run[code as usize] = true;
             } else {
-                if let Ok(code) = parse_int::parse::<u8>(cmd) {
-                    run[code as usize] = true;
-                } else {
-                    bail!(
-                        "unrecognized PMBus command {}; \
-                        use -H for command help",
-                        cmd
-                    );
-                }
+                bail!(
+                    "unrecognized PMBus command {}; \
+                     use -H for command help",
+                    cmd
+                );
             }
         }
     }
@@ -652,9 +644,7 @@ fn pmbus(
     let mut send_bytes = vec![];
 
     if let Some(ref writecmds) = subargs.writes {
-        for i in 0..run.len() {
-            run[i] = false;
-        }
+        run.fill(false);
 
         for write in writecmds {
             let (cmd, field, value) = split_write(write)?;
@@ -705,7 +695,7 @@ fn pmbus(
         }
     }
 
-    if writes.len() > 0 {
+    if !writes.is_empty() {
         write_ops = ops.clone();
     }
 
@@ -765,7 +755,7 @@ fn pmbus(
         return Ok(());
     }
 
-    if cmds.len() == 0 {
+    if cmds.is_empty() {
         bail!("no command to run");
     }
 
@@ -806,7 +796,7 @@ fn pmbus(
         }
     };
 
-    if send_bytes.len() != 0 {
+    if !send_bytes.is_empty() {
         let offs = ndx - send_bytes.len();
 
         for i in 0..send_bytes.len() {
@@ -827,7 +817,7 @@ fn pmbus(
         }
     }
 
-    if writes.len() > 0 {
+    if !writes.is_empty() {
         for i in ndx..results.len() {
             let payload = match results[i] {
                 Err(code) => {
@@ -853,8 +843,8 @@ fn pmbus(
 
                 write_ops.push(Op::Push(cmds[i]));
 
-                for i in 0..v.len() {
-                    write_ops.push(Op::Push(v[i]));
+                for &item in &v {
+                    write_ops.push(Op::Push(item));
                 }
 
                 write_ops.push(Op::Push(v.len() as u8));

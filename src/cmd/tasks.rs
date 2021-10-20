@@ -6,11 +6,12 @@ use crate::cmd::*;
 use crate::core::Core;
 use crate::debug::*;
 use crate::hubris::*;
+use crate::doppel::{self, Task, TaskDesc, TaskId, TaskState};
+use crate::reflect;
 use crate::Args;
 use anyhow::{bail, Result};
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -43,7 +44,7 @@ struct TasksArgs {
 
 fn print_stack(
     hubris: &HubrisArchive,
-    stack: &Vec<HubrisStackFrame>,
+    stack: &[HubrisStackFrame],
     subargs: &TasksArgs,
 ) {
     let additional = subargs.registers || subargs.verbose;
@@ -93,7 +94,7 @@ fn print_stack(
     if additional {
         println!("   {}", bar);
     } else {
-        println!("");
+        println!();
     }
 }
 
@@ -112,13 +113,12 @@ fn print_regs(regs: &HashMap<ARMRegister, u32>, additional: bool) {
         print!("  {:>3} = 0x{:08x}", reg, regs.get(&reg).unwrap());
 
         if r % 4 == 3 {
-            println!("");
+            println!();
         }
     }
 }
 
 #[rustfmt::skip::macros(println)]
-
 fn tasks(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
@@ -128,16 +128,11 @@ fn tasks(
     let subargs = TasksArgs::from_iter_safe(subargs)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+    let task_count =
+        core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+    let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
 
-    let task = hubris.lookup_struct_byname("Task")?;
-    let taskdesc = hubris.lookup_struct_byname("TaskDesc")?;
-
-    let entry_point = taskdesc.lookup_member("entry_point")?.offset as u32;
-    let initial_stack = taskdesc.lookup_member("initial_stack")?.offset as u32;
-
-    let state = task.lookup_member("state")?;
-    let state_enum = hubris.lookup_enum(state.goff)?;
+    let task_t = hubris.lookup_struct_byname("Task")?;
 
     let mut found = false;
 
@@ -151,36 +146,29 @@ fn tasks(
          * We read the entire task table at a go to get as consistent a
          * snapshot as possible.
          */
-        let mut taskblock: Vec<u8> = vec![];
-        taskblock.resize_with(task.size * size as usize, Default::default);
-        core.read_8(base, taskblock.as_mut_slice())?;
+        let mut taskblock = vec![0; task_t.size * task_count as usize];
+        core.read_8(base, &mut taskblock)?;
 
         if !subargs.stack {
             core.run()?;
         }
 
-        let descriptor = task.lookup_member("descriptor")?.offset as u32;
-        let generation = task.lookup_member("generation")?.offset as u32;
-        let priority = task.lookup_member("priority")?.offset as u32;
-        let state = task.lookup_member("state")?.offset as u32;
+        println!("system time = {}", ticks);
 
-        println!("{:2} {:8} {:18} {:3} {:3} {:9}",
-            "ID", "ADDR", "TASK", "GEN", "PRI", "STATE");
+        println!("{:2} {:15} {:3} {:3} {:9}",
+            "ID", "TASK", "GEN", "PRI", "STATE");
 
-        let taskblock32 =
-            |o| u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
+        let mut any_names_truncated = false;
+        for i in 0..task_count {
+            let addr = base + i * task_t.size as u32;
+            let offs = i as usize * task_t.size;
 
-        for i in 0..size {
-            let addr = base + i * task.size as u32;
-            let offs = i as usize * task.size;
-            let soffs = offs + state as usize;
+            let task: Task = reflect::load(hubris, &taskblock, task_t, offs)?;
+            let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
+            let module =
+                hubris.instr_mod(desc.entry_point).unwrap_or("<unknown>");
 
-            let gen = taskblock[offs + generation as usize];
-            let pri = taskblock[offs + priority as usize];
-            let daddr = taskblock32(offs + descriptor as usize);
-            let entry = core.read_word_32(daddr + entry_point)?;
-            let limit = core.read_word_32(daddr + initial_stack)?;
-            let module = hubris.instr_mod(entry).unwrap_or("<unknown>");
+            let irqs = hubris.manifest.task_irqs.get(module);
 
             if let Some(ref task) = subargs.task {
                 if task != module {
@@ -190,17 +178,47 @@ fn tasks(
                 found = true;
             }
 
-            println!("{:2} {:08x} {:18} {:3} {:3} {:25} {}", i, addr, module,
-                gen, pri, hubris.print(&taskblock[soffs..], state_enum.goff)?,
-                if addr == cur { " <-" } else { "" });
+            let timer = if let Some(deadline) = task.timer.deadline {
+                Some((deadline.0 as i64 - ticks as i64, task.timer.to_post.0))
+            } else {
+                None
+            };
+
+            {
+                let mut modname = module.to_string();
+                if modname.len() > 14 {
+                    modname.truncate(14);
+                    modname.push('…');
+                    any_names_truncated = true;
+                }
+                print!(
+                    "{:2} {:15} {:3} {:3} ",
+                    i, modname, task.generation.0, task.priority.0
+                );
+            }
+            explain_state(
+                hubris,
+                core,
+                i,
+                task.state,
+                addr == cur,
+                irqs,
+                timer,
+            )?;
+            println!();
 
             if subargs.stack || subargs.registers {
                 let t = HubrisTask::Task(i);
                 let regs = hubris.registers(core, t)?;
 
                 if subargs.stack {
-                    let stack = hubris.stack(core, t, limit, &regs)?;
-                    print_stack(hubris, &stack, &subargs);
+                    if let Ok(stack) =
+                        hubris.stack(core, t, desc.initial_stack, &regs)
+                    {
+                        print_stack(hubris, &stack, &subargs);
+                    } else {
+                        println!("   (stack unwind info unavailable for task)");
+                    }
                 }
 
                 if subargs.registers {
@@ -214,13 +232,18 @@ fn tasks(
 
                 println!(
                     "   |\n   +-----------> {}\n",
-                    hubris.printfmt(&taskblock[offs..], task.goff, &fmt)?
+                    hubris.printfmt(&taskblock[offs..], task_t.goff, &fmt)?
                 );
             }
 
             if subargs.registers && !subargs.verbose {
-                println!("");
+                println!();
             }
+        }
+
+        if any_names_truncated {
+            println!("Note: task names were truncated to fit. Use \
+                humility manifest to see them.");
         }
 
         if subargs.stack {
@@ -237,6 +260,267 @@ fn tasks(
     }
 
     Ok(())
+}
+
+fn explain_state(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    task_index: u32,
+    ts: TaskState,
+    current: bool,
+    irqs: Option<&Vec<(u32, u32)>>,
+    timer: Option<(i64, u32)>,
+) -> Result<()> {
+    match ts {
+        TaskState::Healthy(ss) => {
+            explain_sched_state(
+                hubris, core, task_index, current, irqs, timer, ss,
+            )?;
+        }
+        TaskState::Faulted { fault, original_state } => {
+            explain_fault_info(hubris, core, task_index, fault)?;
+            print!(" (was: ");
+            explain_sched_state(
+                hubris,
+                core,
+                task_index,
+                current,
+                irqs,
+                timer,
+                original_state,
+            )?;
+            print!(")");
+        }
+    }
+    Ok(())
+}
+
+fn explain_sched_state(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    task_index: u32,
+    current: bool,
+    irqs: Option<&Vec<(u32, u32)>>,
+    timer: Option<(i64, u32)>,
+    e: doppel::SchedState,
+) -> Result<()> {
+    use crate::doppel::SchedState;
+
+    match e {
+        SchedState::Stopped => print!("not started"),
+        SchedState::Runnable => {
+            if current {
+                print!("RUNNING")
+            } else {
+                print!("ready")
+            }
+        }
+        SchedState::InSend(tid) => {
+            if tid == TaskId::KERNEL {
+                print!("HALT: send to kernel");
+            } else {
+                print!("wait: send to ");
+                print_task_id(hubris, tid);
+            }
+        }
+        SchedState::InReply(tid) => {
+            print!("wait: reply from ");
+            print_task_id(hubris, tid);
+        }
+        SchedState::InRecv(tid) => {
+            let r = hubris.registers(core, HubrisTask::Task(task_index))?;
+            let notmask = *r.get(&ARMRegister::R6).unwrap();
+
+            explain_recv(hubris, tid, notmask, irqs, timer);
+        }
+    }
+    Ok(())
+}
+
+fn print_task_id(hubris: &HubrisArchive, task_id: TaskId) {
+    if let Some(n) = hubris.task_name(task_id.index()) {
+        print!("{}/gen{}", n, task_id.generation());
+    } else {
+        print!("unknown#{}/gen{}", task_id.index(), task_id.generation());
+    }
+}
+
+fn explain_fault_info(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    task_index: u32,
+    fi: crate::doppel::FaultInfo,
+) -> Result<()> {
+    use crate::doppel::FaultInfo;
+
+    print!("FAULT: ");
+    match fi {
+        FaultInfo::DivideByZero => print!("divide by zero"),
+        FaultInfo::IllegalText => print!("jump to non-executable mem"),
+        FaultInfo::IllegalInstruction => print!("illegal instruction"),
+        FaultInfo::InvalidOperation(bits) => {
+            print!("general fault, cfsr=0x{:x}", bits);
+        }
+        FaultInfo::StackOverflow { address } => {
+            print!("stack overflow; sp=0x{:x}", address);
+        }
+        FaultInfo::Injected(task) => {
+            print!("killed by ");
+            print_task_id(hubris, task);
+        }
+        FaultInfo::MemoryAccess { address, source } => {
+            print!("mem fault (");
+            if let Some(addr) = address {
+                print!("precise: 0x{:x}", addr);
+            } else {
+                print!("imprecise");
+            }
+            print!(")");
+
+            explain_fault_source(source);
+        }
+        FaultInfo::BusError { address, source } => {
+            print!("bus fault (");
+            if let Some(addr) = address {
+                print!("precise: 0x{:x}", addr);
+            } else {
+                print!("imprecise");
+            }
+            print!(")");
+
+            explain_fault_source(source);
+        }
+        FaultInfo::SyscallUsage(ue) => {
+            print!("in syscall: ");
+            explain_usage_error(ue);
+        }
+        FaultInfo::Panic => {
+            let r = hubris.registers(core, HubrisTask::Task(task_index))?;
+            let msg_base = *r.get(&ARMRegister::R4).unwrap();
+            let msg_len = *r.get(&ARMRegister::R5).unwrap();
+            let msg_len = msg_len.min(255) as usize;
+            let mut buf = vec![0; msg_len];
+            core.read_8(msg_base, &mut buf)?;
+            match std::str::from_utf8(&buf) {
+                Ok(msg) => print!("{}", msg),
+                Err(_) => print!("panic with invalid message"),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn explain_usage_error(e: doppel::UsageError) {
+    use doppel::UsageError::*;
+    match e {
+        BadSyscallNumber => print!("undefined syscall number"),
+        InvalidSlice => print!("sent malformed slice to kernel"),
+        TaskOutOfRange => print!("used bogus task index"),
+        IllegalTask => print!("illegal task operation"),
+        LeaseOutOfRange => print!("bad caller lease index"),
+        OffsetOutOfRange => print!("bad caller lease offset"),
+        NoIrq => print!("referred to undefined interrupt"),
+        BadKernelMessage => print!("sent nonsense IPC to kernel"),
+    }
+}
+
+fn explain_fault_source(e: doppel::FaultSource) {
+    match e {
+        doppel::FaultSource::User => print!(" in task code"),
+        doppel::FaultSource::Kernel => print!(" in syscall"),
+    }
+}
+
+/// Heuristic recognition of receive states used by normal programs.
+///
+/// We can print any receive state as a bunch of raw names and bits, but it's
+/// often easier to read if common patterns are summarized.
+///
+/// Goals here include:
+/// - Don't hide information - we should be able to exactly predict the state
+///   representation from what's printed, even if it's pretty-printed.
+///
+/// - Make unusual cases obvious.
+///
+/// - Make common cases unobtrusive and easy to scan.
+fn explain_recv(
+    hubris: &HubrisArchive,
+    src: Option<TaskId>,
+    notmask: u32,
+    irqs: Option<&Vec<(u32, u32)>>,
+    timer: Option<(i64, u32)>,
+) {
+    // Come up with a description for each notification bit.
+    struct NoteInfo {
+        irqs: Vec<u32>,
+        timer: Option<i64>,
+    }
+    let mut note_types = vec![];
+    for i in 0..32 {
+        let bitmask = 1 << i;
+        if notmask & bitmask == 0 {
+            continue;
+        }
+
+        // Collect the IRQs that correspond to this enabled notification mask
+        // bit.
+        let irqnums = if let Some(irqs) = irqs {
+            irqs.iter()
+                .filter(|&&(m, _)| m == bitmask)
+                .map(|&(_, n)| n)
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
+        let timer_assoc =
+            timer.and_then(
+                |(ts, mask)| if mask & bitmask != 0 { Some(ts) } else { None },
+            );
+        note_types.push(NoteInfo { irqs: irqnums, timer: timer_assoc });
+    }
+
+    // Display kernel receives as "wait" and others as "recv", noting the
+    // explicit source for a closed receive.
+    let mut outer_first = false;
+    match src {
+        Some(TaskId::KERNEL) => {
+            outer_first = true;
+        }
+        Some(other) => {
+            print!("recv(");
+            print_task_id(hubris, other);
+            print!(" only)");
+        }
+        None => {
+            print!("recv");
+        }
+    }
+
+    // Display notification bits, along with meaning where we can.
+    if notmask != 0 {
+        print!("{}notif:", if outer_first { "" } else { ", " });
+        for (i, nt) in note_types.into_iter().enumerate() {
+            print!(" bit{}", i);
+            if !nt.irqs.is_empty() || nt.timer.is_some() {
+                print!("(");
+                let mut first = true;
+                if let Some(ts) = nt.timer {
+                    print!("T{:+}", ts);
+                    first = false;
+                }
+                for irq in &nt.irqs {
+                    print!("{}irq{}", if !first { "/" } else { "" }, irq);
+                    first = false;
+                }
+                print!(")");
+            }
+        }
+    }
+
+    // Flag things that are probably bugs
+    if src == Some(TaskId::KERNEL) && notmask == 0 {
+        print!("(DEAD)");
+    }
 }
 
 pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
