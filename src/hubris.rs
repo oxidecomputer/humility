@@ -1878,16 +1878,12 @@ impl HubrisArchive {
                 use archive instead");
         }
 
-        let mut file = fs::File::open(archive)?;
-
         /*
          * We read the entire archive into memory (and hold onto it) -- we are
          * going to need most of it anyway, and we want to have the entire
          * archive in memory to be able to write it out to any generated dump.
          */
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents)?;
-
+        let contents = fs::read(archive)?;
         self.load_archive(&contents)?;
         self.archive = contents;
 
@@ -1926,11 +1922,7 @@ impl HubrisArchive {
         /*
          * We expect the dump to be an ELF core dump.
          */
-        let mut file = fs::File::open(dumpfile)?;
-
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents)?;
-
+        let contents = fs::read(dumpfile)?;
         let elf = Elf::parse(&contents).map_err(|e| {
             anyhow!("failed to parse {} as an ELF file: {}", dumpfile, e)
         })?;
@@ -1973,10 +1965,7 @@ impl HubrisArchive {
             bail!("cannot specify both an archive and a kernel");
         }
 
-        let mut file = fs::File::open(kernel)?;
-
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents)?;
+        let contents = fs::read(kernel)?;
 
         self.load_object("kernel", HubrisTask::Kernel, &contents)?;
 
