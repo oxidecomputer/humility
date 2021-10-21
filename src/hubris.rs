@@ -762,20 +762,17 @@ impl HubrisArchive {
         parent: HubrisGoff,
         array: Option<HubrisGoff>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
-        let mut count = None;
 
         let array = match array {
             Some(array) => array,
             None => bail!("missing array type for subrange type {}", goff),
         };
 
-        while let Some(attr) = attrs.next()? {
-            if attr.name() == gimli::constants::DW_AT_count {
-                count = attr.udata_value();
-            }
-        }
+        let count_attr = entry
+            .attrs()
+            .find(|attr| Ok(attr.name() == gimli::constants::DW_AT_count))?;
+        let count = count_attr.and_then(|a| a.udata_value());
 
         if let Some(count) = count {
             self.arrays.insert(
