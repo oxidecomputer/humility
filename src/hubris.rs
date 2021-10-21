@@ -224,8 +224,10 @@ impl HubrisArchive {
          * First, check our DWARF symbols.
          */
         sym = match self.dsyms.range(..=addr).next_back() {
-            Some(sym) if addr < *sym.0 + (sym.1).1 => {
-                Some((&(sym.1).0, *sym.0 as u32))
+            Some((&sym_addr, (name, sym_len, _goff)))
+                if addr < sym_addr + sym_len =>
+            {
+                Some((name, sym_addr))
             }
             _ => None,
         };
@@ -233,15 +235,12 @@ impl HubrisArchive {
         /*
          * Fallback to our ELF symbols.
          */
-        match sym {
-            Some(_) => sym,
-            None => match self.esyms.range(..=addr).next_back() {
-                Some(sym) if addr < *sym.0 + (sym.1).1 => {
-                    Some((&(sym.1).0, *sym.0 as u32))
-                }
-                _ => None,
-            },
-        }
+        sym.or_else(|| match self.esyms.range(..=addr).next_back() {
+            Some((&sym_addr, (name, sym_len))) if addr < sym_addr + sym_len => {
+                Some((name, sym_addr))
+            }
+            _ => None,
+        })
     }
 
     pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined> {
@@ -834,16 +833,16 @@ impl HubrisArchive {
             let linkage = linkage_name.unwrap_or(name);
 
             if let Some(syms) = self.esyms_byname.get_vec(linkage) {
-                for sym in syms {
-                    if let btree_map::Entry::Vacant(e) = self.dsyms.entry(sym.0)
+                for &(addr, size) in syms {
+                    if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr)
                     {
-                        e.insert((String::from(name), sym.1, goff));
+                        e.insert((String::from(name), size, goff));
                         self.variables.insert(
                             String::from(name),
                             HubrisVariable {
                                 goff: tgoff,
-                                addr: sym.0,
-                                size: sym.1 as usize,
+                                addr,
+                                size: size as usize,
                             },
                         );
                         // Note: alternate format (#) removes trailing hash.
@@ -856,8 +855,8 @@ impl HubrisArchive {
                             qname,
                             HubrisVariable {
                                 goff: tgoff,
-                                addr: sym.0,
-                                size: sym.1 as usize,
+                                addr,
+                                size: size as usize,
                             },
                         );
                     }
