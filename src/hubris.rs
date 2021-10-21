@@ -207,8 +207,8 @@ impl HubrisArchive {
 
     pub fn instr_mod(&self, addr: u32) -> Option<&str> {
         if let Some(module) = self.modules.range(..=addr).next_back() {
-            if addr < *module.0 + (module.1).textsize {
-                Some(&(module.1).name)
+            if addr < *module.0 + module.1.textsize {
+                Some(&module.1.name)
             } else {
                 None
             }
@@ -2420,7 +2420,7 @@ impl HubrisArchive {
             //
             let userland =
                 if let Some(module) = self.modules.range(..=pc).next_back() {
-                    pc < *module.0 + (module.1).textsize && module.1.task == t
+                    pc < *module.0 + module.1.textsize && module.1.task == t
                 } else {
                     false
                 };
@@ -2597,10 +2597,10 @@ impl HubrisArchive {
             // Lookup the DWARF symbol associated with our PC
             //
             let sym = match self.dsyms.range(..=pc).next_back() {
-                Some(sym) if pc < *sym.0 + (sym.1).1 => Some(HubrisSymbol {
+                Some(sym) if pc < *sym.0 + sym.1.1 => Some(HubrisSymbol {
                     addr: *sym.0 as u32,
-                    name: &(sym.1).0,
-                    goff: (sym.1).2,
+                    name: &sym.1.0,
+                    goff: sym.1.2,
                 }),
                 _ => None,
             };
@@ -3219,7 +3219,7 @@ impl HubrisArchive {
 
         print("features", &self.manifest.features.join(", "));
 
-        let ttl = self.modules.iter().fold(0, |ttl, m| ttl + (m.1).memsize);
+        let ttl = self.modules.iter().fold(0, |ttl, m| ttl + m.1.memsize);
 
         info!("{:>12} => {}K", "total size", ttl / 1024);
         info!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
