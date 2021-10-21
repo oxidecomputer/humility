@@ -5,7 +5,7 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::collections::{btree_map, BTreeMap};
 use std::convert::Infallible;
 use std::convert::TryInto;
@@ -51,13 +51,16 @@ pub struct HubrisManifest {
     task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     peripherals: BTreeMap<String, u32>,
+    pub i2c_devices: Vec<HubrisI2cDevice>,
+    i2c_buses: Vec<HubrisI2cBus>,
 }
 
 //
 // This structure (and the structures that it refers to) contain everything
 // that we might want to pull out of the config TOML -- which will be a subset
 // of the entire config.  Unless it is known that the field has always existed
-// (like `target` and `board`), the fields should be `Option`s.
+// (like `target` and `board`), the fields should generally be `Option`s to
+// allow a new Humility to work on an old Hubris.
 //
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfig {
@@ -66,6 +69,7 @@ struct HubrisConfig {
     kernel: HubrisConfigKernel,
     tasks: IndexMap<String, HubrisConfigTask>,
     peripherals: Option<IndexMap<String, HubrisConfigPeripheral>>,
+    config: Option<HubrisConfigConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -83,6 +87,53 @@ struct HubrisConfigTask {
 struct HubrisConfigPeripheral {
     address: u32,
     size: u32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cPort {
+    name: Option<String>,
+    description: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cController {
+    controller: u8,
+    ports: IndexMap<String, HubrisConfigI2cPort>,
+    target: Option<bool>,
+}
+
+type HubrisI2cDevice = HubrisConfigI2cDevice;
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct HubrisConfigI2cDevice {
+    device: String,
+    controller: u8,
+    address: u8,
+    port: Option<String>,
+    mux: Option<u8>,
+    segment: Option<u8>,
+    description: String,
+    removable: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2c {
+    controllers: Option<Vec<HubrisConfigI2cController>>,
+    devices: Option<Vec<HubrisConfigI2cDevice>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigConfig {
+    i2c: Option<HubrisConfigI2c>
+}
+
+#[derive(Clone, Debug)]
+struct HubrisI2cBus {
+    controller: u8,
+    port: String,
+    name: Option<String>,
+    description: Option<String>,
+    target: bool,
 }
 
 #[derive(Debug)]
@@ -2206,6 +2257,37 @@ impl HubrisArchive {
             }
         }
 
+        if let Some(ref config) = config.config {
+            if let Some(ref i2c) = config.i2c {
+                if let Some(ref controllers) = i2c.controllers {
+                    for controller in controllers {
+                        for (name, port) in &controller.ports {
+                            self.manifest.i2c_buses.push(HubrisI2cBus {
+                                controller: controller.controller,
+                                port: name.clone(),
+                                name: match port.name {
+                                    Some(ref name) => Some(name.clone()),
+                                    None => None,
+                                },
+                                description: match port.description {
+                                    Some(ref descr) => Some(descr.clone()),
+                                    None => None,
+                                },
+                                target: match controller.target {
+                                    Some(target) => target,
+                                    None => false
+                                },
+                            });
+                        }
+                    }
+                }
+
+                if let Some(ref devices) = i2c.devices {
+                    self.manifest.i2c_devices = devices.clone();
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -3679,6 +3761,73 @@ impl HubrisArchive {
             );
 
             id += 1;
+        }
+
+        if self.manifest.i2c_buses.len() != 0 {
+            let mut controllers = HashSet::new();
+
+            for bus in &self.manifest.i2c_buses {
+                controllers.insert(bus.controller);
+            }
+
+            println!("{:#?}", self.manifest.i2c_buses);
+
+            println!(
+                "{:>12} => {} controller{}, {} bus{}",
+                "i2c buses",
+                controllers.len(),
+                if controllers.len() != 1 { "s" } else { "" },
+                self.manifest.i2c_buses.len(),
+                if self.manifest.i2c_buses.len() != 1 { "es" } else { "" },
+            );
+
+            println!(
+                "{:>17} {} {} {:13} {}",
+                "C", "PORT", "MODE", "NAME", "DESCRIPTION"
+            );
+
+            for bus in &self.manifest.i2c_buses {
+                println!(
+                    "{:>17} {:4} {:4} {:13} {}",
+                    bus.controller,
+                    bus.port,
+                    if bus.target { "trgt" } else { "init" },
+                    bus.name.as_ref().unwrap_or(&"-".to_string()),
+                    bus.description.as_ref().unwrap_or(&"-".to_string()),
+                );
+            }
+        }
+
+        if self.manifest.i2c_devices.len() != 0 {
+            println!(
+                "{:>12} => {} device{}",
+                "i2c devices",
+                self.manifest.i2c_devices.len(),
+                if self.manifest.i2c_devices.len() != 1 { "s" } else { "" }
+            );
+
+            println!(
+                "{:>17} {:2} {} {} {:13} {}",
+                "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
+            );
+
+            for device in &self.manifest.i2c_devices {
+                let mux = match (device.mux, device.segment) {
+                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (None, None) => "-".to_string(),
+                    (_, _) => "?:?".to_string(),
+                };
+
+                println!(
+                    "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
+                    device.controller,
+                    device.port.as_ref().unwrap_or(&"-".to_string()),
+                    mux,
+                    device.address,
+                    device.device,
+                    device.description
+                );
+            }
         }
 
         Ok(())
