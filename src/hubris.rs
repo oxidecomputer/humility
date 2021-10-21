@@ -470,9 +470,6 @@ impl HubrisArchive {
         }
 
         if let (Some(file), Some(line)) = (file, line) {
-            let mut comp = None;
-            let mut dir = None;
-
             let header = match &unit.line_program {
                 Some(program) => program.header(),
                 None => return Ok(()),
@@ -485,30 +482,29 @@ impl HubrisArchive {
                 }
             };
 
-            if let Some(directory) = file.directory(header) {
-                let directory = dwarf.attr_string(unit, directory)?;
-                let directory = directory.to_string_lossy()?;
+            let mut comp = None;
+            let directory;
+            if let Some(dir) = file.directory(header) {
+                let dir = dwarf.attr_string(unit, dir)?;
+                let dir = dir.to_string_lossy()?;
 
-                if !directory.starts_with('/') {
+                if !dir.starts_with('/') {
                     if let Some(comp_dir) = &unit.comp_dir {
                         comp = Some(comp_dir.to_string_lossy()?.into_owned());
                     }
                 }
 
-                dir = Some(directory.to_string());
+                directory = Some(dir.into_owned())
+            } else {
+                directory = None
             }
 
             let s = dwarf.attr_string(unit, file.path_name())?;
-            let d = s.to_string_lossy()?;
+            let file = s.to_string_lossy()?.into_owned();
 
             self.src.insert(
                 goff,
-                HubrisSrc {
-                    file: d.to_string(),
-                    directory: dir,
-                    comp_directory: comp,
-                    line,
-                },
+                HubrisSrc { file, directory, comp_directory: comp, line },
             );
         }
 
