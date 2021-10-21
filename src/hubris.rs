@@ -1895,23 +1895,23 @@ impl HubrisArchive {
             bail!("bad length {} in registers note", r.len());
         }
 
-        let nregs = r.len() / 8;
-
-        for i in 0..nregs {
-            let o = i * 8;
-
-            let id = u32::from_le_bytes(r[o..o + 4].try_into()?);
-            let val = u32::from_le_bytes(r[o + 4..o + 8].try_into()?);
+        for (i, chunk) in r.chunks_exact(8).enumerate() {
+            let (id, val) = chunk.split_at(4);
+            // We unwrap here because it can only fail if the length is wrong,
+            // but we've explicitly broken a chunk of 8 into two chunks of 4,
+            // so a failure here would mean this code has been changed.
+            let id = u32::from_le_bytes(id.try_into().unwrap());
+            let val = u32::from_le_bytes(val.try_into().unwrap());
 
             let reg = match ARMRegister::from_u32(id) {
                 Some(r) => r,
                 None => {
-                    bail!("illegal register 0x{:x} at offset {}", id, o);
+                    bail!("illegal register 0x{:x} at offset {}", id, i * 8);
                 }
             };
 
             if self.registers.insert(reg, val).is_some() {
-                bail!("duplicate register {} ({}) at offset {}", reg, id, o);
+                bail!("duplicate register {} ({}) at offset {}", reg, id, i * 8);
             }
         }
 
