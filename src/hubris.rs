@@ -473,8 +473,8 @@ impl HubrisArchive {
             let mut comp = None;
             let mut dir = None;
 
-            let header = match unit.line_program {
-                Some(ref program) => program.header(),
+            let header = match &unit.line_program {
+                Some(program) => program.header(),
                 None => return Ok(()),
             };
 
@@ -490,8 +490,8 @@ impl HubrisArchive {
                 let directory = directory.to_string_lossy()?;
 
                 if !directory.starts_with('/') {
-                    if let Some(ref comp_dir) = unit.comp_dir {
-                        comp = Some(comp_dir.to_string_lossy()?.to_string());
+                    if let Some(comp_dir) = &unit.comp_dir {
+                        comp = Some(comp_dir.to_string_lossy()?.into_owned());
                     }
                 }
 
@@ -1697,7 +1697,7 @@ impl HubrisArchive {
          */
         let features = toml.get("kernel").and_then(|k| k.get("features"));
 
-        if let Some(toml::Value::Array(ref features)) = features {
+        if let Some(toml::Value::Array(features)) = features {
             manifest.features = features
                 .iter()
                 .map(|f| f.as_str().unwrap().to_string())
@@ -1712,7 +1712,7 @@ impl HubrisArchive {
             for (task, config) in tasks {
                 let features = config.get("features");
 
-                if let Some(toml::Value::Array(ref features)) = features {
+                if let Some(toml::Value::Array(features)) = features {
                     manifest.task_features.insert(
                         task.to_string(),
                         features
@@ -1740,15 +1740,15 @@ impl HubrisArchive {
             }
         }
 
-        if let Some(toml::Value::Table(ref outputs)) = toml.get("outputs") {
+        if let Some(toml::Value::Table(outputs)) = toml.get("outputs") {
             for (output, config) in outputs.into_iter() {
                 let address = config.get("address");
                 let size = config.get("size");
 
                 match (address, size) {
                     (
-                        Some(toml::Value::Integer(ref address)),
-                        Some(toml::Value::Integer(ref size)),
+                        Some(toml::Value::Integer(address)),
+                        Some(toml::Value::Integer(size)),
                     ) => {
                         manifest.outputs.insert(
                             output.to_string(),
@@ -1764,11 +1764,11 @@ impl HubrisArchive {
             bail!("manifest is missing outputs");
         }
 
-        if let Some(toml::Value::Table(ref p)) = toml.get("peripherals") {
+        if let Some(toml::Value::Table(p)) = toml.get("peripherals") {
             for (peripheral, config) in p.into_iter() {
                 let address = config.get("address");
 
-                if let Some(toml::Value::Integer(ref address)) = address {
+                if let Some(toml::Value::Integer(address)) = address {
                     manifest
                         .peripherals
                         .insert(peripheral.to_string(), *address as u32);
@@ -1810,8 +1810,8 @@ impl HubrisArchive {
         byname!("app.toml")?.read_to_string(&mut app)?;
 
         match app.parse::<toml::Value>() {
-            Ok(toml::Value::Table(ref toml)) => {
-                self.load_config(toml)?;
+            Ok(toml::Value::Table(toml)) => {
+                self.load_config(&toml)?;
             }
             Ok(_) => {
                 bail!("app.toml valid TOML but malformed");
@@ -1850,7 +1850,7 @@ impl HubrisArchive {
             }
 
             let object = match pieces[pieces.len() - 1].to_str() {
-                Some(ref str) => str.to_string(),
+                Some(s) => s.to_string(),
                 None => {
                     bail!("bad object name for \"{}\"", file.name());
                 }
@@ -3190,32 +3190,32 @@ impl HubrisArchive {
 
         print(
             "version",
-            match self.manifest.version {
-                Some(ref str) => str,
+            match &self.manifest.version {
+                Some(s) => s,
                 None => "<unknown>",
             },
         );
 
         print(
             "git rev",
-            match self.manifest.gitrev {
-                Some(ref str) => str,
+            match &self.manifest.gitrev {
+                Some(s) => s,
                 None => "<unknown>",
             },
         );
 
         print(
             "board",
-            match self.manifest.board {
-                Some(ref str) => str,
+            match &self.manifest.board {
+                Some(s) => s,
                 None => "<unknown>",
             },
         );
 
         print(
             "target",
-            match self.manifest.target {
-                Some(ref str) => str,
+            match &self.manifest.target {
+                Some(s) => s,
                 None => "<unknown>",
             },
         );
@@ -3761,12 +3761,12 @@ impl HubrisSrc {
     pub fn fullpath(&self) -> String {
         format!(
             "{}{}{}",
-            if let Some(ref dir) = self.comp_directory {
+            if let Some(dir) = &self.comp_directory {
                 format!("{}/", dir)
             } else {
                 "".to_string()
             },
-            if let Some(ref dir) = self.directory {
+            if let Some(dir) = &self.directory {
                 format!("{}/", dir)
             } else {
                 "".to_string()
