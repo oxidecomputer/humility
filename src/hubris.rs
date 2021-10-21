@@ -8,7 +8,7 @@ use std::io::prelude::*;
 
 use std::borrow::Cow;
 use std::collections::{btree_map, BTreeMap, HashMap};
-use std::convert::{Infallible, TryInto};
+use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
 use std::io::Cursor;
@@ -552,18 +552,23 @@ impl HubrisArchive {
             }
         }
 
-        match (low, high, origin) {
+        let origin = match (low, high, origin) {
             (Some(addr), Some(len), Some(origin)) => {
+                // If we've got the low and high defined, we'll just go ahead
+                // and terminate here.
                 self.inlined
                     .insert((addr as u32, depth), (len as u32, goff, origin));
 
                 return Ok(());
             }
-            (None, None, Some(_)) => {}
-            _ => {
-                bail!("missing origin for {}", goff);
+            (None, None, Some(o)) => {
+                // Otherwise, unwrap origin so it can be used below.
+                o
             }
-        }
+            _ => {
+                bail!("missing origin or high or low for {}", goff);
+            }
+        };
 
         let mut attrs = entry.attrs();
         while let Some(attr) = attrs.next()? {
@@ -586,7 +591,7 @@ impl HubrisArchive {
 
                         self.inlined.insert(
                             (begin, depth),
-                            (end - begin, goff, origin.unwrap()),
+                            (end - begin, goff, origin),
                         );
                     }
                 }
@@ -1034,13 +1039,12 @@ impl HubrisArchive {
          * If we have an enum, we need to first remove it from our structures,
          * putting back any duplicate names that isn't this enum.
          */
-        let union = self.structs.remove(&goff).unwrap();
-        let mut removed = self.structs_byname.remove(&union.name).unwrap();
-        removed.retain(|&g| g != goff);
-
-        for replace in removed {
-            self.structs_byname.insert(union.name.clone(), replace);
-        }
+        let union = self.structs.remove(&goff)
+            .ok_or_else(|| anyhow!("goff {:?} not present in structs map", goff))?;
+        self.structs_byname
+            .get_vec_mut(&union.name)
+            .expect("structs vs structs_byname inconsistency")
+            .retain(|&g| g != goff);
 
         while let Some(attr) = attrs.next()? {
             if attr.name() == gimli::constants::DW_AT_discr {
@@ -1249,7 +1253,7 @@ impl HubrisArchive {
     ) -> Result<()> {
         // Load all of the sections. This "load" operation just gets the data in
         // RAM -- since we've already loaded the Elf file, this can't fail.
-        let dwarf = gimli::Dwarf::<&[u8]>::load::<_, _, Infallible>(
+        let dwarf = gimli::Dwarf::<&[u8]>::load(
             // Load the normal DWARF section(s) from our Elf image.
             |id| {
                 let sec_result = elf.section_headers.iter().find(|sh| {
@@ -1259,13 +1263,16 @@ impl HubrisArchive {
                         false
                     }
                 });
-                Ok(sec_result
-                    .map(|sec| {
-                        let offset = sec.sh_offset as usize;
-                        let size = sec.sh_size as usize;
-                        buffer.get(offset..offset + size).unwrap()
-                    })
-                    .unwrap_or(&[]))
+                if let Some(sec) = sec_result {
+                    let offset = sec.sh_offset as usize;
+                    let size = sec.sh_size as usize;
+                    buffer.get(offset..offset + size)
+                        .ok_or_else(|| {
+                            anyhow!("bad offset/size for ELF section {}", id.name())
+                        })
+                } else {
+                    Ok(&[])
+                }
             },
             // We don't have a supplemental object file.
             |_| Ok(&[]),
@@ -1439,7 +1446,10 @@ impl HubrisArchive {
         let offs = sh.sh_offset as usize;
         let size = sh.sh_size as usize;
 
-        let buf = buffer.get(offs..offs + size).unwrap();
+        let buf = buffer.get(offs..offs + size)
+            .ok_or_else(|| {
+                anyhow!("bad offset/size for ELF section {}", id)
+            })?;
         self.frames.insert(task, buf.to_vec());
 
         Ok(())
@@ -1590,7 +1600,10 @@ impl HubrisArchive {
         self.load_object_frames(task, buffer, &elf)
             .context(format!("{}: failed to load debug frames", object))?;
 
-        let t = buffer.get(offset..offset + size).unwrap();
+        let t = buffer.get(offset..offset + size)
+            .ok_or_else(|| {
+                anyhow!("bad offset/size for ELF text section")
+            })?;
 
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => instrs,
@@ -1696,8 +1709,10 @@ impl HubrisArchive {
         if let Some(toml::Value::Array(features)) = features {
             manifest.features = features
                 .iter()
-                .map(|f| f.as_str().unwrap().to_string())
-                .collect::<Vec<String>>();
+                .map(|f| {
+                    f.as_str().ok_or_else(|| anyhow!("item in kernel features list was not string: {:?}", f)).map(str::to_string)
+                })
+                .collect::<Result<Vec<String>>>()?;
         }
 
         /*
@@ -1713,8 +1728,10 @@ impl HubrisArchive {
                         task.to_string(),
                         features
                             .iter()
-                            .map(|f| f.as_str().unwrap().to_string())
-                            .collect::<Vec<String>>(),
+                            .map(|f| {
+                                f.as_str().ok_or_else(|| anyhow!("item in task features list was not string: {:?}", f)).map(str::to_string)
+                            })
+                            .collect::<Result<Vec<String>>>()?,
                     );
                 }
 
@@ -1725,12 +1742,12 @@ impl HubrisArchive {
                         task.to_string(),
                         irqs.iter()
                             .map(|(n, m)| {
-                                (
-                                    m.as_integer().unwrap() as u32,
-                                    n.parse::<u32>().unwrap(),
-                                )
+                                Ok((
+                                    m.as_integer().ok_or_else(|| anyhow!("task interrupt key was not integer"))? as u32,
+                                    n.parse::<u32>()?,
+                                ))
                             })
-                            .collect::<Vec<_>>(),
+                            .collect::<Result<Vec<_>>>()?,
                     );
                 }
             }
@@ -1987,14 +2004,14 @@ impl HubrisArchive {
     ///
     pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
         match self.structs_byname.get_vec(name) {
-            Some(v) => {
-                if v.len() > 1 {
-                    Err(anyhow!("{} matches more than one structure", name))
-                } else {
-                    Ok(self.structs.get(&v[0]).unwrap())
-                }
+            Some(v) if v.len() > 1 => {
+                Err(anyhow!("{} matches more than one structure", name))
             }
-            None => Err(anyhow!("expected structure {} not found", name)),
+            Some(v) if !v.is_empty() => {
+                Ok(self.structs.get(&v[0])
+                    .expect("structs-structs_byname inconsistency"))
+            }
+            _ => Err(anyhow!("expected structure {} not found", name)),
         }
     }
 
@@ -2505,8 +2522,10 @@ impl HubrisArchive {
         regs: &HashMap<ARMRegister, u32>,
     ) -> Result<Vec<HubrisStackFrame>> {
         let regions = self.regions(core)?;
-        let sp = regs.get(&ARMRegister::SP).unwrap();
-        let pc = regs.get(&ARMRegister::PC).unwrap();
+        let sp = regs.get(&ARMRegister::SP)
+            .ok_or_else(|| anyhow!("SP missing from regs map"))?;
+        let pc = regs.get(&ARMRegister::PC)
+            .ok_or_else(|| anyhow!("PC missing from regs map"))?;
 
         let mut rval: Vec<HubrisStackFrame> = Vec::new();
         let mut frameregs = regs.clone();
@@ -2541,7 +2560,8 @@ impl HubrisArchive {
             frameregs.insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
         }
 
-        let frames = self.frames.get(&task).unwrap();
+        let frames = self.frames.get(&task)
+            .ok_or_else(|| anyhow!("task {:?} not present in image", task))?;
         let frame = gimli::DebugFrame::new(frames, gimli::LittleEndian);
 
         loop {
