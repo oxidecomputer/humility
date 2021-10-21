@@ -1623,16 +1623,11 @@ impl HubrisArchive {
             }
 
             let b = instr.bytes();
-            let mut v = Vec::with_capacity(b.len());
-
-            for byte in b {
-                v.push(*byte);
-            }
 
             last = (addr, b.len());
 
             let target = self.instr_branch_target(&instr);
-            self.instrs.insert(addr, (v, target));
+            self.instrs.insert(addr, (b.to_vec(), target));
 
             //
             // We need to keep track of the hand-written push before any
@@ -1751,7 +1746,7 @@ impl HubrisArchive {
         }
 
         if let Some(toml::Value::Table(outputs)) = toml.get("outputs") {
-            for (output, config) in outputs.into_iter() {
+            for (output, config) in outputs {
                 let address = config.get("address");
                 let size = config.get("size");
 
@@ -1775,7 +1770,7 @@ impl HubrisArchive {
         }
 
         if let Some(toml::Value::Table(p)) = toml.get("peripherals") {
-            for (peripheral, config) in p.into_iter() {
+            for (peripheral, config) in p {
                 let address = config.get("address");
 
                 if let Some(toml::Value::Integer(address)) = address {
