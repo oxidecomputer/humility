@@ -2898,58 +2898,120 @@ impl HubrisArchive {
         let offset = base + (ndx * task.size as u32) + save;
         core.read_8(offset, regs.as_mut_slice())?;
 
-        //
-        // If this is the current task, we want to pull the current PC.
-        //
-        if offset - save == cur {
-            let pc = core.read_reg(ARMRegister::PC)?;
+        // We need to figure out what mode we're running in. The bottom 9 bits
+        // of the PSR can be used to distinguish between normal and interrupt
+        // mode. Since we only use privileged mode and the MSP in interrupt
+        // mode, that's enough to distinguish, despite Capstone's apparent
+        // failure to model the CONTROL register with the actual information in
+        // it.
+        let psr = core.read_reg(ARMRegister::xPSR)?;
+        let intnum = psr & 0x1F;
+        // We only save task registers in SVC and PendSV, which are numbers...
+        let registers_saved = intnum == 11 || intnum == 14;
 
-            //
-            // If the PC falls within the task, then we are at user-level,
-            // and we should take our register state directly rather than
-            // from the stack.
-            //
-            let userland =
-                if let Some(module) = self.modules.range(..=pc).next_back() {
-                    pc < *module.0 + (module.1).textsize && module.1.task == t
-                } else {
-                    false
+        let is_current = offset - save == cur;
+        let unprivileged_mode = intnum == 0;
+
+        if is_current && unprivileged_mode {
+            // State is in actual processor registers.
+
+            for i in 0..=31 {
+                let reg = match ARMRegister::from_u16(i) {
+                    Some(r) => r,
+                    None => {
+                        continue;
+                    }
                 };
 
-            if userland {
-                for i in 0..=31 {
-                    let reg = match ARMRegister::from_u16(i) {
-                        Some(r) => r,
-                        None => {
-                            continue;
-                        }
-                    };
-
-                    let val = core.read_reg(reg)?;
-                    rval.insert(reg, val);
-                }
-
-                return Ok(rval);
+                let val = core.read_reg(reg)?;
+                rval.insert(reg, val);
             }
-        };
 
-        let readreg = |rname| -> Result<u32> {
-            let o = state.lookup_member(rname)?.offset as usize;
-            Ok(u32::from_le_bytes(regs[o..o + 4].try_into().unwrap()))
-        };
-
-        //
-        // R4-R11 are found in the structure.
-        //
-        for r in 4..=11 {
-            let rname = format!("r{}", r);
-            let o = state.lookup_member(&rname)?.offset as usize;
-            let val = u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
-
-            rval.insert(ARMRegister::from_usize(r).unwrap(), val);
+            return Ok(rval);
         }
 
-        let sp = readreg("psp")?;
+        // Other cases.
+        // In case you forgot where we were:
+        assert!(!is_current || !unprivileged_mode);
+
+        let sp;
+
+        if !is_current || registers_saved {
+            // Task registers have been deposited in the TCB/stack -- the easy
+            // case.
+
+            let readreg = |rname| -> Result<u32> {
+                let o = state.lookup_member(rname)?.offset as usize;
+                Ok(u32::from_le_bytes(regs[o..o + 4].try_into().unwrap()))
+            };
+
+            //
+            // R4-R11 are found in the structure.
+            //
+            for r in 4..=11 {
+                let rname = format!("r{}", r);
+                let o = state.lookup_member(&rname)?.offset as usize;
+                let val =
+                    u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
+
+                rval.insert(ARMRegister::from_usize(r).unwrap(), val);
+            }
+
+            sp = readreg("psp")?;
+        } else {
+            // We've managed to catch the system in an ISR! It is much harder to
+            // reconstruct task registers in an ISR, but, we should be able to
+            // get enough to do a stack trace.
+
+            // R4-R6 and R8-R11 are...somewhere, spilled by the ISR code, or
+            // possibly still held in registers. To find out we'd need to
+            // reconstruct the spill patterns by analyzing stack manipulation
+            // instructions through disassembly, and, uh, bored now.
+            //
+            // We don't really need those registers in practice, what we really
+            // want is R7, the frame pointer.
+            //
+            // Because the kernel and userspace agree that R7 is the frame
+            // pointer, and the kernel ISRs are just functions, the first thing
+            // they tend to do is set up a frame and push R7. Which, because R7
+            // is volatile across calls and we don't do interrupt nesting, is
+            // the _task_ R7.
+            //
+            // Now, because we might be several functions deep within an ISR, we
+            // need to follow the frame linkage until we find an address in the
+            // task's RAM.
+            let regions = self.regions(core)?;
+            let mut r7 = core.read_reg(ARMRegister::R7)?;
+            loop {
+                if let Some((_, region)) = regions.range(..=r7).next_back() {
+                    assert!(r7 > region.base); // if map is correct
+
+                    let in_region = r7 - region.base < region.size;
+                    let looks_like_ram =
+                        region.attr.write && !region.attr.device;
+
+                    if in_region && looks_like_ram {
+                        // Oooh this looks like RAM. Whose is it?
+                        if region.task == t {
+                            // Hooray!
+                            break;
+                        } else if region.task == HubrisTask::Kernel {
+                            // Hmm, still hunting.
+                            r7 = core.read_word_32(r7)?;
+                            continue;
+                        }
+                    }
+                }
+
+                // We get here if we find ROM, or if we wind up in some other
+                // task by accident, or if we just hit an unmapped section of
+                // address space.
+                bail!("can't reconstruct task frame pointer in ISR");
+            }
+            rval.insert(ARMRegister::R7, r7);
+
+            sp = core.read_reg(ARMRegister::PSP)?;
+        }
 
         const NREGS_CORE: usize = 8;
         const NREGS_FP: usize = 17;
@@ -3012,9 +3074,13 @@ impl HubrisArchive {
         buf.resize_with(region.size as usize, Default::default);
         core.read_8(region.base, buf.as_mut_slice())?;
 
-        let readval = |addr| {
-            let o = (addr - region.base) as usize;
-            u32::from_le_bytes(buf[o..o + 4].try_into().unwrap())
+        let readval = |addr: u32| -> Result<u32> {
+            if let Some(o) = addr.checked_sub(region.base) {
+                let o = o as usize;
+                Ok(u32::from_le_bytes(buf[o..o + 4].try_into().unwrap()))
+            } else {
+                bail!("addr 0x{:x} below base 0x{:x}", addr, region.base);
+            }
         };
 
         //
@@ -3023,7 +3089,7 @@ impl HubrisArchive {
         //
         if let Some(Some(pushed)) = self.syscall_pushes.get(pc) {
             for (i, &p) in pushed.iter().enumerate() {
-                let val = readval(sp + (i * 4) as u32);
+                let val = readval(sp + (i * 4) as u32)?;
                 frameregs.insert(p, val);
             }
 
@@ -3032,6 +3098,8 @@ impl HubrisArchive {
 
         let frames = self.frames.get(&task).unwrap();
         let frame = gimli::DebugFrame::new(frames, gimli::LittleEndian);
+
+        let mut visited = std::collections::BTreeSet::new();
 
         loop {
             let bases = gimli::BaseAddresses::default();
@@ -3061,6 +3129,12 @@ impl HubrisArchive {
                 }
             };
 
+            if !visited.insert(cfa) || visited.len() > 100_000 {
+                // Ha! Gotcha!
+                self.dump(core, None).ok();
+                bail!("entered infinite unwind loop, see dump");
+            }
+
             //
             // Now iterate over all of our register rules to transform
             // our registers.
@@ -3068,7 +3142,7 @@ impl HubrisArchive {
             for (register, rule) in unwind_info.registers() {
                 let val = match rule {
                     gimli::RegisterRule::Offset(offset) => {
-                        readval((i64::from(cfa) + offset) as u32)
+                        readval((i64::from(cfa) + offset) as u32)?
                     }
                     _ => {
                         panic!("unimplemented register rule");
