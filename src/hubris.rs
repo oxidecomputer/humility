@@ -2836,6 +2836,41 @@ impl HubrisArchive {
             }
         }
 
+        //
+        // We distinguish between the size of a region, and its mapsize --
+        // which, for flash-based regions is the amount of memory that is
+        // actually in use.  (We do this to give guidance about the actual
+        // flash used, which in turn is used in the dump code to be sure that
+        // we don't attempt to dump flash that has never been written to --
+        // which can have unexpected results on some MCUs.)
+        //
+        let mapsize = |attr, base, size| {
+            if attr & WRITE != 0 {
+                size
+            } else {
+                let mut current = base;
+
+                loop {
+                    match self.loaded.get(&current) {
+                        None => break current - base,
+                        Some(region) => {
+                            current = region.base + region.size;
+
+                            //
+                            // We really expect loaded regions to be entirely
+                            // contained within regions (that is, they should
+                            // not cross region boundaries), but if it does,
+                            // we'll assume that our entire region is mapped.
+                            //
+                            if current - base > size {
+                                break size;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
         /*
          * Iterate over all tasks, reading their region descriptors.
          */
@@ -2863,10 +2898,7 @@ impl HubrisArchive {
                         size: if attr & WRITE != 0 {
                             size
                         } else {
-                            match self.loaded.get(&base) {
-                                Some(region) => region.size,
-                                None => size,
-                            }
+                            mapsize(attr, base, size)
                         },
                         mapsize: size,
                         attr: HubrisRegionAttr {
