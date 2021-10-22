@@ -785,6 +785,7 @@ impl DumpCore {
     }
 }
 
+#[rustfmt::skip::macros(bail)]
 impl Core for DumpCore {
     fn info(&self) -> (String, Option<String>) {
         ("core dump".to_string(), None)
@@ -796,8 +797,13 @@ impl Core for DumpCore {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).rev().next()
         {
-            if base > addr || (addr - base) + rsize as u32 > size {
+            if base > addr {
                 // fall out to the bail below.
+            } else if (addr - base) + rsize as u32 > size {
+                bail!(
+                    "0x{:x} is valid, but size ({}) exceeds max ({})",
+                    addr, rsize, size - (addr - base)
+                );
             } else {
                 let offs = offset + (addr - base) as usize;
 
@@ -815,8 +821,13 @@ impl Core for DumpCore {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).rev().next()
         {
-            if base > addr || (addr - base) + rsize as u32 > size {
+            if base > addr {
                 // fall out to the bail below.
+            } else if (addr - base) + rsize as u32 > size {
+                bail!(
+                    "0x{:x} is valid, but size ({}) exceeds max ({})",
+                    addr, rsize, size - (addr - base)
+                );
             } else {
                 let offs = offset + (addr - base) as usize;
 
