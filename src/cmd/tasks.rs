@@ -155,7 +155,7 @@ fn tasks(
 
         println!("system time = {}", ticks);
 
-        println!("{:2} {:15} {:3} {:3} {:9}",
+        println!("{:2} {:15} {:>8} {:3} {:9}",
             "ID", "TASK", "GEN", "PRI", "STATE");
 
         let mut any_names_truncated = false;
@@ -194,8 +194,11 @@ fn tasks(
                     any_names_truncated = true;
                 }
                 print!(
-                    "{:2} {:15} {:3} {:3} ",
-                    i, modname, task.generation.0, task.priority.0
+                    "{:2} {:15} {:>8} {:3} ",
+                    i,
+                    modname,
+                    u32::from(task.generation),
+                    task.priority.0
                 );
             }
             explain_state(
