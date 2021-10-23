@@ -339,24 +339,12 @@ fn load_tcbs(
         taskblock
     };
 
-    // Parse all the tasks and load descriptors -- descriptors aren't expected
-    // to change.
-    let mut descs = Vec::with_capacity(task_count);
     let mut tasks = Vec::with_capacity(task_count);
-    let mut names = Vec::with_capacity(task_count);
     for i in 0..task_count {
         let offs = i * task_t.size;
 
         let task: Task = reflect::load(hubris, &taskblock, task_t, offs)?;
-        let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
-        let module = hubris
-            .instr_mod(desc.entry_point)
-            .unwrap_or("<unknown>")
-            .to_string();
-
         tasks.push(task);
-        descs.push(desc);
-        names.push(module);
     }
 
     Ok(tasks)
