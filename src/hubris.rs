@@ -65,8 +65,9 @@ pub struct HubrisArchive {
     // Capstone library handle
     cs: capstone::Capstone,
 
-    // Instructions: address to bytes/target tuple
-    instrs: HashMap<u32, (Vec<u8>, HubrisTarget)>,
+    // Instructions: address to bytes/target tuple. The target will be None if
+    // the instruction did not decode as some kind of jump/branch/call.
+    instrs: HashMap<u32, (Vec<u8>, Option<HubrisTarget>)>,
 
     // Manual stack pushes before a syscall
     syscall_pushes: HashMap<u32, Option<Vec<ARMRegister>>>,
@@ -198,11 +199,14 @@ impl HubrisArchive {
         self.instrs.get(&addr).map(|instr| instr.0.len() as u32)
     }
 
-    pub fn instr_target(&self, addr: u32) -> HubrisTarget {
-        self.instrs
-            .get(&addr)
-            .map(|instr| instr.1)
-            .unwrap_or(HubrisTarget::None)
+    /// Looks up the jump target type of the previously-disassembled instruction
+    /// at `addr`. Returns `None` if the instruction was did not affect control
+    /// flow.
+    ///
+    /// TODO: this also returns `None` if `addr` is not an instruction boundary,
+    /// which is probably wrong but we haven't totally thought it through yet.
+    pub fn instr_target(&self, addr: u32) -> Option<HubrisTarget> {
+        self.instrs.get(&addr).and_then(|&(_, target)| target)
     }
 
     pub fn instr_mod(&self, addr: u32) -> Option<&str> {
@@ -279,11 +283,11 @@ impl HubrisArchive {
         inlined
     }
 
-    fn instr_branch_target(&self, instr: &capstone::Insn) -> HubrisTarget {
-        let detail = match self.cs.insn_detail(instr) {
-            Ok(detail) => detail,
-            _ => return HubrisTarget::None,
-        };
+    fn instr_branch_target(
+        &self,
+        instr: &capstone::Insn,
+    ) -> Option<HubrisTarget> {
+        let detail = self.cs.insn_detail(instr).ok()?;
 
         let mut jump = false;
         let mut call = false;
@@ -326,14 +330,14 @@ impl HubrisArchive {
 
         if let Some(addr) = brel {
             if call {
-                return HubrisTarget::Call(addr);
+                return Some(HubrisTarget::Call(addr));
             } else {
-                return HubrisTarget::Direct(addr);
+                return Some(HubrisTarget::Direct(addr));
             }
         }
 
         if call {
-            return HubrisTarget::IndirectCall;
+            return Some(HubrisTarget::IndirectCall);
         }
 
         /*
@@ -347,12 +351,12 @@ impl HubrisArchive {
                     if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
                         op.op_type
                     {
-                        return HubrisTarget::Return;
+                        return Some(HubrisTarget::Return);
                     }
                 }
             }
 
-            return HubrisTarget::Indirect;
+            return Some(HubrisTarget::Indirect);
         }
 
         /*
@@ -366,13 +370,13 @@ impl HubrisArchive {
                     if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
                         op.op_type
                     {
-                        return HubrisTarget::Return;
+                        return Some(HubrisTarget::Return);
                     }
                 }
             }
         }
 
-        HubrisTarget::None
+        None
     }
 
     fn instr_operands(&self, instr: &capstone::Insn) -> Vec<ARMRegister> {
@@ -956,7 +960,7 @@ impl HubrisArchive {
                     name: name.to_string(),
                     goff,
                     size,
-                    discriminant: HubrisDiscriminant::Value(dgoff, 0),
+                    discriminant: Some(HubrisDiscriminant::Value(dgoff, 0)),
                     tag: None,
                     variants: Vec::new(),
                 },
@@ -1036,8 +1040,9 @@ impl HubrisArchive {
          * If we have an enum, we need to first remove it from our structures,
          * putting back any duplicate names that isn't this enum.
          */
-        let union = self.structs.remove(&goff)
-            .ok_or_else(|| anyhow!("goff {:?} not present in structs map", goff))?;
+        let union = self.structs.remove(&goff).ok_or_else(|| {
+            anyhow!("goff {:?} not present in structs map", goff)
+        })?;
         self.structs_byname
             .get_vec_mut(&union.name)
             .expect("structs vs structs_byname inconsistency")
@@ -1055,10 +1060,7 @@ impl HubrisArchive {
                 name: union.name.clone(),
                 goff,
                 size: union.size,
-                discriminant: match discr {
-                    Some(discr) => HubrisDiscriminant::Expected(discr),
-                    None => HubrisDiscriminant::None,
-                },
+                discriminant: discr.map(HubrisDiscriminant::Expected),
                 tag: None,
                 variants: Vec::new(),
             },
@@ -1191,14 +1193,17 @@ impl HubrisArchive {
                 bail!("member {} is incomplete", member);
             }
         } else if let Some(union) = self.enums.get_mut(&parent) {
-            if let HubrisDiscriminant::Expected(expect) = union.discriminant {
+            if let Some(HubrisDiscriminant::Expected(expect)) =
+                union.discriminant
+            {
                 if member != expect {
                     bail!("enum {}: expected discriminant {}, found {}",
                         union.goff, expect, member);
                 }
 
                 if let (Some(offs), Some(g)) = (offset, goff) {
-                    union.discriminant = HubrisDiscriminant::Value(g, offs);
+                    union.discriminant =
+                        Some(HubrisDiscriminant::Value(g, offs));
                     return Ok(());
                 }
 
@@ -1263,10 +1268,9 @@ impl HubrisArchive {
                 if let Some(sec) = sec_result {
                     let offset = sec.sh_offset as usize;
                     let size = sec.sh_size as usize;
-                    buffer.get(offset..offset + size)
-                        .ok_or_else(|| {
-                            anyhow!("bad offset/size for ELF section {}", id.name())
-                        })
+                    buffer.get(offset..offset + size).ok_or_else(|| {
+                        anyhow!("bad offset/size for ELF section {}", id.name())
+                    })
                 } else {
                     Ok(&[])
                 }
@@ -1443,10 +1447,9 @@ impl HubrisArchive {
         let offs = sh.sh_offset as usize;
         let size = sh.sh_size as usize;
 
-        let buf = buffer.get(offs..offs + size)
-            .ok_or_else(|| {
-                anyhow!("bad offset/size for ELF section {}", id)
-            })?;
+        let buf = buffer
+            .get(offs..offs + size)
+            .ok_or_else(|| anyhow!("bad offset/size for ELF section {}", id))?;
         self.frames.insert(task, buf.to_vec());
 
         Ok(())
@@ -1597,10 +1600,9 @@ impl HubrisArchive {
         self.load_object_frames(task, buffer, &elf)
             .context(format!("{}: failed to load debug frames", object))?;
 
-        let t = buffer.get(offset..offset + size)
-            .ok_or_else(|| {
-                anyhow!("bad offset/size for ELF text section")
-            })?;
+        let t = buffer
+            .get(offset..offset + size)
+            .ok_or_else(|| anyhow!("bad offset/size for ELF text section"))?;
 
         let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
             Ok(instrs) => instrs,
@@ -1988,10 +1990,10 @@ impl HubrisArchive {
             Some(v) if v.len() > 1 => {
                 Err(anyhow!("{} matches more than one structure", name))
             }
-            Some(v) if !v.is_empty() => {
-                Ok(self.structs.get(&v[0])
-                    .expect("structs-structs_byname inconsistency"))
-            }
+            Some(v) if !v.is_empty() => Ok(self
+                .structs
+                .get(&v[0])
+                .expect("structs-structs_byname inconsistency")),
             _ => Err(anyhow!("expected structure {} not found", name)),
         }
     }
@@ -2503,9 +2505,11 @@ impl HubrisArchive {
         regs: &HashMap<ARMRegister, u32>,
     ) -> Result<Vec<HubrisStackFrame>> {
         let regions = self.regions(core)?;
-        let sp = regs.get(&ARMRegister::SP)
+        let sp = regs
+            .get(&ARMRegister::SP)
             .ok_or_else(|| anyhow!("SP missing from regs map"))?;
-        let pc = regs.get(&ARMRegister::PC)
+        let pc = regs
+            .get(&ARMRegister::PC)
             .ok_or_else(|| anyhow!("PC missing from regs map"))?;
 
         let mut rval: Vec<HubrisStackFrame> = Vec::new();
@@ -2541,7 +2545,9 @@ impl HubrisArchive {
             frameregs.insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
         }
 
-        let frames = self.frames.get(&task)
+        let frames = self
+            .frames
+            .get(&task)
             .ok_or_else(|| anyhow!("task {:?} not present in image", task))?;
         let frame = gimli::DebugFrame::new(frames, gimli::LittleEndian);
 
@@ -2597,10 +2603,10 @@ impl HubrisArchive {
             // Lookup the DWARF symbol associated with our PC
             //
             let sym = match self.dsyms.range(..=pc).next_back() {
-                Some(sym) if pc < *sym.0 + sym.1.1 => Some(HubrisSymbol {
+                Some(sym) if pc < *sym.0 + sym.1 .1 => Some(HubrisSymbol {
                     addr: *sym.0 as u32,
-                    name: &sym.1.0,
-                    goff: sym.1.2,
+                    name: &sym.1 .0,
+                    goff: sym.1 .2,
                 }),
                 _ => None,
             };
@@ -2783,7 +2789,7 @@ impl HubrisArchive {
              * is -- which necessitates looking at our discriminant.
              */
             match union.discriminant {
-                HubrisDiscriminant::Value(g, offs) => {
+                Some(HubrisDiscriminant::Value(g, offs)) => {
                     let size = match self.basetypes.get(&g) {
                         Some(v) => v.size,
                         None => {
@@ -2814,7 +2820,7 @@ impl HubrisArchive {
                     return Ok(rval);
                 }
 
-                HubrisDiscriminant::None => {
+                None => {
                     if union.variants.is_empty() {
                         bail!("enum {} has no variants", goff);
                     }
@@ -2836,7 +2842,7 @@ impl HubrisArchive {
                     return Ok(rval);
                 }
 
-                HubrisDiscriminant::Expected(_) => {
+                Some(HubrisDiscriminant::Expected(_)) => {
                     bail!("enum {} has incomplete discriminant", goff);
                 }
             }
@@ -3076,7 +3082,6 @@ impl HubrisArchive {
             offset += region.size + pad!(region.size);
             total += region.size;
         }
-
         for note in &notes {
             /*
              * Now write our note section, starting with our note header...
@@ -3498,7 +3503,6 @@ pub struct HubrisEnumVariant {
 
 #[derive(Copy, Clone, Debug)]
 pub enum HubrisDiscriminant {
-    None,
     Expected(HubrisGoff),
     Value(HubrisGoff, usize),
 }
@@ -3508,7 +3512,9 @@ pub struct HubrisEnum {
     pub name: String,
     pub goff: HubrisGoff,
     pub size: usize,
-    pub discriminant: HubrisDiscriminant,
+    /// Info on the discriminant, which can be `None` (missing) if the enum has
+    /// only one variant.
+    pub discriminant: Option<HubrisDiscriminant>,
     /// temporary to hold tag of next variant
     pub tag: Option<u64>,
     pub variants: Vec<HubrisEnumVariant>,
@@ -3560,7 +3566,7 @@ impl HubrisEnum {
             })
         };
 
-        if let HubrisDiscriminant::Value(goff, offs) = self.discriminant {
+        if let Some(HubrisDiscriminant::Value(goff, offs)) = self.discriminant {
             let size = match hubris.basetypes.get(&goff) {
                 Some(v) => v.size,
                 None => {
@@ -3730,7 +3736,6 @@ impl<'a> From<&'a HubrisUnion> for HubrisType<'a> {
 
 #[derive(Copy, Clone, Debug)]
 pub enum HubrisTarget {
-    None,
     Direct(u32),
     Indirect,
     Call(u32),
