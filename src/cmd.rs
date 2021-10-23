@@ -3,6 +3,7 @@
  */
 
 mod apptable;
+mod diagnose;
 mod dump;
 mod etm;
 mod gpio;
@@ -88,6 +89,7 @@ pub fn init<'a, 'b>(
 
     let dcmds = [
         apptable::init,
+        diagnose::init,
         dump::init,
         etm::init,
         gpio::init,
