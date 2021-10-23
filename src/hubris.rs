@@ -5,8 +5,8 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
 use std::collections::{btree_map, BTreeMap};
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::convert::TryInto;
 use std::fmt;
@@ -84,6 +84,7 @@ struct HubrisConfigTask {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[allow(dead_code)]
 struct HubrisConfigPeripheral {
     address: u32,
     size: u32,
@@ -107,13 +108,13 @@ type HubrisI2cDevice = HubrisConfigI2cDevice;
 #[derive(Clone, Debug, Deserialize)]
 pub struct HubrisConfigI2cDevice {
     device: String,
-    controller: u8,
+    controller: Option<u8>,
+    bus: Option<String>,
     address: u8,
     port: Option<String>,
     mux: Option<u8>,
     segment: Option<u8>,
     description: String,
-    removable: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -124,7 +125,7 @@ struct HubrisConfigI2c {
 
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigConfig {
-    i2c: Option<HubrisConfigI2c>
+    i2c: Option<HubrisConfigI2c>,
 }
 
 #[derive(Clone, Debug)]
@@ -2275,7 +2276,7 @@ impl HubrisArchive {
                                 },
                                 target: match controller.target {
                                     Some(target) => target,
-                                    None => false
+                                    None => false,
                                 },
                             });
                         }
@@ -3795,14 +3796,14 @@ impl HubrisArchive {
             id += 1;
         }
 
+        let mut i2c_buses = HashMap::new();
+
         if self.manifest.i2c_buses.len() != 0 {
             let mut controllers = HashSet::new();
 
             for bus in &self.manifest.i2c_buses {
                 controllers.insert(bus.controller);
             }
-
-            println!("{:#?}", self.manifest.i2c_buses);
 
             println!(
                 "{:>12} => {} controller{}, {} bus{}",
@@ -3819,6 +3820,10 @@ impl HubrisArchive {
             );
 
             for bus in &self.manifest.i2c_buses {
+                if let Some(ref name) = bus.name {
+                    i2c_buses.insert(name, bus);
+                }
+
                 println!(
                     "{:>17} {:4} {:4} {:13} {}",
                     bus.controller,
@@ -3850,10 +3855,21 @@ impl HubrisArchive {
                     (_, _) => "?:?".to_string(),
                 };
 
+                let (controller, port) = match &device.bus {
+                    Some(bus) => match i2c_buses.get(&bus) {
+                        Some(bus) => (Some(bus.controller), Some(&bus.port)),
+                        None => (None, None),
+                    },
+                    _ => (device.controller, device.port.as_ref()),
+                };
+
                 println!(
                     "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
-                    device.controller,
-                    device.port.as_ref().unwrap_or(&"-".to_string()),
+                    match controller {
+                        Some(controller) => format!("{}", controller),
+                        None => "??".to_string(),
+                    },
+                    port.unwrap_or(&"-".to_string()),
                     mux,
                     device.address,
                     device.device,
