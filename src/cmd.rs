@@ -32,8 +32,9 @@ use crate::core::Core;
 use crate::hubris::*;
 use crate::Args;
 use crate::{attach_dump, attach_live};
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::convert::TryInto;
 use structopt::clap::App;
 
@@ -268,4 +269,115 @@ fn printmem(bytes: &[u8], addr: u32, size: usize, width: usize) {
             print(line, addr, 0);
         }
     }
+}
+
+struct HiffyI2cArgs {
+    controller: u8,
+    port: u8,
+    mux: Option<(u8, u8)>,
+    device: Option<u8>,
+}
+
+///
+/// A routine to help commands parse I2C-related arguments.
+///
+fn hiffy_i2c_args(
+    hubris: &HubrisArchive,
+    goff: HubrisGoff,
+    bus: &Option<String>,
+    controller: Option<u8>,
+    port: &Option<String>,
+    mux: &Option<String>,
+    device: &Option<String>,
+) -> Result<HiffyI2cArgs> {
+    let p = hubris.lookup_enum(goff).context("expected port to be an enum")?;
+
+    if p.size != 1 {
+        bail!("expected port to be a 1-byte enum");
+    }
+
+    fn lookup_port(port: &str, p: &HubrisEnum) -> Result<u8> {
+        for variant in &p.variants {
+            if variant.name.eq_ignore_ascii_case(port) {
+                return Ok(u8::try_from(variant.tag.unwrap())?);
+            }
+        }
+
+        let mut vals: Vec<String> = vec![];
+
+        for variant in &p.variants {
+            vals.push(variant.name.to_string());
+        }
+
+        bail!(
+            "invalid port \"{}\" (must be one of: {})",
+            port,
+            vals.join(", ")
+        );
+    }
+
+    //
+    // If we were given a bus, that will guide us to our controller and
+    // port
+    //
+    let (controller, port) = if let Some(_bus) = bus {
+        if controller.is_some() {
+            bail!("cannot specify both a bus and a controller");
+        }
+
+        if port.is_some() {
+            bail!("cannot specity both a bus and a port");
+        }
+
+        bail!("can't lookup a bus yet");
+    } else {
+        (
+            match controller {
+                Some(controller) => controller,
+                None => {
+                    bail!("must specify either a controller or a bus");
+                }
+            },
+            match port {
+                Some(port) => lookup_port(&port, p)?,
+                None => bail!("can't lookup a port yet"),
+            },
+        )
+    };
+
+    let mux = if let Some(mux) = &mux {
+        let s = mux
+            .split(':')
+            .map(|v| parse_int::parse::<u8>(v))
+            .collect::<Result<Vec<_>, _>>()
+            .context("expected multiplexer and segment to be integers")?;
+
+        if s.len() == 2 {
+            Some((s[0], s[1]))
+        } else if s.len() == 1 {
+            Some((0, s[0]))
+        } else {
+            bail!("expected only multiplexer and segment identifiers");
+        }
+    } else {
+        None
+    };
+
+    let device = match device {
+        None => None,
+        Some(device) => {
+            if let Ok(val) = parse_int::parse::<u8>(byte) {
+                Some(val)
+            } else {
+                bail!("unknown device {}", device);
+            }
+        }
+    };
+
+    Ok(HiffyI2cArgs {
+        controller: controller,
+        port: port,
+        mux: mux,
+        device: None,
+    })
 }

@@ -7,9 +7,8 @@ use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
-use std::convert::TryFrom;
 use std::thread;
 use std::time::Duration;
 use structopt::clap::App;
@@ -47,10 +46,8 @@ pub struct I2cArgs {
     scanreg: Option<u8>,
 
     /// specifies an I2C bus
-    #[structopt(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
-    )]
-    controller: u8,
+    #[structopt(long, short, value_name = "controller")]
+    controller: Option<u8>,
 
     /// specifies an I2C controller port
     #[structopt(long, short, value_name = "port")]
@@ -61,10 +58,8 @@ pub struct I2cArgs {
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short, value_name = "address",
-        parse(try_from_str = parse_int::parse),
-    )]
-    device: Option<u8>,
+    #[structopt(long, short, value_name = "address")]
+    device: Option<String>,
 
     /// specifies register
     #[structopt(long, short, value_name = "register",
@@ -114,6 +109,7 @@ pub struct I2cArgs {
 
 fn i2c_done(
     subargs: &I2cArgs,
+    hargs: &HiffyI2cArgs,
     results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
 ) -> Result<()> {
@@ -121,7 +117,7 @@ fn i2c_done(
     let mut errs: HashMap<u32, u32> = HashMap::new();
 
     if (subargs.scan || subargs.scanreg.is_some()) && subargs.device.is_none() {
-        println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
+        println!("\nDevice scan on controller I2C{}:\n", hargs.controller);
 
         if subargs.scan {
             println!(
@@ -195,8 +191,8 @@ fn i2c_done(
     } else if subargs.scan && subargs.device.is_some() {
         println!(
             "\nRegister scan for device 0x{:x} on I2C{}:\n",
-            subargs.device.unwrap(),
-            subargs.controller
+            hargs.device.unwrap(),
+            hargs.controller
         );
 
         println!(
@@ -251,8 +247,8 @@ fn i2c_done(
     } else if subargs.raw {
         print!(
             "Controller I2C{}, device 0x{:x}, raw {} = ",
-            subargs.controller,
-            subargs.device.unwrap(),
+            hargs.controller,
+            hargs.device.unwrap(),
             if subargs.write.is_some() { "write" } else { "read" },
         );
 
@@ -283,8 +279,8 @@ fn i2c_done(
     } else {
         print!(
             "Controller I2C{}, device 0x{:x}, {}register 0x{:x} = ",
-            subargs.controller,
-            subargs.device.unwrap(),
+            hargs.controller,
+            hargs.device.unwrap(),
             if subargs.writeraw { "raw write to " } else { "" },
             subargs.register.unwrap()
         );
@@ -360,6 +356,8 @@ fn i2c(
         );
     }
 
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     let (fname, args) = if subargs.flash.is_some() {
         ("I2cBulkWrite", 8)
     } else {
@@ -369,7 +367,6 @@ fn i2c(
         }
     };
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let func = funcs
         .get(fname)
@@ -379,66 +376,21 @@ fn i2c(
         bail!("mismatched function signature on {}", fname);
     }
 
-    let mut port = None;
+    let hargs = hiffy_i2c_args(
+        hubris,
+        func.args[1],
+        &None,
+        subargs.controller,
+        &subargs.port,
+        &subargs.mux,
+        &subargs.device,
+    )?;
 
-    if let Some(ref portarg) = subargs.port {
-        let p = hubris
-            .lookup_enum(func.args[1])
-            .context("expected port to be an enum")?;
+    let mut ops = vec![Op::Push(hargs.controller)];
 
-        if p.size != 1 {
-            bail!("expected port to be a 1-byte enum");
-        }
+    ops.push(Op::Push(hargs.port));
 
-        for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(portarg) {
-                port = Some(u8::try_from(variant.tag.unwrap())?);
-                break;
-            }
-        }
-
-        if port.is_none() {
-            let mut vals: Vec<String> = vec![];
-
-            for variant in &p.variants {
-                vals.push(variant.name.to_string());
-            }
-
-            bail!(
-                "invalid port \"{}\" (must be one of: {})",
-                portarg,
-                vals.join(", ")
-            );
-        }
-    }
-
-    let mux = if let Some(mux) = &subargs.mux {
-        let s = mux
-            .split(':')
-            .map(|v| parse_int::parse::<u8>(v))
-            .collect::<Result<Vec<_>, _>>()
-            .context("expected multiplexer and segment to be integers")?;
-
-        if s.len() == 2 {
-            Some((s[0], s[1]))
-        } else if s.len() == 1 {
-            Some((0, s[0]))
-        } else {
-            bail!("expected only multiplexer and segment identifiers");
-        }
-    } else {
-        None
-    };
-
-    let mut ops = vec![Op::Push(subargs.controller)];
-
-    if let Some(port) = port {
-        ops.push(Op::Push(port));
-    } else {
-        ops.push(Op::PushNone);
-    }
-
-    if let Some(mux) = mux {
+    if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));
         ops.push(Op::Push(mux.1));
     } else {
@@ -447,7 +399,7 @@ fn i2c(
     }
 
     if let Some(filename) = subargs.flash {
-        ops.push(Op::Push(subargs.device.unwrap()));
+        ops.push(Op::Push(hargs.device.unwrap()));
         ops.push(Op::PushNone);
 
         let filelen = {
@@ -585,7 +537,7 @@ fn i2c(
     }
 
     if !subargs.scan && subargs.scanreg.is_none() {
-        if let Some(device) = subargs.device {
+        if let Some(device) = hargs.device {
             ops.push(Op::Push(device));
         } else {
             bail!("expected device");
@@ -639,7 +591,7 @@ fn i2c(
         }
 
         ops.push(Op::Call(func.id));
-    } else if let Some(device) = subargs.device {
+    } else if let Some(device) = hargs.device {
         ops.push(Op::Push(device));
         ops.push(Op::Push(0));
         ops.push(Op::PushNone);
@@ -685,7 +637,7 @@ fn i2c(
 
     let results = context.results(core)?;
 
-    i2c_done(&subargs, &results, func)?;
+    i2c_done(&subargs, &hargs, &results, func)?;
 
     Ok(())
 }
