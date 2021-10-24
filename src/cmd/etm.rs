@@ -61,7 +61,7 @@ struct TraceInstruction {
     nsecs: u64,
     addr: u32,
     _len: u32,
-    target: HubrisTarget,
+    target: Option<HubrisTarget>,
     skipped: bool,
 }
 
@@ -319,10 +319,10 @@ fn etmcmd_trace(
 
     state.inlined.clear();
 
-    state.target = Some(instr.target);
+    state.target = instr.target;
 
     match instr.target {
-        HubrisTarget::Call(_) | HubrisTarget::IndirectCall => {
+        Some(HubrisTarget::Call(_)) | Some(HubrisTarget::IndirectCall) => {
             let mut nindent = state.indent;
 
             if !inlined.is_empty() {
@@ -340,7 +340,7 @@ fn etmcmd_trace(
             return Ok(());
         }
 
-        HubrisTarget::Return => {
+        Some(HubrisTarget::Return) => {
             println!("{:-10} {:width$}<- {}:{}", instr.nsecs, "", module, sym.0,
                 width = state.indent);
 
@@ -389,7 +389,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
 
     let mut iter = rdr.deserialize();
     let mut broken = false;
-    let mut target: (Option<u32>, HubrisTarget) = (None, HubrisTarget::None);
+    let mut target: (Option<u32>, Option<HubrisTarget>) = (None, None);
 
     let mut state = TraceState::default();
 
@@ -481,7 +481,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                     if broken {
                         warn!("re-railing at offset {}", packet.offset);
                         broken = false;
-                        target = (None, HubrisTarget::None);
+                        target = (None, None);
                     }
 
                     curaddr = Some(address);
@@ -491,9 +491,12 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                     curaddr = Some((lastaddr.unwrap() & mask) | addr);
                     lastaddr = curaddr;
 
-                    match (target.0, target.1) {
-                        (Some(origin), HubrisTarget::Direct(expected))
-                        | (Some(origin), HubrisTarget::Call(expected)) => {
+                    match target {
+                        (
+                            Some(origin),
+                            Some(HubrisTarget::Direct(expected)),
+                        )
+                        | (Some(origin), Some(HubrisTarget::Call(expected))) => {
                             if curaddr.unwrap() != expected {
                                 warn!(
                                     "detected bad branch: at 0x{:x} expected \
@@ -506,7 +509,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                             }
                         }
 
-                        (Some(origin), HubrisTarget::None) => {
+                        (Some(origin), None) => {
                             if exception.is_none() {
                                 warn!(
                                     "detected bad branch: did not expect any \
