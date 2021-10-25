@@ -334,6 +334,44 @@ fn hiffy_i2c_args(
     }
 
     //
+    // A helper function to translate a found device into something we can
+    // return, checking that we have found exactly one device that matches
+    // the criteria.
+    //
+    fn translate_device<'a, T>(
+        device: &str,
+        p: &HubrisEnum,
+        mut found: T,
+    ) -> Result<HiffyI2cArgs>
+    where
+        T: Iterator<Item = &'a HubrisI2cDevice>,
+    {
+        match found.next() {
+            None => {
+                bail!("unknown device {}", device);
+            }
+            Some(d) => {
+                if let Some(_) = found.next() {
+                    bail!("multiple {} devices found", device);
+                }
+
+                Ok(HiffyI2cArgs {
+                    controller: d.controller,
+                    port: translate_port(&d.port, p),
+                    mux: match (d.mux, d.segment) {
+                        (Some(m), Some(s)) => Some((m, s)),
+                        (None, None) => None,
+                        _ => {
+                            bail!("{}: bad mux/segment", device);
+                        }
+                    },
+                    device: Some(d.address),
+                })
+            }
+        }
+    }
+
+    //
     // If we were given a bus, that will guide us to our controller and
     // port
     //
@@ -360,31 +398,26 @@ fn hiffy_i2c_args(
         }
     } else {
         match (controller, port) {
-            (None, _) => {
+            (None, Some(_)) => {
+                bail!("cannot specify a port alone; need a controller or bus");
+            }
+            (None, None) => {
                 //
                 // If we haven't been a controller or a bus, but we've been
                 // given a device, see if we can find exactly one of
                 // those devices.
                 //
-                /*
                 if let Some(device) = device {
-                    let mut found = hubris.manifest.i2c_devices.iter()
-                        .filter(|d| d.device == device);
+                    let found = hubris
+                        .manifest
+                        .i2c_devices
+                        .iter()
+                        .filter(|d| d.device == *device);
 
-                    match found.next() {
-                        None => {
-                            bail!("unknown device {}", device);
-                        }
-                        Some(d) => {
-                            if let Some(_) = found.next() {
-                                bail!("multiple {} devices", device);
-                            }
-
-                            (
-
-                            */
-
-                bail!("must specify either a controller or a bus");
+                    return translate_device(device, p, found);
+                } else {
+                    bail!("must specify either a controller or a bus");
+                }
             }
             (Some(controller), Some(port)) => {
                 (controller, lookup_port(&port, p)?)
@@ -417,9 +450,6 @@ fn hiffy_i2c_args(
                             )
                         }
 
-                        //
-                        // As above, we expect this lookup_port() to succeed.
-                        //
                         (controller, translate_port(&port, p))
                     }
                 }
@@ -451,7 +481,15 @@ fn hiffy_i2c_args(
             if let Ok(val) = parse_int::parse::<u8>(device) {
                 Some(val)
             } else {
-                bail!("unknown device {}", device);
+                let found = hubris
+                    .manifest
+                    .i2c_devices
+                    .iter()
+                    .filter(|d| d.device == *device)
+                    .filter(|d| d.controller == controller)
+                    .filter(|d| translate_port(&d.port, p) == port);
+
+                return translate_device(device, p, found);
             }
         }
     };

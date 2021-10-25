@@ -1853,8 +1853,8 @@ impl HubrisArchive {
                     device: device.device.clone(),
                     controller: controller,
                     port: port.to_string(),
-                    mux: None,
-                    segment: None,
+                    mux: device.mux,
+                    segment: device.segment,
                     address: device.address,
                     description: device.description.clone(),
                 });
