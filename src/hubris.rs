@@ -1778,6 +1778,92 @@ impl HubrisArchive {
         Ok(())
     }
 
+    fn load_i2c_config(&mut self, i2c: &HubrisConfigI2c) -> Result<()> {
+        let mut buses = HashMap::new();
+        let mut controllers = MultiMap::new();
+
+        if let Some(ref controllers) = i2c.controllers {
+            for controller in controllers {
+                for (name, port) in &controller.ports {
+                    self.manifest.i2c_buses.push(HubrisI2cBus {
+                        controller: controller.controller,
+                        port: name.clone(),
+                        name: match port.name {
+                            Some(ref name) => Some(name.clone()),
+                            None => None,
+                        },
+                        description: match port.description {
+                            Some(ref descr) => Some(descr.clone()),
+                            None => None,
+                        },
+                        target: match controller.target {
+                            Some(target) => target,
+                            None => false,
+                        },
+                    });
+                }
+            }
+        }
+
+        for bus in &self.manifest.i2c_buses {
+            if let Some(ref name) = bus.name {
+                buses.insert(name, bus);
+            }
+
+            controllers.insert(bus.controller, &bus.port);
+        }
+
+        if let Some(ref devices) = i2c.devices {
+            for device in devices {
+                let name = &device.device;
+
+                let (controller, port) = match &device.bus {
+                    Some(bus) => match buses.get(&bus) {
+                        Some(bus) => (bus.controller, &bus.port),
+                        None => {
+                            //
+                            // This really shouldn't happen: we have
+                            // a bus that doesn't exist.
+                            //
+                            bail!("{}: unknown bus {}", name, bus);
+                        }
+                    },
+                    None => match (device.controller, &device.port) {
+                        (Some(controller), Some(port)) => (controller, port),
+                        (None, _) => {
+                            bail!("{}: missing controller", name);
+                        }
+                        (Some(controller), None) => {
+                            match controllers.get_vec(&controller) {
+                                None => {
+                                    bail!("{}: unknown controller", name);
+                                }
+                                Some(ref ports) => {
+                                    if ports.len() > 1 {
+                                        bail!("{}: illegal port", name);
+                                    }
+                                    (controller, ports[0])
+                                }
+                            }
+                        }
+                    },
+                };
+
+                self.manifest.i2c_devices.push(HubrisI2cDevice {
+                    device: device.device.clone(),
+                    controller: controller,
+                    port: port.to_string(),
+                    mux: None,
+                    segment: None,
+                    address: device.address,
+                    description: device.description.clone(),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     fn load_config(&mut self, config: &HubrisConfig) -> Result<()> {
         self.manifest.board = Some(config.board.clone());
         self.manifest.target = Some(config.target.clone());
@@ -1808,93 +1894,7 @@ impl HubrisArchive {
 
         if let Some(ref config) = config.config {
             if let Some(ref i2c) = config.i2c {
-                let mut buses = HashMap::new();
-                let mut controllers = MultiMap::new();
-
-                if let Some(ref controllers) = i2c.controllers {
-                    for controller in controllers {
-                        for (name, port) in &controller.ports {
-                            self.manifest.i2c_buses.push(HubrisI2cBus {
-                                controller: controller.controller,
-                                port: name.clone(),
-                                name: match port.name {
-                                    Some(ref name) => Some(name.clone()),
-                                    None => None,
-                                },
-                                description: match port.description {
-                                    Some(ref descr) => Some(descr.clone()),
-                                    None => None,
-                                },
-                                target: match controller.target {
-                                    Some(target) => target,
-                                    None => false,
-                                },
-                            });
-                        }
-                    }
-                }
-
-                for bus in &self.manifest.i2c_buses {
-                    if let Some(ref name) = bus.name {
-                        buses.insert(name, bus);
-                    }
-
-                    controllers.insert(bus.controller, &bus.port);
-                }
-
-                if let Some(ref devices) = i2c.devices {
-                    for device in devices {
-                        let (controller, port) = match &device.bus {
-                            Some(bus) => match buses.get(&bus) {
-                                Some(bus) => (bus.controller, &bus.port),
-                                None => {
-                                    //
-                                    // This really shouldn't happen: we have
-                                    // a bus that doesn't exist.
-                                    //
-                                    bail!("unknown bus {}", bus);
-                                }
-                            },
-                            None => match (device.controller, &device.port) {
-                                (Some(controller), Some(port)) => {
-                                    (controller, port)
-                                }
-                                (None, _) => {
-                                    bail!(
-                                        "missing controller on {}",
-                                        device.device
-                                    );
-                                }
-                                (Some(controller), None) => {
-                                    match controllers.get_vec(&controller) {
-                                        None => {
-                                            bail!(
-                                                "unknown controller on {}",
-                                                device.device
-                                            );
-                                        }
-                                        Some(ref ports) => {
-                                            if ports.len() > 1 {
-                                                bail!("illegal port");
-                                            }
-                                            (controller, ports[0])
-                                        }
-                                    }
-                                }
-                            },
-                        };
-
-                        self.manifest.i2c_devices.push(HubrisI2cDevice {
-                            device: device.device.clone(),
-                            controller: controller,
-                            port: port.to_string(),
-                            mux: None,
-                            segment: None,
-                            address: device.address,
-                            description: device.description.clone(),
-                        });
-                    }
-                }
+                self.load_i2c_config(i2c)?;
             }
         }
 
