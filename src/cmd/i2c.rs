@@ -45,7 +45,13 @@ pub struct I2cArgs {
     )]
     scanreg: Option<u8>,
 
-    /// specifies an I2C bus
+    /// specifies an I2C bus by name
+    #[structopt(long, short, value_name = "bus",
+        conflicts_with_all = &["port", "controller"]
+    )]
+    bus: Option<String>,
+
+    /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller")]
     controller: Option<u8>,
 
@@ -72,7 +78,7 @@ pub struct I2cArgs {
     raw: bool,
 
     /// read block
-    #[structopt(long, short, conflicts_with_all = &["write", "nbytes"])]
+    #[structopt(long, short = "B", conflicts_with_all = &["write", "nbytes"])]
     block: bool,
 
     /// specifies write value
@@ -379,7 +385,7 @@ fn i2c(
     let hargs = hiffy_i2c_args(
         hubris,
         func.args[1],
-        &None,
+        &subargs.bus,
         subargs.controller,
         &subargs.port,
         &subargs.mux,

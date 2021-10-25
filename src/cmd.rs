@@ -279,7 +279,7 @@ struct HiffyI2cArgs {
 }
 
 ///
-/// A routine to help commands parse I2C-related arguments.
+/// A routine to help commands parse I2C-related command-line arguments.
 ///
 fn hiffy_i2c_args(
     hubris: &HubrisArchive,
@@ -296,6 +296,9 @@ fn hiffy_i2c_args(
         bail!("expected port to be a 1-byte enum");
     }
 
+    //
+    // A private function to look a port string up, given the enum.
+    //
     fn lookup_port(port: &str, p: &HubrisEnum) -> Result<u8> {
         for variant in &p.variants {
             if variant.name.eq_ignore_ascii_case(port) {
@@ -317,10 +320,24 @@ fn hiffy_i2c_args(
     }
 
     //
+    // A wrapper for ports found internally (i.e., in device configuration)
+    // for which we expect the lookup_port() to succeed (tht is, failure would
+    // denote a port in the I2C configuration that isn't in the enum).
+    //
+    fn translate_port(port: &str, p: &HubrisEnum) -> u8 {
+        match lookup_port(port, p) {
+            Ok(result) => result,
+            Err(err) => {
+                panic!("misconfig: port {} is not in enum: {}", port, err);
+            }
+        }
+    }
+
+    //
     // If we were given a bus, that will guide us to our controller and
     // port
     //
-    let (controller, port) = if let Some(_bus) = bus {
+    let (controller, port) = if let Some(bus) = bus {
         if controller.is_some() {
             bail!("cannot specify both a bus and a controller");
         }
@@ -329,20 +346,85 @@ fn hiffy_i2c_args(
             bail!("cannot specity both a bus and a port");
         }
 
-        bail!("can't lookup a bus yet");
+        let found = hubris
+            .manifest
+            .i2c_buses
+            .iter()
+            .find(|&b| b.name == Some(bus.to_string()));
+
+        match found {
+            None => {
+                bail!("bus {} not found", bus);
+            }
+            Some(bus) => (bus.controller, translate_port(&bus.port, p)),
+        }
     } else {
-        (
-            match controller {
-                Some(controller) => controller,
-                None => {
-                    bail!("must specify either a controller or a bus");
+        match (controller, port) {
+            (None, _) => {
+                //
+                // If we haven't been a controller or a bus, but we've been
+                // given a device, see if we can find exactly one of
+                // those devices.
+                //
+                /*
+                if let Some(device) = device {
+                    let mut found = hubris.manifest.i2c_devices.iter()
+                        .filter(|d| d.device == device);
+
+                    match found.next() {
+                        None => {
+                            bail!("unknown device {}", device);
+                        }
+                        Some(d) => {
+                            if let Some(_) = found.next() {
+                                bail!("multiple {} devices", device);
+                            }
+
+                            (
+
+                            */
+
+                bail!("must specify either a controller or a bus");
+            }
+            (Some(controller), Some(port)) => {
+                (controller, lookup_port(&port, p)?)
+            }
+            (Some(controller), None) => {
+                //
+                // We have been given a controller but no port; if there is
+                // exactly one bus for this controller, we will use its port,
+                // otherwise we will bail.
+                //
+                let mut found = hubris
+                    .manifest
+                    .i2c_buses
+                    .iter()
+                    .filter(|bus| bus.controller == controller)
+                    .map(|bus| bus.port.clone());
+
+                let all: Vec<_> = found.clone().collect();
+
+                match found.next() {
+                    None => {
+                        bail!("unknown I2C controller {}", controller);
+                    }
+                    Some(port) => {
+                        if let Some(_) = found.next() {
+                            bail!(
+                                "I2C{} has multiple ports; expected one of: {}",
+                                controller,
+                                all.join(", ")
+                            )
+                        }
+
+                        //
+                        // As above, we expect this lookup_port() to succeed.
+                        //
+                        (controller, translate_port(&port, p))
+                    }
                 }
-            },
-            match port {
-                Some(port) => lookup_port(&port, p)?,
-                None => bail!("can't lookup a port yet"),
-            },
-        )
+            }
+        }
     };
 
     let mux = if let Some(mux) = &mux {
@@ -366,7 +448,7 @@ fn hiffy_i2c_args(
     let device = match device {
         None => None,
         Some(device) => {
-            if let Ok(val) = parse_int::parse::<u8>(byte) {
+            if let Ok(val) = parse_int::parse::<u8>(device) {
                 Some(val)
             } else {
                 bail!("unknown device {}", device);
@@ -378,6 +460,6 @@ fn hiffy_i2c_args(
         controller: controller,
         port: port,
         mux: mux,
-        device: None,
+        device: device,
     })
 }

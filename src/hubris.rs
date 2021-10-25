@@ -45,7 +45,7 @@ pub struct HubrisManifest {
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     peripherals: BTreeMap<String, u32>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
-    i2c_buses: Vec<HubrisI2cBus>,
+    pub i2c_buses: Vec<HubrisI2cBus>,
 }
 
 //
@@ -96,10 +96,8 @@ struct HubrisConfigI2cController {
     target: Option<bool>,
 }
 
-type HubrisI2cDevice = HubrisConfigI2cDevice;
-
 #[derive(Clone, Debug, Deserialize)]
-pub struct HubrisConfigI2cDevice {
+struct HubrisConfigI2cDevice {
     device: String,
     controller: Option<u8>,
     bus: Option<String>,
@@ -122,12 +120,23 @@ struct HubrisConfigConfig {
 }
 
 #[derive(Clone, Debug)]
-struct HubrisI2cBus {
-    controller: u8,
-    port: String,
-    name: Option<String>,
-    description: Option<String>,
-    target: bool,
+pub struct HubrisI2cBus {
+    pub controller: u8,
+    pub port: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub target: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct HubrisI2cDevice {
+    pub device: String,
+    pub controller: u8,
+    pub port: String,
+    pub mux: Option<u8>,
+    pub segment: Option<u8>,
+    pub address: u8,
+    pub description: String,
 }
 
 #[derive(Debug)]
@@ -1799,6 +1808,9 @@ impl HubrisArchive {
 
         if let Some(ref config) = config.config {
             if let Some(ref i2c) = config.i2c {
+                let mut buses = HashMap::new();
+                let mut controllers = MultiMap::new();
+
                 if let Some(ref controllers) = i2c.controllers {
                     for controller in controllers {
                         for (name, port) in &controller.ports {
@@ -1822,8 +1834,66 @@ impl HubrisArchive {
                     }
                 }
 
+                for bus in &self.manifest.i2c_buses {
+                    if let Some(ref name) = bus.name {
+                        buses.insert(name, bus);
+                    }
+
+                    controllers.insert(bus.controller, &bus.port);
+                }
+
                 if let Some(ref devices) = i2c.devices {
-                    self.manifest.i2c_devices = devices.clone();
+                    for device in devices {
+                        let (controller, port) = match &device.bus {
+                            Some(bus) => match buses.get(&bus) {
+                                Some(bus) => (bus.controller, &bus.port),
+                                None => {
+                                    //
+                                    // This really shouldn't happen: we have
+                                    // a bus that doesn't exist.
+                                    //
+                                    bail!("unknown bus {}", bus);
+                                }
+                            },
+                            None => match (device.controller, &device.port) {
+                                (Some(controller), Some(port)) => {
+                                    (controller, port)
+                                }
+                                (None, _) => {
+                                    bail!(
+                                        "missing controller on {}",
+                                        device.device
+                                    );
+                                }
+                                (Some(controller), None) => {
+                                    match controllers.get_vec(&controller) {
+                                        None => {
+                                            bail!(
+                                                "unknown controller on {}",
+                                                device.device
+                                            );
+                                        }
+                                        Some(ref ports) => {
+                                            if ports.len() > 1 {
+                                                bail!("illegal port");
+                                            }
+                                            (controller, ports[0])
+                                        }
+                                    }
+                                }
+                            },
+                        };
+
+                        self.manifest.i2c_devices.push(HubrisI2cDevice {
+                            device: device.device.clone(),
+                            controller: controller,
+                            port: port.to_string(),
+                            mux: None,
+                            segment: None,
+                            address: device.address,
+                            description: device.description.clone(),
+                        });
+                    }
                 }
             }
         }
@@ -3244,7 +3314,7 @@ impl HubrisArchive {
         );
 
         let print = |what, val| {
-            info!("{:>12} => {}", what, val);
+            println!("{:>12} => {}", what, val);
         };
 
         let size = |task| {
@@ -3324,8 +3394,6 @@ impl HubrisArchive {
             id += 1;
         }
 
-        let mut i2c_buses = HashMap::new();
-
         if self.manifest.i2c_buses.len() != 0 {
             let mut controllers = HashSet::new();
 
@@ -3348,10 +3416,6 @@ impl HubrisArchive {
             );
 
             for bus in &self.manifest.i2c_buses {
-                if let Some(ref name) = bus.name {
-                    i2c_buses.insert(name, bus);
-                }
-
                 println!(
                     "{:>17} {:4} {:4} {:13} {}",
                     bus.controller,
@@ -3383,21 +3447,10 @@ impl HubrisArchive {
                     (_, _) => "?:?".to_string(),
                 };
 
-                let (controller, port) = match &device.bus {
-                    Some(bus) => match i2c_buses.get(&bus) {
-                        Some(bus) => (Some(bus.controller), Some(&bus.port)),
-                        None => (None, None),
-                    },
-                    _ => (device.controller, device.port.as_ref()),
-                };
-
                 println!(
                     "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
-                    match controller {
-                        Some(controller) => format!("{}", controller),
-                        None => "??".to_string(),
-                    },
-                    port.unwrap_or(&"-".to_string()),
+                    device.controller,
+                    device.port,
                     mux,
                     device.address,
                     device.device,
