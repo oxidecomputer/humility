@@ -27,6 +27,7 @@ pub struct HiffyContext<'a> {
     text: &'a HubrisVariable,
     data: &'a HubrisVariable,
     rstack: &'a HubrisVariable,
+    scratch: &'a HubrisVariable,
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
     failure: &'a HubrisVariable,
@@ -182,6 +183,7 @@ impl<'a> HiffyContext<'a> {
             text: Self::variable(hubris, "HIFFY_TEXT", false)?,
             data: Self::variable(hubris, "HIFFY_DATA", false)?,
             rstack: Self::variable(hubris, "HIFFY_RSTACK", false)?,
+            scratch: Self::variable(hubris, "HIFFY_SCRATCH", false)?,
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
             failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
@@ -195,6 +197,14 @@ impl<'a> HiffyContext<'a> {
 
     pub fn data_size(&self) -> usize {
         self.data.size
+    }
+
+    pub fn rstack_size(&self) -> usize {
+        self.rstack.size
+    }
+
+    pub fn scratch_size(&self) -> usize {
+        self.scratch.size
     }
 
     pub fn functions(&mut self) -> Result<HashMap<String, HiffyFunction>> {
@@ -299,6 +309,11 @@ impl<'a> HiffyContext<'a> {
 
         if let Some(data) = data {
             if data.len() > self.data.size {
+                // `data` is the local buffer which may be used for send or receive.
+                // Its length refers to the amount of data to be
+                // transferred without respect to direction.
+                // self.data.size is the size of Hubris/hiffy's data buffer,
+                // not the buffer that holds return data. Correct?
                 bail!(
                     "data size ({}) exceeds maximum data size ({})",
                     data.len(),

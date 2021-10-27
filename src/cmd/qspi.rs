@@ -10,7 +10,8 @@ use crate::hubris::*;
 use crate::Args;
 use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::io::prelude::*;
+use std::io::{BufWriter,Read};
 use std::thread;
 use std::time::Instant;
 use std::mem;
@@ -88,6 +89,14 @@ struct QspiArgs {
     /// file to write
     #[structopt(long, short = "W", value_name = "filename", group = "command")]
     writefile: Option<String>,
+
+    /// verbose (for readfile)
+    #[structopt(long, short)]
+    verbose: bool,
+
+    /// file to read
+    #[structopt(long, short = "R", value_name = "filename", group = "command")]
+    readfile: Option<String>,
 }
 
 fn qspi(
@@ -101,7 +110,7 @@ fn qspi(
     let funcs = context.functions()?;
 
     let sector_size = 64 * 1024;
-    let block_size = 256;
+    let block_size = 256;   // XXX This conflates SPI NOR Flash block size with hubris scratch buffer.
 
     let func = |name, nargs| {
         let f = funcs
@@ -238,20 +247,20 @@ fn qspi(
                 // block_size nibbles.
                 //
                 let ops = vec![
-                    Op::Push32(offset),
-                    Op::Push32(0),
-                    Op::PushNone,
-                    Op::Label(Target(0)),
-                    Op::Drop,
-                    Op::Push32(block_size),
-                    Op::Call(qspi_page_program.id),
-                    Op::Add,
-                    Op::Swap,
-                    Op::Push32(block_size),
-                    Op::Add,
-                    Op::Swap,
-                    Op::Push32(chunk),
-                    Op::BranchGreaterThan(Target(0)),
+                    Op::Push32(offset),             // Push flash address.
+                    Op::Push32(0),                  // Buffer offset = 0.
+                    Op::PushNone,                   // Placeholder to be dropped.
+                    Op::Label(Target(0)),           // Start of loop
+                    Op::Drop,                       // Drop placeholder/limit.
+                    Op::Push32(block_size),         // Push length of this xfer.
+                    Op::Call(qspi_page_program.id), // Call (&flash, &buf, len)
+                    Op::Add,                        // Add len of that xfer to both values on stack.
+                    Op::Swap,                       //
+                    Op::Push32(block_size),         //
+                    Op::Add,                        //
+                    Op::Swap,                       // Now pointing to next xfer.
+                    Op::Push32(chunk),              // Push limit.
+                    Op::BranchGreaterThan(Target(0)), // Continue if not at limit.
                     Op::Done,
                 ];
 
@@ -296,6 +305,154 @@ fn qspi(
             );
 
             bail!("all done");
+        } else if let Some(filename) = subargs.readfile {
+            // Address(default=0) and n-bytes(entire part) are optional.
+            // TODO: This clause can be merged with the subargs.read code above.
+            let qspi_read_id = func("QspiReadId", 0)?;
+            let qspi_read = func("QspiRead", 2)?;
+
+            // Address is optional and defaults to zero.
+            // The default can/should be done in `#[structopt(...` for "address"
+            // if that works for the other users of the -a flag.
+            let mut address = match subargs.addr {
+                Some(addr) => addr as u32,
+                _ => 0,
+            };
+            // Nbytes (-n) is optional and for this command defaults to
+            // the entire flash contents.
+            // Read the flash size from the flash part itself if nbytes
+            // is not specified.
+            let nbytes = match subargs.nbytes {
+                Some(nbytes) => nbytes as u32,
+                _ => {
+                    ops.push(Op::Call(qspi_read_id.id));
+                    ops.push(Op::Done);
+                    context.execute(core, ops.as_slice(), None)?;
+                    loop {
+                        if context.done(core)? {
+                            break;
+                        }
+                        thread::sleep(Duration::from_millis(100));
+                    }
+                    let results = context.results(core)?;
+                    match &results[0] {
+                        Ok(buf) => {
+                            if mem::size_of::<DeviceIdData>() == buf.len() {
+                                let did: DeviceIdData = unsafe { std::ptr::read(buf.as_ptr() as *const _)};
+                                did.size()
+                            } else {
+                                bail!("Unexpected result length: {} != {}", mem::size_of::<DeviceIdData>(), buf.len());
+                            }
+                        },
+                        _ => bail!("Invalid size in JEDIC Id"),
+                    }?
+                },
+            };
+
+            //
+            // Low-level reads are in units less than or equal to
+            // context.scratch_size().
+            // Those can be batched, depending on serialization overhead, into
+            // context.rstack_size().
+            //
+            // TODO: check alignment of start and end.
+            // Things are broken if they aren't, so an assert would be ok.
+            //
+            let rstack_size = context.rstack_size() as u32;
+            let scratch_size = context.scratch_size() as u32;
+            // TODO: Don't guess at the overhead. Make sure that data and
+            // serialization meta data are both in rstack.
+            let overhead = 1;   // Assume each item in rstack has 1-byte overhead.
+
+            let chunk = scratch_size;
+            let max_chunks = rstack_size / (chunk + overhead);
+
+            let buf = vec![0u8; rstack_size as usize];
+            let mut output_file = File::create(filename).expect("Cannot create output file");
+            let mut writer = BufWriter::with_capacity(nbytes as usize, output_file);
+
+            let started = Instant::now();
+            let bar = ProgressBar::new(nbytes as u64);
+            bar.set_style(ProgressStyle::default_bar().template(
+                "humility: reading [{bar:30}] {bytes}/{total_bytes}",
+            ));
+            let update_cycle = 64;
+            let mut updates = 0;
+
+            let end_address = address + nbytes;
+            let mut out_address = address;
+            loop {
+                let mut ops = vec![];
+                for _ in 0..max_chunks {
+                    let len = if address + chunk > end_address {
+                        end_address - address
+                    } else {
+                        chunk
+                    };
+
+                    if len == 0 {
+                        break;
+                    }
+                    ops.push(Op::Push32(address));
+                    ops.push(Op::Push32(len));
+                    ops.push(Op::Call(qspi_read.id));
+
+                    address += len;
+                }
+                ops.push(Op::Done);
+
+                match context.execute(core, ops.as_slice(), Some(&buf)) {
+                    Ok(x) => Ok(x),
+                    Err(e) => {
+                        println!("Err={:?}", e);
+                        Err(e)
+                    },
+                }?;
+
+                loop {
+                    if context.done(core)? {
+                        break;
+                    }
+
+                    thread::sleep(Duration::from_millis(100));
+                }
+
+                let results = context.results(core)?;
+
+                if updates % update_cycle == 0 {
+                    bar.set_position((address).into());
+                }
+                updates += 1;
+
+                for (i, block_result) in results.iter().enumerate() {
+                    match &*block_result {
+                        Err(err) => bail!(
+                            "failed to read block {} at offset {}: {}",
+                            i, address, qspi_read.strerror(*err)),
+                        Ok(buf) => {
+                            if subargs.verbose {
+                                printmem(buf, out_address, 1, 16);
+                            }
+                            writer.write_all(buf).expect("write error");
+                            out_address += buf.len() as u32;
+                        },
+                    }
+                }
+                if address >= end_address { // redundant with check at top of loop
+                    break;
+                }
+            }
+            writer.flush().unwrap();
+
+            bar.finish_and_clear();
+
+            info!(
+                "read {} in {}",
+                HumanBytes(nbytes as u64),
+                HumanDuration(started.elapsed())
+            );
+
+            return Ok(());
         } else {
             bail!("expected an operation");
         };
@@ -358,6 +515,17 @@ struct DeviceIdData {
     ext_device_id: u8,
     device_configuration_info: u8,
     uid: [u8;14],
+}
+
+impl DeviceIdData {
+    /// Return flash part size in bytes
+    pub fn size(&self) -> Result<u32> {
+        match self.memory_capacity {
+            // This is currently limited to the codes returned from Micron MT25Q parts.
+            0x17..=0x22 => Ok(1u32 << (self.memory_capacity + 1)),
+            _ => bail!("unknown DeviceIdData capacity code {:x?}h", self.memory_capacity),
+        }
+    }
 }
 
 impl fmt::Display for DeviceIdData {
