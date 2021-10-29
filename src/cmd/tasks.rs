@@ -59,7 +59,7 @@ fn print_stack(
         if let Some(ref inlined) = frame.inlined {
             for inline in inlined {
                 println!(
-                    "0x{:08x} 0x{:08x} {}()",
+                    "0x{:08x} 0x{:08x} {}",
                     frame.cfa, inline.addr, inline.name
                 );
                 print!("   {}      ", bar);
@@ -74,7 +74,10 @@ fn print_stack(
         }
 
         if let Some(sym) = frame.sym {
-            println!("0x{:08x} 0x{:08x} {}()", frame.cfa, *pc, sym.name);
+            println!(
+                "0x{:08x} 0x{:08x} {}",
+                frame.cfa, *pc, sym.demangled_name
+            );
 
             if subargs.line {
                 if let Some(src) = hubris.lookup_src(sym.goff) {
