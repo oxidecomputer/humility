@@ -197,7 +197,7 @@ fn i2c_done(
     } else if subargs.scan && subargs.device.is_some() {
         println!(
             "\nRegister scan for device 0x{:x} on I2C{}:\n",
-            hargs.device.unwrap(),
+            hargs.address.unwrap(),
             hargs.controller
         );
 
@@ -254,7 +254,7 @@ fn i2c_done(
         print!(
             "Controller I2C{}, device 0x{:x}, raw {} = ",
             hargs.controller,
-            hargs.device.unwrap(),
+            hargs.address.unwrap(),
             if subargs.write.is_some() { "write" } else { "read" },
         );
 
@@ -286,7 +286,7 @@ fn i2c_done(
         print!(
             "Controller I2C{}, device 0x{:x}, {}register 0x{:x} = ",
             hargs.controller,
-            hargs.device.unwrap(),
+            hargs.address.unwrap(),
             if subargs.writeraw { "raw write to " } else { "" },
             subargs.register.unwrap()
         );
@@ -405,7 +405,7 @@ fn i2c(
     }
 
     if let Some(filename) = subargs.flash {
-        ops.push(Op::Push(hargs.device.unwrap()));
+        ops.push(Op::Push(hargs.address.unwrap()));
         ops.push(Op::PushNone);
 
         let filelen = {
@@ -543,8 +543,8 @@ fn i2c(
     }
 
     if !subargs.scan && subargs.scanreg.is_none() {
-        if let Some(device) = hargs.device {
-            ops.push(Op::Push(device));
+        if let Some(address) = hargs.address {
+            ops.push(Op::Push(address));
         } else {
             bail!("expected device");
         }
@@ -597,8 +597,8 @@ fn i2c(
         }
 
         ops.push(Op::Call(func.id));
-    } else if let Some(device) = hargs.device {
-        ops.push(Op::Push(device));
+    } else if let Some(address) = hargs.address {
+        ops.push(Op::Push(address));
         ops.push(Op::Push(0));
         ops.push(Op::PushNone);
         ops.push(Op::Label(Target(0)));

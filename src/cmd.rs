@@ -271,25 +271,65 @@ fn printmem(bytes: &[u8], addr: u32, size: usize, width: usize) {
     }
 }
 
-struct HiffyI2cArgs {
+struct HiffyI2cArgs<'a> {
     controller: u8,
     port: u8,
     mux: Option<(u8, u8)>,
-    device: Option<u8>,
+    device: Option<String>,
+    address: Option<u8>,
+    class: &'a HubrisI2cDeviceClass,
+}
+
+///
+/// A routine to convert from a found device into a [`HiffyI2cArg`]
+///
+fn hiffy_i2c_arg<'a>(
+    hubris: &'a HubrisArchive,
+    goff: HubrisGoff,
+    device: &'a HubrisI2cDevice,
+) -> Result<HiffyI2cArgs<'a>> {
+    let p = hubris.lookup_enum(goff).context("expected port to be an enum")?;
+
+    if p.size != 1 {
+        bail!("expected port to be a 1-byte enum");
+    }
+
+    let val = p
+        .variants
+        .iter()
+        .filter(|v| v.name == device.port)
+        .map(|v| v.tag.unwrap() as u8)
+        .next()
+        .unwrap();
+
+    Ok(HiffyI2cArgs {
+        controller: device.controller,
+        port: val,
+        mux: match (device.mux, device.segment) {
+            (Some(m), Some(s)) => Some((m, s)),
+            (None, None) => None,
+            _ => {
+                panic!("bad mux/segment on {}", device.device);
+            }
+        },
+        address: Some(device.address),
+        device: Some(device.device.clone()),
+        class: &device.class,
+    })
 }
 
 ///
 /// A routine to help commands parse I2C-related command-line arguments.
 ///
-fn hiffy_i2c_args(
-    hubris: &HubrisArchive,
+fn hiffy_i2c_args<'a>(
+    hubris: &'a HubrisArchive,
     goff: HubrisGoff,
     bus: &Option<String>,
     controller: Option<u8>,
     port: &Option<String>,
     mux: &Option<String>,
     device: &Option<String>,
-) -> Result<HiffyI2cArgs> {
+) -> Result<HiffyI2cArgs<'a>> {
     let p = hubris.lookup_enum(goff).context("expected port to be an enum")?;
 
     if p.size != 1 {
@@ -342,7 +382,7 @@ fn hiffy_i2c_args(
         device: &str,
         p: &HubrisEnum,
         mut found: T,
-    ) -> Result<HiffyI2cArgs>
+    ) -> Result<HiffyI2cArgs<'a>>
     where
         T: Iterator<Item = &'a HubrisI2cDevice>,
     {
@@ -365,7 +405,9 @@ fn hiffy_i2c_args(
                             bail!("{}: bad mux/segment", device);
                         }
                     },
-                    device: Some(d.address),
+                    address: Some(d.address),
+                    device: Some(device.to_string()),
+                    class: &d.class,
                 })
             }
         }
@@ -403,7 +445,7 @@ fn hiffy_i2c_args(
             }
             (None, None) => {
                 //
-                // If we haven't been a controller or a bus, but we've been
+                // If we haven't been given a controller or a bus, but we've been
                 // given a device, see if we can find exactly one of
                 // those devices.
                 //
@@ -475,11 +517,11 @@ fn hiffy_i2c_args(
         None
     };
 
-    let device = match device {
-        None => None,
+    let (device, address) = match device {
+        None => (None, None),
         Some(device) => {
             if let Ok(val) = parse_int::parse::<u8>(device) {
-                Some(val)
+                (None, Some(val))
             } else {
                 let found = hubris
                     .manifest
@@ -499,5 +541,7 @@ fn hiffy_i2c_args(
         port: port,
         mux: mux,
         device: device,
+        address: address,
+        class: &HubrisI2cDeviceClass::Unknown,
     })
 }

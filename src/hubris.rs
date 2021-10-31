@@ -97,6 +97,11 @@ struct HubrisConfigI2cController {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cPmbus {
+    rails: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigI2cDevice {
     device: String,
     controller: Option<u8>,
@@ -106,6 +111,7 @@ struct HubrisConfigI2cDevice {
     mux: Option<u8>,
     segment: Option<u8>,
     description: String,
+    pmbus: Option<HubrisConfigI2cPmbus>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -129,6 +135,13 @@ pub struct HubrisI2cBus {
 }
 
 #[derive(Clone, Debug)]
+pub enum HubrisI2cDeviceClass {
+    Pmbus { rails: Vec<String> },
+    Unspecified,
+    Unknown,
+}
+
+#[derive(Clone, Debug)]
 pub struct HubrisI2cDevice {
     pub device: String,
     pub controller: u8,
@@ -137,6 +150,7 @@ pub struct HubrisI2cDevice {
     pub segment: Option<u8>,
     pub address: u8,
     pub description: String,
+    pub class: HubrisI2cDeviceClass,
 }
 
 #[derive(Debug)]
@@ -1857,6 +1871,15 @@ impl HubrisArchive {
                     segment: device.segment,
                     address: device.address,
                     description: device.description.clone(),
+                    class: match &device.pmbus {
+                        Some(pmbus) => HubrisI2cDeviceClass::Pmbus {
+                            rails: match &pmbus.rails {
+                                Some(rails) => rails.to_vec(),
+                                None => vec![],
+                            },
+                        },
+                        None => HubrisI2cDeviceClass::Unspecified,
+                    },
                 });
             }
         }
