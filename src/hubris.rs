@@ -3616,7 +3616,9 @@ impl HubrisArchive {
             .filter(|bus| bus.controller == controller)
             .collect::<Vec<_>>();
 
-        if found.len() == 1 {
+        if found.len() == 0 {
+            bail!("unknown I2C controller {}", controller);
+        } else if found.len() == 1 {
             Ok(&found[0].port)
         } else {
             let ports = found
