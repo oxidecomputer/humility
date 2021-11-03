@@ -126,9 +126,15 @@ struct HubrisConfigConfig {
 }
 
 #[derive(Clone, Debug)]
+pub struct HubrisI2cPort {
+    pub name: String,
+    pub index: u8,
+}
+
+#[derive(Clone, Debug)]
 pub struct HubrisI2cBus {
     pub controller: u8,
-    pub port: String,
+    pub port: HubrisI2cPort,
     pub name: Option<String>,
     pub description: Option<String>,
     pub target: bool,
@@ -145,7 +151,7 @@ pub enum HubrisI2cDeviceClass {
 pub struct HubrisI2cDevice {
     pub device: String,
     pub controller: u8,
-    pub port: String,
+    pub port: HubrisI2cPort,
     pub mux: Option<u8>,
     pub segment: Option<u8>,
     pub address: u8,
@@ -1794,14 +1800,17 @@ impl HubrisArchive {
 
     fn load_i2c_config(&mut self, i2c: &HubrisConfigI2c) -> Result<()> {
         let mut buses = HashMap::new();
-        let mut controllers = MultiMap::new();
 
         if let Some(ref controllers) = i2c.controllers {
             for controller in controllers {
-                for (name, port) in &controller.ports {
+                for (index, (name, port)) in controller.ports.iter().enumerate()
+                {
                     self.manifest.i2c_buses.push(HubrisI2cBus {
                         controller: controller.controller,
-                        port: name.clone(),
+                        port: HubrisI2cPort {
+                            name: name.clone(),
+                            index: index as u8,
+                        },
                         name: match port.name {
                             Some(ref name) => Some(name.clone()),
                             None => None,
@@ -1823,8 +1832,6 @@ impl HubrisArchive {
             if let Some(ref name) = bus.name {
                 buses.insert(name, bus);
             }
-
-            controllers.insert(bus.controller, &bus.port);
         }
 
         if let Some(ref devices) = i2c.devices {
@@ -1843,30 +1850,25 @@ impl HubrisArchive {
                         }
                     },
                     None => match (device.controller, &device.port) {
-                        (Some(controller), Some(port)) => (controller, port),
+                        (Some(controller), Some(port)) => (
+                            controller,
+                            self.lookup_i2c_port(controller, port)?,
+                        ),
                         (None, _) => {
                             bail!("{}: missing controller", name);
                         }
                         (Some(controller), None) => {
-                            match controllers.get_vec(&controller) {
-                                None => {
-                                    bail!("{}: unknown controller", name);
-                                }
-                                Some(ref ports) => {
-                                    if ports.len() > 1 {
-                                        bail!("{}: illegal port", name);
-                                    }
-                                    (controller, ports[0])
-                                }
-                            }
+                            (controller, self.i2c_port(controller)?)
                         }
                     },
                 };
 
+                let p = port.clone();
+
                 self.manifest.i2c_devices.push(HubrisI2cDevice {
                     device: device.device.clone(),
                     controller: controller,
-                    port: port.to_string(),
+                    port: p,
                     mux: device.mux,
                     segment: device.segment,
                     address: device.address,
@@ -3442,7 +3444,7 @@ impl HubrisArchive {
                 println!(
                     "{:>17} {:4} {:4} {:13} {}",
                     bus.controller,
-                    bus.port,
+                    bus.port.name,
                     if bus.target { "trgt" } else { "init" },
                     bus.name.as_ref().unwrap_or(&"-".to_string()),
                     bus.description.as_ref().unwrap_or(&"-".to_string()),
@@ -3473,7 +3475,7 @@ impl HubrisArchive {
                 println!(
                     "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
                     device.controller,
-                    device.port,
+                    device.port.name,
                     mux,
                     device.address,
                     device.device,
@@ -3552,6 +3554,81 @@ impl HubrisArchive {
 
             bail!("{} does not correspond to a peripheral; \
                 expected one of: {}", name, peripherals.join(", "));
+        }
+    }
+
+    pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
+        self.manifest
+            .i2c_buses
+            .iter()
+            .find(|&b| b.name == Some(bus.to_string()))
+            .ok_or_else(|| anyhow!("couldn't find bus {}", bus))
+    }
+
+    ///
+    /// For a given controller and port name, return the matching port
+    /// (if any)
+    ///
+    pub fn lookup_i2c_port(
+        &self,
+        controller: u8,
+        port: &str,
+    ) -> Result<&HubrisI2cPort> {
+        let mut found = false;
+
+        for bus in &self.manifest.i2c_buses {
+            if bus.controller != controller {
+                continue;
+            }
+
+            found = true;
+
+            if bus.port.name.eq_ignore_ascii_case(port) {
+                return Ok(&bus.port);
+            }
+        }
+
+        if !found {
+            bail!("unknown I2C controller {}", controller);
+        }
+
+        let ports = self
+            .manifest
+            .i2c_buses
+            .iter()
+            .filter(|bus| bus.controller == controller)
+            .map(|bus| bus.port.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        bail!("invalid port \"{}\" (must be one of: {})", port, ports);
+    }
+
+    ///
+    /// For a given controller, return its port if there is only one, failing
+    /// if there is more than one port.
+    ///
+    pub fn i2c_port(&self, controller: u8) -> Result<&HubrisI2cPort> {
+        let found = self
+            .manifest
+            .i2c_buses
+            .iter()
+            .filter(|bus| bus.controller == controller)
+            .collect::<Vec<_>>();
+
+        if found.len() == 1 {
+            Ok(&found[0].port)
+        } else {
+            let ports = found
+                .iter()
+                .map(|bus| bus.port.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            bail!(
+                "I2C{} has multiple ports; expected one of: {}",
+                controller, ports
+            )
         }
     }
 

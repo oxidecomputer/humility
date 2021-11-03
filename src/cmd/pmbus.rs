@@ -516,7 +516,7 @@ fn summarize_rail(
     print!(
         "{} {:2} {:3} 0x{:02x} {:13} {:13}",
         device.controller,
-        device.port,
+        device.port.name,
         mux,
         device.address,
         device.device,
@@ -638,10 +638,10 @@ fn summarize(
                 None => pmbus::Device::Common,
             };
 
-            let harg = crate::cmd::hiffy_i2c_arg(hubris, func.args[1], device)?;
+            let harg = crate::cmd::hiffy_i2c_arg(device)?;
 
             ops.push(Op::Push(harg.controller));
-            ops.push(Op::Push(harg.port));
+            ops.push(Op::Push(harg.port.index));
 
             if let Some(mux) = harg.mux {
                 ops.push(Op::Push(mux.0));
@@ -768,7 +768,7 @@ fn pmbus(
                 println!(
                     "{} {:2} {:3} 0x{:02x} {:13} {:30} {}",
                     device.controller,
-                    device.port,
+                    device.port.name,
                     mux,
                     device.address,
                     device.device,
@@ -827,15 +827,12 @@ fn pmbus(
                 None => {
                     bail!("rail {} not found", rail);
                 }
-                Some(device) => {
-                    crate::cmd::hiffy_i2c_arg(hubris, func.args[1], device)?
-                }
+                Some(device) => crate::cmd::hiffy_i2c_arg(device)?,
             }
         }
 
         (_, _) => hiffy_i2c_args(
             hubris,
-            func.args[1],
             &subargs.bus,
             subargs.controller,
             &subargs.port,
@@ -902,7 +899,7 @@ fn pmbus(
     let mut cmds = vec![];
 
     ops.push(Op::Push(hargs.controller));
-    ops.push(Op::Push(hargs.port));
+    ops.push(Op::Push(hargs.port.index));
 
     if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));

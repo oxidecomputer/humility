@@ -273,7 +273,7 @@ fn printmem(bytes: &[u8], addr: u32, size: usize, width: usize) {
 
 struct HiffyI2cArgs<'a> {
     controller: u8,
-    port: u8,
+    port: &'a HubrisI2cPort,
     mux: Option<(u8, u8)>,
     device: Option<String>,
     address: Option<u8>,
@@ -283,28 +283,10 @@ struct HiffyI2cArgs<'a> {
 ///
 /// A routine to convert from a found device into a [`HiffyI2cArg`]
 ///
-fn hiffy_i2c_arg<'a>(
-    hubris: &'a HubrisArchive,
-    goff: HubrisGoff,
-    device: &'a HubrisI2cDevice,
-) -> Result<HiffyI2cArgs<'a>> {
-    let p = hubris.lookup_enum(goff).context("expected port to be an enum")?;
-
-    if p.size != 1 {
-        bail!("expected port to be a 1-byte enum");
-    }
-
-    let val = p
-        .variants
-        .iter()
-        .filter(|v| v.name == device.port)
-        .map(|v| v.tag.unwrap() as u8)
-        .next()
-        .unwrap();
-
+fn hiffy_i2c_arg<'a>(device: &'a HubrisI2cDevice) -> Result<HiffyI2cArgs<'a>> {
     Ok(HiffyI2cArgs {
         controller: device.controller,
-        port: val,
+        port: &device.port,
         mux: match (device.mux, device.segment) {
             (Some(m), Some(s)) => Some((m, s)),
             (None, None) => None,
@@ -323,56 +305,12 @@ fn hiffy_i2c_arg<'a>(
 ///
 fn hiffy_i2c_args<'a>(
     hubris: &'a HubrisArchive,
-    goff: HubrisGoff,
     bus: &Option<String>,
     controller: Option<u8>,
     port: &Option<String>,
     mux: &Option<String>,
     device: &Option<String>,
 ) -> Result<HiffyI2cArgs<'a>> {
-    let p = hubris.lookup_enum(goff).context("expected port to be an enum")?;
-
-    if p.size != 1 {
-        bail!("expected port to be a 1-byte enum");
-    }
-
-    //
-    // A private function to look a port string up, given the enum.
-    //
-    fn lookup_port(port: &str, p: &HubrisEnum) -> Result<u8> {
-        for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(port) {
-                return Ok(u8::try_from(variant.tag.unwrap())?);
-            }
-        }
-
-        let mut vals: Vec<String> = vec![];
-
-        for variant in &p.variants {
-            vals.push(variant.name.to_string());
-        }
-
-        bail!(
-            "invalid port \"{}\" (must be one of: {})",
-            port,
-            vals.join(", ")
-        );
-    }
-
-    //
-    // A wrapper for ports found internally (i.e., in device configuration)
-    // for which we expect the lookup_port() to succeed (tht is, failure would
-    // denote a port in the I2C configuration that isn't in the enum).
-    //
-    fn translate_port(port: &str, p: &HubrisEnum) -> u8 {
-        match lookup_port(port, p) {
-            Ok(result) => result,
-            Err(err) => {
-                panic!("misconfig: port {} is not in enum: {}", port, err);
-            }
-        }
-    }
-
     //
     // A helper function to translate a found device into something we can
     // return, checking that we have found exactly one device that matches
@@ -380,7 +318,6 @@ fn hiffy_i2c_args<'a>(
     //
     fn translate_device<'a, T>(
         device: &str,
-        p: &HubrisEnum,
         mut found: T,
     ) -> Result<HiffyI2cArgs<'a>>
     where
@@ -397,7 +334,7 @@ fn hiffy_i2c_args<'a>(
 
                 Ok(HiffyI2cArgs {
                     controller: d.controller,
-                    port: translate_port(&d.port, p),
+                    port: &d.port,
                     mux: match (d.mux, d.segment) {
                         (Some(m), Some(s)) => Some((m, s)),
                         (None, None) => None,
@@ -426,18 +363,8 @@ fn hiffy_i2c_args<'a>(
             bail!("cannot specity both a bus and a port");
         }
 
-        let found = hubris
-            .manifest
-            .i2c_buses
-            .iter()
-            .find(|&b| b.name == Some(bus.to_string()));
-
-        match found {
-            None => {
-                bail!("bus {} not found", bus);
-            }
-            Some(bus) => (bus.controller, translate_port(&bus.port, p)),
-        }
+        let bus = hubris.lookup_i2c_bus(bus)?;
+        (bus.controller, &bus.port)
     } else {
         match (controller, port) {
             (None, Some(_)) => {
@@ -456,13 +383,17 @@ fn hiffy_i2c_args<'a>(
                         .iter()
                         .filter(|d| d.device == *device);
 
-                    return translate_device(device, p, found);
+                    return translate_device(device, found);
                 } else {
                     bail!("must specify either a controller or a bus");
                 }
             }
             (Some(controller), Some(port)) => {
-                (controller, lookup_port(&port, p)?)
+                //
+                // We have a controller and a port; that should be an exact
+                // match.
+                //
+                (controller, hubris.lookup_i2c_port(controller, &port)?)
             }
             (Some(controller), None) => {
                 //
@@ -470,31 +401,7 @@ fn hiffy_i2c_args<'a>(
                 // exactly one bus for this controller, we will use its port,
                 // otherwise we will bail.
                 //
-                let mut found = hubris
-                    .manifest
-                    .i2c_buses
-                    .iter()
-                    .filter(|bus| bus.controller == controller)
-                    .map(|bus| bus.port.clone());
-
-                let all: Vec<_> = found.clone().collect();
-
-                match found.next() {
-                    None => {
-                        bail!("unknown I2C controller {}", controller);
-                    }
-                    Some(port) => {
-                        if let Some(_) = found.next() {
-                            bail!(
-                                "I2C{} has multiple ports; expected one of: {}",
-                                controller,
-                                all.join(", ")
-                            )
-                        }
-
-                        (controller, translate_port(&port, p))
-                    }
-                }
+                (controller, hubris.i2c_port(controller)?)
             }
         }
     };
@@ -529,9 +436,9 @@ fn hiffy_i2c_args<'a>(
                     .iter()
                     .filter(|d| d.device == *device)
                     .filter(|d| d.controller == controller)
-                    .filter(|d| translate_port(&d.port, p) == port);
+                    .filter(|d| d.port.index == port.index);
 
-                return translate_device(device, p, found);
+                return translate_device(device, found);
             }
         }
     };

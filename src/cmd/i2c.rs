@@ -384,7 +384,6 @@ fn i2c(
 
     let hargs = hiffy_i2c_args(
         hubris,
-        func.args[1],
         &subargs.bus,
         subargs.controller,
         &subargs.port,
@@ -394,7 +393,7 @@ fn i2c(
 
     let mut ops = vec![Op::Push(hargs.controller)];
 
-    ops.push(Op::Push(hargs.port));
+    ops.push(Op::Push(hargs.port.index));
 
     if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));
