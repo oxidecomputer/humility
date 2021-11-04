@@ -695,6 +695,8 @@ fn summarize(
 
                 work.push((device, driver, rail, calls));
             }
+
+            ops.push(Op::DropN(5));
         }
     }
 
