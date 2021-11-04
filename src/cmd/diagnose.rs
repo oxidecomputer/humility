@@ -127,7 +127,8 @@ fn diagnose(
 
     println!("Snapshot taken, {} tasks in application.", tasks_0.len());
 
-    let narrow_generations = matches!(tasks_0[0].generation, GenOrRestartCount::Gen(_));
+    let narrow_generations =
+        matches!(tasks_0[0].generation, GenOrRestartCount::Gen(_));
 
     if narrow_generations {
         println!(
@@ -281,7 +282,11 @@ fn diagnose(
             // Estimate restart rate.
             if let Some(dt) = delta_ticks {
                 let f = f64::from(count) / dt as f64;
-                println!("- (this is {:.03} restarts/tick, or {:.03}/s)", f, 1000. * f);
+                println!(
+                    "- (this is {:.03} restarts/tick, or {:.03}/s)",
+                    f,
+                    1000. * f
+                );
             }
 
             // Report previous or current faults.
