@@ -201,8 +201,8 @@ pub struct HubrisArchive {
     // DWARF source code: goff to file/line
     src: HashMap<HubrisGoff, HubrisSrc>,
 
-    // DWARF symbols: address to name/length/goff tuple
-    dsyms: BTreeMap<u32, (String, u32, HubrisGoff)>,
+    // DWARF symbols: address to HubrisSymbol
+    dsyms: BTreeMap<u32, HubrisSymbol>,
 
     // ELF symbols: address to name/length tuple
     esyms: BTreeMap<u32, (String, u32)>,
@@ -213,7 +213,7 @@ pub struct HubrisArchive {
     // Inlined: address/nesting tuple to length/goff/origin tuple
     inlined: BTreeMap<(u32, isize), (u32, HubrisGoff, HubrisGoff)>,
 
-    // Subprograms: goff to name
+    // Subprograms: goff to demangled name
     subprograms: HashMap<HubrisGoff, String>,
 
     // Base types: goff to size
@@ -342,10 +342,8 @@ impl HubrisArchive {
          * First, check our DWARF symbols.
          */
         sym = match self.dsyms.range(..=addr).next_back() {
-            Some((&sym_addr, (name, sym_len, _goff)))
-                if addr < sym_addr + sym_len =>
-            {
-                Some((name, sym_addr))
+            Some((_, sym)) if addr < sym.addr + sym.size => {
+                Some((&sym.name, sym.addr))
             }
             _ => None,
         };
@@ -732,7 +730,7 @@ impl HubrisArchive {
         >,
     ) -> Result<()> {
         let mut name = None;
-        let mut _linkage_name = None;
+        let mut linkage_name = None;
         let mut addr = None;
         let mut len = None;
 
@@ -755,7 +753,7 @@ impl HubrisArchive {
                     len = Some(value);
                 }
                 (gimli::constants::DW_AT_linkage_name, _) => {
-                    _linkage_name = dwarf_name(dwarf, attr.value());
+                    linkage_name = dwarf_name(dwarf, attr.value());
                 }
                 (gimli::constants::DW_AT_name, _) => {
                     name = dwarf_name(dwarf, attr.value());
@@ -765,23 +763,34 @@ impl HubrisArchive {
         }
 
         if let Some(name) = name {
+            let demangled_name = if let Some(ln) = linkage_name {
+                demangle_name(ln)
+            } else {
+                name.to_string()
+            };
+
+            self.subprograms.insert(goff, demangled_name.clone());
+
             match (addr, len) {
                 (Some(addr), Some(len)) if addr != 0 => {
                     self.dsyms.insert(
                         addr as u32,
-                        (String::from(name), len as u32, goff),
+                        HubrisSymbol {
+                            name: name.to_string(),
+                            demangled_name,
+                            size: len as u32,
+                            addr: addr as u32,
+                            goff,
+                        },
                     );
                 }
                 _ => {}
             }
-
-            self.subprograms.insert(goff, String::from(name));
-
-            Ok(())
         } else {
             trace!("no name found for {}", goff);
-            Ok(())
         }
+
+        Ok(())
     }
 
     fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
@@ -953,7 +962,13 @@ impl HubrisArchive {
                 for &(addr, size) in syms {
                     if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr)
                     {
-                        e.insert((String::from(name), size, goff));
+                        e.insert(HubrisSymbol {
+                            name: String::from(name),
+                            demangled_name: demangle_name(&name),
+                            size,
+                            addr,
+                            goff,
+                        });
                         self.variables.insert(
                             String::from(name),
                             HubrisVariable {
@@ -2765,11 +2780,7 @@ impl HubrisArchive {
             // Lookup the DWARF symbol associated with our PC
             //
             let sym = match self.dsyms.range(..=pc).next_back() {
-                Some(sym) if pc < *sym.0 + sym.1 .1 => Some(HubrisSymbol {
-                    addr: *sym.0 as u32,
-                    name: &sym.1 .0,
-                    goff: sym.1 .2,
-                }),
+                Some((addr, sym)) if pc < *addr + sym.size => Some(sym),
                 _ => None,
             };
 
@@ -3715,10 +3726,12 @@ impl fmt::Display for HubrisGoff {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct HubrisSymbol<'a> {
+#[derive(Clone, Debug)]
+pub struct HubrisSymbol {
     pub addr: u32,
-    pub name: &'a str,
+    pub name: String,
+    pub demangled_name: String,
+    pub size: u32,
     pub goff: HubrisGoff,
 }
 
@@ -4057,7 +4070,7 @@ pub enum HubrisTarget {
 #[derive(Clone, Debug)]
 pub struct HubrisStackFrame<'a> {
     pub cfa: u32,
-    pub sym: Option<HubrisSymbol<'a>>,
+    pub sym: Option<&'a HubrisSymbol>,
     pub registers: HashMap<ARMRegister, u32>,
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
@@ -4136,4 +4149,11 @@ fn dwarf_name<'a>(
         }
         _ => None,
     }
+}
+
+/// Demangles `name` as a Rust symbol.
+fn demangle_name(name: &str) -> String {
+    // Note: "alternate mode" # causes rustc_demangle to leave off the ugly hash
+    // values on functions.
+    format!("{:#}", rustc_demangle::demangle(name))
 }

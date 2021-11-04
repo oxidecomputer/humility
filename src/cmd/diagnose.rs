@@ -15,7 +15,7 @@
 use crate::cmd::jefe;
 use crate::cmd::*;
 use crate::core::Core;
-use crate::doppel::{Task, TaskDesc, TaskState};
+use crate::doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use crate::hubris::*;
 use crate::reflect;
 use crate::Args;
@@ -51,6 +51,10 @@ struct DiagnoseArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
+
+    /// number of milliseconds to sleep trying to catch crashes
+    #[structopt(long, short, default_value = "15", value_name = "ms")]
+    sleep_ms: u64,
 
     /// verbose output
     #[structopt(long, short)]
@@ -123,6 +127,15 @@ fn diagnose(
 
     println!("Snapshot taken, {} tasks in application.", tasks_0.len());
 
+    let narrow_generations = matches!(tasks_0[0].generation, GenOrRestartCount::Gen(_));
+
+    if narrow_generations {
+        println!(
+            "Firmware using older 6-bit kernel generations, restart counts \n\
+             will be less precise."
+        );
+    }
+
     section("Tasks: First Pass");
     println!("Checking for any suspicious task attributes...");
     for (i, task) in tasks_0.iter().enumerate() {
@@ -137,20 +150,29 @@ fn diagnose(
                 fault,
                 original_state,
             );
-            if task.generation.0 == 0 {
+            if u32::from(task.generation) == 0 {
                 println!("- Task may be held in this state (gen=0)");
             }
         }
 
-        if task.generation.0 > 0 {
+        if u32::from(task.generation) > 0 {
+            let g = u32::from(task.generation);
             println!(
                 "{} task {} (#{}) has been restarted\n\
                  - Generation: {}",
                 Condition::TaskHasBeenRestarted,
                 task_names[i],
                 i,
-                task.generation.0,
+                g,
             );
+            if !narrow_generations {
+                let per_tick = g as f64 / ticks_0 as f64;
+                println!(
+                    "- rate: {:.03} restarts/tick, or {:.03}/s",
+                    per_tick,
+                    per_tick * 1000.,
+                );
+            }
         }
     }
 
@@ -165,12 +187,18 @@ fn diagnose(
 
     section("Advancing Time");
 
-    // Give the core a bit to make forward progress. In practice, this will be
-    // at least 2ms longer than whatever we sleep here, because probe-rs is teh
-    // slow.
     println!("\nResuming core for a bit...");
     core.run()?;
-    std::thread::sleep(std::time::Duration::from_millis(3));
+    if narrow_generations {
+        // Give the core a bit to make forward progress. In practice, this will
+        // be at least 2ms longer than whatever we sleep here, because probe-rs
+        // is teh slow.
+        std::thread::sleep(Duration::from_millis(subargs.sleep_ms));
+    } else {
+        // With wider generations we allow more time because wraparound is
+        // unlikely.
+        std::thread::sleep(Duration::from_millis(1000));
+    }
     core.halt()?;
 
     // Take a new snapshot.
@@ -232,19 +260,28 @@ fn diagnose(
         if before.generation != after.generation {
             // Estimate restart count. Since kernel generation bits are
             // currently limited, this is best-effort.
-            let count =
-                after.generation.0.wrapping_sub(before.generation.0) & 0x3F;
+            let count = match (before.generation, after.generation) {
+                (
+                    GenOrRestartCount::RestartCount(b),
+                    GenOrRestartCount::RestartCount(a),
+                ) => a.wrapping_sub(b),
+                (GenOrRestartCount::Gen(b), GenOrRestartCount::Gen(a)) => {
+                    u32::from(a.0.wrapping_sub(b.0) & 0x3F)
+                }
+                _ => bail!("generation changed shape between reads?"),
+            };
             println!(
-                "{}: Task {} (#{}) has restarted at least {} more times.",
+                "{}: Task {} (#{}) has restarted {}{} more times.",
                 Condition::TaskFlapping,
                 task_names[i],
                 i,
+                if narrow_generations { "at least " } else { "" },
                 count,
             );
             // Estimate restart rate.
             if let Some(dt) = delta_ticks {
                 let f = f64::from(count) / dt as f64;
-                println!("- (this is {} restarts/tick, or {}/s)", f, 1000. * f);
+                println!("- (this is {:.03} restarts/tick, or {:.03}/s)", f, 1000. * f);
             }
 
             // Report previous or current faults.
@@ -285,7 +322,7 @@ fn diagnose(
         }
 
         println!("Tasks no longer restarting, giving them time to crash...");
-        std::thread::sleep(std::time::Duration::from_millis(5));
+        std::thread::sleep(Duration::from_millis(5));
         core.halt()?;
 
         println!("Results for these tasks::");
@@ -341,24 +378,12 @@ fn load_tcbs(
         taskblock
     };
 
-    // Parse all the tasks and load descriptors -- descriptors aren't expected
-    // to change.
-    let mut descs = Vec::with_capacity(task_count);
     let mut tasks = Vec::with_capacity(task_count);
-    let mut names = Vec::with_capacity(task_count);
     for i in 0..task_count {
         let offs = i * task_t.size;
 
         let task: Task = reflect::load(hubris, &taskblock, task_t, offs)?;
-        let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
-        let module = hubris
-            .instr_mod(desc.entry_point)
-            .unwrap_or("<unknown>")
-            .to_string();
-
         tasks.push(task);
-        descs.push(desc);
-        names.push(module);
     }
 
     Ok(tasks)

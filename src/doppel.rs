@@ -42,7 +42,7 @@ pub struct TaskDesc {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub struct Task {
     pub state: TaskState,
-    pub generation: Generation,
+    pub generation: GenOrRestartCount,
     pub priority: Priority,
     pub descriptor: Ptr,
     pub timer: TimerState,
@@ -161,6 +161,37 @@ pub enum FaultSource {
     User,
     /// User code asked the kernel to do something bad on its behalf.
     Kernel,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum GenOrRestartCount {
+    Gen(Generation),
+    RestartCount(u32),
+}
+
+impl From<GenOrRestartCount> for u32 {
+    fn from(g: GenOrRestartCount) -> Self {
+        match g {
+            GenOrRestartCount::Gen(g) => u32::from(g.0),
+            GenOrRestartCount::RestartCount(x) => x,
+        }
+    }
+}
+
+impl crate::reflect::Load for GenOrRestartCount {
+    fn from_value(v: &Value) -> Result<Self> {
+        // At the time of this writing, we're in the midst of transitioning from
+        // storing 6-bit generations in the kernel to storing 32-bit restart
+        // counts, where the bottom 6 bits give the generation. Handle both
+        // shapes here.
+        if let Ok(g) = Generation::from_value(v) {
+            Ok(Self::Gen(g))
+        } else if let Ok(n) = u32::from_value(v) {
+            Ok(Self::RestartCount(n))
+        } else {
+            bail!("unexpected generation/restart count shape: {:?}", v);
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
