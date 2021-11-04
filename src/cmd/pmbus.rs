@@ -954,6 +954,7 @@ fn pmbus(
     let mut writes = MultiMap::new();
     let mut write_ops = vec![];
     let mut send_bytes = vec![];
+    let mut setrail = false;
 
     if let Some(ref writecmds) = subargs.writes {
         run.fill(false);
@@ -1017,15 +1018,15 @@ fn pmbus(
             bail!("rail specified, but device has no defined rails");
         }
 
-        if rails.len() == 1 {
-            bail!("rail specified, but device only has one rail");
-        }
-
         //
         // We want to allow our rail to be specified by number or by name.
         //
         let rnum = match parse_int::parse::<u8>(&rail) {
             Ok(rnum) => {
+                if rails.len() == 1 {
+                    bail!("rail specified, but device only has one rail");
+                }
+
                 if rnum as usize >= rails.len() {
                     bail!("invalid rail number {}", rnum);
                 }
@@ -1041,12 +1042,15 @@ fn pmbus(
 
         let page = pmbus::commands::CommandCode::PAGE as u8;
 
-        ops.push(Op::Push(page));
-        ops.push(Op::Push(rnum as u8));
-        ops.push(Op::Push(1));
-        ops.push(Op::Call(write_func.id));
-        ops.push(Op::DropN(3));
-        cmds.push(page);
+        if rails.len() > 1 {
+            ops.push(Op::Push(page));
+            ops.push(Op::Push(rnum as u8));
+            ops.push(Op::Push(1));
+            ops.push(Op::Call(write_func.id));
+            ops.push(Op::DropN(3));
+            cmds.push(page);
+            setrail = true;
+        }
     }
 
     if !writes.is_empty() {
@@ -1126,14 +1130,15 @@ fn pmbus(
 
     let results = context.results(core)?;
 
-    let base = match &subargs.rail {
-        Some(_) => match results[0] {
+    let base = if setrail {
+        match results[0] {
             Err(code) => {
                 bail!("couldn't set rail: {}", write_func.strerror(code));
             }
             Ok(_) => 1,
-        },
-        None => 0,
+        }
+    } else {
+        0
     };
 
     let (mode, ndx) = if cmds[base] == vout {
