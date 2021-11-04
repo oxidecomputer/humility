@@ -115,7 +115,7 @@ pub struct I2cArgs {
 
 fn i2c_done(
     subargs: &I2cArgs,
-    hargs: &HiffyI2cArgs,
+    hargs: &crate::i2c::I2cArgs,
     results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
 ) -> Result<()> {
@@ -382,7 +382,7 @@ fn i2c(
         bail!("mismatched function signature on {}", fname);
     }
 
-    let hargs = hiffy_i2c_args(
+    let hargs = crate::i2c::I2cArgs::parse(
         hubris,
         &subargs.bus,
         subargs.controller,

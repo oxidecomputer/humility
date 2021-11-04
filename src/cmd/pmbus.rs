@@ -2,7 +2,7 @@
  * Copyright 2020 Oxide Computer Company
  */
 
-use crate::cmd::{hiffy_i2c_args, Archive, Attach, Validate};
+use crate::cmd::{Archive, Attach, Validate};
 use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
@@ -638,7 +638,7 @@ fn summarize(
                 None => pmbus::Device::Common,
             };
 
-            let harg = crate::cmd::hiffy_i2c_arg(device)?;
+            let harg = crate::i2c::I2cArgs::from_device(device);
 
             ops.push(Op::Push(harg.controller));
             ops.push(Op::Push(harg.port.index));
@@ -753,8 +753,8 @@ fn pmbus(
 
     if subargs.list {
         println!(
-            "{} {:2} {} {} {:13} {:30} {}",
-            "C", "P", "MUX", "ADDR", "DEVICE", "RAILS", "DESCRIPTION",
+            "{} {:2} {} {} {:13} {}",
+            "C", "P", "MUX", "ADDR", "DEVICE", "RAILS"
         );
 
         for device in &hubris.manifest.i2c_devices {
@@ -766,14 +766,13 @@ fn pmbus(
                 };
 
                 println!(
-                    "{} {:2} {:3} 0x{:02x} {:13} {:30} {}",
+                    "{} {:2} {:3} 0x{:02x} {:13} {}",
                     device.controller,
                     device.port.name,
                     mux,
                     device.address,
                     device.device,
                     rails.join(", "),
-                    device.description,
                 )
             }
         }
@@ -827,11 +826,11 @@ fn pmbus(
                 None => {
                     bail!("rail {} not found", rail);
                 }
-                Some(device) => crate::cmd::hiffy_i2c_arg(device)?,
+                Some(device) => crate::i2c::I2cArgs::from_device(device),
             }
         }
 
-        (_, _) => hiffy_i2c_args(
+        (_, _) => crate::i2c::I2cArgs::parse(
             hubris,
             &subargs.bus,
             subargs.controller,

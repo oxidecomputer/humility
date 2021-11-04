@@ -37,7 +37,8 @@ enum StmSecureArgs {
     /// Enable Read Out Protection (RDP) i.e. can't read flash from debugger
     SetRDP,
     /// Disable Read Out Protection (RDP).
-    /// !!! This may also trigger an erase of flash if a secure region is set !!!
+    /// !!! This may also trigger an erase of flash if a secure region is set
+    /// !!!
     UnsetRDP,
     /// Set the security option bit
     SetSecureBit,
@@ -45,7 +46,8 @@ enum StmSecureArgs {
     UnsetSecureBit,
     /// Set the secure region. The secure option bit must be set first.
     /// !!! You must make sure the application will boot out of the secure
-    /// region before this is programmed otherwise you will brick the device !!!
+    /// region before this is programmed otherwise you will brick the device
+    /// !!!
     SetSecureRegion {
         #[structopt(parse(try_from_str = parse_int::parse))]
         address: u32,
@@ -203,8 +205,8 @@ fn stmsecure_setsecureregion(
     // {
     // uint32_t sizeInBytes; /**< pass 0 for an empty secure area */
     // uint32_t startAddress; /**< pass NULL for an empty secure area */
-    // uint32_t removeDuringBankErase; /**< if 0, keep area during bank/mass erase. else area will be removed*/
-    // }RSS_SecureArea_t;
+    // uint32_t removeDuringBankErase; /**< if 0, keep area during bank/mass
+    // erase. else area will be removed*/ }RSS_SecureArea_t;
     //
     core.write_word_32(0x2000_0000, size)?;
     core.write_word_32(0x2000_0004, address)?;
@@ -212,7 +214,8 @@ fn stmsecure_setsecureregion(
     // with a bricked board
     core.write_word_32(0x2000_0008, 0x1)?;
 
-    // void RSS_resetAndInitializeSecureAreas(uint32_t nbAreas, RSS_SecureArea_t* areas);
+    // void RSS_resetAndInitializeSecureAreas(uint32_t nbAreas,
+    // RSS_SecureArea_t* areas);
     core.write_reg(ARMRegister::R0, 1)?;
     core.write_reg(ARMRegister::R1, 0x2000_0000)?;
 

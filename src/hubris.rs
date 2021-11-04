@@ -257,9 +257,9 @@ pub struct HubrisArchive {
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
         /*
-         * Initialize Capstone, being sure to specify not only our architecture
-         * but also that we are disassembling Thumb-2 -- and (importantly) to
-         * allow M-profile instructions.
+         * Initialize Capstone, being sure to specify not only our
+         * architecture but also that we are disassembling Thumb-2 --
+         * and (importantly) to allow M-profile instructions.
          */
         let cs = Capstone::new()
             .arm()
@@ -367,10 +367,11 @@ impl HubrisArchive {
         /*
          * We find our stack of inlined functions by searching backwards from
          * our address (which we know must be greater than or equal to all
-         * inlined functions that it is in).  This yields a vector that starts
-         * from the greatest depth and ends with the least depth -- so we
-         * reverse it before we return it.  We know that our search is over
-         * when the address plus the length is less than our base.
+         * inlined functions that it is in).  This yields a vector that
+         * starts from the greatest depth and ends with the least
+         * depth -- so we reverse it before we return it.  We know
+         * that our search is over when the address plus the length
+         * is less than our base.
          */
         for ((addr, _depth), (len, goff, origin)) in
             self.inlined.range(..=(pc, std::isize::MAX)).rev()
@@ -1151,8 +1152,9 @@ impl HubrisArchive {
         let mut discr = None;
 
         /*
-         * If we have an enum, we need to first remove it from our structures,
-         * putting back any duplicate names that isn't this enum.
+         * If we have an enum, we need to first remove it from our
+         * structures, putting back any duplicate names that isn't
+         * this enum.
          */
         let union = self.structs.remove(&goff).ok_or_else(|| {
             anyhow!("goff {:?} not present in structs map", goff)
@@ -1488,8 +1490,8 @@ impl HubrisArchive {
 
                         /*
                          * The discriminant is a (grand)child member; we need
-                         * to duplicate our parent's goff so our child can find
-                         * it.
+                         * to duplicate our parent's goff so our child can
+                         * find it.
                          */
                         stack[depth as usize] = parent;
                     }
@@ -1968,8 +1970,9 @@ impl HubrisArchive {
         let mut id = 0;
 
         /*
-         * And now we need to find the tasks.  Note that we depend on the fact
-         * that these are stored in task ID order in the archive.
+         * And now we need to find the tasks.  Note that we depend on the
+         * fact that these are stored in task ID order in the
+         * archive.
          */
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
@@ -2009,9 +2012,10 @@ impl HubrisArchive {
         }
 
         /*
-         * We read the entire archive into memory (and hold onto it) -- we are
-         * going to need most of it anyway, and we want to have the entire
-         * archive in memory to be able to write it out to any generated dump.
+         * We read the entire archive into memory (and hold onto it) -- we
+         * are going to need most of it anyway, and we want to have
+         * the entire archive in memory to be able to write it out to
+         * any generated dump.
          */
         let contents = fs::read(archive)?;
         self.load_archive(&contents)?;
@@ -2112,7 +2116,6 @@ impl HubrisArchive {
     /// present, and be present exactly once.  If needed structures begin
     /// having their names duplicated in modules, we may need to support
     /// proper namespacing -- or kludgey namespacing...
-    ///
     pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
         match self.structs_byname.get_vec(name) {
             Some(v) if v.len() > 1 => {
@@ -2189,7 +2192,6 @@ impl HubrisArchive {
     ///
     /// Looks up the specified symbol.  This is more of a convenience routine
     /// that turns an Option into a Result.
-    ///
     pub fn lookup_symword(&self, name: &str) -> Result<u32> {
         match self.esyms_byname.get(name) {
             Some(sym) => {
@@ -2270,8 +2272,8 @@ impl HubrisArchive {
         if self.current == 0 {
             /*
              * If we have no objects, we were never loaded -- and we consider
-             * this to be validated because it will give no answers rather than
-             * wrong ones.
+             * this to be validated because it will give no answers rather
+             * than wrong ones.
              */
             return Ok(());
         }
@@ -3568,7 +3570,6 @@ impl HubrisArchive {
     ///
     /// For a given controller and port name, return the matching port
     /// (if any)
-    ///
     pub fn lookup_i2c_port(
         &self,
         controller: u8,
@@ -3607,7 +3608,6 @@ impl HubrisArchive {
     ///
     /// For a given controller, return its port if there is only one, failing
     /// if there is more than one port.
-    ///
     pub fn i2c_port(&self, controller: u8) -> Result<&HubrisI2cPort> {
         let found = self
             .manifest
@@ -3699,7 +3699,6 @@ impl From<HubrisGoff> for HubrisTask {
 ///
 /// An identifier that corresponds to a global offset within a particular DWARF
 /// object.
-///
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 pub struct HubrisGoff {
     pub object: u32,

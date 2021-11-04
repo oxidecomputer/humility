@@ -291,8 +291,8 @@ fn tpiu_process_frame(
                 /*
                  * If this is the last half-word, the auxiliary bit "must be
                  * ignored" (Sec. D4.2 in the ARM CoreSight Architecture
-                 * Specification), and applies to the subsequent record.  So in
-                 * this case, we just return the ID.
+                 * Specification), and applies to the subsequent record.  So
+                 * in this case, we just return the ID.
                  */
                 return Ok(packet.id.unwrap());
             }
@@ -309,8 +309,8 @@ fn tpiu_process_frame(
                 }
                 (true, None) => {
                     /*
-                     * We have no old ID -- we are going to discard this byte,
-                     * but also warn about it.
+                     * We have no old ID -- we are going to discard this
+                     * byte, but also warn about it.
                      */
                     warn!("orphaned byte at offset {}", packet.offset);
                 }
@@ -320,9 +320,10 @@ fn tpiu_process_frame(
         } else {
             /*
              * If our bit is NOT set, the auxiliary bit is the actual bit
-             * of data.  If our current is not set, then we are still searching
-             * for a first frame; we don't have an ID to associate with it,
-             * so we need to chuck the data.
+             * of data.  If our current is not set, then we are still
+             * searching for a first frame; we don't have an ID
+             * to associate with it, so we need to chuck the
+             * data.
              */
             let id = match current {
                 Some(id) => id,
