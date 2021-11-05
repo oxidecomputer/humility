@@ -7,11 +7,10 @@ use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
-use std::convert::TryFrom;
 use std::str;
 use std::thread;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
 use std::time::Duration;
 use structopt::clap::App;
@@ -35,7 +34,13 @@ struct SpdArgs {
     #[structopt(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
-    controller: u8,
+    controller: Option<u8>,
+
+    /// specifies an I2C bus by name
+    #[structopt(long, short, value_name = "bus",
+        conflicts_with_all = &["port", "controller"]
+    )]
+    bus: Option<String>,
 
     /// specifies an I2C controller port
     #[structopt(long, short, value_name = "port")]
@@ -160,66 +165,20 @@ fn spd(
         bail!("mismatched function signature on I2cRead");
     }
 
-    let mut port = None;
+    let hargs = crate::i2c::I2cArgs::parse(
+        hubris,
+        &subargs.bus,
+        subargs.controller,
+        &subargs.port,
+        &subargs.mux,
+        &None,
+    )?;
 
-    if let Some(ref portarg) = subargs.port {
-        let p = hubris
-            .lookup_enum(i2c_read.args[1])
-            .context("expected port to be an enum")?;
+    let mut ops = vec![Op::Push(hargs.controller)];
 
-        if p.size != 1 {
-            bail!("expected port to be a 1-byte enum");
-        }
+    ops.push(Op::Push(hargs.port.index));
 
-        for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(portarg) {
-                port = Some(u8::try_from(variant.tag.unwrap())?);
-                break;
-            }
-        }
-
-        if port.is_none() {
-            let mut vals: Vec<String> = vec![];
-
-            for variant in &p.variants {
-                vals.push(variant.name.to_string());
-            }
-
-            bail!(
-                "invalid port \"{}\" (must be one of: {})",
-                portarg,
-                vals.join(", ")
-            );
-        }
-    }
-
-    let mux = if let Some(mux) = &subargs.mux {
-        let s = mux
-            .split(':')
-            .map(|v| parse_int::parse::<u8>(v))
-            .collect::<Result<Vec<_>, _>>()
-            .context("expected multiplexer and segment to be integers")?;
-
-        if s.len() == 2 {
-            Some((s[0], s[1]))
-        } else if s.len() == 1 {
-            Some((0, s[0]))
-        } else {
-            bail!("expected only multiplexer and segment identifiers");
-        }
-    } else {
-        None
-    };
-
-    let mut ops = vec![Op::Push(subargs.controller)];
-
-    if let Some(port) = port {
-        ops.push(Op::Push(port));
-    } else {
-        ops.push(Op::PushNone);
-    }
-
-    if let Some(mux) = mux {
+    if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));
         ops.push(Op::Push(mux.1));
     } else {

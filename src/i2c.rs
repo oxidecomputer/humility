@@ -76,6 +76,13 @@ impl<'a> I2cArgs<'a> {
         }
 
         //
+        // If we have no I2C controllers, give an explicit error message.
+        //
+        if hubris.manifest.i2c_buses.len() == 0 {
+            bail!("no I2C buses found; is this an old Hubris image?");
+        }
+
+        //
         // If we were given a bus, that will guide us to our controller and
         // port
         //

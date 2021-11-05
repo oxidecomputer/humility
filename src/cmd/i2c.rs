@@ -418,8 +418,14 @@ fn i2c(
             }
         };
 
+        //
+        // We set our block size to be a conservatively small page size:
+        // even though many EEPROMs can support a larger size, we want to
+        // support as many variantss as we can despite its substantial
+        // effect on performance.
+        //
         let addr_size = 2;
-        let block_size = 128u16;
+        let block_size = 16u16;
         let nibble_size = block_size + addr_size;
 
         let data_size = context.data_size();
@@ -429,6 +435,9 @@ fn i2c(
         let mut buf = vec![0u8; chunk];
         let mut file = File::open(filename)?;
         let mut last = false;
+
+        let sleep =
+            funcs.get("Sleep").ok_or_else(|| anyhow!("did not find Sleep"))?;
 
         let started = Instant::now();
         let bar = ProgressBar::new(filelen as u64);
@@ -469,7 +478,7 @@ fn i2c(
                 file.read(&mut buf[noffs..noffs + len as usize])?;
                 noffs += len as usize;
 
-                if offset as u32 + len as u32 > filelen as u32 {
+                if offset as u32 + len as u32 >= filelen as u32 {
                     //
                     // We are at the end of our file; clamp our chunk size at
                     // the amount of nibbles we actually took to prevent any
@@ -495,6 +504,9 @@ fn i2c(
             ops.push(Op::Drop);
             ops.push(Op::Push16(nibble_size));
             ops.push(Op::Call(func.id));
+            ops.push(Op::Push(5));
+            ops.push(Op::Call(sleep.id));
+            ops.push(Op::Drop);
             ops.push(Op::Add);
             ops.push(Op::Push32(chunk as u32));
             ops.push(Op::BranchGreaterThan(Target(0)));
