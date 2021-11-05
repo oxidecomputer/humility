@@ -426,7 +426,6 @@ pub fn itm_ingest(
 
 ///
 /// Enables ITM with an explict clockscaler and traceid.
-///
 pub fn itm_enable_explicit(
     core: &mut dyn Core,
     coreinfo: &CoreInfo,
@@ -444,8 +443,8 @@ pub fn itm_enable_explicit(
     match (coreinfo.vendor, coreinfo.part) {
         (Vendor::ST, ARMCore::CortexM4) => {
             /*
-             * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and set
-             * the trace mode to be asynchronous.
+             * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and
+             * set the trace mode to be asynchronous.
              */
             let mut val = STM32F4_DBGMCU_CR::read(core)?;
             val.set_trace_ioen(true);
@@ -576,7 +575,6 @@ pub fn itm_enable_explicit(
 ///
 /// Enables ITM by pulling clock scaler values from the specified Hubris
 /// archive.
-///
 pub fn itm_enable_ingest(
     core: &mut dyn Core,
     hubris: &HubrisArchive,

@@ -1,6 +1,6 @@
 [package]
 name = "humility"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 
@@ -47,4 +47,4 @@ indicatif = "0.15"
 colored = "2.0.0"
 postcard = "0.7.0"
 itertools = "0.10.1"
-indexmap = "1.7"
+indexmap = { version = "1.7", features = ["serde-1"] }

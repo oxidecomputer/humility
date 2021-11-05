@@ -7,14 +7,20 @@ use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
-use std::convert::TryFrom;
-use std::io::{Cursor, Write};
 use std::thread;
 use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
+
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+use std::time::Instant;
+
+use indicatif::{HumanBytes, HumanDuration};
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(StructOpt, Debug, Default)]
 #[structopt(name = "i2c", about = "scan for and read I2C devices")]
@@ -39,11 +45,15 @@ pub struct I2cArgs {
     )]
     scanreg: Option<u8>,
 
-    /// specifies an I2C bus
-    #[structopt(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+    /// specifies an I2C bus by name
+    #[structopt(long, short, value_name = "bus",
+        conflicts_with_all = &["port", "controller"]
     )]
-    controller: u8,
+    bus: Option<String>,
+
+    /// specifies an I2C controller
+    #[structopt(long, short, value_name = "controller")]
+    controller: Option<u8>,
 
     /// specifies an I2C controller port
     #[structopt(long, short, value_name = "port")]
@@ -54,10 +64,8 @@ pub struct I2cArgs {
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short, value_name = "address",
-        parse(try_from_str = parse_int::parse),
-    )]
-    device: Option<u8>,
+    #[structopt(long, short, value_name = "address")]
+    device: Option<String>,
 
     /// specifies register
     #[structopt(long, short, value_name = "register",
@@ -70,14 +78,12 @@ pub struct I2cArgs {
     raw: bool,
 
     /// read block
-    #[structopt(long, short, conflicts_with_all = &["write", "nbytes"])]
+    #[structopt(long, short = "B", conflicts_with_all = &["write", "nbytes"])]
     block: bool,
 
     /// specifies write value
-    #[structopt(long, short, value_name = "value",
-        parse(try_from_str = parse_int::parse),
-    )]
-    write: Option<u8>,
+    #[structopt(long, short, value_name = "bytes")]
+    write: Option<String>,
 
     /// perform a zero-byte write to the specified register
     #[structopt(
@@ -94,10 +100,22 @@ pub struct I2cArgs {
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<u8>,
+
+    /// flash the specified file, assuming two byte addressing
+    #[structopt(long, short,
+        conflicts_with_all = &[
+            "write", "raw", "nbytes", "read", "writeall", "register", "scan",
+            "writeraw"
+        ],
+        value_name = "filename",
+        requires = "device",
+    )]
+    flash: Option<String>,
 }
 
 fn i2c_done(
     subargs: &I2cArgs,
+    hargs: &crate::i2c::I2cArgs,
     results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
 ) -> Result<()> {
@@ -105,7 +123,7 @@ fn i2c_done(
     let mut errs: HashMap<u32, u32> = HashMap::new();
 
     if (subargs.scan || subargs.scanreg.is_some()) && subargs.device.is_none() {
-        println!("\nDevice scan on controller I2C{}:\n", subargs.controller);
+        println!("\nDevice scan on controller I2C{}:\n", hargs.controller);
 
         if subargs.scan {
             println!(
@@ -179,8 +197,8 @@ fn i2c_done(
     } else if subargs.scan && subargs.device.is_some() {
         println!(
             "\nRegister scan for device 0x{:x} on I2C{}:\n",
-            subargs.device.unwrap(),
-            subargs.controller
+            hargs.address.unwrap(),
+            hargs.controller
         );
 
         println!(
@@ -233,74 +251,82 @@ fn i2c_done(
             }
         }
     } else if subargs.raw {
-        println!(
-            "Controller I2C{}, device 0x{:x}, raw {} = {}",
-            subargs.controller,
-            subargs.device.unwrap(),
+        print!(
+            "Controller I2C{}, device 0x{:x}, raw {} = ",
+            hargs.controller,
+            hargs.address.unwrap(),
             if subargs.write.is_some() { "write" } else { "read" },
-            if results.is_empty() {
-                "Timed out".to_string()
-            } else {
-                match &results[0] {
-                    Err(err) => {
-                        format!("Err({})", func.strerror(*err))
-                    }
-                    Ok(val) => match subargs.nbytes {
-                        Some(2) => {
-                            format!("0x{:02x} 0x{:02x}", val[0], val[1])
-                        }
-                        Some(1) => {
-                            format!("0x{:02x}", val[0])
-                        }
-                        _ => "Success".to_string(),
-                    },
-                }
-            }
         );
+
+        if results.is_empty() {
+            println!("Timed out");
+        } else {
+            match &results[0] {
+                Err(err) => {
+                    println!("Err({})", func.strerror(*err));
+                }
+                Ok(val) => match subargs.nbytes {
+                    Some(n) if n > 2 => {
+                        println!();
+                        crate::cmd::printmem(val, 0, 1, 16);
+                    }
+                    Some(2) => {
+                        println!("0x{:02x} 0x{:02x}", val[0], val[1]);
+                    }
+                    Some(1) => {
+                        println!("0x{:02x}", val[0]);
+                    }
+                    _ => {
+                        println!("Success");
+                    }
+                },
+            }
+        }
     } else {
-        println!(
-            "Controller I2C{}, device 0x{:x}, {}register 0x{:x} = {}",
-            subargs.controller,
-            subargs.device.unwrap(),
+        print!(
+            "Controller I2C{}, device 0x{:x}, {}register 0x{:x} = ",
+            hargs.controller,
+            hargs.address.unwrap(),
             if subargs.writeraw { "raw write to " } else { "" },
-            subargs.register.unwrap(),
-            if results.is_empty() {
-                "Timed out".to_string()
-            } else {
-                match &results[0] {
-                    Err(err) => {
-                        format!("Err({})", func.strerror(*err))
-                    }
-                    Ok(val) if subargs.block => {
-                        let mut buf = [0u8; 1024];
-
-                        let mut cursor = Cursor::new(&mut buf[..]);
-                        for i in 0..val.len() {
-                            write!(
-                                cursor,
-                                "0x{:02x}{}",
-                                val[i],
-                                if i < val.len() - 1 { " " } else { "" }
-                            )
-                            .unwrap();
-                        }
-
-                        let len = cursor.position() as usize;
-                        String::from_utf8(buf[..len].to_vec()).unwrap()
-                    }
-
-                    Ok(val) => match subargs.nbytes {
-                        Some(2) => {
-                            format!("0x{:02x} 0x{:02x}", val[0], val[1])
-                        }
-                        Some(1) => {
-                            format!("0x{:02x}", val[0])
-                        }
-                        _ => "Success".to_string(),
-                    },
-                }
-            }
+            subargs.register.unwrap()
         );
+
+        if results.is_empty() {
+            println!("Timed out");
+        } else {
+            match &results[0] {
+                Err(err) => {
+                    println!("Err({})", func.strerror(*err))
+                }
+                Ok(val) if subargs.block => {
+                    for i in 0..val.len() {
+                        print!(
+                            "0x{:02x}{}",
+                            val[i],
+                            if i < val.len() - 1 { " " } else { "" }
+                        )
+                    }
+
+                    println!()
+                }
+
+                Ok(val) => match subargs.nbytes {
+                    Some(n) if n > 2 => {
+                        println!();
+                        crate::cmd::printmem(val, 0, 1, 16);
+                    }
+                    Some(2) => {
+                        println!("0x{:02x} 0x{:02x}", val[0], val[1])
+                    }
+                    Some(1) => {
+                        println!("0x{:02x}", val[0])
+                    }
+                    _ => {
+                        println!("Success")
+                    }
+                },
+            }
+        }
     }
 
     if !errs.is_empty() {
@@ -328,19 +354,25 @@ fn i2c(
         && subargs.scanreg.is_none()
         && subargs.register.is_none()
         && !subargs.raw
+        && subargs.flash.is_none()
     {
         bail!(
             "must indicate a scan (-s/-S), specify a register (-r), \
-            or indicate raw (-R)"
+            indicate raw (-R) or flash (-f)"
         );
     }
 
-    let (fname, args) = match (subargs.write, subargs.writeraw) {
-        (Some(_), _) | (None, true) => ("I2cWrite", 8),
-        (None, false) => ("I2cRead", 7),
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
+    let (fname, args) = if subargs.flash.is_some() {
+        ("I2cBulkWrite", 8)
+    } else {
+        match (subargs.write.is_some(), subargs.writeraw) {
+            (true, _) | (false, true) => ("I2cWrite", 8),
+            (false, false) => ("I2cRead", 7),
+        }
     };
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let func = funcs
         .get(fname)
@@ -350,66 +382,20 @@ fn i2c(
         bail!("mismatched function signature on {}", fname);
     }
 
-    let mut port = None;
+    let hargs = crate::i2c::I2cArgs::parse(
+        hubris,
+        &subargs.bus,
+        subargs.controller,
+        &subargs.port,
+        &subargs.mux,
+        &subargs.device,
+    )?;
 
-    if let Some(ref portarg) = subargs.port {
-        let p = hubris
-            .lookup_enum(func.args[1])
-            .context("expected port to be an enum")?;
+    let mut ops = vec![Op::Push(hargs.controller)];
 
-        if p.size != 1 {
-            bail!("expected port to be a 1-byte enum");
-        }
+    ops.push(Op::Push(hargs.port.index));
 
-        for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(portarg) {
-                port = Some(u8::try_from(variant.tag.unwrap())?);
-                break;
-            }
-        }
-
-        if port.is_none() {
-            let mut vals: Vec<String> = vec![];
-
-            for variant in &p.variants {
-                vals.push(variant.name.to_string());
-            }
-
-            bail!(
-                "invalid port \"{}\" (must be one of: {})",
-                portarg,
-                vals.join(", ")
-            );
-        }
-    }
-
-    let mux = if let Some(mux) = &subargs.mux {
-        let s = mux
-            .split(':')
-            .map(|v| parse_int::parse::<u8>(v))
-            .collect::<Result<Vec<_>, _>>()
-            .context("expected multiplexer and segment to be integers")?;
-
-        if s.len() == 2 {
-            Some((s[0], s[1]))
-        } else if s.len() == 1 {
-            Some((0, s[0]))
-        } else {
-            bail!("expected only multiplexer and segment identifiers");
-        }
-    } else {
-        None
-    };
-
-    let mut ops = vec![Op::Push(subargs.controller)];
-
-    if let Some(port) = port {
-        ops.push(Op::Push(port));
-    } else {
-        ops.push(Op::PushNone);
-    }
-
-    if let Some(mux) = mux {
+    if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));
         ops.push(Op::Push(mux.1));
     } else {
@@ -417,22 +403,186 @@ fn i2c(
         ops.push(Op::PushNone);
     }
 
+    if let Some(filename) = subargs.flash {
+        ops.push(Op::Push(hargs.address.unwrap()));
+        ops.push(Op::PushNone);
+
+        let filelen = {
+            let len = fs::metadata(filename.clone())?.len() as u32;
+
+            if len > u16::MAX.into() {
+                info!("file will be clamped at {}", u16::MAX);
+                u16::MAX
+            } else {
+                len as u16
+            }
+        };
+
+        //
+        // We set our block size to be a conservatively small page size:
+        // even though many EEPROMs can support a larger size, we want to
+        // support as many variantss as we can despite its substantial
+        // effect on performance.
+        //
+        let addr_size = 2;
+        let block_size = 16u16;
+        let nibble_size = block_size + addr_size;
+
+        let data_size = context.data_size();
+        let mut chunk: usize = data_size - (data_size % nibble_size as usize);
+        let mut offset = 0u16;
+
+        let mut buf = vec![0u8; chunk];
+        let mut file = File::open(filename)?;
+        let mut last = false;
+
+        let sleep =
+            funcs.get("Sleep").ok_or_else(|| anyhow!("did not find Sleep"))?;
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(filelen as u64);
+        bar.set_style(
+            ProgressStyle::default_bar().template(
+                "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
+            ),
+        );
+
+        let base = ops;
+
+        loop {
+            let mut noffs = 0usize;
+
+            loop {
+                assert!(offset < filelen);
+
+                if noffs + nibble_size as usize > chunk {
+                    //
+                    // No more room; we have filled up our chunk.
+                    //
+                    break;
+                }
+
+                let len = if offset + block_size > filelen {
+                    filelen - offset
+                } else {
+                    block_size
+                };
+
+                // Plop in our address, 16-bit big endian
+                let b = offset.to_be_bytes();
+                buf[noffs] = b[0];
+                buf[noffs + 1] = b[1];
+                noffs += 2;
+
+                // Read the file contents
+                file.read(&mut buf[noffs..noffs + len as usize])?;
+                noffs += len as usize;
+
+                if offset as u32 + len as u32 >= filelen as u32 {
+                    //
+                    // We are at the end of our file; clamp our chunk size at
+                    // the amount of nibbles we actually took to prevent any
+                    // spurious writes
+                    //
+                    chunk = noffs;
+                    last = true;
+                    break;
+                }
+
+                offset += len;
+            }
+
+            //
+            // We have our chunk; now a HIF loop to write our chunk in
+            // block_size nibbles -- making for a nibble_size write.
+            //
+            let mut ops = base.clone();
+
+            ops.push(Op::Push32(0));
+            ops.push(Op::PushNone);
+            ops.push(Op::Label(Target(0)));
+            ops.push(Op::Drop);
+            ops.push(Op::Push16(nibble_size));
+            ops.push(Op::Call(func.id));
+            ops.push(Op::Push(5));
+            ops.push(Op::Call(sleep.id));
+            ops.push(Op::Drop);
+            ops.push(Op::Add);
+            ops.push(Op::Push32(chunk as u32));
+            ops.push(Op::BranchGreaterThan(Target(0)));
+            ops.push(Op::Done);
+
+            context.execute(core, ops.as_slice(), Some(&buf))?;
+
+            loop {
+                if context.done(core)? {
+                    break;
+                }
+
+                thread::sleep(Duration::from_millis(100));
+            }
+
+            let results = context.results(core)?;
+
+            bar.set_position(offset.into());
+
+            for i in 0..results.len() {
+                if let Err(err) = results[i] {
+                    bail!(
+                        "failed to write block {} at offset {}: {}",
+                        i,
+                        offset,
+                        func.strerror(err)
+                    );
+                }
+            }
+
+            if offset >= filelen || last {
+                break;
+            }
+        }
+
+        bar.finish_and_clear();
+
+        info!(
+            "flashed {} in {}",
+            HumanBytes(filelen as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        return Ok(());
+    }
+
     if !subargs.scan && subargs.scanreg.is_none() {
-        if let Some(device) = subargs.device {
-            ops.push(Op::Push(device));
+        if let Some(address) = hargs.address {
+            ops.push(Op::Push(address));
         } else {
             bail!("expected device");
         }
 
-        if let Some(write) = subargs.write {
+        if let Some(ref write) = subargs.write {
             if let Some(register) = subargs.register {
                 ops.push(Op::Push(register));
             } else {
                 ops.push(Op::PushNone);
             }
 
-            ops.push(Op::Push(write));
-            ops.push(Op::Push(1));
+            let bytes: Vec<&str> = write.split(",").collect();
+            let mut arr = vec![];
+
+            for byte in &bytes {
+                if let Ok(val) = parse_int::parse::<u8>(byte) {
+                    arr.push(val);
+                } else {
+                    bail!("invalid byte {}", byte)
+                }
+            }
+
+            for i in 0..arr.len() {
+                ops.push(Op::Push(arr[i]));
+            }
+
+            ops.push(Op::Push32(arr.len() as u32));
         } else if subargs.writeraw {
             //
             // We know that we have a register when -W has been specified; use
@@ -449,10 +599,6 @@ fn i2c(
             }
 
             if let Some(nbytes) = subargs.nbytes {
-                if nbytes != 1 && nbytes != 2 {
-                    bail!("nbytes must be 1 or 2");
-                }
-
                 ops.push(Op::Push(nbytes));
             } else if subargs.block {
                 ops.push(Op::PushNone);
@@ -462,8 +608,8 @@ fn i2c(
         }
 
         ops.push(Op::Call(func.id));
-    } else if let Some(device) = subargs.device {
-        ops.push(Op::Push(device));
+    } else if let Some(address) = hargs.address {
+        ops.push(Op::Push(address));
         ops.push(Op::Push(0));
         ops.push(Op::PushNone);
         ops.push(Op::Label(Target(0)));
@@ -508,7 +654,7 @@ fn i2c(
 
     let results = context.results(core)?;
 
-    i2c_done(&subargs, &results, func)?;
+    i2c_done(&subargs, &hargs, &results, func)?;
 
     Ok(())
 }

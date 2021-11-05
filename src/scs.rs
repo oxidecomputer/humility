@@ -189,12 +189,13 @@ impl CoreSightComponent {
 
         /*
          * Determining the CoreSight component that we're looking at is -- in
-         * classic ARM fashion -- ridiculously complicated.  Table B2-1 in the
-         * CoreSight 3.0 Architecture Specification requires that we look at
-         * up to 13 different fields (!) across 8 different registers (!!)
-         * adding to a total of 74 bits (!!!).  On the one hand, it's
-         * reassuring that we can have a unique CoreSight component for every
-         * grain of sand on Earth and still have enough room to similarly
+         * classic ARM fashion -- ridiculously complicated.  Table B2-1 in
+         * the CoreSight 3.0 Architecture Specification requires that
+         * we look at up to 13 different fields (!) across 8
+         * different registers (!!) adding to a total of 74 bits
+         * (!!!).  On the one hand, it's reassuring that we can have
+         * a unique CoreSight component for every grain of sand on
+         * Earth and still have enough room to similarly
          * grant a CoreSight component for the grains of sand on a thousand
          * other such planets. On the other hand, this is obviously absurd,
          * and no two bodies of software seem to make this determination the
@@ -327,7 +328,6 @@ impl CoreSightROMEntry {
     ///
     /// Determines the address of the corresponding table, given the address
     /// of the entry.
-    ///
     fn address(self, addr: u32) -> u32 {
         (addr as i32 + ((self.offset() << 12) as i32)) as u32
     }

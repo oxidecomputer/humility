@@ -190,11 +190,11 @@ fn etmcmd_enable(
     trace!("{:#x?}", TPIU_ACPR::read(core)?);
 
     /*
-     * We are now ready to enable ETM.  There are a bunch of steps involved in
-     * this, but we need to first write to the ETMCR to indicate that we are
-     * programming it.  Once done writing to the ETM control registers, we
-     * need to write to ETMCR again to indicate that we are done programming
-     * it.
+     * We are now ready to enable ETM.  There are a bunch of steps involved
+     * in this, but we need to first write to the ETMCR to indicate that
+     * we are programming it.  Once done writing to the ETM control
+     * registers, we need to write to ETMCR again to indicate that we are
+     * done programming it.
      */
     trace!("{:#x?}", ETMCR::read(core)?);
     let mut etmcr = ETMCR::read(core)?;

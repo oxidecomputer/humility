@@ -4,10 +4,12 @@
 
 use crate::debug::*;
 use capstone::prelude::*;
+use indexmap::IndexMap;
+use serde::Deserialize;
 use std::io::prelude::*;
 
 use std::borrow::Cow;
-use std::collections::{btree_map, BTreeMap, HashMap};
+use std::collections::{btree_map, BTreeMap, HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
@@ -41,8 +43,120 @@ pub struct HubrisManifest {
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
-    outputs: HashMap<String, (u32, u32)>,
     peripherals: BTreeMap<String, u32>,
+    pub i2c_devices: Vec<HubrisI2cDevice>,
+    pub i2c_buses: Vec<HubrisI2cBus>,
+}
+
+//
+// This structure (and the structures that it refers to) contain everything
+// that we might want to pull out of the config TOML -- which will be a subset
+// of the entire config.  Unless it is known that the field has always existed
+// (like `target` and `board`), the fields should generally be `Option`s to
+// allow a new Humility to work on an old Hubris.
+//
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfig {
+    target: String,
+    board: String,
+    kernel: HubrisConfigKernel,
+    tasks: IndexMap<String, HubrisConfigTask>,
+    peripherals: Option<IndexMap<String, HubrisConfigPeripheral>>,
+    config: Option<HubrisConfigConfig>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigKernel {
+    features: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigTask {
+    features: Option<Vec<String>>,
+    interrupts: Option<IndexMap<String, u32>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[allow(dead_code)]
+struct HubrisConfigPeripheral {
+    address: u32,
+    size: u32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cPort {
+    name: Option<String>,
+    description: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cController {
+    controller: u8,
+    ports: IndexMap<String, HubrisConfigI2cPort>,
+    target: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cPmbus {
+    rails: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cDevice {
+    device: String,
+    controller: Option<u8>,
+    bus: Option<String>,
+    address: u8,
+    port: Option<String>,
+    mux: Option<u8>,
+    segment: Option<u8>,
+    description: String,
+    pmbus: Option<HubrisConfigI2cPmbus>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2c {
+    controllers: Option<Vec<HubrisConfigI2cController>>,
+    devices: Option<Vec<HubrisConfigI2cDevice>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigConfig {
+    i2c: Option<HubrisConfigI2c>,
+}
+
+#[derive(Clone, Debug)]
+pub struct HubrisI2cPort {
+    pub name: String,
+    pub index: u8,
+}
+
+#[derive(Clone, Debug)]
+pub struct HubrisI2cBus {
+    pub controller: u8,
+    pub port: HubrisI2cPort,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub target: bool,
+}
+
+#[derive(Clone, Debug)]
+pub enum HubrisI2cDeviceClass {
+    Pmbus { rails: Vec<String> },
+    Unspecified,
+    Unknown,
+}
+
+#[derive(Clone, Debug)]
+pub struct HubrisI2cDevice {
+    pub device: String,
+    pub controller: u8,
+    pub port: HubrisI2cPort,
+    pub mux: Option<u8>,
+    pub segment: Option<u8>,
+    pub address: u8,
+    pub description: String,
+    pub class: HubrisI2cDeviceClass,
 }
 
 #[derive(Debug)]
@@ -143,9 +257,9 @@ pub struct HubrisArchive {
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
         /*
-         * Initialize Capstone, being sure to specify not only our architecture
-         * but also that we are disassembling Thumb-2 -- and (importantly) to
-         * allow M-profile instructions.
+         * Initialize Capstone, being sure to specify not only our
+         * architecture but also that we are disassembling Thumb-2 --
+         * and (importantly) to allow M-profile instructions.
          */
         let cs = Capstone::new()
             .arm()
@@ -251,10 +365,11 @@ impl HubrisArchive {
         /*
          * We find our stack of inlined functions by searching backwards from
          * our address (which we know must be greater than or equal to all
-         * inlined functions that it is in).  This yields a vector that starts
-         * from the greatest depth and ends with the least depth -- so we
-         * reverse it before we return it.  We know that our search is over
-         * when the address plus the length is less than our base.
+         * inlined functions that it is in).  This yields a vector that
+         * starts from the greatest depth and ends with the least
+         * depth -- so we reverse it before we return it.  We know
+         * that our search is over when the address plus the length
+         * is less than our base.
          */
         for ((addr, _depth), (len, goff, origin)) in
             self.inlined.range(..=(pc, std::isize::MAX)).rev()
@@ -1052,8 +1167,9 @@ impl HubrisArchive {
         let mut discr = None;
 
         /*
-         * If we have an enum, we need to first remove it from our structures,
-         * putting back any duplicate names that isn't this enum.
+         * If we have an enum, we need to first remove it from our
+         * structures, putting back any duplicate names that isn't
+         * this enum.
          */
         let union = self.structs.remove(&goff).ok_or_else(|| {
             anyhow!("goff {:?} not present in structs map", goff)
@@ -1389,8 +1505,8 @@ impl HubrisArchive {
 
                         /*
                          * The discriminant is a (grand)child member; we need
-                         * to duplicate our parent's goff so our child can find
-                         * it.
+                         * to duplicate our parent's goff so our child can
+                         * find it.
                          */
                         stack[depth as usize] = parent;
                     }
@@ -1699,105 +1815,128 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn load_config(&mut self, toml: &toml::value::Table) -> Result<()> {
-        let mut manifest = &mut self.manifest;
+    fn load_i2c_config(&mut self, i2c: &HubrisConfigI2c) -> Result<()> {
+        let mut buses = HashMap::new();
 
-        let conf = |member| {
-            toml.get(member).and_then(|m| m.as_str()).map(|s| s.to_string())
-        };
-
-        manifest.board = conf("board");
-        manifest.target = conf("target");
-
-        /*
-         * It can be useful to see which features the kernel was compiled with,
-         * so we go fishing for that explicitly.
-         */
-        let features = toml.get("kernel").and_then(|k| k.get("features"));
-
-        if let Some(toml::Value::Array(features)) = features {
-            manifest.features = features
-                .iter()
-                .map(|f| {
-                    f.as_str().ok_or_else(|| anyhow!("item in kernel features list was not string: {:?}", f)).map(str::to_string)
-                })
-                .collect::<Result<Vec<String>>>()?;
-        }
-
-        /*
-         * Now we want to iterate over our tasks to discover their features as
-         * well.
-         */
-        if let Some(toml::Value::Table(tasks)) = toml.get("tasks") {
-            for (task, config) in tasks {
-                let features = config.get("features");
-
-                if let Some(toml::Value::Array(features)) = features {
-                    manifest.task_features.insert(
-                        task.to_string(),
-                        features
-                            .iter()
-                            .map(|f| {
-                                f.as_str().ok_or_else(|| anyhow!("item in task features list was not string: {:?}", f)).map(str::to_string)
-                            })
-                            .collect::<Result<Vec<String>>>()?,
-                    );
-                }
-
-                let irqs = config.get("interrupts");
-
-                if let Some(toml::Value::Table(irqs)) = irqs {
-                    manifest.task_irqs.insert(
-                        task.to_string(),
-                        irqs.iter()
-                            .map(|(n, m)| {
-                                Ok((
-                                    m.as_integer().ok_or_else(|| anyhow!("task interrupt key was not integer"))? as u32,
-                                    n.parse::<u32>()?,
-                                ))
-                            })
-                            .collect::<Result<Vec<_>>>()?,
-                    );
+        if let Some(ref controllers) = i2c.controllers {
+            for controller in controllers {
+                for (index, (name, port)) in controller.ports.iter().enumerate()
+                {
+                    self.manifest.i2c_buses.push(HubrisI2cBus {
+                        controller: controller.controller,
+                        port: HubrisI2cPort {
+                            name: name.clone(),
+                            index: index as u8,
+                        },
+                        name: match port.name {
+                            Some(ref name) => Some(name.clone()),
+                            None => None,
+                        },
+                        description: match port.description {
+                            Some(ref descr) => Some(descr.clone()),
+                            None => None,
+                        },
+                        target: match controller.target {
+                            Some(target) => target,
+                            None => false,
+                        },
+                    });
                 }
             }
         }
 
-        if let Some(toml::Value::Table(outputs)) = toml.get("outputs") {
-            for (output, config) in outputs {
-                let address = config.get("address");
-                let size = config.get("size");
-
-                match (address, size) {
-                    (
-                        Some(toml::Value::Integer(address)),
-                        Some(toml::Value::Integer(size)),
-                    ) => {
-                        manifest.outputs.insert(
-                            output.to_string(),
-                            (*address as u32, *size as u32),
-                        );
-                    }
-                    _ => {
-                        bail!("manifest outputs malformed for \"{}\"", output);
-                    }
-                }
+        for bus in &self.manifest.i2c_buses {
+            if let Some(ref name) = bus.name {
+                buses.insert(name, bus);
             }
-        } else {
-            bail!("manifest is missing outputs");
         }
 
-        if let Some(toml::Value::Table(p)) = toml.get("peripherals") {
-            for (peripheral, config) in p {
-                let address = config.get("address");
+        if let Some(ref devices) = i2c.devices {
+            for device in devices {
+                let name = &device.device;
 
-                if let Some(toml::Value::Integer(address)) = address {
-                    manifest
-                        .peripherals
-                        .insert(peripheral.to_string(), *address as u32);
-                    continue;
-                }
+                let (controller, port) = match &device.bus {
+                    Some(bus) => match buses.get(&bus) {
+                        Some(bus) => (bus.controller, &bus.port),
+                        None => {
+                            //
+                            // This really shouldn't happen: we have
+                            // a bus that doesn't exist.
+                            //
+                            bail!("{}: unknown bus {}", name, bus);
+                        }
+                    },
+                    None => match (device.controller, &device.port) {
+                        (Some(controller), Some(port)) => (
+                            controller,
+                            self.lookup_i2c_port(controller, port)?,
+                        ),
+                        (None, _) => {
+                            bail!("{}: missing controller", name);
+                        }
+                        (Some(controller), None) => {
+                            (controller, self.i2c_port(controller)?)
+                        }
+                    },
+                };
 
-                bail!("manifest peripherals malformed for \"{}\"", peripheral);
+                let p = port.clone();
+
+                self.manifest.i2c_devices.push(HubrisI2cDevice {
+                    device: device.device.clone(),
+                    controller: controller,
+                    port: p,
+                    mux: device.mux,
+                    segment: device.segment,
+                    address: device.address,
+                    description: device.description.clone(),
+                    class: match &device.pmbus {
+                        Some(pmbus) => HubrisI2cDeviceClass::Pmbus {
+                            rails: match &pmbus.rails {
+                                Some(rails) => rails.to_vec(),
+                                None => vec![],
+                            },
+                        },
+                        None => HubrisI2cDeviceClass::Unspecified,
+                    },
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_config(&mut self, config: &HubrisConfig) -> Result<()> {
+        self.manifest.board = Some(config.board.clone());
+        self.manifest.target = Some(config.target.clone());
+        self.manifest.features = config.kernel.features.clone();
+
+        for (name, task) in &config.tasks {
+            if let Some(ref features) = task.features {
+                self.manifest
+                    .task_features
+                    .insert(name.clone(), features.clone());
+            }
+
+            if let Some(ref irqs) = task.interrupts {
+                self.manifest.task_irqs.insert(
+                    name.clone(),
+                    irqs.iter()
+                        .map(|(n, m)| (*m, n.parse::<u32>().unwrap()))
+                        .collect::<Vec<_>>(),
+                );
+            }
+        }
+
+        if let Some(ref peripherals) = config.peripherals {
+            for (name, p) in peripherals {
+                self.manifest.peripherals.insert(name.clone(), p.address);
+            }
+        }
+
+        if let Some(ref config) = config.config {
+            if let Some(ref i2c) = config.i2c {
+                self.load_i2c_config(i2c)?;
             }
         }
 
@@ -1831,17 +1970,8 @@ impl HubrisArchive {
         let mut app = String::new();
         byname!("app.toml")?.read_to_string(&mut app)?;
 
-        match app.parse::<toml::Value>() {
-            Ok(toml::Value::Table(toml)) => {
-                self.load_config(&toml)?;
-            }
-            Ok(_) => {
-                bail!("app.toml valid TOML but malformed");
-            }
-            Err(err) => {
-                bail!("failed to parse app.toml: {}", err);
-            }
-        }
+        let config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+        self.load_config(&config)?;
 
         /*
          * Next up is the kernel.  Note that we refer to it explicitly with a
@@ -1855,8 +1985,9 @@ impl HubrisArchive {
         let mut id = 0;
 
         /*
-         * And now we need to find the tasks.  Note that we depend on the fact
-         * that these are stored in task ID order in the archive.
+         * And now we need to find the tasks.  Note that we depend on the
+         * fact that these are stored in task ID order in the
+         * archive.
          */
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
@@ -1896,9 +2027,10 @@ impl HubrisArchive {
         }
 
         /*
-         * We read the entire archive into memory (and hold onto it) -- we are
-         * going to need most of it anyway, and we want to have the entire
-         * archive in memory to be able to write it out to any generated dump.
+         * We read the entire archive into memory (and hold onto it) -- we
+         * are going to need most of it anyway, and we want to have
+         * the entire archive in memory to be able to write it out to
+         * any generated dump.
          */
         let contents = fs::read(archive)?;
         self.load_archive(&contents)?;
@@ -1999,7 +2131,6 @@ impl HubrisArchive {
     /// present, and be present exactly once.  If needed structures begin
     /// having their names duplicated in modules, we may need to support
     /// proper namespacing -- or kludgey namespacing...
-    ///
     pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
         match self.structs_byname.get_vec(name) {
             Some(v) if v.len() > 1 => {
@@ -2076,7 +2207,6 @@ impl HubrisArchive {
     ///
     /// Looks up the specified symbol.  This is more of a convenience routine
     /// that turns an Option into a Result.
-    ///
     pub fn lookup_symword(&self, name: &str) -> Result<u32> {
         match self.esyms_byname.get(name) {
             Some(sym) => {
@@ -2157,8 +2287,8 @@ impl HubrisArchive {
         if self.current == 0 {
             /*
              * If we have no objects, we were never loaded -- and we consider
-             * this to be validated because it will give no answers rather than
-             * wrong ones.
+             * this to be validated because it will give no answers rather
+             * than wrong ones.
              */
             return Ok(());
         }
@@ -2341,6 +2471,41 @@ impl HubrisArchive {
             }
         }
 
+        //
+        // We distinguish between the size of a region, and its mapsize --
+        // which, for flash-based regions is the amount of memory that is
+        // actually in use.  (We do this to give guidance about the actual
+        // flash used, which in turn is used in the dump code to be sure that
+        // we don't attempt to dump flash that has never been written to --
+        // which can have unexpected results on some MCUs.)
+        //
+        let mapsize = |attr, base, size| {
+            if attr & WRITE != 0 {
+                size
+            } else {
+                let mut current = base;
+
+                loop {
+                    match self.loaded.get(&current) {
+                        None => break current - base,
+                        Some(region) => {
+                            current = region.base + region.size;
+
+                            //
+                            // We really expect loaded regions to be entirely
+                            // contained within regions (that is, they should
+                            // not cross region boundaries), but if it does,
+                            // we'll assume that our entire region is mapped.
+                            //
+                            if current - base > size {
+                                break size;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
         /*
          * Iterate over all tasks, reading their region descriptors.
          */
@@ -2368,10 +2533,7 @@ impl HubrisArchive {
                         size: if attr & WRITE != 0 {
                             size
                         } else {
-                            match self.loaded.get(&base) {
-                                Some(region) => region.size,
-                                None => size,
-                            }
+                            mapsize(attr, base, size)
                         },
                         mapsize: size,
                         attr: HubrisRegionAttr {
@@ -3190,7 +3352,7 @@ impl HubrisArchive {
         );
 
         let print = |what, val| {
-            info!("{:>12} => {}", what, val);
+            println!("{:>12} => {}", what, val);
         };
 
         let size = |task| {
@@ -3237,10 +3399,14 @@ impl HubrisArchive {
 
         let ttl = self.modules.iter().fold(0, |ttl, m| ttl + m.1.memsize);
 
-        info!("{:>12} => {}K", "total size", ttl / 1024);
-        info!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
-        info!("{:>12} => {}", "tasks", self.modules.len() - 1);
-        info!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
+        println!("{:>12} => {}K", "total size", ttl / 1024);
+        println!(
+            "{:>12} => {}K",
+            "kernel size",
+            size(HubrisTask::Kernel) / 1024
+        );
+        println!("{:>12} => {}", "tasks", self.modules.len() - 1);
+        println!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
 
         let mut id = 0;
 
@@ -3251,7 +3417,7 @@ impl HubrisArchive {
 
             let features = self.manifest.task_features.get(&module.name);
 
-            info!(
+            println!(
                 "{:>18} {:18} {:>4.1}K {}",
                 id,
                 module.name,
@@ -3264,6 +3430,71 @@ impl HubrisArchive {
             );
 
             id += 1;
+        }
+
+        if self.manifest.i2c_buses.len() != 0 {
+            let mut controllers = HashSet::new();
+
+            for bus in &self.manifest.i2c_buses {
+                controllers.insert(bus.controller);
+            }
+
+            println!(
+                "{:>12} => {} controller{}, {} bus{}",
+                "i2c buses",
+                controllers.len(),
+                if controllers.len() != 1 { "s" } else { "" },
+                self.manifest.i2c_buses.len(),
+                if self.manifest.i2c_buses.len() != 1 { "es" } else { "" },
+            );
+
+            println!(
+                "{:>17} {} {} {:13} {}",
+                "C", "PORT", "MODE", "NAME", "DESCRIPTION"
+            );
+
+            for bus in &self.manifest.i2c_buses {
+                println!(
+                    "{:>17} {:4} {:4} {:13} {}",
+                    bus.controller,
+                    bus.port.name,
+                    if bus.target { "trgt" } else { "init" },
+                    bus.name.as_ref().unwrap_or(&"-".to_string()),
+                    bus.description.as_ref().unwrap_or(&"-".to_string()),
+                );
+            }
+        }
+
+        if self.manifest.i2c_devices.len() != 0 {
+            println!(
+                "{:>12} => {} device{}",
+                "i2c devices",
+                self.manifest.i2c_devices.len(),
+                if self.manifest.i2c_devices.len() != 1 { "s" } else { "" }
+            );
+
+            println!(
+                "{:>17} {:2} {} {} {:13} {}",
+                "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
+            );
+
+            for device in &self.manifest.i2c_devices {
+                let mux = match (device.mux, device.segment) {
+                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (None, None) => "-".to_string(),
+                    (_, _) => "?:?".to_string(),
+                };
+
+                println!(
+                    "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
+                    device.controller,
+                    device.port.name,
+                    mux,
+                    device.address,
+                    device.device,
+                    device.description
+                );
+            }
         }
 
         Ok(())
@@ -3280,11 +3511,17 @@ impl HubrisArchive {
 
         variables.sort();
 
-        info!("{:18} {:<30} {:<10} {}", "MODULE", "VARIABLE", "ADDR", "SIZE");
+        println!(
+            "{:18} {:<30} {:<10} {}",
+            "MODULE", "VARIABLE", "ADDR", "SIZE"
+        );
 
         for v in variables {
             let task = &self.lookup_module(v.0)?.name;
-            info!("{:18} {:<30} 0x{:08x} {:<}", task, v.1, v.2.addr, v.2.size);
+            println!(
+                "{:18} {:<30} 0x{:08x} {:<}",
+                task, v.1, v.2.addr, v.2.size
+            );
         }
         Ok(())
     }
@@ -3330,6 +3567,81 @@ impl HubrisArchive {
 
             bail!("{} does not correspond to a peripheral; \
                 expected one of: {}", name, peripherals.join(", "));
+        }
+    }
+
+    pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
+        self.manifest
+            .i2c_buses
+            .iter()
+            .find(|&b| b.name == Some(bus.to_string()))
+            .ok_or_else(|| anyhow!("couldn't find bus {}", bus))
+    }
+
+    ///
+    /// For a given controller and port name, return the matching port
+    /// (if any)
+    pub fn lookup_i2c_port(
+        &self,
+        controller: u8,
+        port: &str,
+    ) -> Result<&HubrisI2cPort> {
+        let mut found = false;
+
+        for bus in &self.manifest.i2c_buses {
+            if bus.controller != controller {
+                continue;
+            }
+
+            found = true;
+
+            if bus.port.name.eq_ignore_ascii_case(port) {
+                return Ok(&bus.port);
+            }
+        }
+
+        if !found {
+            bail!("unknown I2C controller {}", controller);
+        }
+
+        let ports = self
+            .manifest
+            .i2c_buses
+            .iter()
+            .filter(|bus| bus.controller == controller)
+            .map(|bus| bus.port.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        bail!("invalid port \"{}\" (must be one of: {})", port, ports);
+    }
+
+    ///
+    /// For a given controller, return its port if there is only one, failing
+    /// if there is more than one port.
+    pub fn i2c_port(&self, controller: u8) -> Result<&HubrisI2cPort> {
+        let found = self
+            .manifest
+            .i2c_buses
+            .iter()
+            .filter(|bus| bus.controller == controller)
+            .collect::<Vec<_>>();
+
+        if found.len() == 0 {
+            bail!("unknown I2C controller {}", controller);
+        } else if found.len() == 1 {
+            Ok(&found[0].port)
+        } else {
+            let ports = found
+                .iter()
+                .map(|bus| bus.port.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            bail!(
+                "I2C{} has multiple ports; expected one of: {}",
+                controller, ports
+            )
         }
     }
 
@@ -3398,7 +3710,6 @@ impl From<HubrisGoff> for HubrisTask {
 ///
 /// An identifier that corresponds to a global offset within a particular DWARF
 /// object.
-///
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 pub struct HubrisGoff {
     pub object: u32,

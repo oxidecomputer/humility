@@ -8,14 +8,14 @@ use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
 use multimap::MultiMap;
-use std::convert::TryFrom;
 use std::thread;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
 use pmbus::commands::*;
 use pmbus::*;
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
@@ -29,6 +29,20 @@ struct PmbusArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
+
+    /// list PMBus components
+    #[structopt(
+        long, short, conflicts_with_all = &[
+            "driver", "controller", "port", "bus", "summarize"
+        ]
+    )]
+    list: bool,
+
+    /// summarize PMBus components
+    #[structopt(
+        long, short, conflicts_with_all = &["driver", "controller", "port", "bus"]
+    )]
+    summarize: bool,
 
     /// command-specific help
     #[structopt(long, short = "H", value_name = "command")]
@@ -45,6 +59,10 @@ struct PmbusArgs {
     /// dry-run; show commands instead of running them
     #[structopt(long = "dry-run", short = "n")]
     dryrun: bool,
+
+    /// force unrecognized PMBus device
+    #[structopt(long, short = "F")]
+    force: bool,
 
     /// specifies a PMBus driver
     #[structopt(long, short = "D")]
@@ -67,7 +85,13 @@ struct PmbusArgs {
     #[structopt(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
-    controller: u8,
+    controller: Option<u8>,
+
+    /// specifies an I2C bus by name
+    #[structopt(long, short, value_name = "bus",
+        conflicts_with_all = &["port", "controller"]
+    )]
+    bus: Option<String>,
 
     /// specifies an I2C controller port
     #[structopt(long, short, value_name = "port")]
@@ -78,10 +102,12 @@ struct PmbusArgs {
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short = "d", value_name = "address",
-        parse(try_from_str = parse_int::parse),
-    )]
-    device: u8,
+    #[structopt(long, short = "d", value_name = "address")]
+    device: Option<String>,
+
+    /// specifies a rail within the specified device
+    #[structopt(long, short = "r", value_name = "rail")]
+    rail: Option<String>,
 }
 
 fn all_commands(
@@ -470,6 +496,255 @@ fn split_write(write: &str) -> Result<(&str, Option<&str>, Option<&str>)> {
     }
 }
 
+fn summarize_rail(
+    device: &HubrisI2cDevice,
+    driver: &pmbus::Device,
+    rail: &str,
+    calls: &Vec<u8>,
+    results: &[Result<Vec<u8>, u32>],
+    func: &HiffyFunction,
+    width: usize,
+) -> Result<()> {
+    let mut base = 0;
+
+    let mux = match (device.mux, device.segment) {
+        (Some(m), Some(s)) => format!("{}:{}", m, s),
+        (None, None) => "-".to_string(),
+        (_, _) => "?:?".to_string(),
+    };
+
+    print!(
+        "{} {:2} {:3} 0x{:02x} {:13} {:13}",
+        device.controller,
+        device.port.name,
+        mux,
+        device.address,
+        device.device,
+        rail
+    );
+
+    if calls[base] == CommandCode::PAGE as u8 {
+        //
+        // This is a selected rail -- we just want to be sure that it worked
+        //
+        if let Err(code) = results[base] {
+            bail!("rail selection failed: {}", func.strerror(code));
+        }
+
+        base += 1;
+    }
+
+    let mode = if calls[base] == CommandCode::VOUT_MODE as u8 {
+        match results[base] {
+            Err(code) => {
+                bail!("can't read VOUT_MODE: {}", func.strerror(code));
+            }
+            Ok(ref val) => {
+                base += 1;
+                Some(VOUT_MODE::CommandData::from_slice(val).unwrap())
+            }
+        }
+    } else {
+        None
+    };
+
+    let getmode = || match mode {
+        Some(mode) => mode,
+        None => {
+            panic!("unexpected call to VOutMode");
+        }
+    };
+
+    for i in base..calls.len() {
+        let code = calls[i];
+        match results[i] {
+            Err(_) => {
+                print!(" {:>width$}", "-", width = width);
+            }
+            Ok(ref val) => {
+                let mut interpreted = false;
+                let mut str = String::new();
+
+                let err =
+                    driver.interpret(code, val, getmode, |field, value| {
+                        if !field.bitfield() {
+                            write!(&mut str, "{}", value).unwrap();
+                            interpreted = true;
+                        }
+                    });
+
+                if err.is_err() {
+                    print!(" {:>width$?}", err, width = width);
+                    continue;
+                }
+
+                if !interpreted {
+                    write!(&mut str, "0x").unwrap();
+                    for i in (0..val.len()).rev() {
+                        write!(&mut str, "{:02x}", val[i]).unwrap();
+                    }
+                }
+
+                print!(" {:>width$}", str, width = width);
+            }
+        }
+    }
+
+    println!();
+
+    Ok(())
+}
+
+fn summarize(
+    subargs: &PmbusArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    func: &HiffyFunction,
+    write_func: &HiffyFunction,
+) -> Result<()> {
+    let page = CommandCode::PAGE as u8;
+    let (all, bycode) = all_commands(pmbus::Device::Common);
+
+    let mut width = 9;
+    let mut commands = vec![(CommandCode::VOUT_MODE as u8, None)];
+
+    if let Some(ref cmds) = subargs.commands {
+        for cmd in cmds {
+            if let Some(code) = all.get(cmd) {
+                commands.push((*code, Some(bycode.get(code).unwrap().as_str())))
+            } else {
+                bail!("unrecognized command {}", cmd);
+            }
+        }
+
+        width = 15;
+    } else {
+        commands.extend_from_slice(&[
+            (CommandCode::READ_VIN as u8, Some("VIN")),
+            (CommandCode::READ_VOUT as u8, Some("VOUT")),
+            (CommandCode::READ_IOUT as u8, Some("IOUT")),
+            (CommandCode::READ_TEMPERATURE_1 as u8, Some("TEMP_1")),
+        ]);
+    }
+
+    let mut ops = vec![];
+    let mut work = vec![];
+
+    for device in &hubris.manifest.i2c_devices {
+        if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
+            let driver = match pmbus::Device::from_str(&device.device) {
+                Some(device) => device,
+                None => pmbus::Device::Common,
+            };
+
+            let harg = crate::i2c::I2cArgs::from_device(device);
+
+            ops.push(Op::Push(harg.controller));
+            ops.push(Op::Push(harg.port.index));
+
+            if let Some(mux) = harg.mux {
+                ops.push(Op::Push(mux.0));
+                ops.push(Op::Push(mux.1));
+            } else {
+                ops.push(Op::PushNone);
+                ops.push(Op::PushNone);
+            }
+
+            ops.push(Op::Push(harg.address.unwrap()));
+
+            //
+            // We have the arguments for our device pushed.  Now iterate over
+            // each rail, selecting it as needed...
+            //
+            for (rnum, rail) in rails.iter().enumerate() {
+                let mut calls = vec![];
+
+                if rails.len() > 1 {
+                    ops.push(Op::Push(page));
+                    ops.push(Op::Push(rnum as u8));
+                    ops.push(Op::Push(1));
+                    ops.push(Op::Call(write_func.id));
+                    ops.push(Op::DropN(3));
+                    calls.push(page);
+                }
+
+                //
+                // For each of the commands that we need to run, add a call
+                // for it
+                //
+                for (code, _) in &commands {
+                    driver.command(*code, |cmd| {
+                        let op = match cmd.read_op() {
+                            pmbus::Operation::ReadByte => Op::Push(1),
+                            pmbus::Operation::ReadWord => Op::Push(2),
+                            pmbus::Operation::ReadWord32 => Op::Push(4),
+                            pmbus::Operation::ReadBlock => Op::PushNone,
+                            _ => {
+                                return;
+                            }
+                        };
+
+                        ops.push(Op::Push(*code));
+                        ops.push(op);
+                        ops.push(Op::Call(func.id));
+                        ops.push(Op::DropN(2));
+                        calls.push(*code as u8);
+                    });
+                }
+
+                work.push((device, driver, rail, calls));
+            }
+
+            ops.push(Op::DropN(5));
+        }
+    }
+
+    ops.push(Op::Done);
+
+    context.execute(core, ops.as_slice(), None)?;
+
+    loop {
+        if context.done(core)? {
+            break;
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    let results = context.results(core)?;
+    let mut base = 0;
+
+    print!(
+        "{} {:2} {} {} {:13} {:13}",
+        "C", "P", "MUX", "ADDR", "DEVICE", "RAIL"
+    );
+
+    for (_, header) in commands.iter() {
+        if let Some(header) = header {
+            print!(" {:>width$}", header, width = width);
+        }
+    }
+
+    println!();
+
+    for (device, driver, rail, calls) in &work {
+        summarize_rail(
+            device,
+            driver,
+            rail,
+            calls,
+            &results[base..base + calls.len()],
+            func,
+            width,
+        )?;
+
+        base += calls.len();
+    }
+
+    Ok(())
+}
+
 fn pmbus(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
@@ -477,6 +752,35 @@ fn pmbus(
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = PmbusArgs::from_iter_safe(subargs)?;
+
+    if subargs.list {
+        println!(
+            "{} {:2} {} {} {:13} {}",
+            "C", "P", "MUX", "ADDR", "DEVICE", "RAILS"
+        );
+
+        for device in &hubris.manifest.i2c_devices {
+            if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
+                let mux = match (device.mux, device.segment) {
+                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (None, None) => "-".to_string(),
+                    (_, _) => "?:?".to_string(),
+                };
+
+                println!(
+                    "{} {:2} {:3} 0x{:02x} {:13} {}",
+                    device.controller,
+                    device.port.name,
+                    mux,
+                    device.address,
+                    device.device,
+                    rails.join(", "),
+                )
+            }
+        }
+
+        return Ok(());
+    }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
@@ -496,55 +800,46 @@ fn pmbus(
         bail!("mismatched function signature on I2cWrite");
     }
 
-    let mut port = None;
-
-    if let Some(ref portarg) = subargs.port {
-        let p = hubris
-            .lookup_enum(func.args[1])
-            .context("expected port to be an enum")?;
-
-        if p.size != 1 {
-            bail!("expected port to be a 1-byte enum");
-        }
-
-        for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(portarg) {
-                port = Some(u8::try_from(variant.tag.unwrap())?);
-                break;
-            }
-        }
-
-        if port.is_none() {
-            let mut vals: Vec<String> = vec![];
-
-            for variant in &p.variants {
-                vals.push(variant.name.to_string());
-            }
-
-            bail!(
-                "invalid port \"{}\" (must be one of: {})",
-                portarg,
-                vals.join(", ")
-            );
-        }
+    if subargs.summarize {
+        summarize(&subargs, hubris, core, &mut context, func, write_func)?;
+        return Ok(());
     }
 
-    let mux = if let Some(mux) = &subargs.mux {
-        let s = mux
-            .split(':')
-            .map(|v| parse_int::parse::<u8>(v))
-            .collect::<Result<Vec<_>, _>>()
-            .context("expected multiplexer and segment to be integers")?;
+    let hargs = match (&subargs.rail, &subargs.device) {
+        (Some(rail), None) => {
+            let mut found = None;
 
-        if s.len() == 2 {
-            Some((s[0], s[1]))
-        } else if s.len() == 1 {
-            Some((0, s[0]))
-        } else {
-            bail!("expected only multiplexer and segment identifiers");
+            for device in &hubris.manifest.i2c_devices {
+                if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
+                    for r in rails {
+                        if rail == r {
+                            found = match found {
+                                Some(_) => {
+                                    bail!("multiple devices match {}", rail);
+                                }
+                                None => Some(device),
+                            }
+                        }
+                    }
+                }
+            }
+
+            match found {
+                None => {
+                    bail!("rail {} not found", rail);
+                }
+                Some(device) => crate::i2c::I2cArgs::from_device(device),
+            }
         }
-    } else {
-        None
+
+        (_, _) => crate::i2c::I2cArgs::parse(
+            hubris,
+            &subargs.bus,
+            subargs.controller,
+            &subargs.port,
+            &subargs.mux,
+            &subargs.device,
+        )?,
     };
 
     let device = if let Some(driver) = &subargs.driver {
@@ -555,7 +850,14 @@ fn pmbus(
             }
         }
     } else {
-        pmbus::Device::Common
+        if let Some(driver) = hargs.device {
+            match pmbus::Device::from_str(&driver) {
+                Some(device) => device,
+                None => pmbus::Device::Common,
+            }
+        } else {
+            pmbus::Device::Common
+        }
     };
 
     let (all, bycode) = all_commands(device);
@@ -597,15 +899,10 @@ fn pmbus(
     let mut ops = vec![];
     let mut cmds = vec![];
 
-    ops.push(Op::Push(subargs.controller));
+    ops.push(Op::Push(hargs.controller));
+    ops.push(Op::Push(hargs.port.index));
 
-    if let Some(port) = port {
-        ops.push(Op::Push(port));
-    } else {
-        ops.push(Op::PushNone);
-    }
-
-    if let Some(mux) = mux {
+    if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));
         ops.push(Op::Push(mux.1));
     } else {
@@ -613,7 +910,22 @@ fn pmbus(
         ops.push(Op::PushNone);
     }
 
-    ops.push(Op::Push(subargs.device));
+    if let Some(address) = hargs.address {
+        ops.push(Op::Push(address));
+    } else {
+        bail!("no device specified");
+    }
+
+    let rails = match hargs.class {
+        HubrisI2cDeviceClass::Pmbus { rails } => Some(rails),
+        _ => {
+            if !subargs.force {
+                bail!("not a recognized PMBus device; -F to force");
+            } else {
+                None
+            }
+        }
+    };
 
     let mut run = [true; 256];
 
@@ -642,6 +954,7 @@ fn pmbus(
     let mut writes = MultiMap::new();
     let mut write_ops = vec![];
     let mut send_bytes = vec![];
+    let mut setrail = false;
 
     if let Some(ref writecmds) = subargs.writes {
         run.fill(false);
@@ -651,9 +964,6 @@ fn pmbus(
 
             match all.get(cmd) {
                 Some(code) => {
-                    //
-                    // We need to determine if this command is of  XXX
-                    //
                     let mut send_byte = false;
 
                     device.command(*code, |cmd| {
@@ -695,6 +1005,54 @@ fn pmbus(
         }
     }
 
+    //
+    // If we have a rail specified, we want to set that first.
+    //
+    if let Some(rail) = &subargs.rail {
+        let rails = match rails {
+            Some(rails) => rails,
+            None => bail!("rail specified, but device has unknown rails"),
+        };
+
+        if rails.len() == 0 {
+            bail!("rail specified, but device has no defined rails");
+        }
+
+        //
+        // We want to allow our rail to be specified by number or by name.
+        //
+        let rnum = match parse_int::parse::<u8>(&rail) {
+            Ok(rnum) => {
+                if rails.len() == 1 {
+                    bail!("rail specified, but device only has one rail");
+                }
+
+                if rnum as usize >= rails.len() {
+                    bail!("invalid rail number {}", rnum);
+                }
+                rnum as usize
+            }
+            _ => match rails.iter().position(|r| r == rail) {
+                Some(rnum) => rnum,
+                None => {
+                    bail!("invalid rail; expected one of: {}", rails.join(", "))
+                }
+            },
+        };
+
+        let page = pmbus::commands::CommandCode::PAGE as u8;
+
+        if rails.len() > 1 {
+            ops.push(Op::Push(page));
+            ops.push(Op::Push(rnum as u8));
+            ops.push(Op::Push(1));
+            ops.push(Op::Call(write_func.id));
+            ops.push(Op::DropN(3));
+            cmds.push(page);
+            setrail = true;
+        }
+    }
+
     if !writes.is_empty() {
         write_ops = ops.clone();
     }
@@ -723,7 +1081,6 @@ fn pmbus(
     };
 
     let vout = pmbus::commands::CommandCode::VOUT_MODE as u8;
-
     device.command(vout, |cmd| addcmd(cmd, vout));
 
     for i in 0..=255u8 {
@@ -759,8 +1116,6 @@ fn pmbus(
         bail!("no command to run");
     }
 
-    let mndx = if cmds[0] == vout { Some(0) } else { None };
-
     ops.push(Op::Done);
 
     context.execute(core, ops.as_slice(), None)?;
@@ -775,18 +1130,28 @@ fn pmbus(
 
     let results = context.results(core)?;
 
-    let (mode, ndx) = match mndx {
-        Some(mndx) => {
-            let mode = match results[mndx] {
-                Err(code) => {
-                    bail!("can't read VOUT_MODE: {}", func.strerror(code));
-                }
-                Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
-            };
-
-            (Some(mode), 1 + send_bytes.len())
+    let base = if setrail {
+        match results[0] {
+            Err(code) => {
+                bail!("couldn't set rail: {}", write_func.strerror(code));
+            }
+            Ok(_) => 1,
         }
-        None => (None, send_bytes.len()),
+    } else {
+        0
+    };
+
+    let (mode, ndx) = if cmds[base] == vout {
+        let mode = match results[base] {
+            Err(code) => {
+                bail!("can't read VOUT_MODE: {}", func.strerror(code));
+            }
+            Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
+        };
+
+        (Some(mode), base + 1 + send_bytes.len())
+    } else {
+        (None, base + send_bytes.len())
     };
 
     let getmode = || match mode {
@@ -867,8 +1232,8 @@ fn pmbus(
 
         let wresults = context.results(core)?;
 
-        for i in 0..wresults.len() {
-            let name = bycode.get(&cmds[i + ndx]).unwrap();
+        for i in base..wresults.len() {
+            let name = bycode.get(&cmds[i + ndx - base]).unwrap();
 
             match wresults[i] {
                 Err(code) => {

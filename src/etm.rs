@@ -506,8 +506,8 @@ fn etm_packet_state(
                 /*
                  * If the high order bit is set, we are always awaiting more
                  * payload -- regardless of whether that is in one of the
-                 * address bytes (up to five) or one of the exception bytes (up
-                 * to three).
+                 * address bytes (up to five) or one of the exception bytes
+                 * (up to three).
                  *
                  * If bit 6 is set, we are awaiting an Exception Information
                  * Byte.

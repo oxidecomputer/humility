@@ -250,10 +250,11 @@ impl Core for OpenOCDCore {
 
         /*
          * Entirely on-brand, if the mem2array command has failed wildly,
-         * OpenOCD won't actually return an error to us -- it will merely fail
-         * to set the variable (and we will therefore fail when we attempt to
-         * retrieve the variable).  If we fail to retrieve the variable, we
-         * infer it to be a failure to perform the read and bail explicitly.
+         * OpenOCD won't actually return an error to us -- it will merely
+         * fail to set the variable (and we will therefore fail when
+         * we attempt to retrieve the variable).  If we fail to
+         * retrieve the variable, we infer it to be a failure to
+         * perform the read and bail explicitly.
          */
         if result.contains("no such variable") {
             bail!("read at 0x{:x} for {} bytes failed", addr, data.len());
@@ -600,8 +601,9 @@ impl GDBCore {
             16 => {
                 /*
                  * Amazingly, for some 32-bit register values under certain
-                 * circumstances the JLink seems to return a 64-bit value (!).
-                 * We confirm that this value is representable and return it.
+                 * circumstances the JLink seems to return a 64-bit value
+                 * (!). We confirm that this value is
+                 * representable and return it.
                  */
                 let val = u64::from_le_bytes(buf[..].try_into().unwrap());
 
@@ -726,10 +728,11 @@ impl Core for GDBCore {
 
     fn run(&mut self) -> Result<()> {
         /*
-         * The OpenOCD target in particular loses its mind if told to continue
-         * to when it's already running, insisting on sending a reply with an
-         * elaborate message that we don't know to wait on -- so we only
-         * continue a target if we know it to be halted.
+         * The OpenOCD target in particular loses its mind if told to
+         * continue to when it's already running, insisting on
+         * sending a reply with an elaborate message that we don't
+         * know to wait on -- so we only continue a target if we know
+         * it to be halted.
          */
         if self.halted {
             self.firecmd("c")?;
@@ -785,6 +788,7 @@ impl DumpCore {
     }
 }
 
+#[rustfmt::skip::macros(bail)]
 impl Core for DumpCore {
     fn info(&self) -> (String, Option<String>) {
         ("core dump".to_string(), None)
@@ -796,8 +800,13 @@ impl Core for DumpCore {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).rev().next()
         {
-            if base > addr || (addr - base) + rsize as u32 > size {
+            if base > addr {
                 // fall out to the bail below.
+            } else if (addr - base) + rsize as u32 > size {
+                bail!(
+                    "0x{:x} is valid, but size ({}) exceeds max ({})",
+                    addr, rsize, size - (addr - base)
+                );
             } else {
                 let offs = offset + (addr - base) as usize;
 
@@ -815,8 +824,13 @@ impl Core for DumpCore {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).rev().next()
         {
-            if base > addr || (addr - base) + rsize as u32 > size {
+            if base > addr {
                 // fall out to the bail below.
+            } else if (addr - base) + rsize as u32 > size {
+                bail!(
+                    "0x{:x} is valid, but size ({}) exceeds max ({})",
+                    addr, rsize, size - (addr - base)
+                );
             } else {
                 let offs = offset + (addr - base) as usize;
 

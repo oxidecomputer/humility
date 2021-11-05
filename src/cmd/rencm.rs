@@ -7,12 +7,11 @@ use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
-use std::convert::TryFrom;
 use std::thread;
 
 use itertools::Itertools;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -29,11 +28,17 @@ struct RencmArgs {
     )]
     timeout: u32,
 
+    /// specifies an I2C bus by name
+    #[structopt(long, short, value_name = "bus",
+        conflicts_with_all = &["port", "controller"]
+    )]
+    bus: Option<String>,
+
     /// specifies an I2C controller
     #[structopt(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
-    controller: u8,
+    controller: Option<u8>,
 
     /// specifies an I2C controller port
     #[structopt(long, short, value_name = "port")]
@@ -61,10 +66,8 @@ struct RencmArgs {
     module: Option<Vec<String>>,
 
     /// specifies an I2C device address
-    #[structopt(long, short = "d", value_name = "address",
-        parse(try_from_str = parse_int::parse),
-    )]
-    device: u8,
+    #[structopt(long, short = "d", value_name = "address")]
+    device: Option<String>,
 }
 
 fn rencm(
@@ -96,56 +99,14 @@ fn rencm(
         bail!("mismatched function signature on I2cWrite");
     }
 
-    let mut port = None;
-
-    if let Some(ref portarg) = subargs.port {
-        let p = hubris
-            .lookup_enum(read_func.args[1])
-            .context("expected port to be an enum")?;
-
-        if p.size != 1 {
-            bail!("expected port to be a 1-byte enum");
-        }
-
-        for variant in &p.variants {
-            if variant.name.eq_ignore_ascii_case(portarg) {
-                port = Some(u8::try_from(variant.tag.unwrap())?);
-                break;
-            }
-        }
-
-        if port.is_none() {
-            let mut vals: Vec<String> = vec![];
-
-            for variant in &p.variants {
-                vals.push(variant.name.to_string());
-            }
-
-            bail!(
-                "invalid port \"{}\" (must be one of: {})",
-                portarg,
-                vals.join(", ")
-            );
-        }
-    }
-
-    let mux = if let Some(mux) = &subargs.mux {
-        let s = mux
-            .split(':')
-            .map(|v| parse_int::parse::<u8>(v))
-            .collect::<Result<Vec<_>, _>>()
-            .context("expected multiplexer and segment to be integers")?;
-
-        if s.len() == 2 {
-            Some((s[0], s[1]))
-        } else if s.len() == 1 {
-            Some((0, s[0]))
-        } else {
-            bail!("expected only multiplexer and segment identifiers");
-        }
-    } else {
-        None
-    };
+    let hargs = crate::i2c::I2cArgs::parse(
+        hubris,
+        &subargs.bus,
+        subargs.controller,
+        &subargs.port,
+        &subargs.mux,
+        &subargs.device,
+    )?;
 
     let mut modnames = HashMap::new();
     let mut regmods = HashMap::new();
@@ -312,15 +273,11 @@ fn rencm(
         let mut current = None;
         let mut calls = vec![];
 
-        ops.push(Op::Push(subargs.controller));
+        ops.push(Op::Push(hargs.controller));
 
-        if let Some(port) = port {
-            ops.push(Op::Push(port));
-        } else {
-            ops.push(Op::PushNone);
-        }
+        ops.push(Op::Push(hargs.port.index));
 
-        if let Some(mux) = mux {
+        if let Some(mux) = hargs.mux {
             ops.push(Op::Push(mux.0));
             ops.push(Op::Push(mux.1));
         } else {
@@ -328,7 +285,11 @@ fn rencm(
             ops.push(Op::PushNone);
         }
 
-        ops.push(Op::Push(subargs.device));
+        if let Some(address) = hargs.address {
+            ops.push(Op::Push(address));
+        } else {
+            bail!("expected device");
+        }
 
         while ndx < work.len() && ops.len() < maxops {
             let job = work[ndx];

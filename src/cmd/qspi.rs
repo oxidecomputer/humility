@@ -83,9 +83,13 @@ struct QspiArgs {
     )]
     write: Option<String>,
 
-    /// file to write
+    /// file to write or verify
     #[structopt(long, short = "W", value_name = "filename", group = "command")]
     writefile: Option<String>,
+
+    /// verify instead of writing
+    #[structopt(long, short = "V", requires = "writefile")]
+    verify: bool,
 }
 
 fn qspi(
@@ -115,57 +119,61 @@ fn qspi(
 
     let mut ops = vec![];
 
-    let data =
-        if subargs.status {
-            let qspi_read_status = func("QspiReadStatus", 0)?;
-            ops.push(Op::Call(qspi_read_status.id));
-            None
-        } else if subargs.id {
-            let qspi_read_id = func("QspiReadId", 0)?;
-            ops.push(Op::Call(qspi_read_id.id));
-            None
-        } else if subargs.erase {
-            let qspi_sector_erase = func("QspiSectorErase", 1)?;
-            ops.push(Op::Push32(subargs.addr.unwrap() as u32));
-            ops.push(Op::Call(qspi_sector_erase.id));
-            None
-        } else if subargs.bulkerase {
-            let qspi_bulk_erase = func("QspiBulkErase", 0)?;
-            ops.push(Op::Call(qspi_bulk_erase.id));
-            None
-        } else if subargs.read {
-            let qspi_read = func("QspiRead", 2)?;
-            ops.push(Op::Push32(subargs.addr.unwrap() as u32));
-            ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
-            ops.push(Op::Call(qspi_read.id));
-            None
-        } else if let Some(ref write) = subargs.write {
-            let qspi_page_program = func("QspiPageProgram", 3)?;
-            let bytes: Vec<&str> = write.split(',').collect();
-            let mut arr = vec![];
+    let data = if subargs.status {
+        let qspi_read_status = func("QspiReadStatus", 0)?;
+        ops.push(Op::Call(qspi_read_status.id));
+        None
+    } else if subargs.id {
+        let qspi_read_id = func("QspiReadId", 0)?;
+        ops.push(Op::Call(qspi_read_id.id));
+        None
+    } else if subargs.erase {
+        let qspi_sector_erase = func("QspiSectorErase", 1)?;
+        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
+        ops.push(Op::Call(qspi_sector_erase.id));
+        None
+    } else if subargs.bulkerase {
+        let qspi_bulk_erase = func("QspiBulkErase", 0)?;
+        ops.push(Op::Call(qspi_bulk_erase.id));
+        None
+    } else if subargs.read {
+        let qspi_read = func("QspiRead", 2)?;
+        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
+        ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
+        ops.push(Op::Call(qspi_read.id));
+        None
+    } else if let Some(ref write) = subargs.write {
+        let qspi_page_program = func("QspiPageProgram", 3)?;
+        let bytes: Vec<&str> = write.split(',').collect();
+        let mut arr = vec![];
 
-            for byte in &bytes {
-                if let Ok(val) = parse_int::parse::<u8>(byte) {
-                    arr.push(val);
-                } else {
-                    bail!("invalid byte {}", byte)
-                }
+        for byte in &bytes {
+            if let Ok(val) = parse_int::parse::<u8>(byte) {
+                arr.push(val);
+            } else {
+                bail!("invalid byte {}", byte)
             }
+        }
 
-            ops.push(Op::Push32(subargs.addr.unwrap() as u32));
-            ops.push(Op::Push(0));
-            ops.push(Op::Push32(arr.len() as u32));
-            ops.push(Op::Call(qspi_page_program.id));
-            Some(arr)
-        } else if let Some(filename) = subargs.writefile {
-            let qspi_sector_erase = func("QspiSectorErase", 1)?;
-            let qspi_page_program = func("QspiPageProgram", 3)?;
+        ops.push(Op::Push32(subargs.addr.unwrap() as u32));
+        ops.push(Op::Push(0));
+        ops.push(Op::Push32(arr.len() as u32));
+        ops.push(Op::Call(qspi_page_program.id));
+        Some(arr)
+    } else if let Some(filename) = subargs.writefile {
+        let qspi_sector_erase = func("QspiSectorErase", 1)?;
+        let qspi_page_program = if subargs.verify {
+            func("QspiVerify", 3)
+        } else {
+            func("QspiPageProgram", 3)
+        }?;
 
+        let filelen = fs::metadata(filename.clone())?.len() as u32;
+
+        if !subargs.verify {
             //
             // First, we need to erase the sectors
             //
-            let filelen = fs::metadata(filename.clone())?.len() as u32;
-
             ops.push(Op::Push32(filelen));
             ops.push(Op::Push32(0));
             ops.push(Op::Label(Target(0)));
@@ -197,106 +205,137 @@ fn qspi(
             }
 
             info!("... done");
+        } else {
+            info!("will verify {} bytes...", filelen);
+        }
 
-            //
-            // Okay, it's erased.  Now we need to write it in units of blocksize.
-            //
-            let data_size = context.data_size() as u32;
-            let chunk = data_size - (data_size % block_size);
-            let mut offset = 0;
+        //
+        // Now we're ready to write/verify in units of blocksize.
+        //
+        let data_size = context.data_size() as u32;
+        let chunk = data_size - (data_size % block_size);
+        let mut offset = 0;
 
-            let mut buf = vec![0u8; chunk as usize];
-            let mut file = File::open(filename)?;
+        let mut buf = vec![0u8; chunk as usize];
+        let mut file = File::open(filename)?;
 
-            let started = Instant::now();
-            let bar = ProgressBar::new(filelen as u64);
+        let started = Instant::now();
+        let bar = ProgressBar::new(filelen as u64);
+
+        if !subargs.verify {
             bar.set_style(ProgressStyle::default_bar().template(
                 "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
             ));
+        } else {
+            bar.set_style(ProgressStyle::default_bar().template(
+                "humility: verifying [{bar:30}] {bytes}/{total_bytes}",
+            ));
+        }
+
+        loop {
+            let len = if offset + chunk > filelen {
+                //
+                // Zero the end of the buffer so we don't have to deal with
+                // sub-block size writes inside of HIF
+                //
+                for i in filelen - offset..chunk {
+                    buf[i as usize] = 0;
+                }
+
+                filelen - offset
+            } else {
+                chunk
+            };
+
+            file.read_exact(&mut buf[..len as usize])?;
+
+            //
+            // We have our chunk; now a HIF loop to write/verify our chunk
+            // in block_size nibbles.
+            //
+            let ops = vec![
+                Op::Push32(offset),
+                Op::Push32(0),
+                Op::PushNone,
+                Op::Label(Target(0)),
+                Op::Drop,
+                Op::Push32(block_size),
+                Op::Call(qspi_page_program.id),
+                Op::Add,
+                Op::Swap,
+                Op::Push32(block_size),
+                Op::Add,
+                Op::Swap,
+                Op::Push32(chunk),
+                Op::BranchGreaterThan(Target(0)),
+                Op::Done,
+            ];
+
+            context.execute(core, ops.as_slice(), Some(&buf))?;
 
             loop {
-                let len = if offset + chunk > filelen {
-                    //
-                    // Zero the end of the buffer so we don't have to deal with
-                    // sub-block size writes inside of HIF
-                    //
-                    for i in filelen - offset..chunk {
-                        buf[i as usize] = 0;
-                    }
-
-                    filelen - offset
-                } else {
-                    chunk
-                };
-
-                file.read_exact(&mut buf[..len as usize])?;
-
-                //
-                // We have our chunk; now a HIF loop to write our chunk in
-                // block_size nibbles.
-                //
-                let ops = vec![
-                    Op::Push32(offset),
-                    Op::Push32(0),
-                    Op::PushNone,
-                    Op::Label(Target(0)),
-                    Op::Drop,
-                    Op::Push32(block_size),
-                    Op::Call(qspi_page_program.id),
-                    Op::Add,
-                    Op::Swap,
-                    Op::Push32(block_size),
-                    Op::Add,
-                    Op::Swap,
-                    Op::Push32(chunk),
-                    Op::BranchGreaterThan(Target(0)),
-                    Op::Done,
-                ];
-
-                context.execute(core, ops.as_slice(), Some(&buf))?;
-
-                loop {
-                    if context.done(core)? {
-                        break;
-                    }
-
-                    thread::sleep(Duration::from_millis(100));
+                if context.done(core)? {
+                    break;
                 }
 
-                let results = context.results(core)?;
+                thread::sleep(Duration::from_millis(100));
+            }
 
-                bar.set_position((offset + len).into());
+            let results = context.results(core)?;
 
-                for (i, block_result) in results.iter().enumerate() {
-                    if let Err(err) = *block_result {
+            bar.set_position((offset + len).into());
+
+            for (i, block_result) in results.iter().enumerate() {
+                match block_result {
+                    Err(err) => {
                         bail!(
-                            "failed to write block {} at offset {}: {}",
+                            "failed on block {} at offset {}: {}",
                             i,
                             offset,
-                            f.strerror(err)
+                            qspi_page_program.strerror(*err),
                         );
                     }
-                }
+                    Ok(r) if subargs.verify => {
+                        if r.len() != 1 {
+                            bail!("expected single byte return value");
+                        }
 
-                offset += chunk;
-
-                if offset >= filelen {
-                    break;
+                        if r[0] != 0 {
+                            let a = offset + (i as u32 * block_size);
+                            info!("block at 0x{:x} failed to verify", a);
+                        }
+                    }
+                    _ => {}
                 }
             }
 
-            bar.finish_and_clear();
+            offset += chunk;
 
+            if offset >= filelen {
+                break;
+            }
+        }
+
+        bar.finish_and_clear();
+
+        if subargs.verify {
+            info!(
+                "verified {} in {}",
+                HumanBytes(filelen as u64),
+                HumanDuration(started.elapsed())
+            );
+        } else {
             info!(
                 "flashed {} in {}",
                 HumanBytes(filelen as u64),
                 HumanDuration(started.elapsed())
             );
+        }
 
-            bail!("all done");
-        } else {
-            bail!("expected an operation");
-        };
+        return Ok(());
+    } else {
+        bail!("expected an operation");
+    };
 
     ops.push(Op::Done);
 
