@@ -18,6 +18,7 @@ mod probe;
 mod qspi;
 mod readmem;
 mod readvar;
+mod renbb;
 mod rencm;
 mod ringbuf;
 mod spd;
@@ -104,6 +105,7 @@ pub fn init<'a, 'b>(
         qspi::init,
         readmem::init,
         readvar::init,
+        renbb::init,
         rencm::init,
         ringbuf::init,
         spd::init,

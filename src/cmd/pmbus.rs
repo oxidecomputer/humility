@@ -7,6 +7,7 @@ use crate::core::Core;
 use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
+use colored::Colorize;
 use multimap::MultiMap;
 use std::thread;
 
@@ -497,6 +498,7 @@ fn split_write(write: &str) -> Result<(&str, Option<&str>, Option<&str>)> {
 }
 
 fn summarize_rail(
+    subargs: &PmbusArgs,
     device: &HubrisI2cDevice,
     driver: &pmbus::Device,
     rail: &str,
@@ -507,21 +509,7 @@ fn summarize_rail(
 ) -> Result<()> {
     let mut base = 0;
 
-    let mux = match (device.mux, device.segment) {
-        (Some(m), Some(s)) => format!("{}:{}", m, s),
-        (None, None) => "-".to_string(),
-        (_, _) => "?:?".to_string(),
-    };
-
-    print!(
-        "{} {:2} {:3} 0x{:02x} {:13} {:13}",
-        device.controller,
-        device.port.name,
-        mux,
-        device.address,
-        device.device,
-        rail
-    );
+    print!("{:13} {:16}", device.device, rail);
 
     if calls[base] == CommandCode::PAGE as u8 {
         //
@@ -554,6 +542,53 @@ fn summarize_rail(
             panic!("unexpected call to VOutMode");
         }
     };
+
+    assert_eq!(calls[base], CommandCode::STATUS_WORD as u8);
+
+    let status = match results[base] {
+        Err(_) => None,
+        Ok(ref val) => Some(STATUS_WORD::CommandData::from_slice(val).unwrap()),
+    };
+
+    print!(
+        " {:>3}",
+        match status {
+            Some(status) => match status.get_power_good_status() {
+                Some(STATUS_WORD::PowerGoodStatus::PowerGood) => "Y".green(),
+                Some(STATUS_WORD::PowerGoodStatus::NoPowerGood) => "N".red(),
+                None => "X".red(),
+            },
+            None => "-".yellow(),
+        }
+    );
+
+    let mut faults = vec![];
+
+    print!(
+        " {:>4}",
+        match status {
+            Some(status) => {
+                let _ = status.interpret(getmode, |field, value| {
+                    if field.name().contains("Fault") {
+                        if value.raw() != 0 {
+                            faults.push(field.desc());
+                        }
+                    }
+                });
+
+                let str = format!("{}", faults.len());
+
+                if faults.len() != 0 {
+                    str.red()
+                } else {
+                    str.green()
+                }
+            }
+            None => "-".yellow(),
+        }
+    );
+
+    base += 1;
 
     for i in base..calls.len() {
         let code = calls[i];
@@ -592,6 +627,17 @@ fn summarize_rail(
 
     println!();
 
+    if subargs.verbose && faults.len() != 0 {
+        println!("{:38}|", "");
+        println!("{:38}+--- {}", "", faults[0]);
+
+        for i in 1..faults.len() {
+            println!("{:38}     {}", "", faults[i]);
+        }
+
+        println!();
+    }
+
     Ok(())
 }
 
@@ -607,7 +653,10 @@ fn summarize(
     let (all, bycode) = all_commands(pmbus::Device::Common);
 
     let mut width = 9;
-    let mut commands = vec![(CommandCode::VOUT_MODE as u8, None)];
+    let mut commands = vec![
+        (CommandCode::VOUT_MODE as u8, None),
+        (CommandCode::STATUS_WORD as u8, None),
+    ];
 
     if let Some(ref cmds) = subargs.commands {
         for cmd in cmds {
@@ -715,10 +764,7 @@ fn summarize(
     let results = context.results(core)?;
     let mut base = 0;
 
-    print!(
-        "{} {:2} {} {} {:13} {:13}",
-        "C", "P", "MUX", "ADDR", "DEVICE", "RAIL"
-    );
+    print!("{:13} {:16} {:3} {:4}", "DEVICE", "RAIL", "PG?", "#FLT");
 
     for (_, header) in commands.iter() {
         if let Some(header) = header {
@@ -730,6 +776,7 @@ fn summarize(
 
     for (device, driver, rail, calls) in &work {
         summarize_rail(
+            subargs,
             device,
             driver,
             rail,
