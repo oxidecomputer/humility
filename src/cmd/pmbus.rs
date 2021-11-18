@@ -1001,6 +1001,7 @@ fn pmbus(
     let mut writes = MultiMap::new();
     let mut write_ops = vec![];
     let mut send_bytes = vec![];
+    let mut write_blocks = vec![];
     let mut setrail = false;
 
     if let Some(ref writecmds) = subargs.writes {
@@ -1012,10 +1013,15 @@ fn pmbus(
             match all.get(cmd) {
                 Some(code) => {
                     let mut send_byte = false;
+                    let mut write_block = false;
 
                     device.command(*code, |cmd| {
                         if cmd.write_op() == pmbus::Operation::SendByte {
                             send_byte = true;
+                        }
+
+                        if cmd.write_op() == pmbus::Operation::WriteBlock {
+                            write_block = true;
                         }
                     });
 
@@ -1025,6 +1031,29 @@ fn pmbus(
                         }
 
                         send_bytes.push((*code, cmd));
+                    } else if write_block {
+                        let bytes: Vec<&str> = match value {
+                            None => {
+                                bail!(
+                                    "write \"{}\" needs a byte stream, \
+                                    e.g. COMMAND=0x1,0xde",
+                                    cmd
+                                );
+                            }
+                            Some(value) => value.split(",").collect(),
+                        };
+
+                        let mut payload = vec![];
+
+                        for byte in &bytes {
+                            if let Ok(val) = parse_int::parse::<u8>(byte) {
+                                payload.push(val);
+                            } else {
+                                bail!("invalid byte {}", byte)
+                            }
+                        }
+
+                        write_blocks.push((*code, cmd, payload));
                     } else {
                         run[*code as usize] = true;
 
@@ -1155,6 +1184,26 @@ fn pmbus(
         }
     }
 
+    //
+    // And any WriteBlock commands -- these are raw.
+    //
+    for (code, cmd, payload) in &write_blocks {
+        ops.push(Op::Push(*code));
+        ops.push(Op::Push(payload.len() as u8));
+
+        for i in 0..payload.len() {
+            ops.push(Op::Push(payload[i]));
+        }
+
+        ops.push(Op::Push(payload.len() as u8 + 1));
+        ops.push(Op::Call(write_func.id));
+        ops.push(Op::DropN(payload.len() as u8 + 3));
+
+        if subargs.dryrun {
+            println!("0x{:02x} {} WriteBlock {:x?}", code, cmd, payload);
+        }
+    }
+
     if subargs.dryrun {
         return Ok(());
     }
@@ -1196,9 +1245,9 @@ fn pmbus(
             Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
         };
 
-        (Some(mode), base + 1 + send_bytes.len())
+        (Some(mode), base + 1 + send_bytes.len() + write_blocks.len())
     } else {
-        (None, base + send_bytes.len())
+        (None, base + send_bytes.len() + write_blocks.len())
     };
 
     let getmode = || match mode {
@@ -1209,7 +1258,7 @@ fn pmbus(
     };
 
     if !send_bytes.is_empty() {
-        let offs = ndx - send_bytes.len();
+        let offs = ndx - (send_bytes.len() + write_blocks.len());
 
         for i in 0..send_bytes.len() {
             let (_, cmd) = &send_bytes[i];
@@ -1224,6 +1273,27 @@ fn pmbus(
                 }
                 Ok(_) => {
                     info!("successfully wrote {}", cmd);
+                }
+            }
+        }
+    }
+
+    if !write_blocks.is_empty() {
+        let offs = ndx - write_blocks.len();
+
+        for i in 0..write_blocks.len() {
+            let (_, cmd, _) = &write_blocks[i];
+
+            match results[i + offs] {
+                Err(code) => {
+                    bail!(
+                        "failed to write {} block: Err({})",
+                        cmd,
+                        write_func.strerror(code)
+                    );
+                }
+                Ok(_) => {
+                    info!("successfully wrote {} block", cmd);
                 }
             }
         }
