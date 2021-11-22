@@ -80,7 +80,7 @@ struct PmbusArgs {
     commands: Option<Vec<String>>,
 
     /// specifies writes to perform
-    #[structopt(long, short = "w", use_delimiter = true)]
+    #[structopt(long, short = "w", use_delimiter = false)]
     writes: Option<Vec<String>>,
 
     /// specifies an I2C controller
@@ -1131,6 +1131,14 @@ fn writes(
 
     let mut additional = false;
 
+    let success = |harg, rail: &Option<u8>, cmd| {
+        if let Some(rnum) = *rail {
+            info!("{}, rail {}: successfully wrote {}", harg, rnum, cmd);
+        } else {
+            info!("{}: successfully wrote {}", harg, cmd);
+        }
+    };
+
     for (harg, rail) in &hargs {
         if let Some(rnum) = rail {
             if let Err(code) = results[ndx] {
@@ -1158,7 +1166,7 @@ fn writes(
                             )
                     }
                     Ok(_) => {
-                        info!("successfully wrote {}", cmd);
+                        success(harg, rail, cmd);
                     }
                 },
             }
@@ -1174,6 +1182,7 @@ fn writes(
     // If we're here, we have addtional work to do.
     //
     let mut ops = vec![];
+    let mut ndx = 0;
 
     for (harg, rail) in &hargs {
         ops.push(Op::Push(harg.controller));
@@ -1271,7 +1280,6 @@ fn writes(
     }
 
     let results = context.results(core)?;
-
     let mut ndx = 0;
 
     //
@@ -1295,7 +1303,7 @@ fn writes(
                         harg, cmd, write_func.strerror(code)
                     );
                 } else {
-                    info!("successfully wrote {}", cmd);
+                    success(harg, rail, cmd);
                 }
 
                 ndx += 1;
@@ -1374,7 +1382,7 @@ fn pmbus(
     let hargs = match (&subargs.rail, &subargs.device) {
         (Some(rails), None) => {
             if rails.len() > 1 {
-                bail!("more than one rail");
+                bail!("cannot specify more than one rail");
             }
 
             find_rail(hubris, &rails[0])?.0

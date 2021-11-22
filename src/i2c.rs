@@ -16,11 +16,11 @@ impl fmt::Display for I2cArgs<'_> {
         write!(f, "I2C{}, port {}", self.controller, self.port.name)?;
 
         if let Some((mux, segment)) = self.mux {
-            write!(f, ", {}:{}", mux, segment)?;
+            write!(f, ", seg {}:{}", mux, segment)?;
         }
 
         if let Some(address) = self.address {
-            write!(f, ", 0x{:02x}", address)?;
+            write!(f, ", dev 0x{:02x}", address)?;
         }
 
         Ok(())
