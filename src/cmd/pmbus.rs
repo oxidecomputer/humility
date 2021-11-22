@@ -837,14 +837,85 @@ fn find_rail<'a>(
 
 #[derive(Debug)]
 enum WriteOp {
-    Set(Vec<(Bitpos, Replacement)>),
-    SendByte,
+    Modify(usize, Vec<(Bitpos, Replacement)>),
+    SetBlock(Vec<u8>),
+    Set,
+}
+
+impl WriteOp {
+    fn from_op(
+        device: pmbus::Device,
+        op: pmbus::Operation,
+        cmd: &str,
+        code: u8,
+        field: Option<&str>,
+        value: Option<&str>,
+    ) -> Result<Self> {
+        match op {
+            pmbus::Operation::SendByte => {
+                if value.is_some() {
+                    bail!("write of {} cannot take a value", cmd);
+                }
+
+                Ok(WriteOp::Set)
+            }
+
+            pmbus::Operation::WriteBlock => {
+                if field.is_some() {
+                    bail!("write {} can only take raw bytes", cmd);
+                }
+
+                let bytes: Vec<&str> = match value {
+                    None => {
+                        bail!(
+                            "write {} needs a byte stream, e.g. {}=0x1,0xde",
+                            cmd, cmd
+                        );
+                    }
+                    Some(value) => value.split(",").collect(),
+                };
+
+                let mut payload = vec![];
+
+                for byte in &bytes {
+                    if let Ok(val) = parse_int::parse::<u8>(byte) {
+                        payload.push(val);
+                    } else {
+                        bail!("invalid byte {}", byte)
+                    }
+                }
+
+                Ok(WriteOp::SetBlock(payload))
+            }
+
+            pmbus::Operation::WriteByte 
+            | pmbus::Operation::WriteWord
+            | pmbus::Operation::WriteWord32 => {
+                let count = match op {
+                    pmbus::Operation::WriteByte => 1,
+                    pmbus::Operation::WriteWord => 2,
+                    pmbus::Operation::WriteWord32 => 4,
+                    _ => {
+                        panic!("unexpected operation {:?}", op);
+                    }
+                };
+
+                Ok(WriteOp::Modify(count, vec![
+                    validate_write(device, cmd, code, field, value)?
+                ]))
+            }
+
+            _ => {
+                bail!("{} cannot be written", cmd);
+            }
+        }
+    }
 }
 
 fn validate_writes(
     writecmds: &Vec<String>,
     device: pmbus::Device,
-) -> Result<IndexMap<u8, WriteOp>> {
+) -> Result<IndexMap<u8, (String, WriteOp)>> {
 
     let mut rval = IndexMap::new();
     let mut all = HashMap::new();
@@ -860,24 +931,16 @@ fn validate_writes(
 
         if let Some((code, op)) = all.get(cmd) {
             match rval.get_mut(code) {
-                Some(WriteOp::Set(ref mut writes)) => {
+                Some((_, WriteOp::Modify(_, ref mut writes))) => {
                     assert!(*op != pmbus::Operation::SendByte);
                     writes.push(
                         validate_write(device, cmd, *code, field, value)?,
                     );
                 }
                 None => {
-                    rval.insert(*code, if *op == pmbus::Operation::SendByte {
-                        if value.is_some() {
-                            bail!("write of \"{}\" cannot take a value", cmd);
-                        }
-
-                        WriteOp::SendByte
-                    } else {
-                        WriteOp::Set(vec![
-                            validate_write(device, cmd, *code, field, value)?
-                        ])
-                    });
+                    rval.insert(*code, (cmd.to_string(), WriteOp::from_op(
+                        device, *op, cmd, *code, field, value
+                    )?));
                 }
                 _ => {
                     bail!("{} cannot be written more than once", cmd);
@@ -946,18 +1009,12 @@ fn writes(
     let writecmds = subargs.writes.as_ref().unwrap();
     let writes = validate_writes(&writecmds, device)?;
 
-    let ops = vec![];
-
-    let mut reads = vec![
-        (CommandCode::VOUT_MODE as u8)
-    ];
-
-    for w in writes {
-        reads.push(XX)
-    }
+    let mut ops = vec![];
 
     //
-    // First up, we are going to do any reads that we need to perform.
+    // First up, we are going to do any reads that we need to perform, along
+    // with any operations to set a command (SendByte) as well as set an
+    // entire block (WriteBlock).
     //
     for (harg, rail) in &hargs {
         ops.push(Op::Push(harg.controller));
@@ -977,38 +1034,57 @@ fn writes(
         // If we have a rail, select it.
         //
         if let Some(rnum) = rail {
-            ops.push(Op::Push(page));
-            ops.push(Op::Push(rnum));
+            ops.push(Op::Push(CommandCode::PAGE as u8));
+            ops.push(Op::Push(*rnum));
             ops.push(Op::Push(1));
             ops.push(Op::Call(write_func.id));
             ops.push(Op::DropN(3));
-            calls.push(page);
         }
 
         //
         // Now our VOUT_MODE
         //
-        ops.push(Op::Push(vout));
+        ops.push(Op::Push(CommandCode::VOUT_MODE as u8));
         ops.push(Op::Push(1));
         ops.push(Op::Call(func.id));
         ops.push(Op::DropN(2));
 
-        for (code, op) in writes {
+        for (&code, (_cmd, op)) in &writes {
             match op {
-                WriteOp::Set(size, _) => {
+                WriteOp::Modify(size, _) => {
+                    //
+                    // For any modification, we need to first read the command.
+                    //
                     ops.push(Op::Push(code));
-                    ops.push(Op::Push(size));
+                    ops.push(Op::Push(*size as u8));
                     ops.push(Op::Call(func.id));
                     ops.push(Op::DropN(2));
                 }
-                WriteOp::SendByte => {
+                WriteOp::SetBlock(payload) => {
+                    //
+                    // For WriteBlock operations, we must write the size
+                    // followed by the payload.
+                    //
+                    ops.push(Op::Push(code));
+                    ops.push(Op::Push(payload.len() as u8));
+
+                    for &byte in payload {
+                        ops.push(Op::Push(byte));
+                    }
+
+                    ops.push(Op::Push(payload.len() as u8 + 1));
+                    ops.push(Op::Call(write_func.id));
+                    ops.push(Op::DropN(payload.len() as u8 + 3));
+                }
+
+                WriteOp::Set => {
                     //
                     // For SendByte operations, we issue a 1-byte raw write
                     // that is the command by indicating the register to be
                     // None.
                     //
                     ops.push(Op::PushNone);
-                    ops.push(Op::Push(*code));
+                    ops.push(Op::Push(code));
                     ops.push(Op::Push(1));
                     ops.push(Op::Call(write_func.id));
                     ops.push(Op::DropN(3));
@@ -1035,14 +1111,80 @@ fn writes(
     // Now go back through our devices checking results -- and creating our
     // next batch of work, if any.
     //
+    let results = context.results(core)?;
     let mut ndx = 0;
+
+    let mut additional = false;
 
     for (harg, rail) in &hargs {
         if let Some(rnum) = rail {
             if let Err(code) = results[ndx] {
-                bail!("failed to set rail {} on {}: Err({})", rnum, harg, code);
+                bail!("failed to set rail {}: Err({})", rnum, code);
             }
 
+            ndx += 1;
+        }
+
+        //
+        // Step over the mode.
+        //
+        ndx += 1;
+
+        for (&code, (cmd, op)) in &writes {
+            match op {
+                WriteOp::Modify(_, _) => {
+                    additional = true;
+                }
+                WriteOp::Set | WriteOp::SetBlock(_) => {
+                    match results[ndx] {
+                        Err(code) => {
+                            bail!(
+                                "failed to set {}: {}",
+                                cmd, write_func.strerror(code)
+                            )
+                        }
+                        Ok(_) => {
+                            info!("successfully wrote {}", cmd);
+                        }
+                    }
+                }
+            }
+            ndx += 1;
+        }
+    }
+                
+    if !additional {
+        return Ok(());
+    }
+
+    //
+    // If we're here, we have addtional work to do.
+    //
+    let mut ops = vec![];
+
+    for (harg, rail) in &hargs {
+        ops.push(Op::Push(harg.controller));
+        ops.push(Op::Push(harg.port.index));
+
+        if let Some(mux) = harg.mux {
+            ops.push(Op::Push(mux.0));
+            ops.push(Op::Push(mux.1));
+        } else {
+            ops.push(Op::PushNone);
+            ops.push(Op::PushNone);
+        }
+
+        ops.push(Op::Push(harg.address.unwrap()));
+
+        //
+        // If we have a rail, select it.
+        //
+        if let Some(rnum) = rail {
+            ops.push(Op::Push(CommandCode::PAGE as u8));
+            ops.push(Op::Push(*rnum));
+            ops.push(Op::Push(1));
+            ops.push(Op::Call(write_func.id));
+            ops.push(Op::DropN(3));
             ndx += 1;
         }
 
@@ -1059,38 +1201,96 @@ fn writes(
 
         let getmode = || mode;
 
-        for (code, op) in writes {
-            match op {
-                WriteOp::Set(size, set) => {
-                    XXX
-                    ops.push(Op::Push(code));
-                    ops.push(Op::Push(size));
-                    ops.push(Op::Call(func.id));
-                    opso.push(Op::DropN(2));
-                    prepare_write(device, code, getmode, payload, set)
-                    XXX indicate we have writes
+        for (&code, (cmd, op)) in &writes {
+            if let WriteOp::Modify(size, set) = op {
+                let payload = match results[ndx] {
+                    Err(code) => {
+                        bail!(
+                            "failed to read {}: {}",
+                            cmd, func.strerror(code)
+                        );
+                    }
+                    Ok(ref val) => val,
+                };
+
+                let mut r = None;
+
+                if payload.len() != size {
+                    bail!(
+                        "mismatch on {}: expected {}, found {}",
+                        cmd, size, payload.len()
+                    );
                 }
-                WriteOp::SendByte => {
-                    XXX check
+
+                device.command(code, |cmd| {
+                    r = Some(prepare_write(
+                        device, *code, getmode, cmd, payload, set,
+                    ));
+                });
+
+                let v = r.unwrap()?;
+
+                ops.push(Op::Push(code));
+
+                for byte in v {
+                    ops.push(Op::Push(byte));
                 }
+
+                ops.push(Op::Push(size));
+                ops.push(Op::Call(write_func.id));
+                ops.push(Op::DropN(size as u8 + 2));
+            }
+
+            ndx += 1;
+        }
+
+        ops.push(Op::DropN(5));
+    }
+
+    ops.push(Op::Done);
+
+    context.execute(core, ops.as_slice(), None)?;
+
+    loop {
+        if context.done(core)? {
+            break;
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    let results = context.results(core)?;
+
+    let mut ndx = 0;
+
+    //
+    // Now take one final lap through our results, reporting any errors
+    // that we find.
+    //
+    for (harg, rail) in &hargs {
+        if let Some(rnum) = rail {
+            if let Err(code) = results[ndx] {
+                bail!("failed to set rail {} on {}: Err({})", rnum, harg, code);
+            }
+
+            ndx += 1;
+        }
+
+        for (&code, (cmd, op)) in &writes {
+            if let WriteOp::Modify(size, set) = op {
+                if let Err(code) = results[ndx] {
+                    bail!(
+                        "failed to write {}: {}",
+                        cmd, write_func.strerror(code)
+                    );
+                } else {
+                    info!("successfully wrote {}", cmd);
+                }
+
+                ndx += 1;
             }
         }
     }
-
-    //
-    // If we don't have additional writes, we're done -- otherwise we need
-    // to kick off another set of operations and confirm that they execute
-    // successfully.
-    //
-    if additional {
-
-
-
-        return 
- 
-
-
-    println!("writes are {:?}", writes);
 
     Ok(())
 }
