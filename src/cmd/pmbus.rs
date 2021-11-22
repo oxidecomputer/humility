@@ -8,7 +8,6 @@ use crate::hiffy::*;
 use crate::hubris::*;
 use crate::Args;
 use colored::Colorize;
-use multimap::MultiMap;
 use std::thread;
 
 use anyhow::{anyhow, bail, Result};
@@ -1416,7 +1415,7 @@ fn pmbus(
         }
     };
 
-    let (all, bycode) = all_commands(device);
+    let (all, _) = all_commands(device);
 
     if let Some(ref commands) = subargs.commandhelp {
         if commands.is_empty() || commands[0] == "all" {
@@ -1507,77 +1506,7 @@ fn pmbus(
         }
     }
 
-    let mut writes = MultiMap::new();
-    let mut write_ops = vec![];
-    let mut send_bytes = vec![];
-    let mut write_blocks = vec![];
     let mut setrail = false;
-
-    if let Some(ref writecmds) = subargs.writes {
-        run.fill(false);
-
-        for write in writecmds {
-            let (cmd, field, value) = split_write(write)?;
-
-            match all.get(cmd) {
-                Some(code) => {
-                    let mut send_byte = false;
-                    let mut write_block = false;
-
-                    device.command(*code, |cmd| {
-                        if cmd.write_op() == pmbus::Operation::SendByte {
-                            send_byte = true;
-                        }
-
-                        if cmd.write_op() == pmbus::Operation::WriteBlock {
-                            write_block = true;
-                        }
-                    });
-
-                    if send_byte {
-                        if value.is_some() {
-                            bail!("write of \"{}\" cannot take a value", cmd);
-                        }
-
-                        send_bytes.push((*code, cmd));
-                    } else if write_block {
-                        let bytes: Vec<&str> = match value {
-                            None => {
-                                bail!(
-                                    "write \"{}\" needs a byte stream, \
-                                    e.g. COMMAND=0x1,0xde",
-                                    cmd
-                                );
-                            }
-                            Some(value) => value.split(",").collect(),
-                        };
-
-                        let mut payload = vec![];
-
-                        for byte in &bytes {
-                            if let Ok(val) = parse_int::parse::<u8>(byte) {
-                                payload.push(val);
-                            } else {
-                                bail!("invalid byte {}", byte)
-                            }
-                        }
-
-                        write_blocks.push((*code, cmd, payload));
-                    } else {
-                        run[*code as usize] = true;
-
-                        writes.insert(
-                            *code,
-                            validate_write(device, cmd, *code, field, value)?,
-                        );
-                    }
-                }
-                None => {
-                    bail!("unrecognized PMBus command {}", cmd);
-                }
-            }
-        }
-    }
 
     //
     // If we have a rail specified, we want to set that first.
@@ -1633,10 +1562,6 @@ fn pmbus(
         }
     }
 
-    if !writes.is_empty() {
-        write_ops = ops.clone();
-    }
-
     let mut addcmd = |cmd: &dyn Command, code| {
         let op = match cmd.read_op() {
             pmbus::Operation::ReadByte => Op::Push(1),
@@ -1666,45 +1591,6 @@ fn pmbus(
     for i in 0..=255u8 {
         if run[i as usize] {
             device.command(i, |cmd| addcmd(cmd, i));
-        }
-    }
-
-    //
-    // Now add any SendByte commands that we might have.
-    //
-    for (code, cmd) in &send_bytes {
-        //
-        // For SendByte operations, we issue a 1-byte raw write that is the
-        // command by indicating the register to be None.
-        //
-        ops.push(Op::PushNone);
-        ops.push(Op::Push(*code));
-        ops.push(Op::Push(1));
-        ops.push(Op::Call(write_func.id));
-        ops.push(Op::DropN(3));
-
-        if subargs.dryrun {
-            println!("0x{:02x} {} SendByte", code, cmd);
-        }
-    }
-
-    //
-    // And any WriteBlock commands -- these are raw.
-    //
-    for (code, cmd, payload) in &write_blocks {
-        ops.push(Op::Push(*code));
-        ops.push(Op::Push(payload.len() as u8));
-
-        for i in 0..payload.len() {
-            ops.push(Op::Push(payload[i]));
-        }
-
-        ops.push(Op::Push(payload.len() as u8 + 1));
-        ops.push(Op::Call(write_func.id));
-        ops.push(Op::DropN(payload.len() as u8 + 3));
-
-        if subargs.dryrun {
-            println!("0x{:02x} {} WriteBlock {:x?}", code, cmd, payload);
         }
     }
 
@@ -1749,9 +1635,9 @@ fn pmbus(
             Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
         };
 
-        (Some(mode), base + 1 + send_bytes.len() + write_blocks.len())
+        (Some(mode), base + 1)
     } else {
-        (None, base + send_bytes.len() + write_blocks.len())
+        (None, base)
     };
 
     let getmode = || match mode {
@@ -1761,132 +1647,22 @@ fn pmbus(
         }
     };
 
-    if !send_bytes.is_empty() {
-        let offs = ndx - (send_bytes.len() + write_blocks.len());
+    for i in ndx..results.len() {
+        let mut r = Ok(());
 
-        for i in 0..send_bytes.len() {
-            let (_, cmd) = &send_bytes[i];
+        device.command(cmds[i], |cmd| {
+            r = print_result(
+                &subargs,
+                device,
+                cmds[i],
+                getmode,
+                cmd,
+                &results[i],
+                &func.errmap,
+            );
+        });
 
-            match results[i + offs] {
-                Err(code) => {
-                    bail!(
-                        "failed to write {}: Err({})",
-                        cmd,
-                        write_func.strerror(code)
-                    );
-                }
-                Ok(_) => {
-                    info!("successfully wrote {}", cmd);
-                }
-            }
-        }
-    }
-
-    if !write_blocks.is_empty() {
-        let offs = ndx - write_blocks.len();
-
-        for i in 0..write_blocks.len() {
-            let (_, cmd, _) = &write_blocks[i];
-
-            match results[i + offs] {
-                Err(code) => {
-                    bail!(
-                        "failed to write {} block: Err({})",
-                        cmd,
-                        write_func.strerror(code)
-                    );
-                }
-                Ok(_) => {
-                    info!("successfully wrote {} block", cmd);
-                }
-            }
-        }
-    }
-
-    if !writes.is_empty() {
-        for i in ndx..results.len() {
-            let payload = match results[i] {
-                Err(code) => {
-                    bail!(
-                        "failed to read {:x}: Err({})",
-                        cmds[i],
-                        func.strerror(code)
-                    );
-                }
-                Ok(ref val) => val,
-            };
-
-            if let Some(write) = writes.get_vec(&cmds[i]) {
-                let mut r = None;
-
-                device.command(cmds[i], |cmd| {
-                    r = Some(prepare_write(
-                        device, cmds[i], getmode, cmd, payload, write,
-                    ));
-                });
-
-                let v = r.unwrap()?;
-
-                write_ops.push(Op::Push(cmds[i]));
-
-                for &item in &v {
-                    write_ops.push(Op::Push(item));
-                }
-
-                write_ops.push(Op::Push(v.len() as u8));
-                write_ops.push(Op::Call(write_func.id));
-                write_ops.push(Op::DropN(v.len() as u8 + 2));
-            }
-        }
-
-        write_ops.push(Op::Done);
-
-        context.execute(core, write_ops.as_slice(), None)?;
-
-        loop {
-            if context.done(core)? {
-                break;
-            }
-
-            thread::sleep(Duration::from_millis(100));
-        }
-
-        let wresults = context.results(core)?;
-
-        for i in base..wresults.len() {
-            let name = bycode.get(&cmds[i + ndx - base]).unwrap();
-
-            match wresults[i] {
-                Err(code) => {
-                    bail!(
-                        "failed to write {}: Err({})",
-                        name,
-                        write_func.strerror(code)
-                    );
-                }
-                Ok(_) => {
-                    info!("successfully wrote {}", name);
-                }
-            }
-        }
-    } else {
-        for i in ndx..results.len() {
-            let mut r = Ok(());
-
-            device.command(cmds[i], |cmd| {
-                r = print_result(
-                    &subargs,
-                    device,
-                    cmds[i],
-                    getmode,
-                    cmd,
-                    &results[i],
-                    &func.errmap,
-                );
-            });
-
-            r?;
-        }
+        r?;
     }
 
     Ok(())
