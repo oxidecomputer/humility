@@ -1,5 +1,6 @@
 use crate::hubris::*;
 use anyhow::{bail, Context, Result};
+use std::fmt;
 
 pub struct I2cArgs<'a> {
     pub controller: u8,
@@ -8,6 +9,22 @@ pub struct I2cArgs<'a> {
     pub device: Option<String>,
     pub address: Option<u8>,
     pub class: &'a HubrisI2cDeviceClass,
+}
+
+impl fmt::Display for I2cArgs<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "I2C{}, port {}", self.controller, self.port.name)?;
+
+        if let Some((mux, segment)) = self.mux {
+            write!(f, ", {}:{}", mux, segment)?;
+        }
+
+        if let Some(address) = self.address {
+            write!(f, ", 0x{:02x}", address)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a> I2cArgs<'a> {

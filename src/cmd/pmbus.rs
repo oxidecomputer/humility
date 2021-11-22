@@ -13,6 +13,7 @@ use std::thread;
 
 use anyhow::{anyhow, bail, Result};
 use hif::*;
+use indexmap::IndexMap;
 use pmbus::commands::*;
 use pmbus::*;
 use std::collections::HashMap;
@@ -20,7 +21,6 @@ use std::fmt::Write;
 use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
-use indexmap::IndexMap;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "pmbus", about = "scan for and read PMBus devices")]
@@ -814,11 +814,14 @@ fn find_rail<'a>(
                         Some(_) => {
                             bail!("multiple devices match {}", rail);
                         }
-                        None => Some((device, if rails.len() > 1 {
-                            Some(rnum as u8)
-                        } else {
-                            None
-                        })),
+                        None => Some((
+                            device,
+                            if rails.len() > 1 {
+                                Some(rnum as u8)
+                            } else {
+                                None
+                            },
+                        )),
                     }
                 }
             }
@@ -829,9 +832,9 @@ fn find_rail<'a>(
         None => {
             bail!("rail {} not found", rail);
         }
-        Some((device, rail)) => Ok(
-            (crate::i2c::I2cArgs::from_device(device), rail)
-        ),
+        Some((device, rail)) => {
+            Ok((crate::i2c::I2cArgs::from_device(device), rail))
+        }
     }
 }
 
@@ -869,7 +872,8 @@ impl WriteOp {
                     None => {
                         bail!(
                             "write {} needs a byte stream, e.g. {}=0x1,0xde",
-                            cmd, cmd
+                            cmd,
+                            cmd
                         );
                     }
                     Some(value) => value.split(",").collect(),
@@ -888,7 +892,7 @@ impl WriteOp {
                 Ok(WriteOp::SetBlock(payload))
             }
 
-            pmbus::Operation::WriteByte 
+            pmbus::Operation::WriteByte
             | pmbus::Operation::WriteWord
             | pmbus::Operation::WriteWord32 => {
                 let count = match op {
@@ -900,9 +904,10 @@ impl WriteOp {
                     }
                 };
 
-                Ok(WriteOp::Modify(count, vec![
-                    validate_write(device, cmd, code, field, value)?
-                ]))
+                Ok(WriteOp::Modify(
+                    count,
+                    vec![validate_write(device, cmd, code, field, value)?],
+                ))
             }
 
             _ => {
@@ -916,7 +921,6 @@ fn validate_writes(
     writecmds: &Vec<String>,
     device: pmbus::Device,
 ) -> Result<IndexMap<u8, (String, WriteOp)>> {
-
     let mut rval = IndexMap::new();
     let mut all = HashMap::new();
 
@@ -933,14 +937,20 @@ fn validate_writes(
             match rval.get_mut(code) {
                 Some((_, WriteOp::Modify(_, ref mut writes))) => {
                     assert!(*op != pmbus::Operation::SendByte);
-                    writes.push(
-                        validate_write(device, cmd, *code, field, value)?,
-                    );
+                    writes.push(validate_write(
+                        device, cmd, *code, field, value,
+                    )?);
                 }
                 None => {
-                    rval.insert(*code, (cmd.to_string(), WriteOp::from_op(
-                        device, *op, cmd, *code, field, value
-                    )?));
+                    rval.insert(
+                        *code,
+                        (
+                            cmd.to_string(),
+                            WriteOp::from_op(
+                                device, *op, cmd, *code, field, value,
+                            )?,
+                        ),
+                    );
                 }
                 _ => {
                     bail!("{} cannot be written more than once", cmd);
@@ -954,6 +964,7 @@ fn validate_writes(
     Ok(rval)
 }
 
+#[rustfmt::skip::macros(bail)]
 fn writes(
     subargs: &PmbusArgs,
     hubris: &HubrisArchive,
@@ -963,45 +974,49 @@ fn writes(
     write_func: &HiffyFunction,
 ) -> Result<()> {
     let hargs = match (&subargs.rail, &subargs.device) {
-        (Some(rails), None) => {
-            rails
-                .iter()
-                .map(|rail| find_rail(hubris, rail))
-                .collect::<Result<Vec<(crate::i2c::I2cArgs, Option<u8>)>>>()
-        }
+        (Some(rails), None) => rails
+            .iter()
+            .map(|rail| find_rail(hubris, rail))
+            .collect::<Result<Vec<(crate::i2c::I2cArgs, Option<u8>)>>>(),
 
-        (_, _) => Ok(vec![(crate::i2c::I2cArgs::parse(
-            hubris,
-            &subargs.bus,
-            subargs.controller,
-            &subargs.port,
-            &subargs.mux,
-            &subargs.device,
-        )?, None)]),
+        (_, _) => Ok(vec![(
+            crate::i2c::I2cArgs::parse(
+                hubris,
+                &subargs.bus,
+                subargs.controller,
+                &subargs.port,
+                &subargs.mux,
+                &subargs.device,
+            )?,
+            None,
+        )]),
     }?;
 
     //
     // Determine if we have a common device.
     //
-    let device = hargs.iter().fold(None, |dev, (harg, _)| {
-        Some(match dev {
-            None => match &harg.device {
-                Some(device) => match pmbus::Device::from_str(&device) {
-                    Some(device) => device,
+    let device = hargs
+        .iter()
+        .fold(None, |dev, (harg, _)| {
+            Some(match dev {
+                None => match &harg.device {
+                    Some(device) => match pmbus::Device::from_str(&device) {
+                        Some(device) => device,
+                        None => pmbus::Device::Common,
+                    },
                     None => pmbus::Device::Common,
-                }
-                None => pmbus::Device::Common,
-            },
-            Some(pmbus::Device::Common) => pmbus::Device::Common,
-            Some(found) => match &harg.device {
-                Some(device) => match pmbus::Device::from_str(&device) {
-                    Some(device) if device == found => device,
-                    _ => pmbus::Device::Common,
-                }
-                None => pmbus::Device::Common,
-            }
+                },
+                Some(pmbus::Device::Common) => pmbus::Device::Common,
+                Some(found) => match &harg.device {
+                    Some(device) => match pmbus::Device::from_str(&device) {
+                        Some(device) if device == found => device,
+                        _ => pmbus::Device::Common,
+                    },
+                    None => pmbus::Device::Common,
+                },
+            })
         })
-    }).unwrap();
+        .unwrap();
 
     //
     // Now determine what we're actually going to write.
@@ -1119,7 +1134,7 @@ fn writes(
     for (harg, rail) in &hargs {
         if let Some(rnum) = rail {
             if let Err(code) = results[ndx] {
-                bail!("failed to set rail {}: Err({})", rnum, code);
+                bail!("{}: failed to set rail {}: {}", harg, rnum, code);
             }
 
             ndx += 1;
@@ -1130,29 +1145,27 @@ fn writes(
         //
         ndx += 1;
 
-        for (&code, (cmd, op)) in &writes {
+        for (&_code, (cmd, op)) in &writes {
             match op {
                 WriteOp::Modify(_, _) => {
                     additional = true;
                 }
-                WriteOp::Set | WriteOp::SetBlock(_) => {
-                    match results[ndx] {
-                        Err(code) => {
-                            bail!(
-                                "failed to set {}: {}",
-                                cmd, write_func.strerror(code)
+                WriteOp::Set | WriteOp::SetBlock(_) => match results[ndx] {
+                    Err(code) => {
+                        bail!(
+                                "{}: failed to set {}: {}",
+                                harg, cmd, write_func.strerror(code)
                             )
-                        }
-                        Ok(_) => {
-                            info!("successfully wrote {}", cmd);
-                        }
                     }
-                }
+                    Ok(_) => {
+                        info!("successfully wrote {}", cmd);
+                    }
+                },
             }
             ndx += 1;
         }
     }
-                
+
     if !additional {
         return Ok(());
     }
@@ -1192,9 +1205,7 @@ fn writes(
             Err(code) => {
                 bail!("bad VOUT_MODE on {}: {}", harg, func.strerror(code));
             }
-            Ok(ref val) => {
-                VOUT_MODE::CommandData::from_slice(val).unwrap()
-            }
+            Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
         };
 
         ndx += 1;
@@ -1215,7 +1226,7 @@ fn writes(
 
                 let mut r = None;
 
-                if payload.len() != size {
+                if payload.len() != *size {
                     bail!(
                         "mismatch on {}: expected {}, found {}",
                         cmd, size, payload.len()
@@ -1224,7 +1235,7 @@ fn writes(
 
                 device.command(code, |cmd| {
                     r = Some(prepare_write(
-                        device, *code, getmode, cmd, payload, set,
+                        device, code, getmode, cmd, payload, set,
                     ));
                 });
 
@@ -1236,9 +1247,9 @@ fn writes(
                     ops.push(Op::Push(byte));
                 }
 
-                ops.push(Op::Push(size));
+                ops.push(Op::Push(*size as u8));
                 ops.push(Op::Call(write_func.id));
-                ops.push(Op::DropN(size as u8 + 2));
+                ops.push(Op::DropN(*size as u8 + 2));
             }
 
             ndx += 1;
@@ -1276,12 +1287,12 @@ fn writes(
             ndx += 1;
         }
 
-        for (&code, (cmd, op)) in &writes {
-            if let WriteOp::Modify(size, set) = op {
+        for (&_code, (cmd, op)) in &writes {
+            if let WriteOp::Modify(_, _) = op {
                 if let Err(code) = results[ndx] {
                     bail!(
-                        "failed to write {}: {}",
-                        cmd, write_func.strerror(code)
+                        "{}: failed to write {}: {}",
+                        harg, cmd, write_func.strerror(code)
                     );
                 } else {
                     info!("successfully wrote {}", cmd);
@@ -1357,6 +1368,7 @@ fn pmbus(
 
     if subargs.writes.is_some() {
         writes(&subargs, hubris, core, &mut context, func, write_func)?;
+        return Ok(());
     }
 
     let hargs = match (&subargs.rail, &subargs.device) {
