@@ -107,6 +107,23 @@ impl HiffyFunction {
     }
 }
 
+/// Simple wrapper `struct` that exposes a checked `get(name, nargs)`
+#[derive(Debug)]
+pub struct HiffyFunctions(pub HashMap<String, HiffyFunction>);
+
+impl HiffyFunctions {
+    pub fn get(&self, name: &str, nargs: usize) -> Result<&HiffyFunction> {
+        let f = self.0.get(name).ok_or_else(|| anyhow!("did not find {} function", name))?;
+        if f.args.len() != nargs {
+            bail!("mismatched function signature on {}", name);
+        }
+        Ok(f)
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl<'a> HiffyContext<'a> {
     fn variable(
         hubris: &'a HubrisArchive,
@@ -197,7 +214,7 @@ impl<'a> HiffyContext<'a> {
         self.data.size
     }
 
-    pub fn functions(&mut self) -> Result<HashMap<String, HiffyFunction>> {
+    pub fn functions(&mut self) -> Result<HiffyFunctions> {
         let hubris = self.hubris;
 
         let goff = hubris
@@ -281,7 +298,7 @@ impl<'a> HiffyContext<'a> {
             rval.insert(func.name.clone(), func);
         }
 
-        Ok(rval)
+        Ok(HiffyFunctions(rval))
     }
 
     pub fn execute(

@@ -11,7 +11,7 @@ use std::thread;
 
 use itertools::Itertools;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -86,21 +86,8 @@ fn rencm(
     let modules = modules();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
-    let read_func = funcs
-        .get("I2cRead")
-        .ok_or_else(|| anyhow!("did not find I2cRead function"))?;
-
-    if read_func.args.len() != 7 {
-        bail!("mismatched function signature on I2cRead");
-    }
-
-    let write_func = funcs
-        .get("I2cWrite")
-        .ok_or_else(|| anyhow!("did not find I2cWrite function"))?;
-
-    if write_func.args.len() != 8 {
-        bail!("mismatched function signature on I2cWrite");
-    }
+    let read_func = funcs.get("I2cRead", 7)?;
+    let write_func = funcs.get("I2cWrite", 8)?;
 
     let hargs = I2cArgs::parse(
         hubris,

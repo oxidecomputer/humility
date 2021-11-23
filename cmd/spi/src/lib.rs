@@ -11,7 +11,7 @@ use std::convert::TryInto;
 use std::str;
 use std::thread;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use std::time::Duration;
 use structopt::clap::App;
@@ -82,20 +82,8 @@ fn spi(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    let func = |name, nargs| {
-        let f = funcs
-            .get(name)
-            .ok_or_else(|| anyhow!("did not find {} function", name))?;
-
-        if f.args.len() != nargs {
-            bail!("mismatched function signature on {}", name);
-        }
-
-        Ok(f)
-    };
-
-    let spi_read = func("SpiRead", 3)?;
-    let spi_write = func("SpiWrite", 2)?;
+    let spi_read = funcs.get("SpiRead", 3)?;
+    let spi_write = funcs.get("SpiWrite", 2)?;
 
     let lookup = |peripheral| {
         let spi = format!("spi{}", peripheral);

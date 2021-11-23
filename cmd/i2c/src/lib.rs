@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
@@ -378,13 +378,7 @@ fn i2c(
     };
 
     let funcs = context.functions()?;
-    let func = funcs
-        .get(fname)
-        .ok_or_else(|| anyhow!("did not find {} function", fname))?;
-
-    if func.args.len() != args {
-        bail!("mismatched function signature on {}", fname);
-    }
+    let func = funcs.get(fname, args)?;
 
     let hargs = humility_cmd::i2c::I2cArgs::parse(
         hubris,
@@ -440,8 +434,7 @@ fn i2c(
         let mut file = File::open(filename)?;
         let mut last = false;
 
-        let sleep =
-            funcs.get("Sleep").ok_or_else(|| anyhow!("did not find Sleep"))?;
+        let sleep = funcs.get("Sleep", 1)?;
 
         let started = Instant::now();
         let bar = ProgressBar::new(filelen as u64);

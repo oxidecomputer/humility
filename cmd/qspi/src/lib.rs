@@ -13,7 +13,7 @@ use std::io::Read;
 use std::thread;
 use std::time::Instant;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use std::time::Duration;
 use structopt::{clap::App, clap::ArgGroup, StructOpt};
@@ -107,45 +107,33 @@ fn qspi(
     let sector_size = 64 * 1024;
     let block_size = 256;
 
-    let func = |name, nargs| {
-        let f = funcs
-            .get(name)
-            .ok_or_else(|| anyhow!("did not find {} function", name))?;
-
-        if f.args.len() != nargs {
-            bail!("mismatched function signature on {}", name);
-        }
-
-        Ok(f)
-    };
-
     let mut ops = vec![];
 
     let data = if subargs.status {
-        let qspi_read_status = func("QspiReadStatus", 0)?;
+        let qspi_read_status = funcs.get("QspiReadStatus", 0)?;
         ops.push(Op::Call(qspi_read_status.id));
         None
     } else if subargs.id {
-        let qspi_read_id = func("QspiReadId", 0)?;
+        let qspi_read_id = funcs.get("QspiReadId", 0)?;
         ops.push(Op::Call(qspi_read_id.id));
         None
     } else if subargs.erase {
-        let qspi_sector_erase = func("QspiSectorErase", 1)?;
+        let qspi_sector_erase = funcs.get("QspiSectorErase", 1)?;
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Call(qspi_sector_erase.id));
         None
     } else if subargs.bulkerase {
-        let qspi_bulk_erase = func("QspiBulkErase", 0)?;
+        let qspi_bulk_erase = funcs.get("QspiBulkErase", 0)?;
         ops.push(Op::Call(qspi_bulk_erase.id));
         None
     } else if subargs.read {
-        let qspi_read = func("QspiRead", 2)?;
+        let qspi_read = funcs.get("QspiRead", 2)?;
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
         ops.push(Op::Call(qspi_read.id));
         None
     } else if let Some(ref write) = subargs.write {
-        let qspi_page_program = func("QspiPageProgram", 3)?;
+        let qspi_page_program = funcs.get("QspiPageProgram", 3)?;
         let bytes: Vec<&str> = write.split(',').collect();
         let mut arr = vec![];
 
@@ -163,11 +151,11 @@ fn qspi(
         ops.push(Op::Call(qspi_page_program.id));
         Some(arr)
     } else if let Some(filename) = subargs.writefile {
-        let qspi_sector_erase = func("QspiSectorErase", 1)?;
+        let qspi_sector_erase = funcs.get("QspiSectorErase", 1)?;
         let qspi_page_program = if subargs.verify {
-            func("QspiVerify", 3)
+            funcs.get("QspiVerify", 3)
         } else {
-            func("QspiPageProgram", 3)
+            funcs.get("QspiPageProgram", 3)
         }?;
 
         let filelen = fs::metadata(filename.clone())?.len() as u32;

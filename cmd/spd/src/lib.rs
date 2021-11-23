@@ -10,7 +10,7 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::str;
 use std::thread;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use std::time::Duration;
 use structopt::clap::App;
@@ -221,17 +221,8 @@ fn spd(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    let i2c_read = funcs
-        .get("I2cRead")
-        .ok_or_else(|| anyhow!("did not find I2cRead function"))?;
-
-    let i2c_write = funcs
-        .get("I2cWrite")
-        .ok_or_else(|| anyhow!("did not find I2cWrite function"))?;
-
-    if i2c_read.args.len() != 7 {
-        bail!("mismatched function signature on I2cRead");
-    }
+    let i2c_read = funcs.get("I2cRead", 7)?;
+    let i2c_write = funcs.get("I2cWrite", 8)?;
 
     let hargs = I2cArgs::parse(
         hubris,
