@@ -1,6 +1,8 @@
 /*
  * Copyright 2021 Oxide Computer Company
  */
+use std::convert::TryInto;
+
 use crate::cmd::{Archive, Attach, Validate};
 use humility::core::Core;
 use humility_cmd::hiffy::{HiffyContext, HiffyFunctions};
@@ -31,6 +33,7 @@ struct Vsc7448Args {
     addr: u32,
 }
 
+/// Helper struct to work with a connected VSC7448 ethernet switch IC
 struct Vsc7448<'a> {
     core: &'a mut dyn Core,
     context: HiffyContext<'a>,
@@ -52,7 +55,7 @@ impl<'a> Vsc7448<'a> {
         Ok(Self { core, context, task, funcs })
     }
 
-    // Writes a single 32-bit register
+    /// Writes a single 32-bit register
     fn write(&mut self, addr: u32, data: u32) -> Result<()> {
         let spi_write = self.funcs.get("SpiWrite", 2)?;
 
@@ -83,7 +86,7 @@ impl<'a> Vsc7448<'a> {
         Ok(())
     }
 
-    // Reads a single 32-bit register
+    /// Reads a single 32-bit register
     fn read(&mut self, addr: u32) -> Result<u32> {
         let spi_read = self.funcs.get("SpiRead", 3)?;
 
@@ -114,12 +117,13 @@ impl<'a> Vsc7448<'a> {
         if r.len() != 8 {
             bail!("wrong length read: {:x?}", r);
         }
-        Ok(((r[4] as u32) << 24)
-            | ((r[5] as u32) << 16)
-            | ((r[6] as u32) << 8)
-            | r[7] as u32)
+        Ok(u32::from_be_bytes(r[4..].try_into().unwrap()))
     }
 
+    /// Initialize the VSC7448, checking that it returns the correct chip ID.
+    ///
+    /// This is idempotent, so you can run it before doing anything with the
+    /// chip if its state is unknown.
     fn init(&mut self) -> Result<()> {
         // Set DEVCPU_ORG:DEVCPU_ORG:IF_CTRL to 1
         // (using a special write pattern to be unambiguous regardless of
