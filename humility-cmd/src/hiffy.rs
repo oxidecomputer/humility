@@ -9,7 +9,8 @@ use humility::hubris::*;
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use std::thread;
 
 #[derive(Debug, PartialEq)]
 enum State {
@@ -364,6 +365,19 @@ impl<'a> HiffyContext<'a> {
 
         core.run()?;
 
+        Ok(())
+    }
+
+    pub fn execute_blocking(
+        &mut self,
+        core: &mut dyn Core,
+        ops: &[Op],
+        data: Option<&[u8]>,
+    ) -> Result<()> {
+        self.execute(core, ops, data)?;
+        while !self.done(core)? {
+            thread::sleep(Duration::from_millis(100));
+        }
         Ok(())
     }
 

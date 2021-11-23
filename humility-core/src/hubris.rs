@@ -3686,6 +3686,17 @@ impl HubrisTask {
             HubrisTask::Task(id) => format!("{}", id),
         }
     }
+    /// Returns the inner `u32` from a `Task` variant.
+    ///
+    /// # Panics
+    /// Panics if this is `HubrisTask::Kernel`
+    pub fn task(&self) -> u32 {
+        if let HubrisTask::Task(u) = self {
+            *u
+        } else {
+            panic!("Cannot get task id of kernel");
+        }
+    }
 }
 
 impl fmt::Display for HubrisTask {
