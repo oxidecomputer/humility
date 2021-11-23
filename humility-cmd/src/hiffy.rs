@@ -113,7 +113,10 @@ pub struct HiffyFunctions(pub HashMap<String, HiffyFunction>);
 
 impl HiffyFunctions {
     pub fn get(&self, name: &str, nargs: usize) -> Result<&HiffyFunction> {
-        let f = self.0.get(name).ok_or_else(|| anyhow!("did not find {} function", name))?;
+        let f = self
+            .0
+            .get(name)
+            .ok_or_else(|| anyhow!("did not find {} function", name))?;
         if f.args.len() != nargs {
             bail!("mismatched function signature on {}", name);
         }
