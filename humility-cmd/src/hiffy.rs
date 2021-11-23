@@ -9,8 +9,8 @@ use humility::hubris::*;
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::time::{Duration, Instant};
 use std::thread;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, PartialEq)]
 enum State {
@@ -368,17 +368,18 @@ impl<'a> HiffyContext<'a> {
         Ok(())
     }
 
+    /// Blocking execution of a program, returning the results
     pub fn execute_blocking(
         &mut self,
         core: &mut dyn Core,
         ops: &[Op],
         data: Option<&[u8]>,
-    ) -> Result<()> {
+    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
         self.execute(core, ops, data)?;
         while !self.done(core)? {
             thread::sleep(Duration::from_millis(100));
         }
-        Ok(())
+        self.results(core)
     }
 
     pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {

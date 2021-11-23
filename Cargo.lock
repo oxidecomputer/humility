@@ -564,6 +564,7 @@ dependencies = [
  "spd",
  "structopt",
  "toml",
+ "vsc7448-info",
 ]
 
 [[package]]
@@ -1756,6 +1757,20 @@ checksum = "0d67cb4616d99b940db1d6bd28844ff97108b498a6ca850e5b6191a532063286"
 dependencies = [
  "vcell",
 ]
+
+[[package]]
+name = "vsc7448-info"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#28efdc29a3db9f5a0c0948b581a99909c494fa09"
+dependencies = [
+ "lazy_static",
+ "vsc7448-types",
+]
+
+[[package]]
+name = "vsc7448-types"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#28efdc29a3db9f5a0c0948b581a99909c494fa09"
 
 [[package]]
 name = "wasi"
