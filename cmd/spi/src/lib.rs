@@ -7,6 +7,7 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::printmem;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
+
 use std::convert::TryInto;
 use std::str;
 use std::thread;
@@ -72,19 +73,12 @@ struct SpiArgs {
     discard: Option<usize>,
 }
 
-fn spi(
-    hubris: &mut HubrisArchive,
-    core: &mut dyn Core,
-    _args: &Args,
-    subargs: &Vec<String>,
-) -> Result<()> {
-    let subargs = SpiArgs::from_iter_safe(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
-
-    let spi_read = funcs.get("SpiRead", 3)?;
-    let spi_write = funcs.get("SpiWrite", 2)?;
-
+/// Looks up which Hubris task is associated with SPI (accepting a peripheral
+/// hint to disambiguate).
+pub fn spi_task(
+    hubris: &HubrisArchive,
+    peripheral: Option<u8>
+) -> Result<HubrisTask> {
     let lookup = |peripheral| {
         let spi = format!("spi{}", peripheral);
         let tasks = hubris.lookup_feature(&spi)?;
@@ -98,7 +92,7 @@ fn spi(
         }
     };
 
-    let task = if let Some(peripheral) = subargs.peripheral {
+    let task = if let Some(peripheral) = peripheral {
         match lookup(peripheral)? {
             Some(task) => task,
             None => {
@@ -131,7 +125,26 @@ fn spi(
 
         found[0].1
     };
+    if task == HubrisTask::Kernel {
+        bail!("SPI task cannot be the kernel");
+    }
+    Ok(task)
+}
 
+fn spi(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn Core,
+    _args: &Args,
+    subargs: &Vec<String>,
+) -> Result<()> {
+    let subargs = SpiArgs::from_iter_safe(subargs)?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let funcs = context.functions()?;
+
+    let spi_read = funcs.get("SpiRead", 3)?;
+    let spi_write = funcs.get("SpiWrite", 2)?;
+
+    let task = spi_task(hubris, subargs.peripheral)?;
     let mut ops = vec![];
 
     if let HubrisTask::Task(task) = task {
