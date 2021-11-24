@@ -61,11 +61,12 @@ pub enum Subcommand {
 }
 
 #[allow(dead_code)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Archive {
     Required,
     Optional,
     Prohibited,
+    Ignored,
 }
 
 #[allow(dead_code)]
