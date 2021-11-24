@@ -10,7 +10,7 @@ use humility::hubris::*;
 use cmd_spi::spi_task;
 use crate::Args;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use structopt::clap::App;
 use structopt::StructOpt;
@@ -29,8 +29,15 @@ struct Vsc7448Args {
     #[structopt(long, short, value_name = "peripheral")]
     peripheral: Option<u8>,
 
-    #[structopt(long, short, parse(try_from_str = parse_int::parse), value_name = "addr")]
-    addr: u32,
+    #[structopt(subcommand)]
+    cmd: Command,
+}
+
+#[derive(StructOpt, Debug)]
+enum Command {
+    Info { reg: String },
+    Read { reg: String },
+    Write { reg: String, value: u32 },
 }
 
 /// Helper struct to work with a connected VSC7448 ethernet switch IC
@@ -46,7 +53,7 @@ impl<'a> Vsc7448<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        args: Vsc7448Args,
+        args: &Vsc7448Args,
     ) -> Result<Self> {
         let mut context = HiffyContext::new(hubris, core, args.timeout)?;
         let funcs = context.functions()?;
@@ -149,13 +156,43 @@ fn vsc7448(
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
-    let mut vsc = Vsc7448::new(hubris, core, subargs)?;
+    let mut vsc = Vsc7448::new(hubris, core, &subargs)?;
     vsc.init()?;
+    match subargs.cmd {
+        Command::Read { reg } => {
+            let reg = QualifiedRegister::new(&reg)?;
+            let addr = reg.address()?;
+            log::info!("Reading {}:{}:{} from 0x{:x}", reg.target.name, reg.group.name, reg.reg.name, addr);
+            println!("=> 0x{:x}", vsc.read(addr)?);
+        },
+        Command::Info { .. } => panic!("Called vsc7448 with info subcommand"),
+        Command::Write { .. } => unimplemented!(),
+    };
+    Ok(())
+}
+
+fn vsc7448_get_info(
+    hubris: &mut HubrisArchive,
+    _args: &Args,
+    subargs: &Vec<String>,
+) -> Result<()> {
+    assert!(!hubris.loaded());
+    let subargs = Vsc7448Args::from_iter_safe(subargs)?;
+    if let Command::Info { reg } = subargs.cmd {
+        let reg = QualifiedRegister::new(&reg)?;
+        println!("Register address: {:x}", reg.address()?);
+    } else {
+        panic!("Called vsc7448_get_info without info subcommand");
+    }
     Ok(())
 }
 
 pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
-    (
+    // We do a bonus parse of the command-line arguments here to see if we're
+    // doing a `vsc7448 info` subcommand, which doesn't require a Hubris image
+    // or attached device; skipping those steps improves runtime (especially
+    // in debug builds)
+    let subcmd_attached = (
         crate::cmd::Command::Attached {
             name: "vsc7448",
             archive: Archive::Required,
@@ -164,5 +201,92 @@ pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
             run: vsc7448,
         },
         Vsc7448Args::clap(),
-    )
+    );
+    let subcmd_unattached = (
+        crate::cmd::Command::Unattached {
+            name: "vsc7448",
+            archive: Archive::Ignored,
+            run: vsc7448_get_info,
+        },
+        Vsc7448Args::clap(),
+    );
+
+    let mut args = std::env::args().skip_while(|a| a != "vsc7448").peekable();
+    if args.peek().is_some() {
+        if let Ok(args) = Vsc7448Args::from_iter_safe(args) {
+            if let Command::Info { .. } = args.cmd {
+                return subcmd_unattached;
+            }
+        } else {
+            // If the argument parse failed, then return the faster subcommand
+            // so that we don't have to attach to a device then fail parsing
+            // again.
+            return subcmd_unattached;
+        }
+    }
+    subcmd_attached
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// TODO: this can probably move to the `vsc7448-info` crate
+
+#[derive(Debug)]
+struct Indexed<'a> {
+    name: &'a str,
+    index: Option<usize>,
+}
+#[derive(Debug)]
+struct QualifiedRegister<'a> {
+    target: Indexed<'a>,
+    group: Indexed<'a>,
+    reg: Indexed<'a>,
+}
+impl<'a> QualifiedRegister<'a> {
+    fn new(s: &'a str) -> Result<Self> {
+        // TODO: make this parser much smarter, so it can properly recognize
+        // indexes and disambiguate registers
+
+        let mut out = None;
+        for (i, target) in vsc7448_info::MEMORY_MAP.iter() {
+            for (j, reg_group) in vsc7448_info::TARGETS[target.0].groups.iter() {
+                if reg_group.regs.contains_key(s) {
+                    if out.is_some() {
+                        warn!("Ambiguous register name");
+                    }
+                    out = Some(QualifiedRegister {
+                        target: Indexed { name: i, index: None },
+                        group: Indexed { name: j, index: None },
+                        reg: Indexed { name: s, index: None },
+                    })
+                }
+            }
+        }
+        out.ok_or_else(|| anyhow!("Could not find {}", s))
+    }
+    fn address(&self) -> Result<u32> {
+        let target = &vsc7448_info::MEMORY_MAP[self.target.name];
+        let (_, mut addr) = target.1.iter().find(|t| t.0 == self.target.index)
+            .ok_or_else(|| anyhow!("Could not find target index {:?}", self.target.index))?;
+
+        let target = &vsc7448_info::TARGETS[target.0];
+        let group = &target.groups[self.group.name];
+        match (group.addr.count, self.group.index) {
+            (1, Some(_)) => bail!("Register group has only one instance"),
+            (i, None) if i != 1 => bail!("Index required for register group"),
+            (i, Some(j)) if j >= i => bail!("Index is too high"),
+            _ => (),
+        }
+        addr += (group.addr.base + group.addr.width * self.group.index.unwrap_or(0)) * 4;
+
+        let reg = &group.regs[self.reg.name];
+        match (reg.addr.count, self.reg.index) {
+            (1, Some(_)) => bail!("Register has only one instance"),
+            (i, None) if i != 1 => bail!("Index required for register"),
+            (i, Some(j)) if j >= i => bail!("Index is too high"),
+            _ => (),
+        }
+        addr += (reg.addr.base + reg.addr.width * self.reg.index.unwrap_or(0)) * 4;
+
+        addr.try_into().context("Address is too large")
+    }
 }
