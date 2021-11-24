@@ -162,8 +162,24 @@ fn vsc7448(
         Command::Read { reg } => {
             let reg = QualifiedRegister::new(&reg)?;
             let addr = reg.address()?;
-            log::info!("Reading {}:{}:{} from 0x{:x}", reg.target.name, reg.group.name, reg.reg.name, addr);
-            println!("=> 0x{:x}", vsc.read(addr)?);
+            log::info!("Reading {} from 0x{:x}", reg, addr);
+            let value = vsc.read(addr)?;
+            println!("{} => 0x{:x}", reg, value);
+            if value == 0x88888888 {
+                log::warn!("0x88888888 typically indicates a communication issue!");
+            }
+            let fields = &vsc7448_info::TARGETS[vsc7448_info::MEMORY_MAP[reg.target.name].0]
+                .groups[reg.group.name]
+                .regs[reg.reg.name]
+                .fields;
+            let mut field_keys = fields.keys().collect::<Vec<_>>();
+            field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
+            println!("  bits |    value   | field");
+            for f in field_keys {
+                let field = &fields[*f];
+                let bits = (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
+                println!(" {:>2}:{:<2} | 0x{:<8x} | {}", field.hi, field.lo, bits, f);
+            }
         },
         Command::Info { .. } => panic!("Called vsc7448 with info subcommand"),
         Command::Write { .. } => unimplemented!(),
@@ -235,12 +251,22 @@ struct Indexed<'a> {
     name: &'a str,
     index: Option<usize>,
 }
+impl<'a> std::fmt::Display for Indexed<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.index {
+            None => write!(f, "{}", self.name),
+            Some(i) => write!(f, "{}[{}]", self.name, i)
+        }
+    }
+}
+
 #[derive(Debug)]
 struct QualifiedRegister<'a> {
     target: Indexed<'a>,
     group: Indexed<'a>,
     reg: Indexed<'a>,
 }
+
 impl<'a> QualifiedRegister<'a> {
     fn new(s: &'a str) -> Result<Self> {
         // TODO: make this parser much smarter, so it can properly recognize
@@ -263,6 +289,7 @@ impl<'a> QualifiedRegister<'a> {
         }
         out.ok_or_else(|| anyhow!("Could not find {}", s))
     }
+
     fn address(&self) -> Result<u32> {
         let target = &vsc7448_info::MEMORY_MAP[self.target.name];
         let (_, mut addr) = target.1.iter().find(|t| t.0 == self.target.index)
@@ -288,5 +315,12 @@ impl<'a> QualifiedRegister<'a> {
         addr += (reg.addr.base + reg.addr.width * self.reg.index.unwrap_or(0)) * 4;
 
         addr.try_into().context("Address is too large")
+    }
+
+}
+
+impl<'a> std::fmt::Display for QualifiedRegister<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.target, self.group, self.reg)
     }
 }
