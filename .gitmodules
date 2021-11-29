@@ -1,12 +1,12 @@
 [submodule "hif"]
 	path = hif
-	url = git@github.com:oxidecomputer/hif.git
+	url = https://github.com/oxidecomputer/hif
 [submodule "pmbus"]
 	path = pmbus
-	url = git@github.com:oxidecomputer/pmbus.git
+	url = https://github.com/oxidecomputer/pmbus
 [submodule "spd"]
 	path = spd
-	url = git@github.com:oxidecomputer/spd.git
+	url = https://github.com/oxidecomputer/spd
 [submodule "idt8a3xxxx"]
 	path = idt8a3xxxx
-	url = git@github.com:oxidecomputer/idt8a3xxxx.git
+	url = https://github.com/oxidecomputer/idt8a3xxxx
