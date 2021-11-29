@@ -24,6 +24,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
+name = "aho-corasick"
+version = "0.7.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e37cfd5e7657ada45f742d6e99ca5788580b5c529dc78faf11ece6dc702656f"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1388,6 +1397,8 @@ version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
 dependencies = [
+ "aho-corasick",
+ "memchr",
  "regex-syntax",
 ]
 
@@ -1761,16 +1772,18 @@ dependencies = [
 [[package]]
 name = "vsc7448-info"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#28efdc29a3db9f5a0c0948b581a99909c494fa09"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#7e34ad3cdca75f2b1fbc2d06fc753c654f23cfed"
 dependencies = [
  "lazy_static",
+ "regex",
+ "thiserror",
  "vsc7448-types",
 ]
 
 [[package]]
 name = "vsc7448-types"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#28efdc29a3db9f5a0c0948b581a99909c494fa09"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#7e34ad3cdca75f2b1fbc2d06fc753c654f23cfed"
 
 [[package]]
 name = "wasi"

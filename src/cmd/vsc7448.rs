@@ -10,10 +10,11 @@ use humility::hubris::*;
 use cmd_spi::spi_task;
 use crate::Args;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
 use structopt::clap::App;
 use structopt::StructOpt;
+use vsc7448_info::parse::TargetRegister;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "spi", about = "SPI reading and writing")]
@@ -160,18 +161,15 @@ fn vsc7448(
     vsc.init()?;
     match subargs.cmd {
         Command::Read { reg } => {
-            let reg = QualifiedRegister::new(&reg)?;
-            let addr = reg.address()?;
+            let reg: TargetRegister = reg.parse()?;
+            let addr = reg.address();
             log::info!("Reading {} from 0x{:x}", reg, addr);
             let value = vsc.read(addr)?;
             println!("{} => 0x{:x}", reg, value);
             if value == 0x88888888 {
                 log::warn!("0x88888888 typically indicates a communication issue!");
             }
-            let fields = &vsc7448_info::TARGETS[vsc7448_info::MEMORY_MAP[reg.target.name].0]
-                .groups[reg.group.name]
-                .regs[reg.reg.name]
-                .fields;
+            let fields = reg.fields();
             let mut field_keys = fields.keys().collect::<Vec<_>>();
             field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
             println!("  bits |    value   | field");
@@ -195,8 +193,8 @@ fn vsc7448_get_info(
     assert!(!hubris.loaded());
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
     if let Command::Info { reg } = subargs.cmd {
-        let reg = QualifiedRegister::new(&reg)?;
-        println!("Register address: {:x}", reg.address()?);
+        let reg: TargetRegister = reg.parse()?;
+        println!("Register address: {:x}", reg.address());
     } else {
         panic!("Called vsc7448_get_info without info subcommand");
     }
@@ -227,6 +225,7 @@ pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
         Vsc7448Args::clap(),
     );
 
+    // If there's a `vsc7448` subcommand, then attempt to parse the subcmd
     let mut args = std::env::args().skip_while(|a| a != "vsc7448").peekable();
     if args.peek().is_some() {
         if let Ok(args) = Vsc7448Args::from_iter_safe(args) {
@@ -241,86 +240,4 @@ pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
         }
     }
     subcmd_attached
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// TODO: this can probably move to the `vsc7448-info` crate
-
-#[derive(Debug)]
-struct Indexed<'a> {
-    name: &'a str,
-    index: Option<usize>,
-}
-impl<'a> std::fmt::Display for Indexed<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.index {
-            None => write!(f, "{}", self.name),
-            Some(i) => write!(f, "{}[{}]", self.name, i)
-        }
-    }
-}
-
-#[derive(Debug)]
-struct QualifiedRegister<'a> {
-    target: Indexed<'a>,
-    group: Indexed<'a>,
-    reg: Indexed<'a>,
-}
-
-impl<'a> QualifiedRegister<'a> {
-    fn new(s: &'a str) -> Result<Self> {
-        // TODO: make this parser much smarter, so it can properly recognize
-        // indexes and disambiguate registers
-
-        let mut out = None;
-        for (i, target) in vsc7448_info::MEMORY_MAP.iter() {
-            for (j, reg_group) in vsc7448_info::TARGETS[target.0].groups.iter() {
-                if reg_group.regs.contains_key(s) {
-                    if out.is_some() {
-                        warn!("Ambiguous register name");
-                    }
-                    out = Some(QualifiedRegister {
-                        target: Indexed { name: i, index: None },
-                        group: Indexed { name: j, index: None },
-                        reg: Indexed { name: s, index: None },
-                    })
-                }
-            }
-        }
-        out.ok_or_else(|| anyhow!("Could not find {}", s))
-    }
-
-    fn address(&self) -> Result<u32> {
-        let target = &vsc7448_info::MEMORY_MAP[self.target.name];
-        let (_, mut addr) = target.1.iter().find(|t| t.0 == self.target.index)
-            .ok_or_else(|| anyhow!("Could not find target index {:?}", self.target.index))?;
-
-        let target = &vsc7448_info::TARGETS[target.0];
-        let group = &target.groups[self.group.name];
-        match (group.addr.count, self.group.index) {
-            (1, Some(_)) => bail!("Register group has only one instance"),
-            (i, None) if i != 1 => bail!("Index required for register group"),
-            (i, Some(j)) if j >= i => bail!("Index is too high"),
-            _ => (),
-        }
-        addr += (group.addr.base + group.addr.width * self.group.index.unwrap_or(0)) * 4;
-
-        let reg = &group.regs[self.reg.name];
-        match (reg.addr.count, self.reg.index) {
-            (1, Some(_)) => bail!("Register has only one instance"),
-            (i, None) if i != 1 => bail!("Index required for register"),
-            (i, Some(j)) if j >= i => bail!("Index is too high"),
-            _ => (),
-        }
-        addr += (reg.addr.base + reg.addr.width * self.reg.index.unwrap_or(0)) * 4;
-
-        addr.try_into().context("Address is too large")
-    }
-
-}
-
-impl<'a> std::fmt::Display for QualifiedRegister<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}", self.target, self.group, self.reg)
-    }
 }
