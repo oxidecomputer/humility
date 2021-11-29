@@ -36,9 +36,17 @@ struct Vsc7448Args {
 
 #[derive(StructOpt, Debug)]
 enum Command {
-    Info { reg: String },
-    Read { reg: String },
-    Write { reg: String, value: u32 },
+    Info {
+        reg: String,
+    },
+    Read {
+        reg: String,
+    },
+    Write {
+        reg: String,
+        #[structopt(parse(try_from_str = parse_int::parse))]
+        value: u32,
+    },
 }
 
 /// Helper struct to work with a connected VSC7448 ethernet switch IC
@@ -167,7 +175,9 @@ fn vsc7448(
             let value = vsc.read(addr)?;
             println!("{} => 0x{:x}", reg, value);
             if value == 0x88888888 {
-                log::warn!("0x88888888 typically indicates a communication issue!");
+                log::warn!(
+                    "0x88888888 typically indicates a communication issue!"
+                );
             }
             let fields = reg.fields();
             let mut field_keys = fields.keys().collect::<Vec<_>>();
@@ -175,12 +185,36 @@ fn vsc7448(
             println!("  bits |    value   | field");
             for f in field_keys {
                 let field = &fields[*f];
-                let bits = (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
-                println!(" {:>2}:{:<2} | 0x{:<8x} | {}", field.hi, field.lo, bits, f);
+                let bits =
+                    (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
+                println!(
+                    " {:>2}:{:<2} | 0x{:<8x} | {}",
+                    field.hi, field.lo, bits, f
+                );
             }
-        },
+        }
         Command::Info { .. } => panic!("Called vsc7448 with info subcommand"),
-        Command::Write { .. } => unimplemented!(),
+        Command::Write { reg, value } => {
+            let reg: TargetRegister = reg.parse()?;
+            let addr = reg.address();
+            log::info!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
+
+            let fields = reg.fields();
+            let mut field_keys = fields.keys().collect::<Vec<_>>();
+            field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
+            println!("  bits |    value   | field");
+            for f in field_keys {
+                let field = &fields[*f];
+                let bits =
+                    (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
+                println!(
+                    " {:>2}:{:<2} | 0x{:<8x} | {}",
+                    field.hi, field.lo, bits, f
+                );
+            }
+
+            vsc.write(addr, value)?;
+        }
     };
     Ok(())
 }
