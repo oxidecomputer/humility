@@ -7,7 +7,6 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use std::thread;
 
 use anyhow::{bail, Result};
 use hif::*;
@@ -15,7 +14,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -253,17 +251,8 @@ fn renbb(
             //
             ops.push(Op::Done);
 
-            context.execute(core, ops.as_slice(), None)?;
-
-            loop {
-                if context.done(core)? {
-                    break;
-                }
-
-                thread::sleep(Duration::from_millis(100));
-            }
-
-            let results = context.results(core)?;
+            let results =
+                context.execute_blocking(core, ops.as_slice(), None)?;
 
             let start = if lap == 0 {
                 match results[0] {

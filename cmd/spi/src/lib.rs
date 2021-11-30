@@ -10,11 +10,9 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 use std::convert::TryInto;
 use std::str;
-use std::thread;
 
 use anyhow::{bail, Result};
 use hif::*;
-use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -236,7 +234,7 @@ fn spi(
 
     ops.push(Op::Done);
 
-    context.execute(
+    let results = context.execute_blocking(
         core,
         ops.as_slice(),
         match data {
@@ -244,16 +242,6 @@ fn spi(
             _ => None,
         },
     )?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
 
     if subargs.read {
         if let Ok(results) = &results[0] {
