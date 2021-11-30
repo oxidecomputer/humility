@@ -3909,7 +3909,7 @@ impl HubrisEnum {
             }
         } else {
             if self.variants.is_empty() {
-                bail!("enum {} has no variants");
+                bail!("enum {} has no variants", self.goff);
             }
 
             if self.variants.len() > 1 {
