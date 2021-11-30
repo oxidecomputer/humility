@@ -517,7 +517,7 @@ humility: reading at 0x11d00 for 100 bytes
 ```
 
 Both arguments can be in either hex, decimal, octal or binary (addresses
-and contents will always be prented in hex):
+and contents will always be printed in hex):
 
 ```console
 humility readmem 0o216401 0b110
