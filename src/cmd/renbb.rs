@@ -1,6 +1,6 @@
-/*
- * Copyright 2021 Oxide Computer Company
- */
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::{Archive, Attach, Validate};
 use crate::core::Core;
@@ -48,10 +48,6 @@ struct RenbbArgs {
     /// specifies I2C multiplexer and segment
     #[structopt(long, short, value_name = "mux:segment")]
     mux: Option<String>,
-
-    /// specifies module(s) to read
-    #[structopt(long, short = "M", value_name = "module")]
-    module: Option<Vec<String>>,
 
     /// specifies an I2C device address
     #[structopt(long, short = "d", value_name = "address")]

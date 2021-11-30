@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! Mirror (doppelganger) versions of types from Hubris.
 //!
 //! We do this instead of directly including the Hubris abi crate, say, because

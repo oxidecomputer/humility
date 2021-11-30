@@ -1,4 +1,6 @@
-// Copyright 2021 Oxide Computer Company
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! Automatic heuristic diagnosis routine.
 //!
@@ -55,10 +57,6 @@ struct DiagnoseArgs {
     /// number of milliseconds to sleep trying to catch crashes
     #[structopt(long, short, default_value = "15", value_name = "ms")]
     sleep_ms: u64,
-
-    /// verbose output
-    #[structopt(long, short)]
-    verbose: bool,
 
     /// suppresses automatic coredump generation
     #[structopt(long, short)]
