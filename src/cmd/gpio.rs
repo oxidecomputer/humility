@@ -31,7 +31,7 @@ struct GpioArgs {
     /// toggle specified pins
     #[structopt(
         long, short,
-        conflicts_with_all = &["togget", "set", "reset", "configure"]
+        conflicts_with_all = &["toggle", "set", "reset", "configure"]
     )]
     input: bool,
 
