@@ -1772,7 +1772,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-info"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#c44418e5621bd26062eb6c6d91229043dc525541"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#8befe808bc35eb11c059e4cd4754c9c7ddc7bc8b"
 dependencies = [
  "lazy_static",
  "regex",
@@ -1783,7 +1783,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-types"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#c44418e5621bd26062eb6c6d91229043dc525541"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#8befe808bc35eb11c059e4cd4754c9c7ddc7bc8b"
 
 [[package]]
 name = "wasi"

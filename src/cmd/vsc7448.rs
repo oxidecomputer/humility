@@ -14,7 +14,7 @@ use anyhow::{anyhow, bail, Result};
 use hif::*;
 use structopt::clap::App;
 use structopt::StructOpt;
-use vsc7448_info::parse::TargetRegister;
+use vsc7448_info::parse::{TargetRegister, PhyRegister};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "spi", about = "SPI reading and writing")]
@@ -34,8 +34,39 @@ struct Vsc7448Args {
     cmd: Command,
 }
 
+impl Vsc7448Args {
+    /// Checks whether the given subcommand requires an attached target
+    /// (i.e. a microcontroller running Hubris, connected through a debugger)
+    fn requires_target(&self) -> bool {
+        !matches!(&self.cmd,
+            Command::Info { .. } |
+            Command::Phy { cmd: PhyCommand::Info { .. }, .. })
+    }
+}
+
 #[derive(StructOpt, Debug)]
 enum Command {
+    Info {
+        reg: String,
+    },
+    Read {
+        reg: String,
+    },
+    Write {
+        reg: String,
+        #[structopt(parse(try_from_str = parse_int::parse))]
+        value: u32,
+    },
+    Phy {
+        id: u32,
+
+        #[structopt(subcommand)]
+        cmd: PhyCommand,
+    },
+}
+
+#[derive(StructOpt, Debug)]
+enum PhyCommand {
     Info {
         reg: String,
     },
@@ -215,6 +246,10 @@ fn vsc7448(
 
             vsc.write(addr, value)?;
         }
+        Command::Phy { id, cmd } => {
+            println!("{:?}: {:?}", id, cmd);
+            unimplemented!();
+        }
     };
     Ok(())
 }
@@ -226,11 +261,16 @@ fn vsc7448_get_info(
 ) -> Result<()> {
     assert!(!hubris.loaded());
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
-    if let Command::Info { reg } = subargs.cmd {
-        let reg: TargetRegister = reg.parse()?;
-        println!("Register address: {:x}", reg.address());
-    } else {
-        panic!("Called vsc7448_get_info without info subcommand");
+    match subargs.cmd {
+        Command::Info { reg } => {
+            let reg: TargetRegister = reg.parse()?;
+            println!("Register address: {:x}", reg.address());
+        },
+        Command::Phy { id: _id, cmd: PhyCommand::Info { reg } } => {
+            let reg: PhyRegister = reg.parse()?;
+            println!("PHY register: {}", reg);
+        },
+        _ => panic!("Called vsc7448_get_info without info subcommand"),
     }
     Ok(())
 }
@@ -263,7 +303,7 @@ pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
     let mut args = std::env::args().skip_while(|a| a != "vsc7448").peekable();
     if args.peek().is_some() {
         if let Ok(args) = Vsc7448Args::from_iter_safe(args) {
-            if let Command::Info { .. } = args.cmd {
+            if !args.requires_target() {
                 return subcmd_unattached;
             }
         } else {
