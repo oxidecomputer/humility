@@ -1,8 +1,8 @@
 /*
  * Copyright 2021 Oxide Computer Company
  */
-use std::convert::TryInto;
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use crate::cmd::{Archive, Attach, Validate};
 use humility::core::Core;
@@ -16,8 +16,8 @@ use hif::*;
 use log::info;
 use structopt::clap::App;
 use structopt::StructOpt;
-use vsc7448_types::{Field};
-use vsc7448_info::parse::{TargetRegister, PhyRegister};
+use vsc7448_info::parse::{PhyRegister, TargetRegister};
+use vsc7448_types::Field;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "spi", about = "SPI reading and writing")]
@@ -41,9 +41,11 @@ impl Vsc7448Args {
     /// Checks whether the given subcommand requires an attached target
     /// (i.e. a microcontroller running Hubris, connected through a debugger)
     fn requires_target(&self) -> bool {
-        !matches!(&self.cmd,
-            Command::Info { .. } |
-            Command::Phy { cmd: PhyCommand::Info { .. }, .. })
+        !matches!(
+            &self.cmd,
+            Command::Info { .. }
+                | Command::Phy { cmd: PhyCommand::Info { .. }, .. }
+        )
     }
 }
 
@@ -102,12 +104,8 @@ fn pretty_print_fields(value: u32, fields: &HashMap<&str, Field<&str>>) {
     println!("  bits |    value   | field");
     for f in field_keys {
         let field = &fields[*f];
-        let bits =
-            (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
-        println!(
-            " {:>2}:{:<2} | 0x{:<8x} | {}",
-            field.hi, field.lo, bits, f
-        );
+        let bits = (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
+        println!(" {:>2}:{:<2} | 0x{:<8x} | {}", field.hi, field.lo, bits, f);
     }
 }
 
@@ -232,26 +230,34 @@ impl<'a> Vsc7448<'a> {
         }
     }
 
-    fn miim_read(&mut self, phy: PhyAddr, reg: &PhyRegister) -> Result<u16> {
+    fn miim_read(&mut self, phy: &PhyAddr, page: u16, reg: u8) -> Result<u16> {
         if phy.phy >= 32 {
             bail!("Invalid phy address {} (must be < 32)", phy.phy);
         }
-        let reg_addr = reg.reg_addr();
-        if reg_addr >= 32 {
-            bail!("Invalid register address {} (must be < 32)", reg_addr);
+        if reg >= 32 {
+            bail!("Invalid register address {} (must be < 32)", reg);
         }
-        if reg.page_addr() != 0 {
-            unimplemented!("Non-default pages are not yet supported")
-        }
+        // Switch pages every time, since it's cheap and easier than restoring
+        // the page when done _or_ whenever exiting early
+        info!("Switching to page {}", page);
+        self.miim_write_inner(
+            phy,
+            0,  // STANDARD
+            31, // PAGE
+            page.try_into().unwrap(),
+            false,
+        )?;
         let data = (1 << 31) | // MIIM_CMD_VLD
             ((phy.phy as u32) << 25) | // MIIM_CMD_PHYAD
-            ((reg_addr as u32) << 20) | // MIIM_CMD_PHYAD
+            ((reg as u32) << 20) | // MIIM_CMD_PHYAD
             (0b10 << 1); // MIIM_CMD_OPR_FIELD (read)
 
-        let mii_cmd = format!("MIIM[{}]:MII_CMD", phy.miim).parse::<TargetRegister>()?;
+        let mii_cmd =
+            format!("MIIM[{}]:MII_CMD", phy.miim).parse::<TargetRegister>()?;
         self.write(mii_cmd.address(), data)?;
 
-        let mii_data = format!("MIIM[{}]:MII_DATA", phy.miim).parse::<TargetRegister>()?;
+        let mii_data =
+            format!("MIIM[{}]:MII_DATA", phy.miim).parse::<TargetRegister>()?;
         let out = self.read(mii_data.address())?;
 
         if ((out >> 16) & 3) == 3 {
@@ -259,25 +265,52 @@ impl<'a> Vsc7448<'a> {
         }
         Ok((out & 0xFFFF) as u16)
     }
-    fn miim_write(&mut self, phy: PhyAddr, reg: &PhyRegister, data: u16) -> Result<()> {
+
+    fn miim_write_inner(
+        &mut self,
+        phy: &PhyAddr,
+        page: u16,
+        reg: u8,
+        data: u16,
+        switch_page: bool,
+    ) -> Result<()> {
         if phy.phy >= 32 {
             bail!("Invalid phy address {} (must be < 32)", phy.phy);
         }
-        let reg_addr = reg.reg_addr();
-        if reg_addr >= 32 {
-            bail!("Invalid register address {} (must be < 32)", reg_addr);
+        if reg >= 32 {
+            bail!("Invalid register address {} (must be < 32)", reg);
         }
-        if reg.page_addr() != 0 {
-            unimplemented!("Non-default pages are not yet supported")
+        // Switch pages every time, since it's cheap and easier than restoring
+        // the page when done _or_ whenever exiting early
+        if switch_page {
+            info!("Switching to page {}", page);
+            self.miim_write_inner(
+                phy,
+                0,  // STANDARD
+                31, // PAGE
+                page.try_into().unwrap(),
+                false,
+            )?;
         }
         let data = (1 << 31) | // MIIM_CMD_VLD
             ((phy.phy as u32) << 25) | // MIIM_CMD_PHYAD
-            ((reg_addr as u32) << 20) | // MIIM_CMD_PHYAD
+            ((reg as u32) << 20) | // MIIM_CMD_PHYAD
             ((data as u32) << 4) | // MIIM_CMD_WRDATA
             (0b01 << 1); // MIIM_CMD_OPR_FIELD (write)
 
-        let mii_cmd = format!("MIIM[{}]:MII_CMD", phy.miim).parse::<TargetRegister>()?;
+        let mii_cmd =
+            format!("MIIM[{}]:MII_CMD", phy.miim).parse::<TargetRegister>()?;
         self.write(mii_cmd.address(), data)
+    }
+
+    fn miim_write(
+        &mut self,
+        phy: &PhyAddr,
+        page: u16,
+        reg: u8,
+        data: u16,
+    ) -> Result<()> {
+        self.miim_write_inner(phy, page, reg, data, true)
     }
 }
 
@@ -313,23 +346,81 @@ fn vsc7448(
 
             vsc.write(addr, value)?;
         }
-        Command::Phy { cmd } => match cmd {
-            PhyCommand::Write { addr, reg, value } => {
-                let reg: PhyRegister = reg.parse()?;
-                println!("Writing 0x{:x} to {} at MIIM{}:{}", value, reg, addr.miim, addr.phy);
-                pretty_print_fields(value as u32, reg.fields());
-                vsc.set_miim_gpios(addr.miim)?;
-                vsc.miim_write(addr, &reg, value)?;
-            },
-            PhyCommand::Read { addr, reg } => {
-                let reg: PhyRegister = reg.parse()?;
-                vsc.set_miim_gpios(addr.miim)?;
-                println!("Reading from {} at MIIM{}:{}", reg, addr.miim, addr.phy);
-                let out = vsc.miim_read(addr, &reg)?;
-                println!("Got result 0x{:x}", out);
-                pretty_print_fields(out as u32, reg.fields());
-            },
-            _ => panic!("Invalid PHY command"),
+        Command::Phy { cmd } => {
+            let dummy_fields = HashMap::new();
+            let reg = match &cmd {
+                PhyCommand::Write { reg, .. }
+                | PhyCommand::Read { reg, .. } => reg,
+                _ => panic!("Invalid PHY command"),
+            };
+
+            // Attempt to parse to known registers, then do a last-chance parse
+            // where we just attempt to read numbers, e.g. 5:13 (as page:reg).
+            //
+            // This is necessary because the SDK PHY headers don't necessarily
+            // include every register in every PHY, and even lack some registers
+            // in the Microchip PHY that's on the dev kit (!!)
+            let parsed = reg.parse::<PhyRegister>();
+            let (page, reg, name, fields) = if let Ok(reg) = parsed {
+                (
+                    reg.page_addr().try_into().unwrap(),
+                    reg.reg_addr().try_into().unwrap(),
+                    format!("{}", reg),
+                    reg.fields(),
+                )
+            } else {
+                if let Ok(nums) = reg
+                    .split(':')
+                    .map(|s| s.parse::<u16>())
+                    .collect::<Result<Vec<_>, _>>()
+                {
+                    match nums.len() {
+                        1 => (
+                            0,
+                            nums[0].try_into().unwrap(),
+                            format!("0:{}", nums[0]),
+                            &dummy_fields,
+                        ),
+                        2 => (
+                            nums[0],
+                            nums[1].try_into().unwrap(),
+                            format!("{}:{}", nums[0], nums[1]),
+                            &dummy_fields,
+                        ),
+                        _ => {
+                            Err(vsc7448_info::parse::ParseError::TooManyItems)?
+                        }
+                    }
+                } else {
+                    // If the last-change parse failed, then just return the
+                    // previous parse error.
+                    assert!(parsed.is_err());
+                    parsed?;
+                    unreachable!()
+                }
+            };
+            match cmd {
+                PhyCommand::Write { addr, value, .. } => {
+                    println!(
+                        "Writing 0x{:x} to {} at MIIM{}:{}",
+                        value, name, addr.miim, addr.phy
+                    );
+                    pretty_print_fields(value as u32, fields);
+                    vsc.set_miim_gpios(addr.miim)?;
+                    vsc.miim_write(&addr, page, reg, value)?;
+                }
+                PhyCommand::Read { addr, .. } => {
+                    println!(
+                        "Reading from {} at MIIM{}:{}",
+                        name, addr.miim, addr.phy
+                    );
+                    vsc.set_miim_gpios(addr.miim)?;
+                    let out = vsc.miim_read(&addr, page, reg)?;
+                    println!("Got result 0x{:x}", out);
+                    pretty_print_fields(out as u32, fields);
+                }
+                _ => panic!("Invalid PHY command"),
+            }
         }
     };
     Ok(())
@@ -346,11 +437,11 @@ fn vsc7448_get_info(
         Command::Info { reg } => {
             let reg: TargetRegister = reg.parse()?;
             println!("Register address: {:x}", reg.address());
-        },
+        }
         Command::Phy { cmd: PhyCommand::Info { reg } } => {
             let reg: PhyRegister = reg.parse()?;
             println!("PHY register: {}", reg);
-        },
+        }
         _ => panic!("Called vsc7448_get_info without info subcommand"),
     }
     Ok(())
