@@ -94,3 +94,4 @@ indicatif = "0.15"
 colored = "2.0.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
+vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }

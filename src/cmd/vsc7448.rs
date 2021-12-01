@@ -2,6 +2,7 @@
  * Copyright 2021 Oxide Computer Company
  */
 use std::convert::TryInto;
+use std::collections::HashMap;
 
 use crate::cmd::{Archive, Attach, Validate};
 use humility::core::Core;
@@ -12,8 +13,10 @@ use crate::Args;
 
 use anyhow::{anyhow, bail, Result};
 use hif::*;
+use log::info;
 use structopt::clap::App;
 use structopt::StructOpt;
+use vsc7448_types::{Field};
 use vsc7448_info::parse::{TargetRegister, PhyRegister};
 
 #[derive(StructOpt, Debug)]
@@ -58,8 +61,6 @@ enum Command {
         value: u32,
     },
     Phy {
-        id: u32,
-
         #[structopt(subcommand)]
         cmd: PhyCommand,
     },
@@ -71,13 +72,43 @@ enum PhyCommand {
         reg: String,
     },
     Read {
+        #[structopt(flatten)]
+        addr: PhyAddr,
         reg: String,
     },
     Write {
+        #[structopt(flatten)]
+        addr: PhyAddr,
         reg: String,
         #[structopt(parse(try_from_str = parse_int::parse))]
-        value: u32,
+        value: u16,
     },
+}
+
+#[derive(StructOpt, Debug)]
+struct PhyAddr {
+    #[structopt(help = "MIIM peripheral (0-2)")]
+    miim: u8,
+    #[structopt(help = "PHY address")]
+    phy: u8,
+}
+
+fn pretty_print_fields(value: u32, fields: &HashMap<&str, Field<&str>>) {
+    let mut field_keys = fields.keys().collect::<Vec<_>>();
+    if field_keys.is_empty() {
+        return;
+    }
+    field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
+    println!("  bits |    value   | field");
+    for f in field_keys {
+        let field = &fields[*f];
+        let bits =
+            (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
+        println!(
+            " {:>2}:{:<2} | 0x{:<8x} | {}",
+            field.hi, field.lo, bits, f
+        );
+    }
 }
 
 /// Helper struct to work with a connected VSC7448 ethernet switch IC
@@ -187,6 +218,47 @@ impl<'a> Vsc7448<'a> {
         }
         Ok(())
     }
+
+    // Configures GPIOs as MIIM alternate functions (see Table 270 in VSC7448
+    // datasheet for details)
+    fn set_miim_gpios(&mut self, miim: u8) -> Result<()> {
+        info!("Configuring MIIM{} alt gpios", miim);
+        let gpio_reg = "GPIO_ALT1[0]".parse::<TargetRegister>()?.address();
+        match miim {
+            0 => Ok(()),
+            1 => self.write(gpio_reg, 0x3000000),
+            2 => self.write(gpio_reg, 0xC000000),
+            _ => bail!("Invalid MIIM peripheral (must be 0-2)"),
+        }
+    }
+
+    fn miim_read(&mut self, phy: PhyAddr, reg: &PhyRegister) -> Result<u16> {
+        if phy.phy >= 32 {
+            bail!("Invalid phy address {} (must be < 32)", phy.phy);
+        }
+        let reg_addr = reg.reg_addr();
+        if reg_addr >= 32 {
+            bail!("Invalid register address {} (must be < 32)", reg_addr);
+        }
+        if reg.page_addr() != 0 {
+            unimplemented!("Non-default pages are not yet supported")
+        }
+        let data = (1 << 31) | // MIIM_CMD_VLD
+            ((phy.phy as u32) << 25) | // MIIM_CMD_PHYAD
+            ((reg_addr as u32) << 20) | // MIIM_CMD_PHYAD
+            (0b10 << 1); // MIIM_CMD_OPR_FIELD (read)
+
+        let mii_cmd = format!("MIIM[{}]:MII_CMD", phy.miim).parse::<TargetRegister>()?;
+        self.write(mii_cmd.address(), data)?;
+
+        let mii_data = format!("MIIM[{}]:MII_DATA", phy.miim).parse::<TargetRegister>()?;
+        let out = self.read(mii_data.address())?;
+
+        if ((out >> 16) & 3) == 3 {
+            bail!("Read returned error in MIIM_DATA_SUCCESS");
+        }
+        Ok((out & 0xFFFF) as u16)
+    }
 }
 
 fn vsc7448(
@@ -210,45 +282,33 @@ fn vsc7448(
                     "0x88888888 typically indicates a communication issue!"
                 );
             }
-            let fields = reg.fields();
-            let mut field_keys = fields.keys().collect::<Vec<_>>();
-            field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
-            println!("  bits |    value   | field");
-            for f in field_keys {
-                let field = &fields[*f];
-                let bits =
-                    (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
-                println!(
-                    " {:>2}:{:<2} | 0x{:<8x} | {}",
-                    field.hi, field.lo, bits, f
-                );
-            }
+            pretty_print_fields(value, reg.fields());
         }
         Command::Info { .. } => panic!("Called vsc7448 with info subcommand"),
         Command::Write { reg, value } => {
             let reg: TargetRegister = reg.parse()?;
             let addr = reg.address();
             log::info!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
-
-            let fields = reg.fields();
-            let mut field_keys = fields.keys().collect::<Vec<_>>();
-            field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
-            println!("  bits |    value   | field");
-            for f in field_keys {
-                let field = &fields[*f];
-                let bits =
-                    (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
-                println!(
-                    " {:>2}:{:<2} | 0x{:<8x} | {}",
-                    field.hi, field.lo, bits, f
-                );
-            }
+            pretty_print_fields(value, reg.fields());
 
             vsc.write(addr, value)?;
         }
-        Command::Phy { id, cmd } => {
-            println!("{:?}: {:?}", id, cmd);
-            unimplemented!();
+        Command::Phy { cmd } => match cmd {
+            PhyCommand::Write { addr, reg, value } => {
+                let reg: PhyRegister = reg.parse()?;
+                println!("Writing 0x{:x} to {} at MIIM{}:{}", value, reg, addr.miim, addr.phy);
+                pretty_print_fields(value as u32, reg.fields());
+                vsc.set_miim_gpios(addr.miim)?;
+            },
+            PhyCommand::Read { addr, reg } => {
+                let reg: PhyRegister = reg.parse()?;
+                vsc.set_miim_gpios(addr.miim)?;
+                println!("Reading from {} at MIIM{}:{}", reg, addr.miim, addr.phy);
+                let out = vsc.miim_read(addr, &reg)?;
+                println!("Got result 0x{:x}", out);
+                pretty_print_fields(out as u32, reg.fields());
+            },
+            _ => panic!("Invalid PHY command"),
         }
     };
     Ok(())
@@ -266,7 +326,7 @@ fn vsc7448_get_info(
             let reg: TargetRegister = reg.parse()?;
             println!("Register address: {:x}", reg.address());
         },
-        Command::Phy { id: _id, cmd: PhyCommand::Info { reg } } => {
+        Command::Phy { cmd: PhyCommand::Info { reg } } => {
             let reg: PhyRegister = reg.parse()?;
             println!("PHY register: {}", reg);
         },
