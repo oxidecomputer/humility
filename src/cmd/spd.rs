@@ -51,6 +51,8 @@ struct SpdArgs {
     mux: Option<String>,
 }
 
+const SPD_SIZE: usize = 512;
+
 fn from_bcd(val: u8) -> u8 {
     (val >> 4) * 10 + (val & 0xf)
 }
@@ -107,7 +109,7 @@ fn dump_spd(
 
     println!();
 
-    for offs in (0..512).step_by(width) {
+    for offs in (0..SPD_SIZE).step_by(width) {
         print!("    0x{:03x} | ", offs);
 
         for i in 0..width {
@@ -150,6 +152,69 @@ fn spd(
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = SpdArgs::from_iter_safe(subargs)?;
+
+    //
+    // If we have been given no device-related arguments, we will attempt
+    // to find the `SPD_DATA` variable.
+    //
+    if subargs.bus.is_none() && subargs.controller.is_none() {
+        let spd_data = match hubris.lookup_variables("SPD_DATA") {
+            Ok(variables) => {
+                if variables.len() > 1 {
+                    bail!("more than one SPD_DATA?");
+                }
+
+                variables[0]
+            }
+            Err(_) => {
+                bail!("no bus specified and no SPD_DATA found");
+            }
+        };
+
+        if spd_data.size % SPD_SIZE != 0 {
+            bail!(
+                "SPD_DATA is {} bytes; expected even multiple of {}",
+                spd_data.size,
+                SPD_SIZE
+            );
+        }
+
+        let nspd = spd_data.size / SPD_SIZE;
+        let mut bytes = vec![0u8; spd_data.size];
+
+        let _info = core.halt()?;
+        let rval = core.read_8(spd_data.addr, &mut bytes);
+        core.run()?;
+
+        if rval.is_err() {
+            return rval;
+        }
+
+        let mut header = true;
+
+        for addr in 0..nspd {
+            let offs = addr * SPD_SIZE;
+            let data = &bytes[offs..offs + SPD_SIZE];
+
+            if data.iter().filter(|&datum| *datum != 0).next().is_none() {
+                continue;
+            }
+
+            dump_spd(&subargs, addr as u8, data, header)?;
+            header = false;
+        }
+
+        if header {
+            info!("all SPD data is empty");
+        }
+
+        return Ok(());
+    }
+
+    if core.is_dump() {
+        bail!("cannot specify bus/controller on a dump");
+    }
+
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
@@ -304,7 +369,7 @@ fn spd(
                 }
             }
 
-            if buf.len() != 512 {
+            if buf.len() != SPD_SIZE {
                 bail!("bad SPD length ({} bytes): {:?}", buf.len(), results);
             }
 
@@ -321,7 +386,7 @@ pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
         crate::cmd::Command::Attached {
             name: "spd",
             archive: Archive::Required,
-            attach: Attach::LiveOnly,
+            attach: Attach::Any,
             validate: Validate::Booted,
             run: spd,
         },
