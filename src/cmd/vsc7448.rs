@@ -259,6 +259,26 @@ impl<'a> Vsc7448<'a> {
         }
         Ok((out & 0xFFFF) as u16)
     }
+    fn miim_write(&mut self, phy: PhyAddr, reg: &PhyRegister, data: u16) -> Result<()> {
+        if phy.phy >= 32 {
+            bail!("Invalid phy address {} (must be < 32)", phy.phy);
+        }
+        let reg_addr = reg.reg_addr();
+        if reg_addr >= 32 {
+            bail!("Invalid register address {} (must be < 32)", reg_addr);
+        }
+        if reg.page_addr() != 0 {
+            unimplemented!("Non-default pages are not yet supported")
+        }
+        let data = (1 << 31) | // MIIM_CMD_VLD
+            ((phy.phy as u32) << 25) | // MIIM_CMD_PHYAD
+            ((reg_addr as u32) << 20) | // MIIM_CMD_PHYAD
+            ((data as u32) << 4) | // MIIM_CMD_WRDATA
+            (0b01 << 1); // MIIM_CMD_OPR_FIELD (write)
+
+        let mii_cmd = format!("MIIM[{}]:MII_CMD", phy.miim).parse::<TargetRegister>()?;
+        self.write(mii_cmd.address(), data)
+    }
 }
 
 fn vsc7448(
@@ -299,6 +319,7 @@ fn vsc7448(
                 println!("Writing 0x{:x} to {} at MIIM{}:{}", value, reg, addr.miim, addr.phy);
                 pretty_print_fields(value as u32, reg.fields());
                 vsc.set_miim_gpios(addr.miim)?;
+                vsc.miim_write(addr, &reg, value)?;
             },
             PhyCommand::Read { addr, reg } => {
                 let reg: PhyRegister = reg.parse()?;
