@@ -1,0 +1,33 @@
+[package]
+name = "humility-core"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+
+[dependencies]
+serde = { version = "1.0.126", features = ["derive"] }
+goblin = "0.2.1"
+capstone = "0.8.0"
+rustc-demangle = "0.1.21"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+gimli = "0.22.0"
+fallible-iterator = "0.2.0"
+indexmap = { version = "1.7", features = ["serde-1"] }
+scroll = "0.10"
+multimap = "0.8.1"
+num-traits = "0.2"
+num-derive = "0.3"
+indicatif = "0.15"
+toml = "0.5"
+bitfield = "0.13.2"
+log = {version = "0.4.8", features = ["std"]}
+zip = "0.5"
+rusb = "0.5.5"
+parse_int = "0.4.0"
+
+#
+# We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
+# that we can float necessary patches on probe-rs.
+#
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-stable" }
+

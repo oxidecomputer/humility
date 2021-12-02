@@ -2,34 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#[macro_use]
-extern crate log;
-
-#[macro_use]
-extern crate num_derive;
-
-use anyhow::{bail, Result};
+use humility::hubris::*;
+use humility_cmd::{Args, Subcommand};
 
 use structopt::StructOpt;
 
-mod hubris;
-use hubris::*;
-
 mod cmd;
-mod core;
-mod debug;
-mod dwt;
-mod etm;
-mod hiffy;
-mod i2c;
-mod itm;
-mod scs;
-mod swo;
-mod test;
-mod tpiu;
-
-mod doppel;
-mod reflect;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -49,7 +27,7 @@ pub struct HumilityLog {
 
 fn is_humility(metadata: &log::Metadata) -> bool {
     if let Some(metadata) = metadata.target().split("::").next() {
-        metadata == "humility"
+        metadata.starts_with("humility")
     } else {
         false
     }
@@ -91,73 +69,6 @@ impl HumilityLog {
             }
         };
     }
-}
-
-fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
-    if args.dump.is_some() {
-        bail!("must be run against a live system");
-    } else {
-        let probe = match &args.probe {
-            Some(p) => p,
-            None => "auto",
-        };
-
-        crate::core::attach(probe, &args.chip)
-    }
-}
-
-fn attach_dump(
-    args: &Args,
-    hubris: &HubrisArchive,
-) -> Result<Box<dyn core::Core>> {
-    if let Some(dump) = &args.dump {
-        crate::core::attach_dump(dump, hubris)
-    } else {
-        bail!("must be run against a dump");
-    }
-}
-
-#[derive(StructOpt)]
-#[structopt(name = "humility", max_term_width = 80)]
-pub struct Args {
-    /// verbose messages
-    #[structopt(long, short)]
-    verbose: bool,
-
-    /// specific chip on attached device
-    #[structopt(
-        long,
-        short,
-        env = "HUMILITY_CHIP",
-        default_value = "STM32F407VGTx"
-    )]
-    chip: String,
-
-    /// chip probe to use
-    #[structopt(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
-    probe: Option<String>,
-
-    /// Hubris archive
-    #[structopt(
-        long,
-        short,
-        env = "HUMILITY_ARCHIVE",
-        conflicts_with = "dump"
-    )]
-    archive: Option<String>,
-
-    /// Hubris dump
-    #[structopt(long, short, env = "HUMILITY_DUMP")]
-    dump: Option<String>,
-
-    #[structopt(subcommand)]
-    cmd: Subcommand,
-}
-
-#[derive(StructOpt)]
-enum Subcommand {
-    #[structopt(external_subcommand)]
-    Other(Vec<String>),
 }
 
 fn main() {

@@ -1,0 +1,16 @@
+[package]
+name = "humility-cmd-pmbus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { path = "../../hif" }
+pmbus = { path = "../../pmbus" }
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+colored = "2.0.0"
+indexmap = { version = "1.7", features = ["serde-1"] }
+log = {version = "0.4.8", features = ["std"]}
+parse_int = "0.4.0"

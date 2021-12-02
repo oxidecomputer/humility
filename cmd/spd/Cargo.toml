@@ -1,0 +1,15 @@
+[package]
+name = "humility-cmd-spd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { path = "../../hif" }
+spd = { path = "../../spd" }
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+jep106 = "0.2"
+parse_int = "0.4.0"
+log = {version = "0.4.8", features = ["std"]}
