@@ -3,10 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::core::Core;
-use crate::debug::ARMRegister;
 use crate::Args;
 use anyhow::{anyhow, Result};
+use humility::core::Core;
+use humility::debug::ARMRegister;
 use structopt::clap::App;
 use structopt::StructOpt;
 

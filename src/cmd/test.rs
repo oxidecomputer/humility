@@ -3,12 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::core::Core;
-use crate::hubris::*;
 use crate::itm::*;
 use crate::test::*;
 use crate::Args;
 use anyhow::{bail, Context, Result};
+use humility::core::Core;
+use humility::hubris::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::time::Instant;

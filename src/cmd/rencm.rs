@@ -3,10 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::{Archive, Attach, Validate};
-use crate::core::Core;
 use crate::hiffy::*;
-use crate::hubris::*;
 use crate::Args;
+use humility::core::Core;
+use humility::hubris::*;
 use std::thread;
 
 use itertools::Itertools;

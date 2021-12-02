@@ -4,15 +4,15 @@
 
 use crate::attach_live;
 use crate::cmd::{Archive, Command};
-use crate::core::Core;
-use crate::debug::*;
 use crate::dwt::*;
-use crate::hubris::*;
 use crate::itm::*;
 use crate::scs::*;
 use crate::tpiu::*;
 use crate::Args;
 use anyhow::{bail, Result};
+use humility::core::Core;
+use humility::debug::*;
+use humility::hubris::*;
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;

@@ -29,11 +29,11 @@ mod tasks;
 mod test;
 mod trace;
 
-use crate::core::Core;
-use crate::hubris::*;
 use crate::Args;
 use crate::{attach_dump, attach_live};
 use anyhow::{bail, Result};
+use humility::core::Core;
+use humility::hubris::*;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use structopt::clap::App;

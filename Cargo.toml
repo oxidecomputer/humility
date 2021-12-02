@@ -14,33 +14,21 @@ hif = { path = "./hif" }
 spd = { path = "./spd" }
 idt8a3xxxx = { path = "./idt8a3xxxx" }
 humility_load_derive = {path = "./load_derive"}
+humility = { path = "./humility-core", package = "humility-core" }
 
-gimli = "0.20.0"
 fallible-iterator = "0.2.0"
-
-#
-# We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
-# that we can float necessary patches on probe-rs.
-#
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-stable" }
-
 log = {version = "0.4.8", features = ["std"]}
 bitfield = "0.13.2"
 clap = "2.33.0"
 csv = "1.1.3"
 serde = "1.0.126"
 parse_int = "0.4.0"
-goblin = "0.2.1"
-capstone = "0.8.0"
-rustc-demangle = "0.1.21"
 structopt = "0.3"
 multimap = "0.8.1"
-rusb = "0.5.5"
 num-traits = "0.2"
 num-derive = "0.3"
 paste = "0.1"
 jep106 = "0.2"
-zip = "0.5"
 toml = "0.5"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 scroll = "0.10"

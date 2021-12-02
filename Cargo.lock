@@ -536,14 +536,12 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "bitfield",
- "capstone",
  "clap",
  "colored",
  "csv",
  "fallible-iterator",
- "gimli 0.20.0",
- "goblin",
  "hif",
+ "humility-core",
  "humility_load_derive",
  "idt8a3xxxx",
  "indexmap",
@@ -558,13 +556,35 @@ dependencies = [
  "paste",
  "pmbus",
  "postcard",
+ "scroll",
+ "serde",
+ "spd",
+ "structopt",
+ "toml",
+]
+
+[[package]]
+name = "humility-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitfield",
+ "capstone",
+ "fallible-iterator",
+ "gimli 0.20.0",
+ "goblin",
+ "indexmap",
+ "indicatif",
+ "log",
+ "multimap",
+ "num-derive",
+ "num-traits",
+ "parse_int",
  "probe-rs",
  "rusb 0.5.5",
  "rustc-demangle",
  "scroll",
  "serde",
- "spd",
- "structopt",
  "toml",
  "zip",
 ]

@@ -3,9 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::hubris::*;
 use crate::Args;
 use anyhow::Result;
+use humility::core::Core;
+use humility::hubris::*;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -18,7 +19,7 @@ struct MapArgs {}
 
 fn mapcmd(
     hubris: &mut HubrisArchive,
-    core: &mut dyn crate::core::Core,
+    core: &mut dyn Core,
     _args: &Args,
     _subargs: &Vec<String>,
 ) -> Result<()> {

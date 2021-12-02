@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::debug::Register;
-use crate::register;
 use anyhow::Result;
 use bitfield::bitfield;
+use humility::core::Core;
+use humility::debug::Register;
+use humility::register;
 
 register!(TPIU_SSPSR, 0xe004_0000,
     #[derive(Copy, Clone)]

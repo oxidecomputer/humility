@@ -12,12 +12,10 @@ use anyhow::{bail, Result};
 
 use structopt::StructOpt;
 
-mod hubris;
-use hubris::*;
+use humility::core::Core;
+use humility::hubris::*;
 
 mod cmd;
-mod core;
-mod debug;
 mod dwt;
 mod etm;
 mod hiffy;
@@ -49,7 +47,7 @@ pub struct HumilityLog {
 
 fn is_humility(metadata: &log::Metadata) -> bool {
     if let Some(metadata) = metadata.target().split("::").next() {
-        metadata == "humility"
+        metadata.starts_with("humility")
     } else {
         false
     }
@@ -93,7 +91,7 @@ impl HumilityLog {
     }
 }
 
-fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
+fn attach_live(args: &Args) -> Result<Box<dyn Core>> {
     if args.dump.is_some() {
         bail!("must be run against a live system");
     } else {
@@ -102,16 +100,13 @@ fn attach_live(args: &Args) -> Result<Box<dyn core::Core>> {
             None => "auto",
         };
 
-        crate::core::attach(probe, &args.chip)
+        humility::core::attach(probe, &args.chip)
     }
 }
 
-fn attach_dump(
-    args: &Args,
-    hubris: &HubrisArchive,
-) -> Result<Box<dyn core::Core>> {
+fn attach_dump(args: &Args, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
     if let Some(dump) = &args.dump {
-        crate::core::attach_dump(dump, hubris)
+        humility::core::attach_dump(dump, hubris)
     } else {
         bail!("must be run against a dump");
     }

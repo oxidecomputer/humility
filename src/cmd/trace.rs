@@ -3,11 +3,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::core::Core;
-use crate::hubris::*;
 use crate::itm::*;
 use crate::Args;
 use anyhow::{anyhow, Result};
+use humility::core::Core;
+use humility::hubris::*;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::Instant;

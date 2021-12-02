@@ -2,11 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::debug::*;
-use crate::register;
-use crate::register_offs;
 use anyhow::{bail, Result};
 use bitfield::bitfield;
+use humility::core::Core;
+use humility::debug::*;
+use humility::register;
+use humility::register_offs;
 use multimap::MultiMap;
 use std::mem::size_of;
 
@@ -106,7 +107,7 @@ pub struct CoreSightPage {
 }
 
 impl CoreSightPage {
-    pub fn new(core: &mut dyn crate::core::Core, base: u32) -> Result<Self> {
+    pub fn new(core: &mut dyn humility::core::Core, base: u32) -> Result<Self> {
         let cidr0 = &CIDR0::read(core, base)?.register;
         let cidr1 = &CIDR1::read(core, base)?.register;
         let cidr2 = &CIDR2::read(core, base)?.register;
@@ -177,7 +178,7 @@ pub enum CoreSightComponent {
 
 impl CoreSightComponent {
     pub fn new(
-        core: &mut dyn crate::core::Core,
+        core: &mut dyn humility::core::Core,
         page: &CoreSightPage,
     ) -> Result<Self> {
         let base = page.base;
@@ -334,7 +335,7 @@ impl CoreSightROMEntry {
 }
 
 pub fn read_rom(
-    core: &mut dyn crate::core::Core,
+    core: &mut dyn humility::core::Core,
     base: u32,
     components: &mut MultiMap<CoreSightComponent, u32>,
 ) -> Result<()> {
@@ -407,7 +408,7 @@ pub struct CoreInfo {
 }
 
 impl CoreInfo {
-    pub fn read(core: &mut dyn crate::core::Core) -> Result<Self> {
+    pub fn read(core: &mut dyn humility::core::Core) -> Result<Self> {
         use num_traits::FromPrimitive;
 
         let cpuid = CPUID::read(core)?;

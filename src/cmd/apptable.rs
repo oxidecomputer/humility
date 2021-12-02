@@ -3,9 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::{Archive, Command};
-use crate::hubris::{HubrisArchive, HubrisPrintFormat};
 use crate::Args;
 use anyhow::{bail, Result};
+use humility::hubris::{HubrisArchive, HubrisPrintFormat};
 use std::convert::TryInto;
 use structopt::clap::App;
 use structopt::StructOpt;

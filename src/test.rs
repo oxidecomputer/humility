@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::hubris::*;
 use anyhow::{bail, Result};
 use colored::Colorize;
+use humility::hubris::*;
 use std::fmt;
 use std::fs;
 use std::fs::OpenOptions;

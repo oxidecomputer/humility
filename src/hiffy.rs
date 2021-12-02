@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::core::Core;
-use crate::hubris::*;
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
+use humility::core::Core;
+use humility::hubris::*;
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;

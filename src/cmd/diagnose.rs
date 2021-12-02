@@ -16,12 +16,12 @@
 
 use crate::cmd::jefe;
 use crate::cmd::*;
-use crate::core::Core;
 use crate::doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
-use crate::hubris::*;
 use crate::reflect;
 use crate::Args;
 use anyhow::Result;
+use humility::core::Core;
+use humility::hubris::*;
 use std::num::NonZeroU32;
 use std::time::Duration;
 use structopt::clap::App;

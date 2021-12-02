@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 
-use crate::register_offs;
+use humility::core::Core;
+use humility::register_offs;
 use num_traits::FromPrimitive;
 use num_traits::ToPrimitive;
 
@@ -59,7 +60,10 @@ register_offs!(SWO_LAR, 0xfb0,
 );
 
 impl SWO_LAR {
-    pub fn unlock(core: &mut dyn crate::core::Core, base: u32) -> Result<()> {
+    pub fn unlock(
+        core: &mut dyn humility::core::Core,
+        base: u32,
+    ) -> Result<()> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -69,7 +73,7 @@ impl SWO_LAR {
     }
 
     #[allow(dead_code)]
-    pub fn lock(core: &mut dyn crate::core::Core, base: u32) -> Result<()> {
+    pub fn lock(core: &mut dyn humility::core::Core, base: u32) -> Result<()> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(SWO_LAR::address(base), val)?;
         Ok(())

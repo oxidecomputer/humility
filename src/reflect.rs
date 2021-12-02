@@ -81,8 +81,8 @@ use std::convert::TryInto;
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::core::Core;
-use crate::hubris::{
+use humility::core::Core;
+use humility::hubris::{
     HubrisArchive, HubrisArray, HubrisBasetype, HubrisEnum, HubrisGoff,
     HubrisPrintFormat, HubrisStruct, HubrisType,
 };
@@ -802,7 +802,7 @@ pub fn load_base(buf: &[u8], ty: &HubrisBasetype, addr: usize) -> Result<Base> {
         anyhow!("address {} out of range for type {:?}", addr, ty)
     })?;
 
-    use crate::hubris::HubrisEncoding::*;
+    use humility::hubris::HubrisEncoding::*;
     let v = match (ty.encoding, ty.size) {
         (Signed, 1) => Base::I8(buf[0] as i8),
         (Signed, 2) => Base::I16(i16::from_le_bytes(buf.try_into().unwrap())),

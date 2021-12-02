@@ -2,16 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::core::Core;
-use crate::debug::*;
 use crate::dwt::*;
-use crate::hubris::HubrisArchive;
-use crate::register;
 use crate::scs::*;
 use crate::swo::*;
 use crate::tpiu::*;
 use anyhow::Result;
 use bitfield::bitfield;
+use humility::core::Core;
+use humility::debug::*;
+use humility::hubris::HubrisArchive;
+use humility::register;
 
 /*
  * ITM Trace Enable Register
@@ -77,7 +77,7 @@ register!(ITM_LSR, 0xe000_0fb4,
 );
 
 impl ITM_LAR {
-    pub fn unlock(core: &mut dyn crate::core::Core) -> Result<()> {
+    pub fn unlock(core: &mut dyn humility::core::Core) -> Result<()> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -86,7 +86,7 @@ impl ITM_LAR {
         Ok(())
     }
 
-    pub fn lock(core: &mut dyn crate::core::Core) -> Result<()> {
+    pub fn lock(core: &mut dyn humility::core::Core) -> Result<()> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ITM_LAR::ADDRESS, val)?;
         Ok(())

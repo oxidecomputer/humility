@@ -5,6 +5,7 @@
 use anyhow::{anyhow, Result};
 
 use crate::hubris::*;
+use crate::core::Core;
 use bitfield::bitfield;
 
 pub trait Register:
@@ -40,14 +41,14 @@ macro_rules! register {
 
         impl $reg {
             pub fn read(
-                core: &mut dyn crate::core::Core
+                core: &mut dyn Core
             ) -> anyhow::Result<$reg> {
                 Ok(Self(core.read_word_32($addr)?))
             }
 
             pub fn write(
                 &self,
-                core: &mut dyn crate::core::Core
+                core: &mut dyn Core
             ) -> anyhow::Result<()> {
                 core.write_word_32($addr, self.0.into())?;
                 Ok(())
@@ -95,7 +96,7 @@ macro_rules! register_offs {
             impl $reg {
                 #[allow(dead_code)]
                 pub fn read(
-                    core: &mut dyn crate::core::Core,
+                    core: &mut dyn Core,
                     base: u32
                 ) -> anyhow::Result<$reg> {
                     Ok(Self {
@@ -109,7 +110,7 @@ macro_rules! register_offs {
                 #[allow(dead_code)]
                 pub fn write(
                     &self,
-                    core: &mut dyn crate::core::Core
+                    core: &mut dyn Core
                 ) -> anyhow::Result<()> {
                     core.write_word_32(
                         self.base + $offs,

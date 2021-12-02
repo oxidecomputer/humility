@@ -3,10 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::core::Core;
-use crate::hubris::*;
 use crate::Args;
 use anyhow::{anyhow, bail, Context, Result};
+use humility::core::Core;
+use humility::hubris::*;
 use std::num::NonZeroU32;
 use std::thread;
 use std::time::Duration;

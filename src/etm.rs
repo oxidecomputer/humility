@@ -2,11 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::debug::Register;
-use crate::register;
 use crate::tpiu::*;
 use anyhow::Result;
 use bitfield::bitfield;
+use humility::core::Core;
+use humility::debug::Register;
+use humility::register;
 
 macro_rules! etm_register {
     ($reg:ty, $offs:expr, $($arg:tt)*) => (
@@ -221,7 +222,7 @@ etm_register!(ETMLAR, 0x3ec,
 );
 
 impl ETMLAR {
-    pub fn unlock(core: &mut dyn crate::core::Core) -> Result<()> {
+    pub fn unlock(core: &mut dyn humility::core::Core) -> Result<()> {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
@@ -230,7 +231,7 @@ impl ETMLAR {
         Ok(())
     }
 
-    pub fn lock(core: &mut dyn crate::core::Core) -> Result<()> {
+    pub fn lock(core: &mut dyn humility::core::Core) -> Result<()> {
         let val: u32 = 0x1de_c0de;
         core.write_word_32(ETMLAR::ADDRESS, val)?;
         Ok(())

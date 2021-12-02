@@ -4,10 +4,10 @@
 
 use crate::cmd::printmem;
 use crate::cmd::{Archive, Attach, Validate};
-use crate::core::Core;
 use crate::hiffy::*;
-use crate::hubris::*;
 use crate::Args;
+use humility::core::Core;
+use humility::hubris::*;
 use std::fs;
 use std::fs::File;
 use std::io::Read;

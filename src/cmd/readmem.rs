@@ -3,9 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::hubris::*;
 use crate::Args;
 use anyhow::{bail, Result};
+use humility::core::Core;
+use humility::hubris::*;
 use std::convert::TryInto;
 use structopt::clap::App;
 use structopt::StructOpt;
@@ -35,12 +36,12 @@ struct ReadmemArgs {
 
 fn readmem(
     hubris: &mut HubrisArchive,
-    core: &mut dyn crate::core::Core,
+    core: &mut dyn Core,
     _args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
     let subargs = ReadmemArgs::from_iter_safe(subargs)?;
-    let max = crate::core::CORE_MAX_READSIZE;
+    let max = humility::core::CORE_MAX_READSIZE;
     let size = if subargs.word || subargs.symbol {
         4
     } else if subargs.halfword {

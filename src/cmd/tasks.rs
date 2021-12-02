@@ -3,13 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::core::Core;
-use crate::debug::*;
 use crate::doppel::{self, Task, TaskDesc, TaskId, TaskState};
-use crate::hubris::*;
 use crate::reflect::{self, Format, Load};
 use crate::Args;
 use anyhow::{bail, Result};
+use humility::core::Core;
+use humility::debug::*;
+use humility::hubris::*;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
 use structopt::clap::App;
