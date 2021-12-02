@@ -2,8 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::cmd::{Archive, Command};
-use crate::Args;
+use humility_cmd::{Args, Archive, Command};
 use anyhow::{bail, Result};
 use humility::hubris::{HubrisArchive, HubrisPrintFormat};
 use std::convert::TryInto;

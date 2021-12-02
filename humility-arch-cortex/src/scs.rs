@@ -5,9 +5,9 @@
 use anyhow::{bail, Result};
 use bitfield::bitfield;
 use humility::core::Core;
-use humility::debug::*;
-use humility::register;
-use humility::register_offs;
+use crate::debug::*;
+use crate::register;
+use crate::register_offs;
 use multimap::MultiMap;
 use std::mem::size_of;
 

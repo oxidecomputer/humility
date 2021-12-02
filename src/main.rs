@@ -5,26 +5,18 @@
 #[macro_use]
 extern crate log;
 
-#[macro_use]
-extern crate num_derive;
-
 use anyhow::{bail, Result};
-
-use structopt::StructOpt;
 
 use humility::core::Core;
 use humility::hubris::*;
+use humility_cmd::{Args, Subcommand};
+
+use structopt::StructOpt;
 
 mod cmd;
-mod dwt;
-mod etm;
 mod hiffy;
 mod i2c;
-mod itm;
-mod scs;
-mod swo;
 mod test;
-mod tpiu;
 
 mod doppel;
 mod reflect;
@@ -110,49 +102,6 @@ fn attach_dump(args: &Args, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
     } else {
         bail!("must be run against a dump");
     }
-}
-
-#[derive(StructOpt)]
-#[structopt(name = "humility", max_term_width = 80)]
-pub struct Args {
-    /// verbose messages
-    #[structopt(long, short)]
-    verbose: bool,
-
-    /// specific chip on attached device
-    #[structopt(
-        long,
-        short,
-        env = "HUMILITY_CHIP",
-        default_value = "STM32F407VGTx"
-    )]
-    chip: String,
-
-    /// chip probe to use
-    #[structopt(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
-    probe: Option<String>,
-
-    /// Hubris archive
-    #[structopt(
-        long,
-        short,
-        env = "HUMILITY_ARCHIVE",
-        conflicts_with = "dump"
-    )]
-    archive: Option<String>,
-
-    /// Hubris dump
-    #[structopt(long, short, env = "HUMILITY_DUMP")]
-    dump: Option<String>,
-
-    #[structopt(subcommand)]
-    cmd: Subcommand,
-}
-
-#[derive(StructOpt)]
-enum Subcommand {
-    #[structopt(external_subcommand)]
-    Other(Vec<String>),
 }
 
 fn main() {

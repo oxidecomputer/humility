@@ -5,8 +5,8 @@
 use anyhow::Result;
 use bitfield::bitfield;
 use humility::core::Core;
-use humility::debug::Register;
-use humility::register;
+use crate::debug::Register;
+use crate::register;
 
 register!(TPIU_SSPSR, 0xe004_0000,
     #[derive(Copy, Clone)]

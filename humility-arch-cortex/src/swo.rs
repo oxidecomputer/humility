@@ -5,7 +5,7 @@
 use anyhow::Result;
 
 use humility::core::Core;
-use humility::register_offs;
+use crate::register_offs;
 use num_traits::FromPrimitive;
 use num_traits::ToPrimitive;
 

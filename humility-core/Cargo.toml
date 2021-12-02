@@ -10,7 +10,7 @@ goblin = "0.2.1"
 capstone = "0.8.0"
 rustc-demangle = "0.1.21"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
-gimli = "0.20.0"
+gimli = "0.22.0"
 fallible-iterator = "0.2.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
 scroll = "0.10"

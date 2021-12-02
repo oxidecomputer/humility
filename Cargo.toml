@@ -5,6 +5,14 @@ authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
 
+[workspace]
+members = [
+    "humility-core",
+    "humility-cmd",
+    "humility-arch-cortex",
+    "cmd/apptable"
+]
+
 [profile.release]
 debug = true
 
@@ -15,6 +23,9 @@ spd = { path = "./spd" }
 idt8a3xxxx = { path = "./idt8a3xxxx" }
 humility_load_derive = {path = "./load_derive"}
 humility = { path = "./humility-core", package = "humility-core" }
+humility-cortex = { path = "./humility-arch-cortex" }
+humility-cmd = { path = "./humility-cmd" }
+cmd-apptable = { path = "./cmd/apptable", package = "apptable" }
 
 fallible-iterator = "0.2.0"
 log = {version = "0.4.8", features = ["std"]}
@@ -27,7 +38,6 @@ structopt = "0.3"
 multimap = "0.8.1"
 num-traits = "0.2"
 num-derive = "0.3"
-paste = "0.1"
 jep106 = "0.2"
 toml = "0.5"
 anyhow = { version = "1.0.44", features = ["backtrace"] }

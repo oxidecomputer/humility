@@ -6,8 +6,8 @@ use crate::tpiu::*;
 use anyhow::Result;
 use bitfield::bitfield;
 use humility::core::Core;
-use humility::debug::Register;
-use humility::register;
+use crate::debug::Register;
+use crate::register;
 
 macro_rules! etm_register {
     ($reg:ty, $offs:expr, $($arg:tt)*) => (

@@ -6,7 +6,7 @@ use crate::cmd::*;
 use crate::Args;
 use anyhow::{anyhow, Result};
 use humility::core::Core;
-use humility::debug::ARMRegister;
+use humility::arch::ARMRegister;
 use structopt::clap::App;
 use structopt::StructOpt;
 

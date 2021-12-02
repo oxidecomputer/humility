@@ -42,10 +42,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrayvec"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
+name = "apptable"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-cmd",
+ "humility-core",
+ "structopt",
+]
 
 [[package]]
 name = "atomic-polyfill"
@@ -425,20 +429,6 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "gimli"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81dd6190aad0f05ddbbf3245c54ed14ca4aa6dd32f22312b70d8f168c3e3e633"
-dependencies = [
- "arrayvec",
- "byteorder",
- "fallible-iterator",
- "indexmap",
- "smallvec",
- "stable_deref_trait",
-]
-
-[[package]]
-name = "gimli"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aaf91faf136cb47367fa430cd46e37a788775e7fa104f8b4bcb3861dc389b724"
@@ -535,13 +525,16 @@ name = "humility"
 version = "0.5.0"
 dependencies = [
  "anyhow",
+ "apptable",
  "bitfield",
  "clap",
  "colored",
  "csv",
  "fallible-iterator",
  "hif",
+ "humility-cmd",
  "humility-core",
+ "humility-cortex",
  "humility_load_derive",
  "idt8a3xxxx",
  "indexmap",
@@ -553,7 +546,6 @@ dependencies = [
  "num-derive",
  "num-traits",
  "parse_int",
- "paste",
  "pmbus",
  "postcard",
  "scroll",
@@ -564,6 +556,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cmd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-core",
+ "structopt",
+]
+
+[[package]]
 name = "humility-core"
 version = "0.1.0"
 dependencies = [
@@ -571,7 +573,7 @@ dependencies = [
  "bitfield",
  "capstone",
  "fallible-iterator",
- "gimli 0.20.0",
+ "gimli 0.22.0",
  "goblin",
  "indexmap",
  "indicatif",
@@ -587,6 +589,21 @@ dependencies = [
  "serde",
  "toml",
  "zip",
+]
+
+[[package]]
+name = "humility-cortex"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitfield",
+ "humility-core",
+ "jep106",
+ "log",
+ "multimap",
+ "num-derive",
+ "num-traits",
+ "paste",
 ]
 
 [[package]]
@@ -1204,12 +1221,6 @@ dependencies = [
  "serde",
  "yaml-rust",
 ]
-
-[[package]]
-name = "smallvec"
-version = "1.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 
 [[package]]
 name = "spd"

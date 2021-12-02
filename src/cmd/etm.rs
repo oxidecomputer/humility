@@ -4,13 +4,13 @@
 
 use crate::attach_live;
 use crate::cmd::{Archive, Command};
-use crate::etm::*;
-use crate::scs::*;
-use crate::tpiu::*;
+use humility_cortex::etm::*;
+use humility_cortex::scs::*;
+use humility_cortex::tpiu::*;
 use crate::Args;
 use anyhow::{bail, Result};
 use humility::core::Core;
-use humility::debug::*;
+use humility_cortex::debug::*;
 use humility::hubris::*;
 use std::fs::File;
 use std::time::Instant;

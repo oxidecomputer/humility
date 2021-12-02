@@ -3,12 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::cmd::*;
-use crate::itm::*;
-use crate::scs::*;
+use humility_cortex::itm::*;
+use humility_cortex::scs::*;
 use crate::Args;
 use anyhow::Result;
 use humility::core::Core;
-use humility::debug::*;
+use humility::arch::ARMRegister;
+use humility_cortex::debug::*;
 use humility::hubris::*;
 use structopt::clap::App;
 use structopt::StructOpt;

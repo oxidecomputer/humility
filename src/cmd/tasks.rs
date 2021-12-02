@@ -8,7 +8,7 @@ use crate::reflect::{self, Format, Load};
 use crate::Args;
 use anyhow::{bail, Result};
 use humility::core::Core;
-use humility::debug::*;
+use humility::arch::ARMRegister;
 use humility::hubris::*;
 use num_traits::FromPrimitive;
 use std::collections::HashMap;

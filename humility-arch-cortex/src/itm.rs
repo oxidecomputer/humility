@@ -9,9 +9,9 @@ use crate::tpiu::*;
 use anyhow::Result;
 use bitfield::bitfield;
 use humility::core::Core;
-use humility::debug::*;
+use crate::debug::*;
 use humility::hubris::HubrisArchive;
-use humility::register;
+use crate::register;
 
 /*
  * ITM Trace Enable Register

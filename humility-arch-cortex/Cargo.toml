@@ -1,0 +1,15 @@
+[package]
+name = "humility-cortex"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humility = { path = "../humility-core", package = "humility-core" }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+bitfield = "0.13.2"
+multimap = "0.8.1"
+paste = "0.1"
+num-traits = "0.2"
+num-derive = "0.3"
+jep106 = "0.2"
+log = {version = "0.4.8", features = ["std"]}

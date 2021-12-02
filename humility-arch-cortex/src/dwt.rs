@@ -4,8 +4,8 @@
 
 use bitfield::bitfield;
 use humility::core::Core;
-use humility::debug::Register;
-use humility::register;
+use crate::debug::Register;
+use crate::register;
 
 /*
  * DWT Control Register

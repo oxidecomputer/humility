@@ -7,7 +7,7 @@ use probe_rs::Probe;
 
 use anyhow::{anyhow, bail, ensure, Result};
 
-use crate::debug::*;
+use crate::arch::ARMRegister;
 use crate::hubris::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
