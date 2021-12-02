@@ -9,7 +9,6 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::printmem;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-
 use structopt::clap::App;
 use structopt::StructOpt;
 
