@@ -305,7 +305,9 @@ impl<'a> HiffyContext<'a> {
         Ok(HiffyFunctions(rval))
     }
 
-    pub fn execute(
+    /// Begins HIF execution.  This is non-blocking with respect to the HIF
+    /// program, so you will need to poll [Self::done] to check for completion.
+    pub fn start(
         &mut self,
         core: &mut dyn Core,
         ops: &[Op],
@@ -375,7 +377,7 @@ impl<'a> HiffyContext<'a> {
         ops: &[Op],
         data: Option<&[u8]>,
     ) -> Result<Vec<Result<Vec<u8>, u32>>> {
-        self.execute(core, ops, data)?;
+        self.start(core, ops, data)?;
         while !self.done(core)? {
             thread::sleep(Duration::from_millis(100));
         }
