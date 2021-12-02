@@ -36,6 +36,9 @@ pub trait Core {
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
+    fn is_dump(&self) -> bool {
+        false
+    }
 
     fn read_word_64(&mut self, addr: u32) -> Result<u64> {
         let mut buf = [0; 8];
@@ -882,6 +885,10 @@ impl Core for DumpCore {
 
     fn read_swv(&mut self) -> Result<Vec<u8>> {
         bail!("cannot read SWV on a dump");
+    }
+
+    fn is_dump(&self) -> bool {
+        true
     }
 }
 
