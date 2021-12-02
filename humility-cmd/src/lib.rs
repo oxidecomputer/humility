@@ -63,9 +63,14 @@ pub enum Subcommand {
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Archive {
+    /// Load a Hubris archive, failing if one is not present
     Required,
+    /// Load a Hubris archive if available (as either a command-line flag or
+    /// environmental variable); continue to run if no archive is present
     Optional,
-    Prohibited,
+    /// Do not load a Hubris archive, even if the command-line flag or
+    /// environmental variable is set.  This saves a small amount of start-up
+    /// time for subcommands which don't require a Hubris archive.
     Ignored,
 }
 

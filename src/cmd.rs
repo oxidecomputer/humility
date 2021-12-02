@@ -84,16 +84,8 @@ pub fn subcommand(
             }
         }
 
-        match (archive, hubris.loaded()) {
-            (Archive::Required, false) => {
-                bail!("must provide a Hubris archive or dump");
-            }
-
-            (Archive::Prohibited, true) => {
-                bail!("does not operate on a Hubris archive or dump");
-            }
-
-            (_, _) => {}
+        if *archive == Archive::Required && !hubris.loaded() {
+            bail!("must provide a Hubris archive or dump");
         }
 
         match command {
