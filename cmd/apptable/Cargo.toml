@@ -1,5 +1,5 @@
 [package]
-name = "apptable"
+name = "humility-cmd-apptable"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,4 +8,3 @@ humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
 structopt = "0.3"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
-

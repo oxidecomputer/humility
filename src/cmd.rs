@@ -2,43 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// mod apptable;
-/*
-mod diagnose;
-mod dump;
-mod etm;
-mod gpio;
-mod hiffy;
-mod i2c;
-mod itm;
-mod jefe;
-mod manifest;
-mod map;
-mod pmbus;
-mod probe;
-mod qspi;
-mod readmem;
-mod readvar;
-mod renbb;
-mod rencm;
-mod ringbuf;
-mod spd;
-mod spi;
-mod stackmargin;
-mod stmsecure;
-mod tasks;
-mod test;
-mod trace;
-*/
-
-use humility_cmd::Args;
-use crate::{attach_dump, attach_live};
 use anyhow::{bail, Result};
-use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Validate, Command};
+use humility_cmd::Args;
+use humility_cmd::{attach_dump, attach_live};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use std::collections::HashMap;
-use std::convert::TryInto;
 use structopt::clap::App;
 
 pub fn init<'a, 'b>(
@@ -49,33 +18,32 @@ pub fn init<'a, 'b>(
 
     let dcmds = [
         cmd_apptable::init,
-        /*
-        diagnose::init,
-        dump::init,
-        etm::init,
-        gpio::init,
-        hiffy::init,
-        i2c::init,
-        itm::init,
-        jefe::init,
-        manifest::init,
-        map::init,
-        pmbus::init,
-        probe::init,
-        qspi::init,
-        readmem::init,
-        readvar::init,
-        renbb::init,
-        rencm::init,
-        ringbuf::init,
-        spd::init,
-        spi::init,
-        stackmargin::init,
-        tasks::init,
-        test::init,
-        trace::init,
-        stmsecure::init,
-        */
+        cmd_etm::init,
+        cmd_diagnose::init,
+        cmd_dump::init,
+        cmd_etm::init,
+        cmd_gpio::init,
+        cmd_hiffy::init,
+        cmd_i2c::init,
+        cmd_itm::init,
+        cmd_jefe::init,
+        cmd_manifest::init,
+        cmd_map::init,
+        cmd_pmbus::init,
+        cmd_probe::init,
+        cmd_qspi::init,
+        cmd_readmem::init,
+        cmd_readvar::init,
+        cmd_renbb::init,
+        cmd_rencm::init,
+        cmd_ringbuf::init,
+        cmd_spd::init,
+        cmd_spi::init,
+        cmd_stackmargin::init,
+        cmd_tasks::init,
+        cmd_test::init,
+        cmd_trace::init,
+        cmd_stmsecure::init,
     ];
 
     for dcmd in &dcmds {

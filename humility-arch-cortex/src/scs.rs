@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Result};
-use bitfield::bitfield;
-use humility::core::Core;
 use crate::debug::*;
 use crate::register;
 use crate::register_offs;
+use anyhow::{bail, Result};
+use bitfield::bitfield;
+use humility::core::Core;
 use multimap::MultiMap;
 use std::mem::size_of;
 

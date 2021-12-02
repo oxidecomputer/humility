@@ -10,16 +10,20 @@ pub fn load_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
     let ts = match &input.data {
-        syn::Data::Struct(data) => {
-            match &data.fields {
-                syn::Fields::Named(fields) => gen_named_struct(&input.ident, fields),
-                syn::Fields::Unnamed(fields) => gen_unnamed_struct(&input.ident, fields),
-                syn::Fields::Unit => {
-                    unimplemented!("unit struct not implemented as DWARF rep \
-                                    not clear at time of writing");
-                }
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => {
+                gen_named_struct(&input.ident, fields)
             }
-        }
+            syn::Fields::Unnamed(fields) => {
+                gen_unnamed_struct(&input.ident, fields)
+            }
+            syn::Fields::Unit => {
+                unimplemented!(
+                    "unit struct not implemented as DWARF rep \
+                                    not clear at time of writing"
+                );
+            }
+        },
         syn::Data::Enum(data) => gen_enum(&input.ident, data),
         _ => unimplemented!("unsupported type for derive"),
     };
@@ -49,13 +53,19 @@ fn gen_enum(
                         let #name: #fty = crate::reflect::Load::from_value(&contents[#i])?;
                     )
                 });
-                let field_lets = field_lets.collect::<proc_macro2::TokenStream>();
-                
-                let field_uses = fields.unnamed.iter().enumerate().map(|(i, fld)| {
-                    let name = syn::Ident::new(&format!("field_{}", i), fld.span());
-                    quote_spanned!(fld.span()=> #name,)
-                });
-                let field_uses = field_uses.collect::<proc_macro2::TokenStream>();
+                let field_lets =
+                    field_lets.collect::<proc_macro2::TokenStream>();
+
+                let field_uses =
+                    fields.unnamed.iter().enumerate().map(|(i, fld)| {
+                        let name = syn::Ident::new(
+                            &format!("field_{}", i),
+                            fld.span(),
+                        );
+                        quote_spanned!(fld.span()=> #name,)
+                    });
+                let field_uses =
+                    field_uses.collect::<proc_macro2::TokenStream>();
 
                 arms.push(quote_spanned!(variant.ident.span()=>
                     (stringify!(#var_ident), Some(contents)) => {
@@ -74,7 +84,8 @@ fn gen_enum(
                     let name = fld.ident.as_ref().unwrap();
                     quote_spanned!(fld.span()=> stringify!(#name), )
                 });
-                let field_name_strs = field_name_strs.collect::<proc_macro2::TokenStream>();
+                let field_name_strs =
+                    field_name_strs.collect::<proc_macro2::TokenStream>();
 
                 let field_defs = fields.named.iter().map(|fld| {
                     let name = &fld.ident;
@@ -82,8 +93,9 @@ fn gen_enum(
                         #name: crate::reflect::Load::from_value(&contents[stringify!(#name)])?,
                     )
                 });
-                let field_defs = field_defs.collect::<proc_macro2::TokenStream>();
-                
+                let field_defs =
+                    field_defs.collect::<proc_macro2::TokenStream>();
+
                 arms.push(quote_spanned!(variant.ident.span()=>
                     (stringify!(#var_ident), Some(contents)) => {
                         let contents = contents.as_struct()?;
@@ -179,4 +191,3 @@ fn gen_unnamed_struct(
         }
     )
 }
-

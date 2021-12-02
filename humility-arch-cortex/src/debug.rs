@@ -4,9 +4,9 @@
 
 use anyhow::{anyhow, Result};
 
-use humility::hubris::*;
-use humility::core::Core;
 use bitfield::bitfield;
+use humility::core::Core;
+use humility::hubris::*;
 
 pub trait Register:
     Clone + From<u32> + Into<u32> + Sized + std::fmt::Debug
@@ -511,10 +511,7 @@ pub fn stm32_chipname(partno: u32) -> String {
     .to_string()
 }
 
-pub fn swoscaler(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-) -> Result<u16> {
+pub fn swoscaler(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<u16> {
     let debug_clock_mhz = 2_000_000;
 
     match hubris.clock(core)? {

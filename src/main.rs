@@ -2,24 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#[macro_use]
-extern crate log;
-
-use anyhow::{bail, Result};
-
-use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Args, Subcommand};
 
 use structopt::StructOpt;
 
 mod cmd;
-mod hiffy;
-mod i2c;
-mod test;
-
-mod doppel;
-mod reflect;
 
 macro_rules! fatal {
     ($fmt:expr) => ({
@@ -80,27 +68,6 @@ impl HumilityLog {
                 log::set_max_level(self.level);
             }
         };
-    }
-}
-
-fn attach_live(args: &Args) -> Result<Box<dyn Core>> {
-    if args.dump.is_some() {
-        bail!("must be run against a live system");
-    } else {
-        let probe = match &args.probe {
-            Some(p) => p,
-            None => "auto",
-        };
-
-        humility::core::attach(probe, &args.chip)
-    }
-}
-
-fn attach_dump(args: &Args, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
-    if let Some(dump) = &args.dump {
-        humility::core::attach_dump(dump, hubris)
-    } else {
-        bail!("must be run against a dump");
     }
 }
 

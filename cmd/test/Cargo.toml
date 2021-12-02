@@ -1,0 +1,11 @@
+[package]
+name = "humility-cmd-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cortex = { path = "../../humility-arch-cortex" }
+humility-cmd = { path = "../../humility-cmd" }
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }

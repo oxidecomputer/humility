@@ -4,8 +4,8 @@
 
 use anyhow::Result;
 
-use humility::core::Core;
 use crate::register_offs;
+use humility::core::Core;
 use num_traits::FromPrimitive;
 use num_traits::ToPrimitive;
 

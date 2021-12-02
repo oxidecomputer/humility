@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility_cmd::{Args, Archive, Command};
 use anyhow::{bail, Result};
 use humility::hubris::{HubrisArchive, HubrisPrintFormat};
+use humility_cmd::{Archive, Args, Command};
 use std::convert::TryInto;
 use structopt::clap::App;
 use structopt::StructOpt;

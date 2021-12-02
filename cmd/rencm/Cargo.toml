@@ -1,0 +1,15 @@
+[package]
+name = "humility-cmd-rencm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { path = "../../hif" }
+idt8a3xxxx = { path = "../../idt8a3xxxx" }
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+itertools = "0.10.1"
+parse_int = "0.4.0"
+log = {version = "0.4.8", features = ["std"]}

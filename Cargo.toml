@@ -10,7 +10,32 @@ members = [
     "humility-core",
     "humility-cmd",
     "humility-arch-cortex",
-    "cmd/apptable"
+    "cmd/apptable",
+    "cmd/diagnose",
+    "cmd/dump",
+    "cmd/etm",
+    "cmd/gpio",
+    "cmd/hiffy",
+    "cmd/i2c",
+    "cmd/itm",
+    "cmd/jefe",
+    "cmd/manifest",
+    "cmd/map",
+    "cmd/pmbus",
+    "cmd/probe",
+    "cmd/qspi",
+    "cmd/readmem",
+    "cmd/readvar",
+    "cmd/renbb",
+    "cmd/rencm",
+    "cmd/ringbuf",
+    "cmd/spd",
+    "cmd/spi",
+    "cmd/stackmargin",
+    "cmd/stmsecure",
+    "cmd/tasks",
+    "cmd/test",
+    "cmd/trace",
 ]
 
 [profile.release]
@@ -20,12 +45,35 @@ debug = true
 pmbus = { path = "./pmbus" }
 hif = { path = "./hif" }
 spd = { path = "./spd" }
-idt8a3xxxx = { path = "./idt8a3xxxx" }
-humility_load_derive = {path = "./load_derive"}
 humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
-cmd-apptable = { path = "./cmd/apptable", package = "apptable" }
+cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
+cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
+cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
+cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
+cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
+cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
+cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }
+cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
+cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
+cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
+cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
+cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
+cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
+cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
+cmd-readmem = { path = "./cmd/readmem", package = "humility-cmd-readmem" }
+cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
+cmd-renbb = { path = "./cmd/renbb", package = "humility-cmd-renbb" }
+cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
+cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
+cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
+cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
+cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }
+cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
+cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
+cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
+cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
 
 fallible-iterator = "0.2.0"
 log = {version = "0.4.8", features = ["std"]}
@@ -44,6 +92,4 @@ anyhow = { version = "1.0.44", features = ["backtrace"] }
 scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"
-postcard = "0.7.0"
-itertools = "0.10.1"
 indexmap = { version = "1.7", features = ["serde-1"] }
