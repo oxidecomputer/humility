@@ -1,0 +1,17 @@
+[package]
+name = "humility-cmd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+humility = { path = "../humility-core", package = "humility-core" }
+clap = "2.33.0"
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+hif = { path = "../hif" }
+indexmap = { version = "1.7", features = ["serde-1"] }
+humility_load_derive = {path = "../load_derive"}
+postcard = "0.7.0"
+parse_int = "0.4.0"
+colored = "2.0.0"
+log = {version = "0.4.8", features = ["std"]}
