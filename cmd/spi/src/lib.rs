@@ -234,7 +234,7 @@ fn spi(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(
+    let results = context.run(
         core,
         ops.as_slice(),
         match data {

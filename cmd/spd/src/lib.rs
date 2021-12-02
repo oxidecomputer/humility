@@ -264,7 +264,7 @@ fn spd(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(core, ops.as_slice(), None)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut header = true;
 
     if let Err(err) = results[0] {
@@ -322,8 +322,7 @@ fn spd(
 
             ops.push(Op::Done);
 
-            let results =
-                context.execute_blocking(core, ops.as_slice(), None)?;
+            let results = context.run(core, ops.as_slice(), None)?;
 
             //
             // If that succeeded, we'll have four buffers that should add up

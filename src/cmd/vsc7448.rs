@@ -158,7 +158,7 @@ impl<'a> Vsc7448<'a> {
             ((data >> 8) & 0xFF) as u8,
             (data & 0xFF) as u8,
         ];
-        self.context.execute_blocking(self.core, &ops, Some(&data))?;
+        self.context.run(self.core, &ops, Some(&data))?;
         Ok(())
     }
 
@@ -185,8 +185,7 @@ impl<'a> Vsc7448<'a> {
             ((addr >> 8) & 0xFF) as u8,
             (addr & 0xFF) as u8,
         ];
-        let results =
-            self.context.execute_blocking(self.core, &ops, Some(&data))?;
+        let results = self.context.run(self.core, &ops, Some(&data))?;
         let r = results[0]
             .as_ref()
             .map_err(|e| anyhow!("Got error code: {}", e))?;

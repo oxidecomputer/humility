@@ -342,7 +342,7 @@ fn rencm(
         //
         ops.push(Op::Done);
 
-        let results = context.execute_blocking(core, ops.as_slice(), None)?;
+        let results = context.run(core, ops.as_slice(), None)?;
 
         if results.len() != calls.len() {
             bail!(

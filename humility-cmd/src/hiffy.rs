@@ -369,7 +369,7 @@ impl<'a> HiffyContext<'a> {
     }
 
     /// Blocking execution of a program, returning the results
-    pub fn execute_blocking(
+    pub fn run(
         &mut self,
         core: &mut dyn Core,
         ops: &[Op],

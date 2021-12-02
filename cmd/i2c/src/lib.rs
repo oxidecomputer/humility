@@ -508,8 +508,7 @@ fn i2c(
             ops.push(Op::BranchGreaterThan(Target(0)));
             ops.push(Op::Done);
 
-            let results =
-                context.execute_blocking(core, ops.as_slice(), Some(&buf))?;
+            let results = context.run(core, ops.as_slice(), Some(&buf))?;
 
             bar.set_position(offset.into());
 
@@ -629,7 +628,7 @@ fn i2c(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(core, ops.as_slice(), None)?;
+    let results = context.run(core, ops.as_slice(), None)?;
 
     i2c_done(&subargs, &hargs, &results, func)?;
 

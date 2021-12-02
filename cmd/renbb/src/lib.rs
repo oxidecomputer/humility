@@ -251,8 +251,7 @@ fn renbb(
             //
             ops.push(Op::Done);
 
-            let results =
-                context.execute_blocking(core, ops.as_slice(), None)?;
+            let results = context.run(core, ops.as_slice(), None)?;
 
             let start = if lap == 0 {
                 match results[0] {

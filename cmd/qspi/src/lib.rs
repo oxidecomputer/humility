@@ -173,8 +173,7 @@ fn qspi(
 
             info!("erasing {} bytes...", filelen);
 
-            let results =
-                context.execute_blocking(core, ops.as_slice(), None)?;
+            let results = context.run(core, ops.as_slice(), None)?;
             let f = qspi_sector_erase;
 
             for (i, block_result) in results.iter().enumerate() {
@@ -250,8 +249,7 @@ fn qspi(
                 Op::Done,
             ];
 
-            let results =
-                context.execute_blocking(core, ops.as_slice(), Some(&buf))?;
+            let results = context.run(core, ops.as_slice(), Some(&buf))?;
 
             bar.set_position((offset + len).into());
 
@@ -309,7 +307,7 @@ fn qspi(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(
+    let results = context.run(
         core,
         ops.as_slice(),
         match data {

@@ -759,7 +759,7 @@ fn summarize(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(core, ops.as_slice(), None)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut base = 0;
 
     print!("{:13} {:16} {:3} {:4}", "DEVICE", "RAIL", "PG?", "#FLT");
@@ -1104,7 +1104,7 @@ fn writes(
     // Now go back through our devices checking results -- and creating our
     // next batch of work, if any.
     //
-    let results = context.execute_blocking(core, ops.as_slice(), None)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut ndx = 0;
     let mut additional = false;
 
@@ -1246,7 +1246,7 @@ fn writes(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(core, ops.as_slice(), None)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut ndx = 0;
 
     //
@@ -1559,7 +1559,7 @@ fn pmbus(
 
     ops.push(Op::Done);
 
-    let results = context.execute_blocking(core, ops.as_slice(), None)?;
+    let results = context.run(core, ops.as_slice(), None)?;
 
     let base = if setrail {
         match results[0] {
