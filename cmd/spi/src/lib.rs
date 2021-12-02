@@ -7,13 +7,12 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::printmem;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
+
 use std::convert::TryInto;
 use std::str;
-use std::thread;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
-use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -72,31 +71,12 @@ struct SpiArgs {
     discard: Option<usize>,
 }
 
-fn spi(
-    hubris: &mut HubrisArchive,
-    core: &mut dyn Core,
-    _args: &Args,
-    subargs: &Vec<String>,
-) -> Result<()> {
-    let subargs = SpiArgs::from_iter_safe(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
-
-    let func = |name, nargs| {
-        let f = funcs
-            .get(name)
-            .ok_or_else(|| anyhow!("did not find {} function", name))?;
-
-        if f.args.len() != nargs {
-            bail!("mismatched function signature on {}", name);
-        }
-
-        Ok(f)
-    };
-
-    let spi_read = func("SpiRead", 3)?;
-    let spi_write = func("SpiWrite", 2)?;
-
+/// Looks up which Hubris task is associated with SPI (accepting a peripheral
+/// hint to disambiguate).
+pub fn spi_task(
+    hubris: &HubrisArchive,
+    peripheral: Option<u8>,
+) -> Result<HubrisTask> {
     let lookup = |peripheral| {
         let spi = format!("spi{}", peripheral);
         let tasks = hubris.lookup_feature(&spi)?;
@@ -110,7 +90,7 @@ fn spi(
         }
     };
 
-    let task = if let Some(peripheral) = subargs.peripheral {
+    let task = if let Some(peripheral) = peripheral {
         match lookup(peripheral)? {
             Some(task) => task,
             None => {
@@ -143,7 +123,26 @@ fn spi(
 
         found[0].1
     };
+    if task == HubrisTask::Kernel {
+        bail!("SPI task cannot be the kernel");
+    }
+    Ok(task)
+}
 
+fn spi(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn Core,
+    _args: &Args,
+    subargs: &Vec<String>,
+) -> Result<()> {
+    let subargs = SpiArgs::from_iter_safe(subargs)?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let funcs = context.functions()?;
+
+    let spi_read = funcs.get("SpiRead", 3)?;
+    let spi_write = funcs.get("SpiWrite", 2)?;
+
+    let task = spi_task(hubris, subargs.peripheral)?;
     let mut ops = vec![];
 
     if let HubrisTask::Task(task) = task {
@@ -235,7 +234,7 @@ fn spi(
 
     ops.push(Op::Done);
 
-    context.execute(
+    let results = context.run(
         core,
         ops.as_slice(),
         match data {
@@ -243,16 +242,6 @@ fn spi(
             _ => None,
         },
     )?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
 
     if subargs.read {
         if let Ok(results) = &results[0] {

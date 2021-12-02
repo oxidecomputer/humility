@@ -2,15 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::printmem;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use std::thread;
-use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -378,13 +376,7 @@ fn i2c(
     };
 
     let funcs = context.functions()?;
-    let func = funcs
-        .get(fname)
-        .ok_or_else(|| anyhow!("did not find {} function", fname))?;
-
-    if func.args.len() != args {
-        bail!("mismatched function signature on {}", fname);
-    }
+    let func = funcs.get(fname, args)?;
 
     let hargs = humility_cmd::i2c::I2cArgs::parse(
         hubris,
@@ -440,8 +432,7 @@ fn i2c(
         let mut file = File::open(filename)?;
         let mut last = false;
 
-        let sleep =
-            funcs.get("Sleep").ok_or_else(|| anyhow!("did not find Sleep"))?;
+        let sleep = funcs.get("Sleep", 1)?;
 
         let started = Instant::now();
         let bar = ProgressBar::new(filelen as u64);
@@ -516,17 +507,7 @@ fn i2c(
             ops.push(Op::BranchGreaterThan(Target(0)));
             ops.push(Op::Done);
 
-            context.execute(core, ops.as_slice(), Some(&buf))?;
-
-            loop {
-                if context.done(core)? {
-                    break;
-                }
-
-                thread::sleep(Duration::from_millis(100));
-            }
-
-            let results = context.results(core)?;
+            let results = context.run(core, ops.as_slice(), Some(&buf))?;
 
             bar.set_position(offset.into());
 
@@ -646,17 +627,7 @@ fn i2c(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice(), None)?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
+    let results = context.run(core, ops.as_slice(), None)?;
 
     i2c_done(&subargs, &hargs, &results, func)?;
 

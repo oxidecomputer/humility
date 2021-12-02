@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use humility::hubris::*;
 use humility_cmd::Args;
 use humility_cmd::{attach_dump, attach_live};
@@ -44,6 +44,7 @@ pub fn init<'a, 'b>(
         cmd_test::init,
         cmd_trace::init,
         cmd_stmsecure::init,
+        cmd_vsc7448::init,
     ];
 
     for dcmd in &dcmds {
@@ -63,7 +64,6 @@ pub fn init<'a, 'b>(
 
 pub fn subcommand(
     commands: &HashMap<&'static str, Command>,
-    hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &Vec<String>,
 ) -> Result<()> {
@@ -73,26 +73,29 @@ pub fn subcommand(
             Command::Unattached { archive, .. } => archive,
         };
 
-        match (archive, hubris.loaded()) {
-            (Archive::Required, false) => {
-                bail!("must provide a Hubris archive or dump");
-            }
+        let mut hubris =
+            HubrisArchive::new().context("failed to initialize")?;
 
-            (Archive::Prohibited, true) => {
-                bail!("does not operate on a Hubris archive or dump");
+        if *archive != Archive::Ignored {
+            if let Some(archive) = &args.archive {
+                hubris.load(archive).context("failed to load archive")?;
+            } else if let Some(dump) = &args.dump {
+                hubris.load_dump(dump).context("failed to load dump")?;
             }
+        }
 
-            (_, _) => {}
+        if *archive == Archive::Required && !hubris.loaded() {
+            bail!("must provide a Hubris archive or dump");
         }
 
         match command {
             Command::Attached { run, attach, validate, .. } => {
                 let mut c = match attach {
                     Attach::LiveOnly => attach_live(args),
-                    Attach::DumpOnly => attach_dump(args, hubris),
+                    Attach::DumpOnly => attach_dump(args, &hubris),
                     Attach::Any => {
                         if args.dump.is_some() {
-                            attach_dump(args, hubris)
+                            attach_dump(args, &hubris)
                         } else {
                             attach_live(args)
                         }
@@ -111,9 +114,11 @@ pub fn subcommand(
                     Validate::None => {}
                 }
 
-                (run)(hubris, core, args, subargs)
+                (run)(&mut hubris, core, args, subargs)
             }
-            Command::Unattached { run, .. } => (run)(hubris, args, subargs),
+            Command::Unattached { run, .. } => {
+                (run)(&mut hubris, args, subargs)
+            }
         }
     } else {
         bail!("command {} not found", subargs[0]);

@@ -9,7 +9,8 @@ use humility::hubris::*;
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::time::Instant;
+use std::thread;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, PartialEq)]
 enum State {
@@ -107,6 +108,26 @@ impl HiffyFunction {
     }
 }
 
+/// Simple wrapper `struct` that exposes a checked `get(name, nargs)`
+#[derive(Debug)]
+pub struct HiffyFunctions(pub HashMap<String, HiffyFunction>);
+
+impl HiffyFunctions {
+    pub fn get(&self, name: &str, nargs: usize) -> Result<&HiffyFunction> {
+        let f = self
+            .0
+            .get(name)
+            .ok_or_else(|| anyhow!("did not find {} function", name))?;
+        if f.args.len() != nargs {
+            bail!("mismatched function signature on {}", name);
+        }
+        Ok(f)
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl<'a> HiffyContext<'a> {
     fn variable(
         hubris: &'a HubrisArchive,
@@ -197,7 +218,7 @@ impl<'a> HiffyContext<'a> {
         self.data.size
     }
 
-    pub fn functions(&mut self) -> Result<HashMap<String, HiffyFunction>> {
+    pub fn functions(&mut self) -> Result<HiffyFunctions> {
         let hubris = self.hubris;
 
         let goff = hubris
@@ -281,10 +302,12 @@ impl<'a> HiffyContext<'a> {
             rval.insert(func.name.clone(), func);
         }
 
-        Ok(rval)
+        Ok(HiffyFunctions(rval))
     }
 
-    pub fn execute(
+    /// Begins HIF execution.  This is non-blocking with respect to the HIF
+    /// program, so you will need to poll [Self::done] to check for completion.
+    pub fn start(
         &mut self,
         core: &mut dyn Core,
         ops: &[Op],
@@ -345,6 +368,20 @@ impl<'a> HiffyContext<'a> {
         core.run()?;
 
         Ok(())
+    }
+
+    /// Blocking execution of a program, returning the results
+    pub fn run(
+        &mut self,
+        core: &mut dyn Core,
+        ops: &[Op],
+        data: Option<&[u8]>,
+    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+        self.start(core, ops, data)?;
+        while !self.done(core)? {
+            thread::sleep(Duration::from_millis(100));
+        }
+        self.results(core)
     }
 
     pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {

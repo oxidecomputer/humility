@@ -7,11 +7,9 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::str;
-use std::thread;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
-use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -73,23 +71,11 @@ fn gpio(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    let func = |name, nargs| {
-        let f = funcs
-            .get(name)
-            .ok_or_else(|| anyhow!("did not find {} function", name))?;
-
-        if f.args.len() != nargs {
-            bail!("mismatched function signature on {}", name);
-        }
-
-        Ok(f)
-    };
-
-    let gpio_toggle = func("GpioToggle", 2)?;
-    let gpio_set = func("GpioSet", 2)?;
-    let gpio_reset = func("GpioReset", 2)?;
-    let gpio_input = func("GpioInput", 1)?;
-    let gpio_configure = func("GpioConfigure", 7)?;
+    let gpio_toggle = funcs.get("GpioToggle", 2)?;
+    let gpio_set = funcs.get("GpioSet", 2)?;
+    let gpio_reset = funcs.get("GpioReset", 2)?;
+    let gpio_input = funcs.get("GpioInput", 1)?;
+    let gpio_configure = funcs.get("GpioConfigure", 7)?;
     let mut configure_args = vec![];
 
     let target = if subargs.toggle {
@@ -183,17 +169,7 @@ fn gpio(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice(), None)?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
+    let results = context.run(core, ops.as_slice(), None)?;
 
     if subargs.input {
         let mut header = false;

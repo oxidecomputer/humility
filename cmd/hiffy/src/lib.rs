@@ -44,7 +44,7 @@ fn hiffy(
 
     byid.resize(funcs.len(), None);
 
-    for (name, func) in &funcs {
+    for (name, func) in &funcs.0 {
         let ndx = func.id.0 as usize;
 
         if ndx >= byid.len() {

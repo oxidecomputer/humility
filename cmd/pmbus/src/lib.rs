@@ -8,16 +8,14 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use std::thread;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use hif::*;
 use indexmap::IndexMap;
 use pmbus::commands::*;
 use pmbus::*;
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::time::Duration;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -761,17 +759,7 @@ fn summarize(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice(), None)?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut base = 0;
 
     print!("{:13} {:16} {:3} {:4}", "DEVICE", "RAIL", "PG?", "#FLT");
@@ -1112,23 +1100,12 @@ fn writes(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice(), None)?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
     //
     // Now go back through our devices checking results -- and creating our
     // next batch of work, if any.
     //
-    let results = context.results(core)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut ndx = 0;
-
     let mut additional = false;
 
     let success = |harg, rail: &Option<u8>, cmd| {
@@ -1269,17 +1246,7 @@ fn writes(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice(), None)?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
+    let results = context.run(core, ops.as_slice(), None)?;
     let mut ndx = 0;
 
     //
@@ -1353,21 +1320,8 @@ fn pmbus(
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
-    let func = funcs
-        .get("I2cRead")
-        .ok_or_else(|| anyhow!("did not find I2cRead function"))?;
-
-    if func.args.len() != 7 {
-        bail!("mismatched function signature on I2cRead");
-    }
-
-    let write_func = funcs
-        .get("I2cWrite")
-        .ok_or_else(|| anyhow!("did not find I2cWrite function"))?;
-
-    if write_func.args.len() != 8 {
-        bail!("mismatched function signature on I2cWrite");
-    }
+    let func = funcs.get("I2cRead", 7)?;
+    let write_func = funcs.get("I2cWrite", 8)?;
 
     if subargs.summarize {
         summarize(&subargs, hubris, core, &mut context, func, write_func)?;
@@ -1605,17 +1559,7 @@ fn pmbus(
 
     ops.push(Op::Done);
 
-    context.execute(core, ops.as_slice(), None)?;
-
-    loop {
-        if context.done(core)? {
-            break;
-        }
-
-        thread::sleep(Duration::from_millis(100));
-    }
-
-    let results = context.results(core)?;
+    let results = context.run(core, ops.as_slice(), None)?;
 
     let base = if setrail {
         match results[0] {
