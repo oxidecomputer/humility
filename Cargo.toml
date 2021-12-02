@@ -36,6 +36,7 @@ members = [
     "cmd/tasks",
     "cmd/test",
     "cmd/trace",
+    "cmd/vsc7448",
 ]
 
 [profile.release]
@@ -74,6 +75,7 @@ cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
 cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
+cmd-vsc7448 = { path = "./cmd/vsc7448", package = "humility-cmd-vsc7448" }
 
 fallible-iterator = "0.2.0"
 log = {version = "0.4.8", features = ["std"]}
@@ -93,5 +95,3 @@ scroll = "0.10"
 indicatif = "0.15"
 colored = "2.0.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
-vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
-vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }

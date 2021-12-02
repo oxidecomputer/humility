@@ -2,13 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-mod vsc7448;
-
+use anyhow::{bail, Context, Result};
 use humility::hubris::*;
 use humility_cmd::Args;
 use humility_cmd::{attach_dump, attach_live};
 use humility_cmd::{Archive, Attach, Command, Validate};
-use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use structopt::clap::App;
 
@@ -46,7 +44,7 @@ pub fn init<'a, 'b>(
         cmd_test::init,
         cmd_trace::init,
         cmd_stmsecure::init,
-        vsc7448::init,
+        cmd_vsc7448::init,
     ];
 
     for dcmd in &dcmds {

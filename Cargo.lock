@@ -557,6 +557,7 @@ dependencies = [
  "humility-cmd-tasks",
  "humility-cmd-test",
  "humility-cmd-trace",
+ "humility-cmd-vsc7448",
  "humility-core",
  "humility-cortex",
  "indexmap",
@@ -573,8 +574,6 @@ dependencies = [
  "spd",
  "structopt",
  "toml",
- "vsc7448-info",
- "vsc7448-types",
 ]
 
 [[package]]
@@ -909,6 +908,22 @@ dependencies = [
  "humility-core",
  "humility-cortex",
  "structopt",
+]
+
+[[package]]
+name = "humility-cmd-vsc7448"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-spi",
+ "humility-core",
+ "log",
+ "parse_int",
+ "structopt",
+ "vsc7448-info",
+ "vsc7448-types",
 ]
 
 [[package]]

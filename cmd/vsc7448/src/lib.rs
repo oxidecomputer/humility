@@ -1,15 +1,14 @@
-/*
- * Copyright 2021 Oxide Computer Company
- */
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use crate::cmd::{Archive, Attach, Validate};
 use humility::core::Core;
-use humility_cmd::hiffy::{HiffyContext, HiffyFunctions};
 use humility::hubris::*;
-use cmd_spi::spi_task;
-use crate::Args;
+use humility_cmd::hiffy::{HiffyContext, HiffyFunctions};
+use humility_cmd::{Archive, Args, Attach, Validate};
+use humility_cmd_spi::spi_task;
 
 use anyhow::{anyhow, bail, Result};
 use hif::*;
@@ -446,13 +445,13 @@ fn vsc7448_get_info(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
+pub fn init<'a, 'b>() -> (humility_cmd::Command, App<'a, 'b>) {
     // We do a bonus parse of the command-line arguments here to see if we're
     // doing a `vsc7448 info` subcommand, which doesn't require a Hubris image
     // or attached device; skipping those steps improves runtime (especially
     // in debug builds)
     let subcmd_attached = (
-        crate::cmd::Command::Attached {
+        humility_cmd::Command::Attached {
             name: "vsc7448",
             archive: Archive::Required,
             attach: Attach::LiveOnly,
@@ -462,7 +461,7 @@ pub fn init<'a, 'b>() -> (crate::cmd::Command, App<'a, 'b>) {
         Vsc7448Args::clap(),
     );
     let subcmd_unattached = (
-        crate::cmd::Command::Unattached {
+        humility_cmd::Command::Unattached {
             name: "vsc7448",
             archive: Archive::Ignored,
             run: vsc7448_get_info,
