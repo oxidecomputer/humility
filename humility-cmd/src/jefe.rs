@@ -12,6 +12,7 @@ use std::time::Instant;
 
 #[derive(Debug)]
 pub struct JefeVariables<'a> {
+    #[allow(unused)]
     hubris: &'a HubrisArchive,
     ready: &'a HubrisVariable,
     kick: &'a HubrisVariable,
@@ -21,7 +22,9 @@ pub struct JefeVariables<'a> {
     task: &'a HubrisVariable,
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
+    #[allow(unused)]
     timeout: u32,
+    #[allow(unused)]
     timedout: bool,
 }
 
