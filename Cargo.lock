@@ -513,6 +513,7 @@ dependencies = [
 [[package]]
 name = "hif"
 version = "0.2.3"
+source = "git+https://github.com/oxidecomputer/hif#e512e4ce109eb697513cf59def667e2f0d6eae5c"
 dependencies = [
  "pkg-version",
  "postcard",
@@ -985,6 +986,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 [[package]]
 name = "idt8a3xxxx"
 version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/idt8a3xxxx#3c2371d31e496fea015a3751218a282581d5ce8e"
 dependencies = [
  "anyhow",
  "ron",
@@ -1274,6 +1276,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/pmbus#1d87df44c158d5c6601cbf011bd8fe7a29f545c7"
 dependencies = [
  "anyhow",
  "convert_case",
@@ -1588,6 +1591,7 @@ dependencies = [
 [[package]]
 name = "spd"
 version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/spd#f56bca9fbc380355cfe904912bf73789abd06e26"
 dependencies = [
  "num-derive",
  "num-traits",

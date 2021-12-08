@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.44", features = ["backtrace"] }
-hif = { path = "../../hif" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
 humility-cmd-spi = { path = "../spi" }
