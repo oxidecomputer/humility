@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
-hif = { path = "../../hif" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
 structopt = "0.3"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 parse_int = "0.4.0"

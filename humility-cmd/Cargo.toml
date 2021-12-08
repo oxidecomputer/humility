@@ -8,7 +8,7 @@ humility = { path = "../humility-core", package = "humility-core" }
 clap = "2.33.0"
 structopt = "0.3"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
-hif = { path = "../hif" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
 indexmap = { version = "1.7", features = ["serde-1"] }
 humility_load_derive = {path = "../load_derive"}
 postcard = "0.7.0"

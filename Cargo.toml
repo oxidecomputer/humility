@@ -43,9 +43,9 @@ members = [
 debug = true
 
 [dependencies]
-pmbus = { path = "./pmbus" }
-hif = { path = "./hif" }
-spd = { path = "./spd" }
+pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+spd = { git = "https://github.com/oxidecomputer/spd" }
 humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }

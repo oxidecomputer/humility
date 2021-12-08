@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
-hif = { path = "../../hif" }
-idt8a3xxxx = { path = "../../idt8a3xxxx" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 structopt = "0.3"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 itertools = "0.10.1"
