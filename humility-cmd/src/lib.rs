@@ -100,13 +100,13 @@ pub enum Command {
             &mut HubrisArchive,
             &mut dyn Core,
             &Args,
-            &Vec<String>,
+            &[String],
         ) -> Result<()>,
     },
     Unattached {
         name: &'static str,
         archive: Archive,
-        run: fn(&mut HubrisArchive, &Args, &Vec<String>) -> Result<()>,
+        run: fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>,
     },
 }
 

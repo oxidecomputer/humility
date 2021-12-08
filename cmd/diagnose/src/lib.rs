@@ -90,7 +90,7 @@ fn diagnose(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = DiagnoseArgs::from_iter_safe(subargs)?;
 

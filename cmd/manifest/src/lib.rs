@@ -15,7 +15,7 @@ struct ManifestArgs {}
 fn manifestcmd(
     hubris: &mut HubrisArchive,
     _args: &Args,
-    _subargs: &Vec<String>,
+    _subargs: &[String],
 ) -> Result<()> {
     hubris.manifest()?;
     Ok(())

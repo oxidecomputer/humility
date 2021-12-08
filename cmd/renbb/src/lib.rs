@@ -84,7 +84,7 @@ fn renbb(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = RenbbArgs::from_iter_safe(subargs)?;
 
@@ -168,10 +168,7 @@ fn renbb(
         }
     };
 
-    let mut base = vec![];
-
-    base.push(Op::Push(hargs.controller));
-    base.push(Op::Push(hargs.port.index));
+    let mut base = vec![Op::Push(hargs.controller), Op::Push(hargs.port.index)];
 
     if let Some(mux) = hargs.mux {
         base.push(Op::Push(mux.0));

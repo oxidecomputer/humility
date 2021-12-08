@@ -75,7 +75,7 @@ fn rencm(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     use idt8a3xxxx::*;
 

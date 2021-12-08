@@ -226,7 +226,7 @@ impl ETMLAR {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
-        let val: u32 = 0xc5_acce55;
+        let val: u32 = 0xc5ac_ce55;
         core.write_word_32(ETMLAR::ADDRESS, val)?;
         Ok(())
     }
@@ -353,7 +353,7 @@ fn encode(hdr: ETM3Header) -> u8 {
         ETM3Header::ISync => 0b0000_1000,
         ETM3Header::Trigger => 0b0000_1100,
         ETM3Header::OutOfOrder { tag, size } => {
-            0b0000_0000 | ((tag & 0b11) << 5 | (size & 0b11) << 2)
+            (tag & 0b11) << 5 | (size & 0b11) << 2
         }
         ETM3Header::StoreFailed => 0b0101_0000,
         ETM3Header::ISyncCycleCount => 0b0111_0000,

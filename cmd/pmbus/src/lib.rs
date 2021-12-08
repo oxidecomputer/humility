@@ -348,7 +348,7 @@ fn prepare_write(
     mode: impl Fn() -> VOutModeCommandData,
     command: &dyn pmbus::Command,
     payload: &[u8],
-    writes: &Vec<(Bitpos, Replacement)>,
+    writes: &[(Bitpos, Replacement)],
 ) -> Result<Vec<u8>> {
     let name = command.name();
     let mut rval = payload.to_vec();
@@ -505,12 +505,13 @@ fn split_write(write: &str) -> Result<(&str, Option<&str>, Option<&str>)> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn summarize_rail(
     subargs: &PmbusArgs,
     device: &HubrisI2cDevice,
     driver: &pmbus::Device,
     rail: &str,
-    calls: &Vec<u8>,
+    calls: &[u8],
     results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
     width: usize,
@@ -577,16 +578,14 @@ fn summarize_rail(
         match status {
             Some(status) => {
                 let _ = status.interpret(getmode, |field, value| {
-                    if field.name().contains("Fault") {
-                        if value.raw() != 0 {
-                            faults.push(field.desc());
-                        }
+                    if field.name().contains("Fault") && value.raw() != 0 {
+                        faults.push(field.desc());
                     }
                 });
 
                 let str = format!("{}", faults.len());
 
-                if faults.len() != 0 {
+                if !faults.is_empty() {
                     str.red()
                 } else {
                     str.green()
@@ -635,12 +634,12 @@ fn summarize_rail(
 
     println!();
 
-    if subargs.verbose && faults.len() != 0 {
+    if subargs.verbose && !faults.is_empty() {
         println!("{:38}|", "");
         println!("{:38}+--- {}", "", faults[0]);
 
-        for i in 1..faults.len() {
-            println!("{:38}     {}", "", faults[i]);
+        for item in faults.iter().skip(1) {
+            println!("{:38}     {}", "", item);
         }
 
         println!();
@@ -864,7 +863,7 @@ impl WriteOp {
                             cmd
                         );
                     }
-                    Some(value) => value.split(",").collect(),
+                    Some(value) => value.split(',').collect(),
                 };
 
                 let mut payload = vec![];
@@ -906,7 +905,7 @@ impl WriteOp {
 }
 
 fn validate_writes(
-    writecmds: &Vec<String>,
+    writecmds: &[String],
     device: pmbus::Device,
 ) -> Result<IndexMap<u8, (String, WriteOp)>> {
     let mut rval = IndexMap::new();
@@ -988,7 +987,7 @@ fn writes(
         .fold(None, |dev, (harg, _)| {
             Some(match dev {
                 None => match &harg.device {
-                    Some(device) => match pmbus::Device::from_str(&device) {
+                    Some(device) => match pmbus::Device::from_str(device) {
                         Some(device) => device,
                         None => pmbus::Device::Common,
                     },
@@ -996,7 +995,7 @@ fn writes(
                 },
                 Some(pmbus::Device::Common) => pmbus::Device::Common,
                 Some(found) => match &harg.device {
-                    Some(device) => match pmbus::Device::from_str(&device) {
+                    Some(device) => match pmbus::Device::from_str(device) {
                         Some(device) if device == found => device,
                         _ => pmbus::Device::Common,
                     },
@@ -1010,7 +1009,7 @@ fn writes(
     // Now determine what we're actually going to write.
     //
     let writecmds = subargs.writes.as_ref().unwrap();
-    let writes = validate_writes(&writecmds, device)?;
+    let writes = validate_writes(writecmds, device)?;
 
     let mut ops = vec![];
 
@@ -1281,11 +1280,12 @@ fn writes(
     Ok(())
 }
 
+#[allow(clippy::print_literal)]
 fn pmbus(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = PmbusArgs::from_iter_safe(subargs)?;
 
@@ -1359,15 +1359,13 @@ fn pmbus(
                 bail!("unknown device \"{}\"", driver);
             }
         }
-    } else {
-        if let Some(driver) = hargs.device {
-            match pmbus::Device::from_str(&driver) {
-                Some(device) => device,
-                None => pmbus::Device::Common,
-            }
-        } else {
-            pmbus::Device::Common
+    } else if let Some(driver) = hargs.device {
+        match pmbus::Device::from_str(&driver) {
+            Some(device) => device,
+            None => pmbus::Device::Common,
         }
+    } else {
+        pmbus::Device::Common
     };
 
     let (all, _) = all_commands(device);
@@ -1478,14 +1476,14 @@ fn pmbus(
             None => bail!("rail specified, but device has unknown rails"),
         };
 
-        if rails.len() == 0 {
+        if rails.is_empty() {
             bail!("rail specified, but device has no defined rails");
         }
 
         //
         // We want to allow our rail to be specified by number or by name.
         //
-        let rnum = match parse_int::parse::<u8>(&rail) {
+        let rnum = match parse_int::parse::<u8>(rail) {
             Ok(rnum) => {
                 if rails.len() == 1 {
                     bail!("rail specified, but device only has one rail");

@@ -22,7 +22,7 @@ fn stackmargin(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    _subargs: &Vec<String>,
+    _subargs: &[String],
 ) -> Result<()> {
     let regions = hubris.regions(core)?;
 

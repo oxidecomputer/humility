@@ -145,7 +145,7 @@ fn stmsecure_status(core: &mut dyn Core) -> Result<()> {
     let scar_cur1 = core.read_word_32(FLASH_SCAR_CUR1)?;
     let dmes1 = (scar_cur1 & 0x8000_0000) == (0x8000_0000);
     let sec_start = ((scar_cur1 & 0x0000_0FFF) << 8) | 0x0800_0000;
-    let sec_end = (((scar_cur1 & 0x0FFF_000) >> 16) << 8) | 0x0800_00ff;
+    let sec_end = (((scar_cur1 & 0x00FF_F000) >> 16) << 8) | 0x0800_00ff;
 
     println!("Sec bit: {}", sec_en);
     println!("Start: {:x}", sec_start);
@@ -277,7 +277,7 @@ fn stmsecure(
     _hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = StmSecureArgs::from_iter_safe(subargs)?;
 

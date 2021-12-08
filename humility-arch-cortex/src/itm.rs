@@ -81,7 +81,7 @@ impl ITM_LAR {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
-        let val: u32 = 0xc5_acce55;
+        let val: u32 = 0xc5ac_ce55;
         core.write_word_32(ITM_LAR::ADDRESS, val)?;
         Ok(())
     }
@@ -163,7 +163,7 @@ fn encode(hdr: ITMHeader) -> u8 {
         ITMHeader::LocalTimestamp2 { ts } => {
             assert!(ts != 0);
             assert!(ts < 0b111);
-            0b0000_0000 | (ts << 4)
+            ts << 4
         }
 
         ITMHeader::GlobalTimestamp1 => 0b1001_0100,
@@ -176,7 +176,7 @@ fn encode(hdr: ITMHeader) -> u8 {
         ITMHeader::Instrumentation { a, ss } => {
             assert!(ss != 0);
             assert!((a >> 5) == 0);
-            0b0000_0000 | (a << 3) | ss
+            (a << 3) | ss
         }
 
         ITMHeader::Hardware { a, ss } => {

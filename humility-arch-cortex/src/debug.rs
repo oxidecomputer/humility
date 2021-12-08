@@ -144,14 +144,14 @@ register!(CFSR, 0xe000_ed28,
     pub usage_no_coprocessor, _: 16 + 3;
     pub usage_invalid_pc, _: 16 + 2;
     pub usage_invalid_state, _: 16 + 1;
-    pub usage_undefined_instr, _: 16 + 0;
+    pub usage_undefined_instr, _: 16;
     pub bus_addr_valid, _: 8 + 7;
     pub bus_lazy_fp, _: 8 + 5;
     pub bus_exception_entry, _: 8 + 4;
     pub bus_exception_return, _: 8 + 3;
     pub bus_imprecise_data, _: 8 + 2;
     pub bus_precise_data, _: 8 + 1;
-    pub bus_instr_prefetch, _: 8 + 0;
+    pub bus_instr_prefetch, _: 8;
     pub mem_addr_valid, _: 7;
     pub mem_lazy_fp, _: 5;
     pub mem_exception_entry, _: 4;

@@ -25,7 +25,7 @@ fn probecmd(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    _subargs: &Vec<String>,
+    _subargs: &[String],
 ) -> Result<()> {
     use num_traits::FromPrimitive;
     let mut status = vec![];

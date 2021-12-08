@@ -97,7 +97,7 @@ fn ringbuf(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = RingbufArgs::from_iter_safe(subargs)?;
 
