@@ -288,15 +288,15 @@ impl CoreSightComponent {
     }
 
     pub fn displayable(&self) -> bool {
-        match self {
+        !matches!(
+            self,
             CoreSightComponent::DebugV8M
-            | CoreSightComponent::DebugV8R
-            | CoreSightComponent::DebugV80A
-            | CoreSightComponent::DebugV81A
-            | CoreSightComponent::DebugV82A
-            | CoreSightComponent::Unknown { .. } => false,
-            _ => true,
-        }
+                | CoreSightComponent::DebugV8R
+                | CoreSightComponent::DebugV80A
+                | CoreSightComponent::DebugV81A
+                | CoreSightComponent::DebugV82A
+                | CoreSightComponent::Unknown { .. }
+        )
     }
 }
 

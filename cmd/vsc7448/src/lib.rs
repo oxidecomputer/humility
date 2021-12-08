@@ -239,11 +239,9 @@ impl<'a> Vsc7448<'a> {
         // the page when done _or_ whenever exiting early
         info!("Switching to page {}", page);
         self.miim_write_inner(
-            phy,
-            0,  // STANDARD
+            phy, 0,  // STANDARD
             31, // PAGE
-            page.try_into().unwrap(),
-            false,
+            page, false,
         )?;
         let data = (1 << 31) | // MIIM_CMD_VLD
             ((phy.phy as u32) << 25) | // MIIM_CMD_PHYAD
@@ -283,11 +281,9 @@ impl<'a> Vsc7448<'a> {
         if switch_page {
             info!("Switching to page {}", page);
             self.miim_write_inner(
-                phy,
-                0,  // STANDARD
+                phy, 0,  // STANDARD
                 31, // PAGE
-                page.try_into().unwrap(),
-                false,
+                page, false,
             )?;
         }
         let data = (1 << 31) | // MIIM_CMD_VLD
@@ -316,7 +312,7 @@ fn vsc7448(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
     let mut vsc = Vsc7448::new(hubris, core, &subargs)?;
@@ -362,40 +358,41 @@ fn vsc7448(
             let (page, reg, name, fields) = if let Ok(reg) = parsed {
                 (
                     reg.page_addr().try_into().unwrap(),
-                    reg.reg_addr().try_into().unwrap(),
+                    reg.reg_addr(),
                     format!("{}", reg),
                     reg.fields(),
                 )
-            } else {
-                if let Ok(nums) = reg
-                    .split(':')
-                    .map(|s| s.parse::<u16>())
-                    .collect::<Result<Vec<_>, _>>()
-                {
-                    match nums.len() {
-                        1 => (
-                            0,
-                            nums[0].try_into().unwrap(),
-                            format!("0:{}", nums[0]),
-                            &dummy_fields,
-                        ),
-                        2 => (
-                            nums[0],
-                            nums[1].try_into().unwrap(),
-                            format!("{}:{}", nums[0], nums[1]),
-                            &dummy_fields,
-                        ),
-                        _ => {
-                            Err(vsc7448_info::parse::ParseError::TooManyItems)?
-                        }
+            } else if let Ok(nums) = reg
+                .split(':')
+                .map(|s| s.parse::<u16>())
+                .collect::<Result<Vec<_>, _>>()
+            {
+                match nums.len() {
+                    1 => (
+                        0,
+                        nums[0].try_into().unwrap(),
+                        format!("0:{}", nums[0]),
+                        &dummy_fields,
+                    ),
+                    2 => (
+                        nums[0],
+                        nums[1].try_into().unwrap(),
+                        format!("{}:{}", nums[0], nums[1]),
+                        &dummy_fields,
+                    ),
+                    _ => {
+                        return Err(
+                            vsc7448_info::parse::ParseError::TooManyItems
+                                .into(),
+                        );
                     }
-                } else {
-                    // If the last-change parse failed, then just return the
-                    // previous parse error.
-                    assert!(parsed.is_err());
-                    parsed?;
-                    unreachable!()
                 }
+            } else {
+                // If the last-change parse failed, then just return the
+                // previous parse error.
+                assert!(parsed.is_err());
+                parsed?;
+                unreachable!()
             };
             match cmd {
                 PhyCommand::Write { addr, value, .. } => {
@@ -427,7 +424,7 @@ fn vsc7448(
 fn vsc7448_get_info(
     hubris: &mut HubrisArchive,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     assert!(!hubris.loaded());
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;

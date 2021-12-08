@@ -964,7 +964,7 @@ impl HubrisArchive {
                     {
                         e.insert(HubrisSymbol {
                             name: String::from(name),
-                            demangled_name: demangle_name(&name),
+                            demangled_name: demangle_name(name),
                             size,
                             addr,
                             goff,
@@ -1828,18 +1828,9 @@ impl HubrisArchive {
                             name: name.clone(),
                             index: index as u8,
                         },
-                        name: match port.name {
-                            Some(ref name) => Some(name.clone()),
-                            None => None,
-                        },
-                        description: match port.description {
-                            Some(ref descr) => Some(descr.clone()),
-                            None => None,
-                        },
-                        target: match controller.target {
-                            Some(target) => target,
-                            None => false,
-                        },
+                        name: port.name.as_ref().cloned(),
+                        description: port.description.as_ref().cloned(),
+                        target: controller.target.unwrap_or(false),
                     });
                 }
             }
@@ -1880,12 +1871,12 @@ impl HubrisArchive {
                     },
                 };
 
-                let p = port.clone();
+                let port = port.clone();
 
                 self.manifest.i2c_devices.push(HubrisI2cDevice {
                     device: device.device.clone(),
-                    controller: controller,
-                    port: p,
+                    controller,
+                    port,
                     mux: device.mux,
                     segment: device.segment,
                     address: device.address,
@@ -3345,6 +3336,7 @@ impl HubrisArchive {
         Ok(())
     }
 
+    #[allow(clippy::print_literal)]
     pub fn manifest(&self) -> Result<()> {
         ensure!(
             !self.modules.is_empty(),
@@ -3432,7 +3424,7 @@ impl HubrisArchive {
             id += 1;
         }
 
-        if self.manifest.i2c_buses.len() != 0 {
+        if !self.manifest.i2c_buses.is_empty() {
             let mut controllers = HashSet::new();
 
             for bus in &self.manifest.i2c_buses {
@@ -3465,7 +3457,7 @@ impl HubrisArchive {
             }
         }
 
-        if self.manifest.i2c_devices.len() != 0 {
+        if !self.manifest.i2c_devices.is_empty() {
             println!(
                 "{:>12} => {} device{}",
                 "i2c devices",
@@ -3500,6 +3492,7 @@ impl HubrisArchive {
         Ok(())
     }
 
+    #[allow(clippy::print_literal)]
     pub fn list_variables(&self) -> Result<()> {
         let mut variables = vec![];
 
@@ -3627,7 +3620,7 @@ impl HubrisArchive {
             .filter(|bus| bus.controller == controller)
             .collect::<Vec<_>>();
 
-        if found.len() == 0 {
+        if found.is_empty() {
             bail!("unknown I2C controller {}", controller);
         } else if found.len() == 1 {
             Ok(&found[0].port)
@@ -4009,7 +4002,7 @@ impl<'a> HubrisType<'a> {
             Self::Ptr(g) => {
                 let name = &hubris
                     .ptrtypes
-                    .get(&g)
+                    .get(g)
                     .ok_or_else(|| anyhow!("not a pointer: {:?}", g))?
                     .0;
                 Ok(name.into())

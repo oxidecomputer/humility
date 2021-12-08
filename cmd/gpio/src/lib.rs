@@ -65,7 +65,7 @@ fn gpio(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = GpioArgs::from_iter_safe(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;

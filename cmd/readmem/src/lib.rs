@@ -38,7 +38,7 @@ fn readmem(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = ReadmemArgs::from_iter_safe(subargs)?;
     let max = humility::core::CORE_MAX_READSIZE;

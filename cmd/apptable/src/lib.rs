@@ -22,7 +22,7 @@ struct ApptableArgs {
 fn apptablecmd(
     hubris: &mut HubrisArchive,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = ApptableArgs::from_iter_safe(subargs)?;
 

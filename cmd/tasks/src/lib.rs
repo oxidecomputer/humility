@@ -125,7 +125,7 @@ fn tasks(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = TasksArgs::from_iter_safe(subargs)?;
 
@@ -182,11 +182,9 @@ fn tasks(
                 found = true;
             }
 
-            let timer = if let Some(deadline) = task.timer.deadline {
-                Some((deadline.0 as i64 - ticks as i64, task.timer.to_post.0))
-            } else {
-                None
-            };
+            let timer = task.timer.deadline.map(|deadline| {
+                (deadline.0 as i64 - ticks as i64, task.timer.to_post.0)
+            });
 
             {
                 let mut modname = module.to_string();

@@ -227,7 +227,7 @@ impl Enum {
     ///
     /// ...rather than a `u32`.
     pub fn contents(&self) -> Option<&Value> {
-        self.1.as_ref().map(|b| &**b)
+        self.1.as_deref()
     }
 
     /// Interprets this as an `Option`-shaped enumeration consisting of `Some`
@@ -286,7 +286,7 @@ pub enum Base {
 impl Base {
     /// "Downcasts" this to a `bool`, returning `None` if it isn't one.
     pub fn as_bool(&self) -> Option<bool> {
-        if let &Self::Bool(x) = self {
+        if let Self::Bool(x) = *self {
             Some(x)
         } else {
             None
@@ -295,7 +295,7 @@ impl Base {
 
     /// "Downcasts" this to a `u8`, returning `None` if it isn't one.
     pub fn as_u8(&self) -> Option<u8> {
-        if let &Self::U8(x) = self {
+        if let Self::U8(x) = *self {
             Some(x)
         } else {
             None
@@ -304,7 +304,7 @@ impl Base {
 
     /// "Downcasts" this to a `u16`, returning `None` if it isn't one.
     pub fn as_u16(&self) -> Option<u16> {
-        if let &Self::U16(x) = self {
+        if let Self::U16(x) = *self {
             Some(x)
         } else {
             None
@@ -313,7 +313,7 @@ impl Base {
 
     /// "Downcasts" this to a `u32`, returning `None` if it isn't one.
     pub fn as_u32(&self) -> Option<u32> {
-        if let &Self::U32(x) = self {
+        if let Self::U32(x) = *self {
             Some(x)
         } else {
             None
@@ -322,7 +322,7 @@ impl Base {
 
     /// "Downcasts" this to a `u64`, returning `None` if it isn't one.
     pub fn as_u64(&self) -> Option<u64> {
-        if let &Self::U64(x) = self {
+        if let Self::U64(x) = *self {
             Some(x)
         } else {
             None
@@ -759,8 +759,7 @@ pub fn load_struct(
     ty: &HubrisStruct,
     addr: usize,
 ) -> Result<Struct> {
-    let mut s = Struct::default();
-    s.name = ty.name.clone();
+    let mut s = Struct { name: ty.name.clone(), ..Default::default() };
 
     for m in &ty.members {
         let maddr = addr + m.offset;
@@ -840,7 +839,7 @@ pub trait Load: Sized {
 
 impl Load for Ptr {
     fn from_value(v: &Value) -> Result<Self> {
-        Ok(v.as_ptr()?.clone())
+        Ok(*v.as_ptr()?)
     }
 }
 

@@ -65,7 +65,7 @@ pub fn init<'a, 'b>(
 pub fn subcommand(
     commands: &HashMap<&'static str, Command>,
     args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     if let Some(command) = commands.get(&subargs[0].as_str()) {
         let archive = match command {

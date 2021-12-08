@@ -67,7 +67,7 @@ impl SWO_LAR {
         /*
          * To unlock, we write "CoreSight Access" in l33t
          */
-        let val: u32 = 0xc5_acce55;
+        let val: u32 = 0xc5ac_ce55;
         core.write_word_32(SWO_LAR::address(base), val)?;
         Ok(())
     }

@@ -150,7 +150,7 @@ fn spd(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = SpdArgs::from_iter_safe(subargs)?;
 
@@ -197,7 +197,7 @@ fn spd(
             let offs = addr * SPD_SIZE;
             let data = &bytes[offs..offs + SPD_SIZE];
 
-            if data.iter().filter(|&datum| *datum != 0).next().is_none() {
+            if !data.iter().any(|&datum| datum != 0) {
                 continue;
             }
 

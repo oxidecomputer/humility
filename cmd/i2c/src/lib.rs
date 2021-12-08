@@ -348,7 +348,7 @@ fn i2c(
     hubris: &mut HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = I2cArgs::from_iter_safe(subargs)?;
 
@@ -470,7 +470,7 @@ fn i2c(
                 noffs += 2;
 
                 // Read the file contents
-                file.read(&mut buf[noffs..noffs + len as usize])?;
+                file.read_exact(&mut buf[noffs..noffs + len as usize])?;
                 noffs += len as usize;
 
                 if offset as u32 + len as u32 >= filelen as u32 {
@@ -511,8 +511,8 @@ fn i2c(
 
             bar.set_position(offset.into());
 
-            for i in 0..results.len() {
-                if let Err(err) = results[i] {
+            for (i, item) in results.into_iter().enumerate() {
+                if let Err(err) = item {
                     bail!(
                         "failed to write block {} at offset {}: {}",
                         i,
@@ -552,7 +552,7 @@ fn i2c(
                 ops.push(Op::PushNone);
             }
 
-            let bytes: Vec<&str> = write.split(",").collect();
+            let bytes: Vec<&str> = write.split(',').collect();
             let mut arr = vec![];
 
             for byte in &bytes {
@@ -563,8 +563,8 @@ fn i2c(
                 }
             }
 
-            for i in 0..arr.len() {
-                ops.push(Op::Push(arr[i]));
+            for item in &arr {
+                ops.push(Op::Push(*item));
             }
 
             ops.push(Op::Push32(arr.len() as u32));

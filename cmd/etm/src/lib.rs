@@ -563,7 +563,7 @@ fn etmcmd_output(core: &mut dyn Core) -> Result<()> {
 fn etmcmd(
     hubris: &mut HubrisArchive,
     args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = &EtmArgs::from_iter_safe(subargs)?;
     let mut rval = Ok(());

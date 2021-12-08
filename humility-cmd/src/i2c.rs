@@ -74,7 +74,7 @@ impl<'a> I2cArgs<'a> {
                     bail!("unknown device {}", device);
                 }
                 Some(d) => {
-                    if let Some(_) = found.next() {
+                    if found.next().is_some() {
                         bail!("multiple {} devices found", device);
                     }
 
@@ -99,7 +99,7 @@ impl<'a> I2cArgs<'a> {
         //
         // If we have no I2C controllers, give an explicit error message.
         //
-        if hubris.manifest.i2c_buses.len() == 0 {
+        if hubris.manifest.i2c_buses.is_empty() {
             bail!("no I2C buses found; is this an old Hubris image?");
         }
 
@@ -148,7 +148,7 @@ impl<'a> I2cArgs<'a> {
                     // We have a controller and a port; that should be an exact
                     // match.
                     //
-                    (controller, hubris.lookup_i2c_port(controller, &port)?)
+                    (controller, hubris.lookup_i2c_port(controller, port)?)
                 }
                 (Some(controller), None) => {
                     //
@@ -164,7 +164,7 @@ impl<'a> I2cArgs<'a> {
         let mux = if let Some(mux) = &mux {
             let s = mux
                 .split(':')
-                .map(|v| parse_int::parse::<u8>(v))
+                .map(parse_int::parse::<u8>)
                 .collect::<Result<Vec<_>, _>>()
                 .context("expected multiplexer and segment to be integers")?;
 
@@ -198,13 +198,8 @@ impl<'a> I2cArgs<'a> {
             }
         };
 
-        Ok(Self {
-            controller: controller,
-            port: port,
-            mux: mux,
-            device: device,
-            address: address,
-            class: &HubrisI2cDeviceClass::Unknown,
-        })
+        let class = &HubrisI2cDeviceClass::Unknown;
+
+        Ok(Self { controller, port, mux, device, address, class })
     }
 }

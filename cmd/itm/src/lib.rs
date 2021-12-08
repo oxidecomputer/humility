@@ -221,7 +221,7 @@ fn itmcmd_ingest_attached(
 fn itmcmd(
     hubris: &mut HubrisArchive,
     args: &Args,
-    subargs: &Vec<String>,
+    subargs: &[String],
 ) -> Result<()> {
     let subargs = &ItmArgs::from_iter_safe(subargs)?;
     let mut rval = Ok(());
