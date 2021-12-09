@@ -42,6 +42,10 @@ members = [
 [profile.release]
 debug = true
 
+[profile.ci]
+inherits = "dev"
+debug = false # default true
+
 [dependencies]
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
 hif = { git = "https://github.com/oxidecomputer/hif" }
