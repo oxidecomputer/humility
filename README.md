@@ -3,8 +3,6 @@
 
 Humility is the debugger for
 <a href="https://github.com/oxidecomputer/hubris">Hubris</a>.
-Note that to build it, you will need to initialize submodule, either
-via `git clone --recursive`, or `git submodule update --init` or similar.
 
 ## Guiding principles
 
