@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 
 use humility::core::Core;
@@ -94,7 +94,7 @@ struct PhyAddr {
     phy: u8,
 }
 
-fn pretty_print_fields(value: u32, fields: &HashMap<&str, Field<&str>>) {
+fn pretty_print_fields(value: u32, fields: &BTreeMap<String, Field<String>>) {
     let mut field_keys = fields.keys().collect::<Vec<_>>();
     if field_keys.is_empty() {
         return;
@@ -102,7 +102,7 @@ fn pretty_print_fields(value: u32, fields: &HashMap<&str, Field<&str>>) {
     field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
     println!("  bits |    value   | field");
     for f in field_keys {
-        let field = &fields[*f];
+        let field = &fields[f];
         let bits = (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
         println!(" {:>2}:{:<2} | 0x{:<8x} | {}", field.hi, field.lo, bits, f);
     }
@@ -341,7 +341,7 @@ fn vsc7448(
             vsc.write(addr, value)?;
         }
         Command::Phy { cmd } => {
-            let dummy_fields = HashMap::new();
+            let dummy_fields = BTreeMap::new();
             let reg = match &cmd {
                 PhyCommand::Write { reg, .. }
                 | PhyCommand::Read { reg, .. } => reg,
