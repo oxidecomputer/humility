@@ -33,8 +33,7 @@ fn is_humility(metadata: &log::Metadata) -> bool {
 }
 
 impl log::Log for HumilityLog {
-    fn enabled(&self,
-         metadata: &log::Metadata) -> bool {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
         metadata.level() <= self.level
     }
 
