@@ -1,12 +1,10 @@
 name: formatting
-on: pull_request
+on: [push, pull_request]
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -16,11 +14,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          branch: ${{ github.head_ref }}
-          commit_user_name: Ὀσυμανδύας
-          commit_user_email: bots@oxide.computer
-          commit_author: Ὀσυμανδύας <bots@oxide.computer>
-          commit_message: LOOK ON MY REFORMAT, YE MIGHTY, AND DESPAIR!
+          args: --all -- --check
