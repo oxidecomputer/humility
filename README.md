@@ -108,6 +108,16 @@ the `-p` option (long form `--probe`), which can have the following values:
   (e.g., `usb-0`, `usb-1`, etc.)  To determine which probe is which,
   examine the serial number in the output of `humility probe`.
 
+- `vid:pid[:serial]`: In some cases, the automatic algorithm may either find
+  the wrong thing, or timeout attempting to search for non-existent probes.
+  In these cases, it can help to explicitly set the vendor ID (VID) and
+  product ID (PID) of the debug probe, which should be colon-delimited, e.g.,
+  `0483:374e`.  (Determining the VID and PID of an attached probe is
+  platform-specific; on Linux one can use the `lsusb` command.)  In cases
+  where there are multiple probes with the same VID and PID, the serial number
+  of the probe (as reported via `humility probe` can be postpended, also
+  delimited by a colon, e.g. `0483:374e:004000343137510939383538`.
+
 ### Archive
 
 Many Humility commands require the complete Hubris archive.  This is a ZIP
