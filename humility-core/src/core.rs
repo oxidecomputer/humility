@@ -1009,6 +1009,8 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
                 let vendor_id = selector.vendor_id;
                 let product_id = selector.product_id;
+
+                #[allow(clippy::manual_map)]
                 let serial_number = match selector.serial_number {
                     Some(ref serial_number) => Some(serial_number.clone()),
                     None => None,
@@ -1023,11 +1025,11 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 info!("attached to {} via {}", vidpid, name);
 
                 Ok(Box::new(ProbeCore {
-                    session: session,
+                    session,
                     identifier: name,
-                    vendor_id: vendor_id,
-                    product_id: product_id,
-                    serial_number: serial_number,
+                    vendor_id,
+                    product_id,
+                    serial_number,
                 }))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
