@@ -1009,12 +1009,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
                 let vendor_id = selector.vendor_id;
                 let product_id = selector.product_id;
-
-                #[allow(clippy::manual_map)]
-                let serial_number = match selector.serial_number {
-                    Some(ref serial_number) => Some(serial_number.clone()),
-                    None => None,
-                };
+                let serial_number = selector.serial_number.clone();
 
                 let res = probe_rs::Probe::open(selector);
                 let probe = res?;
