@@ -115,8 +115,9 @@ the `-p` option (long form `--probe`), which can have the following values:
   `0483:374e`.  (Determining the VID and PID of an attached probe is
   platform-specific; on Linux one can use the `lsusb` command.)  In cases
   where there are multiple probes with the same VID and PID, the serial number
-  of the probe (as reported via `humility probe` can be postpended, also
-  delimited by a colon, e.g. `0483:374e:004000343137510939383538`.
+  of the probe (as reported via `humility probe` or found in the 
+  `iSerialNumber` field of the USB device descriptor) can be postpended,
+  also delimited by a colon, e.g. `0483:374e:004000343137510939383538`.
 
 ### Archive
 
