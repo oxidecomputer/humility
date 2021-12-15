@@ -1011,9 +1011,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 let product_id = selector.product_id;
                 let serial_number = selector.serial_number.clone();
 
-                let res = probe_rs::Probe::open(selector);
-                let probe = res?;
-
+                let probe = probe_rs::Probe::open(selector)?;
                 let name = probe.get_name();
                 let session = probe.attach(chip)?;
 
