@@ -1648,7 +1648,7 @@ impl HubrisArchive {
             let dem = format!("{:#}", demangle(name));
 
             self.esyms_byname
-                .insert(name.to_string(), (val, sym.st_size as u32));
+                .insert(dem.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
         }
 
