@@ -2211,6 +2211,14 @@ impl HubrisArchive {
         }
     }
 
+    /// Look up a symbol, returning it's address and length as a tuple
+    pub fn lookup_symbol(&self, name: &str) -> Result<(u32, u32)> {
+        match self.esyms_byname.get(name) {
+            Some(sym) => Ok(*sym),
+            None => Err(anyhow!("expected symbol {} not found", name)),
+        }
+    }
+
     pub fn lookup_variable(&self, name: &str) -> Result<&HubrisVariable> {
         match self.variables.get(name) {
             Some(variable) => Ok(variable),

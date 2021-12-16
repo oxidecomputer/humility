@@ -132,7 +132,14 @@ fn tasks(
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let task_count =
         core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
-    let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
+    let (ticks_addr, ticks_size) = hubris
+        .lookup_variable("TICKS")
+        .map(|var| (var.addr, var.size as u32))
+        .or_else(|_| hubris.lookup_symbol("kern::arch::arm_m::TICKS"))?;
+    if ticks_size != 8 {
+        bail!("TICKS not u64 sized");
+    }
+    let ticks = core.read_word_64(ticks_addr)?;
 
     let task_t = hubris.lookup_struct_byname("Task")?;
 
