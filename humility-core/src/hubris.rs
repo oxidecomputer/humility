@@ -3654,15 +3654,20 @@ impl HubrisArchive {
 
         trace!("determining clock requency via {}", name);
 
-        match self.variables.get(name) {
-            Some(variable) => {
-                if variable.size != 4 {
+        let variable = self
+            .variables
+            .get(name)
+            .map(|variable| (variable.addr, variable.size as u32))
+            .or_else(|| self.esyms_byname.get(name).map(|t| *t));
+        match variable {
+            Some((addr, size)) => {
+                if size != 4 {
                     Err(anyhow!(
                         "{} has wrong size (expected 4, found {})",
-                        name, variable.size
+                        name, size
                     ))
                 } else {
-                    Ok(Some(core.read_word_32(variable.addr)?))
+                    Ok(Some(core.read_word_32(addr)?))
                 }
             }
 
