@@ -660,6 +660,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "idol",
+ "indexmap",
  "parse_int",
  "structopt",
 ]
@@ -937,6 +939,7 @@ dependencies = [
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
+ "idol",
  "indexmap",
  "indicatif",
  "log",
@@ -984,12 +987,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "idol"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "quote",
+ "ron 0.7.0",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "idt8a3xxxx"
 version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/idt8a3xxxx#3c2371d31e496fea015a3751218a282581d5ce8e"
 dependencies = [
  "anyhow",
- "ron",
+ "ron 0.6.5",
  "serde",
 ]
 
@@ -1283,7 +1297,7 @@ dependencies = [
  "libm",
  "num-derive",
  "num-traits",
- "ron",
+ "ron 0.6.5",
  "serde",
  "serde_with",
 ]
@@ -1444,6 +1458,17 @@ name = "ron"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45005aa836116903a49cf3461474da697cfe66221762c6e95871092009ec86d6"
+dependencies = [
+ "base64 0.13.0",
+ "bitflags",
+ "serde",
+]
+
+[[package]]
+name = "ron"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b861ecaade43ac97886a512b360d01d66be9f41f3c61088b42cedf92e03d678"
 dependencies = [
  "base64 0.13.0",
  "bitflags",

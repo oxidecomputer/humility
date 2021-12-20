@@ -24,6 +24,7 @@ use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
+use idol::syntax::Interface;
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
@@ -1586,6 +1587,42 @@ impl HubrisArchive {
         Ok(())
     }
 
+    fn load_object_idolatry(
+        &mut self,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<Option<Interface>> {
+        //
+        // If we have an idolatry definition, load that.
+        //
+        let idol = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".idolatry"
+            } else {
+                false
+            }
+        });
+
+        if let Some(idol) = idol {
+            let offset = idol.sh_offset as usize;
+            let size = idol.sh_size as usize;
+
+            if size == 0 {
+                return Ok(None);
+            }
+
+            let section = buffer
+                .get(offset..offset + size)
+                .ok_or_else(|| anyhow!("bad offset/size for .idolatry"))?;
+
+            let s = str::from_utf8(section).context("bad .idolatry string")?;
+
+            Ok(Some(Interface::from_str(s)?))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn load_object(
         &mut self,
         object: &str,
@@ -1722,6 +1759,7 @@ impl HubrisArchive {
 
         let offset = textsec.sh_offset as usize;
         let size = textsec.sh_size as usize;
+        let current = self.current;
 
         trace!("loading {} as object {}", object, self.current);
 
@@ -1730,6 +1768,8 @@ impl HubrisArchive {
 
         self.load_object_frames(task, buffer, &elf)
             .context(format!("{}: failed to load debug frames", object))?;
+
+        let iface = self.load_object_idolatry(buffer, &elf)?;
 
         let t = buffer
             .get(offset..offset + size)
@@ -1801,12 +1841,13 @@ impl HubrisArchive {
             textsec.sh_addr as u32,
             HubrisModule {
                 name: String::from(object),
-                object: self.current,
+                object: current,
                 textbase: (textsec.sh_addr as u32),
                 textsize: size as u32,
                 memsize: memsz as u32,
                 heapbss,
                 task,
+                iface,
             },
         );
 
@@ -2260,7 +2301,7 @@ impl HubrisArchive {
         self.src.get(&goff)
     }
 
-    fn ntasks(&self) -> usize {
+    pub fn ntasks(&self) -> usize {
         if self.current >= 1 {
             self.current as usize - 1
         } else {
@@ -4115,6 +4156,36 @@ pub struct HubrisModule {
     pub textsize: u32,
     pub memsize: u32,
     pub heapbss: (Option<u32>, Option<u32>),
+    pub iface: Option<Interface>,
+}
+
+impl HubrisModule {
+    pub fn lookup_struct_byname<'a>(
+        &self,
+        hubris: &'a HubrisArchive,
+        name: &str,
+    ) -> Result<&'a HubrisStruct> {
+        match hubris.structs_byname.get_vec(name) {
+            Some(v) => {
+                let m = v
+                    .iter()
+                    .filter(|g| g.object == self.object)
+                    .collect::<Vec<&HubrisGoff>>();
+
+                if m.len() > 1 {
+                    Err(anyhow!("{} matches more than one structure", name))
+                } else if m.is_empty() {
+                    Err(anyhow!("no {} in {}", name, self.name))
+                } else {
+                    Ok(hubris
+                        .structs
+                        .get(m[0])
+                        .expect("structs-structs_byname inconsistency"))
+                }
+            }
+            _ => Err(anyhow!("expected structure {} not found", name)),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]

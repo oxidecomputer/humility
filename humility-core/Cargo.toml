@@ -24,6 +24,7 @@ log = {version = "0.4.8", features = ["std"]}
 zip = "0.5"
 rusb = "0.5.5"
 parse_int = "0.4.0"
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
