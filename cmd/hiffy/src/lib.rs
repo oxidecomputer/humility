@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use idol::syntax::{AttributedTy, Operation};
+use idol::syntax::{AttributedTy, Operation, RecvStrategy};
 use indexmap::IndexMap;
 use structopt::clap::App;
 use structopt::StructOpt;
@@ -80,6 +80,9 @@ fn hiffy_call_arg(
     buf: &mut [u8],
 ) -> Result<()> {
     let t = hubris.lookup_type(member.goff)?;
+    let arg = &member.name;
+
+    let err = |err| anyhow!("illegal value for {}: {}", arg, err);
 
     match t {
         HubrisType::Base(base) => {
@@ -91,15 +94,15 @@ fn hiffy_call_arg(
 
             match (base.encoding, base.size) {
                 (HubrisEncoding::Unsigned, 4) => {
-                    let b = parse_int::parse::<u32>(value)?.to_le_bytes();
-                    dest.copy_from_slice(b.as_slice());
+                    let v = parse_int::parse::<u32>(value).map_err(err)?;
+                    dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (HubrisEncoding::Unsigned, 2) => {
-                    let b = parse_int::parse::<u16>(value)?.to_le_bytes();
-                    dest.copy_from_slice(b.as_slice());
+                    let v = parse_int::parse::<u16>(value).map_err(err)?;
+                    dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (HubrisEncoding::Unsigned, 1) => {
-                    dest[0] = parse_int::parse::<u8>(value)?;
+                    dest[0] = parse_int::parse::<u8>(value).map_err(err)?;
                 }
                 (_, _) => {
                     bail!(
@@ -116,6 +119,62 @@ fn hiffy_call_arg(
     };
 
     Ok(())
+}
+
+fn hiffy_call_arg_enum(
+    hubris: &HubrisArchive,
+    arg: &str,
+    member: &HubrisStructMember,
+    e: &HubrisEnum,
+    value: &str,
+    buf: &mut [u8],
+) -> Result<()> {
+    let t = hubris.lookup_type(member.goff)?;
+
+    let base = match t {
+        HubrisType::Base(base) => base,
+        _ => {
+            bail!("type {:?} not expected to represent enum", t);
+        }
+    };
+
+    if base.size != e.size {
+        bail!("size mismatch: {:?} vs. enum arg {:?}", t, e);
+    }
+
+    let dest = &mut buf[member.offset..member.offset + e.size];
+
+    for variant in &e.variants {
+        if value == variant.name {
+            if let Some(tag) = variant.tag {
+                match e.size {
+                    4 => {
+                        let v: u32 = tag.try_into()?;
+                        dest.copy_from_slice(v.to_le_bytes().as_slice());
+                    }
+                    2 => {
+                        let v: u16 = tag.try_into()?;
+                        dest.copy_from_slice(v.to_le_bytes().as_slice());
+                    }
+                    1 => {
+                        let v: u8 = tag.try_into()?;
+                        dest[0] = v;
+                    }
+                    _ => {
+                        bail!("unknown enum size: {:?}", e);
+                    }
+                }
+
+                return Ok(());
+            } else {
+                bail!("untagged enum: {:?}", e);
+            }
+        }
+    }
+
+    let all =
+        e.variants.iter().map(|v| v.name.clone()).collect::<Vec<String>>();
+    bail!("{} must be one of: {}", arg, all.join(", "));
 }
 
 fn hiffy_call(
@@ -141,14 +200,40 @@ fn hiffy_call(
 
     let mut payload = vec![0u8; s.size];
 
-    for arg in &op.args {
+    'nextone: for arg in &op.args {
         if let Some(val) = map.remove(arg.0 as &str) {
-            for member in &s.members {
-                if member.name == *arg.0 {
-                    hiffy_call_arg(hubris, member, val, &mut payload)?;
-                    break;
+            match &arg.1.recv {
+                RecvStrategy::FromBytes => {
+                    for member in &s.members {
+                        if member.name == *arg.0 {
+                            hiffy_call_arg(hubris, member, val, &mut payload)?;
+                            continue 'nextone;
+                        }
+                    }
+                }
+
+                _ => {
+                    let raw = format!("raw_{}", arg.0);
+
+                    for member in &s.members {
+                        if member.name == raw {
+                            let ty = &arg.1.ty.0;
+                            let e = module.lookup_enum_byname(hubris, ty)?;
+                            hiffy_call_arg_enum(
+                                hubris,
+                                arg.0,
+                                member,
+                                e,
+                                val,
+                                &mut payload,
+                            )?;
+                            continue 'nextone;
+                        }
+                    }
                 }
             }
+
+            bail!("did not find {} in {:?}", arg.0, s);
         } else {
             bail!("argument \"{}\" is not specified", arg.0);
         }
@@ -180,7 +265,9 @@ fn hiffy_call(
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
+    let reply = &op.reply;
 
+    println!("{:?}", reply);
     println!("{:?}", results);
 
     Ok(())

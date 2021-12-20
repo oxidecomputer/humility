@@ -4186,6 +4186,33 @@ impl HubrisModule {
             _ => Err(anyhow!("expected structure {} not found", name)),
         }
     }
+
+    pub fn lookup_enum_byname<'a>(
+        &self,
+        hubris: &'a HubrisArchive,
+        name: &str,
+    ) -> Result<&'a HubrisEnum> {
+        match hubris.enums_byname.get_vec(name) {
+            Some(v) => {
+                let m = v
+                    .iter()
+                    .filter(|g| g.object == self.object)
+                    .collect::<Vec<&HubrisGoff>>();
+
+                if m.len() > 1 {
+                    Err(anyhow!("{} matches more than one enum", name))
+                } else if m.is_empty() {
+                    Err(anyhow!("no {} in {}", name, self.name))
+                } else {
+                    Ok(hubris
+                        .enums
+                        .get(m[0])
+                        .expect("structs-structs_byname inconsistency"))
+                }
+            }
+            _ => Err(anyhow!("expected enum {} not found", name)),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]
