@@ -38,12 +38,7 @@ pub struct Args {
     pub probe: Option<String>,
 
     /// Hubris archive
-    #[structopt(
-        long,
-        short,
-        env = "HUMILITY_ARCHIVE",
-        conflicts_with = "dump"
-    )]
+    #[structopt(long, short, env = "HUMILITY_ARCHIVE")]
     pub archive: Option<String>,
 
     /// Hubris dump
