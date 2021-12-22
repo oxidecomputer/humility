@@ -220,6 +220,9 @@ pub struct HubrisArchive {
     // Base types: goff to size
     basetypes: HashMap<HubrisGoff, HubrisBasetype>,
 
+    // Base types: name to goff
+    basetypes_byname: HashMap<String, HubrisGoff>,
+
     // Base types: goff to underlying type
     ptrtypes: HashMap<HubrisGoff, (String, HubrisGoff)>,
 
@@ -245,7 +248,7 @@ pub struct HubrisArchive {
 
     // Qualified Variables: fully qualified Rust demangled name to
     // goff/address/size tuple.
-    qualified_variables: MultiMap<String, HubrisVariable>,
+    qualified_variables: Vec<(String, HubrisVariable)>,
 
     // Unions: goff to union
     unions: HashMap<HubrisGoff, HubrisUnion>,
@@ -297,6 +300,7 @@ impl HubrisArchive {
             inlined: BTreeMap::new(),
             subprograms: HashMap::new(),
             basetypes: HashMap::new(),
+            basetypes_byname: HashMap::new(),
             ptrtypes: HashMap::new(),
             structs: HashMap::new(),
             structs_byname: MultiMap::new(),
@@ -304,7 +308,7 @@ impl HubrisArchive {
             enums_byname: MultiMap::new(),
             arrays: HashMap::new(),
             variables: MultiMap::new(),
-            qualified_variables: MultiMap::new(),
+            qualified_variables: Vec::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
         })
@@ -794,8 +798,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
+    fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
         &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -806,9 +811,14 @@ impl HubrisArchive {
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
         let mut encoding = None;
+        let mut name = None;
 
         while let Some(attr) = attrs.next()? {
             match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
                 gimli::constants::DW_AT_byte_size => {
                     if let gimli::AttributeValue::Udata(value) = attr.value() {
                         size = Some(value as usize)
@@ -843,6 +853,10 @@ impl HubrisArchive {
 
         if let (Some(size), Some(encoding)) = (size, encoding) {
             self.basetypes.insert(goff, HubrisBasetype { encoding, size });
+        }
+
+        if let Some(name) = name {
+            self.basetypes_byname.insert(String::from(name), goff);
         }
 
         Ok(())
@@ -984,14 +998,14 @@ impl HubrisArchive {
                         // hashes are gross.
                         let qname =
                             format!("{:#}", rustc_demangle::demangle(linkage));
-                        self.qualified_variables.insert(
+                        self.qualified_variables.push((
                             qname,
                             HubrisVariable {
                                 goff: tgoff,
                                 addr,
                                 size: size as usize,
                             },
-                        );
+                        ));
                     }
                 }
             } else {
@@ -1456,7 +1470,7 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_base_type => {
-                        self.dwarf_basetype(&unit, entry)?;
+                        self.dwarf_basetype(&dwarf, &unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_pointer_type => {
@@ -2173,6 +2187,13 @@ impl HubrisArchive {
                 .get(&v[0])
                 .expect("structs-structs_byname inconsistency")),
             _ => Err(anyhow!("expected structure {} not found", name)),
+        }
+    }
+
+    pub fn lookup_basetype_byname(&self, name: &str) -> Result<&HubrisGoff> {
+        match self.basetypes_byname.get(name) {
+            Some(goff) => Ok(goff),
+            None => Err(anyhow!("expected {} to be a basetype", name)),
         }
     }
 
