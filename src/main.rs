@@ -8,6 +8,9 @@ use structopt::StructOpt;
 
 mod cmd;
 
+#[macro_use]
+extern crate log;
+
 macro_rules! fatal {
     ($fmt:expr) => ({
         eprint!(concat!("humility: ", $fmt, "\n"));
@@ -81,18 +84,54 @@ fn main() {
      * parsing on its own.
      */
     let (commands, clap) = cmd::init(Args::clap());
-    let _args = Args::from_clap(&clap.get_matches());
+
+    let m = clap.get_matches();
+    let _args = Args::from_clap(&m);
 
     /*
      * If we're here, we know that our arguments pass muster from the
      * Structopt/ Clap perspective.
      */
-    let args = Args::from_args();
+    let mut args = Args::from_args();
 
     if args.verbose {
         HumilityLog { level: log::LevelFilter::Trace }.enable();
     } else {
         HumilityLog { level: log::LevelFilter::Info }.enable();
+    }
+
+    //
+    // Check to see if we have both a dump and an archive.  Because these
+    // conflict with one another but because we allow both of them to be
+    // set with an environment variable, we need to manually resolve this:
+    // we want to allow an explicitly set value (that is, via the command
+    // line) to win the conflict.
+    //
+    if args.dump.is_some() && args.archive.is_some() {
+        match (m.occurrences_of("dump") == 1, m.occurrences_of("archive") == 1)
+        {
+            (true, true) => {
+                fatal!("cannot specify both a dump and an archive");
+            }
+
+            (false, false) => {
+                fatal!(
+                    "both dump and archive have been set via environment \
+                    variables; unset one of them, or use a command-line option \
+                    to override"
+                );
+            }
+
+            (true, false) => {
+                warn!("dump on command-line overriding archive in environment");
+                args.archive = None;
+            }
+
+            (false, true) => {
+                warn!("archive on command-line overriding dump in environment");
+                args.dump = None;
+            }
+        }
     }
 
     match &args.cmd {

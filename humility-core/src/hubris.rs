@@ -2297,7 +2297,14 @@ impl HubrisArchive {
     pub fn qualified_variables(
         &self,
     ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
-        self.qualified_variables.iter().map(|(n, v)| (n.as_str(), v))
+        self.qualified_variables
+            .iter_all()
+            .map(|(n, v)| {
+                v.iter()
+                    .map(|e| (n.as_str(), e))
+                    .collect::<Vec<(&str, &HubrisVariable)>>()
+            })
+            .flatten()
     }
 
     pub fn lookup_module(&self, task: HubrisTask) -> Result<&HubrisModule> {
