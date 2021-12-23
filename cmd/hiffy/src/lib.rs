@@ -21,7 +21,7 @@ extern crate log;
 struct HiffyArgs {
     /// sets timeout
     #[structopt(
-        long, short, default_value = "5000", value_name = "timeout_ms",
+        long, short = "T", default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -43,6 +43,10 @@ struct HiffyArgs {
     call: Option<String>,
 
     /// arguments
+    #[structopt(long, short, requires = "call")]
+    task: Option<String>,
+
+    /// arguments
     #[structopt(long, short, requires = "call", use_delimiter = true)]
     arguments: Vec<String>,
 }
@@ -51,14 +55,21 @@ fn hiffy_operation<'a>(
     hubris: &'a HubrisArchive,
     interface: &str,
     operation: &str,
+    target: Option<&HubrisTask>,
 ) -> Result<(HubrisTask, &'a Operation, u16)> {
     //
     // Find this interface and its operation.
     //
     let mut rval = None;
 
-    'nexttask: for i in 0..hubris.ntasks() {
-        let task = HubrisTask::Task(i as u32);
+    let tasks = match target {
+        Some(task) => vec![*task],
+        None => {
+            (0..hubris.ntasks()).map(|t| HubrisTask::Task(t as u32)).collect()
+        }
+    };
+
+    'nexttask: for task in tasks {
         let module = hubris.lookup_module(task)?;
 
         match &module.iface {
@@ -246,8 +257,9 @@ fn hiffy_call(
     interface: &str,
     operation: &str,
     args: &[(&str, &str)],
+    task: Option<&HubrisTask>,
 ) -> Result<()> {
-    let (task, op, code) = hiffy_operation(hubris, interface, operation)?;
+    let (task, op, code) = hiffy_operation(hubris, interface, operation, task)?;
     let mut map = IndexMap::new();
     let funcs = context.functions()?;
     let send = funcs.get("Send", 4)?;
@@ -483,7 +495,16 @@ fn hiffy(
             args.push((arg[0], arg[1]));
         }
 
-        hiffy_call(hubris, core, &mut context, func[0], func[1], &args)?;
+        let task = match subargs.task {
+            Some(task) => Some(
+                hubris
+                    .lookup_task(&task)
+                    .ok_or_else(|| anyhow!("unknown task \"{}\"", task))?,
+            ),
+            None => None,
+        };
+
+        hiffy_call(hubris, core, &mut context, func[0], func[1], &args, task)?;
 
         return Ok(());
     }

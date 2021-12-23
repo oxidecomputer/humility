@@ -248,7 +248,7 @@ pub struct HubrisArchive {
 
     // Qualified Variables: fully qualified Rust demangled name to
     // goff/address/size tuple.
-    qualified_variables: Vec<(String, HubrisVariable)>,
+    qualified_variables: MultiMap<String, HubrisVariable>,
 
     // Unions: goff to union
     unions: HashMap<HubrisGoff, HubrisUnion>,
@@ -308,7 +308,7 @@ impl HubrisArchive {
             enums_byname: MultiMap::new(),
             arrays: HashMap::new(),
             variables: MultiMap::new(),
-            qualified_variables: Vec::new(),
+            qualified_variables: MultiMap::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
         })
@@ -998,14 +998,14 @@ impl HubrisArchive {
                         // hashes are gross.
                         let qname =
                             format!("{:#}", rustc_demangle::demangle(linkage));
-                        self.qualified_variables.push((
+                        self.qualified_variables.insert(
                             qname,
                             HubrisVariable {
                                 goff: tgoff,
                                 addr,
                                 size: size as usize,
                             },
-                        ));
+                        );
                     }
                 }
             } else {
@@ -2927,7 +2927,7 @@ impl HubrisArchive {
                 4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
                 8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
                 _ => {
-                    bail!("bad size!");
+                    bail!("{} has bad size {}", goff, sz);
                 }
             })
         };
@@ -3118,6 +3118,8 @@ impl HubrisArchive {
         if let Some(v) = self.basetypes.get(&goff) {
             if v.encoding == HubrisEncoding::Float {
                 write!(rval, "{}", readfloat(buf, 0, v.size)?)?;
+            } else if v.size == 0 {
+                write!(rval, "()")?;
             } else {
                 let val = readval(buf, 0, v.size)
                     .context(format!("failed to read base type {}", goff))?;

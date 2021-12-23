@@ -1,3 +1,7 @@
 max_width = 80
 use_small_heuristics = "max"
-wrap_comments = true
+#
+# Sadly, this option is only available on nigthly -- and without it, comments
+# can go to arbitrary width.  Looking forward to being able to turn it on!
+#
+# wrap_comments = true
