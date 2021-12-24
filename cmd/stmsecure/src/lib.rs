@@ -2,6 +2,31 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility stmsecure`
+//!
+//! Humility has support to manage the Root Security Services (RSS) and various
+//! flash options bits
+//!
+//! A typical sequence to set the secure region at 0x08000000
+//!
+//! ```
+//! humility stmsecure set-secure-bit
+//! humility stmsecure set-secure-region 0x08000000 0xa000
+//! ```
+//!
+//! To undo the secure region:
+//!
+//! ```
+//! humility stmsecure unset-secure-region
+//! humility stmsecure unset-secure-bit
+//! ```
+//!
+//! The STM32 has support for flash bank swapping as well
+//!
+//! ```
+//! humility stmsecure bank-swap
+//! ```
+
 use anyhow::{anyhow, Result};
 use humility::arch::ARMRegister;
 use humility::core::Core;
@@ -27,10 +52,7 @@ const FLASH_SCAR_CUR1: u32 = 0x5200_2030;
 const FLASH_SCAR_PRG1: u32 = 0x5200_2034;
 
 #[derive(StructOpt, Debug)]
-#[structopt(
-    name = "stmsecure",
-    about = "change secure region settings on the stm32h7"
-)]
+#[structopt(name = "stmsecure", about = env!("CARGO_PKG_DESCRIPTION"))]
 enum StmSecureArgs {
     /// Show status about secure region settings
     Status,

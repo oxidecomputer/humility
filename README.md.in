@@ -1,0 +1,142 @@
+# Humility
+
+Humility is the debugger for
+<a href="https://github.com/oxidecomputer/hubris">Hubris</a>.
+
+## Guiding principles
+
+### Production disposition
+
+Hubris is the artifact that actually runs, and it must be allowed to be
+optimized in terms of size, space, and run-time; in as much as contortions are
+required for debuggability, they should be borne by Humility, not Hubris.  As a
+concrete example of this, Humility operates exclusively on `release` builds of
+Hubris, relying on (unloaded) DWARF information in the binaries to make sense of
+the system.
+
+### Hubris-specific
+
+Humility is Hubris-specific:  it is not trying to be a generic *in situ*
+debugger, but rather specifically focused on debugging Hubris-based systems.
+Humility is therefore willing to encode Hubris-specific concepts like
+archives and tasks.
+
+### Microcontroller-specific
+
+Debuggers must cut through abstractions, which
+often requires knowledge of underlying
+implementation detail.  For Humility, this means being willing to take
+advantage of microcontroller-specific debug facilities where applicable.
+While Hubris may make decisions in the name of greater portability,
+Humility will generally make decisions to maximize debuggability, even
+where these facilities are highly specific to a particular MCU.
+
+### Device-specific
+
+Humility is unafraid to offer device-specific functionality where that
+functionality is useful for system debuggability.  (For example,
+`humility i2c` functions as an I<sup>2</sup>C analyzer.)  That said, all device
+interaction uses Hubris as a proxy to actually communicate with the devices
+themselves (e.g., via [HIF](https://github.com/oxidecomputer/hif));
+Humility does not seek to create second I/O path.
+
+### Pragmatic
+
+Humility seeks to be *useful*, and therefore seeks to offer all manners of
+debugging: in situ, postmortem, dynamic instrumentation, static
+instrumentation, etc.
+
+## Operation
+
+Humility operates by specifying a subcommand.  There are options that
+are Humility-wide (that is, applying to every subcommand), as well as
+options that are specific to particular subcommands.
+
+### Probe
+
+Humility needs to have some way of extracting information and/or controlling
+the microcontroller running Hubris.  This is done through some variant of a
+debug *probe*, a separate microcontroller that speaks to debug-specific
+functionality on the target microcontroller.  (For details of the mechanics
+of these probes on ARM parts, see <a
+href="https://65.rfd.oxide.computer">RFD 65</a>.)
+
+For most evaluation boards, this debug probe is available on the board, and
+is connected to a host via USB, e.g. ST's STLink/V2 on the STM32F407
+Discovery or the LPC-Link2 present on the LPCXpresso55S69.
+(On the Gemini board, there are two SWD headers, one for the LPC55S28
+and the other for the STM32H753.)
+While Humility allows for direct attachment to an on-chip debugger, doing so
+precludes other connections (from, for example, OpenOCD), making it too
+disruptive to development workflows. To allow for easier development
+workflows, Humility also has the option to attach via OpenOCD.
+
+The debug probe to use is specified to Humility via the `-p` option
+(long form `--probe`) or the `HUMILITY_PROBE` environment variable,
+which can have the following values:
+
+- `auto` (default): Automatically determine how to attach to the
+  microcontroller.
+
+- `ocd`: Attach via OpenOCD, which is presumed to have the TCL interface
+  available on localhost on port 6666 (its default).
+
+- `jlink`: Attach via Segger JLink, which is presumed to have the GDB
+  interface available on localhost on port 2331 (its default).  Note that
+  when semihosting is being used by Hubris, the Segger JLink GDB server
+  will become confused when Humility attaches to it -- and subsequent
+  calls to semihosting will cause a halt.  A subsequent Humility invocation
+  will resume the target (directing semihosting output correctly to the
+  running GDB instance), but subsequent semihosting output will again cause
+  a halt. To recover from this condition, send an explicit ^C to the
+  running GDB and continue from the resulting stop.
+
+- `usb`: Attach directly via USB to a debug probe.  When multiple probes
+  are plugged in via USB, a probe index must be specified as a suffix
+  (e.g., `usb-0`, `usb-1`, etc.)  To determine which probe is which,
+  examine the serial number in the output of `humility probe`.
+
+- `vid:pid[:serial]`: In some cases, the automatic algorithm may either find
+  the wrong thing, or timeout attempting to search for non-existent probes.
+  In these cases, it can help to explicitly set the vendor ID (VID) and
+  product ID (PID) of the debug probe, which should be colon-delimited, e.g.,
+  `0483:374e`.  (Determining the VID and PID of an attached probe is
+  platform-specific; on Linux one can use the `lsusb` command.)  In cases
+  where there are multiple probes with the same VID and PID, the serial number
+  of the probe (as reported via `humility probe` or found in the 
+  `iSerialNumber` field of the USB device descriptor) can be postpended,
+  also delimited by a colon, e.g. `0483:374e:004000343137510939383538`.
+
+### Archive
+
+Many Humility commands require the complete Hubris archive.  This is a ZIP
+archive created by the build process, and includes all binaries as well as the
+`app.toml` file used to configure the Hubris archive.  The archive can be
+found in the `target` for Hubris, and will end with (`.zip`), e.g.:
+`/path/to/hubris/target/demo-stm32h743-nucleo/dist/build-demo-stm32h743-nucleo.zip`.
+The Hubris archive is specified via the `-a` option or the `HUMILITY_ARCHIVE`
+environment variable.
+
+**In the Humility examples in this documentation, unless otherwise specified,
+the archive will be assumed to be set via `-a` or `HUMILITY_ARCHIVE`.**
+
+### Dump
+
+Many Humility commands are able to operate *postmortem* on a Hubris dump,
+an ELF core file generated by the `humility dump` command.
+Dumps are offered in lieu of a probe and an archive and specified via
+the `-d` option (long form `--dump`) or the `HUMILITY_DUMP` environment
+variable.
+
+### Chip
+
+While some autodetection is possible, Humility regrettably may need to be made
+aware of the specifics of the target chip.  Supported chips include:
+
+- `STM32F407VGTx` (default): STM32F407 as found on the reference Discovery board
+- `LPC55S69JBD100`: LPC55S69 as found on the LPCXpresso55S69
+- `STM32H7B3LIHxQ`: STM32H7B3 as found on the STM32H7B3I-DK
+
+The target chip can be specified via the `-c` option or the `HUMILITY_CHIP`
+environment variable.
+

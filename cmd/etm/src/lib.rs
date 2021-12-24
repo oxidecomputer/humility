@@ -21,10 +21,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(
-    name = "etm",
-    about = "commands for ARM's Embedded Trace Macrocell (ETM)"
-)]
+#[structopt(name = "etm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct EtmArgs {
     /// probe for ETM capability on attached device
     #[structopt(

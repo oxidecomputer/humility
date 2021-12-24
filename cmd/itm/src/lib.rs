@@ -24,10 +24,7 @@ extern crate log;
 const ITM_TRACEID_MAX: u8 = 0x7f;
 
 #[derive(StructOpt, Debug)]
-#[structopt(
-    name = "itm",
-    about = "commands for ARM's Instrumentation Trace Macrocell (ITM)"
-)]
+#[structopt(name = "itm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ItmArgs {
     /// probe for ITM capability on attached device
     #[structopt(

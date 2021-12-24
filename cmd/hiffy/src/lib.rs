@@ -11,7 +11,7 @@ use structopt::clap::App;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "hiffy", about = "manipulate HIF execution")]
+#[structopt(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct HiffyArgs {
     /// sets timeout
     #[structopt(

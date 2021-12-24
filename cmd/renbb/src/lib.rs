@@ -21,7 +21,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "rencm", about = "Renesas black box operations")]
+#[structopt(name = "renbb", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RenbbArgs {
     /// sets timeout
     #[structopt(

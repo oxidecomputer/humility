@@ -2,6 +2,7 @@
 name = "humility-cmd-apptable"
 version = "0.1.0"
 edition = "2021"
+description = "print Hubris apptable"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

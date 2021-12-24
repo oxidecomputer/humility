@@ -18,7 +18,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "spd", about = "scan for and read SPD devices")]
+#[structopt(name = "spd", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SpdArgs {
     /// sets timeout
     #[structopt(
