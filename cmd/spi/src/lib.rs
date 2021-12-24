@@ -20,7 +20,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "spi", about = "SPI reading and writing")]
+#[structopt(name = "spi", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SpiArgs {
     /// sets timeout
     #[structopt(

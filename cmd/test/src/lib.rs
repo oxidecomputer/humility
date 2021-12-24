@@ -2,6 +2,111 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility test`
+//!
+//! When run against a test archive, `humility test` kicks off the test suite
+//! and parses its results via ITM.
+//!
+//! ```console
+//! humility: attached via ST-Link
+//! humility: ITM synchronization packet found at offset 6
+//! humility: expecting 22 cases
+//! humility: running test_send ... ok
+//! humility: running test_recv_reply ... ok
+//! humility: running test_fault_badmem ... ok
+//! humility: running test_fault_stackoverflow ... ok
+//! humility: running test_fault_execdata ... ok
+//! humility: running test_fault_illop ... ok
+//! humility: running test_fault_nullexec ... ok
+//! humility: running test_fault_textoob ... ok
+//! humility: running test_fault_stackoob ... ok
+//! humility: running test_fault_buserror ... ok
+//! humility: running test_fault_illinst ... ok
+//! humility: running test_fault_divzero ... ok
+//! humility: running test_panic ... ok
+//! humility: running test_restart ... ok
+//! humility: running test_restart_taskgen ... ok
+//! humility: running test_borrow_info ... ok
+//! humility: running test_borrow_read ... ok
+//! humility: running test_borrow_write ... ok
+//! humility: running test_supervisor_fault_notification ... ok
+//! humility: running test_timer_advance ... ok
+//! humility: running test_timer_notify ... ok
+//! humility: running test_timer_notify_past ... ok
+//! humility: tests completed: pass
+//! ```
+//!
+//! If a test fails, this will also create a complete report, e.g.:
+//!
+//! ```console
+//! humility: attached via ST-Link
+//! humility: ITM synchronization packet found at offset 6
+//! humility: expecting 22 cases
+//! humility: running test_send ... ok
+//! humility: running test_recv_reply ... fail
+//! humility: running test_fault_badmem ... ok
+//! ...
+//! humility: running test_timer_notify_past ... ok
+//! humility: tests completed: fail
+//! humility: test output dumped to hubris.testout.15
+//! ```
+//!
+//! This output file will have (among other things) a section that has
+//! complete test run information.  For details on a failing test, look
+//! for `result: Fail`:
+//!
+//! ```console
+//! $ cat hubris.testout.15
+//! ...
+//! ==== Test results
+//! [
+//!     ...
+//!     TestCompletion {
+//!         case: "test_recv_reply",
+//!         result: Fail,
+//!         log: [
+//!             (
+//!                 UserLog,
+//!                 "assistant starting",
+//!             ),
+//!             (
+//!                 KernelLog,
+//!                 "task @1 panicked: panicked at \'assertion failed: false\', test/test-suite/src/main.rs:124:5",
+//!             ),
+//!             (
+//!                 UserLog,
+//!                 "Task #1 Panic!",
+//!             ),
+//!             (
+//!                 UserLog,
+//!                 "assistant starting",
+//!             ),
+//!         ],
+//!     },
+//!     ...
+//! ```
+//!
+//! This shows the sequential ordering of all log messages while running the
+//! test.  The test report can also be useful even when tests pass; to always
+//! dump a test report, use the `-d` option to `humility test`.
+//!
+//! Note that `humility test` relies on the ability to keep up with ITM data,
+//! which can be lossy.  In the event ITM data is lost, the failure mode is
+//! unlikely to be a failing test, but rather a fatal error due to a misframed
+//! packet:
+//!
+//! ```console
+//! humility: running test_fault_nullexec ... ok
+//! humility: running test_fault_textoob ... ok
+//! humility: running test_fault_stackoob ... humility: test output dumped to hubris.testout.21
+//! humility: test failed: malformed datum: 0x74
+//! Error: test failed
+//! ```
+//!
+//! All received packet data will be dumped to the resulting output file,
+//! allowing these transient failures to be differentiated from deeper issues.
+//!
+
 use anyhow::{bail, Context, Result};
 use humility::core::Core;
 use humility::hubris::*;
@@ -15,7 +120,7 @@ use structopt::clap::App;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "test", about = "run Hubristest suite and parse results")]
+#[structopt(name = "test", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TestArgs {
     /// dump full report even on success
     #[structopt(long, short)]

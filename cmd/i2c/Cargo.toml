@@ -2,6 +2,7 @@
 name = "humility-cmd-i2c"
 version = "0.1.0"
 edition = "2021"
+description = "scan for and read I2C devices"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

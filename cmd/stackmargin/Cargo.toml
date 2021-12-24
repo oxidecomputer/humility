@@ -2,6 +2,7 @@
 name = "humility-cmd-stackmargin"
 version = "0.1.0"
 edition = "2021"
+description = "calculate and print stack margins by task"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

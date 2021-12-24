@@ -16,7 +16,7 @@ use structopt::StructOpt;
 use std::convert::TryInto;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "gpio", about = "GPIO pin manipulation")]
+#[structopt(name = "gpio", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct GpioArgs {
     /// sets timeout
     #[structopt(

@@ -2,6 +2,115 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility tasks`
+//!
+//! `humility tasks` offers a ps-like view of a system, e.g.:
+//!
+//! ```console
+//! % humility tasks
+//! humility: attached via ST-Link
+//! system time = 1764993
+//! ID TASK                 GEN PRI STATE    
+//!  0 jefe                   0   0 recv, notif: bit0 bit1(T+7)
+//!  1 rcc_driver             0   1 recv
+//!  2 gpio_driver            0   2 recv
+//!  3 usart_driver           0   2 recv, notif: bit0(irq39)
+//!  4 i2c_driver             0   2 recv
+//!  5 spi_driver             0   2 recv
+//!  6 user_leds              0   2 recv
+//!  7 pong                   0   3 FAULT: killed by jefe/gen0 (was: recv, notif: bit0)
+//!  8 ping               14190   4 wait: send to pong/gen0
+//!  9 hiffy                  0   3 notif: bit0(T+7)
+//! 10 hf                     0   3 notif: bit0(T+18)
+//! 11 idle                   0   5 RUNNING
+//! ```
+//!
+//! To see every field in each task, you can use the `-v` flag:
+//!
+//! ```console
+//! % humility -d hubris.core.4 tasks -v
+//! humility: attached to dump
+//! system time = 1791860
+//! ID TASK                 GEN PRI STATE    
+//! ...
+//!  7 pong                   0   3 FAULT: killed by jefe/gen0 (was: recv, notif: bit0)
+//!    |
+//!    +-----------> Task {
+//!                     save: SavedState {
+//!                         r4: 0x200063c4,
+//!                         r5: 0x10,
+//!                         r6: 0x1,
+//!                         r7: 0x0,
+//!                         r8: 0x60003,
+//!                         r9: 0x4,
+//!                         r10: 0x200063d4,
+//!                         r11: 0x1,
+//!                         psp: 0x20006330,
+//!                         exc_return: 0xffffffed,
+//!                         ...
+//!                     },
+//!                     priority: Priority(0x3),
+//!                     state: Faulted {
+//!                         fault: Injected(TaskId(0x0)),
+//!                         original_state: InRecv(None)
+//!                     },
+//!                     ...
+//! ...
+//! ```
+//!
+//! To see a task's registers, use the `-r` flag:
+//!
+//! ```console
+//! % humility tasks -r user_leds
+//! humility: attached via ST-Link
+//! system time = 1990498
+//! ID TASK                 GEN PRI STATE    
+//!  6 user_leds              0   2 recv
+//!    |
+//!    +--->   R0 = 0x20005fc8   R1 = 0x0000000c   R2 = 0x00000000   R3 = 0x20005fd8
+//!            R4 = 0x20005fc8   R5 = 0x0000000c   R6 = 0x00000000   R7 = 0x00000000
+//!            R8 = 0x08027154   R9 = 0x00000000  R10 = 0xfffffe00  R11 = 0x00000001
+//!           R12 = 0x00000000   SP = 0x20005fa0   LR = 0x08026137   PC = 0x08026e42
+//! ```
+//!
+//! To see a task's stack backtrace, use the `-s` flag:
+//!
+//! ```console
+//! % humility tasks -s user_leds
+//! humility: attached via ST-Link
+//! system time = 2021382
+//! ID TASK                 GEN PRI STATE    
+//!  6 user_leds              0   2 recv
+//!    |
+//!    +--->  0x20005fc0 0x08026e42 userlib::sys_recv_stub
+//!           0x20006000 0x08026128 userlib::sys_recv
+//!           0x20006000 0x08026128 idol_runtime::dispatch
+//!           0x20006000 0x08026136 main
+//! ```
+//!
+//! To additionally see line number information on a stack backtrace, also provide
+//! `-l` flag:
+//!
+//! ```console
+//! % humility tasks -sl user_leds
+//! humility: attached via ST-Link
+//! system time = 2049587
+//! ID TASK                 GEN PRI STATE    
+//!  6 user_leds              0   2 recv
+//!    |
+//!    +--->  0x20005fc0 0x08026e42 userlib::sys_recv_stub
+//!                      @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
+//!           0x20006000 0x08026128 userlib::sys_recv
+//!                      @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
+//!           0x20006000 0x08026128 idol_runtime::dispatch
+//!                      @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/6d18e14/runtime/src/lib.rs:137
+//!           0x20006000 0x08026136 main
+//!                      @ /home/bmc/hubris/drv/user-leds/src/main.rs:110
+//! ```
+//!
+//! These options can naturally be combined, e.g. `humility tasks -slvr`.
+//!
+
 use anyhow::{bail, Result};
 use humility::arch::ARMRegister;
 use humility::core::Core;
@@ -15,7 +124,7 @@ use structopt::clap::App;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "tasks", about = "list Hubris tasks")]
+#[structopt(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TasksArgs {
     /// show registers
     #[structopt(long, short)]

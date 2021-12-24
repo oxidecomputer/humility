@@ -1,3 +1,6 @@
 max_width = 80
 use_small_heuristics = "max"
-wrap_comments = true
+
+# Unfortunately, this feature is only available on nightly. :|  Without it,
+# comments can be of arbitrary width (!) so they need to be manually verified.
+# wrap_comments = true

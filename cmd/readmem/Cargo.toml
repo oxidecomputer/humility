@@ -2,6 +2,7 @@
 name = "humility-cmd-readmem"
 version = "0.1.0"
 edition = "2021"
+description = "read and display memory region"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

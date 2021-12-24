@@ -23,7 +23,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "pmbus", about = "scan for and read PMBus devices")]
+#[structopt(name = "pmbus", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct PmbusArgs {
     /// sets timeout
     #[structopt(

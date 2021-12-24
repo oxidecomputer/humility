@@ -2,6 +2,7 @@
 name = "humility-cmd-ringbuf"
 version = "0.1.0"
 edition = "2021"
+description = "read and display a specified ring buffer"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

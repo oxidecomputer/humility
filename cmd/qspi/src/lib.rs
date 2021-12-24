@@ -24,7 +24,7 @@ extern crate log;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
-    name = "qspi", about = "QSPI status, reading and writing",
+    name = "qspi", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::with_name("command").multiple(false)
 )]
 struct QspiArgs {

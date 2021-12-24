@@ -2,6 +2,90 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility probe`
+//!
+//! `humility probe` attempts to infer as much about the hardware state as it
+//! can, e.g.:
+//!
+//! ```console
+//! % humility probe
+//! humility: attached via ST-Link
+//! humility:        probe => STLink V3, VID 0483, PID 374e
+//! humility: probe serial => 003700303137511139383538
+//! humility:         core => Cortex-M7
+//! humility: manufacturer => STMicroelectronics
+//! humility:         chip => STM32H7, revision 0x2003
+//! humility:       status => executing
+//! humility:  debug units => CSTF(x2) CTI(x2) DWT ETM FPB ITM SCS SWO TMC TPIU
+//! humility:         CSTF => 0x5c004000, 0x5c013000
+//! humility:          CTI => 0x5c011000, 0xe0043000
+//! humility:          DWT => 0xe0001000
+//! humility:          ETM => 0xe0041000
+//! humility:          FPB => 0xe0002000
+//! humility:          ITM => 0xe0000000
+//! humility:          SCS => 0xe000e000
+//! humility:          SWO => 0x5c003000
+//! humility:          TMC => 0x5c014000
+//! humility:         TPIU => 0x5c015000
+//! humility:   ITM status => TRCENA enabled, TCR disabled, TER=0x0
+//! humility:           R0 => 0x20006000
+//! humility:           R1 => 0x20006000
+//! humility:           R2 => 0x0
+//! humility:           R3 => 0x0
+//! humility:           R4 => 0x0
+//! humility:           R5 => 0x0
+//! humility:           R6 => 0x0
+//! humility:           R7 => 0x0
+//! humility:           R8 => 0x0
+//! humility:           R9 => 0x0
+//! humility:          R10 => 0x0
+//! humility:          R11 => 0x0
+//! humility:          R12 => 0x0
+//! humility:           SP => 0x20006100
+//! humility:           LR => 0x802404f
+//! humility:           PC => 0x8024052
+//! humility:         xPSR => 0x61000000
+//! humility:          MSP => 0x20000f48
+//! humility:          PSP => 0x20006100
+//! humility:          SPR => 0x7000000
+//! ```
+//!
+//! If provided a Hubris archive, `humility probe` will display any register
+//! contents symbolically, e.g.:
+//!
+//! ```console
+//! % humility -a ~/hubris/target/demo/dist/build-demo.zip probe
+//! humility: attached via ST-Link
+//! humility:        probe => STLink V2-1, VID 0483, PID 374b
+//! humility: probe serial => 066DFF383032534E43132614
+//! humility:         core => Cortex-M4
+//! humility: manufacturer => STMicroelectronics
+//! humility:         chip => STM32F40x/STM32F41x, revision 0x1007
+//! humility:  debug units => DWT ETM FPB ITM SCS TPIU
+//! humility:       status => executing
+//! humility:          ITM => TRCENA enabled, TCR enabled, TER=0x3
+//! humility:           R0 => 0x0
+//! humility:           R1 => 0x0
+//! humility:           R2 => 0x1
+//! humility:           R3 => 0x20001bd4
+//! humility:           R4 => 0x20001bd4
+//! humility:           R5 => 0x801d988
+//! humility:           R6 => 0xb004
+//! humility:           R7 => 0x20001bf0
+//! humility:           R8 => 0x40004400
+//! humility:           R9 => 0x1
+//! humility:          R10 => 0x0
+//! humility:          R11 => 0xffff
+//! humility:          R12 => 0x0
+//! humility:           SP => 0x20001ba8
+//! humility:           LR => 0x801c12b   <- main+0xef
+//! humility:           PC => 0x801d290   <- sys_recv_stub+0x1e
+//! humility:         xPSR => 0x61000000
+//! humility:          MSP => 0x20000f48
+//! humility:          PSP => 0x20001ba8
+//! humility:          SPR => 0x7000000
+//! ```
+
 use anyhow::Result;
 use humility::arch::ARMRegister;
 use humility::core::Core;
@@ -17,7 +101,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "probe", about = "probe for any attached devices")]
+#[structopt(name = "probe", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ProbeArgs {}
 
 #[rustfmt::skip::macros(format)]

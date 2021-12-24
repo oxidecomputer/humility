@@ -2,6 +2,7 @@
 name = "humility-cmd-readvar"
 version = "0.1.0"
 edition = "2021"
+description = "read and display a specified Hubris variable"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
