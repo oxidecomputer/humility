@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, bail, Context, Result};
+use ::idol::syntax::{Operation, Reply};
+use anyhow::{anyhow, bail, Result};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
+use humility_cmd::idol;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use idol::syntax::{Operation, RecvStrategy, Reply};
-use indexmap::IndexMap;
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -36,7 +36,7 @@ struct HiffyArgs {
 
     /// list interfaces
     #[structopt(long, short, conflicts_with = "list")]
-    interface: bool,
+    interfaces: bool,
 
     /// call a particular function
     #[structopt(long, short, conflicts_with_all = &["list", "interfaces"])]
@@ -51,297 +51,100 @@ struct HiffyArgs {
     arguments: Vec<String>,
 }
 
-fn hiffy_operation<'a>(
-    hubris: &'a HubrisArchive,
-    interface: &str,
-    operation: &str,
-    target: Option<&HubrisTask>,
-) -> Result<(HubrisTask, &'a Operation, u16)> {
-    //
-    // Find this interface and its operation.
-    //
-    let mut rval = None;
+fn hiffy_interfaces(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
+    println!(
+        "{:<15} {:<12} {:<19} {:<15} {:<15}",
+        "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
+    );
 
-    let tasks = match target {
-        Some(task) => vec![*task],
-        None => {
-            (0..hubris.ntasks()).map(|t| HubrisTask::Task(t as u32)).collect()
+    let print_args = |op: &(&String, &Operation), module, margin| {
+        let mut args = op.1.args.iter();
+        let m = margin;
+
+        match args.next() {
+            None => {
+                println!("-");
+            }
+            Some(arg) => {
+                println!("{:<15} {}", arg.0, arg.1.ty.0);
+
+                for arg in args {
+                    println!("{:m$}{:<15} {}", "", arg.0, arg.1.ty.0, m = m);
+                }
+            }
+        }
+
+        if !subargs.verbose {
+            return;
+        }
+
+        match idol::lookup_reply(hubris, module, op.0) {
+            Ok((_, e)) => match &op.1.reply {
+                Reply::Result { ok, .. } => {
+                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
+                    println!("{:m$}{:<15} {}", "", "<error>", e.name, m = m);
+                }
+            },
+            Err(e) => {
+                warn!("{}", e);
+            }
         }
     };
 
-    'nexttask: for task in tasks {
-        let module = hubris.lookup_module(task)?;
+    for i in 0..hubris.ntasks() {
+        let module = hubris.lookup_module(HubrisTask::Task(i as u32))?;
 
-        match &module.iface {
-            Some(iface) if iface.name == interface => {
-                for (idx, op) in iface.ops.iter().enumerate() {
-                    if op.0 == operation {
-                        rval = match rval {
-                            None => Some((task, op.1, (idx + 1) as u16)),
-                            Some((_, _, _)) => {
-                                bail!(
-                                    "interface {} is present in more than \
-                                    one task",
-                                    interface
-                                );
-                            }
-                        };
-                        continue 'nexttask;
+        if let Some(iface) = &module.iface {
+            let mut ops = iface.ops.iter();
+
+            print!("{:15} {:<12} ", module.name, iface.name);
+
+            match ops.next() {
+                None => {
+                    println!("-");
+                }
+                Some(op) => {
+                    print!("{:<20}", op.0);
+                    print_args(&op, module, 49);
+
+                    for op in ops {
+                        print!("{:29}{:<20}", "", op.0);
+                        print_args(&op, module, 49);
                     }
                 }
-
-                bail!(
-                    "interace {} does not contain operation {}",
-                    interface,
-                    operation
-                );
             }
-            _ => {}
         }
     }
-
-    if let Some(rval) = rval {
-        Ok(rval)
-    } else {
-        bail!("interface {} not found", interface);
-    }
-}
-
-fn hiffy_call_arg(
-    hubris: &HubrisArchive,
-    member: &HubrisStructMember,
-    value: &str,
-    buf: &mut [u8],
-) -> Result<()> {
-    let t = hubris.lookup_type(member.goff)?;
-    let arg = &member.name;
-
-    let err = |err| anyhow!("illegal value for {}: {}", arg, err);
-
-    match t {
-        HubrisType::Base(base) => {
-            if member.offset + base.size > buf.len() {
-                bail!("illegal argument type {}", member.goff);
-            }
-
-            let dest = &mut buf[member.offset..member.offset + base.size];
-
-            match (base.encoding, base.size) {
-                (HubrisEncoding::Unsigned, 4) => {
-                    let v = parse_int::parse::<u32>(value).map_err(err)?;
-                    dest.copy_from_slice(v.to_le_bytes().as_slice());
-                }
-                (HubrisEncoding::Unsigned, 2) => {
-                    let v = parse_int::parse::<u16>(value).map_err(err)?;
-                    dest.copy_from_slice(v.to_le_bytes().as_slice());
-                }
-                (HubrisEncoding::Unsigned, 1) => {
-                    dest[0] = parse_int::parse::<u8>(value).map_err(err)?;
-                }
-                (_, _) => {
-                    bail!(
-                        "encoding of {} ({:?}) not yet supported",
-                        member.name,
-                        base
-                    );
-                }
-            }
-        }
-        _ => {
-            bail!("type of {} ({:?}) not yet supported", member.name, t);
-        }
-    };
 
     Ok(())
-}
-
-fn hiffy_call_reply<'a>(
-    hubris: &'a HubrisArchive,
-    m: &HubrisModule,
-    interface: &str,
-    op: &str,
-    reply: &Reply,
-) -> Result<(HubrisGoff, &'a HubrisEnum)> {
-    match reply {
-        Reply::Result { ok, err } => {
-            let err = match err {
-                idol::syntax::Error::CLike(t) => m
-                    .lookup_enum_byname(hubris, &t.0)
-                    .context(format!("failed to find error type {:?}", reply)),
-            }?;
-
-            if let Ok(goff) = hubris.lookup_basetype_byname(&ok.ty.0) {
-                Ok((*goff, err))
-            } else if let Ok(e) = m.lookup_enum_byname(hubris, &ok.ty.0) {
-                Ok((e.goff, err))
-            } else if let Ok(s) = m.lookup_struct_byname(hubris, &ok.ty.0) {
-                Ok((s.goff, err))
-            } else {
-                //
-                // As a last ditch, we look up the REPLY type. This is a last
-                // effort because it might not be there:  if no task calls
-                // the function, the type will be absent.
-                //
-                let t = format!("{}_{}_REPLY", interface, op);
-
-                if let Ok(s) = hubris.lookup_struct_byname(&t) {
-                    Ok((s.goff, err))
-                } else {
-                    bail!("no type for {}.{}: {:?}", interface, op, reply);
-                }
-            }
-        }
-    }
-}
-
-fn hiffy_call_arg_enum(
-    hubris: &HubrisArchive,
-    arg: &str,
-    member: &HubrisStructMember,
-    e: &HubrisEnum,
-    value: &str,
-    buf: &mut [u8],
-) -> Result<()> {
-    let t = hubris.lookup_type(member.goff)?;
-
-    let base = match t {
-        HubrisType::Base(base) => base,
-        _ => {
-            bail!("type {:?} not expected to represent enum", t);
-        }
-    };
-
-    if base.size != e.size {
-        bail!("size mismatch: {:?} vs. enum arg {:?}", t, e);
-    }
-
-    let dest = &mut buf[member.offset..member.offset + e.size];
-
-    for variant in &e.variants {
-        if value == variant.name {
-            if let Some(tag) = variant.tag {
-                match e.size {
-                    4 => {
-                        let v: u32 = tag.try_into()?;
-                        dest.copy_from_slice(v.to_le_bytes().as_slice());
-                    }
-                    2 => {
-                        let v: u16 = tag.try_into()?;
-                        dest.copy_from_slice(v.to_le_bytes().as_slice());
-                    }
-                    1 => {
-                        let v: u8 = tag.try_into()?;
-                        dest[0] = v;
-                    }
-                    _ => {
-                        bail!("unknown enum size: {:?}", e);
-                    }
-                }
-
-                return Ok(());
-            } else {
-                bail!("untagged enum: {:?}", e);
-            }
-        }
-    }
-
-    let all =
-        e.variants.iter().map(|v| v.name.clone()).collect::<Vec<String>>();
-    bail!("{} must be one of: {}", arg, all.join(", "));
 }
 
 fn hiffy_call(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    interface: &str,
-    operation: &str,
-    args: &[(&str, &str)],
-    task: Option<&HubrisTask>,
+    op: &idol::IdolOperation,
 ) -> Result<()> {
-    let (task, op, code) = hiffy_operation(hubris, interface, operation, task)?;
-    let mut map = IndexMap::new();
     let funcs = context.functions()?;
     let send = funcs.get("Send", 4)?;
-
-    for arg in args {
-        map.insert(arg.0, arg.1);
-    }
-
-    let t = format!("{}_{}_ARGS", interface, operation);
-    let module = hubris.lookup_module(task)?;
-    let s = module.lookup_struct_byname(hubris, &t)?;
-
-    let mut payload = vec![0u8; s.size];
-
-    'nextone: for arg in &op.args {
-        if let Some(val) = map.remove(arg.0 as &str) {
-            match &arg.1.recv {
-                RecvStrategy::FromBytes => {
-                    for member in &s.members {
-                        if member.name == *arg.0 {
-                            hiffy_call_arg(hubris, member, val, &mut payload)?;
-                            continue 'nextone;
-                        }
-                    }
-                }
-
-                _ => {
-                    let raw = format!("raw_{}", arg.0);
-
-                    for member in &s.members {
-                        if member.name == raw {
-                            let ty = &arg.1.ty.0;
-                            let e = module.lookup_enum_byname(hubris, ty)?;
-                            hiffy_call_arg_enum(
-                                hubris,
-                                arg.0,
-                                member,
-                                e,
-                                val,
-                                &mut payload,
-                            )?;
-                            continue 'nextone;
-                        }
-                    }
-                }
-            }
-
-            bail!("did not find {} in {:?}", arg.0, s);
-        } else {
-            bail!("argument \"{}\" is not specified", arg.0);
-        }
-    }
-
-    if !map.is_empty() {
-        bail!(
-            "spurious arguments: {}",
-            map.iter().map(|v| *v.0).collect::<Vec<&str>>().join(", ")
-        );
-    }
-
-    let reply = &op.reply;
-
-    let (ok, _) =
-        hiffy_call_reply(hubris, module, interface, operation, reply)?;
-
     let mut ops = vec![];
 
-    if let HubrisTask::Task(id) = task {
+    if let HubrisTask::Task(id) = op.task {
         ops.push(Op::Push32(id));
     } else {
-        bail!("interface matches invalid task {:?}", task);
+        bail!("interface matches invalid task {:?}", op.task);
     }
 
-    ops.push(Op::Push16(code));
+    ops.push(Op::Push16(op.code));
 
-    for byte in &payload {
+    for byte in &op.payload {
         ops.push(Op::Push(*byte));
     }
 
-    ops.push(Op::Push32(payload.len() as u32));
-    ops.push(Op::Push32(hubris.typesize(ok)? as u32));
+    ops.push(Op::Push32(op.payload.len() as u32));
+    ops.push(Op::Push32(hubris.typesize(op.ok)? as u32));
     ops.push(Op::Call(send.id));
+    ops.push(Op::DropN(5));
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
@@ -359,8 +162,8 @@ fn hiffy_call(
 
     match result {
         Ok(val) => {
-            let dumped = hubris.printfmt(val, ok, &fmt)?;
-            println!("{}.{}() = {}", interface, operation, dumped);
+            let dumped = hubris.printfmt(val, op.ok, &fmt)?;
+            println!("{}.{}() = {}", op.name.0, op.name.1, dumped);
         }
         Err(e) => {
             println!("Err({:x?})", e);
@@ -378,99 +181,8 @@ fn hiffy(
 ) -> Result<()> {
     let subargs = HiffyArgs::from_iter_safe(subargs)?;
 
-    if subargs.interface {
-        println!(
-            "{:<15} {:<12} {:<19} {:<15} {:<15}",
-            "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
-        );
-
-        let print_args = |iface: &idol::syntax::Interface,
-                          op: &(&String, &Operation),
-                          module,
-                          margin| {
-            let mut args = op.1.args.iter();
-
-            match args.next() {
-                None => {
-                    println!("-");
-                }
-                Some(arg) => {
-                    println!("{:<15} {}", arg.0, arg.1.ty.0);
-
-                    for arg in args {
-                        println!(
-                            "{:margin$}{:<15} {}",
-                            "",
-                            arg.0,
-                            arg.1.ty.0,
-                            margin = margin
-                        );
-                    }
-                }
-            }
-
-            if !subargs.verbose {
-                return;
-            }
-
-            let r = hiffy_call_reply(
-                hubris,
-                module,
-                &iface.name,
-                op.0,
-                &op.1.reply,
-            );
-
-            match r {
-                Ok((_, e)) => match &op.1.reply {
-                    Reply::Result { ok, .. } => {
-                        println!(
-                            "{:m$}{:<15} {}",
-                            "",
-                            "<ok>",
-                            ok.ty.0,
-                            m = margin
-                        );
-                        println!(
-                            "{:m$}{:<15} {}",
-                            "",
-                            "<error>",
-                            e.name,
-                            m = margin
-                        );
-                    }
-                },
-                Err(e) => {
-                    warn!("{}", e);
-                }
-            }
-        };
-
-        for i in 0..hubris.ntasks() {
-            let module = hubris.lookup_module(HubrisTask::Task(i as u32))?;
-
-            if let Some(iface) = &module.iface {
-                let mut ops = iface.ops.iter();
-
-                print!("{:15} {:<12} ", module.name, iface.name);
-
-                match ops.next() {
-                    None => {
-                        println!("-");
-                    }
-                    Some(op) => {
-                        print!("{:<20}", op.0);
-                        print_args(iface, &op, module, 49);
-
-                        for op in ops {
-                            print!("{:29}{:<20}", "", op.0);
-                            print_args(iface, &op, module, 49);
-                        }
-                    }
-                }
-            }
-        }
-
+    if subargs.interfaces {
+        hiffy_interfaces(hubris, &subargs)?;
         return Ok(());
     }
 
@@ -492,7 +204,7 @@ fn hiffy(
                 bail!("arguments must be argument=value (-i to list)");
             }
 
-            args.push((arg[0], arg[1]));
+            args.push((arg[0], idol::IdolArgument::String(arg[1])));
         }
 
         let task = match subargs.task {
@@ -504,7 +216,9 @@ fn hiffy(
             None => None,
         };
 
-        hiffy_call(hubris, core, &mut context, func[0], func[1], &args, task)?;
+        let op =
+            idol::IdolOperation::new(hubris, func[0], func[1], &args, task)?;
+        hiffy_call(hubris, core, &mut context, &op)?;
 
         return Ok(());
     }

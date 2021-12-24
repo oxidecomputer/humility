@@ -587,6 +587,7 @@ dependencies = [
  "hif",
  "humility-core",
  "humility_load_derive",
+ "idol",
  "indexmap",
  "log",
  "parse_int",

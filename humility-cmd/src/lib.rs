@@ -8,6 +8,7 @@ pub mod i2c;
 pub mod jefe;
 pub mod reflect;
 pub mod test;
+pub mod idol;
 
 use anyhow::{bail, Result};
 use humility::core::Core;
