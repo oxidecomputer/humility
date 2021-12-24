@@ -2,6 +2,7 @@
 name = "humility-cmd-rencm"
 version = "0.1.0"
 edition = "2021"
+description = "query Renesas 8A3400X ClockMatrix parts"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

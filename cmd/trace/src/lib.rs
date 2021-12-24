@@ -15,7 +15,7 @@ use structopt::clap::App;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "trace", about = "trace Hubris operations")]
+#[structopt(name = "trace", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TraceArgs {
     /// provide statemap-ready output
     #[structopt(long, short)]

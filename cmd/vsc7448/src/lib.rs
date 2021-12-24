@@ -19,7 +19,7 @@ use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "spi", about = "SPI reading and writing")]
+#[structopt(name = "vsc7448", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct Vsc7448Args {
     /// sets timeout
     #[structopt(

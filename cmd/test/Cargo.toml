@@ -2,6 +2,7 @@
 name = "humility-cmd-test"
 version = "0.1.0"
 edition = "2021"
+description = "run Hubristest suite and parse results"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

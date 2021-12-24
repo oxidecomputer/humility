@@ -37,6 +37,7 @@ members = [
     "cmd/test",
     "cmd/trace",
     "cmd/vsc7448",
+    "xtask",
 ]
 
 [profile.release]

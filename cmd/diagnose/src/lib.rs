@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Automatic heuristic diagnosis routine.
+//! ## `humility diagnose`
 //!
 //! This subcommand provides a "firmware engineer in a can" for scanning and
 //! reporting issues in a running system. It's mostly concerned with
@@ -41,10 +41,7 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
 }
 
 #[derive(StructOpt, Debug)]
-#[structopt(
-    name = "diagnose",
-    about = "analyze a system to detect common problems"
-)]
+#[structopt(name = "diagnose", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DiagnoseArgs {
     /// timeout to wait for interactions with the supervisor task to complete
     #[structopt(

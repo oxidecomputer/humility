@@ -2,6 +2,78 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility apptable`
+//!
+//! Hubris encodes the applications at build time by creating a
+//! `.hubris_app_table` section in the kernel ELF binary.  `humility apptable`
+//! allows this table to be printed and formatted.  As with other Humility
+//! commands, `humility apptable` can run on an archive (or dump):
+//!
+//! ```console
+//! % humility apptable
+//! App = {
+//!         magic: 0x1defa7a1,
+//!         task_count: 0x4,
+//!         region_count: 0x9,
+//!         irq_count: 0x0,
+//!         fault_notification: 0x1,
+//!         zeroed_expansion_space: [
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0
+//!         ]
+//!     }
+//!
+//! RegionDesc[0x0] = {
+//!         base: 0x0,
+//!         size: 0x20,
+//!         attributes: RegionAttributes {
+//!             bits: 0x0
+//!         },
+//!         reserved_zero: 0x0
+//!     }
+//! ...
+//! ```
+//!
+//! `humility apptable` can also operate directly on a kernel in lieu of an
+//! archive or dump by providing the kernel ELF file as an argument:
+//!
+//! ```console
+//! % humility apptable ~/hubris/target/demo/dist/kernel
+//! App = {
+//!         magic: 0x1defa7a1,
+//!         task_count: 0x7,
+//!         region_count: 0x13,
+//!         irq_count: 0x1,
+//!         fault_notification: 0x1,
+//!         zeroed_expansion_space: [
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0,
+//!             0x0
+//!         ]
+//!     }
+//! ...
+//! ```
+//!
+
 use anyhow::{bail, Result};
 use humility::hubris::{HubrisArchive, HubrisPrintFormat};
 use humility_cmd::{Archive, Args, Command};
@@ -10,7 +82,7 @@ use structopt::clap::App;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "apptable", about = "print Hubris apptable")]
+#[structopt(name = "apptable", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ApptableArgs {
     #[structopt(
         help = "path to kernel ELF object (in lieu of Hubris archive)"

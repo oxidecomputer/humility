@@ -2,6 +2,7 @@
 name = "humility-cmd-qspi"
 version = "0.1.0"
 edition = "2021"
+description = "QSPI status, reading and writing"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

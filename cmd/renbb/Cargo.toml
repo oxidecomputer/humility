@@ -2,6 +2,7 @@
 name = "humility-cmd-renbb"
 version = "0.1.0"
 edition = "2021"
+description = "Renesas black box operations"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

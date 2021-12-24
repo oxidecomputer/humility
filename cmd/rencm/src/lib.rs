@@ -20,7 +20,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "rencm", about = "query Renesas 8A3400X ClockMatrix parts")]
+#[structopt(name = "rencm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RencmArgs {
     /// sets timeout
     #[structopt(

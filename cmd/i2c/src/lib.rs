@@ -2,6 +2,95 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility i2c`
+//!
+//! On platforms that have I<sup>2</sup>C support, `humility i2c` can be used
+//! to scan a bus, scan a device, read a register, or write a register.  Its
+//! usage will be specific to the board being examined; to specify a
+//! controller use the `-c`, to specify a port (if necessary), use `-p`; to
+//! specify a mux and segment (if necessary), use `-m`.
+//!
+//! For example, on a Gimletlet, here is a scan of controller I2C3, revealing
+//! one device at address `0x48`:
+//!
+//! ```console
+//! % humility i2c -s -c 3
+//! humility: attached via ST-Link
+//!
+//! Device scan on controller I2C3:
+//!
+//!     R = Reserved   - = No device   \o/ = Device found   X = Timed out
+//!
+//! ADDR     0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
+//! 0x00       R   R   R   R   R   R   R   R   -   -   -   -   -   -   -   -
+//! 0x10       -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+//! 0x20       -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+//! 0x30       -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+//! 0x40       -   -   -   -   -   -   -   - \o/   -   -   -   -   -   -   -
+//! 0x50       -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+//! 0x60       -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+//! 0x70       -   -   -   -   -   -   -   -   -   -   -   -   R   R   R   R
+//! ```
+//!
+//! To scan that device, specify its address via `-d`:
+//!
+//! ```console
+//! % humility i2c -s -c 3 -d 0x48
+//! humility: attached via ST-Link
+//!
+//! Register scan for device 0x48 on I2C3:
+//!
+//!       - = No register        ! = No device        X = Timed out
+//!
+//! ADDR  0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
+//! 0x00   0b  c8  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0x10   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0x20   0b  c8  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0x30   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0x40   00  00  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0x50   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0x60   00  00  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0x70   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0x80   00  00  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0x90   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0xa0   00  00  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0xb0   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0xc0   00  00  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0xd0   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! 0xe0   00  00  80  00  20  00  05  00  49  80  05  cb  00  00  00  00
+//! 0xf0   00  00  00  00  00  00  00  00  6c  00  06  00  00  00  00  00
+//! ```
+//!
+//! (This device is an ADT7420 temp sensor.)  To look at a particular
+//! register, elide `-s` and specify the register of interest via `-r`:
+//!
+//! ```console
+//! % humility i2c -c 3 -d 0x48 -r 0xb
+//! humility: attached via ST-Link
+//! Controller I2C3, device 0x48, register 0xb = 0xcb
+//! ```
+//!
+//! To write a value to a register, specify the `-w` flag, along with the
+//! value to write, e.g. (for the ADT7420), the MSB of the T<sub>HIGH</sub>
+//! register:
+//!
+//! ```console
+//! % humility i2c -c 3 -d 0x48 -r 0x4 -w 0x1f
+//! humility: attached via ST-Link
+//! Controller I2C3, device 0x48, register 0x4 = 0x1f
+//! ```
+//!
+//! Note that if registers are not writable, the write will (generally) be
+//! silently discarded by the device; it can be useful to read the register
+//! after writing it to confirm that the value is as expected:
+//!
+//! ```console
+//! % humility i2c -c 3 -d 0x48 -r 0x4
+//! humility: attached via ST-Link
+//! Controller I2C3, device 0x48, register 0x4 = 0x1f
+//! ```
+//!
+
 use anyhow::{bail, Result};
 use hif::*;
 use humility::core::Core;
@@ -25,7 +114,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 extern crate log;
 
 #[derive(StructOpt, Debug, Default)]
-#[structopt(name = "i2c", about = "scan for and read I2C devices")]
+#[structopt(name = "i2c", about = env!("CARGO_PKG_DESCRIPTION"))]
 pub struct I2cArgs {
     /// sets timeout
     #[structopt(

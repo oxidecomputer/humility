@@ -1,7 +1,6 @@
 max_width = 80
 use_small_heuristics = "max"
-#
-# Sadly, this option is only available on nigthly -- and without it, comments
-# can go to arbitrary width.  Looking forward to being able to turn it on!
-#
+
+# Unfortunately, this feature is only available on nightly. :|  Without it,
+# comments can be of arbitrary width (!) so they need to be manually verified.
 # wrap_comments = true

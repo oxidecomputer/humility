@@ -2,6 +2,36 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility ringbuf`
+//!
+//! `humility ringbuf` reads and displays any Hubris ring buffers (as created
+//! via the `ringbuf!` macro in the Hubris `ringbuf` crate).  e.g.:
+//!
+//! ```console
+//! % humility -d ./hubris.core.5 ringbuf
+//! ADDR        NDX LINE  GEN    COUNT PAYLOAD
+//! 0x2000a288  552   92    1        5 (21.5, 70.69999694824219)
+//! 0x2000a298  553   92    1        1 (21.4375, 70.58749389648438)
+//! 0x2000a2a8  554   92    1        1 (21.5, 70.69999694824219)
+//! 0x2000a2b8  555   92    1        1 (21.4375, 70.58749389648438)
+//! 0x2000a2c8  556   92    1        5 (21.5, 70.69999694824219)
+//! 0x2000a2d8  557   92    1        1 (21.5625, 70.8125)
+//! 0x2000a2e8  558   92    1       15 (21.5, 70.69999694824219)
+//! 0x2000a2f8  559   92    1        1 (21.4375, 70.58749389648438)
+//! 0x2000a308  560   92    1       10 (21.5, 70.69999694824219)
+//! 0x2000a318  561   92    1        2 (21.4375, 70.58749389648438)
+//! 0x2000a328  562   92    1        2 (21.5, 70.69999694824219)
+//! 0x2000a338  563   92    1        1 (21.4375, 70.58749389648438)
+//! 0x2000a348  564   92    1        9 (21.5, 70.69999694824219)
+//! 0x2000a358  565   92    1        3 (21.4375, 70.58749389648438)
+//! 0x2000a368  566   92    1        4 (21.5, 70.69999694824219)
+//! 0x2000a378  567   92    1        1 (21.4375, 70.58749389648438)
+//! ...
+//! ```
+//!
+//! See the [`ringbuf`
+//! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
+
 use anyhow::{bail, Result};
 use humility::core::Core;
 use humility::hubris::*;
@@ -15,10 +45,7 @@ use structopt::StructOpt;
 extern crate log;
 
 #[derive(StructOpt, Debug)]
-#[structopt(
-    name = "ringbuf",
-    about = "read and display a specified ring buffer"
-)]
+#[structopt(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RingbufArgs {
     /// list variables
     #[structopt(long, short)]

@@ -2,6 +2,7 @@
 name = "humility-cmd-dump"
 version = "0.1.0"
 edition = "2021"
+description = "generate Hubris dump"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

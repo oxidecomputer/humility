@@ -2,6 +2,7 @@
 name = "humility-cmd-vsc7448"
 version = "0.1.0"
 edition = "2021"
+description = "VSC7448 operations"
 
 [dependencies]
 anyhow = { version = "1.0.44", features = ["backtrace"] }
