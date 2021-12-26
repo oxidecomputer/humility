@@ -245,6 +245,8 @@ fn itmcmd(
      */
     let mut c = attach_live(args)?;
     let core = c.as_mut();
+    hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+
     let coreinfo = CoreInfo::read(core)?;
 
     let _info = core.halt();
@@ -269,7 +271,14 @@ fn itmcmd(
         let stim = 0x0000_000f;
         let clockscaler = match subargs.clockscaler {
             Some(value) => value,
-            None => swoscaler(hubris, core)?,
+            None => {
+                if !hubris.loaded() {
+                    core.run()?;
+                    bail!("must provide an archive");
+                }
+
+                swoscaler(hubris, core)?
+            }
         };
 
         rval = itm_enable_explicit(core, &coreinfo, clockscaler, traceid, stim);
