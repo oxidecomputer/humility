@@ -13,6 +13,8 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use structopt::clap::App;
 use structopt::StructOpt;
 
+use std::convert::TryFrom;
+
 #[macro_use]
 extern crate log;
 
@@ -135,6 +137,9 @@ fn hiffy_call(
         bail!("interface matches invalid task {:?}", op.task);
     }
 
+    let size = u8::try_from(4 + op.payload.len())
+        .map_err(|_| anyhow!("payload size exceeds maximum size"))?;
+
     ops.push(Op::Push16(op.code));
 
     for byte in &op.payload {
@@ -144,7 +149,7 @@ fn hiffy_call(
     ops.push(Op::Push32(op.payload.len() as u32));
     ops.push(Op::Push32(hubris.typesize(op.ok)? as u32));
     ops.push(Op::Call(send.id));
-    ops.push(Op::DropN(5));
+    ops.push(Op::DropN(size));
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;

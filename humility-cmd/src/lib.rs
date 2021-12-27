@@ -5,10 +5,10 @@
 pub mod doppel;
 pub mod hiffy;
 pub mod i2c;
+pub mod idol;
 pub mod jefe;
 pub mod reflect;
 pub mod test;
-pub mod idol;
 
 use anyhow::{bail, Result};
 use humility::core::Core;
