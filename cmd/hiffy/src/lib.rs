@@ -13,8 +13,6 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use structopt::clap::App;
 use structopt::StructOpt;
 
-use std::convert::TryFrom;
-
 #[macro_use]
 extern crate log;
 
@@ -126,30 +124,13 @@ fn hiffy_call(
     core: &mut dyn Core,
     context: &mut HiffyContext,
     op: &idol::IdolOperation,
+    args: &[(&str, idol::IdolArgument)],
 ) -> Result<()> {
     let funcs = context.functions()?;
-    let send = funcs.get("Send", 4)?;
     let mut ops = vec![];
 
-    if let HubrisTask::Task(id) = op.task {
-        ops.push(Op::Push32(id));
-    } else {
-        bail!("interface matches invalid task {:?}", op.task);
-    }
-
-    let size = u8::try_from(4 + op.payload.len())
-        .map_err(|_| anyhow!("payload size exceeds maximum size"))?;
-
-    ops.push(Op::Push16(op.code));
-
-    for byte in &op.payload {
-        ops.push(Op::Push(*byte));
-    }
-
-    ops.push(Op::Push32(op.payload.len() as u32));
-    ops.push(Op::Push32(hubris.typesize(op.ok)? as u32));
-    ops.push(Op::Call(send.id));
-    ops.push(Op::DropN(size));
+    let payload = op.payload(args)?;
+    context.idol_call_ops(&funcs, op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
@@ -221,9 +202,8 @@ fn hiffy(
             None => None,
         };
 
-        let op =
-            idol::IdolOperation::new(hubris, func[0], func[1], &args, task)?;
-        hiffy_call(hubris, core, &mut context, &op)?;
+        let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
+        hiffy_call(hubris, core, &mut context, &op, &args)?;
 
         return Ok(());
     }

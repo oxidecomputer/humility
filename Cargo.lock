@@ -579,6 +579,7 @@ dependencies = [
  "humility-cmd-stmsecure",
  "humility-cmd-tasks",
  "humility-cmd-test",
+ "humility-cmd-thermal",
  "humility-cmd-trace",
  "humility-cmd-vsc7448",
  "humility-core",
@@ -923,6 +924,21 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+ "structopt",
+]
+
+[[package]]
+name = "humility-cmd-thermal"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
  "structopt",
 ]
 

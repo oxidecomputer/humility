@@ -34,6 +34,7 @@ members = [
     "cmd/stackmargin",
     "cmd/stmsecure",
     "cmd/tasks",
+    "cmd/thermal",
     "cmd/test",
     "cmd/trace",
     "cmd/vsc7448",
@@ -79,6 +80,7 @@ cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmar
 cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
 cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
+cmd-thermal = { path = "./cmd/thermal", package = "humility-cmd-thermal" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
 cmd-vsc7448 = { path = "./cmd/vsc7448", package = "humility-cmd-vsc7448" }
 

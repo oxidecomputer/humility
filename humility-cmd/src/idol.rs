@@ -9,11 +9,12 @@ use indexmap::IndexMap;
 
 #[derive(Debug)]
 pub struct IdolOperation<'a> {
+    hubris: &'a HubrisArchive,
     pub name: (String, String),
     pub task: HubrisTask,
     pub operation: &'a Operation,
     pub code: u16,
-    pub payload: Vec<u8>,
+    pub args: &'a HubrisStruct,
     pub ok: HubrisGoff,
     pub error: &'a HubrisEnum,
 }
@@ -21,6 +22,7 @@ pub struct IdolOperation<'a> {
 #[derive(Debug)]
 pub enum IdolArgument<'a> {
     String(&'a str),
+    Scalar(u64),
 }
 
 impl<'a> IdolOperation<'a> {
@@ -28,27 +30,37 @@ impl<'a> IdolOperation<'a> {
         hubris: &'a HubrisArchive,
         interface: &str,
         operation: &str,
-        args: &[(&str, IdolArgument)],
         task: Option<&HubrisTask>,
     ) -> Result<Self> {
         let (task, op, code) = lookup(hubris, interface, operation, task)?;
-        let mut map = IndexMap::new();
         let name = (interface.to_string(), operation.to_string());
+
+        let t = format!("{}_{}_ARGS", interface, operation);
+        let module = hubris.lookup_module(task)?;
+        let args = module.lookup_struct_byname(hubris, &t)?;
+        let (ok, error) = lookup_reply(hubris, module, operation)?;
+
+        //
+        // We have our fully formed Idol call!
+        //
+        Ok(Self { hubris, name, task, operation: op, code, args, ok, error })
+    }
+
+    pub fn payload(&self, args: &[(&str, IdolArgument)]) -> Result<Vec<u8>> {
+        let mut map = IndexMap::new();
+        let hubris = self.hubris;
+        let module = hubris.lookup_module(self.task)?;
 
         for arg in args {
             map.insert(arg.0, &arg.1);
         }
 
-        let t = format!("{}_{}_ARGS", interface, operation);
-        let module = hubris.lookup_module(task)?;
-        let s = module.lookup_struct_byname(hubris, &t)?;
+        let mut payload = vec![0u8; self.args.size];
 
-        let mut payload = vec![0u8; s.size];
-
-        'nextone: for arg in &op.args {
+        'nextone: for arg in &self.operation.args {
             if let Some(val) = map.remove(arg.0 as &str) {
                 if let RecvStrategy::FromBytes = arg.1.recv {
-                    for member in &s.members {
+                    for member in &self.args.members {
                         if member.name == *arg.0 {
                             call_arg(hubris, member, val, &mut payload)?;
                             continue 'nextone;
@@ -57,7 +69,7 @@ impl<'a> IdolOperation<'a> {
                 } else {
                     let raw = format!("raw_{}", arg.0);
 
-                    for member in &s.members {
+                    for member in &self.args.members {
                         if member.name == raw {
                             let ty = &arg.1.ty.0;
                             let e = module.lookup_enum_byname(hubris, ty)?;
@@ -70,7 +82,7 @@ impl<'a> IdolOperation<'a> {
                     }
                 }
 
-                bail!("did not find {} in {:?}", arg.0, s);
+                bail!("did not find {} in {:?}", arg.0, self.args);
             } else {
                 bail!("argument \"{}\" is not specified", arg.0);
             }
@@ -83,12 +95,7 @@ impl<'a> IdolOperation<'a> {
             );
         }
 
-        let (ok, error) = lookup_reply(hubris, module, operation)?;
-
-        //
-        // We have our fully formed Idol call!
-        //
-        Ok(Self { name, task, operation: op, code, payload, ok, error })
+        Ok(payload)
     }
 }
 
@@ -165,13 +172,52 @@ fn call_arg(
 
     let err = |err| anyhow!("illegal value for {}: {}", arg, err);
 
+    if let IdolArgument::Scalar(value) = value {
+        let base = match t {
+            HubrisType::Base(base) => base,
+            _ => {
+                bail!("scalar for {} ({:?}) not yet supported", member.name, t);
+            }
+        };
+
+        if member.offset + base.size > buf.len() {
+            bail!("illegal argument type {}", member.goff);
+        }
+
+        let dest = &mut buf[member.offset..member.offset + base.size];
+
+        if base.encoding != HubrisEncoding::Unsigned {
+            bail!("signed scalar arguments not yet supported");
+        }
+
+        let mut v = *value;
+
+        // A little dirty
+        for d in dest.iter_mut() {
+            *d = (v & 0xff) as u8;
+            v >>= 8;
+        }
+
+        if v != 0 {
+            bail!("value of {} exceeds maximum for {}", value, member.name);
+        }
+
+        return Ok(());
+    }
+
     match t {
         HubrisType::Base(base) => {
             if member.offset + base.size > buf.len() {
                 bail!("illegal argument type {}", member.goff);
             }
 
-            let IdolArgument::String(value) = value;
+            let value = match value {
+                IdolArgument::String(value) => value,
+                _ => {
+                    bail!("unrecognized argument type: {:?}", value);
+                }
+            };
+
             let dest = &mut buf[member.offset..member.offset + base.size];
 
             match (base.encoding, base.size) {
@@ -212,7 +258,13 @@ fn call_arg_enum(
     buf: &mut [u8],
 ) -> Result<()> {
     let t = hubris.lookup_type(member.goff)?;
-    let IdolArgument::String(value) = *value;
+
+    let value = match value {
+        IdolArgument::String(value) => *value,
+        _ => {
+            bail!("invalid value for arg {} {:?}", arg, value);
+        }
+    };
 
     let base = match t {
         HubrisType::Base(base) => base,

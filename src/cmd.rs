@@ -42,6 +42,7 @@ pub fn init<'a, 'b>(
         cmd_stackmargin::init,
         cmd_tasks::init,
         cmd_test::init,
+        cmd_thermal::init,
         cmd_trace::init,
         cmd_stmsecure::init,
         cmd_vsc7448::init,
