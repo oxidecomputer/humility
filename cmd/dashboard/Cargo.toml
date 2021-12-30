@@ -1,0 +1,18 @@
+[package]
+name = "humility-cmd-dashboard"
+version = "0.1.0"
+edition = "2021"
+description = "dashboard for Hubris sensor data"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+parse_int = "0.4.0"
+indexmap = "1.7"
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+log = {version = "0.4.8", features = ["std"]}
+crossterm = "0.20"
+tui = { version = "0.16", default-features = false, features = ['crossterm'] }

@@ -153,6 +153,7 @@ environment variable.
 ## Commands
 
 - [humility apptable](#humility-apptable): print Hubris apptable
+- [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
@@ -177,6 +178,7 @@ environment variable.
 - [humility stmsecure](#humility-stmsecure): change secure region settings on the stm32h7
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
+- [humility thermal](#humility-thermal): thermal-related operations
 - [humility trace](#humility-trace): trace Hubris operations
 - [humility vsc7448](#humility-vsc7448): VSC7448 operations
 ### `humility apptable`
@@ -251,6 +253,10 @@ App = {
 ```
 
 
+
+### `humility dashboard`
+
+No documentation yet for `humility dashboard`; pull requests welcome!
 
 ### `humility diagnose`
 
@@ -1149,6 +1155,10 @@ All received packet data will be dumped to the resulting output file,
 allowing these transient failures to be differentiated from deeper issues.
 
 
+
+### `humility thermal`
+
+No documentation yet for `humility thermal`; pull requests welcome!
 
 ### `humility trace`
 

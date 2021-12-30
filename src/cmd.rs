@@ -19,6 +19,7 @@ pub fn init<'a, 'b>(
     let dcmds = [
         cmd_apptable::init,
         cmd_etm::init,
+        cmd_dashboard::init,
         cmd_diagnose::init,
         cmd_dump::init,
         cmd_etm::init,
