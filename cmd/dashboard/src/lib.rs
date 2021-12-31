@@ -78,8 +78,10 @@ struct Series {
 }
 
 struct Dashboard<'a> {
+    hubris: &'a HubrisArchive,
     context: HiffyContext<'a>,
     ops: Vec<Op>,
+    work: Vec<Vec<Op>>,
     last: Instant,
     interval: u32,
     outstanding: bool,
@@ -87,6 +89,7 @@ struct Dashboard<'a> {
     legend: StatefulList,
     time: usize,
     width: usize,
+    interpolate: usize,
     bounds: [f64; 2],
 }
 
@@ -104,19 +107,30 @@ impl<'a> Dashboard<'a> {
 
         let mut series = vec![];
 
-        let all = ["NW", "N", "NE", "SE", "S", "SW", "CPU"];
+        let all = [
+            "Northwest",
+            "North",
+            "Northeast",
+            "Southwest",
+            "South",
+            "Southeast",
+            "CPU (SB-TSI)",
+        ];
 
         let colors = [
+            Color::Yellow,
+            Color::Green,
+            Color::Magenta,
+            Color::White,
+            Color::Red,
+            Color::LightRed,
+            Color::Blue,
             Color::LightMagenta,
             Color::LightYellow,
             Color::LightCyan,
             Color::LightGreen,
             Color::LightBlue,
             Color::LightRed,
-            Color::Cyan,
-            Color::Green,
-            Color::Blue,
-            Color::Red,
         ];
 
         for (ndx, s) in all.iter().enumerate() {
@@ -129,6 +143,7 @@ impl<'a> Dashboard<'a> {
         }
 
         Ok(Dashboard {
+            hubris,
             context,
             ops,
             outstanding: true,
@@ -138,8 +153,33 @@ impl<'a> Dashboard<'a> {
             legend: StatefulList { state: ListState::default(), n: all.len() },
             time: 0,
             width: 600,
+            interpolate: 0,
+            work: Vec::new(),
             bounds: [20.0, 120.0],
         })
+    }
+
+    fn dequeue_work(&mut self, core: &mut dyn Core) -> Result<()> {
+        for w in &self.work {
+            let _results = self.context.run(core, w.as_slice(), None)?;
+        }
+
+        self.work = vec![];
+        Ok(())
+    }
+
+    fn enqueue_work(
+        &mut self,
+        core: &mut dyn Core,
+        ops: Vec<Op>,
+    ) -> Result<()> {
+        if self.outstanding {
+            self.work.push(ops);
+            Ok(())
+        } else {
+            let _results = self.context.run(core, ops.as_slice(), None)?;
+            Ok(())
+        }
     }
 
     fn need_update(&mut self, core: &mut dyn Core) -> Result<bool> {
@@ -157,6 +197,7 @@ impl<'a> Dashboard<'a> {
 
                 self.time += 1;
                 self.outstanding = false;
+                self.dequeue_work(core)?;
                 Ok(true)
             } else {
                 Ok(false)
@@ -186,6 +227,23 @@ impl<'a> Dashboard<'a> {
 
             for (_ndx, s) in &mut self.series.iter_mut().enumerate() {
                 if let Some(datum) = s.raw[offs] {
+                    let point = (i as f64, datum as f64);
+
+                    if self.interpolate != 0 {
+                        if let Some(last) = s.data.last() {
+                            let x_delta = point.0 - last.0;
+                            let slope = (point.1 - last.1) / x_delta;
+                            let x_inc = x_delta / self.interpolate as f64;
+
+                            for x in 0..self.interpolate {
+                                s.data.push((
+                                    point.0 + x as f64 * x_inc,
+                                    point.1 + (slope * x_inc),
+                                ));
+                            }
+                        }
+                    }
+
                     s.data.push((i as f64, datum as f64));
                 }
             }
@@ -243,6 +301,38 @@ impl<'a> Dashboard<'a> {
     }
 
     fn enter(&mut self) {}
+
+    fn set_a0(&mut self, core: &mut dyn Core) -> Result<()> {
+        let ops = power_ops(self.hubris, &mut self.context, "A0")?;
+        self.enqueue_work(core, ops)?;
+        Ok(())
+    }
+
+    fn set_a2(&mut self, core: &mut dyn Core) -> Result<()> {
+        let ops = power_ops(self.hubris, &mut self.context, "A2")?;
+        self.enqueue_work(core, ops)?;
+        Ok(())
+    }
+
+    fn set_interpolate(&mut self) {
+        let interpolate = (1000.0 - self.width as f64) / self.width as f64;
+
+        if interpolate >= 1.0 {
+            self.interpolate = interpolate as usize;
+        } else {
+            self.interpolate = 0;
+        }
+    }
+
+    fn zoom_in(&mut self) {
+        self.width = (self.width as f64 * 0.8) as usize;
+        self.set_interpolate();
+    }
+
+    fn zoom_out(&mut self) {
+        self.width = (self.width as f64 * 1.25) as usize;
+        self.set_interpolate();
+    }
 }
 
 fn run_dashboard<B: Backend>(
@@ -262,6 +352,16 @@ fn run_dashboard<B: Backend>(
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Char('2') => dashboard.set_a2(core)?,
+                    KeyCode::Char('0') => dashboard.set_a0(core)?,
+                    KeyCode::Char('+') => dashboard.zoom_in(),
+                    KeyCode::Char('-') => dashboard.zoom_out(),
+                    KeyCode::Char('}') => dashboard.interpolate += 1,
+                    KeyCode::Char('{') => {
+                        if dashboard.interpolate != 0 {
+                            dashboard.interpolate -= 1;
+                        }
+                    }
                     KeyCode::Up => dashboard.up(),
                     KeyCode::Down => dashboard.down(),
                     KeyCode::Esc => dashboard.esc(),
@@ -357,15 +457,32 @@ fn thermal_ops(
     Ok(ops)
 }
 
+fn power_ops(
+    hubris: &HubrisArchive,
+    context: &mut HiffyContext,
+    state: &str,
+) -> Result<Vec<Op>> {
+    let mut ops = vec![];
+    let funcs = context.functions()?;
+    let op = idol::IdolOperation::new(hubris, "Sequencer", "set_state", None)?;
+
+    let payload =
+        op.payload(&[("state", idol::IdolArgument::String(state))])?;
+    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    ops.push(Op::Done);
+
+    Ok(ops)
+}
+
 fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
     let size = f.size();
     let screen = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
+                Constraint::Ratio(2, 3),
+                Constraint::Ratio(1, 6),
+                Constraint::Ratio(1, 6),
             ]
             .as_ref(),
         )
@@ -403,9 +520,7 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
             Dataset::default()
                 .name(&s.name)
                 .marker(symbols::Marker::Braille)
-                .style(
-                    Style::default().fg(s.color).add_modifier(Modifier::BOLD),
-                )
+                .style(Style::default().fg(s.color))
                 .data(&s.data),
         );
     }
@@ -450,26 +565,22 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
     let mut rows = vec![];
 
     for s in &dashboard.series {
-        let val = if !s.data.is_empty() {
-            format!("{:2.0}°", s.data[s.data.len() - 1].1)
-        } else {
-            "-".to_string()
+        let val = match s.raw.last() {
+            None | Some(None) => "-".to_string(),
+            Some(Some(val)) => format!("{:4.2}°", val),
         };
 
         rows.push(ListItem::new(Spans::from(vec![
             Span::styled(
-                format!("{:<10}", s.name),
-                Style::default().fg(s.color).add_modifier(Modifier::BOLD),
+                format!("{:<15}", s.name),
+                Style::default().fg(s.color),
             ),
-            Span::styled(
-                val,
-                Style::default().fg(s.color).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(val, Style::default().fg(s.color)),
         ])));
     }
 
     let list = List::new(rows)
-        .block(Block::default().borders(Borders::ALL).title("List"))
+        .block(Block::default().borders(Borders::ALL).title("Sensors"))
         .highlight_style(
             Style::default()
                 .bg(Color::LightGreen)
