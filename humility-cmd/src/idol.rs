@@ -57,32 +57,66 @@ impl<'a> IdolOperation<'a> {
 
         let mut payload = vec![0u8; self.args.size];
 
-        'nextone: for arg in &self.operation.args {
+        for arg in &self.operation.args {
             if let Some(val) = map.remove(arg.0 as &str) {
                 if let RecvStrategy::FromBytes = arg.1.recv {
-                    for member in &self.args.members {
-                        if member.name == *arg.0 {
-                            call_arg(hubris, member, val, &mut payload)?;
-                            continue 'nextone;
-                        }
-                    }
+                    let member = self
+                        .args
+                        .members
+                        .iter()
+                        .find(|&m| m.name == *arg.0)
+                        .ok_or_else(|| {
+                            anyhow!("did not find {} in {:?}", arg.0, self.args)
+                        })?;
+                    call_arg(hubris, member, val, &mut payload)?;
                 } else {
                     let raw = format!("raw_{}", arg.0);
 
-                    for member in &self.args.members {
-                        if member.name == raw {
-                            let ty = &arg.1.ty.0;
-                            let e = module.lookup_enum_byname(hubris, ty)?;
-                            #[rustfmt::skip]
-                            call_arg_enum(
-                                hubris, arg.0, member, e, val, &mut payload,
-                            )?;
-                            continue 'nextone;
-                        }
-                    }
-                }
+                    let member = self
+                        .args
+                        .members
+                        .iter()
+                        .find(|&m| m.name == raw)
+                        .ok_or_else(|| {
+                            anyhow!(
+                                "did not find {} or {} in {:?}",
+                                arg.0,
+                                raw,
+                                self.args
+                            )
+                        })?;
 
-                bail!("did not find {} in {:?}", arg.0, self.args);
+                    let ty = &arg.1.ty.0;
+
+                    //
+                    // We have a raw type, so we need to figure out how
+                    // to encode it.  First, see if we can look up the
+                    // AttributedType as an enum...
+                    //
+                    if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
+                        #[rustfmt::skip]
+                        call_arg_enum(
+                            hubris, arg.0, member, e, val, &mut payload,
+                        )?;
+                        continue;
+                    }
+
+                    //
+                    // Now look it up as a structure.  If it's a structure,
+                    // we will allow it if it's a newtype -- otherwise we'll
+                    // toss.
+                    //
+                    if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
+                        if let Some(_) = s.newtype() {
+                            call_arg(hubris, &s.members[0], val, &mut payload)?;
+                            continue;
+                        }
+
+                        bail!("structure arguments currently unsupported");
+                    }
+
+                    bail!("don't know what to do with {:?}", self.args);
+                }
             } else {
                 bail!("argument \"{}\" is not specified", arg.0);
             }
@@ -257,7 +291,9 @@ fn call_arg_enum(
     value: &IdolArgument,
     buf: &mut [u8],
 ) -> Result<()> {
-    let t = hubris.lookup_type(member.goff)?;
+    let t = hubris
+        .lookup_type(member.goff)
+        .context(format!("expected type for arg {} ({})", arg, member.goff))?;
 
     let value = match value {
         IdolArgument::String(value) => *value,

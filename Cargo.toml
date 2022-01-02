@@ -30,6 +30,7 @@ members = [
     "cmd/renbb",
     "cmd/rencm",
     "cmd/ringbuf",
+    "cmd/sensor",
     "cmd/spd",
     "cmd/spi",
     "cmd/stackmargin",
@@ -76,6 +77,7 @@ cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
 cmd-renbb = { path = "./cmd/renbb", package = "humility-cmd-renbb" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
+cmd-sensor = { path = "./cmd/sensor", package = "humility-cmd-sensor" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
 cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
 cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }

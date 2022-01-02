@@ -47,6 +47,7 @@ pub struct HubrisManifest {
     peripherals: BTreeMap<String, u32>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
+    pub sensors: Vec<HubrisSensor>,
 }
 
 //
@@ -103,8 +104,27 @@ struct HubrisConfigI2cPmbus {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cSensors {
+    #[serde(default)]
+    temperature: usize,
+
+    #[serde(default)]
+    power: usize,
+
+    #[serde(default)]
+    current: usize,
+
+    #[serde(default)]
+    voltage: usize,
+
+    #[serde(default)]
+    speed: usize,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigI2cDevice {
     device: String,
+    name: Option<String>,
     controller: Option<u8>,
     bus: Option<String>,
     address: u8,
@@ -113,6 +133,7 @@ struct HubrisConfigI2cDevice {
     segment: Option<u8>,
     description: String,
     pmbus: Option<HubrisConfigI2cPmbus>,
+    sensors: Option<HubrisConfigI2cSensors>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -151,6 +172,7 @@ pub enum HubrisI2cDeviceClass {
 #[derive(Clone, Debug)]
 pub struct HubrisI2cDevice {
     pub device: String,
+    pub name: Option<String>,
     pub controller: u8,
     pub port: HubrisI2cPort,
     pub mux: Option<u8>,
@@ -158,6 +180,21 @@ pub struct HubrisI2cDevice {
     pub address: u8,
     pub description: String,
     pub class: HubrisI2cDeviceClass,
+}
+
+#[derive(Clone, Debug)]
+pub enum HubrisSensorKind {
+    Temperature,
+    Power,
+    Current,
+    Voltage,
+    Speed,
+}
+
+#[derive(Clone, Debug)]
+pub struct HubrisSensor {
+    pub kind: HubrisSensorKind,
+    pub device: usize,
 }
 
 #[derive(Debug)]
@@ -1928,8 +1965,46 @@ impl HubrisArchive {
 
                 let port = port.clone();
 
+                if let Some(sensors) = &device.sensors {
+                    let ndx = self.manifest.i2c_devices.len();
+
+                    for _i in 0..sensors.temperature {
+                        self.manifest.sensors.push(HubrisSensor {
+                            kind: HubrisSensorKind::Temperature,
+                            device: ndx,
+                        });
+                    }
+
+                    for _i in 0..sensors.power {
+                        self.manifest.sensors.push(HubrisSensor {
+                            kind: HubrisSensorKind::Power,
+                            device: ndx,
+                        });
+                    }
+                    for _i in 0..sensors.current {
+                        self.manifest.sensors.push(HubrisSensor {
+                            kind: HubrisSensorKind::Current,
+                            device: ndx,
+                        });
+                    }
+                    for _i in 0..sensors.voltage {
+                        self.manifest.sensors.push(HubrisSensor {
+                            kind: HubrisSensorKind::Voltage,
+                            device: ndx,
+                        });
+                    }
+
+                    for _i in 0..sensors.speed {
+                        self.manifest.sensors.push(HubrisSensor {
+                            kind: HubrisSensorKind::Speed,
+                            device: ndx,
+                        });
+                    }
+                }
+
                 self.manifest.i2c_devices.push(HubrisI2cDevice {
                     device: device.device.clone(),
+                    name: device.name.clone(),
                     controller,
                     port,
                     mux: device.mux,
@@ -3857,6 +3932,16 @@ impl HubrisStruct {
         }
 
         bail!("missing member: {}.{}", self.name, name)
+    }
+
+    /// If this structure is a newtype (that is, a 1-tuple structure), return
+    /// the encapsulated type.
+    pub fn newtype(&self) -> Option<HubrisGoff> {
+        if self.members.len() == 1 && self.members[0].name == "__0" {
+            Some(self.members[0].goff)
+        } else {
+            None
+        }
     }
 }
 

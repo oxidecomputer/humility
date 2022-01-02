@@ -605,6 +605,7 @@ dependencies = [
  "humility-cmd-renbb",
  "humility-cmd-rencm",
  "humility-cmd-ringbuf",
+ "humility-cmd-sensor",
  "humility-cmd-spd",
  "humility-cmd-spi",
  "humility-cmd-stackmargin",
@@ -902,6 +903,21 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+ "structopt",
+]
+
+[[package]]
+name = "humility-cmd-sensor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
  "structopt",
 ]
 

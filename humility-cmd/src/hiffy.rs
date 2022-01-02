@@ -319,8 +319,18 @@ impl<'a> HiffyContext<'a> {
     ) -> Result<()> {
         let send = funcs.get("Send", 4)?;
 
+        let push = |val: u32| {
+            if val <= u8::MAX as u32 {
+                Op::Push(val as u8)
+            } else if val <= u16::MAX as u32 {
+                Op::Push16(val as u16)
+            } else {
+                Op::Push32(val as u32)
+            }
+        };
+
         if let HubrisTask::Task(id) = op.task {
-            ops.push(Op::Push32(id));
+            ops.push(push(id));
         } else {
             bail!("interface matches invalid task {:?}", op.task);
         }
@@ -328,14 +338,14 @@ impl<'a> HiffyContext<'a> {
         let size = u8::try_from(4 + payload.len())
             .map_err(|_| anyhow!("payload size exceeds maximum size"))?;
 
-        ops.push(Op::Push16(op.code));
+        ops.push(push(op.code as u32));
 
         for byte in payload {
             ops.push(Op::Push(*byte));
         }
 
-        ops.push(Op::Push32(payload.len() as u32));
-        ops.push(Op::Push32(self.hubris.typesize(op.ok)? as u32));
+        ops.push(push(payload.len() as u32));
+        ops.push(push(self.hubris.typesize(op.ok)? as u32));
         ops.push(Op::Call(send.id));
         ops.push(Op::DropN(size));
 
@@ -384,6 +394,8 @@ impl<'a> HiffyContext<'a> {
             let serialized = to_slice(op, &mut buf[current..])?;
             current += serialized.len();
         }
+
+        println!("len is {}", current);
 
         core.write_8(self.text.addr, &buf[0..])?;
 

@@ -38,6 +38,7 @@ pub fn init<'a, 'b>(
         cmd_renbb::init,
         cmd_rencm::init,
         cmd_ringbuf::init,
+        cmd_sensor::init,
         cmd_spd::init,
         cmd_spi::init,
         cmd_stackmargin::init,
