@@ -83,35 +83,17 @@ struct Series {
     raw: Vec<Option<f32>>,
 }
 
-struct Dashboard<'a> {
-    hubris: &'a HubrisArchive,
-    context: HiffyContext<'a>,
-    ops: Vec<Op>,
-    work: Vec<Vec<Op>>,
-    last: Instant,
-    interval: u32,
-    outstanding: bool,
+struct Graph {
     series: Vec<Series>,
     legend: StatefulList,
     time: usize,
     width: usize,
     interpolate: usize,
     bounds: [f64; 2],
-    output: Option<File>,
 }
 
-impl<'a> Dashboard<'a> {
-    fn new(
-        hubris: &'a HubrisArchive,
-        core: &mut dyn Core,
-        subargs: &DashboardArgs,
-    ) -> Result<Dashboard<'a>> {
-        let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
-        let (ops, all) = thermal_ops(hubris, &mut context)?;
-
-        context.start(core, ops.as_slice(), None)?;
-
+impl Graph {
+    fn new(all: &[String]) -> Result<Self> {
         let mut series = vec![];
 
         let colors = [
@@ -139,95 +121,22 @@ impl<'a> Dashboard<'a> {
             })
         }
 
-        let output = if let Some(output) = &subargs.output {
-            let mut f = File::create(output)?;
-            writeln!(&mut f, "{}", all.join(","))?;
-            Some(f)
-        } else {
-            None
-        };
-
-        Ok(Dashboard {
-            hubris,
-            context,
-            ops,
-            outstanding: true,
-            last: Instant::now(),
-            interval: 1000,
+        Ok(Graph {
             series,
             legend: StatefulList { state: ListState::default(), n: all.len() },
             time: 0,
             width: 600,
             interpolate: 0,
-            work: Vec::new(),
             bounds: [20.0, 120.0],
-            output,
         })
     }
 
-    fn dequeue_work(&mut self, core: &mut dyn Core) -> Result<()> {
-        for w in &self.work {
-            let _results = self.context.run(core, w.as_slice(), None)?;
+    fn data(&mut self, data: &[Option<f32>]) {
+        for (ndx, r) in data.iter().enumerate() {
+            self.series[ndx].raw.push(*r);
         }
 
-        self.work = vec![];
-        Ok(())
-    }
-
-    fn enqueue_work(
-        &mut self,
-        core: &mut dyn Core,
-        ops: Vec<Op>,
-    ) -> Result<()> {
-        if self.outstanding {
-            self.work.push(ops);
-            Ok(())
-        } else {
-            let _results = self.context.run(core, ops.as_slice(), None)?;
-            Ok(())
-        }
-    }
-
-    fn need_update(&mut self, core: &mut dyn Core) -> Result<bool> {
-        if self.outstanding {
-            if self.context.done(core)? {
-                let results = self.context.results(core)?;
-
-                for (ndx, r) in results.iter().enumerate() {
-                    self.series[ndx].raw.push(if let Ok(val) = r {
-                        Some(f32::from_le_bytes(val[0..4].try_into()?))
-                    } else {
-                        None
-                    })
-                }
-
-                if let Some(output) = &mut self.output {
-                    for s in &self.series {
-                        if let Some(val) = s.raw.last().unwrap() {
-                            write!(output, "{:.2},", val)?;
-                        } else {
-                            write!(output, ",")?;
-                        }
-                    }
-                    writeln!(output)?;
-                }
-
-                self.time += 1;
-                self.outstanding = false;
-                self.dequeue_work(core)?;
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        } else {
-            if self.last.elapsed().as_millis() > self.interval.into() {
-                self.context.start(core, self.ops.as_slice(), None)?;
-                self.last = Instant::now();
-                self.outstanding = true;
-            }
-
-            Ok(false)
-        }
+        self.time += 1;
     }
 
     fn update_data(&mut self) {
@@ -305,16 +214,165 @@ impl<'a> Dashboard<'a> {
         }
     }
 
-    fn up(&mut self) {
+    fn previous(&mut self) {
         self.legend.previous();
     }
 
-    fn down(&mut self) {
+    fn next(&mut self) {
         self.legend.next();
     }
 
-    fn esc(&mut self) {
+    fn unselect(&mut self) {
         self.legend.unselect();
+    }
+
+    fn set_interpolate(&mut self) {
+        let interpolate = (1000.0 - self.width as f64) / self.width as f64;
+
+        if interpolate >= 1.0 {
+            self.interpolate = interpolate as usize;
+        } else {
+            self.interpolate = 0;
+        }
+    }
+
+    fn zoom_in(&mut self) {
+        self.width = (self.width as f64 * 0.8) as usize;
+        self.set_interpolate();
+    }
+
+    fn zoom_out(&mut self) {
+        self.width = (self.width as f64 * 1.25) as usize;
+        self.set_interpolate();
+    }
+}
+
+struct Dashboard<'a> {
+    hubris: &'a HubrisArchive,
+    context: HiffyContext<'a>,
+    ops: Vec<Op>,
+    temps: Graph,
+    work: Vec<Vec<Op>>,
+    last: Instant,
+    interval: u32,
+    outstanding: bool,
+    output: Option<File>,
+}
+
+impl<'a> Dashboard<'a> {
+    fn new(
+        hubris: &'a HubrisArchive,
+        core: &mut dyn Core,
+        subargs: &DashboardArgs,
+    ) -> Result<Dashboard<'a>> {
+        let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
+        let (ops, all) = thermal_ops(hubris, &mut context)?;
+
+        context.start(core, ops.as_slice(), None)?;
+
+        let output = if let Some(output) = &subargs.output {
+            let mut f = File::create(output)?;
+            writeln!(&mut f, "{}", all.join(","))?;
+            Some(f)
+        } else {
+            None
+        };
+
+        Ok(Dashboard {
+            hubris,
+            context,
+            ops,
+            temps: Graph::new(&all)?,
+            outstanding: true,
+            last: Instant::now(),
+            interval: 1000,
+            work: Vec::new(),
+            output,
+        })
+    }
+
+    fn dequeue_work(&mut self, core: &mut dyn Core) -> Result<()> {
+        for w in &self.work {
+            let _results = self.context.run(core, w.as_slice(), None)?;
+        }
+
+        self.work = vec![];
+        Ok(())
+    }
+
+    fn enqueue_work(
+        &mut self,
+        core: &mut dyn Core,
+        ops: Vec<Op>,
+    ) -> Result<()> {
+        if self.outstanding {
+            self.work.push(ops);
+            Ok(())
+        } else {
+            let _results = self.context.run(core, ops.as_slice(), None)?;
+            Ok(())
+        }
+    }
+
+    fn need_update(&mut self, core: &mut dyn Core) -> Result<bool> {
+        if self.outstanding {
+            if self.context.done(core)? {
+                let results = self.context.results(core)?;
+                let mut raw = vec![];
+
+                for r in &results {
+                    raw.push(if let Ok(val) = r {
+                        Some(f32::from_le_bytes(val[0..4].try_into()?))
+                    } else {
+                        None
+                    });
+                }
+
+                self.temps.data(&raw);
+
+                if let Some(output) = &mut self.output {
+                    for val in raw {
+                        if let Some(val) = val {
+                            write!(output, "{:.2},", val)?;
+                        } else {
+                            write!(output, ",")?;
+                        }
+                    }
+                    writeln!(output)?;
+                }
+
+                self.outstanding = false;
+                self.dequeue_work(core)?;
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            if self.last.elapsed().as_millis() > self.interval.into() {
+                self.context.start(core, self.ops.as_slice(), None)?;
+                self.last = Instant::now();
+                self.outstanding = true;
+            }
+
+            Ok(false)
+        }
+    }
+
+    fn update_data(&mut self) {
+        self.temps.update_data();
+    }
+
+    fn up(&mut self) {
+        self.temps.previous();
+    }
+
+    fn down(&mut self) {
+        self.temps.next();
+    }
+
+    fn esc(&mut self) {
+        self.temps.unselect();
     }
 
     fn enter(&mut self) {}
@@ -343,24 +401,12 @@ impl<'a> Dashboard<'a> {
         Ok(())
     }
 
-    fn set_interpolate(&mut self) {
-        let interpolate = (1000.0 - self.width as f64) / self.width as f64;
-
-        if interpolate >= 1.0 {
-            self.interpolate = interpolate as usize;
-        } else {
-            self.interpolate = 0;
-        }
-    }
-
     fn zoom_in(&mut self) {
-        self.width = (self.width as f64 * 0.8) as usize;
-        self.set_interpolate();
+        self.temps.zoom_in();
     }
 
     fn zoom_out(&mut self) {
-        self.width = (self.width as f64 * 1.25) as usize;
-        self.set_interpolate();
+        self.temps.zoom_out();
     }
 }
 
@@ -387,10 +433,10 @@ fn run_dashboard<B: Backend>(
                     KeyCode::Char('f') => dashboard.fans_off(core)?,
                     KeyCode::Char('+') => dashboard.zoom_in(),
                     KeyCode::Char('-') => dashboard.zoom_out(),
-                    KeyCode::Char('}') => dashboard.interpolate += 1,
+                    KeyCode::Char('}') => dashboard.temps.interpolate += 1,
                     KeyCode::Char('{') => {
-                        if dashboard.interpolate != 0 {
-                            dashboard.interpolate -= 1;
+                        if dashboard.temps.interpolate != 0 {
+                            dashboard.temps.interpolate -= 1;
                         }
                     }
                     KeyCode::Up => dashboard.up(),
@@ -555,7 +601,7 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
 
     let x_labels = vec![
         Span::styled(
-            format!("t-{}", dashboard.width),
+            format!("t-{}", dashboard.temps.width),
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::styled(
@@ -565,9 +611,9 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
     ];
 
     let mut datasets = vec![];
-    let selected = dashboard.legend.state.selected();
+    let selected = dashboard.temps.legend.state.selected();
 
-    for (ndx, s) in dashboard.series.iter().enumerate() {
+    for (ndx, s) in dashboard.temps.series.iter().enumerate() {
         if let Some(selected) = selected {
             if ndx != selected {
                 continue;
@@ -599,7 +645,7 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
                 .title("Time")
                 .style(Style::default().fg(Color::Gray))
                 .labels(x_labels)
-                .bounds([0.0, dashboard.width as f64]),
+                .bounds([0.0, dashboard.temps.width as f64]),
         )
         .y_axis(
             Axis::default()
@@ -607,22 +653,22 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
                 .style(Style::default().fg(Color::Gray))
                 .labels(vec![
                     Span::styled(
-                        format!("{:2.0}°", dashboard.bounds[0]),
+                        format!("{:2.0}°", dashboard.temps.bounds[0]),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
-                        format!("{:2.0}°", dashboard.bounds[1]),
+                        format!("{:2.0}°", dashboard.temps.bounds[1]),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
                 ])
-                .bounds(dashboard.bounds),
+                .bounds(dashboard.temps.bounds),
         );
 
     f.render_widget(chart, chunks[0]);
 
     let mut rows = vec![];
 
-    for s in &dashboard.series {
+    for s in &dashboard.temps.series {
         let val = match s.raw.last() {
             None | Some(None) => "-".to_string(),
             Some(Some(val)) => format!("{:4.2}°", val),
@@ -649,7 +695,11 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
     //        .highlight_symbol(">> ");
 
     // We can now render the item list
-    f.render_stateful_widget(list, chunks[1], &mut dashboard.legend.state);
+    f.render_stateful_widget(
+        list,
+        chunks[1],
+        &mut dashboard.temps.legend.state,
+    );
 
     /*
     let table = Table::new(rows)
