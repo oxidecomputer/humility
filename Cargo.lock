@@ -605,14 +605,13 @@ dependencies = [
  "humility-cmd-renbb",
  "humility-cmd-rencm",
  "humility-cmd-ringbuf",
- "humility-cmd-sensor",
+ "humility-cmd-sensors",
  "humility-cmd-spd",
  "humility-cmd-spi",
  "humility-cmd-stackmargin",
  "humility-cmd-stmsecure",
  "humility-cmd-tasks",
  "humility-cmd-test",
- "humility-cmd-thermal",
  "humility-cmd-trace",
  "humility-cmd-vsc7448",
  "humility-core",
@@ -907,7 +906,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-cmd-sensor"
+name = "humility-cmd-sensors"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -989,21 +988,6 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
- "structopt",
-]
-
-[[package]]
-name = "humility-cmd-thermal"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "hif",
- "humility-cmd",
- "humility-core",
- "idol",
- "indexmap",
- "log",
- "parse_int",
  "structopt",
 ]
 

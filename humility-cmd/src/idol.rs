@@ -107,7 +107,7 @@ impl<'a> IdolOperation<'a> {
                     // toss.
                     //
                     if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
-                        if let Some(_) = s.newtype() {
+                        if s.newtype().is_some() {
                             call_arg(hubris, &s.members[0], val, &mut payload)?;
                             continue;
                         }

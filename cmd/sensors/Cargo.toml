@@ -1,8 +1,8 @@
 [package]
-name = "humility-cmd-sensor"
+name = "humility-cmd-sensors"
 version = "0.1.0"
 edition = "2021"
-description = "sensor-related operations"
+description = "query sensors and sensor data"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

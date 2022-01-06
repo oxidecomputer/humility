@@ -17,7 +17,9 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use std::fs::File;
 use std::io;
+use std::io::Write;
 use std::time::{Duration, Instant};
 use structopt::clap::App;
 use structopt::StructOpt;
@@ -42,6 +44,10 @@ struct DashboardArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
+
+    /// CSV output file
+    #[structopt(long, short)]
+    output: Option<String>,
 }
 
 struct StatefulList {
@@ -91,6 +97,7 @@ struct Dashboard<'a> {
     width: usize,
     interpolate: usize,
     bounds: [f64; 2],
+    output: Option<File>,
 }
 
 impl<'a> Dashboard<'a> {
@@ -101,21 +108,11 @@ impl<'a> Dashboard<'a> {
     ) -> Result<Dashboard<'a>> {
         let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-        let ops = thermal_ops(hubris, &mut context)?;
+        let (ops, all) = thermal_ops(hubris, &mut context)?;
 
         context.start(core, ops.as_slice(), None)?;
 
         let mut series = vec![];
-
-        let all = [
-            "Northwest",
-            "North",
-            "Northeast",
-            "Southwest",
-            "South",
-            "Southeast",
-            "CPU (SB-TSI)",
-        ];
 
         let colors = [
             Color::Yellow,
@@ -142,6 +139,14 @@ impl<'a> Dashboard<'a> {
             })
         }
 
+        let output = if let Some(output) = &subargs.output {
+            let mut f = File::create(output)?;
+            writeln!(&mut f, "{}", all.join(","))?;
+            Some(f)
+        } else {
+            None
+        };
+
         Ok(Dashboard {
             hubris,
             context,
@@ -156,6 +161,7 @@ impl<'a> Dashboard<'a> {
             interpolate: 0,
             work: Vec::new(),
             bounds: [20.0, 120.0],
+            output,
         })
     }
 
@@ -193,6 +199,17 @@ impl<'a> Dashboard<'a> {
                     } else {
                         None
                     })
+                }
+
+                if let Some(output) = &mut self.output {
+                    for s in &self.series {
+                        if let Some(val) = s.raw.last().unwrap() {
+                            write!(output, "{:.2},", val)?;
+                        } else {
+                            write!(output, ",")?;
+                        }
+                    }
+                    writeln!(output)?;
                 }
 
                 self.time += 1;
@@ -314,6 +331,18 @@ impl<'a> Dashboard<'a> {
         Ok(())
     }
 
+    fn fans_on(&mut self, core: &mut dyn Core) -> Result<()> {
+        let ops = fan_ops(self.hubris, &mut self.context, true)?;
+        self.enqueue_work(core, ops)?;
+        Ok(())
+    }
+
+    fn fans_off(&mut self, core: &mut dyn Core) -> Result<()> {
+        let ops = fan_ops(self.hubris, &mut self.context, false)?;
+        self.enqueue_work(core, ops)?;
+        Ok(())
+    }
+
     fn set_interpolate(&mut self) {
         let interpolate = (1000.0 - self.width as f64) / self.width as f64;
 
@@ -354,6 +383,8 @@ fn run_dashboard<B: Backend>(
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('2') => dashboard.set_a2(core)?,
                     KeyCode::Char('0') => dashboard.set_a0(core)?,
+                    KeyCode::Char('F') => dashboard.fans_on(core)?,
+                    KeyCode::Char('f') => dashboard.fans_off(core)?,
                     KeyCode::Char('+') => dashboard.zoom_in(),
                     KeyCode::Char('-') => dashboard.zoom_out(),
                     KeyCode::Char('}') => dashboard.interpolate += 1,
@@ -431,10 +462,11 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
 fn thermal_ops(
     hubris: &HubrisArchive,
     context: &mut HiffyContext,
-) -> Result<Vec<Op>> {
+) -> Result<(Vec<Op>, Vec<String>)> {
     let mut ops = vec![];
+    let mut sensors = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Thermal", "read_sensor", None)?;
+    let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)?;
 
     let ok = hubris.lookup_basetype(op.ok)?;
 
@@ -446,15 +478,20 @@ fn thermal_ops(
         bail!("expected return value of read_sensor() to be an f32");
     }
 
-    for i in 0..7 {
+    for (i, s) in hubris.manifest.sensors.iter().enumerate() {
+        if s.kind != HubrisSensorKind::Temperature {
+            continue;
+        }
+
         let payload =
-            op.payload(&[("index", idol::IdolArgument::Scalar(i))])?;
+            op.payload(&[("id", idol::IdolArgument::Scalar(i as u64))])?;
         context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        sensors.push(s.name.clone());
     }
 
     ops.push(Op::Done);
 
-    Ok(ops)
+    Ok((ops, sensors))
 }
 
 fn power_ops(
@@ -468,6 +505,27 @@ fn power_ops(
 
     let payload =
         op.payload(&[("state", idol::IdolArgument::String(state))])?;
+    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    ops.push(Op::Done);
+
+    Ok(ops)
+}
+
+fn fan_ops(
+    hubris: &HubrisArchive,
+    context: &mut HiffyContext,
+    on: bool,
+) -> Result<Vec<Op>> {
+    let mut ops = vec![];
+    let funcs = context.functions()?;
+    let op = idol::IdolOperation::new(
+        hubris,
+        "Sequencer",
+        if on { "fans_on" } else { "fans_off" },
+        None,
+    )?;
+
+    let payload = vec![];
     context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
     ops.push(Op::Done);
 

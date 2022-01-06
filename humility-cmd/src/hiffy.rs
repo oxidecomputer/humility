@@ -395,8 +395,6 @@ impl<'a> HiffyContext<'a> {
             current += serialized.len();
         }
 
-        println!("len is {}", current);
-
         core.write_8(self.text.addr, &buf[0..])?;
 
         if let Some(data) = data {

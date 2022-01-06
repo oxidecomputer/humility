@@ -30,13 +30,12 @@ members = [
     "cmd/renbb",
     "cmd/rencm",
     "cmd/ringbuf",
-    "cmd/sensor",
+    "cmd/sensors",
     "cmd/spd",
     "cmd/spi",
     "cmd/stackmargin",
     "cmd/stmsecure",
     "cmd/tasks",
-    "cmd/thermal",
     "cmd/test",
     "cmd/trace",
     "cmd/vsc7448",
@@ -77,14 +76,13 @@ cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
 cmd-renbb = { path = "./cmd/renbb", package = "humility-cmd-renbb" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
-cmd-sensor = { path = "./cmd/sensor", package = "humility-cmd-sensor" }
+cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
 cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
 cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }
 cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
 cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
-cmd-thermal = { path = "./cmd/thermal", package = "humility-cmd-thermal" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
 cmd-vsc7448 = { path = "./cmd/vsc7448", package = "humility-cmd-vsc7448" }
 
