@@ -74,6 +74,7 @@ members = [
     "cmd/tasks",
     "cmd/test",
     "cmd/trace",
+    "cmd/update",
     "cmd/validate",
     "cmd/vpd",
     "xtask",
@@ -144,6 +145,7 @@ cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
 cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
+cmd-update = { path = "./cmd/update", package = "humility-cmd-update" }
 cmd-validate = { path = "./cmd/validate", package = "humility-cmd-validate" }
 cmd-vpd = { path = "./cmd/vpd", package = "humility-cmd-vpd" }
 

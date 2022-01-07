@@ -1,0 +1,17 @@
+[package]
+name = "humility-cmd-update"
+version = "0.1.0"
+edition = "2021"
+description = "apply an update"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+clap = { version = "3.2.21", features = ["derive", "env"] }
+parse_int = "0.4.0"
+log = {version = "0.4.8", features = ["std"]}
+indicatif = "0.15"
+humility-cmd-hiffy = { path = "../hiffy" }
+
