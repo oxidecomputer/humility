@@ -265,7 +265,9 @@ a specified target.  (In the above example, one could execute `humility
 - [humility stmsecure](#humility-stmsecure): change secure region settings on the stm32h7
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
+- [humility tofino-eeprom](#humility-tofino-eeprom): read and write to the Tofino SPI EEPROM
 - [humility trace](#humility-trace): trace Hubris operations
+- [humility update](#humility-update): apply an update
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
 ### `humility apptable`
@@ -1763,7 +1765,7 @@ over and over again.
 `humility repl` takes the same top level arguments as any other subcommand, and will remember them
 inside of the prompt. For example:
 
-```rust
+```console
 $ humility -a ../path/to/hubris/archive.zip repl
 humility: attached via ST-Link V2-1
 Welcome to the humility REPL! Try out some subcommands, or 'quit' to quit!
@@ -2279,9 +2281,29 @@ allowing these transient failures to be differentiated from deeper issues.
 
 
 
+### `humility tofino-eeprom`
+
+Tools to interact with the Tofino EEPROM
+
+
 ### `humility trace`
 
 No documentation yet for `humility trace`; pull requests welcome!
+
+### `humility update`
+
+Writes a binary to the specified update target as defined in Hubris
+
+```console
+$ humility update --target ImageB update.bin
+humility: attached via CMSIS-DAP
+humility: Starting update using an update block size of 512
+humility: (Erase may take a moment)
+humility: Comitting update
+humility: Update done.
+```
+
+
 
 ### `humility validate`
 

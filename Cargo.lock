@@ -1051,6 +1051,7 @@ dependencies = [
  "humility-cmd-test",
  "humility-cmd-tofino-eeprom",
  "humility-cmd-trace",
+ "humility-cmd-update",
  "humility-cmd-validate",
  "humility-cmd-vpd",
  "humility-core",
@@ -1750,6 +1751,21 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+]
+
+[[package]]
+name = "humility-cmd-update"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.21",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "indicatif",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
