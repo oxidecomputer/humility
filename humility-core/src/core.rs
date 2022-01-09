@@ -362,6 +362,9 @@ impl Core for OpenOCDCore {
         let rval = self.stream.read(&mut rbuf)?;
         self.last_swv = Some(Instant::now());
 
+        if rval < 1 {
+            bail!("short read from openocd: rval is {:?}", rval);
+        }
         if rbuf[rval - 1] != OPENOCD_COMMAND_DELIMITER {
             bail!("missing trace data delimiter: {:?}", rval);
         }
