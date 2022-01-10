@@ -430,8 +430,18 @@ fn vsc7448_get_info(
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
     match subargs.cmd {
         Command::Info { reg } => {
-            let reg: TargetRegister = reg.parse()?;
-            println!("Register address: {:x}", reg.address());
+            let reg: TargetRegister = if let Ok(addr) = parse_int::parse(&reg) {
+                TargetRegister::from_addr(addr)?
+            } else {
+                reg.parse()?
+            };
+            println!("Register {}", reg);
+            println!("Register address: 0x{:x}", reg.address());
+
+            println!("  bits |    field");
+            for (f, field) in reg.fields() {
+                println!(" {:>2}:{:<2} | {}", field.hi, field.lo, f);
+            }
         }
         Command::Phy { cmd: PhyCommand::Info { reg } } => {
             let reg: PhyRegister = reg.parse()?;
