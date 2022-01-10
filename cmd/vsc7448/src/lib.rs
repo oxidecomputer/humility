@@ -52,6 +52,8 @@ impl Vsc7448Args {
 enum Command {
     Info {
         reg: String,
+        #[structopt(parse(try_from_str = parse_int::parse))]
+        value: Option<u32>,
     },
     Read {
         reg: String,
@@ -429,7 +431,7 @@ fn vsc7448_get_info(
     assert!(!hubris.loaded());
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
     match subargs.cmd {
-        Command::Info { reg } => {
+        Command::Info { reg, value } => {
             let reg: TargetRegister = if let Ok(addr) = parse_int::parse(&reg) {
                 TargetRegister::from_addr(addr)?
             } else {
@@ -438,9 +440,14 @@ fn vsc7448_get_info(
             println!("Register {}", reg);
             println!("Register address: 0x{:x}", reg.address());
 
-            println!("  bits |    field");
-            for (f, field) in reg.fields() {
-                println!(" {:>2}:{:<2} | {}", field.hi, field.lo, f);
+            if let Some(v) = value {
+                println!("Register value: 0x{:x}", v);
+                pretty_print_fields(v, reg.fields());
+            } else {
+                println!("  bits |    field");
+                for (f, field) in reg.fields() {
+                    println!(" {:>2}:{:<2} | {}", field.hi, field.lo, f);
+                }
             }
         }
         Command::Phy { cmd: PhyCommand::Info { reg } } => {
