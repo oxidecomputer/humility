@@ -84,7 +84,7 @@ fn make_readme() -> Result<()> {
 
         if !contents.status.success() {
             bail!(
-                "\"cargo readme\" command failed for {}: {:?}; you need to run \"cargo install cargo-readme\" before using this xtask",
+                "\"cargo readme\" command failed for {}: {:?}; have you run \"cargo install cargo-readme\"?",
                 cmd,
                 contents
             );
