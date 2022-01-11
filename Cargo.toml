@@ -19,6 +19,7 @@ members = [
     "cmd/i2c",
     "cmd/itm",
     "cmd/jefe",
+    "cmd/lpc55gpio",
     "cmd/manifest",
     "cmd/map",
     "cmd/pmbus",
@@ -63,6 +64,7 @@ cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
 cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }
 cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
+cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }

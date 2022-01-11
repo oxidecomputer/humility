@@ -563,6 +563,7 @@ dependencies = [
  "humility-cmd-i2c",
  "humility-cmd-itm",
  "humility-cmd-jefe",
+ "humility-cmd-lpc55gpio",
  "humility-cmd-manifest",
  "humility-cmd-map",
  "humility-cmd-pmbus",
@@ -722,6 +723,18 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+ "parse_int",
+ "structopt",
+]
+
+[[package]]
+name = "humility-cmd-lpc55gpio"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-cmd",
+ "humility-core",
  "parse_int",
  "structopt",
 ]

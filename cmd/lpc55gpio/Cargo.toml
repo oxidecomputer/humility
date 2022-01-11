@@ -1,0 +1,13 @@
+[package]
+name = "humility-cmd-lpc55gpio"
+version = "0.1.0"
+edition = "2021"
+description = "LPC55 GPIO pin manipulation"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+structopt = "0.3"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+parse_int = "0.4.0"
