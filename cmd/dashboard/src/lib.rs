@@ -25,7 +25,7 @@ use structopt::clap::App;
 use structopt::StructOpt;
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
     text::{Span, Spans},
@@ -83,6 +83,125 @@ struct Series {
     raw: Vec<Option<f32>>,
 }
 
+trait Attributes {
+    fn label(&self) -> String;
+    fn legend_label(&self) -> String;
+    fn x_axis_label(&self) -> String {
+        "Time".to_string()
+    }
+    fn y_axis_label(&self) -> String;
+    fn axis_value(&self, val: f64) -> String;
+    fn legend_value(&self, val: f64) -> String;
+
+    fn increase(&mut self, _ndx: usize) -> Option<u8> {
+        None
+    }
+
+    fn decrease(&mut self, _ndx: usize) -> Option<u8> {
+        None
+    }
+
+    fn clear(&mut self) {}
+}
+
+struct TempGraph;
+
+impl Attributes for TempGraph {
+    fn label(&self) -> String {
+        "Temperature".to_string()
+    }
+    fn legend_label(&self) -> String {
+        "Sensors".to_string()
+    }
+
+    fn y_axis_label(&self) -> String {
+        "Degrees Celsius".to_string()
+    }
+
+    fn axis_value(&self, val: f64) -> String {
+        format!("{:2.0}°", val)
+    }
+
+    fn legend_value(&self, val: f64) -> String {
+        format!("{:4.2}°", val)
+    }
+}
+
+struct FanGraph(Vec<u8>);
+
+impl FanGraph {
+    fn new(len: usize) -> Self {
+        let v = vec![0; len];
+        FanGraph(v)
+    }
+}
+
+impl Attributes for FanGraph {
+    fn label(&self) -> String {
+        "Fan speed".to_string()
+    }
+    fn legend_label(&self) -> String {
+        "Fans".to_string()
+    }
+
+    fn y_axis_label(&self) -> String {
+        "RPM".to_string()
+    }
+
+    fn axis_value(&self, val: f64) -> String {
+        format!("{:3.1}K", val / 1000.0)
+    }
+
+    fn legend_value(&self, val: f64) -> String {
+        format!("{:.0}", val)
+    }
+
+    fn increase(&mut self, ndx: usize) -> Option<u8> {
+        let current = self.0[ndx];
+        let nval = current + 20;
+
+        self.0[ndx] = if nval <= 100 { nval } else { 100 };
+        Some(self.0[ndx])
+    }
+
+    fn decrease(&mut self, ndx: usize) -> Option<u8> {
+        let current = self.0[ndx];
+        let nval = current as i8 - 20;
+
+        self.0[ndx] = if nval >= 0 { nval as u8 } else { 0 };
+        Some(self.0[ndx])
+    }
+
+    fn clear(&mut self) {
+        for val in self.0.iter_mut() {
+            *val = 0;
+        }
+    }
+}
+
+struct CurrentGraph;
+
+impl Attributes for CurrentGraph {
+    fn label(&self) -> String {
+        "Output current".to_string()
+    }
+    fn legend_label(&self) -> String {
+        "Regulators".to_string()
+    }
+
+    fn y_axis_label(&self) -> String {
+        "Amperes".to_string()
+    }
+
+    fn axis_value(&self, val: f64) -> String {
+        format!("{:2.2}A", val)
+    }
+
+    fn legend_value(&self, val: f64) -> String {
+        format!("{:3.2}A", val)
+    }
+}
+
 struct Graph {
     series: Vec<Series>,
     legend: StatefulList,
@@ -90,10 +209,11 @@ struct Graph {
     width: usize,
     interpolate: usize,
     bounds: [f64; 2],
+    attributes: Box<dyn Attributes>,
 }
 
 impl Graph {
-    fn new(all: &[String]) -> Result<Self> {
+    fn new(all: &[String], attr: Box<dyn Attributes>) -> Result<Self> {
         let mut series = vec![];
 
         let colors = [
@@ -128,12 +248,13 @@ impl Graph {
             width: 600,
             interpolate: 0,
             bounds: [20.0, 120.0],
+            attributes: attr,
         })
     }
 
     fn data(&mut self, data: &[Option<f32>]) {
-        for (ndx, r) in data.iter().enumerate() {
-            self.series[ndx].raw.push(*r);
+        for (ndx, s) in self.series.iter_mut().enumerate() {
+            s.raw.push(data[ndx]);
         }
 
         self.time += 1;
@@ -209,6 +330,10 @@ impl Graph {
             self.bounds[0] = ((min * 0.85) / 2.0) * 2.0;
         }
 
+        if self.bounds[0] < 0.0 {
+            self.bounds[0] = 0.0;
+        }
+
         if let Some(max) = max {
             self.bounds[1] = ((max * 1.15) / 2.0) * 2.0;
         }
@@ -251,7 +376,8 @@ struct Dashboard<'a> {
     hubris: &'a HubrisArchive,
     context: HiffyContext<'a>,
     ops: Vec<Op>,
-    temps: Graph,
+    graphs: Vec<Graph>,
+    current: usize,
     work: Vec<Vec<Op>>,
     last: Instant,
     interval: u32,
@@ -266,24 +392,44 @@ impl<'a> Dashboard<'a> {
         subargs: &DashboardArgs,
     ) -> Result<Dashboard<'a>> {
         let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+        let mut ops = vec![];
 
-        let (ops, all) = thermal_ops(hubris, &mut context)?;
+        let temps = sensor_ops(hubris, &mut context, &mut ops, |s| {
+            s.kind == HubrisSensorKind::Temperature
+        })?;
+
+        let fans = sensor_ops(hubris, &mut context, &mut ops, |s| {
+            s.kind == HubrisSensorKind::Speed
+        })?;
+
+        let current = sensor_ops(hubris, &mut context, &mut ops, |s| {
+            s.kind == HubrisSensorKind::Current
+        })?;
+
+        ops.push(Op::Done);
 
         context.start(core, ops.as_slice(), None)?;
 
         let output = if let Some(output) = &subargs.output {
             let mut f = File::create(output)?;
-            writeln!(&mut f, "{}", all.join(","))?;
+            writeln!(&mut f, "{}", temps.join(","))?;
             Some(f)
         } else {
             None
         };
 
+        let graphs = vec![
+            Graph::new(&temps, Box::new(TempGraph))?,
+            Graph::new(&fans, Box::new(FanGraph::new(fans.len())))?,
+            Graph::new(&current, Box::new(CurrentGraph))?,
+        ];
+
         Ok(Dashboard {
             hubris,
             context,
             ops,
-            temps: Graph::new(&all)?,
+            graphs,
+            current: 0,
             outstanding: true,
             last: Instant::now(),
             interval: 1000,
@@ -329,7 +475,12 @@ impl<'a> Dashboard<'a> {
                     });
                 }
 
-                self.temps.data(&raw);
+                let mut offs = 0;
+
+                for graph in self.graphs.iter_mut() {
+                    graph.data(&raw[offs..]);
+                    offs += graph.series.len();
+                }
 
                 if let Some(output) = &mut self.output {
                     for val in raw {
@@ -360,19 +511,45 @@ impl<'a> Dashboard<'a> {
     }
 
     fn update_data(&mut self) {
-        self.temps.update_data();
+        for graph in self.graphs.iter_mut() {
+            graph.update_data();
+        }
     }
 
     fn up(&mut self) {
-        self.temps.previous();
+        self.graphs[self.current].previous();
     }
 
     fn down(&mut self) {
-        self.temps.next();
+        self.graphs[self.current].next();
     }
 
     fn esc(&mut self) {
-        self.temps.unselect();
+        self.graphs[self.current].unselect();
+    }
+
+    fn tab(&mut self) {
+        self.current = (self.current + 1) % self.graphs.len();
+    }
+
+    fn increase(&mut self, core: &mut dyn Core) {
+        let graph = &mut self.graphs[self.current];
+
+        if let Some(selected) = graph.legend.state.selected() {
+            if let Some(pwm) = graph.attributes.increase(selected) {
+                self.fan_to(core, selected, pwm).unwrap();
+            }
+        }
+    }
+
+    fn decrease(&mut self, core: &mut dyn Core) {
+        let graph = &mut self.graphs[self.current];
+
+        if let Some(selected) = graph.legend.state.selected() {
+            if let Some(pwm) = graph.attributes.decrease(selected) {
+                self.fan_to(core, selected, pwm).unwrap();
+            }
+        }
     }
 
     fn enter(&mut self) {}
@@ -401,12 +578,27 @@ impl<'a> Dashboard<'a> {
         Ok(())
     }
 
+    fn fan_to(
+        &mut self,
+        core: &mut dyn Core,
+        index: usize,
+        pwm: u8,
+    ) -> Result<()> {
+        let ops = pwm_ops(self.hubris, &mut self.context, index, pwm)?;
+        self.enqueue_work(core, ops)?;
+        Ok(())
+    }
+
     fn zoom_in(&mut self) {
-        self.temps.zoom_in();
+        for graph in self.graphs.iter_mut() {
+            graph.zoom_in();
+        }
     }
 
     fn zoom_out(&mut self) {
-        self.temps.zoom_out();
+        for graph in self.graphs.iter_mut() {
+            graph.zoom_out();
+        }
     }
 }
 
@@ -433,15 +625,12 @@ fn run_dashboard<B: Backend>(
                     KeyCode::Char('f') => dashboard.fans_off(core)?,
                     KeyCode::Char('+') => dashboard.zoom_in(),
                     KeyCode::Char('-') => dashboard.zoom_out(),
-                    KeyCode::Char('}') => dashboard.temps.interpolate += 1,
-                    KeyCode::Char('{') => {
-                        if dashboard.temps.interpolate != 0 {
-                            dashboard.temps.interpolate -= 1;
-                        }
-                    }
+                    KeyCode::Char('>') => dashboard.increase(core),
+                    KeyCode::Char('<') => dashboard.decrease(core),
                     KeyCode::Up => dashboard.up(),
                     KeyCode::Down => dashboard.down(),
                     KeyCode::Esc => dashboard.esc(),
+                    KeyCode::Tab => dashboard.tab(),
                     KeyCode::Enter => dashboard.enter(),
                     _ => {}
                 }
@@ -505,11 +694,12 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     )
 }
 
-fn thermal_ops(
+fn sensor_ops(
     hubris: &HubrisArchive,
     context: &mut HiffyContext,
-) -> Result<(Vec<Op>, Vec<String>)> {
-    let mut ops = vec![];
+    ops: &mut Vec<Op>,
+    capture: impl Fn(&HubrisSensor) -> bool,
+) -> Result<Vec<String>> {
     let mut sensors = vec![];
     let funcs = context.functions()?;
     let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)?;
@@ -525,19 +715,17 @@ fn thermal_ops(
     }
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {
-        if s.kind != HubrisSensorKind::Temperature {
+        if !capture(s) {
             continue;
         }
 
         let payload =
             op.payload(&[("id", idol::IdolArgument::Scalar(i as u64))])?;
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        context.idol_call_ops(&funcs, &op, &payload, ops)?;
         sensors.push(s.name.clone());
     }
 
-    ops.push(Op::Done);
-
-    Ok((ops, sensors))
+    Ok(sensors)
 }
 
 fn power_ops(
@@ -578,30 +766,38 @@ fn fan_ops(
     Ok(ops)
 }
 
-fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
-    let size = f.size();
-    let screen = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Ratio(2, 3),
-                Constraint::Ratio(1, 6),
-                Constraint::Ratio(1, 6),
-            ]
-            .as_ref(),
-        )
-        .split(size);
+fn pwm_ops(
+    hubris: &HubrisArchive,
+    context: &mut HiffyContext,
+    index: usize,
+    pwm: u8,
+) -> Result<Vec<Op>> {
+    let mut ops = vec![];
+    let funcs = context.functions()?;
+    let op = idol::IdolOperation::new(hubris, "Thermal", "set_fan_pwm", None)?;
 
+    let payload = op.payload(&[
+        ("index", idol::IdolArgument::Scalar(index as u64)),
+        ("pwm", idol::IdolArgument::Scalar(pwm as u64)),
+    ])?;
+
+    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    ops.push(Op::Done);
+
+    Ok(ops)
+}
+
+fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
             [Constraint::Ratio(4, 5), Constraint::Ratio(1, 5)].as_ref(),
         )
-        .split(screen[0]);
+        .split(parent);
 
     let x_labels = vec![
         Span::styled(
-            format!("t-{}", dashboard.temps.width),
+            format!("t-{}", graph.width),
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::styled(
@@ -611,9 +807,9 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
     ];
 
     let mut datasets = vec![];
-    let selected = dashboard.temps.legend.state.selected();
+    let selected = graph.legend.state.selected();
 
-    for (ndx, s) in dashboard.temps.series.iter().enumerate() {
+    for (ndx, s) in graph.series.iter().enumerate() {
         if let Some(selected) = selected {
             if ndx != selected {
                 continue;
@@ -633,7 +829,7 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
         .block(
             Block::default()
                 .title(Span::styled(
-                    "Temperature",
+                    graph.attributes.label(),
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
@@ -642,36 +838,36 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
         )
         .x_axis(
             Axis::default()
-                .title("Time")
+                .title(graph.attributes.x_axis_label())
                 .style(Style::default().fg(Color::Gray))
                 .labels(x_labels)
-                .bounds([0.0, dashboard.temps.width as f64]),
+                .bounds([0.0, graph.width as f64]),
         )
         .y_axis(
             Axis::default()
-                .title("Degrees Celsius")
+                .title(graph.attributes.y_axis_label())
                 .style(Style::default().fg(Color::Gray))
                 .labels(vec![
                     Span::styled(
-                        format!("{:2.0}°", dashboard.temps.bounds[0]),
+                        graph.attributes.axis_value(graph.bounds[0]),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
-                        format!("{:2.0}°", dashboard.temps.bounds[1]),
+                        graph.attributes.axis_value(graph.bounds[1]),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
                 ])
-                .bounds(dashboard.temps.bounds),
+                .bounds(graph.bounds),
         );
 
     f.render_widget(chart, chunks[0]);
 
     let mut rows = vec![];
 
-    for s in &dashboard.temps.series {
+    for s in &graph.series {
         let val = match s.raw.last() {
             None | Some(None) => "-".to_string(),
-            Some(Some(val)) => format!("{:4.2}°", val),
+            Some(Some(val)) => graph.attributes.legend_value((*val).into()),
         };
 
         rows.push(ListItem::new(Spans::from(vec![
@@ -684,7 +880,11 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
     }
 
     let list = List::new(rows)
-        .block(Block::default().borders(Borders::ALL).title("Sensors"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(graph.attributes.legend_label()),
+        )
         .highlight_style(
             Style::default()
                 .bg(Color::LightGreen)
@@ -692,36 +892,25 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
                 .add_modifier(Modifier::BOLD),
         );
 
-    //        .highlight_symbol(">> ");
-
     // We can now render the item list
-    f.render_stateful_widget(
-        list,
-        chunks[1],
-        &mut dashboard.temps.legend.state,
-    );
+    f.render_stateful_widget(list, chunks[1], &mut graph.legend.state);
+}
 
-    /*
-    let table = Table::new(rows)
-        .header(
-            Row::new(vec!["Sensor", "Temp"])
-                .style(Style::default().fg(Color::Gray))
+fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
+    let size = f.size();
+    let screen = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Ratio(1, 2),
+                Constraint::Ratio(1, 4),
+                Constraint::Ratio(1, 4),
+            ]
+            .as_ref(),
         )
-        .block(
-            Block::default()
-                .title(Span::styled(
-                    "Sensors",
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .borders(Borders::ALL),
-        )
-        .widths(&[
-            Constraint::Ratio(1, 2),
-            Constraint::Ratio(1, 2),
-        ]);
+        .split(size);
 
-    f.render_widget(table, chunks[1]);
-    */
+    draw_graph(f, screen[0], &mut dashboard.graphs[0]);
+    draw_graph(f, screen[1], &mut dashboard.graphs[1]);
+    draw_graph(f, screen[2], &mut dashboard.graphs[2]);
 }
