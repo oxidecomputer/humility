@@ -386,7 +386,8 @@ impl Format for Base {
         fmt: HubrisPrintFormat,
         out: &mut dyn std::io::Write,
     ) -> Result<()> {
-        if fmt.hex {
+        // Special case for booleans, because "0xfalse" looks silly
+        if fmt.hex && !matches!(self, Self::Bool(_)) {
             write!(out, "0x{:x}", self)?;
         } else {
             write!(out, "{}", self)?;
