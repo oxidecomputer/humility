@@ -6,15 +6,21 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{attach, Archive, Args, Attach, Command, Dumper, Validate};
 
 use itertools::Itertools;
 
 use anyhow::{bail, Result};
 use hif::*;
+use idt8a3xxxx::*;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fs;
 use structopt::clap::App;
 use structopt::StructOpt;
+
+use serde_derive::Deserialize;
+use serde_xml_rs::from_str;
 
 #[macro_use]
 extern crate log;
@@ -69,19 +75,25 @@ struct RencmArgs {
     /// specifies an I2C device address
     #[structopt(long, short = "d", value_name = "address")]
     device: Option<String>,
+
+    /// ingest an Aardvark data file
+    #[structopt(
+        long,
+        short = "i",
+        value_name = "filename",
+        conflicts_with_all = &[
+            "register", "module", "scan", "bus",
+        ]
+    )]
+    input: Option<String>,
 }
 
-fn rencm(
-    hubris: &mut HubrisArchive,
+fn rencm_attached(
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
-    subargs: &[String],
+    subargs: &RencmArgs,
+    modules: &[Module],
 ) -> Result<()> {
-    use idt8a3xxxx::*;
-
-    let subargs = RencmArgs::from_iter_safe(subargs)?;
-
-    let modules = modules();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let read_func = funcs.get("I2cRead", 7)?;
@@ -292,7 +304,7 @@ fn rencm(
                     // don't have a current page), we need to write our page
                     // address.
                     //
-                    ops.push(Op::Push(idt8a3xxxx::PAGE_ADDR));
+                    ops.push(Op::Push(idt8a3xxxx::PAGE_ADDR_15_8));
                     ops.push(Op::Push(page));
                     ops.push(Op::Push(1));
                     ops.push(Op::Call(write_func.id));
@@ -443,13 +455,188 @@ fn rencm(
     Ok(())
 }
 
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+struct Aardvark {
+    #[serde(rename = "i2c_write")]
+    writes: Vec<I2cWrite>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+struct I2cWrite {
+    #[serde(rename = "$value")]
+    value: String,
+}
+
+fn rencm_aardvark(filename: &str, modules: &[Module]) -> Result<()> {
+    let contents = String::from_utf8(fs::read(filename)?)?;
+
+    let payload = match contents.find("<aardvark>") {
+        Some(offset) => &contents[offset..],
+        None => {
+            bail!("input is not an Aardvark file");
+        }
+    };
+
+    let aardvark: Aardvark = from_str(payload)?;
+
+    let mut base = 0u16;
+    let mut byaddr = BTreeMap::new();
+
+    for module in modules {
+        for (ndx, addr) in module.base.iter().enumerate() {
+            byaddr.insert(addr, (module, ndx));
+        }
+    }
+
+    let mut dumper = Dumper::new();
+    dumper.header = false;
+    dumper.indent = 5;
+    dumper.hanging = true;
+    dumper.addrsize = 2;
+    dumper.ascii = false;
+
+    let print_attr = |attr, val| {
+        println!("{:5}{:12} = {}", "", attr, val);
+    };
+
+    for (windex, w) in aardvark.writes.iter().enumerate() {
+        let mut bytes = vec![];
+
+        for v in w.value.split(' ') {
+            if let Ok(val) = u8::from_str_radix(v, 16) {
+                bytes.push(val);
+            } else {
+                bail!("bad write line: {:?}", w);
+            }
+        }
+
+        print!("{:>3}: ", windex);
+        dumper.dump(&bytes, 0);
+
+        if bytes[0] == PAGE_ADDR_7_0 {
+            //
+            // We expect at least two bytes of write here.
+            //
+            if bytes.len() < 3 {
+                bail!("short write to page adress: {:?}", w);
+            }
+
+            base = (bytes[2] as u16) << 8;
+            print_attr("PAGE_ADDR", format!("0x{:04x}", base));
+            println!();
+            continue;
+        }
+
+        //
+        // Our first byte contains
+        //
+        let addr = base + bytes[0] as u16;
+        print_attr("base", format!("0x{:04x}", base));
+        print_attr("addr", format!("0x{:04x}", addr));
+
+        if let Some(module) = byaddr.range(..=addr).next_back() {
+            //
+            // Look for a matching register
+            //
+            let mut offset = addr - *(module.0);
+            let mut boffs = 1_usize;
+
+            let register = module
+                .1
+                 .0
+                .registers
+                .iter()
+                .enumerate()
+                .find(|&(_, r)| r.offset == offset);
+
+            let which = if module.1 .0.base.len() > 1 {
+                format!("[{}]", module.1 .1)
+            } else {
+                "".to_string()
+            };
+
+            print_attr("module", format!("{}{}", module.1 .0.name, which));
+
+            if let Some((index, _)) = register {
+                let mut index = index;
+
+                loop {
+                    print_attr("offset", format!("0x{:x}", offset));
+
+                    if index >= module.1 .0.registers.len() {
+                        print_attr("register", "<Overrun>".to_string());
+                        break;
+                    }
+
+                    let register = &module.1 .0.registers[index];
+
+                    if register.offset != offset {
+                        print_attr("register", "<Unknown>".to_string());
+                        break;
+                    }
+
+                    print_attr("register", register.name.to_string());
+                    print_attr("index", format!("{}", index));
+                    let size = register.contents.size() as usize;
+                    print_attr("size", format!("{}", size));
+
+                    if boffs + size > bytes.len() {
+                        print_attr(
+                            "contents",
+                            format!("<Underrun> ({:x?})", &bytes[boffs..]),
+                        );
+                        break;
+                    }
+
+                    print_attr(
+                        "contents",
+                        format!("{:x?}", &bytes[boffs..boffs + size]),
+                    );
+
+                    if boffs + size == bytes.len() {
+                        break;
+                    }
+
+                    offset += size as u16;
+                    boffs += size;
+                    index += 1;
+                }
+            } else {
+                print_attr("offset", format!("0x{:x}", offset));
+                print_attr("register", "<Unknown>".to_string());
+            }
+        }
+
+        println!();
+    }
+
+    Ok(())
+}
+
+fn rencm(
+    hubris: &mut HubrisArchive,
+    args: &Args,
+    subargs: &[String],
+) -> Result<()> {
+    let subargs = RencmArgs::from_iter_safe(subargs)?;
+    let modules = modules();
+
+    if let Some(filename) = subargs.input {
+        return rencm_aardvark(&filename, modules);
+    }
+
+    attach(hubris, args, Attach::LiveOnly, Validate::Booted, |hubris, core| {
+        rencm_attached(hubris, core, &subargs, modules)
+    })
+}
+
 pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
     (
-        Command::Attached {
+        Command::Unattached {
             name: "rencm",
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
+            archive: Archive::Optional,
             run: rencm,
         },
         RencmArgs::clap(),

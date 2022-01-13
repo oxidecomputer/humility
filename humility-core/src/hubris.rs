@@ -94,7 +94,7 @@ struct HubrisConfigI2cPort {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigI2cController {
     controller: u8,
-    ports: IndexMap<String, HubrisConfigI2cPort>,
+    ports: BTreeMap<String, HubrisConfigI2cPort>,
     target: Option<bool>,
 }
 
@@ -3647,9 +3647,10 @@ impl HubrisArchive {
 
             for bus in &self.manifest.i2c_buses {
                 println!(
-                    "{:>17} {:4} {:4} {:13} {}",
+                    "{:>17} {:4} i={} {:4} {:13} {}",
                     bus.controller,
                     bus.port.name,
+                    bus.port.index,
                     if bus.target { "trgt" } else { "init" },
                     bus.name.as_ref().unwrap_or(&"-".to_string()),
                     bus.description.as_ref().unwrap_or(&"-".to_string()),

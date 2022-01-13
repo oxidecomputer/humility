@@ -65,7 +65,7 @@ struct DumpArgs {
 }
 
 fn dumpcmd(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

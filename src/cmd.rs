@@ -5,8 +5,7 @@
 use anyhow::{bail, Context, Result};
 use humility::hubris::*;
 use humility_cmd::Args;
-use humility_cmd::{attach_dump, attach_live};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Command};
 use std::collections::HashMap;
 use structopt::clap::App;
 
@@ -92,31 +91,13 @@ pub fn subcommand(
 
         match command {
             Command::Attached { run, attach, validate, .. } => {
-                let mut c = match attach {
-                    Attach::LiveOnly => attach_live(args),
-                    Attach::DumpOnly => attach_dump(args, &hubris),
-                    Attach::Any => {
-                        if args.dump.is_some() {
-                            attach_dump(args, &hubris)
-                        } else {
-                            attach_live(args)
-                        }
-                    }
-                }?;
-
-                let core = c.as_mut();
-
-                match validate {
-                    Validate::Booted => {
-                        hubris.validate(core, HubrisValidate::Booted)?;
-                    }
-                    Validate::Match => {
-                        hubris.validate(core, HubrisValidate::ArchiveMatch)?;
-                    }
-                    Validate::None => {}
-                }
-
-                (run)(&mut hubris, core, args, subargs)
+                humility_cmd::attach(
+                    &hubris,
+                    args,
+                    *attach,
+                    *validate,
+                    |h, core| (run)(h, core, args, subargs),
+                )
             }
             Command::Unattached { run, .. } => {
                 (run)(&mut hubris, args, subargs)

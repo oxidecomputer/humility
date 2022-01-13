@@ -43,7 +43,7 @@ struct SensorsArgs {
 }
 
 fn sensors_list(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     types: &Option<HashSet<HubrisSensorKind>>,
     devices: &Option<HashSet<String>>,
 ) -> Result<()> {
@@ -174,7 +174,7 @@ fn sensors_summarize(
 }
 
 fn sensors(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

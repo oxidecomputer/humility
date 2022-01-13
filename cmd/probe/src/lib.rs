@@ -106,7 +106,7 @@ struct ProbeArgs {}
 
 #[rustfmt::skip::macros(format)]
 fn probecmd(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     _subargs: &[String],

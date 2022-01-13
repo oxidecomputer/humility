@@ -160,7 +160,7 @@ fn hiffy_call(
 }
 
 fn hiffy(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

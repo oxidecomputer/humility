@@ -84,7 +84,7 @@ fn section(title: &str) {
 }
 
 fn diagnose(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

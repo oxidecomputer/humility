@@ -73,7 +73,7 @@ use structopt::StructOpt;
 struct MapArgs {}
 
 fn mapcmd(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     _subargs: &[String],

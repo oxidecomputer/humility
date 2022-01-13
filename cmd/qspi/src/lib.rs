@@ -5,8 +5,7 @@
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::printmem;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -93,7 +92,7 @@ struct QspiArgs {
 }
 
 fn qspi(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],
@@ -318,7 +317,7 @@ fn qspi(
 
     if subargs.read {
         if let Ok(results) = &results[0] {
-            printmem(results, 0, 1, 16);
+            Dumper::new().dump(results, 0);
             return Ok(());
         }
     }

@@ -96,8 +96,7 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::printmem;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
 use structopt::clap::App;
 use structopt::StructOpt;
 
@@ -359,7 +358,7 @@ fn i2c_done(
                 Ok(val) => match subargs.nbytes {
                     Some(n) if n > 2 => {
                         println!();
-                        printmem(val, 0, 1, 16);
+                        Dumper::new().dump(val, 0);
                     }
                     Some(2) => {
                         println!("0x{:02x} 0x{:02x}", val[0], val[1]);
@@ -404,7 +403,7 @@ fn i2c_done(
                 Ok(val) => match subargs.nbytes {
                     Some(n) if n > 2 => {
                         println!();
-                        printmem(val, 0, 1, 16);
+                        Dumper::new().dump(val, 0);
                     }
                     Some(2) => {
                         println!("0x{:02x} 0x{:02x}", val[0], val[1])
@@ -434,7 +433,7 @@ fn i2c_done(
 }
 
 fn i2c(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

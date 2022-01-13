@@ -114,8 +114,7 @@
 use anyhow::{bail, Result};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::printmem;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
 use std::convert::TryInto;
 use structopt::clap::App;
 use structopt::StructOpt;
@@ -144,7 +143,7 @@ struct ReadmemArgs {
 }
 
 fn readmem(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],
@@ -225,7 +224,9 @@ fn readmem(
         return Ok(());
     }
 
-    printmem(&bytes, addr, size, 16);
+    let mut dumper = Dumper::new();
+    dumper.size = size;
+    dumper.dump(&bytes, addr);
 
     Ok(())
 }

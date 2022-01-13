@@ -650,7 +650,7 @@ fn run_dashboard<B: Backend>(
 }
 
 fn dashboard(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],
