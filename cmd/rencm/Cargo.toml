@@ -8,8 +8,7 @@ description = "query Renesas 8A3400X ClockMatrix parts"
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
 hif = { git = "https://github.com/oxidecomputer/hif" }
-# idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
-idt8a3xxxx = { path = "../../../idt8a3xxxx" }
+idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 structopt = "0.3"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 itertools = "0.10.1"
@@ -18,3 +17,4 @@ log = {version = "0.4.8", features = ["std"]}
 serde-xml-rs = "0.5.1"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_derive = "1.0.133"
+csv = "1.1.3"
