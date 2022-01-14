@@ -192,9 +192,7 @@ fn readmem(
     let rval = core.read_8(addr, &mut bytes);
     core.run()?;
 
-    if rval.is_err() {
-        return rval;
-    }
+    rval?;
 
     if subargs.symbol {
         for offs in (0..length).step_by(size) {
