@@ -187,9 +187,7 @@ fn spd(
         let rval = core.read_8(spd_data.addr, &mut bytes);
         core.run()?;
 
-        if rval.is_err() {
-            return rval;
-        }
+        rval?;
 
         let mut header = true;
 
