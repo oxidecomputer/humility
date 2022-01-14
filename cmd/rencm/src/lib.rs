@@ -292,7 +292,7 @@ fn rencm(
                     // don't have a current page), we need to write our page
                     // address.
                     //
-                    ops.push(Op::Push(idt8a3xxxx::PAGE_ADDR));
+                    ops.push(Op::Push(idt8a3xxxx::PAGE_ADDR_15_8));
                     ops.push(Op::Push(page));
                     ops.push(Op::Push(1));
                     ops.push(Op::Call(write_func.id));

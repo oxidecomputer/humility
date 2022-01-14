@@ -137,7 +137,8 @@ fn dump_spd(
 
 // Assumes that we already have pushed on the stack our controller/port/mux
 fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
-    let dev = spd::Function::PageAddress(page).to_code().unwrap();
+    let dev =
+        spd::Function::PageAddress(spd::Page(page)).to_device_code().unwrap();
     ops.push(Op::Push(dev)); // Device
     ops.push(Op::PushNone); // Register
     ops.push(Op::Push(0)); // Buffer
@@ -253,7 +254,9 @@ fn spd(
     // Now issue single byte register reads to determine where our devices are.
     //
     for addr in 0..spd::MAX_DEVICES {
-        ops.push(Op::Push(spd::Function::Memory(addr).to_code().unwrap()));
+        ops.push(Op::Push(
+            spd::Function::Memory(addr).to_device_code().unwrap(),
+        ));
         ops.push(Op::Push(0));
         ops.push(Op::Push(1));
         ops.push(Op::Call(i2c_read.id));
@@ -276,7 +279,7 @@ fn spd(
             //
             // Issue the read for the bottom 128 bytes from the 0 page
             //
-            let dev = spd::Function::Memory(addr).to_code().unwrap();
+            let dev = spd::Function::Memory(addr).to_device_code().unwrap();
             ops.push(Op::Push(dev));
             ops.push(Op::Push(0));
             ops.push(Op::Push(128));
