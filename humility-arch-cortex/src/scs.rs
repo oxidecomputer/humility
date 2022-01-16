@@ -395,6 +395,7 @@ register!(CPUID, 0xe000_ed00,
 pub enum Vendor {
     ST,
     NXP,
+    ARM,
     Other,
 }
 
@@ -432,6 +433,7 @@ impl CoreInfo {
         let vendor = match m.get() {
             Some("STMicroelectronics") => Vendor::ST,
             Some("NXP (Philips)") => Vendor::NXP,
+            Some("ARM Ltd") => Vendor::ARM,
             _ => Vendor::Other,
         };
 

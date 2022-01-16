@@ -276,6 +276,55 @@ register!(STM32F4_DBGMCU_CR, 0xe004_2004,
     pub dbg_sleep, _: 1;
 );
 
+register!(STM32G0X1_DBGMCU_IDCODE, 0x4001_5800,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct STM32G0X1_DBGMCU_IDCODE(u32);
+    impl Debug;
+    pub rev_id, _: 31, 16;
+    pub dev_id, _: 11, 0;
+);
+
+register!(STM32G0X1_DBGMCU_CR, 0x4001_5804,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct STM32G0X1_DBGMCU_CR(u32);
+    impl Debug;
+    pub dbg_standby, _: 2;
+    pub dbg_stop, _: 1;
+);
+
+register!(STM32G0X1_DBGMCU_APBFZ1, 0x4001_5808,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct STM32G0X1_DBGMCU_APBFZ1(u32);
+    impl Debug;
+    pub dbg_lptim1_stop, _: 31;
+    pub dbg_lptim2_stop, _: 30;
+    pub dbg_i2c2_smbus_timeout, _: 22;
+    pub dbg_i2c1_smbus_timeout, _: 21;
+    pub dbg_iwdg_stop, _: 12;
+    pub dbg_wwdg_stop, _: 11;
+    pub dbg_rtc_stop, _: 10;
+    pub dbg_tim7_stop, _: 5;
+    pub dbg_tim6_stop, _: 4;
+    pub dbg_tim4_stop, _: 2;
+    pub dbg_tim3_stop, _: 1;
+    pub dbg_tim2_stop, _: 0;
+);
+
+register!(STM32G0X1_DBGMCU_APBFZ2, 0x4001_580C,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct STM32G0X1_DBGMCU_APBFZ2(u32);
+    impl Debug;
+    pub dbg_tim17_stop, _: 18;
+    pub dbg_tim16_stop, _: 17;
+    pub dbg_tim15_stop, _: 16;
+    pub dbg_tim14_stop, _: 15;
+    pub dbg_tim1_stop, _: 11;
+);
+
 register!(STM32H7_DBGMCU_IDC, 0x5c00_1000,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -498,6 +547,7 @@ pub fn stm32_chipname(partno: u32) -> String {
         0x463 => "STM32F413",
         0x464 => "STM32L412/STM32L422",
         0x466 => "STM32G0x0",
+        0x467 => "STM32G0x1",
         0x468 => "STM32G4xxx6/STM32G4xxx8/STM32G4xxxB",
         0x469 => "STM32G4xxxC/STM32G4xxxE",
         0x470 => "STM32L4R/STM32L4S",

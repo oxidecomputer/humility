@@ -158,7 +158,17 @@ fn probecmd(
 
     print(
         "chip",
-        if coreinfo.vendor == Vendor::ST && part == ARMCore::CortexM4 {
+        if coreinfo.vendor == Vendor::ARM && part == ARMCore::CortexM0Plus {
+            if let Ok(idc) = STM32G0X1_DBGMCU_IDCODE::read(core) {
+                format!(
+                    "{}, revision 0x{:x}",
+                    stm32_chipname(idc.dev_id()),
+                    idc.rev_id()
+                )
+            } else {
+                format!("<unknown ARM part 0x{:x}>", coreinfo.manufacturer_part)
+            }
+        } else if coreinfo.vendor == Vendor::ST && part == ARMCore::CortexM4 {
             if let Ok(idc) = STM32F4_DBGMCU_IDCODE::read(core) {
                 format!(
                     "{}, revision 0x{:x}",
