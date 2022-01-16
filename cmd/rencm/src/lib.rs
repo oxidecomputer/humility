@@ -35,6 +35,10 @@ struct RencmArgs {
     )]
     timeout: u32,
 
+    /// verbose output
+    #[structopt(long, short)]
+    verbose: bool,
+
     /// specifies an I2C bus by name
     #[structopt(long, short, value_name = "bus",
         conflicts_with_all = &["port", "controller"]
@@ -85,7 +89,7 @@ struct RencmArgs {
             "register", "module", "scan", "bus",
         ]
     )]
-    input: Option<String>,
+    ingest: Option<String>,
 }
 
 fn rencm_attached(
@@ -455,38 +459,19 @@ fn rencm_attached(
     Ok(())
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "kebab-case")]
-struct Aardvark {
-    #[serde(rename = "i2c_write")]
-    writes: Vec<I2cWrite>,
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "kebab-case")]
-struct I2cWrite {
-    #[serde(rename = "$value")]
-    value: String,
-}
-
-fn rencm_aardvark(filename: &str, modules: &[Module]) -> Result<()> {
-    let contents = String::from_utf8(fs::read(filename)?)?;
-
-    let payload = match contents.find("<aardvark>") {
-        Some(offset) => &contents[offset..],
-        None => {
-            bail!("input is not an Aardvark file");
-        }
-    };
-
-    let aardvark: Aardvark = from_str(payload)?;
-
+fn rencm_dump(
+    subargs: &RencmArgs,
+    ops: &[Vec<u8>],
+    modules: &[Module],
+) -> Result<()> {
     let mut base = 0u16;
     let mut byaddr = BTreeMap::new();
 
     for module in modules {
         for (ndx, addr) in module.base.iter().enumerate() {
-            byaddr.insert(addr, (module, ndx));
+            for register in module.registers.iter() {
+                byaddr.insert(addr + register.offset, (module, ndx, register));
+            }
         }
     }
 
@@ -498,8 +483,144 @@ fn rencm_aardvark(filename: &str, modules: &[Module]) -> Result<()> {
     dumper.ascii = false;
 
     let print_attr = |attr, val| {
-        println!("{:5}{:12} = {}", "", attr, val);
+        if subargs.verbose {
+            println!("{:5}{:12}: {}", "", attr, val);
+        }
     };
+
+    let print_value = |attr, val| {
+        println!("{:5}{} = {}", "", attr, val);
+    };
+
+    for (windex, bytes) in ops.iter().enumerate() {
+        print!("{:>3}: ", windex);
+        dumper.dump(bytes, 0);
+        let mut boffs = 0_usize;
+
+        if bytes[0] == PAGE_ADDR_7_0 {
+            //
+            // We expect at least two bytes of write here.
+            //
+            if bytes.len() < 3 {
+                bail!("{}: short write to page adress: {:?}", windex, bytes);
+            }
+
+            base = (bytes[2] as u16) << 8;
+            print_value("PAGE_ADDR".to_string(), format!("0x{:04x}", base));
+
+            //
+            // We might have more data here...
+            //
+            boffs = 5;
+
+            if boffs >= bytes.len() {
+                println!();
+                continue;
+            }
+        }
+
+        //
+        // Our first byte contains our offset within the page
+        //
+        let addr = base + bytes[boffs] as u16;
+        boffs += 1;
+
+        print_attr("base", format!("0x{:04x}", base));
+        print_attr("addr", format!("0x{:04x}", addr));
+
+        let mut current = addr;
+
+        loop {
+            if let Some((_, (module, ndx, register))) =
+                byaddr.range(..=current).next_back()
+            {
+                let offset = current - module.base[*ndx];
+
+                let which = if module.base.len() > 1 {
+                    format!("[{}]", ndx)
+                } else {
+                    "".to_string()
+                };
+
+                print_attr("module", format!("{}{}", module.name, which));
+                print_attr("offset", format!("0x{:x}", offset));
+                print_attr("boffs", format!("0x{:x}", boffs));
+                print_attr("len", format!("0x{:x}", bytes.len()));
+
+                let size = register.contents.size() as u16;
+
+                if offset - register.offset >= size {
+                    print_attr("register", "<Unknown>".to_string());
+                    print_attr("contents", format!("{:x?}", &bytes[boffs..]));
+                    break;
+                } else {
+                    let roffset = offset - register.offset;
+                    print_attr("size", format!("0x{:x}", size));
+                    print_attr("roffset", format!("0x{:x}", roffset));
+
+                    let size = (size - (offset - register.offset)) as usize;
+
+                    let r = if roffset != 0 {
+                        format!(
+                            "{}{}.{}+0x{:x}",
+                            module.name, which, register.name, roffset
+                        )
+                    } else {
+                        format!("{}{}.{}", module.name, which, register.name)
+                    };
+
+                    let lim = if boffs + size < bytes.len() {
+                        boffs + size
+                    } else {
+                        bytes.len()
+                    };
+
+                    let val = format!("{:x?}", &bytes[boffs..lim]);
+                    print_value(r, val);
+
+                    boffs += size;
+                    current += size as u16;
+                }
+            }
+
+            if boffs >= bytes.len() {
+                break;
+            }
+        }
+
+        println!();
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+struct Aardvark {
+    #[serde(rename = "i2c_write")]
+    writes: Vec<AardvarkWrite>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+struct AardvarkWrite {
+    #[serde(rename = "$value")]
+    value: String,
+}
+
+fn rencm_aardvark(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
+    let contents =
+        String::from_utf8(fs::read(subargs.ingest.as_ref().unwrap())?)?;
+    let mut ops = vec![];
+
+    let payload = match contents.find("<aardvark>") {
+        Some(offset) => &contents[offset..],
+        None => {
+            bail!("input is not an Aardvark file");
+        }
+    };
+
+    let aardvark: Aardvark = from_str(payload)?;
 
     for (windex, w) in aardvark.writes.iter().enumerate() {
         let mut bytes = vec![];
@@ -508,108 +629,86 @@ fn rencm_aardvark(filename: &str, modules: &[Module]) -> Result<()> {
             if let Ok(val) = u8::from_str_radix(v, 16) {
                 bytes.push(val);
             } else {
-                bail!("bad write line: {:?}", w);
+                bail!("{}: bad write line: {:?}", windex, w);
             }
         }
 
-        print!("{:>3}: ", windex);
-        dumper.dump(&bytes, 0);
+        ops.push(bytes)
+    }
 
-        if bytes[0] == PAGE_ADDR_7_0 {
-            //
-            // We expect at least two bytes of write here.
-            //
-            if bytes.len() < 3 {
-                bail!("short write to page adress: {:?}", w);
-            }
+    rencm_dump(subargs, &ops, modules)?;
 
-            base = (bytes[2] as u16) << 8;
-            print_attr("PAGE_ADDR", format!("0x{:04x}", base));
-            println!();
-            continue;
-        }
+    Ok(())
+}
 
-        //
-        // Our first byte contains
-        //
-        let addr = base + bytes[0] as u16;
-        print_attr("base", format!("0x{:04x}", base));
-        print_attr("addr", format!("0x{:04x}", addr));
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct SaleaeTraceRecord {
+    #[serde(rename = "Time [s]")]
+    time: f64,
 
-        if let Some(module) = byaddr.range(..=addr).next_back() {
-            //
-            // Look for a matching register
-            //
-            let mut offset = addr - *(module.0);
-            let mut boffs = 1_usize;
+    #[serde(rename = "Packet ID")]
+    id: u8,
 
-            let register = module
-                .1
-                 .0
-                .registers
-                .iter()
-                .enumerate()
-                .find(|&(_, r)| r.offset == offset);
+    #[serde(rename = "Address")]
+    address: String,
 
-            let which = if module.1 .0.base.len() > 1 {
-                format!("[{}]", module.1 .1)
-            } else {
-                "".to_string()
-            };
+    #[serde(rename = "Data")]
+    data: String,
 
-            print_attr("module", format!("{}{}", module.1 .0.name, which));
+    #[serde(rename = "Read/Write")]
+    rw: String,
 
-            if let Some((index, _)) = register {
-                let mut index = index;
+    #[serde(rename = "ACK/NAK")]
+    acknak: String,
+}
 
-                loop {
-                    print_attr("offset", format!("0x{:x}", offset));
+fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
+    let file = fs::File::open(subargs.ingest.as_ref().unwrap())?;
 
-                    if index >= module.1 .0.registers.len() {
-                        print_attr("register", "<Overrun>".to_string());
-                        break;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    match rdr.headers() {
+        Ok(hdr) if hdr.len() == 6 => {
+            let mut register = None;
+
+            let mut ops = vec![];
+            let mut bytes = vec![];
+
+            for result in rdr.deserialize() {
+                let record: SaleaeTraceRecord = result?;
+
+                if record.rw == "Read" {
+                    if !bytes.is_empty() {
+                        ops.push(bytes);
+                        bytes = vec![];
                     }
 
-                    let register = &module.1 .0.registers[index];
-
-                    if register.offset != offset {
-                        print_attr("register", "<Unknown>".to_string());
-                        break;
-                    }
-
-                    print_attr("register", register.name.to_string());
-                    print_attr("index", format!("{}", index));
-                    let size = register.contents.size() as usize;
-                    print_attr("size", format!("{}", size));
-
-                    if boffs + size > bytes.len() {
-                        print_attr(
-                            "contents",
-                            format!("<Underrun> ({:x?})", &bytes[boffs..]),
-                        );
-                        break;
-                    }
-
-                    print_attr(
-                        "contents",
-                        format!("{:x?}", &bytes[boffs..boffs + size]),
-                    );
-
-                    if boffs + size == bytes.len() {
-                        break;
-                    }
-
-                    offset += size as u16;
-                    boffs += size;
-                    index += 1;
+                    register = None;
                 }
-            } else {
-                print_attr("offset", format!("0x{:x}", offset));
-                print_attr("register", "<Unknown>".to_string());
-            }
-        }
 
-        println!();
+                if record.rw == "Write" {
+                    let datum = match parse_int::parse::<u8>(&record.data) {
+                        Ok(val) => val,
+                        Err(_) => {
+                            bail!("invalid record {:?}", record)
+                        }
+                    };
+
+                    if let Some(val) = register {
+                        bytes.push(val);
+                    }
+
+                    register = Some(datum);
+                }
+            }
+
+            rencm_dump(subargs, &ops, modules)?;
+        }
+        _ => {
+            info!("not a Saleae trace file; assuming Aardvark input");
+            rencm_aardvark(subargs, modules)?;
+        }
     }
 
     Ok(())
@@ -623,8 +722,8 @@ fn rencm(
     let subargs = RencmArgs::from_iter_safe(subargs)?;
     let modules = modules();
 
-    if let Some(filename) = subargs.input {
-        return rencm_aardvark(&filename, modules);
+    if subargs.ingest.is_some() {
+        return rencm_ingest(&subargs, modules);
     }
 
     attach(hubris, args, Attach::LiveOnly, Validate::Booted, |hubris, core| {
