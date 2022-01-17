@@ -69,7 +69,7 @@ struct GpioArgs {
 }
 
 fn gpio(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],
