@@ -162,6 +162,7 @@ environment variable.
 - [humility i2c](#humility-i2c): scan for and read I2C devices
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
+- [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
@@ -172,13 +173,13 @@ environment variable.
 - [humility renbb](#humility-renbb): Renesas black box operations
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
+- [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spd](#humility-spd): scan for and read SPD devices
 - [humility spi](#humility-spi): SPI reading and writing
 - [humility stackmargin](#humility-stackmargin): calculate and print stack margins by task
 - [humility stmsecure](#humility-stmsecure): change secure region settings on the stm32h7
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
-- [humility thermal](#humility-thermal): thermal-related operations
 - [humility trace](#humility-trace): trace Hubris operations
 - [humility vsc7448](#humility-vsc7448): VSC7448 operations
 ### `humility apptable`
@@ -503,6 +504,10 @@ change its disposition back to restart.
 Finally, to start a task that is not started by default, use the `-s` flag.
 
 
+
+### `humility lpc55gpio`
+
+No documentation yet for `humility lpc55gpio`; pull requests welcome!
 
 ### `humility manifest`
 
@@ -880,6 +885,10 @@ See the [`ringbuf`
 documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
 
+### `humility sensors`
+
+No documentation yet for `humility sensors`; pull requests welcome!
+
 ### `humility spd`
 
 No documentation yet for `humility spd`; pull requests welcome!
@@ -1155,10 +1164,6 @@ All received packet data will be dumped to the resulting output file,
 allowing these transient failures to be differentiated from deeper issues.
 
 
-
-### `humility thermal`
-
-No documentation yet for `humility thermal`; pull requests welcome!
 
 ### `humility trace`
 
