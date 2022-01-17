@@ -923,7 +923,19 @@ documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/s
 
 ### `humility sensors`
 
-No documentation yet for `humility sensors`; pull requests welcome!
+`humility sensors` communicates with the `sensor` Hubris task via its
+`Sensor` Idol interface to get sensor data.  If there is no `sensor` task
+or if there are no sensors defined in the in Hurbis application
+description, this command will not provide any meaningful output. To list
+all available sensors, use `-l` (`--list`); to summarize sensor values,
+use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
+(`--types`) option; to constrain sensors by device, use the `-d`
+(`--devices`) option.  Within each option, multiple specifications serve
+as a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors
+from either device), but if both kinds of specifications are present, they
+serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
+all thermal sensors from either device).
+
 
 ### `humility spd`
 
