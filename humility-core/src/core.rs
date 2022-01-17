@@ -53,6 +53,31 @@ pub struct ProbeCore {
     pub vendor_id: u16,
     pub product_id: u16,
     pub serial_number: Option<String>,
+    halted: bool,
+}
+
+impl ProbeCore {
+    fn halt_and_exec(
+        &mut self,
+        mut func: impl FnMut(&mut probe_rs::Core) -> Result<()>,
+    ) -> Result<()> {
+        let mut core = self.session.core(0)?;
+
+        let halted = if !self.halted && core.core_halted()? {
+            core.halt(std::time::Duration::from_millis(1000))?;
+            true
+        } else {
+            false
+        };
+
+        let rval = func(&mut core);
+
+        if halted {
+            core.run()?;
+        }
+
+        rval
+    }
 }
 
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
@@ -70,19 +95,23 @@ impl Core for ProbeCore {
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         trace!("reading word at {:x}", addr);
-        let mut core = self.session.core(0)?;
-        Ok(core.read_word_32(addr)?)
+        let mut rval = 0;
+
+        self.halt_and_exec(|core| {
+            rval = core.read_word_32(addr)?;
+            Ok(())
+        })?;
+
+        Ok(rval)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        let mut core = self.session.core(0)?;
-
         if data.len() > CORE_MAX_READSIZE {
             bail!("read of {} bytes at 0x{:x} exceeds max of {}",
                 data.len(), addr, CORE_MAX_READSIZE);
         }
 
-        Ok(core.read_8(addr, data)?)
+        self.halt_and_exec(|core| Ok(core.read_8(addr, data)?))
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
@@ -123,12 +152,14 @@ impl Core for ProbeCore {
     fn halt(&mut self) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.halt(std::time::Duration::from_millis(1000))?;
+        self.halted = true;
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.run()?;
+        self.halted = false;
         Ok(())
     }
 
@@ -961,6 +992,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 vendor_id: probes[selected].vendor_id,
                 product_id: probes[selected].product_id,
                 serial_number: probes[selected].serial_number.clone(),
+                halted: false,
             }))
         }
 
@@ -1023,6 +1055,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                     vendor_id,
                     product_id,
                     serial_number,
+                    halted: false,
                 }))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),

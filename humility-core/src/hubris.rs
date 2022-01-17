@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::arch::ARMRegister;
+use crate::arch::{analyze_stub, ARMRegister};
 use capstone::prelude::*;
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -556,21 +556,6 @@ impl HubrisArchive {
         }
 
         None
-    }
-
-    fn instr_operands(&self, instr: &capstone::Insn) -> Vec<ARMRegister> {
-        let detail = self.cs.insn_detail(instr).unwrap();
-        let mut rval: Vec<ARMRegister> = Vec::new();
-
-        for op in detail.arch_detail().operands() {
-            if let arch::ArchOperand::ArmOperand(op) = op {
-                if let arch::arm::ArmOperandType::Reg(id) = op.op_type {
-                    rval.push(id.into());
-                }
-            }
-        }
-
-        rval
     }
 
     fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
@@ -1698,6 +1683,79 @@ impl HubrisArchive {
         }
     }
 
+    fn load_function(
+        &mut self,
+        object: &str,
+        task: HubrisTask,
+        func: &str,
+        addr: u32,
+        buffer: &[u8],
+    ) -> Result<()> {
+        let instrs = match self.cs.disasm_all(buffer, addr.into()) {
+            Ok(instrs) => instrs,
+            Err(err) => {
+                bail!(
+                    "failed to disassemble {} (addr 0x{:08x}, {}): {}",
+                    func, addr, buffer.len(), err
+                );
+            }
+        };
+
+        let mut last: (u32, usize) = (0, 0);
+
+        for (ndx, instr) in instrs.iter().enumerate() {
+            let addr: u32 = instr.address() as u32;
+
+            if self.instrs.contains_key(&addr) {
+                //
+                // This is possible because functions can have multiple symbol
+                // table entries; if we have seen this instruction before,
+                // we'll split.
+                //
+                return Ok(());
+            }
+
+            let b = instr.bytes();
+
+            last = (addr, b.len());
+
+            let target = self.instr_branch_target(&instr);
+            self.instrs.insert(addr, (b.to_vec(), target));
+
+            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
+
+            //
+            // If we encounter a syscall instruction, we need to analyze
+            // its containing function to determine the hand-written pushes
+            // before any system call in order to be able to successfully
+            // unwind the stack.
+            //
+            if let InsnId(ARM_INSN_SVC) = instr.id() {
+                if task != HubrisTask::Kernel {
+                    self.syscall_pushes.insert(
+                        addr + b.len() as u32,
+                        Some(analyze_stub(&self.cs, &instrs[0..ndx])?),
+                    );
+                }
+            }
+        }
+
+        //
+        // Regrettably, if Capstone flies off the rails while disassembling,
+        // it won't flag an error -- it will simply stop short.  Check to see
+        // if we are in this case and explicitly fail.
+        //
+        if last.0 + last.1 as u32 != addr + buffer.len() as u32 {
+            bail!(
+                "short disassembly for {}: \
+                stopped at 0x{:x}, expected to go to 0x{:x}",
+                object, last.0, addr + buffer.len() as u32
+            );
+        }
+
+        Ok(())
+    }
+
     fn load_object(
         &mut self,
         object: &str,
@@ -1715,6 +1773,27 @@ impl HubrisArchive {
         if !arm {
             bail!("{} not an ARM ELF object", object);
         }
+
+        let text = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".text"
+            } else {
+                false
+            }
+        });
+
+        let textsec = match text {
+            None => {
+                bail!("couldn't find text in ELF object \"{}\"", object);
+            }
+            Some(sec) => sec,
+        };
+
+        let offset = textsec.sh_offset as u32;
+        let size = textsec.sh_size as u32;
+        let current = self.current;
+
+        trace!("loading {} as object {}", object, self.current);
 
         for sym in elf.syms.iter() {
             if sym.st_name == 0 {
@@ -1762,6 +1841,18 @@ impl HubrisArchive {
             self.esyms_byname
                 .insert(name.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
+
+            if sym.is_function() {
+                let o = ((val - textsec.sh_addr as u32) + offset) as usize;
+                let t = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
+                    || {
+                        anyhow!("bad offset/size for {}: 0x{:x}, size {}",
+                        name, val, sym.st_size)
+                    },
+                )?;
+
+                self.load_function(object, task, name, val, t)?;
+            }
         }
 
         use goblin::elf::program_header::{PF_R, PF_W, PF_X};
@@ -1817,27 +1908,6 @@ impl HubrisArchive {
             };
         }
 
-        let text = elf.section_headers.iter().find(|sh| {
-            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                name == ".text"
-            } else {
-                false
-            }
-        });
-
-        let textsec = match text {
-            None => {
-                bail!("couldn't find text in ELF object \"{}\"", object);
-            }
-            Some(sec) => sec,
-        };
-
-        let offset = textsec.sh_offset as usize;
-        let size = textsec.sh_size as usize;
-        let current = self.current;
-
-        trace!("loading {} as object {}", object, self.current);
-
         self.load_object_dwarf(buffer, &elf)
             .context(format!("{}: failed to load DWARF", object))?;
 
@@ -1845,72 +1915,6 @@ impl HubrisArchive {
             .context(format!("{}: failed to load debug frames", object))?;
 
         let iface = self.load_object_idolatry(buffer, &elf)?;
-
-        let t = buffer
-            .get(offset..offset + size)
-            .ok_or_else(|| anyhow!("bad offset/size for ELF text section"))?;
-
-        let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
-            Ok(instrs) => instrs,
-            Err(err) => {
-                bail!(
-                    "failed to disassemble \"{}\" (offs 0x{:08x}, {}): {}",
-                    object, offset, size, err
-                );
-            }
-        };
-
-        let mut last: (u32, usize) = (0, 0);
-        let mut lastpush = None;
-
-        for instr in instrs.iter() {
-            let addr: u32 = instr.address() as u32;
-
-            if self.instrs.contains_key(&addr) {
-                bail!("address 0x{:08x} is duplicated!", addr);
-            }
-
-            let b = instr.bytes();
-
-            last = (addr, b.len());
-
-            let target = self.instr_branch_target(&instr);
-            self.instrs.insert(addr, (b.to_vec(), target));
-
-            //
-            // We need to keep track of the hand-written push before any
-            // system call in order to be able to successfully unwind the
-            // stack.
-            //
-            const ARM_INSN_PUSH: u32 = arch::arm::ArmInsn::ARM_INS_PUSH as u32;
-            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
-
-            match instr.id() {
-                InsnId(ARM_INSN_PUSH) => {
-                    lastpush = Some(self.instr_operands(&instr));
-                }
-                InsnId(ARM_INSN_SVC) => {
-                    self.syscall_pushes.insert(addr + b.len() as u32, lastpush);
-                    lastpush = None;
-                }
-                _ => {}
-            }
-        }
-
-        /*
-         * Regrettably, if Capstone flies off the rails while disassembling,
-         * it won't flag an error -- it will simply stop short.  Check to see
-         * if we are in this case and explicitly fail.
-         */
-        if last.0 + last.1 as u32 != textsec.sh_addr as u32 + size as u32 {
-            bail!(
-                concat!(
-                    "short disassembly for \"{}\": ",
-                    "stopped at 0x{:x}, expected to go to 0x{:x}"
-                ),
-                object, last.0, textsec.sh_addr as u32 + size as u32
-            );
-        }
 
         self.modules.insert(
             textsec.sh_addr as u32,
@@ -2829,8 +2833,21 @@ impl HubrisArchive {
         let sp = readreg("psp")?;
 
         const NREGS_CORE: usize = 8;
-        const NREGS_FP: usize = 17;
-        const NREGS_FRAME: usize = NREGS_CORE + NREGS_FP + 1;
+
+        //
+        // Not all architectures have floating point -- and ARMv6 never has
+        // it.  (Note that that the stack is always 8-byte aligned; if we have
+        // our 17 floating point registers here, we also have an unstored
+        // pad.)
+        //
+        let (nregs_fp, align) =
+            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
+                (0, 0)
+            } else {
+                (17, 1)
+            };
+
+        let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
 
         let mut stack: Vec<u8> = vec![];
         stack.resize_with(NREGS_CORE * 4, Default::default);
@@ -2839,7 +2856,7 @@ impl HubrisArchive {
         //
         // We manually adjust our stack pointer to peel off the entire frame
         //
-        rval.insert(ARMRegister::SP, sp + (NREGS_FRAME as u32) * 4);
+        rval.insert(ARMRegister::SP, sp + (nregs_frame as u32) * 4);
 
         //
         // R0-R3, and then R12, LR and the PSR are found on the stack
@@ -2894,8 +2911,16 @@ impl HubrisArchive {
         core.read_8(region.base, buf.as_mut_slice())?;
 
         let readval = |addr| {
+            if addr < region.base {
+                bail!("address (0x{:x}) below range ({:x?})", addr, region);
+            }
+
+            if addr + 4 > region.base + region.size {
+                bail!("address (0x{:x}) above range ({:x?})", addr, region);
+            }
+
             let o = (addr - region.base) as usize;
-            u32::from_le_bytes(buf[o..o + 4].try_into().unwrap())
+            Ok(u32::from_le_bytes(buf[o..o + 4].try_into().unwrap()))
         };
 
         //
@@ -2904,7 +2929,7 @@ impl HubrisArchive {
         //
         if let Some(Some(pushed)) = self.syscall_pushes.get(pc) {
             for (i, &p) in pushed.iter().enumerate() {
-                let val = readval(sp + (i * 4) as u32);
+                let val = readval(sp + (i * 4) as u32)?;
                 frameregs.insert(p, val);
             }
 
@@ -2916,6 +2941,8 @@ impl HubrisArchive {
             .get(&task)
             .ok_or_else(|| anyhow!("task {:?} not present in image", task))?;
         let frame = gimli::DebugFrame::new(frames, gimli::LittleEndian);
+
+        let mut prev = None;
 
         loop {
             let bases = gimli::BaseAddresses::default();
@@ -2951,9 +2978,13 @@ impl HubrisArchive {
             //
             for (register, rule) in unwind_info.registers() {
                 let val = match rule {
-                    gimli::RegisterRule::Offset(offset) => {
-                        readval((i64::from(cfa) + offset) as u32)
-                    }
+                    gimli::RegisterRule::Offset(offset) => readval(
+                        (i64::from(cfa) + offset) as u32,
+                    )
+                    .with_context(|| format!(
+                        "failed to read cfa 0x{:x}, offset 0x{:x}: {:x?}",
+                        cfa, offset, rval
+                    ))?,
                     _ => {
                         panic!("unimplemented register rule");
                     }
@@ -3005,6 +3036,18 @@ impl HubrisArchive {
             if cfa >= limit {
                 break;
             }
+
+            if let Some(prev) = prev {
+                if prev == cfa {
+                    //
+                    // Our previous frame and our next frame are the same;
+                    // break out.
+                    //
+                    break;
+                }
+            }
+
+            prev = Some(cfa);
         }
 
         Ok(rval)
@@ -3647,10 +3690,9 @@ impl HubrisArchive {
 
             for bus in &self.manifest.i2c_buses {
                 println!(
-                    "{:>17} {:4} i={} {:4} {:13} {}",
+                    "{:>17} {:4} {:4} {:13} {}",
                     bus.controller,
                     bus.port.name,
-                    bus.port.index,
                     if bus.target { "trgt" } else { "init" },
                     bus.name.as_ref().unwrap_or(&"-".to_string()),
                     bus.description.as_ref().unwrap_or(&"-".to_string()),

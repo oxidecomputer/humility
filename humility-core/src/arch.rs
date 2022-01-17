@@ -2,6 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use anyhow::{bail, Result};
+use std::collections::HashMap;
+
 #[allow(non_camel_case_types)]
 #[derive(
     Copy, Clone, Debug, Hash, FromPrimitive, ToPrimitive, PartialEq, Eq,
@@ -58,6 +61,110 @@ impl From<RegId> for ARMRegister {
             }
         }
     }
+}
+
+fn instr_operands(cs: &Capstone, instr: &capstone::Insn) -> Vec<ARMRegister> {
+    let detail = cs.insn_detail(instr).unwrap();
+    let mut rval: Vec<ARMRegister> = Vec::new();
+
+    for op in detail.arch_detail().operands() {
+        if let arch::ArchOperand::ArmOperand(op) = op {
+            if let arch::arm::ArmOperandType::Reg(id) = op.op_type {
+                rval.push(id.into());
+            }
+        }
+    }
+
+    rval
+}
+
+fn instr_source_target(
+    cs: &Capstone,
+    instr: &capstone::Insn,
+) -> Result<(Option<ARMRegister>, Option<ARMRegister>)> {
+    let detail = cs.insn_detail(instr).unwrap();
+
+    let mut source: Option<ARMRegister> = None;
+    let mut target: Option<ARMRegister> = None;
+
+    for op in detail.regs_read() {
+        if source.is_some() {
+            bail!("multiple source registers");
+        }
+        source = Some((*op).into());
+    }
+
+    for op in detail.regs_write() {
+        if target.is_some() {
+            bail!("multiple target registers");
+        }
+        target = Some((*op).into());
+    }
+
+    Ok((source, target))
+}
+
+//
+// On ARM, our stub frames (that is, those frames that contain system call
+// instructions) have no DWARF information that describes how to unwind
+// through them; for these frames we do some (very crude) analysis of the
+// program text to determine what registers are pushed and how they are
+// manipulated so we can properly determine register state before the system
+// call.  Note that this made slightly more challenging by ARMv6-M, which
+// doesn't have as rich push instructions as ARMv7-M/ARMv8-M:  in order for it
+// to push R8 through R11, it must first move them into the lower registers
+// (R0 through R7).  We therefore have to track moves in addition to pushes to
+// determine what landed where -- and yes, this heuristic is incomplete!
+//
+pub fn presyscall_pushes(
+    cs: &Capstone,
+    instrs: &[capstone::Insn],
+) -> Result<Vec<ARMRegister>> {
+    const ARM_INSN_PUSH: u32 = arch::arm::ArmInsn::ARM_INS_PUSH as u32;
+    const ARM_INSN_MOV: u32 = arch::arm::ArmInsn::ARM_INS_MOV as u32;
+    const ARM_INSN_POP: u32 = arch::arm::ArmInsn::ARM_INS_POP as u32;
+
+    let mut map = HashMap::new();
+    let mut rval = vec![];
+
+    for instr in instrs {
+        match instr.id() {
+            InsnId(ARM_INSN_MOV) => {
+                let (source, target) = instr_source_target(cs, instr)?;
+
+                if let (Some(source), Some(target)) = (source, target) {
+                    map.insert(target, source);
+                }
+            }
+
+            InsnId(ARM_INSN_PUSH) => {
+                for op in instr_operands(cs, instr).iter().rev() {
+                    rval.push(if let Some(source) = map.get(op) {
+                        *source
+                    } else {
+                        *op
+                    });
+                }
+            }
+
+            InsnId(ARM_INSN_POP) => {
+                for _ in instr_operands(cs, instr).iter() {
+                    rval.pop();
+                }
+            }
+
+            _ => {}
+        }
+    }
+
+    //
+    // What we have now is the order that registers were pushed onto the
+    // stack.  The addressing order is naturally the inverse of this, so
+    // we reverse it before handing it back.
+    //
+    rval.reverse();
+
+    Ok(rval)
 }
 
 impl std::fmt::Display for ARMRegister {
