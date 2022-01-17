@@ -2,6 +2,45 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility hiffy`
+//!
+//! `humility hiffy` allows for querying and manipulation of `hiffy`, the
+//! HIF agent present in Hubris.  To list all Idol interfaces present in
+//! Hubris, use the `-l` (`--list`) option:
+//!
+//! ```console
+//! % humility hiffy -l
+//! humility: attached via ST-Link
+//! TASK            INTERFACE    OPERATION           ARG             ARGTYPE
+//! rcc_driver      Rcc          enable_clock_raw    peripheral      u32
+//!                              disable_clock_raw   peripheral      u32
+//!                              enter_reset_raw     peripheral      u32
+//!                              leave_reset_raw     peripheral      u32
+//! spi_driver      Spi          read                device_index    u8
+//!                              write               device_index    u8
+//!                              exchange            device_index    u8
+//!                              lock                device_index    u8
+//!                                                  cs_state        CsState
+//!                              release             -
+//! user_leds       UserLeds     led_on              index           usize
+//!                              led_off             index           usize
+//!                              led_toggle          index           usize
+//! ```
+//!
+//! To enlist the Hubris agent to call a particular interface and operation,
+//! use `-c` (`--call`), using `-a` (`--arguments`) to indicate any arguments,
+//! e.g.:
+//!
+//! ```console
+//! % humility hiffy -c UserLeds.led_toggle -a index=0
+//! humility: attached via ST-Link
+//! UserLeds.led_toggle() = ()
+//! ```
+//!
+//! To view the raw HIF functions provided to programmatic HIF consumers
+//! within Humility, use `-L` (`--list-functions`).
+//!
+
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Result};
 use hif::*;
@@ -31,15 +70,15 @@ struct HiffyArgs {
     verbose: bool,
 
     /// list HIF functions
-    #[structopt(long, short)]
-    list: bool,
+    #[structopt(long = "list-functions", short = "L")]
+    listfuncs: bool,
 
     /// list interfaces
-    #[structopt(long, short, conflicts_with = "list")]
-    interfaces: bool,
+    #[structopt(long, short, conflicts_with = "listfuncs")]
+    list: bool,
 
     /// call a particular function
-    #[structopt(long, short, conflicts_with_all = &["list", "interfaces"])]
+    #[structopt(long, short, conflicts_with_all = &["list", "listfuncs"])]
     call: Option<String>,
 
     /// arguments
@@ -51,7 +90,7 @@ struct HiffyArgs {
     arguments: Vec<String>,
 }
 
-fn hiffy_interfaces(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
+fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
     println!(
         "{:<15} {:<12} {:<19} {:<15} {:<15}",
         "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
@@ -167,8 +206,8 @@ fn hiffy(
 ) -> Result<()> {
     let subargs = HiffyArgs::from_iter_safe(subargs)?;
 
-    if subargs.interfaces {
-        hiffy_interfaces(hubris, &subargs)?;
+    if subargs.list {
+        hiffy_list(hubris, &subargs)?;
         return Ok(());
     }
 
@@ -178,7 +217,7 @@ fn hiffy(
         let func: Vec<&str> = call.split('.').collect();
 
         if func.len() != 2 {
-            bail!("calls must be interface.operation (-i to list)");
+            bail!("calls must be interface.operation (-l to list)");
         }
 
         let mut args = vec![];
@@ -187,7 +226,7 @@ fn hiffy(
             let arg: Vec<&str> = arg.split('=').collect();
 
             if arg.len() != 2 {
-                bail!("arguments must be argument=value (-i to list)");
+                bail!("arguments must be argument=value (-l to list)");
             }
 
             args.push((arg[0], idol::IdolArgument::String(arg[1])));
@@ -208,8 +247,8 @@ fn hiffy(
         return Ok(());
     }
 
-    if !subargs.list {
-        bail!("expected -l");
+    if !subargs.listfuncs {
+        bail!("expected one of -l, -L, or -c");
     }
 
     let funcs = context.functions()?;

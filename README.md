@@ -329,7 +329,43 @@ No documentation yet for `humility gpio`; pull requests welcome!
 
 ### `humility hiffy`
 
-No documentation yet for `humility hiffy`; pull requests welcome!
+`humility hiffy` allows for querying and manipulation of `hiffy`, the
+HIF agent present in Hubris.  To list all Idol interfaces present in
+Hubris, use the `-l` (`--list`) option:
+
+```console
+% humility hiffy -l
+humility: attached via ST-Link
+TASK            INTERFACE    OPERATION           ARG             ARGTYPE
+rcc_driver      Rcc          enable_clock_raw    peripheral      u32
+                             disable_clock_raw   peripheral      u32
+                             enter_reset_raw     peripheral      u32
+                             leave_reset_raw     peripheral      u32
+spi_driver      Spi          read                device_index    u8
+                             write               device_index    u8
+                             exchange            device_index    u8
+                             lock                device_index    u8
+                                                 cs_state        CsState
+                             release             -
+user_leds       UserLeds     led_on              index           usize
+                             led_off             index           usize
+                             led_toggle          index           usize
+```
+
+To enlist the Hubris agent to call a particular interface and operation,
+use `-c` (`--call`), using `-a` (`--arguments`) to indicate any arguments,
+e.g.:
+
+```console
+% humility hiffy -c UserLeds.led_toggle -a index=0
+humility: attached via ST-Link
+UserLeds.led_toggle() = ()
+```
+
+To view the raw HIF functions provided to programmatic HIF consumers
+within Humility, use `-L` (`--list-functions`).
+
+
 
 ### `humility i2c`
 
