@@ -27,6 +27,7 @@ pub fn init<'a, 'b>(
         cmd_i2c::init,
         cmd_itm::init,
         cmd_jefe::init,
+        cmd_lpc55gpio::init,
         cmd_manifest::init,
         cmd_map::init,
         cmd_pmbus::init,

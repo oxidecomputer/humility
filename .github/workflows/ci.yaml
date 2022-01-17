@@ -3,9 +3,29 @@ on: [push, pull_request]
 name: Continuous integration
 
 env:
+  MSRV: 1.58.0
   CARGO_INCREMENTAL: 0 # set here rather than on CI profile so that the tests get it too
 
 jobs:
+  check-msrv:
+    name: Check (MSRV)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.MSRV }}
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --profile=ci
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -18,7 +38,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.57.0
+          toolchain: stable
           override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
@@ -38,7 +58,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.57.0
+          toolchain: ${{ env.MSRV }}
           override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
@@ -58,7 +78,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.57.0
+          toolchain: ${{ env.MSRV }}
           override: true
           components: clippy
       - uses: Swatinem/rust-cache@v1

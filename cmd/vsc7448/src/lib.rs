@@ -52,6 +52,8 @@ impl Vsc7448Args {
 enum Command {
     Info {
         reg: String,
+        #[structopt(parse(try_from_str = parse_int::parse))]
+        value: Option<u32>,
     },
     Read {
         reg: String,
@@ -92,6 +94,17 @@ struct PhyAddr {
     miim: u8,
     #[structopt(help = "PHY address")]
     phy: u8,
+}
+
+/// Parses either a register address (as an integer or hex literal), or a
+/// string representing a register's name.
+fn parse_reg_or_addr(s: &str) -> Result<TargetRegister> {
+    let reg = if let Ok(addr) = parse_int::parse(s) {
+        TargetRegister::from_addr(addr)?
+    } else {
+        s.parse()?
+    };
+    Ok(reg)
 }
 
 fn pretty_print_fields(value: u32, fields: &BTreeMap<String, Field<String>>) {
@@ -319,7 +332,7 @@ fn vsc7448(
     vsc.init()?;
     match subargs.cmd {
         Command::Read { reg } => {
-            let reg: TargetRegister = reg.parse()?;
+            let reg = parse_reg_or_addr(&reg)?;
             let addr = reg.address();
             log::info!("Reading {} from 0x{:x}", reg, addr);
             let value = vsc.read(addr)?;
@@ -333,7 +346,7 @@ fn vsc7448(
         }
         Command::Info { .. } => panic!("Called vsc7448 with info subcommand"),
         Command::Write { reg, value } => {
-            let reg: TargetRegister = reg.parse()?;
+            let reg = parse_reg_or_addr(&reg)?;
             let addr = reg.address();
             log::info!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
             pretty_print_fields(value, reg.fields());
@@ -429,9 +442,20 @@ fn vsc7448_get_info(
     assert!(!hubris.loaded());
     let subargs = Vsc7448Args::from_iter_safe(subargs)?;
     match subargs.cmd {
-        Command::Info { reg } => {
-            let reg: TargetRegister = reg.parse()?;
-            println!("Register address: {:x}", reg.address());
+        Command::Info { reg, value } => {
+            let reg = parse_reg_or_addr(&reg)?;
+            println!("Register {}", reg);
+            println!("Register address: 0x{:x}", reg.address());
+
+            if let Some(v) = value {
+                println!("Register value: 0x{:x}", v);
+                pretty_print_fields(v, reg.fields());
+            } else {
+                println!("  bits |    field");
+                for (f, field) in reg.fields() {
+                    println!(" {:>2}:{:<2} | {}", field.hi, field.lo, f);
+                }
+            }
         }
         Command::Phy { cmd: PhyCommand::Info { reg } } => {
             let reg: PhyRegister = reg.parse()?;
