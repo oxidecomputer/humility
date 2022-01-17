@@ -2,6 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility dashboard`
+//!
+//! Provides a captive dashboard that graphs sensor values over time.  (The
+//! `sensor` task is required for operation; see the documentation for
+//! `humility sensors` for more details.)
+//!
+//! If `-o` is provided, it specifies an output file for any raw sensor data
+//! graphed by the dashboard.
+//!
+
 use anyhow::{bail, Result};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},

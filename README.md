@@ -257,7 +257,14 @@ App = {
 
 ### `humility dashboard`
 
-No documentation yet for `humility dashboard`; pull requests welcome!
+Provides a captive dashboard that graphs sensor values over time.  (The
+`sensor` task is required for operation; see the documentation for
+`humility sensors` for more details.)
+
+If `-o` is provided, it specifies an output file for any raw sensor data
+graphed by the dashboard.
+
+
 
 ### `humility diagnose`
 
