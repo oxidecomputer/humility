@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::arch::{analyze_stub, ARMRegister};
+use crate::arch::{presyscall_pushes, ARMRegister};
 use capstone::prelude::*;
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -1719,7 +1719,7 @@ impl HubrisArchive {
 
             last = (addr, b.len());
 
-            let target = self.instr_branch_target(&instr);
+            let target = self.instr_branch_target(instr);
             self.instrs.insert(addr, (b.to_vec(), target));
 
             const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
@@ -1734,7 +1734,7 @@ impl HubrisArchive {
                 if task != HubrisTask::Kernel {
                     self.syscall_pushes.insert(
                         addr + b.len() as u32,
-                        Some(analyze_stub(&self.cs, &instrs[0..ndx])?),
+                        Some(presyscall_pushes(&self.cs, &instrs[0..ndx])?),
                     );
                 }
             }
@@ -2981,10 +2981,12 @@ impl HubrisArchive {
                     gimli::RegisterRule::Offset(offset) => readval(
                         (i64::from(cfa) + offset) as u32,
                     )
-                    .with_context(|| format!(
-                        "failed to read cfa 0x{:x}, offset 0x{:x}: {:x?}",
-                        cfa, offset, rval
-                    ))?,
+                    .with_context(|| {
+                        format!(
+                            "failed to read cfa 0x{:x}, offset 0x{:x}: {:x?}",
+                            cfa, offset, rval
+                        )
+                    })?,
                     _ => {
                         panic!("unimplemented register rule");
                     }
