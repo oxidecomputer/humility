@@ -922,7 +922,10 @@ No documentation yet for `humility renbb`; pull requests welcome!
 
 ### `humility rencm`
 
-No documentation yet for `humility rencm`; pull requests welcome!
+Query the Renesas 8A3400X ClockMatrix part -- or process a trace from
+Renesas configuration software.
+
+
 
 ### `humility ringbuf`
 
