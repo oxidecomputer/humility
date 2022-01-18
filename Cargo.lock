@@ -1119,7 +1119,7 @@ dependencies = [
 [[package]]
 name = "idt8a3xxxx"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/idt8a3xxxx#24284e14a2357b763dbaf90c7573ea0046f34f6f"
+source = "git+https://github.com/oxidecomputer/idt8a3xxxx#68ca4e7c486c79f734fa1225383c50487bdccf23"
 dependencies = [
  "anyhow",
  "ron 0.6.6",
