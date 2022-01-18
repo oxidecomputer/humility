@@ -5,8 +5,7 @@
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::printmem;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
 
 use std::convert::TryInto;
 use std::str;
@@ -130,7 +129,7 @@ pub fn spi_task(
 }
 
 fn spi(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],
@@ -249,8 +248,10 @@ fn spi(
                 bail!("short read: {:x?}", results);
             }
 
-            let size = if subargs.word { 4 } else { 1 };
-            printmem(&results[discard..], addr, size, 16);
+            let mut dumper = Dumper::new();
+            dumper.size = if subargs.word { 4 } else { 1 };
+            dumper.dump(&results[discard..], addr);
+
             return Ok(());
         }
     }

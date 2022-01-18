@@ -153,6 +153,7 @@ environment variable.
 ## Commands
 
 - [humility apptable](#humility-apptable): print Hubris apptable
+- [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
@@ -161,6 +162,7 @@ environment variable.
 - [humility i2c](#humility-i2c): scan for and read I2C devices
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
+- [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
@@ -171,6 +173,7 @@ environment variable.
 - [humility renbb](#humility-renbb): Renesas black box operations
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
+- [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spd](#humility-spd): scan for and read SPD devices
 - [humility spi](#humility-spi): SPI reading and writing
 - [humility stackmargin](#humility-stackmargin): calculate and print stack margins by task
@@ -252,6 +255,17 @@ App = {
 
 
 
+### `humility dashboard`
+
+Provides a captive dashboard that graphs sensor values over time.  (The
+`sensor` task is required for operation; see the documentation for
+`humility sensors` for more details.)
+
+If `-o` is provided, it specifies an output file for any raw sensor data
+graphed by the dashboard.
+
+
+
 ### `humility diagnose`
 
 This subcommand provides a "firmware engineer in a can" for scanning and
@@ -322,7 +336,43 @@ No documentation yet for `humility gpio`; pull requests welcome!
 
 ### `humility hiffy`
 
-No documentation yet for `humility hiffy`; pull requests welcome!
+`humility hiffy` allows for querying and manipulation of `hiffy`, the
+HIF agent present in Hubris.  To list all Idol interfaces present in
+Hubris, use the `-l` (`--list`) option:
+
+```console
+% humility hiffy -l
+humility: attached via ST-Link
+TASK            INTERFACE    OPERATION           ARG             ARGTYPE
+rcc_driver      Rcc          enable_clock_raw    peripheral      u32
+                             disable_clock_raw   peripheral      u32
+                             enter_reset_raw     peripheral      u32
+                             leave_reset_raw     peripheral      u32
+spi_driver      Spi          read                device_index    u8
+                             write               device_index    u8
+                             exchange            device_index    u8
+                             lock                device_index    u8
+                                                 cs_state        CsState
+                             release             -
+user_leds       UserLeds     led_on              index           usize
+                             led_off             index           usize
+                             led_toggle          index           usize
+```
+
+To enlist the Hubris agent to call a particular interface and operation,
+use `-c` (`--call`), using `-a` (`--arguments`) to indicate any arguments,
+e.g.:
+
+```console
+% humility hiffy -c UserLeds.led_toggle -a index=0
+humility: attached via ST-Link
+UserLeds.led_toggle() = ()
+```
+
+To view the raw HIF functions provided to programmatic HIF consumers
+within Humility, use `-L` (`--list-functions`).
+
+
 
 ### `humility i2c`
 
@@ -416,7 +466,34 @@ Controller I2C3, device 0x48, register 0x4 = 0x1f
 
 ### `humility itm`
 
-No documentation yet for `humility itm`; pull requests welcome!
+`humility itm` consumes data from the Instrumentation Trace Macrocell
+(ITM) present in many ARM Cortex-M variants.  ITM is problematic in many
+dimensions: it is lossy; it requires knowledge of the target's clocking to
+configure properly; it relies on functionality (SWO/SWV) that is often
+buggy in chip debuggers; it isn't present everywhere (Cortex-M0+ in
+particular doesn't have ITM).  So in general, ITM isn't what Hubris
+programmers should be looking for:  those developing code and wishing to
+see if and how that code is executed should prefer ring buffers to
+ITM-based instrumentation.  (See the documentation for `humility ringbuf`
+for details.)
+
+That said, ITM remains the best way to get certain messages from the
+Hubris kernel (e.g., boot and panic messages); use `humility itm -ea` to
+enable ITM and attach to the connected device.  For example, if running
+with the `ping` task, one will see messages from `jefe` restarting it:
+
+```console
+% humility -a /path/to/my/hubris-archive.zip itm -ea
+humility: attached via ST-Link
+humility: core halted
+humility: core resumed
+humility: ITM synchronization packet found at offset 6
+Task #7 Divide-by-zero
+Task #7 Memory fault at address 0x0
+Task #7 Divide-by-zero
+```
+
+
 
 ### `humility jefe`
 
@@ -497,6 +574,10 @@ change its disposition back to restart.
 Finally, to start a task that is not started by default, use the `-s` flag.
 
 
+
+### `humility lpc55gpio`
+
+No documentation yet for `humility lpc55gpio`; pull requests welcome!
 
 ### `humility manifest`
 
@@ -872,6 +953,22 @@ ADDR        NDX LINE  GEN    COUNT PAYLOAD
 
 See the [`ringbuf`
 documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
+
+
+### `humility sensors`
+
+`humility sensors` communicates with the `sensor` Hubris task via its
+`Sensor` Idol interface to get sensor data.  If there is no `sensor` task
+or if there are no sensors defined in the in Hurbis application
+description, this command will not provide any meaningful output. To list
+all available sensors, use `-l` (`--list`); to summarize sensor values,
+use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
+(`--types`) option; to constrain sensors by device, use the `-d`
+(`--devices`) option.  Within each option, multiple specifications serve
+as a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors
+from either device), but if both kinds of specifications are present, they
+serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
+all thermal sensors from either device).
 
 
 ### `humility spd`

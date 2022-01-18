@@ -123,7 +123,7 @@ struct JefeArgs {
 }
 
 fn jefe(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

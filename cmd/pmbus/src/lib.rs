@@ -1282,7 +1282,7 @@ fn writes(
 
 #[allow(clippy::print_literal)]
 fn pmbus(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

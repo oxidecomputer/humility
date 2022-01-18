@@ -14,3 +14,7 @@ anyhow = { version = "1.0.44", features = ["backtrace"] }
 itertools = "0.10.1"
 parse_int = "0.4.0"
 log = {version = "0.4.8", features = ["std"]}
+serde-xml-rs = "0.5.1"
+serde = { version = "1.0.126", features = ["derive"] }
+serde_derive = "1.0.133"
+csv = "1.1.3"

@@ -11,6 +11,7 @@ members = [
     "humility-cmd",
     "humility-arch-cortex",
     "cmd/apptable",
+    "cmd/dashboard",
     "cmd/diagnose",
     "cmd/dump",
     "cmd/etm",
@@ -30,6 +31,7 @@ members = [
     "cmd/renbb",
     "cmd/rencm",
     "cmd/ringbuf",
+    "cmd/sensors",
     "cmd/spd",
     "cmd/spi",
     "cmd/stackmargin",
@@ -56,6 +58,7 @@ humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
+cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
@@ -75,6 +78,7 @@ cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
 cmd-renbb = { path = "./cmd/renbb", package = "humility-cmd-renbb" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
+cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
 cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
 cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }

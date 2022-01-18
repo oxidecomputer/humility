@@ -203,9 +203,8 @@ dependencies = [
 
 [[package]]
 name = "capstone"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51e4890dad38e19668a2a9bce54242e6b0dece021b862ba25ae80b439c6d36b6"
+version = "0.10.0"
+source = "git+https://github.com/oxidecomputer/capstone-rs.git#77296e0e16411109f131b98d773e4c9ecc6bdcfe"
 dependencies = [
  "capstone-sys",
  "libc",
@@ -213,9 +212,8 @@ dependencies = [
 
 [[package]]
 name = "capstone-sys"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81c2624132869952c2db6f1d77e24da16b6db5f5a918270c5685a5ea8db822c4"
+version = "0.14.0"
+source = "git+https://github.com/oxidecomputer/capstone-rs.git#77296e0e16411109f131b98d773e4c9ecc6bdcfe"
 dependencies = [
  "cc",
  "libc",
@@ -242,6 +240,12 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "cassowary"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df8670b8c7b9dae1793364eafadf7239c40d669904660c5960d74cfd80b46a53"
 
 [[package]]
 name = "cc"
@@ -333,6 +337,31 @@ dependencies = [
  "cfg-if",
  "cortex-m",
  "riscv",
+]
+
+[[package]]
+name = "crossterm"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0ebde6a9dd5e331cd6c6f48253254d117642c31653baa475e394657c59c1f7d"
+dependencies = [
+ "bitflags",
+ "crossterm_winapi",
+ "libc",
+ "mio",
+ "parking_lot",
+ "signal-hook",
+ "signal-hook-mio",
+ "winapi",
+]
+
+[[package]]
+name = "crossterm_winapi"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a6966607622438301997d3dac0d2f6e9a90c68bb6bc1785ea98456ab93c0507"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
@@ -569,6 +598,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-cmd-apptable",
+ "humility-cmd-dashboard",
  "humility-cmd-diagnose",
  "humility-cmd-dump",
  "humility-cmd-etm",
@@ -588,6 +618,7 @@ dependencies = [
  "humility-cmd-renbb",
  "humility-cmd-rencm",
  "humility-cmd-ringbuf",
+ "humility-cmd-sensors",
  "humility-cmd-spd",
  "humility-cmd-spi",
  "humility-cmd-stackmargin",
@@ -624,6 +655,7 @@ dependencies = [
  "hif",
  "humility-core",
  "humility_load_derive",
+ "idol",
  "indexmap",
  "log",
  "parse_int",
@@ -639,6 +671,23 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "structopt",
+]
+
+[[package]]
+name = "humility-cmd-dashboard"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
+ "structopt",
+ "tui",
 ]
 
 [[package]]
@@ -697,6 +746,9 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "idol",
+ "indexmap",
+ "log",
  "parse_int",
  "structopt",
 ]
@@ -857,6 +909,7 @@ name = "humility-cmd-rencm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "csv",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -864,6 +917,9 @@ dependencies = [
  "itertools",
  "log",
  "parse_int",
+ "serde",
+ "serde-xml-rs",
+ "serde_derive",
  "structopt",
 ]
 
@@ -875,6 +931,21 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+ "structopt",
+]
+
+[[package]]
+name = "humility-cmd-sensors"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
  "structopt",
 ]
 
@@ -986,6 +1057,7 @@ dependencies = [
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
+ "idol",
  "indexmap",
  "indicatif",
  "log",
@@ -1033,12 +1105,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "idol"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/idolatry.git#1f782a488a896df2c8f0a7bbf705afa757f245ff"
+dependencies = [
+ "indexmap",
+ "quote",
+ "ron 0.7.0",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "idt8a3xxxx"
 version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/idt8a3xxxx#24284e14a2357b763dbaf90c7573ea0046f34f6f"
 dependencies = [
  "anyhow",
- "ron",
+ "ron 0.6.6",
  "serde",
 ]
 
@@ -1069,6 +1153,15 @@ dependencies = [
  "lazy_static",
  "number_prefix",
  "regex",
+]
+
+[[package]]
+name = "instant"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -1210,6 +1303,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "mio"
+version = "0.7.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8067b404fe97c70829f082dec8bcf4f71225d7eaea1d8645349cb76fa06205cc"
+dependencies = [
+ "libc",
+ "log",
+ "miow",
+ "ntapi",
+ "winapi",
+]
+
+[[package]]
+name = "miow"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9f1c5b025cda876f66ef43a113f91ebc9f4ccef34843000e0adf6ebbab84e21"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "multimap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1232,6 +1347,15 @@ name = "nb"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "546c37ac5d9e56f55e73b677106873d9d9f5190605e41a856503623648488cae"
+
+[[package]]
+name = "ntapi"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6bb902e437b6d86e03cce10a7e2af662292c5dfef23b65899ea3ac9354ad44"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "num-derive"
@@ -1283,6 +1407,31 @@ name = "once_cell"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da32515d9f6e6e489d7bc9d84c71b060db7247dc035bbe44eac88cf87486d8d5"
+
+[[package]]
+name = "parking_lot"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
+dependencies = [
+ "instant",
+ "lock_api",
+ "parking_lot_core",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d76e8e1493bcac0d2766c42737f34458f1c8c50c0d23bcb24ea953affb273216"
+dependencies = [
+ "cfg-if",
+ "instant",
+ "libc",
+ "redox_syscall",
+ "smallvec",
+ "winapi",
+]
 
 [[package]]
 name = "parse_int"
@@ -1362,7 +1511,7 @@ dependencies = [
  "libm",
  "num-derive",
  "num-traits",
- "ron",
+ "ron 0.6.6",
  "serde",
  "serde_with",
 ]
@@ -1551,6 +1700,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ron"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b861ecaade43ac97886a512b360d01d66be9f41f3c61088b42cedf92e03d678"
+dependencies = [
+ "base64 0.13.0",
+ "bitflags",
+ "serde",
+]
+
+[[package]]
 name = "rusb"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1668,6 +1828,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-xml-rs"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65162e9059be2f6a3421ebbb4fef3e74b7d9e7c60c50a0e292c6239f19f1edfa"
+dependencies = [
+ "log",
+ "serde",
+ "thiserror",
+ "xml-rs",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.133"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1723,6 +1895,42 @@ dependencies = [
  "serde",
  "yaml-rust",
 ]
+
+[[package]]
+name = "signal-hook"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "647c97df271007dcea485bb74ffdb57f2e683f1306c854f468a0c244badabf2d"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-mio"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29fd5867f1c4f2c5be079aee7a2adf1152ebb04a4bc4d341f504b7dece607ed4"
+dependencies = [
+ "libc",
+ "mio",
+ "signal-hook",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e51e73328dc4ac0c7ccbda3a494dfa03df1de2f46018127f60c693f2648455b0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "smallvec"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ecab6c735a6bb4139c0caafd0cc3635748bbb3acf4550e8138122099251f309"
 
 [[package]]
 name = "spd"
@@ -1878,6 +2086,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tui"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39c8ce4e27049eed97cfa363a5048b09d995e209994634a0efc26a14ab6c0c23"
+dependencies = [
+ "bitflags",
+ "cassowary",
+ "crossterm",
+ "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
 name = "ucd-trie"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2003,6 +2224,12 @@ checksum = "244c3741f4240ef46274860397c7c74e50eb23624996930e484c16679633a54c"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 
 [[package]]
 name = "xtask"

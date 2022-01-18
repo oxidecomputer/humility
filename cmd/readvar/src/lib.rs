@@ -85,7 +85,7 @@ fn readvar_dump(
 }
 
 fn readvar(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

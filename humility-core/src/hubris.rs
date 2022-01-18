@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::arch::ARMRegister;
+use crate::arch::{presyscall_pushes, ARMRegister};
 use capstone::prelude::*;
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -24,6 +24,7 @@ use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
+use idol::syntax::Interface;
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
@@ -46,6 +47,7 @@ pub struct HubrisManifest {
     peripherals: BTreeMap<String, u32>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
+    pub sensors: Vec<HubrisSensor>,
 }
 
 //
@@ -92,7 +94,7 @@ struct HubrisConfigI2cPort {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigI2cController {
     controller: u8,
-    ports: IndexMap<String, HubrisConfigI2cPort>,
+    ports: BTreeMap<String, HubrisConfigI2cPort>,
     target: Option<bool>,
 }
 
@@ -102,8 +104,27 @@ struct HubrisConfigI2cPmbus {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cSensors {
+    #[serde(default)]
+    temperature: usize,
+
+    #[serde(default)]
+    power: usize,
+
+    #[serde(default)]
+    current: usize,
+
+    #[serde(default)]
+    voltage: usize,
+
+    #[serde(default)]
+    speed: usize,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigI2cDevice {
     device: String,
+    name: Option<String>,
     controller: Option<u8>,
     bus: Option<String>,
     address: u8,
@@ -112,6 +133,7 @@ struct HubrisConfigI2cDevice {
     segment: Option<u8>,
     description: String,
     pmbus: Option<HubrisConfigI2cPmbus>,
+    sensors: Option<HubrisConfigI2cSensors>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -150,6 +172,7 @@ pub enum HubrisI2cDeviceClass {
 #[derive(Clone, Debug)]
 pub struct HubrisI2cDevice {
     pub device: String,
+    pub name: Option<String>,
     pub controller: u8,
     pub port: HubrisI2cPort,
     pub mux: Option<u8>,
@@ -157,6 +180,45 @@ pub struct HubrisI2cDevice {
     pub address: u8,
     pub description: String,
     pub class: HubrisI2cDeviceClass,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum HubrisSensorKind {
+    Temperature,
+    Power,
+    Current,
+    Voltage,
+    Speed,
+}
+
+#[derive(Clone, Debug)]
+pub struct HubrisSensor {
+    pub name: String,
+    pub kind: HubrisSensorKind,
+    pub device: usize,
+}
+
+impl HubrisSensorKind {
+    pub fn to_string(&self) -> &str {
+        match self {
+            HubrisSensorKind::Temperature => "temp",
+            HubrisSensorKind::Power => "power",
+            HubrisSensorKind::Current => "current",
+            HubrisSensorKind::Voltage => "voltage",
+            HubrisSensorKind::Speed => "speed",
+        }
+    }
+
+    pub fn from_string(kind: &str) -> Option<Self> {
+        match kind {
+            "temp" => Some(HubrisSensorKind::Temperature),
+            "power" => Some(HubrisSensorKind::Power),
+            "current" => Some(HubrisSensorKind::Current),
+            "voltage" => Some(HubrisSensorKind::Voltage),
+            "speed" => Some(HubrisSensorKind::Speed),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -218,6 +280,9 @@ pub struct HubrisArchive {
 
     // Base types: goff to size
     basetypes: HashMap<HubrisGoff, HubrisBasetype>,
+
+    // Base types: name to goff
+    basetypes_byname: HashMap<String, HubrisGoff>,
 
     // Base types: goff to underlying type
     ptrtypes: HashMap<HubrisGoff, (String, HubrisGoff)>,
@@ -296,6 +361,7 @@ impl HubrisArchive {
             inlined: BTreeMap::new(),
             subprograms: HashMap::new(),
             basetypes: HashMap::new(),
+            basetypes_byname: HashMap::new(),
             ptrtypes: HashMap::new(),
             structs: HashMap::new(),
             structs_byname: MultiMap::new(),
@@ -490,21 +556,6 @@ impl HubrisArchive {
         }
 
         None
-    }
-
-    fn instr_operands(&self, instr: &capstone::Insn) -> Vec<ARMRegister> {
-        let detail = self.cs.insn_detail(instr).unwrap();
-        let mut rval: Vec<ARMRegister> = Vec::new();
-
-        for op in detail.arch_detail().operands() {
-            if let arch::ArchOperand::ArmOperand(op) = op {
-                if let arch::arm::ArmOperandType::Reg(id) = op.op_type {
-                    rval.push(id.into());
-                }
-            }
-        }
-
-        rval
     }
 
     fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
@@ -793,8 +844,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
+    fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
         &mut self,
+        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -805,9 +857,14 @@ impl HubrisArchive {
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
         let mut encoding = None;
+        let mut name = None;
 
         while let Some(attr) = attrs.next()? {
             match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
                 gimli::constants::DW_AT_byte_size => {
                     if let gimli::AttributeValue::Udata(value) = attr.value() {
                         size = Some(value as usize)
@@ -842,6 +899,10 @@ impl HubrisArchive {
 
         if let (Some(size), Some(encoding)) = (size, encoding) {
             self.basetypes.insert(goff, HubrisBasetype { encoding, size });
+        }
+
+        if let Some(name) = name {
+            self.basetypes_byname.insert(String::from(name), goff);
         }
 
         Ok(())
@@ -1455,7 +1516,7 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_base_type => {
-                        self.dwarf_basetype(&unit, entry)?;
+                        self.dwarf_basetype(&dwarf, &unit, entry)?;
                     }
 
                     gimli::constants::DW_TAG_pointer_type => {
@@ -1586,6 +1647,115 @@ impl HubrisArchive {
         Ok(())
     }
 
+    fn load_object_idolatry(
+        &mut self,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<Option<Interface>> {
+        //
+        // If we have an idolatry definition, load that.
+        //
+        let idol = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".idolatry"
+            } else {
+                false
+            }
+        });
+
+        if let Some(idol) = idol {
+            let offset = idol.sh_offset as usize;
+            let size = idol.sh_size as usize;
+
+            if size == 0 {
+                return Ok(None);
+            }
+
+            let section = buffer
+                .get(offset..offset + size)
+                .ok_or_else(|| anyhow!("bad offset/size for .idolatry"))?;
+
+            let s = str::from_utf8(section).context("bad .idolatry string")?;
+
+            Ok(Some(Interface::from_str(s)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn load_function(
+        &mut self,
+        object: &str,
+        task: HubrisTask,
+        func: &str,
+        addr: u32,
+        buffer: &[u8],
+    ) -> Result<()> {
+        let instrs = match self.cs.disasm_all(buffer, addr.into()) {
+            Ok(instrs) => instrs,
+            Err(err) => {
+                bail!(
+                    "failed to disassemble {} (addr 0x{:08x}, {}): {}",
+                    func, addr, buffer.len(), err
+                );
+            }
+        };
+
+        let mut last: (u32, usize) = (0, 0);
+
+        for (ndx, instr) in instrs.iter().enumerate() {
+            let addr: u32 = instr.address() as u32;
+
+            if self.instrs.contains_key(&addr) {
+                //
+                // This is possible because functions can have multiple symbol
+                // table entries; if we have seen this instruction before,
+                // we'll split.
+                //
+                return Ok(());
+            }
+
+            let b = instr.bytes();
+
+            last = (addr, b.len());
+
+            let target = self.instr_branch_target(instr);
+            self.instrs.insert(addr, (b.to_vec(), target));
+
+            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
+
+            //
+            // If we encounter a syscall instruction, we need to analyze
+            // its containing function to determine the hand-written pushes
+            // before any system call in order to be able to successfully
+            // unwind the stack.
+            //
+            if let InsnId(ARM_INSN_SVC) = instr.id() {
+                if task != HubrisTask::Kernel {
+                    self.syscall_pushes.insert(
+                        addr + b.len() as u32,
+                        Some(presyscall_pushes(&self.cs, &instrs[0..ndx])?),
+                    );
+                }
+            }
+        }
+
+        //
+        // Regrettably, if Capstone flies off the rails while disassembling,
+        // it won't flag an error -- it will simply stop short.  Check to see
+        // if we are in this case and explicitly fail.
+        //
+        if last.0 + last.1 as u32 != addr + buffer.len() as u32 {
+            bail!(
+                "short disassembly for {}: \
+                stopped at 0x{:x}, expected to go to 0x{:x}",
+                object, last.0, addr + buffer.len() as u32
+            );
+        }
+
+        Ok(())
+    }
+
     fn load_object(
         &mut self,
         object: &str,
@@ -1603,6 +1773,27 @@ impl HubrisArchive {
         if !arm {
             bail!("{} not an ARM ELF object", object);
         }
+
+        let text = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".text"
+            } else {
+                false
+            }
+        });
+
+        let textsec = match text {
+            None => {
+                bail!("couldn't find text in ELF object \"{}\"", object);
+            }
+            Some(sec) => sec,
+        };
+
+        let offset = textsec.sh_offset as u32;
+        let size = textsec.sh_size as u32;
+        let current = self.current;
+
+        trace!("loading {} as object {}", object, self.current);
 
         for sym in elf.syms.iter() {
             if sym.st_name == 0 {
@@ -1650,6 +1841,18 @@ impl HubrisArchive {
             self.esyms_byname
                 .insert(name.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
+
+            if sym.is_function() {
+                let o = ((val - textsec.sh_addr as u32) + offset) as usize;
+                let t = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
+                    || {
+                        anyhow!("bad offset/size for {}: 0x{:x}, size {}",
+                        name, val, sym.st_size)
+                    },
+                )?;
+
+                self.load_function(object, task, name, val, t)?;
+            }
         }
 
         use goblin::elf::program_header::{PF_R, PF_W, PF_X};
@@ -1705,108 +1908,25 @@ impl HubrisArchive {
             };
         }
 
-        let text = elf.section_headers.iter().find(|sh| {
-            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                name == ".text"
-            } else {
-                false
-            }
-        });
-
-        let textsec = match text {
-            None => {
-                bail!("couldn't find text in ELF object \"{}\"", object);
-            }
-            Some(sec) => sec,
-        };
-
-        let offset = textsec.sh_offset as usize;
-        let size = textsec.sh_size as usize;
-
-        trace!("loading {} as object {}", object, self.current);
-
         self.load_object_dwarf(buffer, &elf)
             .context(format!("{}: failed to load DWARF", object))?;
 
         self.load_object_frames(task, buffer, &elf)
             .context(format!("{}: failed to load debug frames", object))?;
 
-        let t = buffer
-            .get(offset..offset + size)
-            .ok_or_else(|| anyhow!("bad offset/size for ELF text section"))?;
-
-        let instrs = match self.cs.disasm_all(t, textsec.sh_addr) {
-            Ok(instrs) => instrs,
-            Err(err) => {
-                bail!(
-                    "failed to disassemble \"{}\" (offs 0x{:08x}, {}): {}",
-                    object, offset, size, err
-                );
-            }
-        };
-
-        let mut last: (u32, usize) = (0, 0);
-        let mut lastpush = None;
-
-        for instr in instrs.iter() {
-            let addr: u32 = instr.address() as u32;
-
-            if self.instrs.contains_key(&addr) {
-                bail!("address 0x{:08x} is duplicated!", addr);
-            }
-
-            let b = instr.bytes();
-
-            last = (addr, b.len());
-
-            let target = self.instr_branch_target(&instr);
-            self.instrs.insert(addr, (b.to_vec(), target));
-
-            //
-            // We need to keep track of the hand-written push before any
-            // system call in order to be able to successfully unwind the
-            // stack.
-            //
-            const ARM_INSN_PUSH: u32 = arch::arm::ArmInsn::ARM_INS_PUSH as u32;
-            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
-
-            match instr.id() {
-                InsnId(ARM_INSN_PUSH) => {
-                    lastpush = Some(self.instr_operands(&instr));
-                }
-                InsnId(ARM_INSN_SVC) => {
-                    self.syscall_pushes.insert(addr + b.len() as u32, lastpush);
-                    lastpush = None;
-                }
-                _ => {}
-            }
-        }
-
-        /*
-         * Regrettably, if Capstone flies off the rails while disassembling,
-         * it won't flag an error -- it will simply stop short.  Check to see
-         * if we are in this case and explicitly fail.
-         */
-        if last.0 + last.1 as u32 != textsec.sh_addr as u32 + size as u32 {
-            bail!(
-                concat!(
-                    "short disassembly for \"{}\": ",
-                    "stopped at 0x{:x}, expected to go to 0x{:x}"
-                ),
-                object, last.0, textsec.sh_addr as u32 + size as u32
-            );
-        }
+        let iface = self.load_object_idolatry(buffer, &elf)?;
 
         self.modules.insert(
             textsec.sh_addr as u32,
             HubrisModule {
                 name: String::from(object),
-                object: self.current,
+                object: current,
                 textbase: (textsec.sh_addr as u32),
                 textsize: size as u32,
                 memsize: memsz as u32,
                 heapbss,
                 task,
+                iface,
             },
         );
 
@@ -1842,6 +1962,31 @@ impl HubrisArchive {
             }
         }
 
+        let sensor_name =
+            |d: &HubrisConfigI2cDevice, idx: usize| -> Result<String> {
+                if let Some(pmbus) = &d.pmbus {
+                    if let Some(rails) = &pmbus.rails {
+                        if idx < rails.len() {
+                            return Ok(rails[idx].clone());
+                        } else {
+                            bail!("sensor count exceeds rails for {:?}", d);
+                        }
+                    }
+                }
+
+                if let Some(name) = &d.name {
+                    if idx == 0 {
+                        Ok(name.clone())
+                    } else {
+                        Ok(format!("{}#{}", name, idx))
+                    }
+                } else if idx == 0 {
+                    Ok(d.device.clone())
+                } else {
+                    Ok(format!("{}#{}", d.device, idx))
+                }
+            };
+
         if let Some(ref devices) = i2c.devices {
             for device in devices {
                 let name = &device.device;
@@ -1873,8 +2018,51 @@ impl HubrisArchive {
 
                 let port = port.clone();
 
+                if let Some(sensors) = &device.sensors {
+                    let ndx = self.manifest.i2c_devices.len();
+
+                    for i in 0..sensors.temperature {
+                        self.manifest.sensors.push(HubrisSensor {
+                            name: sensor_name(device, i)?,
+                            kind: HubrisSensorKind::Temperature,
+                            device: ndx,
+                        });
+                    }
+
+                    for i in 0..sensors.power {
+                        self.manifest.sensors.push(HubrisSensor {
+                            name: sensor_name(device, i)?,
+                            kind: HubrisSensorKind::Power,
+                            device: ndx,
+                        });
+                    }
+                    for i in 0..sensors.current {
+                        self.manifest.sensors.push(HubrisSensor {
+                            name: sensor_name(device, i)?,
+                            kind: HubrisSensorKind::Current,
+                            device: ndx,
+                        });
+                    }
+                    for i in 0..sensors.voltage {
+                        self.manifest.sensors.push(HubrisSensor {
+                            name: sensor_name(device, i)?,
+                            kind: HubrisSensorKind::Voltage,
+                            device: ndx,
+                        });
+                    }
+
+                    for i in 0..sensors.speed {
+                        self.manifest.sensors.push(HubrisSensor {
+                            name: sensor_name(device, i)?,
+                            kind: HubrisSensorKind::Speed,
+                            device: ndx,
+                        });
+                    }
+                }
+
                 self.manifest.i2c_devices.push(HubrisI2cDevice {
                     device: device.device.clone(),
+                    name: device.name.clone(),
                     controller,
                     port,
                     mux: device.mux,
@@ -2135,6 +2323,13 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_basetype_byname(&self, name: &str) -> Result<&HubrisGoff> {
+        match self.basetypes_byname.get(name) {
+            Some(goff) => Ok(goff),
+            None => Err(anyhow!("expected {} to be a basetype", name)),
+        }
+    }
+
     pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType> {
         let r = self
             .lookup_struct(goff)
@@ -2267,7 +2462,7 @@ impl HubrisArchive {
         self.src.get(&goff)
     }
 
-    fn ntasks(&self) -> usize {
+    pub fn ntasks(&self) -> usize {
         if self.current >= 1 {
             self.current as usize - 1
         } else {
@@ -2638,8 +2833,21 @@ impl HubrisArchive {
         let sp = readreg("psp")?;
 
         const NREGS_CORE: usize = 8;
-        const NREGS_FP: usize = 17;
-        const NREGS_FRAME: usize = NREGS_CORE + NREGS_FP + 1;
+
+        //
+        // Not all architectures have floating point -- and ARMv6 never has
+        // it.  (Note that that the stack is always 8-byte aligned; if we have
+        // our 17 floating point registers here, we also have an unstored
+        // pad.)
+        //
+        let (nregs_fp, align) =
+            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
+                (0, 0)
+            } else {
+                (17, 1)
+            };
+
+        let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
 
         let mut stack: Vec<u8> = vec![];
         stack.resize_with(NREGS_CORE * 4, Default::default);
@@ -2648,7 +2856,7 @@ impl HubrisArchive {
         //
         // We manually adjust our stack pointer to peel off the entire frame
         //
-        rval.insert(ARMRegister::SP, sp + (NREGS_FRAME as u32) * 4);
+        rval.insert(ARMRegister::SP, sp + (nregs_frame as u32) * 4);
 
         //
         // R0-R3, and then R12, LR and the PSR are found on the stack
@@ -2703,8 +2911,16 @@ impl HubrisArchive {
         core.read_8(region.base, buf.as_mut_slice())?;
 
         let readval = |addr| {
+            if addr < region.base {
+                bail!("address (0x{:x}) below range ({:x?})", addr, region);
+            }
+
+            if addr + 4 > region.base + region.size {
+                bail!("address (0x{:x}) above range ({:x?})", addr, region);
+            }
+
             let o = (addr - region.base) as usize;
-            u32::from_le_bytes(buf[o..o + 4].try_into().unwrap())
+            Ok(u32::from_le_bytes(buf[o..o + 4].try_into().unwrap()))
         };
 
         //
@@ -2713,7 +2929,7 @@ impl HubrisArchive {
         //
         if let Some(Some(pushed)) = self.syscall_pushes.get(pc) {
             for (i, &p) in pushed.iter().enumerate() {
-                let val = readval(sp + (i * 4) as u32);
+                let val = readval(sp + (i * 4) as u32)?;
                 frameregs.insert(p, val);
             }
 
@@ -2725,6 +2941,8 @@ impl HubrisArchive {
             .get(&task)
             .ok_or_else(|| anyhow!("task {:?} not present in image", task))?;
         let frame = gimli::DebugFrame::new(frames, gimli::LittleEndian);
+
+        let mut prev = None;
 
         loop {
             let bases = gimli::BaseAddresses::default();
@@ -2760,9 +2978,15 @@ impl HubrisArchive {
             //
             for (register, rule) in unwind_info.registers() {
                 let val = match rule {
-                    gimli::RegisterRule::Offset(offset) => {
-                        readval((i64::from(cfa) + offset) as u32)
-                    }
+                    gimli::RegisterRule::Offset(offset) => readval(
+                        (i64::from(cfa) + offset) as u32,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "failed to read cfa 0x{:x}, offset 0x{:x}: {:x?}",
+                            cfa, offset, rval
+                        )
+                    })?,
                     _ => {
                         panic!("unimplemented register rule");
                     }
@@ -2814,6 +3038,18 @@ impl HubrisArchive {
             if cfa >= limit {
                 break;
             }
+
+            if let Some(prev) = prev {
+                if prev == cfa {
+                    //
+                    // Our previous frame and our next frame are the same;
+                    // break out.
+                    //
+                    break;
+                }
+            }
+
+            prev = Some(cfa);
         }
 
         Ok(rval)
@@ -2865,7 +3101,7 @@ impl HubrisArchive {
                 4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
                 8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
                 _ => {
-                    bail!("bad size!");
+                    bail!("{} has bad size {}", goff, sz);
                 }
             })
         };
@@ -3056,6 +3292,8 @@ impl HubrisArchive {
         if let Some(v) = self.basetypes.get(&goff) {
             if v.encoding == HubrisEncoding::Float {
                 write!(rval, "{}", readfloat(buf, 0, v.size)?)?;
+            } else if v.size == 0 {
+                write!(rval, "()")?;
             } else {
                 let val = readval(buf, 0, v.size)
                     .context(format!("failed to read base type {}", goff))?;
@@ -3794,6 +4032,16 @@ impl HubrisStruct {
 
         bail!("missing member: {}.{}", self.name, name)
     }
+
+    /// If this structure is a newtype (that is, a 1-tuple structure), return
+    /// the encapsulated type.
+    pub fn newtype(&self) -> Option<HubrisGoff> {
+        if self.members.len() == 1 && self.members[0].name == "__0" {
+            Some(self.members[0].goff)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -4122,6 +4370,63 @@ pub struct HubrisModule {
     pub textsize: u32,
     pub memsize: u32,
     pub heapbss: (Option<u32>, Option<u32>),
+    pub iface: Option<Interface>,
+}
+
+impl HubrisModule {
+    pub fn lookup_struct_byname<'a>(
+        &self,
+        hubris: &'a HubrisArchive,
+        name: &str,
+    ) -> Result<&'a HubrisStruct> {
+        match hubris.structs_byname.get_vec(name) {
+            Some(v) => {
+                let m = v
+                    .iter()
+                    .filter(|g| g.object == self.object)
+                    .collect::<Vec<&HubrisGoff>>();
+
+                if m.len() > 1 {
+                    Err(anyhow!("{} matches more than one structure", name))
+                } else if m.is_empty() {
+                    Err(anyhow!("no {} in {}", name, self.name))
+                } else {
+                    Ok(hubris
+                        .structs
+                        .get(m[0])
+                        .expect("structs-structs_byname inconsistency"))
+                }
+            }
+            _ => Err(anyhow!("expected structure {} not found", name)),
+        }
+    }
+
+    pub fn lookup_enum_byname<'a>(
+        &self,
+        hubris: &'a HubrisArchive,
+        name: &str,
+    ) -> Result<&'a HubrisEnum> {
+        match hubris.enums_byname.get_vec(name) {
+            Some(v) => {
+                let m = v
+                    .iter()
+                    .filter(|g| g.object == self.object)
+                    .collect::<Vec<&HubrisGoff>>();
+
+                if m.len() > 1 {
+                    Err(anyhow!("{} matches more than one enum", name))
+                } else if m.is_empty() {
+                    Err(anyhow!("no {} in {}", name, self.name))
+                } else {
+                    Ok(hubris
+                        .enums
+                        .get(m[0])
+                        .expect("structs-structs_byname inconsistency"))
+                }
+            }
+            _ => Err(anyhow!("expected enum {} not found", name)),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]

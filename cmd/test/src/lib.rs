@@ -283,7 +283,7 @@ fn test_ingest(
 }
 
 fn test(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

@@ -322,7 +322,7 @@ impl<'a> Vsc7448<'a> {
 }
 
 fn vsc7448(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     _args: &Args,
     subargs: &[String],

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::idol;
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::Core;
@@ -306,6 +307,49 @@ impl<'a> HiffyContext<'a> {
         }
 
         Ok(HiffyFunctions(rval))
+    }
+
+    /// Convenience routine to translate an Idol call into HIF operations
+    pub fn idol_call_ops(
+        &self,
+        funcs: &HiffyFunctions,
+        op: &idol::IdolOperation,
+        payload: &[u8],
+        ops: &mut Vec<Op>,
+    ) -> Result<()> {
+        let send = funcs.get("Send", 4)?;
+
+        let push = |val: u32| {
+            if val <= u8::MAX as u32 {
+                Op::Push(val as u8)
+            } else if val <= u16::MAX as u32 {
+                Op::Push16(val as u16)
+            } else {
+                Op::Push32(val as u32)
+            }
+        };
+
+        if let HubrisTask::Task(id) = op.task {
+            ops.push(push(id));
+        } else {
+            bail!("interface matches invalid task {:?}", op.task);
+        }
+
+        let size = u8::try_from(4 + payload.len())
+            .map_err(|_| anyhow!("payload size exceeds maximum size"))?;
+
+        ops.push(push(op.code as u32));
+
+        for byte in payload {
+            ops.push(Op::Push(*byte));
+        }
+
+        ops.push(push(payload.len() as u32));
+        ops.push(push(self.hubris.typesize(op.ok)? as u32));
+        ops.push(Op::Call(send.id));
+        ops.push(Op::DropN(size));
+
+        Ok(())
     }
 
     /// Begins HIF execution.  This is non-blocking with respect to the HIF

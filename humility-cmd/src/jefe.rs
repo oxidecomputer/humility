@@ -132,7 +132,7 @@ impl<'a> JefeVariables<'a> {
 }
 
 pub fn send_request(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     request: JefeRequest,
     id: NonZeroU32,
