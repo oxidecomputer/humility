@@ -32,7 +32,7 @@
 //! ```
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
@@ -307,7 +307,13 @@ fn itmcmd(
                     bail!("must provide an archive");
                 }
 
-                swoscaler(hubris, core)?
+                swoscaler(hubris, core).with_context(|| {
+                    "CPU frequency cannot be determined; the clock scaler \
+                    must be set manually. To determine the clock scaler, \
+                    take the CPU frequency in megahertz divide by 2, and \
+                    subtract 1 (e.g., 400 MHz yields a clock scaler of 199), \
+                    and specify via \"-c\" (e.g. \"-c 199\")"
+                })?
             }
         };
 
