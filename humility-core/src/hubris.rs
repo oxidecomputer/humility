@@ -2529,7 +2529,11 @@ impl HubrisArchive {
             }
         }
 
-        bail!("target does not appear to be booted");
+        bail!(
+            "target does not appear to be booted and may be panicking on \
+            boot; to debug, reset while running either \"humility itm\" or \
+            (if ITM is unavailable), debug via semihosting"
+        );
     }
 
     pub fn member_offset(
@@ -3899,7 +3903,15 @@ impl HubrisArchive {
                         name, variable.size
                     ))
                 } else {
-                    Ok(Some(core.read_word_32(variable.addr)?))
+                    let clock = core.read_word_32(variable.addr)?;
+
+                    if clock == 0 {
+                        Err(anyhow!(
+                            "clock is reading 0; target may not be booted?"
+                        ))
+                    } else {
+                        Ok(Some(clock))
+                    }
                 }
             }
 
