@@ -83,6 +83,7 @@ struct HubrisConfigTask {
 struct HubrisConfigPeripheral {
     address: u32,
     size: u32,
+    interrupts: Option<IndexMap<String, u32>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2090,6 +2091,21 @@ impl HubrisArchive {
         self.manifest.target = Some(config.target.clone());
         self.manifest.features = config.kernel.features.clone();
 
+        let mut named_interrupts = HashMap::new();
+
+        if let Some(ref peripherals) = config.peripherals {
+            for (name, p) in peripherals {
+                self.manifest.peripherals.insert(name.clone(), p.address);
+
+                if let Some(ref interrupts) = p.interrupts {
+                    for (interrupt, irq) in interrupts {
+                        named_interrupts
+                            .insert(format!("{}.{}", name, interrupt), *irq);
+                    }
+                }
+            }
+        }
+
         for (name, task) in &config.tasks {
             if let Some(ref features) = task.features {
                 self.manifest
@@ -2097,19 +2113,33 @@ impl HubrisArchive {
                     .insert(name.clone(), features.clone());
             }
 
-            if let Some(ref irqs) = task.interrupts {
-                self.manifest.task_irqs.insert(
-                    name.clone(),
-                    irqs.iter()
-                        .map(|(n, m)| (*m, n.parse::<u32>().unwrap()))
-                        .collect::<Vec<_>>(),
-                );
-            }
-        }
+            if let Some(ref interrupts) = task.interrupts {
+                let mut task_irqs = vec![];
 
-        if let Some(ref peripherals) = config.peripherals {
-            for (name, p) in peripherals {
-                self.manifest.peripherals.insert(name.clone(), p.address);
+                for (irq_str, notification) in interrupts {
+                    let irq = match irq_str.parse::<u32>() {
+                        Ok(irq_num) => irq_num,
+                        Err(_) => {
+                            //
+                            // If our IRQ number doesn't parse, it may be
+                            // because it's named; look it up before failing.
+                            //
+                            match named_interrupts.get(irq_str) {
+                                Some(irq_num) => *irq_num,
+                                None => {
+                                    bail!(
+                                        "unrecognized irq {} on task {}",
+                                        irq_str, name
+                                    )
+                                }
+                            }
+                        }
+                    };
+
+                    task_irqs.push((irq, *notification));
+                }
+
+                self.manifest.task_irqs.insert(name.clone(), task_irqs);
             }
         }
 
