@@ -972,6 +972,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "indicatif",
  "log",
  "parse_int",
  "structopt",

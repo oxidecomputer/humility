@@ -505,7 +505,7 @@ fn i2c(
         //
         // We set our block size to be a conservatively small page size:
         // even though many EEPROMs can support a larger size, we want to
-        // support as many variantss as we can despite its substantial
+        // support as many variants as we can despite its substantial
         // effect on performance.
         //
         let addr_size = 2;

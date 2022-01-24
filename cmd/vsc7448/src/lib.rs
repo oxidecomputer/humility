@@ -145,11 +145,13 @@ impl<'a> Vsc7448<'a> {
 
     /// Writes a single 32-bit register
     fn write(&mut self, addr: u32, data: u32) -> Result<()> {
-        let spi_write = self.funcs.get("SpiWrite", 2)?;
+        let spi_write = self.funcs.get("SpiWrite", 4)?;
 
         // Write 7 bytes from the data array over SPI
         let ops = [
             Op::Push32(self.task.task()),
+            Op::Push(0),     // Device index
+            Op::Push(0),     // Write offset
             Op::Push32(0x7), // Write size
             Op::Call(spi_write.id),
             Op::Done,
@@ -176,12 +178,14 @@ impl<'a> Vsc7448<'a> {
 
     /// Reads a single 32-bit register
     fn read(&mut self, addr: u32) -> Result<u32> {
-        let spi_read = self.funcs.get("SpiRead", 3)?;
+        let spi_read = self.funcs.get("SpiRead", 5)?;
 
         // Write 3 bytes of address, and read 8 bytes back in total
         // (3 address bytes, 1 padding byte, 4 bytes of result)
         let ops = [
             Op::Push32(self.task.task()),
+            Op::Push(0),     // Device index
+            Op::Push(0),     // Write offset
             Op::Push32(0x3), // Write size
             Op::Push32(0x8), // Read size
             Op::Call(spi_read.id),

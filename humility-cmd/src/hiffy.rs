@@ -222,6 +222,10 @@ impl<'a> HiffyContext<'a> {
         self.data.size
     }
 
+    pub fn return_size(&self) -> usize {
+        self.rstack.size
+    }
+
     pub fn functions(&mut self) -> Result<HiffyFunctions> {
         let hubris = self.hubris;
 

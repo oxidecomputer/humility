@@ -980,7 +980,74 @@ No documentation yet for `humility spd`; pull requests welcome!
 
 ### `humility spi`
 
-No documentation yet for `humility spi`; pull requests welcome!
+On platforms that have SPI support, `humility spi` can be used to read
+from a device and/or write to a device.  It can also be used to program
+SPI EEPROMs (assuming 3-byte addressing).
+
+On platforms with more than one SPI peripheral, the specific peripheral
+must be specified with `--peripheral`, e.g. `--peripheral 3` for SPI 3.
+(Note that while Hubris supports multiple devices connected to a SPI
+peripheral, `humility spi` always operates on the device indexed at 0.)
+
+To read from the specified device, specify the `--read` option along
+with `--nbytes` to specify the number of bytes; to write, specify the
+`--write` option followed by comma-delimited values. These options may
+be (and often are) combined; for example, to write the sequence `0x03`,
+`0x00`, `0x01`, `0xde` and read 32 bytes:
+
+```console
+% humility spi --write 0x3,0x0,0x1,0xde --read --nbytes 32
+humility: attached via ST-Link
+humility: SPI master is spi_driver
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00000000 | 00 00 00 00 6f 78 79 3a 78 3a 31 33 3a 31 33 3a | ....oxy:x:13:13:
+0x00000010 | 70 72 6f 78 79 3a 2f 62 69 6e 3a 2f 75 73 72 2f | proxy:/bin:/usr/
+```
+
+Devices that are responding to a read based on the value written to them
+will often have some number of dummy bytes that should be discarded; to
+specify this, use the `--discard` option.  For example, to dicard the
+first 4 bytes returned from the read:
+
+```console
+% humility spi --write 0x3,0x0,0x1,0xde --read --nbytes 32 --discard 4
+humility: attached via ST-Link
+humility: SPI master is spi_driver
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00000000 | 6f 78 79 3a 78 3a 31 33 3a 31 33 3a 70 72 6f 78 | oxy:x:13:13:prox
+0x00000010 | 79 3a 2f 62 69 6e 3a 2f 75 73 72 2f             | y:/bin:/usr/
+```
+
+Many devices have a notion of a command that writes some number of bytes
+of address; it can be helpful to interpret this as such and display the
+address with the output.  This is done by specifying the number of
+address bytes to the `--littleendian-address` option (for little-endian
+address interpretation) or the `--bigendian-address` option (for
+big-endian address interpretation).  For example, to treat the three
+trailing bytes as a big-endian address:
+
+```console
+% humility spi --write 0x3,0x0,0x1,0xde --read --nbytes 36 --discard 4 \
+  --bigendian-address 3
+humility: attached via ST-Link
+humility: SPI master is spi_driver
+              0  1  2  3  4  5  6  7  8  9  a  b  c  d \/  f
+0x000001d0 |                                           6f 78 |               ox
+0x000001e0 | 79 3a 78 3a 31 33 3a 31 33 3a 70 72 6f 78 79 3a | y:x:13:13:proxy:
+0x000001f0 | 2f 62 69 6e 3a 2f 75 73 72 2f 73 62 69 6e       | /bin:/usr/sbin
+```
+
+To treat the SPI device as a SPI EEPROM and flash it with a specified
+file, use the `--flash` option:
+
+```console
+% humility spi --flash /path/to/file/to/flash
+```
+
+To treat the SPI device as a SPI EEPROM and read its contents, use the
+`--readflash` option, which will write its contents to the standard
+output.
+
 
 ### `humility stackmargin`
 
