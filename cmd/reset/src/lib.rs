@@ -10,8 +10,8 @@
 use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command};
+use humility::cli::Subcommand;
+use humility_cmd::{Archive, Command};
 
 #[derive(Parser, Debug)]
 #[clap(name = "reset", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -21,14 +21,13 @@ struct ResetArgs {
     soft_reset: bool,
 }
 
-fn reset(
-    hubris: &mut HubrisArchive,
-    args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn reset(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ResetArgs::try_parse_from(subargs)?;
 
-    let probe = match &args.probe {
+    let hubris = context.archive.as_ref().unwrap();
+
+    let probe = match &context.cli.probe {
         Some(p) => p,
         None => "auto",
     };
@@ -63,7 +62,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "reset",
             archive: Archive::Ignored,
-            run: humility_cmd::RunUnattached::Args(reset),
+            run: reset,
         },
         ResetArgs::command(),
     )

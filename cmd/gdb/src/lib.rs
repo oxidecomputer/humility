@@ -19,8 +19,8 @@
 
 use std::process::{Command, Stdio};
 
-use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command as HumilityCmd, RunUnattached};
+use humility::cli::Subcommand;
+use humility_cmd::{Archive, Command as HumilityCmd};
 use humility_cmd_openocd::get_probe_serial;
 
 use anyhow::{bail, Context, Result};
@@ -48,13 +48,16 @@ struct GdbArgs {
     serial: Option<String>,
 }
 
-fn gdb(
-    hubris: &mut HubrisArchive,
-    args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn gdb(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
+    if context.cli.probe.is_some() {
+        bail!("Cannot specify --probe with `gdb` subcommand");
+    }
+
     let subargs = GdbArgs::try_parse_from(subargs)?;
-    let serial = get_probe_serial(args, subargs.serial.clone())?;
+    let serial = get_probe_serial(&context.cli, subargs.serial.clone())?;
 
     let work_dir = tempfile::tempdir()?;
     let name = match &hubris.manifest.name {
@@ -202,7 +205,7 @@ pub fn init() -> (HumilityCmd, ClapCommand<'static>) {
         HumilityCmd::Unattached {
             name: "gdb",
             archive: Archive::Required,
-            run: RunUnattached::Args(gdb),
+            run: gdb,
         },
         GdbArgs::command(),
     )

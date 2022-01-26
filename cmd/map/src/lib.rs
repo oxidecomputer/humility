@@ -64,20 +64,18 @@
 use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::core::Core;
-use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct MapArgs {}
 
-fn mapcmd(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    _subargs: &[String],
-) -> Result<()> {
+fn mapcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
     core.op_start()?;
+
+    let hubris = context.archive.as_ref().unwrap();
+
     let regions = hubris.regions(core)?;
     core.op_done()?;
 
@@ -139,7 +137,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: Run::Subargs(mapcmd),
+            run: mapcmd,
         },
         MapArgs::command(),
     )

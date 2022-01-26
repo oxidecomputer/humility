@@ -4,10 +4,11 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::{HiffyContext, HiffyFunctions};
-use humility_cmd::{Archive, Attach, Run, RunUnattached, Validate};
+use humility_cmd::{Archive, Attach, Validate};
 use humility_cmd_spi::spi_task;
 
 use anyhow::{anyhow, bail, Result};
@@ -327,11 +328,11 @@ impl<'a> Vsc7448<'a> {
     }
 }
 
-fn vsc7448(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn vsc7448(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
     let subargs = Vsc7448Args::try_parse_from(subargs)?;
     let mut vsc = Vsc7448::new(hubris, core, &subargs)?;
     if !subargs.noinit {
@@ -441,10 +442,9 @@ fn vsc7448(
     Ok(())
 }
 
-fn vsc7448_get_info(
-    hubris: &mut HubrisArchive,
-    subargs: &[String],
-) -> Result<()> {
+fn vsc7448_get_info(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
     assert!(!hubris.loaded());
     let subargs = Vsc7448Args::try_parse_from(subargs)?;
     match subargs.cmd {
@@ -483,7 +483,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(vsc7448),
+            run: vsc7448,
         },
         Vsc7448Args::command(),
     );
@@ -491,7 +491,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
         humility_cmd::Command::Unattached {
             name: "vsc7448",
             archive: Archive::Ignored,
-            run: RunUnattached::Subargs(vsc7448_get_info),
+            run: vsc7448_get_info,
         },
         Vsc7448Args::command(),
     );

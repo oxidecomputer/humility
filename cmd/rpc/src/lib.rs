@@ -59,10 +59,11 @@ use clap::App;
 use clap::IntoApp;
 use clap::Parser;
 use colored::Colorize;
+use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::doppel::RpcHeader;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Command, RunUnattached};
+use humility_cmd::{Archive, Command};
 use zerocopy::{AsBytes, U16, U64};
 
 #[derive(Parser, Debug)]
@@ -298,8 +299,10 @@ fn rpc_call(
     Ok(())
 }
 
-fn rpc_run(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
+fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RpcArgs::try_parse_from(subargs)?;
+    let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {
         humility_cmd_hiffy::hiffy_list(hubris, subargs.verbose)?;
@@ -354,7 +357,7 @@ pub fn init() -> (Command, App<'static>) {
         Command::Unattached {
             name: "rpc",
             archive: Archive::Required,
-            run: RunUnattached::Subargs(rpc_run),
+            run: rpc_run,
         },
         RpcArgs::into_app(),
     )

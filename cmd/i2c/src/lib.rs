@@ -95,10 +95,9 @@ use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
-use humility::core::Core;
-use humility::hubris::*;
+use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Attach, Command, Dumper, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 
 use std::collections::HashMap;
 use std::fs;
@@ -422,11 +421,11 @@ fn i2c_done(
     Ok(())
 }
 
-fn i2c(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
     let subargs = I2cArgs::try_parse_from(subargs)?;
 
     if !subargs.scan
@@ -718,7 +717,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(i2c),
+            run: i2c,
         },
         I2cArgs::command(),
     )

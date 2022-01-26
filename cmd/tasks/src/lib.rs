@@ -115,11 +115,12 @@ use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 
@@ -173,11 +174,11 @@ fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
 }
 
 #[rustfmt::skip::macros(println)]
-fn tasks(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
     let subargs = TasksArgs::try_parse_from(subargs)?;
 
     let (base, task_count) = hubris.task_table(core)?;
@@ -646,7 +647,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: Run::Subargs(tasks),
+            run: tasks,
         },
         TasksArgs::command(),
     )

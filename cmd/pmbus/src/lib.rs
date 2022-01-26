@@ -3,11 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use colored::Colorize;
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
@@ -1283,11 +1284,9 @@ fn writes(
 }
 
 #[allow(clippy::print_literal)]
-fn pmbus(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn pmbus(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
     let subargs = PmbusArgs::try_parse_from(subargs)?;
 
     if subargs.list {
@@ -1318,6 +1317,8 @@ fn pmbus(
 
         return Ok(());
     }
+
+    let core = &mut **context.core.as_mut().unwrap();
 
     if core.is_dump() {
         bail!("can only list PMBus devices on a dump");
@@ -1623,7 +1624,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: Run::Subargs(pmbus),
+            run: pmbus,
         },
         PmbusArgs::command(),
     )

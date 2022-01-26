@@ -12,8 +12,8 @@
 
 use std::process::Command;
 
-use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command as HumilityCmd, RunUnattached};
+use humility::cli::{Cli, Subcommand};
+use humility_cmd::{Archive, Command as HumilityCmd};
 
 use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
@@ -48,7 +48,7 @@ struct OcdArgs {
 /// This function checks both sources, returns an error if they conflict, and
 /// returns the (optional) serial name otherwise.
 pub fn get_probe_serial(
-    args: &Args,
+    args: &Cli,
     subargs_serial: Option<String>,
 ) -> Result<Option<String>> {
     match &args.probe {
@@ -84,14 +84,17 @@ pub fn get_probe_serial(
     }
 }
 
-fn openocd(
-    hubris: &mut HubrisArchive,
-    args: &Args,
-    subargs: &[String],
-) -> Result<()> {
-    let subargs = OcdArgs::try_parse_from(subargs)?;
+fn openocd(context: &mut humility::ExecutionContext) -> Result<()> {
+    if context.cli.probe.is_some() {
+        bail!("Cannot specify --probe with `openocd` subcommand");
+    }
 
-    let serial = get_probe_serial(args, subargs.serial.clone())?;
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+
+    let subargs = OcdArgs::try_parse_from(subargs)?;
+    let serial = get_probe_serial(&context.cli, subargs.serial.clone())?;
+
+    let hubris = context.archive.as_ref().unwrap();
 
     let work_dir = tempfile::tempdir()?;
     hubris
@@ -139,7 +142,7 @@ pub fn init() -> (HumilityCmd, ClapCommand<'static>) {
         HumilityCmd::Unattached {
             name: "openocd",
             archive: Archive::Required,
-            run: RunUnattached::Args(openocd),
+            run: openocd,
         },
         OcdArgs::command(),
     )

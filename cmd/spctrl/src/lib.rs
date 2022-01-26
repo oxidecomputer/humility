@@ -44,10 +44,9 @@
 //! 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 //! ```
 
-use humility::core::Core;
-use humility::hubris::*;
+use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Attach, Command, Dumper, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 
 use std::str;
 
@@ -90,12 +89,11 @@ struct SpCtrlArgs {
     word: bool,
 }
 
-fn spctrl(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = SpCtrlArgs::try_parse_from(subargs)?;
+    let hubris = context.archive.as_ref().unwrap();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let mut ops = vec![];
@@ -162,7 +160,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(spctrl),
+            run: spctrl,
         },
         SpCtrlArgs::command(),
     )

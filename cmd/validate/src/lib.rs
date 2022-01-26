@@ -47,12 +47,12 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
-use humility::core::Core;
+use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -132,13 +132,11 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
 
     Ok(())
 }
-
-fn validate(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ValidateArgs::try_parse_from(subargs)?;
+    let hubris = context.archive.as_ref().unwrap();
 
     let hargs = if subargs.bus.is_some() || subargs.controller.is_some() {
         Some(I2cArgs::parse(
@@ -267,7 +265,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(validate),
+            run: validate,
         },
         ValidateArgs::command(),
     )

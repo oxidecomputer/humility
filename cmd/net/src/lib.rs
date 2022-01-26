@@ -42,12 +42,11 @@ use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
 
-use humility::core::Core;
-use humility::hubris::*;
+use humility::cli::Subcommand;
 use humility::reflect::*;
 use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::IdolOperation;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
 enum NetCommand {
@@ -75,19 +74,29 @@ struct NetArgs {
     cmd: NetCommand,
 }
 
-fn net_ip(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
+fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let subargs = NetArgs::try_parse_from(subargs)?;
+
+    let hubris = context.archive.as_ref().unwrap();
+    let core = &mut **context.core.as_mut().unwrap();
+
+    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     let op = IdolOperation::new(hubris, "Net", "get_mac_address", None)
         .context(
             "Could not find `get_mac_address`, \
                   is your Hubris archive new enough?",
         )?;
 
-    let value =
-        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[], None)?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        &mut hiffy_context,
+        &op,
+        &[],
+        None,
+    )?;
     let v = match value {
         Ok(v) => v,
         Err(e) => bail!("Got Hiffy error: {}", e),
@@ -128,11 +137,15 @@ pub fn mac_to_ip6(mac: [u8; 6]) -> String {
     out
 }
 
-fn net_mac_table(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
+fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let subargs = NetArgs::try_parse_from(subargs)?;
+
+    let hubris = context.archive.as_ref().unwrap();
+    let core = &mut **context.core.as_mut().unwrap();
+
+    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     let op_mac_count =
         IdolOperation::new(hubris, "Net", "read_ksz8463_mac_count", None)
             .context(
@@ -146,7 +159,7 @@ fn net_mac_table(
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
-        context,
+        &mut hiffy_context,
         &op_mac_count,
         &[],
         None,
@@ -175,7 +188,7 @@ fn net_mac_table(
     humility::msg!("Reading {} MAC addresses...", mac_count);
 
     let op = IdolOperation::new(hubris, "Net", "read_ksz8463_mac", None)?;
-    let funcs = context.functions()?;
+    let funcs = hiffy_context.functions()?;
     let send = funcs.get("Send", 4)?;
 
     use hif::*;
@@ -204,7 +217,7 @@ fn net_mac_table(
         Op::Done,
     ];
 
-    let results = context.run(core, ops.as_slice(), None)?;
+    let results = hiffy_context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
         .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op, r))
@@ -255,19 +268,29 @@ fn net_mac_table(
     Ok(())
 }
 
-fn net_status(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
+fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let subargs = NetArgs::try_parse_from(subargs)?;
+
+    let hubris = context.archive.as_ref().unwrap();
+    let core = &mut **context.core.as_mut().unwrap();
+
+    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     let op = IdolOperation::new(hubris, "Net", "management_link_status", None)
         .context(
             "Could not find `management_link_status`, \
                   is your Hubris archive new enough?",
         )?;
 
-    let value =
-        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[], None)?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        &mut hiffy_context,
+        &op,
+        &[],
+        None,
+    )?;
     let v = match value {
         Ok(v) => v,
         Err(e) => bail!("Got Hiffy error: {}", e),
@@ -330,19 +353,29 @@ fn net_status(
     Ok(())
 }
 
-fn net_counters(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
+fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let subargs = NetArgs::try_parse_from(subargs)?;
+
+    let hubris = context.archive.as_ref().unwrap();
+    let core = &mut **context.core.as_mut().unwrap();
+
+    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     let op = IdolOperation::new(hubris, "Net", "management_counters", None)
         .context(
             "Could not find `get_mac_address`, \
                   is your Hubris archive new enough?",
         )?;
 
-    let value =
-        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[], None)?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        &mut hiffy_context,
+        &op,
+        &[],
+        None,
+    )?;
     let v = match value {
         Ok(v) => v,
         Err(e) => bail!("Got Hiffy error: {}", e),
@@ -454,18 +487,15 @@ fn net_counters(
     Ok(())
 }
 
-fn net(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn net(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     match subargs.cmd {
-        NetCommand::Mac => net_mac_table(hubris, core, &mut context)?,
-        NetCommand::Ip => net_ip(hubris, core, &mut context)?,
-        NetCommand::Status => net_status(hubris, core, &mut context)?,
-        NetCommand::Counters => net_counters(hubris, core, &mut context)?,
+        NetCommand::Mac => net_mac_table(context)?,
+        NetCommand::Ip => net_ip(context)?,
+        NetCommand::Status => net_status(context)?,
+        NetCommand::Counters => net_counters(context)?,
     }
     Ok(())
 }
@@ -477,7 +507,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(net),
+            run: net,
         },
         NetArgs::command(),
     )
