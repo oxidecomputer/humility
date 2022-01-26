@@ -90,9 +90,7 @@ use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
-use humility::core::Core;
-use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::debug::*;
 use humility_cortex::itm::*;
 use humility_cortex::scs::*;
@@ -102,11 +100,10 @@ use humility_cortex::scs::*;
 struct ProbeArgs {}
 
 #[rustfmt::skip::macros(format)]
-fn probecmd(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    _subargs: &[String],
-) -> Result<()> {
+fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
     use num_traits::FromPrimitive;
     let mut status = vec![];
 
@@ -376,7 +373,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Optional,
             attach: Attach::LiveOnly,
             validate: Validate::None,
-            run: Run::Subargs(probecmd),
+            run: probecmd,
         },
         ProbeArgs::command(),
     )

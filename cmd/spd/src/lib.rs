@@ -2,11 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility::core::Core;
-use humility::hubris::*;
+use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
@@ -144,11 +143,11 @@ fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
     ops.push(Op::DropN(4));
 }
 
-fn spd(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+    let core = &mut **context.core.as_mut().unwrap();
+
     let subargs = SpdArgs::try_parse_from(subargs)?;
 
     //
@@ -357,7 +356,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: Run::Subargs(spd),
+            run: spd,
         },
         SpdArgs::command(),
     )

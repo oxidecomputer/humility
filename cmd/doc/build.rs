@@ -17,10 +17,15 @@ fn main() -> Result<()> {
     let metadata =
         MetadataCommand::new().manifest_path("./Cargo.toml").exec().unwrap();
 
-    for id in &metadata.workspace_members {
-        let package =
-            metadata.packages.iter().find(|p| &p.id == id).unwrap().clone();
+    let packages: Vec<_> = metadata
+        .workspace_members
+        .iter()
+        .map(|id| {
+            metadata.packages.iter().find(|p| &p.id == id).unwrap().clone()
+        })
+        .collect();
 
+    for package in packages {
         if let Some(cmd) = package.name.strip_prefix("humility-cmd-") {
             let description = match package.description {
                 Some(description) => description,

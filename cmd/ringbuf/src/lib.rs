@@ -56,11 +56,12 @@
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cmd::doppel::{Ringbuf, StaticCell};
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -141,11 +142,11 @@ fn taskname<'a>(
 // this allow is meant for the header println! in the body but you cannot apply
 // an attribute to a macro invoction, so we have to put it here instead.
 #[allow(clippy::print_literal)]
-fn ringbuf(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
     let subargs = RingbufArgs::try_parse_from(subargs)?;
 
     let mut ringbufs = vec![];
@@ -213,7 +214,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Match,
-            run: Run::Subargs(ringbuf),
+            run: ringbuf,
         },
         RingbufArgs::command(),
     )

@@ -73,12 +73,13 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
 
@@ -384,12 +385,11 @@ fn vpd_read(
     Ok(())
 }
 
-fn vpd(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn vpd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = VpdArgs::try_parse_from(subargs)?;
+    let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {
         list(hubris)?;
@@ -412,7 +412,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(vpd),
+            run: vpd,
         },
         VpdArgs::command(),
     )

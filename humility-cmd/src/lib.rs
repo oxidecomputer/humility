@@ -3,7 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub mod doppel;
-pub mod env;
 pub mod hiffy;
 pub mod i2c;
 pub mod idol;
@@ -12,83 +11,9 @@ pub mod stack;
 pub mod test;
 
 use anyhow::{bail, Result};
-use clap::{AppSettings, Parser};
+use humility::cli::Cli;
 use humility::core::Core;
 use humility::hubris::*;
-
-pub use env::Environment;
-
-#[derive(Parser)]
-#[clap(name = "humility", max_term_width = 80)]
-#[clap(global_setting(AppSettings::NoAutoVersion))]
-pub struct Args {
-    /// verbose messages
-    #[clap(long, short)]
-    pub verbose: bool,
-
-    /// terse output
-    #[clap(long, short = 'T', hide = true)]
-    pub terse: bool,
-
-    /// print version information
-    #[clap(long, short = 'V')]
-    pub version: bool,
-
-    /// probe to use
-    #[clap(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
-    pub probe: Option<String>,
-
-    /// Hubris archive
-    #[clap(long, short, env = "HUMILITY_ARCHIVE")]
-    pub archive: Option<String>,
-
-    /// Hubris dump
-    #[clap(long, short, env = "HUMILITY_DUMP")]
-    pub dump: Option<String>,
-
-    /// Hubris environment file
-    #[clap(long, short, env = "HUMILITY_ENVIRONMENT")]
-    pub environment: Option<String>,
-
-    /// target to use from specified environment
-    #[clap(long, short, env = "HUMILITY_TARGET", requires = "environment",
-        conflicts_with_all = &["dump", "probe"])]
-    pub target: Option<String>,
-
-    /// If multiple archives are specified in an environment, name of
-    /// the archive to use
-    #[clap(long, requires = "environment")]
-    pub archive_name: Option<String>,
-
-    //
-    // probe-rs requires the chip to be specified when creating a session,
-    // even though it is only used for flashing (which we don't use probe-rs
-    // to do).  Historically, we had a `-c` option to specify this, but its
-    // presence was causing confusion and it has been deprecated.  However,
-    // Hubris uses Humility to flash, and specifies this option.  Because we
-    // may want to use this properly in the future (namely, if/when we use
-    // probe-rs to flash), we continue to accept this option (and test for its
-    // presence), thereby eliminating two potential Hubris flag days.  (Until
-    // it once again means something, we hide the option from the help
-    // output.)
-    //
-    #[clap(long, short, env = "HUMILITY_CHIP", hide = true)]
-    pub chip: Option<String>,
-
-    /// list targets within an environment
-    #[clap(long = "list-targets", requires = "environment",
-        conflicts_with_all = &["dump", "probe", "target"])]
-    pub list_targets: bool,
-
-    #[clap(subcommand)]
-    pub cmd: Option<Subcommand>,
-}
-
-#[derive(Parser)]
-pub enum Subcommand {
-    #[clap(external_subcommand)]
-    Other(Vec<String>),
-}
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -120,34 +45,6 @@ pub enum Validate {
     None,
 }
 
-pub enum RunUnattached {
-    Subargs(fn(&mut HubrisArchive, &[String]) -> Result<()>),
-    Args(fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>),
-    Environment(
-        fn(
-            &mut HubrisArchive,
-            &Args,
-            &[String],
-            Option<&Environment>,
-        ) -> Result<()>,
-    ),
-}
-
-#[allow(clippy::type_complexity)]
-pub enum Run {
-    Subargs(fn(&HubrisArchive, &mut dyn Core, &[String]) -> Result<()>),
-    Args(fn(&HubrisArchive, &mut dyn Core, &Args, &[String]) -> Result<()>),
-    Environment(
-        fn(
-            &HubrisArchive,
-            &mut dyn Core,
-            &Args,
-            &[String],
-            Option<&Environment>,
-        ) -> Result<()>,
-    ),
-}
-
 pub enum Command {
     /// Attached to a live system or dump
     Attached {
@@ -155,16 +52,23 @@ pub enum Command {
         archive: Archive,
         attach: Attach,
         validate: Validate,
-        run: Run,
+        run: fn(&mut humility::ExecutionContext) -> Result<()>,
     },
     /// Not attached to a live system or dump
-    Unattached { name: &'static str, archive: Archive, run: RunUnattached },
+    Unattached {
+        name: &'static str,
+        archive: Archive,
+        run: fn(&mut humility::ExecutionContext) -> Result<()>,
+    },
     /// Operate on a raw archive, from either the command line or a dump
-    Raw { name: &'static str, run: RunUnattached },
+    Raw {
+        name: &'static str,
+        run: fn(&mut humility::ExecutionContext) -> Result<()>,
+    },
 }
 
 pub fn attach_live(
-    args: &Args,
+    args: &Cli,
     hubris: &HubrisArchive,
 ) -> Result<Box<dyn Core>> {
     if args.dump.is_some() {
@@ -180,7 +84,7 @@ pub fn attach_live(
 }
 
 pub fn attach_dump(
-    args: &Args,
+    args: &Cli,
     hubris: &HubrisArchive,
 ) -> Result<Box<dyn Core>> {
     if let Some(dump) = &args.dump {
@@ -191,37 +95,41 @@ pub fn attach_dump(
 }
 
 pub fn attach(
-    hubris: &HubrisArchive,
-    args: &Args,
+    context: &mut humility::ExecutionContext,
     attach: Attach,
     validate: Validate,
-    mut run: impl FnMut(&HubrisArchive, &mut dyn Core) -> Result<()>,
+    mut run: impl FnMut(&mut humility::ExecutionContext) -> Result<()>,
 ) -> Result<()> {
-    let mut c = match attach {
-        Attach::LiveOnly => attach_live(args, hubris),
-        Attach::DumpOnly => attach_dump(args, hubris),
-        Attach::Any => {
-            if args.dump.is_some() {
-                attach_dump(args, hubris)
-            } else {
-                attach_live(args, hubris)
-            }
-        }
-    }?;
+    let hubris = context.archive.as_ref().unwrap();
 
-    let core = c.as_mut();
+    if context.core.is_none() {
+        context.core = Some(match attach {
+            Attach::LiveOnly => attach_live(&context.cli, hubris),
+            Attach::DumpOnly => attach_dump(&context.cli, hubris),
+            Attach::Any => {
+                if context.cli.dump.is_some() {
+                    attach_dump(&context.cli, hubris)
+                } else {
+                    attach_live(&context.cli, hubris)
+                }
+            }
+        }?);
+    }
+
+    // we know from above we have set up a core if we hadn't previously
+    let core = context.core.as_mut().unwrap();
 
     match validate {
         Validate::Booted => {
-            hubris.validate(core, HubrisValidate::Booted)?;
+            hubris.validate(&mut **core, HubrisValidate::Booted)?;
         }
         Validate::Match => {
-            hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+            hubris.validate(&mut **core, HubrisValidate::ArchiveMatch)?;
         }
         Validate::None => {}
     }
 
-    (run)(hubris, core)
+    (run)(context)
 }
 
 pub struct Dumper {

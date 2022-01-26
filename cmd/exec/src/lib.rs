@@ -24,8 +24,9 @@
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::hubris::HubrisArchive;
-use humility_cmd::{Archive, Args, Command, Environment, RunUnattached};
+use humility::cli::Subcommand;
+use humility::ExecutionContext;
+use humility_cmd::{Archive, Command};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -71,13 +72,10 @@ fn load_cmds<'a>(
     Ok(())
 }
 
-fn exec(
-    _hubris: &mut HubrisArchive,
-    args: &Args,
-    subargs: &[String],
-    env: Option<&Environment>,
-) -> Result<()> {
+fn exec(context: &mut ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ExecArgs::try_parse_from(subargs)?;
+    let env = context.environment.as_ref();
 
     let env = match env {
         None => {
@@ -89,7 +87,7 @@ fn exec(
     //
     // If we have an environment, we must also have a target.
     //
-    let target = args.target.as_ref().unwrap();
+    let target = context.cli.target.as_ref().unwrap();
 
     let cmds = match env.cmds {
         Some(ref cmds) => cmds,
@@ -153,7 +151,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "exec",
             archive: Archive::Ignored,
-            run: RunUnattached::Environment(exec),
+            run: exec,
         },
         ExecArgs::command(),
     )

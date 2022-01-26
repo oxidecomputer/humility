@@ -78,10 +78,9 @@
 //! ```
 //!
 
+use humility::cli::Subcommand;
 use humility::core::Core;
-use humility::hubris::*;
-use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Attach, Command, Dumper, Run, Validate};
+use humility_cmd::{hiffy::*, Archive, Attach, Command, Dumper, Validate};
 use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
@@ -436,11 +435,11 @@ fn write(
     }
 }
 
-fn qspi(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
     let subargs = QspiArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
@@ -1047,7 +1046,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(qspi),
+            run: qspi,
         },
         QspiArgs::command(),
     )
