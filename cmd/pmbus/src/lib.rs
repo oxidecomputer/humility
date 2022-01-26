@@ -10,30 +10,30 @@ use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
+use clap::IntoApp;
+use clap::{App, Parser};
 use hif::*;
 use indexmap::IndexMap;
 use pmbus::commands::*;
 use pmbus::*;
 use std::collections::HashMap;
 use std::fmt::Write;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "pmbus", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "pmbus", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct PmbusArgs {
     /// sets timeout
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// list PMBus components
-    #[structopt(
+    #[clap(
         long, short, conflicts_with_all = &[
             "driver", "controller", "port", "bus", "summarize"
         ]
@@ -41,74 +41,74 @@ struct PmbusArgs {
     list: bool,
 
     /// summarize PMBus components
-    #[structopt(
+    #[clap(
         long, short, conflicts_with_all = &["driver", "controller", "port", "bus"]
     )]
     summarize: bool,
 
     /// command-specific help
-    #[structopt(long, short = "H", value_name = "command")]
+    #[clap(long, short = 'H', value_name = "command")]
     commandhelp: Option<Vec<String>>,
 
     /// verbose output
-    #[structopt(long, short)]
+    #[clap(long, short)]
     verbose: bool,
 
     /// show errors
-    #[structopt(long, short)]
+    #[clap(long, short)]
     errors: bool,
 
     /// dry-run; show commands instead of running them
-    #[structopt(long = "dry-run", short = "n")]
+    #[clap(long = "dry-run", short = 'n')]
     dryrun: bool,
 
     /// force unrecognized PMBus device
-    #[structopt(long, short = "F")]
+    #[clap(long, short = 'F')]
     force: bool,
 
     /// specifies a PMBus driver
-    #[structopt(long, short = "D")]
+    #[clap(long, short = 'D')]
     driver: Option<String>,
 
     /// specifies commands to run
-    #[structopt(
+    #[clap(
         long,
-        short = "C",
+        short = 'C',
         conflicts_with = "writes",
         value_name = "command"
     )]
     commands: Option<Vec<String>>,
 
     /// specifies writes to perform
-    #[structopt(long, short = "w", use_delimiter = false)]
+    #[clap(long, short = 'w', use_delimiter = false)]
     writes: Option<Vec<String>>,
 
     /// specifies an I2C controller
-    #[structopt(long, short, value_name = "controller",
+    #[clap(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
     controller: Option<u8>,
 
     /// specifies an I2C bus by name
-    #[structopt(long, short, value_name = "bus",
+    #[clap(long, short, value_name = "bus",
         conflicts_with_all = &["port", "controller"]
     )]
     bus: Option<String>,
 
     /// specifies an I2C controller port
-    #[structopt(long, short, value_name = "port")]
+    #[clap(long, short, value_name = "port")]
     port: Option<String>,
 
     /// specifies I2C multiplexer and segment
-    #[structopt(long, short, value_name = "mux:segment")]
+    #[clap(long, short, value_name = "mux:segment")]
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short = "d", value_name = "address")]
+    #[clap(long, short = 'd', value_name = "address")]
     device: Option<String>,
 
     /// specifies a rail within the specified device
-    #[structopt(long, short = "r", value_name = "rail", use_delimiter = true)]
+    #[clap(long, short = 'r', value_name = "rail", use_delimiter = true)]
     rail: Option<Vec<String>>,
 }
 
@@ -1287,7 +1287,7 @@ fn pmbus(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = PmbusArgs::from_iter_safe(subargs)?;
+    let subargs = PmbusArgs::try_parse_from(subargs)?;
 
     if subargs.list {
         println!(
@@ -1611,7 +1611,7 @@ fn pmbus(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "pmbus",
@@ -1620,6 +1620,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: pmbus,
         },
-        PmbusArgs::clap(),
+        PmbusArgs::into_app(),
     )
 }

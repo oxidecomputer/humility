@@ -28,15 +28,14 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::convert::TryInto;
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "stackmargin", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "stackmargin", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct StackmarginArgs {}
 
 #[rustfmt::skip::macros(println, bail)]
@@ -117,7 +116,7 @@ fn stackmargin(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "stackmargin",
@@ -126,6 +125,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: stackmargin,
         },
-        StackmarginArgs::clap(),
+        StackmarginArgs::into_app(),
     )
 }

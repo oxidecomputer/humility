@@ -10,45 +10,44 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "spd", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "spd", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SpdArgs {
     /// sets timeout
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// verbose output
-    #[structopt(long, short)]
+    #[clap(long, short)]
     verbose: bool,
 
     /// specifies an I2C controller
-    #[structopt(long, short, value_name = "controller",
+    #[clap(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
     controller: Option<u8>,
 
     /// specifies an I2C bus by name
-    #[structopt(long, short, value_name = "bus",
+    #[clap(long, short, value_name = "bus",
         conflicts_with_all = &["port", "controller"]
     )]
     bus: Option<String>,
 
     /// specifies an I2C controller port
-    #[structopt(long, short, value_name = "port")]
+    #[clap(long, short, value_name = "port")]
     port: Option<String>,
 
     /// specifies I2C multiplexer and segment
-    #[structopt(long, short, value_name = "mux:segment")]
+    #[clap(long, short, value_name = "mux:segment")]
     mux: Option<String>,
 }
 
@@ -153,7 +152,7 @@ fn spd(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = SpdArgs::from_iter_safe(subargs)?;
+    let subargs = SpdArgs::try_parse_from(subargs)?;
 
     //
     // If we have been given no device-related arguments, we will attempt
@@ -354,7 +353,7 @@ fn spd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "spd",
@@ -363,6 +362,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: spd,
         },
-        SpdArgs::clap(),
+        SpdArgs::into_app(),
     )
 }

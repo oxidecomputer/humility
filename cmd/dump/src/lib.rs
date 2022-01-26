@@ -52,14 +52,13 @@
 extern crate log;
 
 use anyhow::Result;
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "dump", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "dump", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DumpArgs {
     dumpfile: Option<String>,
 }
@@ -70,7 +69,7 @@ fn dumpcmd(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = DumpArgs::from_iter_safe(subargs)?;
+    let subargs = DumpArgs::try_parse_from(subargs)?;
 
     let _info = core.halt()?;
     info!("core halted");
@@ -83,7 +82,7 @@ fn dumpcmd(
     rval
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "dump",
@@ -92,6 +91,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: dumpcmd,
         },
-        DumpArgs::clap(),
+        DumpArgs::into_app(),
     )
 }

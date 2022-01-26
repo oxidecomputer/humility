@@ -87,6 +87,9 @@
 //! ```
 
 use anyhow::Result;
+use clap::App;
+use clap::IntoApp;
+use clap::Parser;
 use humility::arch::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
@@ -94,14 +97,12 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use humility_cortex::debug::*;
 use humility_cortex::itm::*;
 use humility_cortex::scs::*;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "probe", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "probe", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ProbeArgs {}
 
 #[rustfmt::skip::macros(format)]
@@ -372,7 +373,7 @@ fn probecmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "probe",
@@ -381,6 +382,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Match,
             run: probecmd,
         },
-        ProbeArgs::clap(),
+        ProbeArgs::into_app(),
     )
 }

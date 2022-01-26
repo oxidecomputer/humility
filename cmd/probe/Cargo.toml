@@ -8,7 +8,7 @@ description = "probe for any attached devices"
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cortex = { path = "../../humility-arch-cortex" }
 humility-cmd = { path = "../../humility-cmd" }
-structopt = "0.3"
+clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 log = {version = "0.4.8", features = ["std"]}
 num-traits = "0.2"

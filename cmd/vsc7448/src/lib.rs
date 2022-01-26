@@ -11,28 +11,27 @@ use humility_cmd::{Archive, Args, Attach, Validate};
 use humility_cmd_spi::spi_task;
 
 use anyhow::{anyhow, bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
 use log::info;
-use structopt::clap::App;
-use structopt::StructOpt;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "vsc7448", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "vsc7448", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct Vsc7448Args {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// SPI peripheral on which to operate
-    #[structopt(long, short, value_name = "peripheral")]
+    #[clap(long, short, value_name = "peripheral")]
     peripheral: Option<u8>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     cmd: Command,
 }
 
@@ -48,11 +47,11 @@ impl Vsc7448Args {
     }
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 enum Command {
     Info {
         reg: String,
-        #[structopt(parse(try_from_str = parse_int::parse))]
+        #[clap(parse(try_from_str = parse_int::parse))]
         value: Option<u32>,
     },
     Read {
@@ -60,39 +59,39 @@ enum Command {
     },
     Write {
         reg: String,
-        #[structopt(parse(try_from_str = parse_int::parse))]
+        #[clap(parse(try_from_str = parse_int::parse))]
         value: u32,
     },
     Phy {
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         cmd: PhyCommand,
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 enum PhyCommand {
     Info {
         reg: String,
     },
     Read {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         addr: PhyAddr,
         reg: String,
     },
     Write {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         addr: PhyAddr,
         reg: String,
-        #[structopt(parse(try_from_str = parse_int::parse))]
+        #[clap(parse(try_from_str = parse_int::parse))]
         value: u16,
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 struct PhyAddr {
-    #[structopt(help = "MIIM peripheral (0-2)")]
+    #[clap(help = "MIIM peripheral (0-2)")]
     miim: u8,
-    #[structopt(help = "PHY address")]
+    #[clap(help = "PHY address")]
     phy: u8,
 }
 
@@ -327,7 +326,7 @@ fn vsc7448(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = Vsc7448Args::from_iter_safe(subargs)?;
+    let subargs = Vsc7448Args::try_parse_from(subargs)?;
     let mut vsc = Vsc7448::new(hubris, core, &subargs)?;
     vsc.init()?;
     match subargs.cmd {
@@ -440,7 +439,7 @@ fn vsc7448_get_info(
     subargs: &[String],
 ) -> Result<()> {
     assert!(!hubris.loaded());
-    let subargs = Vsc7448Args::from_iter_safe(subargs)?;
+    let subargs = Vsc7448Args::try_parse_from(subargs)?;
     match subargs.cmd {
         Command::Info { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;
@@ -466,7 +465,7 @@ fn vsc7448_get_info(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (humility_cmd::Command, App<'a, 'b>) {
+pub fn init() -> (humility_cmd::Command, App<'static>) {
     // We do a bonus parse of the command-line arguments here to see if we're
     // doing a `vsc7448 info` subcommand, which doesn't require a Hubris image
     // or attached device; skipping those steps improves runtime (especially
@@ -479,7 +478,7 @@ pub fn init<'a, 'b>() -> (humility_cmd::Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: vsc7448,
         },
-        Vsc7448Args::clap(),
+        Vsc7448Args::into_app(),
     );
     let subcmd_unattached = (
         humility_cmd::Command::Unattached {
@@ -487,13 +486,13 @@ pub fn init<'a, 'b>() -> (humility_cmd::Command, App<'a, 'b>) {
             archive: Archive::Ignored,
             run: vsc7448_get_info,
         },
-        Vsc7448Args::clap(),
+        Vsc7448Args::into_app(),
     );
 
     // If there's a `vsc7448` subcommand, then attempt to parse the subcmd
     let mut args = std::env::args().skip_while(|a| a != "vsc7448").peekable();
     if args.peek().is_some() {
-        if let Ok(args) = Vsc7448Args::from_iter_safe(args) {
+        if let Ok(args) = Vsc7448Args::try_parse_from(args) {
             if !args.requires_target() {
                 return subcmd_unattached;
             }

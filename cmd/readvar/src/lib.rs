@@ -37,22 +37,21 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "readvar", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "readvar", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ReadvarArgs {
     /// values in decimal instead of hex
-    #[structopt(long, short)]
+    #[clap(long, short)]
     decimal: bool,
     /// list variables
-    #[structopt(long, short)]
+    #[clap(long, short)]
     list: bool,
-    #[structopt(conflicts_with = "list")]
+    #[clap(conflicts_with = "list")]
     variable: Option<String>,
 }
 
@@ -90,7 +89,7 @@ fn readvar(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = ReadvarArgs::from_iter_safe(subargs)?;
+    let subargs = ReadvarArgs::try_parse_from(subargs)?;
 
     if subargs.list {
         return hubris.list_variables();
@@ -108,7 +107,7 @@ fn readvar(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "readvar",
@@ -117,6 +116,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Match,
             run: readvar,
         },
-        ReadvarArgs::clap(),
+        ReadvarArgs::into_app(),
     )
 }
