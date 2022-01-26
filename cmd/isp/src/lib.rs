@@ -18,8 +18,8 @@ use anyhow::Result;
 use byteorder::ByteOrder;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command, Dumper};
+use humility::cli::Subcommand;
+use humility_cmd::{Archive, Command, Dumper};
 use serialport::{DataBits, FlowControl, Parity, StopBits};
 use std::io::Read;
 use std::path::PathBuf;
@@ -218,11 +218,8 @@ fn pretty_print_bootloader_prop(prop: BootloaderProperty, params: Vec<u32>) {
     }
 }
 
-fn ispcmd(
-    _hubris: &mut HubrisArchive,
-    _args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = IspArgs::try_parse_from(subargs)?;
 
     // The target _technically_ has autobaud but it's very flaky
@@ -388,7 +385,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "isp",
             archive: Archive::Ignored,
-            run: humility_cmd::RunUnattached::Args(ispcmd),
+            run: ispcmd,
         },
         IspArgs::command(),
     )

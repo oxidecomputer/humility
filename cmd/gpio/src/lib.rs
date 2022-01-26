@@ -92,10 +92,9 @@
 //! ```
 //!
 
-use humility::core::Core;
-use humility::hubris::*;
-use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility::cli::Subcommand;
+use humility_cmd::hiffy::HiffyContext;
+use humility_cmd::{Archive, Attach, Command, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
@@ -151,11 +150,10 @@ struct GpioArgs {
     pins: Option<Vec<String>>,
 }
 
-fn gpio(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn gpio(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
     let subargs = GpioArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
@@ -344,7 +342,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(gpio),
+            run: gpio,
         },
         GpioArgs::command(),
     )

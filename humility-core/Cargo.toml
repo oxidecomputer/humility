@@ -5,7 +5,9 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
+structopt = "0.3"
 serde = { version = "1.0.126", features = ["derive"] }
+serde_json = "1.0"
 goblin = "0.2.1"
 rustc-demangle = "0.1.21"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
@@ -28,6 +30,7 @@ parse_int = "0.4.0"
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 regex = "1.5"
 colored = "2.0.0"
+clap = "3.0.12"
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
@@ -40,4 +43,3 @@ probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "ox
 # which upstream seems uninterested in fixing.
 #
 capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
-

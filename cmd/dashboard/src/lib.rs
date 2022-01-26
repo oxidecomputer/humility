@@ -24,11 +24,12 @@ use crossterm::{
     },
 };
 use hif::*;
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -708,11 +709,12 @@ fn run_dashboard<B: Backend>(
     }
 }
 
-fn dashboard(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn dashboard(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
+
+    let core = &mut **context.core.as_mut().unwrap();
+
     let subargs = DashboardArgs::try_parse_from(subargs)?;
     let dashboard = Dashboard::new(hubris, core, &subargs)?;
 
@@ -746,7 +748,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(dashboard),
+            run: dashboard,
         },
         DashboardArgs::command(),
     )

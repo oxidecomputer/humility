@@ -8,13 +8,12 @@
 //! Renesas configuration software.
 //!
 
+use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{
-    attach, Archive, Args, Attach, Command, Dumper, RunUnattached, Validate,
-};
+use humility_cmd::{attach, Archive, Attach, Command, Dumper, Validate};
 
 use itertools::Itertools;
 
@@ -799,11 +798,8 @@ fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
     Ok(())
 }
 
-fn rencm(
-    hubris: &mut HubrisArchive,
-    args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn rencm(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RencmArgs::try_parse_from(subargs)?;
     let modules = modules();
 
@@ -811,8 +807,10 @@ fn rencm(
         return rencm_ingest(&subargs, modules);
     }
 
-    attach(hubris, args, Attach::LiveOnly, Validate::Booted, |hubris, core| {
-        rencm_attached(hubris, core, &subargs, modules)
+    attach(context, Attach::LiveOnly, Validate::Booted, |context| {
+        let core = context.core.as_mut().unwrap();
+        let hubris = context.archive.as_ref().unwrap();
+        rencm_attached(hubris, &mut **core, &subargs, modules)
     })
 }
 
@@ -821,7 +819,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "rencm",
             archive: Archive::Optional,
-            run: RunUnattached::Args(rencm),
+            run: rencm,
         },
         RencmArgs::command(),
     )

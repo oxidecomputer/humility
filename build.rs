@@ -60,5 +60,7 @@ fn dcmds() -> Vec<CommandDescription> {{
 
     write!(output, "    ]\n}}")?;
 
+    println!("cargo:rerun-if-changed=Cargo.toml");
+
     Ok(())
 }

@@ -24,8 +24,8 @@
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command};
+use humility::cli::Subcommand;
+use humility_cmd::{Archive, Command};
 use probe_rs::{
     architecture::arm::{ApAddress, ArmProbeInterface, DpAddress},
     Probe,
@@ -207,11 +207,8 @@ fn read_return<'a>(
     bail!("Timed out reading return!");
 }
 
-fn debugmailboxcmd(
-    _hubris: &mut HubrisArchive,
-    _args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn debugmailboxcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = DebugMailboxArgs::try_parse_from(subargs)?;
 
     // Get a list of all available debug probes.
@@ -290,7 +287,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "debugmailbox",
             archive: Archive::Ignored,
-            run: humility_cmd::RunUnattached::Args(debugmailboxcmd),
+            run: debugmailboxcmd,
         },
         DebugMailboxArgs::command(),
     )

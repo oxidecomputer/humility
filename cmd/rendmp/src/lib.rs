@@ -62,11 +62,11 @@
 //! ```
 //!
 
-use humility::core::Core;
+use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
@@ -772,11 +772,12 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
-fn rendmp(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_mut().unwrap();
+
+    let core = &mut **context.core.as_mut().unwrap();
+
     let subargs = RendmpArgs::try_parse_from(subargs)?;
 
     if subargs.ingest.is_some() {
@@ -1322,7 +1323,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(rendmp),
+            run: rendmp,
         },
         RendmpArgs::command(),
     )
