@@ -7,5 +7,5 @@ description = "calculate and print stack margins by task"
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
-structopt = "0.3"
+clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }

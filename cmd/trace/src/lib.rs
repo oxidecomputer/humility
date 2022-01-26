@@ -3,6 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{anyhow, Result};
+use clap::App;
+use clap::IntoApp;
+use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
@@ -11,14 +14,12 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::Instant;
 use std::time::SystemTime;
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "trace", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "trace", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TraceArgs {
     /// provide statemap-ready output
-    #[structopt(long, short)]
+    #[clap(long, short)]
     statemap: bool,
 }
 
@@ -206,7 +207,7 @@ fn tracecmd(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = &TraceArgs::from_iter_safe(subargs)?;
+    let subargs = &TraceArgs::try_parse_from(subargs)?;
     let mut tasks: HashMap<u32, String> = HashMap::new();
 
     /*
@@ -246,7 +247,7 @@ fn tracecmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "trace",
@@ -255,6 +256,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Match,
             run: tracecmd,
         },
-        TraceArgs::clap(),
+        TraceArgs::into_app(),
     )
 }

@@ -112,33 +112,32 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
 use std::convert::TryInto;
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ReadmemArgs {
     /// print out as halfwords instead of as bytes
-    #[structopt(long, short, conflicts_with_all = &["word", "symbol"])]
+    #[clap(long, short, conflicts_with_all = &["word", "symbol"])]
     halfword: bool,
 
     /// print out as words instead of as bytes
-    #[structopt(long, short, conflicts_with_all = &["symbol"])]
+    #[clap(long, short, conflicts_with_all = &["symbol"])]
     word: bool,
 
     /// print out as symbols
-    #[structopt(long, short)]
+    #[clap(long, short)]
     symbol: bool,
 
     /// address to read
     address: String,
 
     /// length to read
-    #[structopt(parse(try_from_str = parse_int::parse))]
+    #[clap(parse(try_from_str = parse_int::parse))]
     length: Option<usize>,
 }
 
@@ -148,7 +147,7 @@ fn readmem(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = ReadmemArgs::from_iter_safe(subargs)?;
+    let subargs = ReadmemArgs::try_parse_from(subargs)?;
     let max = humility::core::CORE_MAX_READSIZE;
     let size = if subargs.word || subargs.symbol {
         4
@@ -229,7 +228,7 @@ fn readmem(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "readmem",
@@ -238,6 +237,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::None,
             run: readmem,
         },
-        ReadmemArgs::clap(),
+        ReadmemArgs::into_app(),
     )
 }

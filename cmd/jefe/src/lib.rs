@@ -82,41 +82,40 @@
 //!
 
 use anyhow::{anyhow, bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::jefe::{send_request, JefeRequest};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::num::NonZeroU32;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "jefe", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "jefe", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct JefeArgs {
     /// sets timeout
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// fault the specified task
-    #[structopt(long, short, conflicts_with_all = &["start", "release", "hold"])]
+    #[clap(long, short, conflicts_with_all = &["start", "release", "hold"])]
     fault: bool,
 
     /// start the specified task
-    #[structopt(long, short, conflicts_with_all = &["release", "hold"])]
+    #[clap(long, short, conflicts_with_all = &["release", "hold"])]
     start: bool,
 
     /// hold the specified task
-    #[structopt(long, short, conflicts_with = "release")]
+    #[clap(long, short, conflicts_with = "release")]
     hold: bool,
 
     /// release the specified task
-    #[structopt(long, short)]
+    #[clap(long, short)]
     release: bool,
 
     task: String,
@@ -128,7 +127,7 @@ fn jefe(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = JefeArgs::from_iter_safe(subargs)?;
+    let subargs = JefeArgs::try_parse_from(subargs)?;
 
     let request = if subargs.fault {
         JefeRequest::Fault
@@ -166,7 +165,7 @@ fn jefe(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "jefe",
@@ -175,6 +174,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: jefe,
         },
-        JefeArgs::clap(),
+        JefeArgs::into_app(),
     )
 }

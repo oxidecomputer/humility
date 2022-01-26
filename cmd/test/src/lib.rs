@@ -108,6 +108,7 @@
 //!
 
 use anyhow::{bail, Context, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::test::*;
@@ -116,17 +117,15 @@ use humility_cortex::itm::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::time::Instant;
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "test", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "test", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TestArgs {
     /// dump full report even on success
-    #[structopt(long, short)]
+    #[clap(long, short)]
     dumpalways: bool,
     /// sets the output file
-    #[structopt(long, short, value_name = "filename")]
+    #[clap(long, short, value_name = "filename")]
     output: Option<String>,
 }
 
@@ -288,7 +287,7 @@ fn test(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = TestArgs::from_iter_safe(subargs)?;
+    let subargs = TestArgs::try_parse_from(subargs)?;
 
     hubris.validate(core, HubrisValidate::Booted)?;
 
@@ -299,7 +298,7 @@ fn test(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "test",
@@ -308,6 +307,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: test,
         },
-        TestArgs::clap(),
+        TestArgs::into_app(),
     )
 }

@@ -12,8 +12,8 @@ use std::io::Read;
 use std::time::Instant;
 
 use anyhow::{bail, Result};
+use clap::{App, ArgGroup, IntoApp, Parser};
 use hif::*;
-use structopt::{clap::App, clap::ArgGroup, StructOpt};
 
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -21,29 +21,29 @@ use indicatif::{ProgressBar, ProgressStyle};
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(
+#[derive(Parser, Debug)]
+#[clap(
     name = "qspi", about = env!("CARGO_PKG_DESCRIPTION"),
-    group = ArgGroup::with_name("command").multiple(false)
+    group = ArgGroup::new("command").multiple(false)
 )]
 struct QspiArgs {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// pull status string
-    #[structopt(long, short, group = "command")]
+    #[clap(long, short, group = "command")]
     status: bool,
 
     /// pull identifier
-    #[structopt(long, short, group = "command")]
+    #[clap(long, short, group = "command")]
     id: bool,
 
     /// perform a sector erase
-    #[structopt(
+    #[clap(
         long, short,
         group = "command",
         requires_all = &["addr"]
@@ -51,29 +51,29 @@ struct QspiArgs {
     erase: bool,
 
     /// perform a bulk erase
-    #[structopt(long, short = "E", group = "command")]
+    #[clap(long, short = 'E', group = "command")]
     bulkerase: bool,
 
     /// perform a read
-    #[structopt(
+    #[clap(
         long, short, group = "command", requires_all = &["addr", "nbytes"]
     )]
     read: bool,
 
     /// specify flash address in bytes
-    #[structopt(long, short, value_name = "address",
+    #[clap(long, short, value_name = "address",
         parse(try_from_str = parse_int::parse),
     )]
     addr: Option<usize>,
 
     /// specify size in bytes
-    #[structopt(long, short, value_name = "nbytes",
+    #[clap(long, short, value_name = "nbytes",
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<usize>,
 
     /// comma-separated bytes to write
-    #[structopt(
+    #[clap(
         long,
         short,
         value_name = "bytes",
@@ -83,11 +83,11 @@ struct QspiArgs {
     write: Option<String>,
 
     /// file to write or verify
-    #[structopt(long, short = "W", value_name = "filename", group = "command")]
+    #[clap(long, short = 'W', value_name = "filename", group = "command")]
     writefile: Option<String>,
 
     /// verify instead of writing
-    #[structopt(long, short = "V", requires = "writefile")]
+    #[clap(long, short = 'V', requires = "writefile")]
     verify: bool,
 }
 
@@ -97,7 +97,7 @@ fn qspi(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = QspiArgs::from_iter_safe(subargs)?;
+    let subargs = QspiArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
@@ -327,7 +327,7 @@ fn qspi(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "qspi",
@@ -336,6 +336,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: qspi,
         },
-        QspiArgs::clap(),
+        QspiArgs::into_app(),
     )
 }

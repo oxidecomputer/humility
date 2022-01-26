@@ -10,18 +10,15 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, AppSettings, IntoApp, Parser};
 use humility::hubris::{HubrisArchive, HubrisPrintFormat};
 use humility_cmd::{Archive, Args, Command};
 use std::convert::TryInto;
-use structopt::clap::{App, AppSettings};
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "apptable", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "apptable", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ApptableArgs {
-    #[structopt(
-        help = "path to kernel ELF object (in lieu of Hubris archive)"
-    )]
+    #[clap(help = "path to kernel ELF object (in lieu of Hubris archive)")]
     kernel: Option<String>,
 }
 
@@ -31,7 +28,7 @@ fn apptablecmd(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = ApptableArgs::from_iter_safe(subargs)?;
+    let subargs = ApptableArgs::try_parse_from(subargs)?;
 
     if !hubris.loaded() {
         if let Some(ref kernel) = subargs.kernel {
@@ -155,13 +152,13 @@ fn apptablecmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Unattached {
             name: "apptable",
             archive: Archive::Optional,
             run: apptablecmd,
         },
-        ApptableArgs::clap().setting(AppSettings::Hidden),
+        ApptableArgs::into_app().setting(AppSettings::Hidden),
     )
 }

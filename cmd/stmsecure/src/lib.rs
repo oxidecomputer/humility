@@ -28,12 +28,11 @@
 //! ```
 
 use anyhow::{anyhow, Result};
+use clap::{App, IntoApp, Parser};
 use humility::arch::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -51,8 +50,8 @@ const FLASH_OPTSR_PRG: u32 = 0x5200_2020;
 const FLASH_SCAR_CUR1: u32 = 0x5200_2030;
 const FLASH_SCAR_PRG1: u32 = 0x5200_2034;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "stmsecure", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "stmsecure", about = env!("CARGO_PKG_DESCRIPTION"))]
 enum StmSecureArgs {
     /// Show status about secure region settings
     Status,
@@ -71,11 +70,11 @@ enum StmSecureArgs {
     /// region before this is programmed otherwise you will brick the device
     /// !!!
     SetSecureRegion {
-        #[structopt(parse(try_from_str = parse_int::parse))]
+        #[clap(parse(try_from_str = parse_int::parse))]
         address: u32,
-        #[structopt(parse(try_from_str = parse_int::parse))]
+        #[clap(parse(try_from_str = parse_int::parse))]
         size: u32,
-        #[structopt(long)]
+        #[clap(long)]
         doit: bool,
     },
     /// Unset the secure region. Read out protection must be enabled.
@@ -301,7 +300,7 @@ fn stmsecure(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = StmSecureArgs::from_iter_safe(subargs)?;
+    let subargs = StmSecureArgs::try_parse_from(subargs)?;
 
     match subargs {
         StmSecureArgs::Status => stmsecure_status(core),
@@ -317,7 +316,7 @@ fn stmsecure(
     }
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "stmsecure",
@@ -326,6 +325,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::None,
             run: stmsecure,
         },
-        StmSecureArgs::clap(),
+        StmSecureArgs::into_app(),
     )
 }

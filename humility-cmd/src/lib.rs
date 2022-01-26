@@ -11,22 +11,22 @@ pub mod reflect;
 pub mod test;
 
 use anyhow::{bail, Result};
+use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt)]
-#[structopt(name = "humility", max_term_width = 80)]
+#[derive(Parser)]
+#[clap(name = "humility", max_term_width = 80)]
 pub struct Args {
     /// verbose messages
-    #[structopt(long, short)]
+    #[clap(long, short)]
     pub verbose: bool,
 
     /// specific chip on attached device
-    #[structopt(
+    #[clap(
         long,
         short,
         env = "HUMILITY_CHIP",
@@ -35,24 +35,24 @@ pub struct Args {
     pub chip: String,
 
     /// chip probe to use
-    #[structopt(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
+    #[clap(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
     pub probe: Option<String>,
 
     /// Hubris archive
-    #[structopt(long, short, env = "HUMILITY_ARCHIVE")]
+    #[clap(long, short, env = "HUMILITY_ARCHIVE")]
     pub archive: Option<String>,
 
     /// Hubris dump
-    #[structopt(long, short, env = "HUMILITY_DUMP")]
+    #[clap(long, short, env = "HUMILITY_DUMP")]
     pub dump: Option<String>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub cmd: Subcommand,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 pub enum Subcommand {
-    #[structopt(external_subcommand)]
+    #[clap(external_subcommand)]
     Other(Vec<String>),
 }
 

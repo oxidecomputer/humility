@@ -62,14 +62,13 @@
 //! we can see from the `map` output has been sized to only 256 bytes.)
 
 use anyhow::Result;
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct MapArgs {}
 
 fn mapcmd(
@@ -113,7 +112,7 @@ fn mapcmd(
 }
 
 /// This is some init right here
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "map",
@@ -122,6 +121,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: mapcmd,
         },
-        MapArgs::clap(),
+        MapArgs::into_app(),
     )
 }

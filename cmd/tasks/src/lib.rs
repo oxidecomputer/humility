@@ -112,6 +112,7 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::arch::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
@@ -120,30 +121,28 @@ use humility_cmd::reflect::{self, Format, Load};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use num_traits::FromPrimitive;
 use std::collections::HashMap;
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TasksArgs {
     /// show registers
-    #[structopt(long, short)]
+    #[clap(long, short)]
     registers: bool,
 
     /// show stack backtrace
-    #[structopt(long, short)]
+    #[clap(long, short)]
     stack: bool,
 
     /// show line number information with stack backtrace
-    #[structopt(long, short, requires = "stack")]
+    #[clap(long, short, requires = "stack")]
     line: bool,
 
     /// spin pulling tasks
-    #[structopt(long, short = "S")]
+    #[clap(long, short = 'S')]
     spin: bool,
 
     /// verbose task output
-    #[structopt(long, short)]
+    #[clap(long, short)]
     verbose: bool,
 
     /// single task to display
@@ -238,7 +237,7 @@ fn tasks(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = TasksArgs::from_iter_safe(subargs)?;
+    let subargs = TasksArgs::try_parse_from(subargs)?;
 
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let task_count =
@@ -641,7 +640,7 @@ fn explain_recv(
     }
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "tasks",
@@ -650,6 +649,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: tasks,
         },
-        TasksArgs::clap(),
+        TasksArgs::into_app(),
     )
 }

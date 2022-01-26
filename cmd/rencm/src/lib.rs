@@ -17,13 +17,12 @@ use humility_cmd::{attach, Archive, Args, Attach, Command, Dumper, Validate};
 use itertools::Itertools;
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
 use idt8a3xxxx::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 use serde_derive::Deserialize;
 use serde_xml_rs::from_str;
@@ -31,65 +30,60 @@ use serde_xml_rs::from_str;
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "rencm", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "rencm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RencmArgs {
     /// sets timeout
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// verbose output
-    #[structopt(long, short)]
+    #[clap(long, short)]
     verbose: bool,
 
     /// specifies an I2C bus by name
-    #[structopt(long, short, value_name = "bus",
+    #[clap(long, short, value_name = "bus",
         conflicts_with_all = &["port", "controller"]
     )]
     bus: Option<String>,
 
     /// specifies an I2C controller
-    #[structopt(long, short, value_name = "controller",
+    #[clap(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
     controller: Option<u8>,
 
     /// specifies an I2C controller port
-    #[structopt(long, short, value_name = "port")]
+    #[clap(long, short, value_name = "port")]
     port: Option<String>,
 
     /// specifies I2C multiplexer and segment
-    #[structopt(long, short, value_name = "mux:segment")]
+    #[clap(long, short, value_name = "mux:segment")]
     mux: Option<String>,
 
     /// scans all registers
-    #[structopt(long, short, conflicts_with_all = &[ "register", "module" ])]
+    #[clap(long, short, conflicts_with_all = &[ "register", "module" ])]
     scan: bool,
 
     /// specifies register(s) to read
-    #[structopt(
-        long,
-        short,
-        value_name = "register",
-        conflicts_with = "module"
-    )]
+    #[clap(long, short, value_name = "register", conflicts_with = "module")]
     register: Option<Vec<String>>,
 
     /// specifies module(s) to read
-    #[structopt(long, short = "M", value_name = "module")]
+    #[clap(long, short = 'M', value_name = "module")]
     module: Option<Vec<String>>,
 
     /// specifies an I2C device address
-    #[structopt(long, short = "d", value_name = "address")]
+    #[clap(long, short = 'd', value_name = "address")]
     device: Option<String>,
 
     /// ingest an Aardvark data file or Saleae trace
-    #[structopt(
+    #[clap(
         long,
-        short = "i",
+        short = 'i',
         value_name = "filename",
         conflicts_with_all = &[
             "register", "module", "scan", "bus",
@@ -98,7 +92,7 @@ struct RencmArgs {
     ingest: Option<String>,
 
     /// Generage a Rust payload definition to the specified file
-    #[structopt(long, short)]
+    #[clap(long, short)]
     generate: bool,
 }
 
@@ -799,7 +793,7 @@ fn rencm(
     args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = RencmArgs::from_iter_safe(subargs)?;
+    let subargs = RencmArgs::try_parse_from(subargs)?;
     let modules = modules();
 
     if subargs.ingest.is_some() {
@@ -811,13 +805,13 @@ fn rencm(
     })
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Unattached {
             name: "rencm",
             archive: Archive::Optional,
             run: rencm,
         },
-        RencmArgs::clap(),
+        RencmArgs::into_app(),
     )
 }

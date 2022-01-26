@@ -9,57 +9,56 @@ use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "renbb", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "renbb", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RenbbArgs {
     /// sets timeout
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// specifies an I2C bus by name
-    #[structopt(long, short, value_name = "bus",
+    #[clap(long, short, value_name = "bus",
         conflicts_with_all = &["port", "controller"]
     )]
     bus: Option<String>,
 
     /// specifies an I2C controller
-    #[structopt(long, short, value_name = "controller",
+    #[clap(long, short, value_name = "controller",
         parse(try_from_str = parse_int::parse),
     )]
     controller: Option<u8>,
 
     /// specifies an I2C controller port
-    #[structopt(long, short, value_name = "port")]
+    #[clap(long, short, value_name = "port")]
     port: Option<String>,
 
     /// specifies I2C multiplexer and segment
-    #[structopt(long, short, value_name = "mux:segment")]
+    #[clap(long, short, value_name = "mux:segment")]
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short = "d", value_name = "address")]
+    #[clap(long, short = 'd', value_name = "address")]
     device: Option<String>,
 
     /// specifies a device by rail name
-    #[structopt(long, short = "r", value_name = "rail")]
+    #[clap(long, short = 'r', value_name = "rail")]
     rail: Option<String>,
 
     /// dump all device memory
-    #[structopt(long, short = "D")]
+    #[clap(long, short = 'D')]
     dump: bool,
 }
 
@@ -86,7 +85,7 @@ fn renbb(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = RenbbArgs::from_iter_safe(subargs)?;
+    let subargs = RenbbArgs::try_parse_from(subargs)?;
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
@@ -282,7 +281,7 @@ fn renbb(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "renbb",
@@ -291,6 +290,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: renbb,
         },
-        RenbbArgs::clap(),
+        RenbbArgs::into_app(),
     )
 }

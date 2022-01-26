@@ -41,13 +41,12 @@
 //! `humility manifest` can operate on either an archive or on a dump.
 
 use anyhow::Result;
+use clap::{App, IntoApp, Parser};
 use humility::hubris::HubrisArchive;
 use humility_cmd::{Archive, Args, Command};
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "manifest", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "manifest", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ManifestArgs {}
 
 fn manifestcmd(
@@ -59,13 +58,13 @@ fn manifestcmd(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Unattached {
             name: "manifest",
             archive: Archive::Required,
             run: manifestcmd,
         },
-        ManifestArgs::clap(),
+        ManifestArgs::into_app(),
     )
 }

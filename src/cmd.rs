@@ -3,15 +3,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Context, Result};
+use clap::App;
 use humility::hubris::*;
 use humility_cmd::Args;
 use humility_cmd::{Archive, Command};
 use std::collections::HashMap;
-use structopt::clap::App;
 
-pub fn init<'a, 'b>(
-    app: App<'a, 'b>,
-) -> (HashMap<&'static str, Command>, App<'a, 'b>) {
+pub fn init(
+    app: App<'static>,
+) -> (HashMap<&'static str, Command>, App<'static>) {
     let mut cmds = HashMap::new();
     let mut rval = app;
 
