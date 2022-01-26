@@ -3,17 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
+use clap::Parser;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
 use std::process::Command;
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
-#[structopt(
-    max_term_width = 80,
-    about = "extra tasks to help you work on Hubris"
-)]
+#[derive(Debug, Parser)]
+#[clap(max_term_width = 80, about = "extra tasks to help you work on Hubris")]
 enum Xtask {
     /// Compiles readme
     Readme,
@@ -126,7 +123,7 @@ fn make_readme() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let xtask = Xtask::from_args();
+    let xtask = Xtask::parse();
 
     match xtask {
         Xtask::Readme => {

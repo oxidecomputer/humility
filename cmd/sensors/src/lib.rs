@@ -18,6 +18,9 @@
 //! all thermal sensors from either device).
 
 use anyhow::{bail, Context, Result};
+use clap::App;
+use clap::IntoApp;
+use clap::Parser;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
@@ -27,33 +30,31 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::collections::HashSet;
 use std::thread;
 use std::time::Duration;
-use structopt::clap::App;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SensorsArgs {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// list all sensors
-    #[structopt(long, short)]
+    #[clap(long, short)]
     list: bool,
 
     /// summarize sensors
-    #[structopt(long, short, conflicts_with = "list")]
+    #[clap(long, short, conflicts_with = "list")]
     summarize: bool,
 
     /// restrict sensors by type of sensor
-    #[structopt(long, short, value_name = "sensor type", use_delimiter = true)]
+    #[clap(long, short, value_name = "sensor type", use_delimiter = true)]
     types: Option<Vec<String>>,
 
     /// restrict sensors by device
-    #[structopt(long, short, value_name = "device", use_delimiter = true)]
+    #[clap(long, short, value_name = "device", use_delimiter = true)]
     devices: Option<Vec<String>>,
 }
 
@@ -195,7 +196,7 @@ fn sensors(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = SensorsArgs::from_iter_safe(subargs)?;
+    let subargs = SensorsArgs::try_parse_from(subargs)?;
 
     let types = if let Some(types) = subargs.types {
         let mut rval = HashSet::new();
@@ -255,7 +256,7 @@ fn sensors(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "sensors",
@@ -264,6 +265,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: sensors,
         },
-        SensorsArgs::clap(),
+        SensorsArgs::into_app(),
     )
 }

@@ -4,7 +4,9 @@
 
 use humility_cmd::{Args, Subcommand};
 
-use structopt::StructOpt;
+use clap::FromArgMatches;
+use clap::IntoApp;
+use clap::Parser;
 
 mod cmd;
 
@@ -83,16 +85,16 @@ fn main() {
      * external_subcommand to directive to allow our subcommand to do any
      * parsing on its own.
      */
-    let (commands, clap) = cmd::init(Args::clap());
+    let (commands, clap) = cmd::init(Args::into_app());
 
     let m = clap.get_matches();
-    let _args = Args::from_clap(&m);
+    let _args = Args::from_arg_matches(&m);
 
     /*
      * If we're here, we know that our arguments pass muster from the
      * Structopt/ Clap perspective.
      */
-    let mut args = Args::from_args();
+    let mut args = Args::parse();
 
     if args.verbose {
         HumilityLog { level: log::LevelFilter::Trace }.enable();

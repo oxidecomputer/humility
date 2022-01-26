@@ -33,6 +33,7 @@
 //!
 
 use anyhow::{bail, Context, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
@@ -45,45 +46,43 @@ use humility_cortex::tpiu::*;
 use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
 const ITM_TRACEID_MAX: u8 = 0x7f;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "itm", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "itm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ItmArgs {
     /// probe for ITM capability on attached device
-    #[structopt(
+    #[clap(
         long, short, conflicts_with_all = &["enable", "disable", "ingest"]
     )]
     probe: bool,
     /// enable ITM on attached device
-    #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
+    #[clap(long, short, conflicts_with_all = &["disable", "ingest"])]
     enable: bool,
     /// disable ITM on attached device
-    #[structopt(long, short)]
+    #[clap(long, short)]
     disable: bool,
     /// sets ITM trace identifier
-    #[structopt(
+    #[clap(
         long, short, default_value = "0x3a", value_name = "identifier",
         parse(try_from_str = parse_int::parse)
     )]
     traceid: u8,
     /// ingest ITM data as CSV
-    #[structopt(long, short, value_name = "filename")]
+    #[clap(long, short, value_name = "filename")]
     ingest: Option<String>,
     /// ingest directly from attached device
-    #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
+    #[clap(long, short, conflicts_with_all = &["disable", "ingest"])]
     attach: bool,
     /// assume bypassed TPIU in ingested file
-    #[structopt(long, short, requires = "ingest")]
+    #[clap(long, short, requires = "ingest")]
     bypass: bool,
     /// sets the value of SWOSCALER
-    #[structopt(long, short, value_name = "scaler", requires = "enable",
+    #[clap(long, short, value_name = "scaler", requires = "enable",
         parse(try_from_str = parse_int::parse),
     )]
     clockscaler: Option<u16>,
@@ -250,7 +249,7 @@ fn itmcmd(
     args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = &ItmArgs::from_iter_safe(subargs)?;
+    let subargs = &ItmArgs::try_parse_from(subargs)?;
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -337,13 +336,13 @@ fn itmcmd(
     rval
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Unattached {
             name: "itm",
             archive: Archive::Optional,
             run: itmcmd,
         },
-        ItmArgs::clap(),
+        ItmArgs::into_app(),
     )
 }

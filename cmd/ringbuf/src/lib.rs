@@ -33,25 +33,24 @@
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::doppel::{Ringbuf, StaticCell};
 use humility_cmd::reflect::{self, Format, Load, Value};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RingbufArgs {
     /// list variables
-    #[structopt(long, short)]
+    #[clap(long, short)]
     list: bool,
     /// print only a single ringbuffer by name
-    #[structopt(conflicts_with = "list")]
+    #[clap(conflicts_with = "list")]
     variable: Option<String>,
 }
 
@@ -126,7 +125,7 @@ fn ringbuf(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = RingbufArgs::from_iter_safe(subargs)?;
+    let subargs = RingbufArgs::try_parse_from(subargs)?;
 
     let mut ringbufs = vec![];
 
@@ -181,7 +180,7 @@ fn ringbuf(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "ringbuf",
@@ -190,6 +189,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Match,
             run: ringbuf,
         },
-        RingbufArgs::clap(),
+        RingbufArgs::into_app(),
     )
 }

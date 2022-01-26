@@ -92,13 +92,12 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
 use std::collections::HashMap;
 use std::fs;
@@ -112,11 +111,11 @@ use indicatif::{ProgressBar, ProgressStyle};
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug, Default)]
-#[structopt(name = "i2c", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug, Default)]
+#[clap(name = "i2c", about = env!("CARGO_PKG_DESCRIPTION"))]
 pub struct I2cArgs {
     /// sets timeout
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
@@ -124,75 +123,75 @@ pub struct I2cArgs {
 
     /// scan a controller for devices (by performing a raw read) or a device
     /// for registers (by doing a write followed by a read)
-    #[structopt(long, short, conflicts_with = "register")]
+    #[clap(long, short, conflicts_with = "register")]
     scan: bool,
 
     /// scan a controller for devices at a particular register, which may
     /// have side-effects on unsporting devices
-    #[structopt(long, short = "S", value_name = "register",
+    #[clap(long, short = 'S', value_name = "register",
         conflicts_with_all = &["scan", "register", "device"],
         parse(try_from_str = parse_int::parse),
     )]
     scanreg: Option<u8>,
 
     /// specifies an I2C bus by name
-    #[structopt(long, short, value_name = "bus",
+    #[clap(long, short, value_name = "bus",
         conflicts_with_all = &["port", "controller"]
     )]
     bus: Option<String>,
 
     /// specifies an I2C controller
-    #[structopt(long, short, value_name = "controller")]
+    #[clap(long, short, value_name = "controller")]
     controller: Option<u8>,
 
     /// specifies an I2C controller port
-    #[structopt(long, short, value_name = "port")]
+    #[clap(long, short, value_name = "port")]
     port: Option<String>,
 
     /// specifies I2C multiplexer and segment
-    #[structopt(long, short, value_name = "mux:segment")]
+    #[clap(long, short, value_name = "mux:segment")]
     mux: Option<String>,
 
     /// specifies an I2C device address
-    #[structopt(long, short, value_name = "address")]
+    #[clap(long, short, value_name = "address")]
     device: Option<String>,
 
     /// specifies register
-    #[structopt(long, short, value_name = "register",
+    #[clap(long, short, value_name = "register",
         parse(try_from_str = parse_int::parse),
     )]
     register: Option<u8>,
 
     /// indicates a raw operation
-    #[structopt(long, short = "R", conflicts_with = "register")]
+    #[clap(long, short = 'R', conflicts_with = "register")]
     raw: bool,
 
     /// read block
-    #[structopt(long, short = "B", conflicts_with_all = &["write", "nbytes"])]
+    #[clap(long, short = 'B', conflicts_with_all = &["write", "nbytes"])]
     block: bool,
 
     /// specifies write value
-    #[structopt(long, short, value_name = "bytes")]
+    #[clap(long, short, value_name = "bytes")]
     write: Option<String>,
 
     /// perform a zero-byte write to the specified register
-    #[structopt(
+    #[clap(
         long,
-        short = "W",
+        short = 'W',
         conflicts_with_all = &["write", "raw", "nbytes"],
         requires = "register"
     )]
     writeraw: bool,
 
     /// number of bytes to read from (or write to) register
-    #[structopt(long, short, value_name = "nbytes",
+    #[clap(long, short, value_name = "nbytes",
         conflicts_with = "write",
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<u8>,
 
     /// flash the specified file, assuming two byte addressing
-    #[structopt(long, short,
+    #[clap(long, short,
         conflicts_with_all = &[
             "write", "raw", "nbytes", "read", "writeall", "register", "scan",
             "writeraw"
@@ -438,7 +437,7 @@ fn i2c(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = I2cArgs::from_iter_safe(subargs)?;
+    let subargs = I2cArgs::try_parse_from(subargs)?;
 
     if !subargs.scan
         && subargs.scanreg.is_none()
@@ -722,7 +721,7 @@ fn i2c(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "i2c",
@@ -731,6 +730,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: i2c,
         },
-        I2cArgs::clap(),
+        I2cArgs::into_app(),
     )
 }

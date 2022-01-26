@@ -43,50 +43,51 @@
 
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Result};
+use clap::App;
+use clap::IntoApp;
+use clap::Parser;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct HiffyArgs {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// verbose
-    #[structopt(long, short)]
+    #[clap(long, short)]
     verbose: bool,
 
     /// list HIF functions
-    #[structopt(long = "list-functions", short = "L")]
+    #[clap(long = "list-functions", short = 'L')]
     listfuncs: bool,
 
     /// list interfaces
-    #[structopt(long, short, conflicts_with = "listfuncs")]
+    #[clap(long, short, conflicts_with = "listfuncs")]
     list: bool,
 
     /// call a particular function
-    #[structopt(long, short, conflicts_with_all = &["list", "listfuncs"])]
+    #[clap(long, short, conflicts_with_all = &["list", "listfuncs"])]
     call: Option<String>,
 
     /// arguments
-    #[structopt(long, short, requires = "call")]
+    #[clap(long, short, requires = "call")]
     task: Option<String>,
 
     /// arguments
-    #[structopt(long, short, requires = "call", use_delimiter = true)]
+    #[clap(long, short, requires = "call", use_delimiter = true)]
     arguments: Vec<String>,
 }
 
@@ -204,7 +205,7 @@ fn hiffy(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = HiffyArgs::from_iter_safe(subargs)?;
+    let subargs = HiffyArgs::try_parse_from(subargs)?;
 
     if subargs.list {
         hiffy_list(hubris, &subargs)?;
@@ -283,7 +284,7 @@ fn hiffy(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "hiffy",
@@ -292,6 +293,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: hiffy,
         },
-        HiffyArgs::clap(),
+        HiffyArgs::into_app(),
     )
 }

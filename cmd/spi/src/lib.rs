@@ -11,62 +11,61 @@ use std::convert::TryInto;
 use std::str;
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "spi", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "spi", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SpiArgs {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// SPI peripheral on which to operate
-    #[structopt(long, short, value_name = "peripheral")]
+    #[clap(long, short, value_name = "peripheral")]
     peripheral: Option<u8>,
 
     /// comma-separated bytes to write
-    #[structopt(long, short, value_name = "bytes")]
+    #[clap(long, short, value_name = "bytes")]
     write: Option<String>,
 
     /// perform a read
-    #[structopt(long, short, requires = "nbytes")]
+    #[clap(long, short, requires = "nbytes")]
     read: bool,
 
     /// specify number of bytes to read
-    #[structopt(long, short, value_name = "nbytes",
+    #[clap(long, short, value_name = "nbytes",
         parse(try_from_str = parse_int::parse),
     )]
     nbytes: Option<usize>,
 
     /// print out data read as words rather than bytes
-    #[structopt(long, short = "W", requires = "read")]
+    #[clap(long, short = 'W', requires = "read")]
     word: bool,
 
     /// interpret the specified number of trailing bytes on a write as a
     /// bigendian address
-    #[structopt(
-        long, short = "A", requires_all = &["read", "write", "discard"]
+    #[clap(
+        long, short = 'A', requires_all = &["read", "write", "discard"]
     )]
     bigendian_address: Option<usize>,
 
     /// interpret the specified number of trailing bytes on a write as a
     /// bigendian address
-    #[structopt(
-        long, short = "a", requires_all = &["read", "write", "discard"],
+    #[clap(
+        long, short = 'a', requires_all = &["read", "write", "discard"],
         conflicts_with = "bigendian_address"
     )]
     littleendian_address: Option<usize>,
 
     /// number of bytes to discard when printing read result
-    #[structopt(long, short, value_name = "nbytes", requires = "read")]
+    #[clap(long, short, value_name = "nbytes", requires = "read")]
     discard: Option<usize>,
 }
 
@@ -134,7 +133,7 @@ fn spi(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = SpiArgs::from_iter_safe(subargs)?;
+    let subargs = SpiArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
@@ -261,7 +260,7 @@ fn spi(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "spi",
@@ -270,6 +269,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: spi,
         },
-        SpiArgs::clap(),
+        SpiArgs::into_app(),
     )
 }

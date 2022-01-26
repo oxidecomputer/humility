@@ -9,62 +9,58 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use hif::*;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 use std::convert::TryInto;
 
-#[derive(StructOpt, Debug)]
-#[structopt(
-    name = "lpc55gpio",
-    about = "GPIO pin manipulation (lpc55 variant)"
-)]
+#[derive(Parser, Debug)]
+#[clap(name = "lpc55gpio", about = "GPIO pin manipulation (lpc55 variant)")]
 struct GpioArgs {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// toggle specified pins
-    #[structopt(
+    #[clap(
         long, short,
         conflicts_with_all = &["toggle", "set", "reset", "configure"]
     )]
     input: bool,
 
     /// toggle specified pins
-    #[structopt(
+    #[clap(
         long, short, requires = "pins",
         conflicts_with_all = &["set", "reset", "configure"]
     )]
     toggle: bool,
 
     /// sets specified pins
-    #[structopt(
+    #[clap(
         long, short, requires = "pins",
         conflicts_with_all = &["reset", "configure"]
     )]
     set: bool,
 
     /// resets specified pins
-    #[structopt(
+    #[clap(
         long, short, requires = "pins",
          conflicts_with_all = &["configure"])]
     reset: bool,
 
     /// configures specified pins
-    #[structopt(long, short, requires = "pins")]
+    #[clap(long, short, requires = "pins")]
     configure: Option<String>,
 
     /// configures specified pins
-    #[structopt(long, short, requires = "pins")]
+    #[clap(long, short, requires = "pins")]
     direction: Option<String>,
 
     /// specifies GPIO pins on which to operate
-    #[structopt(long, short, value_name = "pins")]
+    #[clap(long, short, value_name = "pins")]
     pins: Option<Vec<String>>,
 }
 
@@ -74,7 +70,7 @@ fn gpio(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = GpioArgs::from_iter_safe(subargs)?;
+    let subargs = GpioArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
@@ -219,7 +215,7 @@ fn gpio(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "lpc55gpio",
@@ -228,6 +224,6 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: gpio,
         },
-        GpioArgs::clap(),
+        GpioArgs::into_app(),
     )
 }

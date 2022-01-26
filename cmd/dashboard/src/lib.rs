@@ -13,6 +13,7 @@
 //!
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -31,8 +32,6 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::time::{Duration, Instant};
-use structopt::clap::App;
-use structopt::StructOpt;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout, Rect},
@@ -45,18 +44,18 @@ use tui::{
     Frame, Terminal,
 };
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "dashboard", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "dashboard", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DashboardArgs {
     /// sets timeout
-    #[structopt(
-        long, short = "T", default_value = "5000", value_name = "timeout_ms",
+    #[clap(
+        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// CSV output file
-    #[structopt(long, short)]
+    #[clap(long, short)]
     output: Option<String>,
 }
 
@@ -665,7 +664,7 @@ fn dashboard(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = DashboardArgs::from_iter_safe(subargs)?;
+    let subargs = DashboardArgs::try_parse_from(subargs)?;
     let dashboard = Dashboard::new(hubris, core, &subargs)?;
 
     // setup terminal
@@ -691,7 +690,7 @@ fn dashboard(
     Ok(())
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "dashboard",
@@ -700,7 +699,7 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: dashboard,
         },
-        DashboardArgs::clap(),
+        DashboardArgs::into_app(),
     )
 }
 

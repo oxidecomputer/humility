@@ -15,6 +15,7 @@
 //! at the OS level, like faults.
 
 use anyhow::{bail, Result};
+use clap::{App, IntoApp, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
@@ -23,11 +24,9 @@ use humility_cmd::reflect;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::num::NonZeroU32;
 use std::time::Duration;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 /// Command registration.
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Attached {
             name: "diagnose",
@@ -36,26 +35,26 @@ pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
             validate: Validate::Booted,
             run: diagnose,
         },
-        DiagnoseArgs::clap(),
+        DiagnoseArgs::into_app(),
     )
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "diagnose", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "diagnose", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DiagnoseArgs {
     /// timeout to wait for interactions with the supervisor task to complete
-    #[structopt(
+    #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// number of milliseconds to sleep trying to catch crashes
-    #[structopt(long, short, default_value = "15", value_name = "ms")]
+    #[clap(long, short, default_value = "15", value_name = "ms")]
     sleep_ms: u64,
 
     /// suppresses automatic coredump generation
-    #[structopt(long, short)]
+    #[clap(long, short)]
     no_dump: bool,
 }
 
@@ -89,7 +88,7 @@ fn diagnose(
     _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = DiagnoseArgs::from_iter_safe(subargs)?;
+    let subargs = DiagnoseArgs::try_parse_from(subargs)?;
 
     section("Initial Inspection");
 

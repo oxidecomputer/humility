@@ -3,6 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
+use clap::App;
+use clap::IntoApp;
+use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
@@ -14,46 +17,44 @@ use humility_cortex::scs::*;
 use humility_cortex::tpiu::*;
 use std::fs::File;
 use std::time::Instant;
-use structopt::clap::App;
-use structopt::StructOpt;
 
 #[macro_use]
 extern crate log;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "etm", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[derive(Parser, Debug)]
+#[clap(name = "etm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct EtmArgs {
     /// probe for ETM capability on attached device
-    #[structopt(
+    #[clap(
         long, short, conflicts_with_all = &["enable", "disable", "ingest"]
     )]
     probe: bool,
     /// enable ETM on attached device
-    #[structopt(long, short, conflicts_with_all = &["disable", "ingest"])]
+    #[clap(long, short, conflicts_with_all = &["disable", "ingest"])]
     enable: bool,
     /// disable ETM on attached device
-    #[structopt(long, short)]
+    #[clap(long, short)]
     disable: bool,
     /// sets ETM trace identifier
-    #[structopt(
+    #[clap(
         long, short, value_name = "identifier",
         default_value = "0x54", parse(try_from_str = parse_int::parse),
     )]
     traceid: u8,
     /// ingest ETM data as CSV
-    #[structopt(long, short, value_name = "filename")]
+    #[clap(long, short, value_name = "filename")]
     ingest: Option<String>,
     /// flowindent ingested data
-    #[structopt(long, short = "F")]
+    #[clap(long, short = 'F')]
     flowindent: bool,
     /// sets the value of SWOSCALER
-    #[structopt(
+    #[clap(
         long, short, value_name = "scaler", requires = "enable",
         parse(try_from_str = parse_int::parse)
     )]
     clockscaler: Option<u16>,
     /// output ETM data as CSV
-    #[structopt(long, short, conflicts_with = "ingest")]
+    #[clap(long, short, conflicts_with = "ingest")]
     output: bool,
 }
 
@@ -562,7 +563,7 @@ fn etmcmd(
     args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let subargs = &EtmArgs::from_iter_safe(subargs)?;
+    let subargs = &EtmArgs::try_parse_from(subargs)?;
     let mut rval = Ok(());
 
     let traceid = subargs.traceid;
@@ -625,13 +626,13 @@ fn etmcmd(
     rval
 }
 
-pub fn init<'a, 'b>() -> (Command, App<'a, 'b>) {
+pub fn init() -> (Command, App<'static>) {
     (
         Command::Unattached {
             name: "etm",
             archive: Archive::Required,
             run: etmcmd,
         },
-        EtmArgs::clap(),
+        EtmArgs::into_app(),
     )
 }

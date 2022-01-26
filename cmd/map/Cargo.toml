@@ -7,5 +7,5 @@ description = "print memory map, with association of regions to tasks"
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
-structopt = "0.3"
+clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }
