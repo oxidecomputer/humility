@@ -231,7 +231,10 @@ pub struct HubrisArchive {
     pub manifest: HubrisManifest,
 
     // app table
-    apptable: (u32, Vec<u8>),
+    apptable: Option<(u32, Vec<u8>)>,
+
+    // image ID
+    imageid: Option<(u32, Vec<u8>)>,
 
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
@@ -336,7 +339,8 @@ impl HubrisArchive {
 
         Ok(Self {
             archive: Vec::new(),
-            apptable: (0, Vec::new()),
+            apptable: None,
+            imageid: None,
             manifest: Default::default(),
             loaded: BTreeMap::new(),
             cs: match cs {
@@ -1839,6 +1843,22 @@ impl HubrisArchive {
 
             let dem = format!("{:#}", demangle(name));
 
+            //
+            // The HUBRIS_IMAGE_ID is a special symbol that denotes an ID
+            // more or less unique to the image.  If we are the kernel and
+            // we encounter this symbol, set our ID.
+            //
+            if task == HubrisTask::Kernel && name == "HUBRIS_IMAGE_ID" {
+                let sec = &elf.section_headers[sym.st_shndx];
+                let offset = sec.sh_offset as u32;
+                let o = ((val - sec.sh_addr as u32) + offset) as usize;
+                let id = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
+                    || anyhow!("bad offset/size for {}: {:?}", name, sym),
+                )?;
+
+                self.imageid = Some((val, id.to_vec()));
+            }
+
             self.esyms_byname
                 .insert(name.to_string(), (val, sym.st_size as u32));
             self.esyms.insert(val, (dem, sym.st_size as u32));
@@ -1896,17 +1916,16 @@ impl HubrisArchive {
                 }
             });
 
-            self.apptable = match apptable {
-                None => {
-                    bail!("kernel is missing .hubris_app_table");
-                }
-                Some(sec) => {
-                    let base = sec.sh_offset as usize;
-                    let len = sec.sh_size as usize;
+            if let Some(sec) = apptable {
+                let base = sec.sh_offset as usize;
+                let len = sec.sh_size as usize;
 
-                    (sec.sh_addr as u32, buffer[base..base + len].to_vec())
-                }
-            };
+                self.apptable = Some((
+                    sec.sh_addr as u32,
+                    buffer[base..base + len].to_vec(),
+                ));
+            } else {
+            }
         }
 
         self.load_object_dwarf(buffer, &elf)
@@ -2516,24 +2535,63 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        let addr = self.apptable.0;
-        let nbytes = self.apptable.1.len();
-        assert!(nbytes > 0);
+        //
+        // To validate that what we're running on the target matches what
+        // we have in the archive, we are going to check the image ID, an
+        // identifer created for this purpose.  If we don't have an image ID,
+        // we check the legacy mechanism of the .hubris_app_table; if we
+        // don't have either of these, we don't have a way of validating the
+        // archive and we fail.
+        //
+        if let Some(imageid) = &self.imageid {
+            let addr = imageid.0;
+            let nbytes = imageid.1.len();
+            assert!(nbytes > 0);
 
-        let mut apptable = vec![0; nbytes];
-        core.read_8(addr, &mut apptable[0..nbytes]).context(format!(
-            "failed to read .hubris_app_table at 0x{:x}; board mismatch?",
-            addr
-        ))?;
+            let mut id = vec![0; nbytes];
+            core.read_8(addr, &mut id[0..nbytes]).context(format!(
+                "failed to read image ID at 0x{:x}; board mismatch?",
+                addr
+            ))?;
 
-        let deltas = apptable
-            .iter()
-            .zip(self.apptable.1.iter())
-            .filter(|&(lhs, rhs)| lhs != rhs)
-            .count();
+            let deltas = id
+                .iter()
+                .zip(imageid.1.iter())
+                .filter(|&(lhs, rhs)| lhs != rhs)
+                .count();
 
-        if deltas > 0 || apptable.len() != self.apptable.1.len() {
-            bail!("apptable at 0x{:x} does not match archive apptable", addr);
+            if deltas > 0 || id.len() != imageid.1.len() {
+                bail!(
+                    "image ID in archive ({:x?}) does not equal \
+                    ID in RAM at 0x{:x} ({:x?})",
+                    imageid.1, imageid.0, id,
+                );
+            }
+        } else if let Some(archive) = &self.apptable {
+            let addr = archive.0;
+            let nbytes = archive.1.len();
+            assert!(nbytes > 0);
+
+            let mut apptable = vec![0; nbytes];
+            core.read_8(addr, &mut apptable[0..nbytes]).context(format!(
+                "failed to read .hubris_app_table at 0x{:x}; board mismatch?",
+                addr
+            ))?;
+
+            let deltas = apptable
+                .iter()
+                .zip(archive.1.iter())
+                .filter(|&(lhs, rhs)| lhs != rhs)
+                .count();
+
+            if deltas > 0 || apptable.len() != archive.1.len() {
+                bail!(
+                    "apptable at 0x{:x} does not match archive apptable",
+                    addr
+                );
+            }
+        } else {
+            bail!("could not find HUBRIS_IMAGE_ID or .hubris_app_table");
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
@@ -3949,8 +4007,11 @@ impl HubrisArchive {
         }
     }
 
-    pub fn apptable(&self) -> &[u8] {
-        &self.apptable.1
+    pub fn apptable(&self) -> Option<&[u8]> {
+        match &self.apptable {
+            None => None,
+            Some(apptable) => Some(&apptable.1),
+        }
     }
 }
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
