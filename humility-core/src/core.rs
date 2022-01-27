@@ -63,7 +63,7 @@ impl ProbeCore {
     ) -> Result<()> {
         let mut core = self.session.core(0)?;
 
-        let halted = if !self.halted && core.core_halted()? {
+        let halted = if !self.halted && !core.core_halted()? {
             core.halt(std::time::Duration::from_millis(1000))?;
             true
         } else {
