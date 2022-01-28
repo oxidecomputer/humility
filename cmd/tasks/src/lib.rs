@@ -214,7 +214,7 @@ fn print_regs(regs: &HashMap<ARMRegister, u32>, additional: bool) {
 
     print!("   |\n   +--->");
 
-    for r in 0..16 {
+    for r in 0..=16 {
         let reg = ARMRegister::from_usize(r).unwrap();
 
         if r != 0 && r % 4 == 0 {
@@ -227,6 +227,8 @@ fn print_regs(regs: &HashMap<ARMRegister, u32>, additional: bool) {
             println!();
         }
     }
+
+    println!();
 }
 
 #[rustfmt::skip::macros(println)]

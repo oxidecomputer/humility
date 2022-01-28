@@ -2926,29 +2926,9 @@ impl HubrisArchive {
 
         const NREGS_CORE: usize = 8;
 
-        //
-        // Not all architectures have floating point -- and ARMv6 never has
-        // it.  (Note that that the stack is always 8-byte aligned; if we have
-        // our 17 floating point registers here, we also have an unstored
-        // pad.)
-        //
-        let (nregs_fp, align) =
-            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
-                (0, 0)
-            } else {
-                (17, 1)
-            };
-
-        let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
-
         let mut stack: Vec<u8> = vec![];
         stack.resize_with(NREGS_CORE * 4, Default::default);
         core.read_8(sp, stack.as_mut_slice())?;
-
-        //
-        // We manually adjust our stack pointer to peel off the entire frame
-        //
-        rval.insert(ARMRegister::SP, sp + (nregs_frame as u32) * 4);
 
         //
         // R0-R3, and then R12, LR and the PSR are found on the stack
@@ -2962,12 +2942,36 @@ impl HubrisArchive {
                 4 => ARMRegister::R12,
                 5 => ARMRegister::LR,
                 6 => ARMRegister::PC,
-                7 => ARMRegister::xPSR,
+                7 => ARMRegister::PSR,
                 _ => panic!("bad register value"),
             };
 
             rval.insert(reg, val);
         }
+
+        //
+        // Not all architectures have floating point -- and ARMv6 never has
+        // it.  (Note that that the FP contents pushed onto the stack is
+        // always 8-byte aligned; if we have our 17 floating point registers
+        // here, we also have an unstored pad.)
+        //
+        let (nregs_fp, align) =
+            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
+                (0, 0)
+            } else {
+                (17, 1)
+            };
+
+        let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
+
+        //
+        // We manually adjust our stack pointer to peel off the entire frame,
+        // plus any needed re-alignment.
+        //
+        let adjust = (nregs_frame as u32) * 4
+            + crate::arch::exception_stack_realign(&rval);
+
+        rval.insert(ARMRegister::SP, sp + adjust);
 
         Ok(rval)
     }
