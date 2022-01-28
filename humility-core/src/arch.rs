@@ -26,7 +26,7 @@ pub enum ARMRegister {
     SP = 0b1101,
     LR = 0b1110,
     PC = 0b1111,
-    xPSR = 0b1_0000,
+    PSR = 0b1_0000,
     MSP = 0b1_0001,
     PSP = 0b1_0010,
     SPR = 0b1_0100,
@@ -165,6 +165,26 @@ pub fn presyscall_pushes(
     rval.reverse();
 
     Ok(rval)
+}
+
+//
+// ARM normally requires the stack to be 8-byte aligned on function entry.
+// However, because exceptions are asynchronous, on exception entry the
+// stack may need to be aligned by the CPU.  If this is needed, bit 9 is
+// set in the PSR to indicate this.  In our system call stubs, we can
+// make our code simpler (and shave a cycle or two) by knowing that the
+// CPU will do this -- but we must be sure to take that into account when
+// unwinding the stack!  (And we know that we will only be off by 4 bytes;
+// if the bit is set, the needed realignment is 4 -- not 1 or 2.)
+//
+pub fn exception_stack_realign(regs: &HashMap<ARMRegister, u32>) -> u32 {
+    if let Some(psr) = regs.get(&ARMRegister::PSR) {
+        if (psr & (1 << 9)) != 0 {
+            return 4;
+        }
+    }
+
+    0
 }
 
 impl std::fmt::Display for ARMRegister {
