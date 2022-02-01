@@ -53,9 +53,6 @@ use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct HiffyArgs {
@@ -126,7 +123,7 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
                 }
             },
             Err(e) => {
-                warn!("{}", e);
+                log::warn!("{}", e);
             }
         }
     };

@@ -16,9 +16,6 @@ use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "renbb", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RenbbArgs {
@@ -209,7 +206,7 @@ fn renbb(
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        info!("dumping device memory to {}", filename);
+        humility::msg!("dumping device memory to {}", filename);
 
         bar.set_style(ProgressStyle::default_bar().template(
             "humility: dumping device memory \

@@ -27,9 +27,6 @@ use std::fs;
 use serde_derive::Deserialize;
 use serde_xml_rs::from_str;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "rencm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RencmArgs {
@@ -255,7 +252,7 @@ fn rencm_attached(
         }
     }
 
-    info!("{} registers found", work.len());
+    humility::msg!("{} registers found", work.len());
 
     let mut ndx = 0;
     let maxops = 1000;
@@ -381,7 +378,7 @@ fn rencm_attached(
                             let job = work[ndx];
 
                             if let Some(write) = job.3 {
-                                info!(
+                                humility::msg!(
                                     "successfully wrote {} to {} at 0x{:x}",
                                     write,
                                     jobname(&job),
@@ -780,7 +777,7 @@ fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
             rencm_dump(Input::Saleae, subargs, &ops, modules)?;
         }
         _ => {
-            info!("not a Saleae trace file; assuming Aardvark input");
+            humility::msg!("not a Saleae trace file; assuming Aardvark input");
             rencm_aardvark(subargs, modules)?;
         }
     }

@@ -15,9 +15,6 @@ use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser)]
 #[clap(name = "humility", max_term_width = 80)]
 pub struct Args {

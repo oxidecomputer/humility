@@ -19,9 +19,6 @@ use pmbus::*;
 use std::collections::HashMap;
 use std::fmt::Write;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "pmbus", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct PmbusArgs {
@@ -1109,9 +1106,14 @@ fn writes(
 
     let success = |harg, rail: &Option<u8>, cmd| {
         if let Some(rnum) = *rail {
-            info!("{}, rail {}: successfully wrote {}", harg, rnum, cmd);
+            humility::msg!(
+                "{}, rail {}: successfully wrote {}",
+                harg,
+                rnum,
+                cmd
+            );
         } else {
-            info!("{}: successfully wrote {}", harg, cmd);
+            humility::msg!("{}: successfully wrote {}", harg, cmd);
         }
     };
 

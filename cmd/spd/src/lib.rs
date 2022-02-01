@@ -13,9 +13,6 @@ use anyhow::{bail, Result};
 use clap::{App, IntoApp, Parser};
 use hif::*;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "spd", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SpdArgs {
@@ -204,7 +201,7 @@ fn spd(
         }
 
         if header {
-            info!("all SPD data is empty");
+            humility::msg!("all SPD data is empty");
         }
 
         return Ok(());

@@ -47,9 +47,6 @@ use std::fs::File;
 use std::io::Read;
 use std::time::Instant;
 
-#[macro_use]
-extern crate log;
-
 const ITM_TRACEID_MAX: u8 = 0x7f;
 
 #[derive(Parser, Debug)]
@@ -89,25 +86,25 @@ struct ItmArgs {
 }
 
 fn itmcmd_probe(core: &mut dyn Core, coreinfo: &CoreInfo) -> Result<()> {
-    info!("{:#x?}", TPIU_ACPR::read(core)?);
-    info!("{:#x?}", TPIU_SPPR::read(core)?);
-    info!("{:#x?}", TPIU_FFCR::read(core)?);
+    humility::msg!("{:#x?}", TPIU_ACPR::read(core)?);
+    humility::msg!("{:#x?}", TPIU_SPPR::read(core)?);
+    humility::msg!("{:#x?}", TPIU_FFCR::read(core)?);
 
-    info!("{:#x?}", ITM_LSR::read(core)?);
-    info!("{:#x?}", ITM_TCR::read(core)?);
-    info!("{:#x?}", ITM_TER::read(core)?);
-    info!("{:#x?}", ITM_TPR::read(core)?);
+    humility::msg!("{:#x?}", ITM_LSR::read(core)?);
+    humility::msg!("{:#x?}", ITM_TCR::read(core)?);
+    humility::msg!("{:#x?}", ITM_TER::read(core)?);
+    humility::msg!("{:#x?}", ITM_TPR::read(core)?);
 
-    info!("{:#x?}", DWT_CTRL::read(core)?);
+    humility::msg!("{:#x?}", DWT_CTRL::read(core)?);
 
-    info!("{:#x?}", DEMCR::read(core)?);
+    humility::msg!("{:#x?}", DEMCR::read(core)?);
 
     match (coreinfo.vendor, coreinfo.part) {
         (Vendor::ST, ARMCore::CortexM4) => {
-            info!("{:#x?}", STM32F4_DBGMCU_CR::read(core)?);
+            humility::msg!("{:#x?}", STM32F4_DBGMCU_CR::read(core)?);
         }
         (Vendor::ST, ARMCore::CortexM7) => {
-            info!("{:#x?}", STM32H7_DBGMCU_CR::read(core)?);
+            humility::msg!("{:#x?}", STM32H7_DBGMCU_CR::read(core)?);
         }
         _ => {}
     }
@@ -135,7 +132,7 @@ fn itmcmd_disable(core: &mut dyn Core) -> Result<()> {
     val.set_trcena(false);
     val.write(core)?;
 
-    info!("ITM disabled");
+    humility::msg!("ITM disabled");
 
     Ok(())
 }
@@ -175,7 +172,7 @@ fn itmcmd_ingest(subargs: &ItmArgs, filename: &str) -> Result<()> {
             )
         }
         Err(_) => {
-            info!("not a Saleae trace file; assuming raw input");
+            humility::msg!("not a Saleae trace file; assuming raw input");
 
             let mut file = File::open(filename)?;
             let mut buffer = [0; 1];
@@ -279,7 +276,7 @@ fn itmcmd(
     let coreinfo = CoreInfo::read(core)?;
 
     let _info = core.halt();
-    info!("core halted");
+    humility::msg!("core halted");
 
     if subargs.probe {
         rval = itmcmd_probe(core, &coreinfo);
@@ -320,7 +317,7 @@ fn itmcmd(
     }
 
     core.run()?;
-    info!("core resumed");
+    humility::msg!("core resumed");
 
     if rval.is_ok() && subargs.attach {
         match itmcmd_ingest_attached(core, &coreinfo, subargs) {

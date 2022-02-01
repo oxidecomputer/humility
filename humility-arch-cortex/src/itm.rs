@@ -339,7 +339,7 @@ pub fn itm_ingest(
                 0 => runlen += 1,
                 0x80 => {
                     if runlen >= 5 {
-                        info!(
+                        humility::msg!(
                             "ITM synchronization packet found at offset {}",
                             packet.offset
                         );
@@ -366,9 +366,10 @@ pub fn itm_ingest(
                             time: packet.time,
                         })?;
 
-                        info!(
+                        humility::msg!(
                             "unrecognized ITM header 0x{:x} at offset {}",
-                            packet.datum, packet.offset
+                            packet.datum,
+                            packet.offset
                         );
 
                         state = IngestState::SyncSearching;
@@ -470,7 +471,7 @@ pub fn itm_enable_explicit(
                  * to be unlocked and enabled.
                  */
                 if cstf.len() > 1 {
-                    trace!("SWTF found at {:x}", cstf[0]);
+                    log::trace!("SWTF found at {:x}", cstf[0]);
                     SWO_LAR::unlock(core, cstf[0])?;
                     let mut swtf = SWTF_CTRL::read(core, cstf[0])?;
                     swtf.register.set_es0(true);
@@ -488,7 +489,7 @@ pub fn itm_enable_explicit(
         /*
          * If we have a SWO unit, configure it instead of the TPIU
          */
-        trace!("SWO found at {:x}", swo);
+        log::trace!("SWO found at {:x}", swo);
 
         SWO_LAR::unlock(core, swo)?;
 
@@ -514,7 +515,7 @@ pub fn itm_enable_explicit(
         let mut acpr = TPIU_ACPR::read(core)?;
         acpr.set_swoscaler(swoscaler);
         acpr.write(core)?;
-        trace!("{:#x?}", TPIU_ACPR::read(core)?);
+        log::trace!("{:#x?}", TPIU_ACPR::read(core)?);
     }
 
     /*

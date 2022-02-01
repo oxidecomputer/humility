@@ -48,9 +48,6 @@
 //! ```
 //!
 
-#[macro_use]
-extern crate log;
-
 use anyhow::Result;
 use clap::{App, IntoApp, Parser};
 use humility::core::Core;
@@ -72,12 +69,12 @@ fn dumpcmd(
     let subargs = DumpArgs::try_parse_from(subargs)?;
 
     let _info = core.halt()?;
-    info!("core halted");
+    humility::msg!("core halted");
 
     let rval = hubris.dump(core, subargs.dumpfile.as_deref());
 
     core.run()?;
-    info!("core resumed");
+    humility::msg!("core resumed");
 
     rval
 }

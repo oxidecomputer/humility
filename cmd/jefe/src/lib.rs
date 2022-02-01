@@ -89,9 +89,6 @@ use humility_cmd::jefe::{send_request, JefeRequest};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::num::NonZeroU32;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "jefe", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct JefeArgs {
@@ -160,7 +157,7 @@ fn jefe(
 
     send_request(hubris, core, request, id, subargs.timeout)?;
 
-    info!("successfully changed disposition for {}", subargs.task);
+    humility::msg!("successfully changed disposition for {}", subargs.task);
 
     Ok(())
 }

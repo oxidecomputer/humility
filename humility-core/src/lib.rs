@@ -9,5 +9,22 @@ pub mod hubris;
 #[macro_use]
 extern crate num_derive;
 
-#[macro_use]
-extern crate log;
+/// Give CLI output for the user
+///
+/// This macro is intended to be used whenever producing secondary output to the
+/// terminal for users to see. It is its own macro for two reasons:
+///
+/// 1. it will prepend "humility: " to the output
+/// 2. it uses stderr rather than stdout
+///
+/// By using this macro, if we want to change these two things, it's much easier
+/// than changing every single eprintln! in the codebase.
+#[macro_export]
+macro_rules! msg {
+    ($fmt:expr) => ({
+        eprintln!(concat!("humility: ", $fmt));
+    });
+    ($fmt:expr, $($arg:tt)*) => ({
+        eprintln!(concat!("humility: ", $fmt), $($arg)*);
+    });
+}

@@ -40,9 +40,6 @@ use humility_cmd::doppel::{Ringbuf, StaticCell};
 use humility_cmd::reflect::{self, Format, Load, Value};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RingbufArgs {
@@ -119,6 +116,9 @@ fn taskname<'a>(
     Ok(&hubris.lookup_module(HubrisTask::from(variable.goff))?.name)
 }
 
+// this allow is meant for the header println! in the body but you cannot apply
+// an attribute to a macro invoction, so we have to put it here instead.
+#[allow(clippy::print_literal)]
 fn ringbuf(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -150,11 +150,12 @@ fn ringbuf(
     ringbufs.sort();
 
     if subargs.list {
-        info!("{:18} {:<30} {:<10} {}", "MODULE", "BUFFER", "ADDR", "SIZE");
+        println!("{:18} {:<30} {:<10} {}", "MODULE", "BUFFER", "ADDR", "SIZE");
 
         for v in ringbufs {
             let t = taskname(hubris, v.1)?;
-            info!("{:18} {:<30} 0x{:08x} {:<}", t, v.0, v.1.addr, v.1.size);
+
+            println!("{:18} {:<30} 0x{:08x} {:<}", t, v.0, v.1.addr, v.1.size);
         }
 
         return Ok(());
@@ -163,17 +164,17 @@ fn ringbuf(
     for v in ringbufs {
         // Try not to use `?` here, because it causes one bad ringbuf to make
         // them all unavailable.
-        info!(
+        humility::msg!(
             "ring buffer {} in {}:",
             v.0,
             taskname(hubris, v.1).unwrap_or("???")
         );
         if let Ok(def) = hubris.lookup_struct(v.1.goff) {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
-                info!("ringbuf dump failed: {}", e);
+                humility::msg!("ringbuf dump failed: {}", e);
             }
         } else {
-            info!("could not look up type: {:?}", v.1.goff);
+            humility::msg!("could not look up type: {:?}", v.1.goff);
         }
     }
 

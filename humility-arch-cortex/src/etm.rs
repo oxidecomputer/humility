@@ -732,7 +732,7 @@ pub fn etm_ingest(
                 0 => runlen += 1,
                 0x80 => {
                     if runlen >= 5 {
-                        info!(
+                        humility::msg!(
                             "A-sync alignment synchronization \
                             packet found at offset {}",
                             packet.offset
