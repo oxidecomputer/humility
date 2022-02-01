@@ -843,7 +843,7 @@ impl HubrisArchive {
                 _ => {}
             }
         } else {
-            trace!("no name found for {}", goff);
+            log::trace!("no name found for {}", goff);
         }
 
         Ok(())
@@ -1439,7 +1439,7 @@ impl HubrisArchive {
                 bail!("union {} is incomplete", parent);
             }
         } else {
-            trace!("no struct/enum found for {}", parent);
+            log::trace!("no struct/enum found for {}", parent);
         }
 
         Ok(())
@@ -1798,7 +1798,7 @@ impl HubrisArchive {
         let size = textsec.sh_size as u32;
         let current = self.current;
 
-        trace!("loading {} as object {}", object, self.current);
+        log::trace!("loading {} as object {}", object, self.current);
 
         for sym in elf.syms.iter() {
             if sym.st_name == 0 {
@@ -3538,7 +3538,7 @@ impl HubrisArchive {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        info!("dumping to {}", filename);
+        crate::msg!("dumping to {}", filename);
 
         file.iowrite_with(header, ctx)?;
 
@@ -3668,7 +3668,7 @@ impl HubrisArchive {
 
         bar.finish_and_clear();
 
-        info!(
+        crate::msg!(
             "dumped {} in {}",
             HumanBytes(written as u64),
             HumanDuration(started.elapsed())
@@ -3985,7 +3985,7 @@ impl HubrisArchive {
     ) -> Result<Option<u32>> {
         let name = "CLOCK_FREQ_KHZ";
 
-        trace!("determining clock requency via {}", name);
+        log::trace!("determining clock requency via {}", name);
 
         match self.variables.get(name) {
             Some(variable) => {

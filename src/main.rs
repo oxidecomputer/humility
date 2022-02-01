@@ -10,71 +10,6 @@ use clap::Parser;
 
 mod cmd;
 
-#[macro_use]
-extern crate log;
-
-macro_rules! fatal {
-    ($fmt:expr) => ({
-        eprint!(concat!("humility: ", $fmt, "\n"));
-        ::std::process::exit(1);
-    });
-    ($fmt:expr, $($arg:tt)*) => ({
-        eprint!(concat!("humility: ", $fmt, "\n"), $($arg)*);
-        ::std::process::exit(1);
-    });
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct HumilityLog {
-    level: log::LevelFilter,
-}
-
-fn is_humility(metadata: &log::Metadata) -> bool {
-    if let Some(metadata) = metadata.target().split("::").next() {
-        metadata.starts_with("humility")
-    } else {
-        false
-    }
-}
-
-impl log::Log for HumilityLog {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= self.level
-    }
-
-    fn log(&self, record: &log::Record) {
-        if !self.enabled(record.metadata()) {
-            return;
-        }
-
-        if is_humility(record.metadata()) {
-            eprintln!("humility: {}", record.args())
-        } else {
-            eprintln!(
-                "humility: {} ({}): {}",
-                record.level(),
-                record.metadata().target(),
-                record.args()
-            );
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-impl HumilityLog {
-    pub fn enable(&mut self) {
-        match log::set_boxed_logger(Box::new(*self)) {
-            Err(e) => {
-                fatal!("unable to enable logging: {}", e);
-            }
-            Ok(_l) => {
-                log::set_max_level(self.level);
-            }
-        };
-    }
-}
-
 fn main() {
     /*
      * This isn't hugely efficient, but we actually parse our arguments
@@ -96,11 +31,11 @@ fn main() {
      */
     let mut args = Args::parse();
 
-    if args.verbose {
-        HumilityLog { level: log::LevelFilter::Trace }.enable();
-    } else {
-        HumilityLog { level: log::LevelFilter::Info }.enable();
-    }
+    let log_level = if args.verbose { "trace" } else { "info" };
+
+    let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
+
+    env_logger::init_from_env(env);
 
     //
     // Check to see if we have both a dump and an archive.  Because these
@@ -113,35 +48,39 @@ fn main() {
         match (m.occurrences_of("dump") == 1, m.occurrences_of("archive") == 1)
         {
             (true, true) => {
-                fatal!("cannot specify both a dump and an archive");
+                log::error!("cannot specify both a dump and an archive");
+                std::process::exit(1);
             }
 
             (false, false) => {
-                fatal!(
+                log::error!(
                     "both dump and archive have been set via environment \
                     variables; unset one of them, or use a command-line option \
                     to override"
                 );
+                std::process::exit(1);
             }
 
             (true, false) => {
-                warn!("dump on command-line overriding archive in environment");
+                log::warn!(
+                    "dump on command-line overriding archive in environment"
+                );
                 args.archive = None;
             }
 
             (false, true) => {
-                warn!("archive on command-line overriding dump in environment");
+                log::warn!(
+                    "archive on command-line overriding dump in environment"
+                );
                 args.dump = None;
             }
         }
     }
 
-    match &args.cmd {
-        Subcommand::Other(ref subargs) => {
-            match cmd::subcommand(&commands, &args, subargs) {
-                Err(err) => fatal!("{} failed: {:?}", subargs[0], err),
-                _ => std::process::exit(0),
-            }
-        }
+    let Subcommand::Other(subargs) = &args.cmd;
+
+    if let Err(err) = cmd::subcommand(&commands, &args, subargs) {
+        log::error!("'{}' failed: {:?}", subargs[0], err);
+        std::process::exit(1);
     }
 }

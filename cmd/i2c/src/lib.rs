@@ -108,9 +108,6 @@ use std::time::Instant;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug, Default)]
 #[clap(name = "i2c", about = env!("CARGO_PKG_DESCRIPTION"))]
 pub struct I2cArgs {
@@ -494,7 +491,7 @@ fn i2c(
             let len = fs::metadata(filename.clone())?.len() as u32;
 
             if len > u16::MAX.into() {
-                info!("file will be clamped at {}", u16::MAX);
+                humility::msg!("file will be clamped at {}", u16::MAX);
                 u16::MAX
             } else {
                 len as u16
@@ -616,7 +613,7 @@ fn i2c(
 
         bar.finish_and_clear();
 
-        info!(
+        humility::msg!(
             "flashed {} in {}",
             HumanBytes(filelen as u64),
             HumanDuration(started.elapsed())
