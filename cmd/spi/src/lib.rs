@@ -14,9 +14,6 @@ use anyhow::{bail, Result};
 use clap::{App, IntoApp, Parser};
 use hif::*;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "spi", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SpiArgs {
@@ -149,7 +146,7 @@ fn spi(
         bail!("SPI task cannot be the kernel");
     }
 
-    info!("SPI master is {}", hubris.lookup_module(task)?.name);
+    humility::msg!("SPI master is {}", hubris.lookup_module(task)?.name);
 
     let mut addr = 0;
 

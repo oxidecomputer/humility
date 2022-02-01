@@ -113,7 +113,7 @@ impl Core for ProbeCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        trace!("reading word at {:x}", addr);
+        log::trace!("reading word at {:x}", addr);
         let mut rval = 0;
 
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
@@ -547,7 +547,7 @@ impl GDBCore {
             payload.push(*b);
         }
 
-        trace!("sending {}", str::from_utf8(&payload).unwrap());
+        log::trace!("sending {}", str::from_utf8(&payload).unwrap());
         payload
     }
 
@@ -587,7 +587,7 @@ impl GDBCore {
             let rval = self.stream.read(&mut rbuf)?;
 
             result.push_str(str::from_utf8(&rbuf[0..rval])?);
-            trace!("response: {}", result);
+            log::trace!("response: {}", result);
 
             /*
              * We are done when we have our closing delimter followed by
@@ -659,7 +659,7 @@ impl GDBCore {
             buf.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
         }
 
-        trace!("command {} returned {}", cmd, rstr);
+        log::trace!("command {} returned {}", cmd, rstr);
 
         match rstr.len() {
             2 => Ok(u8::from_le_bytes(buf[..].try_into().unwrap()) as u32),
@@ -712,7 +712,7 @@ impl GDBCore {
         let mut core = Self { stream, server, halted: true };
 
         let supported = core.sendcmd("qSupported")?;
-        trace!("{} supported string: {}", server, supported);
+        log::trace!("{} supported string: {}", server, supported);
 
         core.run()?;
 
@@ -787,7 +787,7 @@ impl Core for GDBCore {
         self.stream.write_all(&[GDB_PACKET_HALT])?;
 
         let reply = self.recv(false)?;
-        trace!("halt reply: {}", reply);
+        log::trace!("halt reply: {}", reply);
         self.halted = true;
 
         Ok(())
@@ -1017,7 +1017,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             let name = probe.get_name();
             let session = probe.attach(chip)?;
 
-            info!("attached via {}", name);
+            crate::msg!("attached via {}", name);
 
             Ok(Box::new(ProbeCore::new(
                 session,
@@ -1036,7 +1036,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 bail!("version string unrecognized: \"{}\"", version);
             }
 
-            info!("attached via OpenOCD");
+            crate::msg!("attached via OpenOCD");
 
             Ok(Box::new(core))
         }
@@ -1055,14 +1055,14 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
         "ocdgdb" => {
             let core = GDBCore::new(GDBServer::OpenOCD)?;
-            info!("attached via OpenOCD's GDB server");
+            crate::msg!("attached via OpenOCD's GDB server");
 
             Ok(Box::new(core))
         }
 
         "jlink" => {
             let core = GDBCore::new(GDBServer::JLink)?;
-            info!("attached via JLink");
+            crate::msg!("attached via JLink");
 
             Ok(Box::new(core))
         }
@@ -1079,7 +1079,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 let name = probe.get_name();
                 let session = probe.attach(chip)?;
 
-                info!("attached to {} via {}", vidpid, name);
+                crate::msg!("attached to {} via {}", vidpid, name);
 
                 Ok(Box::new(ProbeCore::new(session, name, vid, pid, serial)))
             }
@@ -1093,6 +1093,6 @@ pub fn attach_dump(
     hubris: &HubrisArchive,
 ) -> Result<Box<dyn Core>> {
     let core = DumpCore::new(dump, hubris)?;
-    info!("attached to dump");
+    crate::msg!("attached to dump");
     Ok(Box::new(core))
 }

@@ -18,9 +18,6 @@ use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(
     name = "qspi", about = env!("CARGO_PKG_DESCRIPTION"),
@@ -170,7 +167,7 @@ fn qspi(
             ops.push(Op::BranchLessThan(Target(0)));
             ops.push(Op::Done);
 
-            info!("erasing {} bytes...", filelen);
+            humility::msg!("erasing {} bytes...", filelen);
 
             let results = context.run(core, ops.as_slice(), None)?;
             let f = qspi_sector_erase;
@@ -181,9 +178,9 @@ fn qspi(
                 }
             }
 
-            info!("... done");
+            humility::msg!("... done");
         } else {
-            info!("will verify {} bytes...", filelen);
+            humility::msg!("will verify {} bytes...", filelen);
         }
 
         //
@@ -269,7 +266,10 @@ fn qspi(
 
                         if r[0] != 0 {
                             let a = offset + (i as u32 * block_size);
-                            info!("block at 0x{:x} failed to verify", a);
+                            humility::msg!(
+                                "block at 0x{:x} failed to verify",
+                                a
+                            );
                         }
                     }
                     _ => {}
@@ -286,13 +286,13 @@ fn qspi(
         bar.finish_and_clear();
 
         if subargs.verify {
-            info!(
+            humility::msg!(
                 "verified {} in {}",
                 HumanBytes(filelen as u64),
                 HumanDuration(started.elapsed())
             );
         } else {
-            info!(
+            humility::msg!(
                 "flashed {} in {}",
                 HumanBytes(filelen as u64),
                 HumanDuration(started.elapsed())

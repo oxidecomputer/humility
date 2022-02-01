@@ -98,9 +98,6 @@ use humility_cortex::debug::*;
 use humility_cortex::itm::*;
 use humility_cortex::scs::*;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "probe", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ProbeArgs {}
@@ -116,7 +113,7 @@ fn probecmd(
     let mut status = vec![];
 
     let print = |what, val| {
-        info!("{:>12} => {}", what, val);
+        humility::msg!("{:>12} => {}", what, val);
     };
 
     let mut statusif = |val, str: &str| {
@@ -299,7 +296,7 @@ fn probecmd(
             .collect::<Vec<String>>()
             .join(", ");
 
-        info!("{:>12} => {}", component.0, addrs);
+        humility::msg!("{:>12} => {}", component.0, addrs);
     }
 
     print(
@@ -343,7 +340,7 @@ fn probecmd(
 
         let val = core.read_reg(reg)?;
 
-        info!(
+        humility::msg!(
             "{:>12} => 0x{:8} {}",
             format!("{:?}", reg),
             format!("{:x}", val),

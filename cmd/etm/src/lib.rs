@@ -18,9 +18,6 @@ use humility_cortex::tpiu::*;
 use std::fs::File;
 use std::time::Instant;
 
-#[macro_use]
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "etm", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct EtmArgs {
@@ -109,18 +106,18 @@ fn etmcmd_probe(core: &mut dyn Core) -> Result<()> {
     }
 
     let etmccr = ETMCCR::read(core)?;
-    info!("{:#x?}", etmccr);
+    humility::msg!("{:#x?}", etmccr);
 
     if !etmccr.has_etmidr() {
-        warn!("ETMv1.3 and earlier not supported");
+        log::warn!("ETMv1.3 and earlier not supported");
         return Ok(());
     }
 
     let etmidr = ETMIDR::read(core)?;
-    info!("{:#x?}", etmidr);
+    humility::msg!("{:#x?}", etmidr);
 
     let etmccer = ETMCCER::read(core)?;
-    info!("{:#x?}", etmccer);
+    humility::msg!("{:#x?}", etmccer);
 
     Ok(())
 }
@@ -133,23 +130,23 @@ fn etmcmd_enable(
     let etmccr = ETMCCR::read(core)?;
 
     if !etmccr.has_etmidr() {
-        warn!("ETMv1.3 and earlier not supported");
+        log::warn!("ETMv1.3 and earlier not supported");
         return Ok(());
     }
 
     let etmidr = ETMIDR::read(core)?;
-    trace!("{:?}", etmidr);
+    log::trace!("{:?}", etmidr);
 
     let major = etmidr.etm_major() + 1;
     let minor = etmidr.etm_minor();
 
     if (major, minor) != (3, 5) {
-        warn!("only ETMv3.5 supported");
+        log::warn!("only ETMv3.5 supported");
         return Ok(());
     }
 
     if !etmidr.has_branch_encoding() {
-        warn!("only alternative branch encoding supported");
+        log::warn!("only alternative branch encoding supported");
         return Ok(());
     }
 
@@ -188,7 +185,7 @@ fn etmcmd_enable(
     let mut acpr = TPIU_ACPR::read(core)?;
     acpr.set_swoscaler(clockscaler.unwrap_or(HUMILITY_ETM_SWOSCALER).into());
     acpr.write(core)?;
-    trace!("{:#x?}", TPIU_ACPR::read(core)?);
+    log::trace!("{:#x?}", TPIU_ACPR::read(core)?);
 
     /*
      * We are now ready to enable ETM.  There are a bunch of steps involved
@@ -197,7 +194,7 @@ fn etmcmd_enable(
      * registers, we need to write to ETMCR again to indicate that we are
      * done programming it.
      */
-    trace!("{:#x?}", ETMCR::read(core)?);
+    log::trace!("{:#x?}", ETMCR::read(core)?);
     let mut etmcr = ETMCR::read(core)?;
     etmcr.set_branch_output(true);
     etmcr.set_stall_processor(true);
@@ -205,7 +202,7 @@ fn etmcmd_enable(
     etmcr.set_port_select(true);
     etmcr.set_programming(true);
     etmcr.set_power_down(false);
-    trace!("will write {:#x?}", etmcr);
+    log::trace!("will write {:#x?}", etmcr);
     etmcr.write(core)?;
 
     /*
@@ -214,7 +211,7 @@ fn etmcmd_enable(
     let mut teevr = ETMTEEVR::read(core)?;
     teevr.set_resource_a(HUMILITY_ETM_ALWAYSTRUE);
     teevr.write(core)?;
-    trace!("{:#x?}", ETMTEEVR::read(core)?);
+    log::trace!("{:#x?}", ETMTEEVR::read(core)?);
 
     let mut tecr1 = ETMTECR1::read(core)?;
     tecr1.set_map_decode_select(0);
@@ -232,13 +229,13 @@ fn etmcmd_enable(
     fflr.set_fifo_full_level(24);
     fflr.write(core)?;
 
-    trace!("{:#x?}", ETMFFLR::read(core)?);
+    log::trace!("{:#x?}", ETMFFLR::read(core)?);
 
-    trace!("{:#x?}", ETMTRACEIDR::read(core)?);
+    log::trace!("{:#x?}", ETMTRACEIDR::read(core)?);
     let mut val = ETMTRACEIDR::read(core)?;
     val.set_traceid(traceid.into());
     val.write(core)?;
-    trace!("{:#x?}", ETMTRACEIDR::read(core)?);
+    log::trace!("{:#x?}", ETMTRACEIDR::read(core)?);
 
     /*
      * Finally, indicate that we are done programming!
@@ -246,7 +243,7 @@ fn etmcmd_enable(
     etmcr.set_programming(false);
     etmcr.write(core)?;
 
-    info!("ETM enabled");
+    humility::msg!("ETM enabled");
 
     Ok(())
 }
@@ -255,7 +252,7 @@ fn etmcmd_disable(core: &mut dyn Core) -> Result<()> {
     let mut etmcr = ETMCR::read(core)?;
 
     if etmcr.power_down() {
-        info!("ETM not enabled");
+        humility::msg!("ETM not enabled");
         return Ok(());
     }
 
@@ -268,7 +265,7 @@ fn etmcmd_disable(core: &mut dyn Core) -> Result<()> {
     etmcr.set_programming(false);
     etmcr.write(core)?;
 
-    info!("ETM disabled");
+    humility::msg!("ETM disabled");
 
     Ok(())
 }
@@ -432,7 +429,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                         Some(addr + len)
                     }
                     None => {
-                        warn!("unknown instruction length at {:x}!", addr);
+                        log::warn!("unknown instruction length at {:x}!", addr);
                         broken = true;
                         None
                     }
@@ -480,7 +477,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
             match packet.payload {
                 ETM3Payload::ISync { address, .. } => {
                     if broken {
-                        warn!("re-railing at offset {}", packet.offset);
+                        log::warn!("re-railing at offset {}", packet.offset);
                         broken = false;
                         target = (None, None);
                     }
@@ -499,7 +496,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                         )
                         | (Some(origin), Some(HubrisTarget::Call(expected))) => {
                             if curaddr.unwrap() != expected {
-                                warn!(
+                                log::warn!(
                                     "detected bad branch: at 0x{:x} expected \
                                 branch to 0x{:x}, found 0x{:x}; packet: {:x?}",
                                     origin,
@@ -512,7 +509,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
 
                         (Some(origin), None) => {
                             if exception.is_none() {
-                                warn!(
+                                log::warn!(
                                     "detected bad branch: did not expect any \
                                 branch from 0x{:x}, but control transferred \
                                 to 0x{:x}; packet: {:x?}",
@@ -595,7 +592,7 @@ fn etmcmd(
     let mut core = attach_live(args)?;
     let _info = core.halt()?;
 
-    info!("core halted");
+    humility::msg!("core halted");
 
     if subargs.probe {
         rval = etmcmd_probe(core.as_mut());
@@ -610,7 +607,7 @@ fn etmcmd(
     }
 
     core.run()?;
-    info!("core resumed");
+    humility::msg!("core resumed");
 
     if subargs.output {
         match etmcmd_output(core.as_mut()) {

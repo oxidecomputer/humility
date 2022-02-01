@@ -161,7 +161,7 @@ fn tpiu_next_state(state: TPIUState, byte: u8, offset: usize) -> TPIUState {
         }
 
         TPIUState::FramingSyncing(next) if byte != sync[next] => {
-            info!("TPIU framing derailed at offset {}", offset);
+            humility::msg!("TPIU framing derailed at offset {}", offset);
             TPIUState::Searching
         }
 
@@ -174,7 +174,10 @@ fn tpiu_next_state(state: TPIUState, byte: u8, offset: usize) -> TPIUState {
         }
 
         TPIUState::SearchingSyncing(next) => {
-            info!("TPIU sync packet found at offset {}", offset - next);
+            humility::msg!(
+                "TPIU sync packet found at offset {}",
+                offset - next
+            );
             TPIUState::Framing
         }
 
@@ -479,7 +482,10 @@ pub fn tpiu_ingest(
                  * frame.
                  */
                 if tpiu_check_frame(&frame, valid, true) {
-                    info!("valid TPIU frame starting at offset {}", frame[0].2);
+                    humility::msg!(
+                        "valid TPIU frame starting at offset {}",
+                        frame[0].2
+                    );
                     id = Some(tpiu_process_frame(&frame, id, &mut filter)?);
                     state = TPIUState::Framing;
                     nvalid = 1;
@@ -550,7 +556,7 @@ pub fn tpiu_ingest(
         }
     }
 
-    info!("{} valid TPIU frames", nvalid);
+    humility::msg!("{} valid TPIU frames", nvalid);
 
     Ok(())
 }

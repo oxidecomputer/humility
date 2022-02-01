@@ -13,7 +13,6 @@ use humility_cmd_spi::spi_task;
 use anyhow::{anyhow, bail, Result};
 use clap::{App, IntoApp, Parser};
 use hif::*;
-use log::info;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
@@ -230,7 +229,7 @@ impl<'a> Vsc7448<'a> {
     // Configures GPIOs as MIIM alternate functions (see Table 270 in VSC7448
     // datasheet for details)
     fn set_miim_gpios(&mut self, miim: u8) -> Result<()> {
-        info!("Configuring MIIM{} alt gpios", miim);
+        humility::msg!("Configuring MIIM{} alt gpios", miim);
         let gpio_reg = "GPIO_ALT1[0]".parse::<TargetRegister>()?.address();
         match miim {
             0 => Ok(()),
@@ -249,7 +248,7 @@ impl<'a> Vsc7448<'a> {
         }
         // Switch pages every time, since it's cheap and easier than restoring
         // the page when done _or_ whenever exiting early
-        info!("Switching to page {}", page);
+        humility::msg!("Switching to page {}", page);
         self.miim_write_inner(
             phy, 0,  // STANDARD
             31, // PAGE
@@ -291,7 +290,7 @@ impl<'a> Vsc7448<'a> {
         // Switch pages every time, since it's cheap and easier than restoring
         // the page when done _or_ whenever exiting early
         if switch_page {
-            info!("Switching to page {}", page);
+            humility::msg!("Switching to page {}", page);
             self.miim_write_inner(
                 phy, 0,  // STANDARD
                 31, // PAGE
@@ -333,7 +332,7 @@ fn vsc7448(
         Command::Read { reg } => {
             let reg = parse_reg_or_addr(&reg)?;
             let addr = reg.address();
-            log::info!("Reading {} from 0x{:x}", reg, addr);
+            humility::msg!("Reading {} from 0x{:x}", reg, addr);
             let value = vsc.read(addr)?;
             println!("{} => 0x{:x}", reg, value);
             if value == 0x88888888 {
@@ -347,7 +346,7 @@ fn vsc7448(
         Command::Write { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;
             let addr = reg.address();
-            log::info!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
+            humility::msg!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
             pretty_print_fields(value, reg.fields());
 
             vsc.write(addr, value)?;
