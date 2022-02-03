@@ -49,7 +49,8 @@ struct SpiArgs {
     /// interpret the specified number of trailing bytes on a write as a
     /// bigendian address
     #[clap(
-        long, short = 'A', requires_all = &["read", "write", "discard"]
+        long, short = 'A', requires_all = &["read", "write", "discard"],
+        conflicts_with = "littleendian-address"
     )]
     bigendian_address: Option<usize>,
 
@@ -57,7 +58,7 @@ struct SpiArgs {
     /// bigendian address
     #[clap(
         long, short = 'a', requires_all = &["read", "write", "discard"],
-        conflicts_with = "bigendian_address"
+        conflicts_with = "bigendian-address"
     )]
     littleendian_address: Option<usize>,
 
