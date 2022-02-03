@@ -108,7 +108,7 @@ struct JefeArgs {
     start: bool,
 
     /// hold the specified task
-    #[clap(long, short, conflicts_with = "release")]
+    #[clap(long, short = 'H', conflicts_with = "release")]
     hold: bool,
 
     /// release the specified task

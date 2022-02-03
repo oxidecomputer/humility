@@ -99,3 +99,9 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+#[test]
+fn validate_clap() {
+    let (_, clap) = cmd::init(Args::into_app());
+    clap.clone().debug_assert();
+}

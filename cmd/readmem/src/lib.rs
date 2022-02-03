@@ -122,7 +122,7 @@ use std::convert::TryInto;
 #[clap(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ReadmemArgs {
     /// print out as halfwords instead of as bytes
-    #[clap(long, short, conflicts_with_all = &["word", "symbol"])]
+    #[clap(long, short = 'H', conflicts_with_all = &["word", "symbol"])]
     halfword: bool,
 
     /// print out as words instead of as bytes
