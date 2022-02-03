@@ -190,7 +190,7 @@ pub struct I2cArgs {
     /// flash the specified file, assuming two byte addressing
     #[clap(long, short,
         conflicts_with_all = &[
-            "write", "raw", "nbytes", "read", "writeall", "register", "scan",
+            "write", "raw", "nbytes", "register", "scan",
             "writeraw"
         ],
         value_name = "filename",
