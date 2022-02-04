@@ -54,9 +54,28 @@ pub struct ProbeCore {
     pub product_id: u16,
     pub serial_number: Option<String>,
     halted: bool,
+    unhalted_read: BTreeMap<u32, u32>,
 }
 
 impl ProbeCore {
+    fn new(
+        session: probe_rs::Session,
+        identifier: String,
+        vendor_id: u16,
+        product_id: u16,
+        serial_number: Option<String>,
+    ) -> Self {
+        Self {
+            session,
+            identifier,
+            vendor_id,
+            product_id,
+            serial_number,
+            halted: false,
+            unhalted_read: crate::arch::unhalted_read_regions(),
+        }
+    }
+
     fn halt_and_exec(
         &mut self,
         mut func: impl FnMut(&mut probe_rs::Core) -> Result<()>,
@@ -97,6 +116,13 @@ impl Core for ProbeCore {
         trace!("reading word at {:x}", addr);
         let mut rval = 0;
 
+        if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
+            if addr + 4 < range.0 + range.1 {
+                let mut core = self.session.core(0)?;
+                return Ok(core.read_word_32(addr)?);
+            }
+        }
+
         self.halt_and_exec(|core| {
             rval = core.read_word_32(addr)?;
             Ok(())
@@ -109,6 +135,13 @@ impl Core for ProbeCore {
         if data.len() > CORE_MAX_READSIZE {
             bail!("read of {} bytes at 0x{:x} exceeds max of {}",
                 data.len(), addr, CORE_MAX_READSIZE);
+        }
+
+        if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
+            if addr + (data.len() as u32) < range.0 + range.1 {
+                let mut core = self.session.core(0)?;
+                return Ok(core.read_8(addr, data)?);
+            }
         }
 
         self.halt_and_exec(|core| Ok(core.read_8(addr, data)?))
@@ -986,14 +1019,13 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
             info!("attached via {}", name);
 
-            Ok(Box::new(ProbeCore {
+            Ok(Box::new(ProbeCore::new(
                 session,
-                identifier: probes[selected].identifier.clone(),
-                vendor_id: probes[selected].vendor_id,
-                product_id: probes[selected].product_id,
-                serial_number: probes[selected].serial_number.clone(),
-                halted: false,
-            }))
+                probes[selected].identifier.clone(),
+                probes[selected].vendor_id,
+                probes[selected].product_id,
+                probes[selected].serial_number.clone(),
+            )))
         }
 
         "ocd" => {
@@ -1039,9 +1071,9 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             Ok(selector) => {
                 let vidpid = probe;
 
-                let vendor_id = selector.vendor_id;
-                let product_id = selector.product_id;
-                let serial_number = selector.serial_number.clone();
+                let vid = selector.vendor_id;
+                let pid = selector.product_id;
+                let serial = selector.serial_number.clone();
 
                 let probe = probe_rs::Probe::open(selector)?;
                 let name = probe.get_name();
@@ -1049,14 +1081,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
                 info!("attached to {} via {}", vidpid, name);
 
-                Ok(Box::new(ProbeCore {
-                    session,
-                    identifier: name,
-                    vendor_id,
-                    product_id,
-                    serial_number,
-                    halted: false,
-                }))
+                Ok(Box::new(ProbeCore::new(session, name, vid, pid, serial)))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
         },
