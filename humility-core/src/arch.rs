@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -185,6 +185,20 @@ pub fn exception_stack_realign(regs: &HashMap<ARMRegister, u32>) -> u32 {
     }
 
     0
+}
+
+pub fn unhalted_read_regions() -> BTreeMap<u32, u32> {
+    let mut map = BTreeMap::new();
+
+    //
+    // On ARM, the PPB is mapped at 0xe000_000 and runs for 1MB.  This address
+    // range contains the control registers that we need to read to determine
+    // the state of the MCU; it can be read without halting the core on all
+    // architectures.
+    //
+    map.insert(0xe000_0000, 1024 * 1024);
+
+    map
 }
 
 impl std::fmt::Display for ARMRegister {
