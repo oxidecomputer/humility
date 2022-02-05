@@ -11,16 +11,21 @@ pub mod reflect;
 pub mod test;
 
 use anyhow::{bail, Result};
-use clap::Parser;
+use clap::{AppSettings, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 
 #[derive(Parser)]
 #[clap(name = "humility", max_term_width = 80)]
+#[clap(global_setting(AppSettings::NoAutoVersion))]
 pub struct Args {
     /// verbose messages
     #[clap(long, short)]
     pub verbose: bool,
+
+    /// print version information
+    #[clap(long, short = 'V')]
+    pub version: bool,
 
     /// specific chip on attached device
     #[clap(
@@ -44,7 +49,7 @@ pub struct Args {
     pub dump: Option<String>,
 
     #[clap(subcommand)]
-    pub cmd: Subcommand,
+    pub cmd: Option<Subcommand>,
 }
 
 #[derive(Parser)]
