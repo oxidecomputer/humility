@@ -31,6 +31,18 @@ fn main() {
      */
     let mut args = Args::parse();
 
+    //
+    // The only condition under which we don't require a command is if
+    // --version has been specified.
+    //
+    if args.version {
+        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+        std::process::exit(0);
+    } else if args.cmd.is_none() {
+        eprintln!("humility failed: subcommand expected (--help to list)");
+        std::process::exit(1);
+    }
+
     let log_level = if args.verbose { "trace" } else { "info" };
 
     let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
@@ -77,10 +89,13 @@ fn main() {
         }
     }
 
-    let Subcommand::Other(subargs) = &args.cmd;
+    //
+    // This unwrap is safe -- we have checked that cmd is non-None above.
+    //
+    let Subcommand::Other(subargs) = args.cmd.as_ref().unwrap();
 
     if let Err(err) = cmd::subcommand(&commands, &args, subargs) {
-        log::error!("'{}' failed: {:?}", subargs[0], err);
+        eprintln!("humility {} failed: {:?}", subargs[0], err);
         std::process::exit(1);
     }
 }
