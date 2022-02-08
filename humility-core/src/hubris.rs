@@ -64,6 +64,7 @@ struct HubrisConfig {
     kernel: HubrisConfigKernel,
     tasks: IndexMap<String, HubrisConfigTask>,
     peripherals: Option<IndexMap<String, HubrisConfigPeripheral>>,
+    chip: Option<String>,
     config: Option<HubrisConfigConfig>,
 }
 
@@ -2105,14 +2106,18 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn load_config(&mut self, config: &HubrisConfig) -> Result<()> {
+    fn load_config(
+        &mut self,
+        config: &HubrisConfig,
+        peripherals: Option<&IndexMap<String, HubrisConfigPeripheral>>,
+    ) -> Result<()> {
         self.manifest.board = Some(config.board.clone());
         self.manifest.target = Some(config.target.clone());
         self.manifest.features = config.kernel.features.clone();
 
         let mut named_interrupts = HashMap::new();
 
-        if let Some(ref peripherals) = config.peripherals {
+        if let Some(peripherals) = peripherals {
             for (name, p) in peripherals {
                 self.manifest.peripherals.insert(name.clone(), p.address);
 
@@ -2199,7 +2204,36 @@ impl HubrisArchive {
         byname!("app.toml")?.read_to_string(&mut app)?;
 
         let config: HubrisConfig = toml::from_slice(app.as_bytes())?;
-        self.load_config(&config)?;
+
+        //
+        // Before we load our config, we need to find where our peripherals
+        // are located (if we have any).  If they are hanging off our config,
+        // use that -- but if we have a newer archive that contains a referred
+        // chip, pull in the TOML that it points to instead.
+        //
+        if let Some(ref peripherals) = config.peripherals {
+            self.load_config(&config, Some(peripherals))?;
+        } else if let Some(ref chip) = config.chip {
+            //
+            // Paths are relative, so we always pull the basename -- and
+            // paths within a ZIP archive always use the forward slash
+            // as a separator.
+            //
+            let path = match chip.rsplit('/').next() {
+                Some(p) => p,
+                None => chip,
+            };
+
+            let mut chip = String::new();
+            byname!(path)?.read_to_string(&mut chip)?;
+
+            let peripherals: IndexMap<String, HubrisConfigPeripheral> =
+                toml::from_slice(chip.as_bytes())?;
+
+            self.load_config(&config, Some(&peripherals))?;
+        } else {
+            self.load_config(&config, None)?;
+        }
 
         /*
          * Next up is the kernel.  Note that we refer to it explicitly with a
