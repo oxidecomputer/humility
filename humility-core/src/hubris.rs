@@ -2225,12 +2225,24 @@ impl HubrisArchive {
             };
 
             let mut chip = String::new();
-            byname!(path)?.read_to_string(&mut chip)?;
 
-            let peripherals: IndexMap<String, HubrisConfigPeripheral> =
-                toml::from_slice(chip.as_bytes())?;
+            //
+            // Ideally, we would hard-fail if we didn't find this file in
+            // the archive -- but there was a small window of time in which
+            // the chip TOML was not properly in the archive.  This is still
+            // recoverable -- but anything that relies on the presence of
+            // peripherals in the TOML will fail.
+            //
+            if let Ok(mut file) = archive.by_name(path) {
+                file.read_to_string(&mut chip)?;
 
-            self.load_config(&config, Some(&peripherals))?;
+                let peripherals: IndexMap<String, HubrisConfigPeripheral> =
+                    toml::from_slice(chip.as_bytes())?;
+
+                self.load_config(&config, Some(&peripherals))?;
+            } else {
+                self.load_config(&config, None)?;
+            }
         } else {
             self.load_config(&config, None)?;
         }
