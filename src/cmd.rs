@@ -42,6 +42,7 @@ pub fn init(
         cmd_ringbuf::init,
         cmd_sensors::init,
         cmd_spd::init,
+        cmd_spdm::init,
         cmd_spi::init,
         cmd_stackmargin::init,
         cmd_tasks::init,

@@ -717,6 +717,7 @@ dependencies = [
  "humility-cmd-ringbuf",
  "humility-cmd-sensors",
  "humility-cmd-spd",
+ "humility-cmd-spdm",
  "humility-cmd-spi",
  "humility-cmd-stackmargin",
  "humility-cmd-stmsecure",
@@ -1089,6 +1090,20 @@ dependencies = [
  "log",
  "parse_int",
  "spd",
+]
+
+[[package]]
+name = "humility-cmd-spdm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "indicatif",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
