@@ -26,6 +26,11 @@ struct Vsc7448Args {
     )]
     timeout: u32,
 
+    /// Disables initialization, which saves a few SPI transactions if you
+    /// know that the initial VSC7448 configuration has already been done.
+    #[clap(long, short)]
+    noinit: bool,
+
     /// SPI peripheral on which to operate
     #[clap(long, short, value_name = "peripheral")]
     peripheral: Option<u8>,
@@ -327,7 +332,9 @@ fn vsc7448(
 ) -> Result<()> {
     let subargs = Vsc7448Args::try_parse_from(subargs)?;
     let mut vsc = Vsc7448::new(hubris, core, &subargs)?;
-    vsc.init()?;
+    if !subargs.noinit {
+        vsc.init()?;
+    }
     match subargs.cmd {
         Command::Read { reg } => {
             let reg = parse_reg_or_addr(&reg)?;
