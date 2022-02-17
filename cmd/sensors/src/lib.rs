@@ -11,9 +11,10 @@
 //! all available sensors, use `-l` (`--list`); to summarize sensor values,
 //! use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
 //! (`--types`) option; to constrain sensors by device, use the `-d`
-//! (`--devices`) option.  Within each option, multiple specifications serve
-//! as a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors
-//! from either device), but if both kinds of specifications are present, they
+//! (`--devices`) option; to constrain sensors by name, use the `-n`
+//! (`--named`) option.  Within each option, multiple specifications serve as
+//! a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
+//! either device), but if multiple kinds of specifications are present, they
 //! serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
 //! all thermal sensors from either device).
 
@@ -45,9 +46,9 @@ struct SensorsArgs {
     #[clap(long, short)]
     list: bool,
 
-    /// summarize sensors
+    /// print sensors every second
     #[clap(long, short, conflicts_with = "list")]
-    summarize: bool,
+    sleep: bool,
 
     /// restrict sensors by type of sensor
     #[clap(long, short, value_name = "sensor type", use_delimiter = true)]
@@ -56,12 +57,17 @@ struct SensorsArgs {
     /// restrict sensors by device
     #[clap(long, short, value_name = "device", use_delimiter = true)]
     devices: Option<Vec<String>>,
+
+    /// restrict sensors by name
+    #[clap(long, short, value_name = "sensor name", use_delimiter = true)]
+    named: Option<Vec<String>>,
 }
 
-fn sensors_list(
+fn list(
     hubris: &HubrisArchive,
     types: &Option<HashSet<HubrisSensorKind>>,
-    devices: &Option<HashSet<String>>,
+    devices: &Option<HashSet<&String>>,
+    named: &Option<HashSet<&String>>,
 ) -> Result<()> {
     println!(
         "{:2} {:<7} {:2} {:2} {:3} {:4} {:13} {:4}",
@@ -79,6 +85,12 @@ fn sensors_list(
 
         if let Some(devices) = devices {
             if devices.get(&device.device).is_none() {
+                continue;
+            }
+        }
+
+        if let Some(named) = named {
+            if named.get(&s.name).is_none() {
                 continue;
             }
         }
@@ -105,12 +117,14 @@ fn sensors_list(
     Ok(())
 }
 
-fn sensors_summarize(
+fn print(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
+    subargs: &SensorsArgs,
     context: &mut HiffyContext,
     types: &Option<HashSet<HubrisSensorKind>>,
-    devices: &Option<HashSet<String>>,
+    devices: &Option<HashSet<&String>>,
+    named: &Option<HashSet<&String>>,
 ) -> Result<()> {
     let mut ops = vec![];
     let funcs = context.functions()?;
@@ -148,6 +162,12 @@ fn sensors_summarize(
             }
         }
 
+        if let Some(named) = named {
+            if named.get(&s.name).is_none() {
+                continue;
+            }
+        }
+
         rvals.push(s);
 
         let payload =
@@ -157,8 +177,14 @@ fn sensors_summarize(
 
     ops.push(Op::Done);
 
-    for r in rvals {
+    for r in &rvals {
         print!(" {:>12}", r.name.to_uppercase());
+    }
+
+    println!();
+
+    for r in &rvals {
+        print!(" {:>12}", r.kind.to_string().to_uppercase());
     }
 
     println!();
@@ -186,8 +212,14 @@ fn sensors_summarize(
 
         println!();
 
+        if !subargs.sleep {
+            break;
+        }
+
         thread::sleep(Duration::from_millis(1000));
     }
+
+    Ok(())
 }
 
 fn sensors(
@@ -198,11 +230,11 @@ fn sensors(
 ) -> Result<()> {
     let subargs = SensorsArgs::try_parse_from(subargs)?;
 
-    let types = if let Some(types) = subargs.types {
+    let types = if let Some(ref types) = subargs.types {
         let mut rval = HashSet::new();
 
         for t in types {
-            match HubrisSensorKind::from_string(&t) {
+            match HubrisSensorKind::from_string(t) {
                 Some(kind) => {
                     rval.insert(kind);
                 }
@@ -217,7 +249,7 @@ fn sensors(
         None
     };
 
-    let devices = if let Some(devices) = subargs.devices {
+    let devices = if let Some(ref devices) = subargs.devices {
         let mut rval = HashSet::new();
         let mut all = HashSet::new();
 
@@ -241,17 +273,38 @@ fn sensors(
         None
     };
 
+    let named = if let Some(ref named) = subargs.named {
+        let mut all = HashSet::new();
+        let mut rval = HashSet::new();
+
+        for s in hubris.manifest.sensors.iter() {
+            all.insert(&s.name);
+        }
+
+        for d in named {
+            match all.get(&d) {
+                Some(_) => {
+                    rval.insert(d);
+                }
+                None => {
+                    bail!("unrecognized sensor name {}", d);
+                }
+            }
+        }
+
+        Some(rval)
+    } else {
+        None
+    };
+
     if subargs.list {
-        sensors_list(hubris, &types, &devices)?;
+        list(hubris, &types, &devices, &named)?;
         return Ok(());
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    if subargs.summarize {
-        sensors_summarize(hubris, core, &mut context, &types, &devices)?;
-        return Ok(());
-    }
+    print(hubris, core, &subargs, &mut context, &types, &devices, &named)?;
 
     Ok(())
 }

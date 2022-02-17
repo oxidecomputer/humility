@@ -385,15 +385,8 @@ fn i2c_done(
                     println!("Err({})", func.strerror(*err))
                 }
                 Ok(val) if subargs.block => {
-                    for i in 0..val.len() {
-                        print!(
-                            "0x{:02x}{}",
-                            val[i],
-                            if i < val.len() - 1 { " " } else { "" }
-                        )
-                    }
-
-                    println!()
+                    println!();
+                    Dumper::new().dump(val, 0);
                 }
 
                 Ok(val) => match subargs.nbytes {
