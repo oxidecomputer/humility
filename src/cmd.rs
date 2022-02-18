@@ -24,6 +24,7 @@ pub fn init(
         cmd_etm::init,
         cmd_flash::init,
         cmd_gpio::init,
+        cmd_hash::init,
         cmd_hiffy::init,
         cmd_i2c::init,
         cmd_itm::init,
