@@ -900,6 +900,7 @@ dependencies = [
  "humility-cmd-rendmp",
  "humility-cmd-reset",
  "humility-cmd-ringbuf",
+ "humility-cmd-rpc",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -1417,6 +1418,21 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+]
+
+[[package]]
+name = "humility-cmd-rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
 ]
 
 [[package]]

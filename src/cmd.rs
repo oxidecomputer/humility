@@ -24,7 +24,6 @@ pub fn init(
 
     for dcmd in dcmds() {
         let (cmd, subcmd) = (dcmd.init)();
-
         let name = match cmd {
             Command::Attached { name, .. } => name,
             Command::Unattached { name, .. } => name,
