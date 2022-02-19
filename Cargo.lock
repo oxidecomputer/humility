@@ -394,6 +394,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8364f6dbc4dc1c12c6fd536bb2da8a7ad345a7381b1d089acc6414b7ce4c2598"
+dependencies = [
+ "digest 0.9.0",
+]
+
+[[package]]
 name = "crypto-common"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -458,6 +467,15 @@ dependencies = [
  "darling_core",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "digest"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
+dependencies = [
+ "generic-array",
 ]
 
 [[package]]
@@ -1104,6 +1122,7 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
+ "spdm",
 ]
 
 [[package]]
@@ -2058,7 +2077,7 @@ checksum = "55deaec60f81eefe3cce0dc50bda92d6d8e88f2a27df7c5033b42afeb1ed2676"
 dependencies = [
  "cfg-if",
  "cpufeatures",
- "digest",
+ "digest 0.10.3",
 ]
 
 [[package]]
@@ -2104,6 +2123,20 @@ source = "git+https://github.com/oxidecomputer/spd#e37e79f6d7d4805b8a6a8c4d37699
 dependencies = [
  "num-derive",
  "num-traits",
+]
+
+[[package]]
+name = "spdm"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/spdm.git?branch=main#5bf64da95553c29f4dc2419773e4eca131197e3d"
+dependencies = [
+ "anyhow",
+ "bitflags",
+ "crypto",
+ "serde",
+ "serde_derive",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
