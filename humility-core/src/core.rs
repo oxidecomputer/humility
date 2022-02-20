@@ -208,11 +208,11 @@ impl Core for ProbeCore {
         let config = SwoConfig::new(0).set_baud(2_000_000);
         self.session.setup_swv(&config)?;
 
-        /*
-         * Because the probe can have sticky errors, we perform one read
-         * (and discard the results) to assure that any further errors
-         * are legit.
-         */
+        //
+        // Because the probe can have sticky errors, we perform one read
+        // (and discard the results) to assure that any further errors
+        // are legit.
+        //
         let _discard = self.session.read_swo();
         Ok(())
     }
@@ -254,12 +254,12 @@ impl OpenOCDCore {
             result.push_str(str::from_utf8(&rbuf[0..rval])?);
         }
 
-        /*
-         * Surely not surprisingly, OpenOCD doesn't have a coherent way of
-         * indicating that a command has failed.  We fall back to assuming
-         * that any return value that contains "Error: " or "invalid command
-         * name" is in fact an error.
-         */
+        //
+        // Surely not surprisingly, OpenOCD doesn't have a coherent way of
+        // indicating that a command has failed.  We fall back to assuming
+        // that any return value that contains "Error: " or "invalid command
+        // name" is in fact an error.
+        //
         if result.contains("Error: ") {
             Err(anyhow!("OpenOCD command \"{}\" failed with \"{}\"", cmd, result))
         } else if result.contains("invalid command name ") {
@@ -301,10 +301,10 @@ impl Core for OpenOCDCore {
             CORE_MAX_READSIZE
         );
 
-        /*
-         * To read an array, we put it in a TCL variable called "output"
-         * and then dump the variable.
-         */
+        //
+        // To read an array, we put it in a TCL variable called "output"
+        // and then dump the variable.
+        //
         let cmd = format!("mem2array output 8 0x{:x} {}", addr, data.len());
 
         self.sendcmd("array unset output")?;
@@ -315,24 +315,24 @@ impl Core for OpenOCDCore {
 
         let result = self.sendcmd("return $output")?;
 
-        /*
-         * Entirely on-brand, if the mem2array command has failed wildly,
-         * OpenOCD won't actually return an error to us -- it will merely
-         * fail to set the variable (and we will therefore fail when
-         * we attempt to retrieve the variable).  If we fail to
-         * retrieve the variable, we infer it to be a failure to
-         * perform the read and bail explicitly.
-         */
+        //
+        // Entirely on-brand, if the mem2array command has failed wildly,
+        // OpenOCD won't actually return an error to us -- it will merely
+        // fail to set the variable (and we will therefore fail when
+        // we attempt to retrieve the variable).  If we fail to
+        // retrieve the variable, we infer it to be a failure to
+        // perform the read and bail explicitly.
+        //
         if result.contains("no such variable") {
             bail!("read at 0x{:x} for {} bytes failed", addr, data.len());
         }
 
-        /*
-         * The output here is bonkers: instead of being (merely) the array,
-         * it's an (undelimited) set of 2-tuples of (index, value) -- sorted
-         * in strict alphabetical order by index (!!).  (That is, index 100
-         * comes before, say, index 11.)
-         */
+        //
+        // The output here is bonkers: instead of being (merely) the array,
+        // it's an (undelimited) set of 2-tuples of (index, value) -- sorted
+        // in strict alphabetical order by index (!!).  (That is, index 100
+        // comes before, say, index 11.)
+        //
         for val in result.split(' ') {
             match index {
                 None => {
@@ -393,9 +393,9 @@ impl Core for OpenOCDCore {
         self.swv = true;
         self.sendcmd("tpiu config disable")?;
 
-        /*
-         * XXX: This assumes STM32F4's 16Mhz clock
-         */
+        //
+        // XXX: This assumes STM32F4's 16Mhz clock
+        //
         self.sendcmd("tpiu config internal - uart on 16000000")?;
         self.sendcmd("tcl_trace on")?;
 
@@ -411,13 +411,13 @@ impl Core for OpenOCDCore {
         let mut swv: Vec<u8> = Vec::with_capacity(8192);
 
         if let Some(last_swv) = self.last_swv {
-            /*
-             * When we read from SWV from OpenOCD, it will block until data
-             * becomes available.  To better approximate the (non-blocking)
-             * behavior we see on a directly attached debugger, we return a
-             * zero byte read if it has been less than 100 ms since our last
-             * read -- relying on OpenOCD to buffer things a bit.
-             */
+            //
+            // When we read from SWV from OpenOCD, it will block until data
+            // becomes available.  To better approximate the (non-blocking)
+            // behavior we see on a directly attached debugger, we return a
+            // zero byte read if it has been less than 100 ms since our last
+            // read -- relying on OpenOCD to buffer things a bit.
+            //
             if last_swv.elapsed().as_secs_f64() < 0.1 {
                 return Ok(swv);
             }
@@ -430,10 +430,10 @@ impl Core for OpenOCDCore {
             bail!("missing trace data delimiter: {:?}", rval);
         }
 
-        /*
-         * OpenOCD can sometimes send multiple command delimters -- or
-         * none at all.
-         */
+        //
+        // OpenOCD can sometimes send multiple command delimters -- or
+        // none at all.
+        //
         if rval == 1 {
             return Ok(swv);
         }
@@ -476,18 +476,18 @@ impl Core for OpenOCDCore {
     }
 
     fn halt(&mut self) -> Result<()> {
-        /*
-         * On OpenOCD, we don't halt. If GDB is connected, it gets really,
-         * really confused!  This should probably be configurable at
-         * some point...
-         */
+        //
+        // On OpenOCD, we don't halt. If GDB is connected, it gets really,
+        // really confused!  This should probably be configurable at
+        // some point...
+        //
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
-        /*
-         * Well, see above.
-         */
+        //
+        // Well, see above.
+        //
         Ok(())
     }
 
@@ -538,9 +538,9 @@ impl GDBCore {
             cksum += *b as u32;
         }
 
-        /*
-         * Tack on the goofy checksum beyond the end of the packet.
-         */
+        //
+        // Tack on the goofy checksum beyond the end of the packet.
+        //
         let trailer = &format!("{}{:02x}", GDB_PACKET_END, cksum % 256);
 
         for b in trailer.as_bytes() {
@@ -557,9 +557,9 @@ impl GDBCore {
 
         self.stream.write_all(&payload)?;
 
-        /*
-         * We are expecting no result -- just an ack.
-         */
+        //
+        // We are expecting no result -- just an ack.
+        //
         let rval = self.stream.read(&mut rbuf)?;
 
         if rval != 1 {
@@ -589,25 +589,25 @@ impl GDBCore {
             result.push_str(str::from_utf8(&rbuf[0..rval])?);
             log::trace!("response: {}", result);
 
-            /*
-             * We are done when we have our closing delimter followed by
-             * the two byte checksum.
-             */
+            //
+            // We are done when we have our closing delimter followed by
+            // the two byte checksum.
+            //
             if result.find(GDB_PACKET_END) == Some(result.len() - 3) {
                 break;
             }
         }
 
-        /*
-         * We have our response, so ack it back
-         */
+        //
+        // We have our response, so ack it back
+        //
         self.sendack()?;
 
-        /*
-         * In our result, we should have exactly one opening and exactly
-         * one closing delimiter -- and, if expectack is set, at least
-         * one ACK as well.
-         */
+        //
+        // In our result, we should have exactly one opening and exactly
+        // one closing delimiter -- and, if expectack is set, at least
+        // one ACK as well.
+        //
         let start = match result.find(GDB_PACKET_START) {
             Some(ndx) => ndx,
             None => {
@@ -615,9 +615,9 @@ impl GDBCore {
             }
         };
 
-        /*
-         * By merits of being here, we know we have our end-of-packet...
-         */
+        //
+        // By merits of being here, we know we have our end-of-packet...
+        //
         let end = result.find(GDB_PACKET_END).unwrap();
 
         if end < start {
@@ -666,12 +666,12 @@ impl GDBCore {
             4 => Ok(u16::from_le_bytes(buf[..].try_into().unwrap()) as u32),
             8 => Ok(u32::from_le_bytes(buf[..].try_into().unwrap()) as u32),
             16 => {
-                /*
-                 * Amazingly, for some 32-bit register values under certain
-                 * circumstances the JLink seems to return a 64-bit value
-                 * (!). We confirm that this value is
-                 * representable and return it.
-                 */
+                //
+                // Amazingly, for some 32-bit register values under certain
+                // circumstances the JLink seems to return a 64-bit value
+                // (!). We confirm that this value is
+                // representable and return it.
+                //
                 let val = u64::from_le_bytes(buf[..].try_into().unwrap());
 
                 if val > std::u32::MAX.into() {
@@ -703,12 +703,12 @@ impl GDBCore {
             )
             })?;
 
-        /*
-         * Both the OpenOCD and JLink GDB servers stop the target upon
-         * connection.  This is helpful in that we know the state that
-         * we're in -- but it's also not the state that we want to be
-         * in.  We explicitly run the target before returning.
-         */
+        //
+        // Both the OpenOCD and JLink GDB servers stop the target upon
+        // connection.  This is helpful in that we know the state that
+        // we're in -- but it's also not the state that we want to be
+        // in.  We explicitly run the target before returning.
+        //
         let mut core = Self { stream, server, halted: true };
 
         let supported = core.sendcmd("qSupported")?;
@@ -755,10 +755,10 @@ impl Core for GDBCore {
         let rval = self.send_32(cmd);
 
         if self.server == GDBServer::JLink {
-            /*
-             * Maddeningly, the JLink stops the target whenever a register
-             * is read.
-             */
+            //
+            // Maddeningly, the JLink stops the target whenever a register
+            // is read.
+            //
             self.firecmd("c")?;
         }
 
@@ -794,13 +794,13 @@ impl Core for GDBCore {
     }
 
     fn run(&mut self) -> Result<()> {
-        /*
-         * The OpenOCD target in particular loses its mind if told to
-         * continue to when it's already running, insisting on
-         * sending a reply with an elaborate message that we don't
-         * know to wait on -- so we only continue a target if we know
-         * it to be halted.
-         */
+        //
+        // The OpenOCD target in particular loses its mind if told to
+        // continue to when it's already running, insisting on
+        // sending a reply with an elaborate message that we don't
+        // know to wait on -- so we only continue a target if we know
+        // it to be halted.
+        //
         if self.halted {
             self.firecmd("c")?;
             self.halted = false;
@@ -996,11 +996,11 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                        explicitly append index (e.g., \"-p usb-0\")");
             };
 
-            /*
-             * By far the most common error is to not be able to attach to a
-             * debug probe because something else has already attached to it;
-             * we pull this error out to yield a more actionable suggestion!
-             */
+            //
+            // By far the most common error is to not be able to attach to a
+            // debug probe because something else has already attached to it;
+            // we pull this error out to yield a more actionable suggestion!
+            //
             if let Err(probe_rs::DebugProbeError::USB(Some(ref err))) = res {
                 if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
                     if *rcode == rusb::Error::Busy {

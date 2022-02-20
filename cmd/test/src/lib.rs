@@ -168,10 +168,10 @@ fn test_ingest(
                     bail!("timed out after {} seconds", timeout);
                 }
 
-                /*
-                 * We will keep reading until we have a zero byte read, at
-                 * which time we will kick out and process one byte.
-                 */
+                //
+                // We will keep reading until we have a zero byte read, at
+                // which time we will kick out and process one byte.
+                //
                 let buf = shared.borrow_mut().read_swv()?;
 
                 if !buf.is_empty() {

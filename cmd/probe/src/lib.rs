@@ -138,9 +138,9 @@ fn probecmd(
         },
     );
 
-    /*
-     * Start with information about our core and chip...
-     */
+    //
+    // Start with information about our core and chip...
+    //
     print("core", corename(part));
 
     let m = &coreinfo.manufacturer;
@@ -208,9 +208,9 @@ fn probecmd(
         },
     );
 
-    /*
-     * Now display our chip status
-     */
+    //
+    // Now display our chip status
+    //
     statusif(dhcsr.restart_status(), "restarting");
     statusif(dhcsr.reset_status(), "resetting");
     statusif(dhcsr.retire_status(), "executing");
@@ -225,18 +225,18 @@ fn probecmd(
     print(
         "status",
         if status.is_empty() {
-            /*
-             * If the status is unknown, it doesn't mean very much; from the
-             * ARMv7-M ARM on the meaning of S_RETIRE_ST:
-             *
-             *   The architecture does not define precisely when this bit is
-             *   set to 1. It requires only that this happen periodically in
-             *   Non-debug state to indicate that software execution is
-             *   progressing.
-             *
-             * To see if the core is actually executing instructions, we
-             * will attempt to halt it and step it, seeing if the PC moves.
-             */
+            //
+            // If the status is unknown, it doesn't mean very much; from the
+            // ARMv7-M ARM on the meaning of S_RETIRE_ST:
+            //
+            //   The architecture does not define precisely when this bit is
+            //   set to 1. It requires only that this happen periodically in
+            //   Non-debug state to indicate that software execution is
+            //   progressing.
+            //
+            // To see if the core is actually executing instructions, we
+            // will attempt to halt it and step it, seeing if the PC moves.
+            //
             let rval = core
                 .halt()
                 .and_then(|_| core.read_reg(ARMRegister::PC))
@@ -260,9 +260,9 @@ fn probecmd(
         },
     );
 
-    /*
-     * Now display information about each CoreSight component found
-     */
+    //
+    // Now display information about each CoreSight component found
+    //
     let mut sorted = coreinfo
         .components
         .keys()

@@ -260,9 +260,9 @@ impl Dumper {
         let offs = (addr & (width - 1) as u32) as usize;
         addr -= offs as u32;
 
-        /*
-         * Print out header line, OpenBoot PROM style
-         */
+        //
+        // Print out header line, OpenBoot PROM style
+        //
         if self.header {
             print!("  {:width$}  ", "", width = indent + self.addrsize);
 
@@ -278,9 +278,9 @@ impl Dumper {
             indent = self.indent;
         }
 
-        /*
-         * Print our first line.
-         */
+        //
+        // Print our first line.
+        //
         let lim = std::cmp::min(width - offs, bytes.len());
         print(&bytes[0..lim], addr, offs, indent);
         indent = self.indent;

@@ -150,30 +150,30 @@ fn etmcmd_enable(
         return Ok(());
     }
 
-    /*
-     * First, enable TRCENA in the DEMCR.
-     */
+    //
+    // First, enable TRCENA in the DEMCR.
+    //
     let mut val = DEMCR::read(core)?;
     val.set_trcena(true);
     val.write(core)?;
 
-    /*
-     * Now unlock the ETM.
-     */
+    //
+    // Now unlock the ETM.
+    //
     ETMLAR::unlock(core)?;
 
-    /*
-     * STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
-     * trace mode to be asynchronous.
-     */
+    //
+    // STM32F407-specific: enable TRACE_IOEN in the DBGMCU_CR, and set the
+    // trace mode to be asynchronous.
+    //
     let mut val = STM32F4_DBGMCU_CR::read(core)?;
     val.set_trace_ioen(true);
     val.set_trace_mode(0);
     val.write(core)?;
 
-    /*
-     * Now setup the TPIU.
-     */
+    //
+    // Now setup the TPIU.
+    //
     let mut val = TPIU_SPPR::read(core)?;
     val.set_txmode(TPIUMode::NRZ);
     val.write(core)?;
@@ -187,13 +187,13 @@ fn etmcmd_enable(
     acpr.write(core)?;
     log::trace!("{:#x?}", TPIU_ACPR::read(core)?);
 
-    /*
-     * We are now ready to enable ETM.  There are a bunch of steps involved
-     * in this, but we need to first write to the ETMCR to indicate that
-     * we are programming it.  Once done writing to the ETM control
-     * registers, we need to write to ETMCR again to indicate that we are
-     * done programming it.
-     */
+    //
+    // We are now ready to enable ETM.  There are a bunch of steps involved
+    // in this, but we need to first write to the ETMCR to indicate that
+    // we are programming it.  Once done writing to the ETM control
+    // registers, we need to write to ETMCR again to indicate that we are
+    // done programming it.
+    //
     log::trace!("{:#x?}", ETMCR::read(core)?);
     let mut etmcr = ETMCR::read(core)?;
     etmcr.set_branch_output(true);
@@ -205,9 +205,9 @@ fn etmcmd_enable(
     log::trace!("will write {:#x?}", etmcr);
     etmcr.write(core)?;
 
-    /*
-     * Set to the hard-wired always-true event
-     */
+    //
+    // Set to the hard-wired always-true event
+    //
     let mut teevr = ETMTEEVR::read(core)?;
     teevr.set_resource_a(HUMILITY_ETM_ALWAYSTRUE);
     teevr.write(core)?;
@@ -237,9 +237,9 @@ fn etmcmd_enable(
     val.write(core)?;
     log::trace!("{:#x?}", ETMTRACEIDR::read(core)?);
 
-    /*
-     * Finally, indicate that we are done programming!
-     */
+    //
+    // Finally, indicate that we are done programming!
+    //
     etmcr.set_programming(false);
     etmcr.write(core)?;
 
@@ -586,9 +586,9 @@ fn etmcmd(
         }
     }
 
-    /*
-     * For all of the other commands, we need to actually attach to the chip.
-     */
+    //
+    // For all of the other commands, we need to actually attach to the chip.
+    //
     let mut core = attach_live(args)?;
     let _info = core.halt()?;
 
