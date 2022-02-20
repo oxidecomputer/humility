@@ -326,11 +326,11 @@ pub struct HubrisArchive {
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
-        /*
-         * Initialize Capstone, being sure to specify not only our
-         * architecture but also that we are disassembling Thumb-2 --
-         * and (importantly) to allow M-profile instructions.
-         */
+        //
+        // Initialize Capstone, being sure to specify not only our
+        // architecture but also that we are disassembling Thumb-2 --
+        // and (importantly) to allow M-profile instructions.
+        //
         let cs = Capstone::new()
             .arm()
             .mode(arch::arm::ArchMode::Thumb)
@@ -410,9 +410,9 @@ impl HubrisArchive {
     pub fn instr_sym(&self, addr: u32) -> Option<(&str, u32)> {
         let sym: Option<(&str, u32)>;
 
-        /*
-         * First, check our DWARF symbols.
-         */
+        //
+        // First, check our DWARF symbols.
+        //
         sym = match self.dsyms.range(..=addr).next_back() {
             Some((_, sym)) if addr < sym.addr + sym.size => {
                 Some((&sym.name, sym.addr))
@@ -420,9 +420,9 @@ impl HubrisArchive {
             _ => None,
         };
 
-        /*
-         * Fallback to our ELF symbols.
-         */
+        //
+        // Fallback to our ELF symbols.
+        //
         sym.or_else(|| match self.esyms.range(..=addr).next_back() {
             Some((&sym_addr, (name, sym_len))) if addr < sym_addr + sym_len => {
                 Some((name, sym_addr))
@@ -434,15 +434,15 @@ impl HubrisArchive {
     pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined> {
         let mut inlined: Vec<HubrisInlined> = vec![];
 
-        /*
-         * We find our stack of inlined functions by searching backwards from
-         * our address (which we know must be greater than or equal to all
-         * inlined functions that it is in).  This yields a vector that
-         * starts from the greatest depth and ends with the least
-         * depth -- so we reverse it before we return it.  We know
-         * that our search is over when the address plus the length
-         * is less than our base.
-         */
+        //
+        // We find our stack of inlined functions by searching backwards from
+        // our address (which we know must be greater than or equal to all
+        // inlined functions that it is in).  This yields a vector that
+        // starts from the greatest depth and ends with the least
+        // depth -- so we reverse it before we return it.  We know
+        // that our search is over when the address plus the length
+        // is less than our base.
+        //
         for ((addr, _depth), (len, goff, origin)) in
             self.inlined.range(..=(pc, std::isize::MAX)).rev()
         {
@@ -525,11 +525,11 @@ impl HubrisArchive {
             return Some(HubrisTarget::IndirectCall);
         }
 
-        /*
-         * If this is a JUMP that isn't a CALL, check to see if one of
-         * its operands is LR -- in which case it's a return (or could be
-         * a return).
-         */
+        //
+        // If this is a JUMP that isn't a CALL, check to see if one of
+        // its operands is LR -- in which case it's a return (or could be
+        // a return).
+        //
         if jump {
             for op in detail.arch_detail().operands() {
                 if let arch::ArchOperand::ArmOperand(op) = op {
@@ -544,11 +544,11 @@ impl HubrisArchive {
             return Some(HubrisTarget::Indirect);
         }
 
-        /*
-         * Capstone doesn't have a group denoting returns (they are control
-         * transfers, but not considered in the JUMP group), so explicitly
-         * look for a pop instruction that writes to the PC.
-         */
+        //
+        // Capstone doesn't have a group denoting returns (they are control
+        // transfers, but not considered in the JUMP group), so explicitly
+        // look for a pop instruction that writes to the PC.
+        //
         if let InsnId(ARM_INSN_POP) = instr.id() {
             for op in detail.arch_detail().operands() {
                 if let arch::ArchOperand::ArmOperand(op) = op {
@@ -695,9 +695,9 @@ impl HubrisArchive {
         >,
         depth: isize,
     ) -> Result<()> {
-        /*
-         * Iterate over our attributes looking for addresses
-         */
+        //
+        // Iterate over our attributes looking for addresses
+        //
         let mut attrs = entry.attrs();
         let mut low: Option<u64> = None;
         let mut high: Option<u64> = None;
@@ -1233,11 +1233,11 @@ impl HubrisArchive {
         let mut attrs = entry.attrs();
         let mut discr = None;
 
-        /*
-         * If we have an enum, we need to first remove it from our
-         * structures, putting back any duplicate names that isn't
-         * this enum.
-         */
+        //
+        // If we have an enum, we need to first remove it from our
+        // structures, putting back any duplicate names that isn't
+        // this enum.
+        //
         let union = self.structs.remove(&goff).ok_or_else(|| {
             anyhow!("goff {:?} not present in structs map", goff)
         })?;
@@ -1408,9 +1408,9 @@ impl HubrisArchive {
                 bail!("enum {}: incomplete discriminant", union.goff);
             }
 
-            /*
-             * We have an enum variant; add it to our variants.
-             */
+            //
+            // We have an enum variant; add it to our variants.
+            //
             if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
                 union.variants.push(HubrisEnumVariant {
                     name: n.to_string(),
@@ -1424,11 +1424,11 @@ impl HubrisArchive {
                 bail!("enum variant {} is incomplete", member);
             }
         } else if let Some(union) = self.unions.get_mut(&parent) {
-            /*
-             * This is possible because of Rust's (unsafe-only) support for
-             * C-style unions.  We track these because some structures are
-             * implemented in terms of them (in particular, MaybeUninit).
-             */
+            //
+            // This is possible because of Rust's (unsafe-only) support for
+            // C-style unions.  We track these because some structures are
+            // implemented in terms of them (in particular, MaybeUninit).
+            //
             if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
                 union.variants.push(HubrisEnumVariant {
                     name: n.to_string(),
@@ -1570,11 +1570,11 @@ impl HubrisArchive {
                         let parent = stack[depth as usize - 1];
                         self.dwarf_enum(&unit, entry, parent)?;
 
-                        /*
-                         * The discriminant is a (grand)child member; we need
-                         * to duplicate our parent's goff so our child can
-                         * find it.
-                         */
+                        //
+                        // The discriminant is a (grand)child member; we need
+                        // to duplicate our parent's goff so our child can
+                        // find it.
+                        //
                         stack[depth as usize] = parent;
                     }
 
@@ -1586,12 +1586,12 @@ impl HubrisArchive {
                         let parent = stack[depth as usize - 1];
                         self.dwarf_variant(&unit, entry, parent)?;
 
-                        /*
-                         * Our discriminant is still below us as a child
-                         * member, so, as in the DW_TAG_variant_part case
-                         * (which is our parent), we need to copy our parent
-                         * down.
-                         */
+                        //
+                        // Our discriminant is still below us as a child
+                        // member, so, as in the DW_TAG_variant_part case
+                        // (which is our parent), we need to copy our parent
+                        // down.
+                        //
                         stack[depth as usize] = parent;
                     }
 
@@ -1828,12 +1828,12 @@ impl HubrisArchive {
                 continue;
             }
 
-            /*
-             * On ARM, we must explicitly clear the low bit of the symbol
-             * table, which exists only to indicate a function that contains
-             * Thumb instructions (which is of course every function on a
-             * microprocessor that executes only Thumb instructions).
-             */
+            //
+            // On ARM, we must explicitly clear the low bit of the symbol
+            // table, which exists only to indicate a function that contains
+            // Thumb instructions (which is of course every function on a
+            // microprocessor that executes only Thumb instructions).
+            //
             assert!(arm);
 
             let val = if sym.is_function() {
@@ -2189,9 +2189,9 @@ impl HubrisArchive {
             };
         }
 
-        /*
-         * First, we'll load aspects of configuration.
-         */
+        //
+        // First, we'll load aspects of configuration.
+        //
         manifest.version = Some(str::from_utf8(archive.comment())?.to_string());
 
         if let Ok(mut file) = archive.by_name("git-rev") {
@@ -2247,31 +2247,31 @@ impl HubrisArchive {
             self.load_config(&config, None)?;
         }
 
-        /*
-         * Next up is the kernel.  Note that we refer to it explicitly with a
-         * forward slash: regardless of platform, paths within a ZIP archive
-         * use the forward slash as a separator.
-         */
+        //
+        // Next up is the kernel.  Note that we refer to it explicitly with a
+        // forward slash: regardless of platform, paths within a ZIP archive
+        // use the forward slash as a separator.
+        //
         let mut buffer = Vec::new();
         byname!("elf/kernel")?.read_to_end(&mut buffer)?;
         self.load_object("kernel", HubrisTask::Kernel, &buffer)?;
 
         let mut id = 0;
 
-        /*
-         * And now we need to find the tasks.  Note that we depend on the
-         * fact that these are stored in task ID order in the
-         * archive.
-         */
+        //
+        // And now we need to find the tasks.  Note that we depend on the
+        // fact that these are stored in task ID order in the
+        // archive.
+        //
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
             let path = Path::new(file.name());
             let pieces = path.iter().collect::<Vec<_>>();
 
-            /*
-             * If the second-to-last element of our path is "task", we have a
-             * winner!
-             */
+            //
+            // If the second-to-last element of our path is "task", we have a
+            // winner!
+            //
             if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
                 continue;
             }
@@ -2300,12 +2300,12 @@ impl HubrisArchive {
                 use archive instead");
         }
 
-        /*
-         * We read the entire archive into memory (and hold onto it) -- we
-         * are going to need most of it anyway, and we want to have
-         * the entire archive in memory to be able to write it out to
-         * any generated dump.
-         */
+        //
+        // We read the entire archive into memory (and hold onto it) -- we
+        // are going to need most of it anyway, and we want to have
+        // the entire archive in memory to be able to write it out to
+        // any generated dump.
+        //
         let contents = fs::read(archive)?;
         self.load_archive(&contents)?;
         self.archive = contents;
@@ -2342,9 +2342,9 @@ impl HubrisArchive {
     }
 
     pub fn load_dump(&mut self, dumpfile: &str) -> Result<()> {
-        /*
-         * We expect the dump to be an ELF core dump.
-         */
+        //
+        // We expect the dump to be an ELF core dump.
+        //
         let contents = fs::read(dumpfile)?;
         let elf = Elf::parse(&contents).map_err(|e| {
             anyhow!("failed to parse {} as an ELF file: {}", dumpfile, e)
@@ -2573,11 +2573,11 @@ impl HubrisArchive {
         let ntasks = self.ntasks();
 
         if self.current == 0 {
-            /*
-             * If we have no objects, we were never loaded -- and we consider
-             * this to be validated because it will give no answers rather
-             * than wrong ones.
-             */
+            //
+            // If we have no objects, we were never loaded -- and we consider
+            // this to be validated because it will give no answers rather
+            // than wrong ones.
+            //
             return Ok(());
         }
 
@@ -2650,11 +2650,11 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        /*
-         * We appear to not have booted, so we're going to fail -- but let's
-         * see if it's the common case of being actually in Reset itself to
-         * give a more certain message.
-         */
+        //
+        // We appear to not have booted, so we're going to fail -- but let's
+        // see if it's the common case of being actually in Reset itself to
+        // give a more certain message.
+        //
         if let Some(sym) = self.esyms_byname.get("Reset") {
             if let Ok(pc) = core.read_reg(ARMRegister::PC) {
                 if pc >= sym.0 && pc < sym.0 + sym.1 {
@@ -2694,10 +2694,10 @@ impl HubrisArchive {
             offset += m.offset;
 
             if i == fields.len() - 1 {
-                /*
-                 * We want to make sure that this is a 32-bit basetype or a
-                 * ptrtype.
-                 */
+                //
+                // We want to make sure that this is a 32-bit basetype or a
+                // ptrtype.
+                //
                 if let Some(v) = self.basetypes.get(&m.goff) {
                     if v.size != 4 {
                         return Err(anyhow!(
@@ -2719,9 +2719,9 @@ impl HubrisArchive {
                 break;
             }
 
-            /*
-             * We need to descend -- make sure that this is a structure!
-             */
+            //
+            // We need to descend -- make sure that this is a structure!
+            //
             s = match self.lookup_struct(m.goff) {
                 Ok(structure) => structure,
                 Err(_) => {
@@ -2753,9 +2753,9 @@ impl HubrisArchive {
         let size_offs = self.member_offset(desc, "size")?;
         let attr_offs = self.member_offset(desc, "attributes.bits")?;
 
-        /*
-         * Regrettably copied out of Hubris -- there isn't DWARF for this.
-         */
+        //
+        // Regrettably copied out of Hubris -- there isn't DWARF for this.
+        //
         const READ: u32 = 1 << 0;
         const WRITE: u32 = 1 << 1;
         const EXECUTE: u32 = 1 << 2;
@@ -2764,20 +2764,20 @@ impl HubrisArchive {
 
         let mut regions: BTreeMap<u32, HubrisRegion> = BTreeMap::new();
 
-        /*
-         * Add our loaded kernel regions, which don't otherwise have
-         * descriptors.
-         */
+        //
+        // Add our loaded kernel regions, which don't otherwise have
+        // descriptors.
+        //
         for region in self.loaded.values() {
             if region.task == HubrisTask::Kernel {
                 regions.insert(region.base, *region);
             }
         }
 
-        /*
-         * Add a region for our kernel heap+bss, for which we don't have a
-         * descriptor.
-         */
+        //
+        // Add a region for our kernel heap+bss, for which we don't have a
+        // descriptor.
+        //
         for module in
             self.modules.values().filter(|m| m.task == HubrisTask::Kernel)
         {
@@ -2837,9 +2837,9 @@ impl HubrisArchive {
             }
         };
 
-        /*
-         * Iterate over all tasks, reading their region descriptors.
-         */
+        //
+        // Iterate over all tasks, reading their region descriptors.
+        //
         for i in 0..self.ntasks() {
             let addr = base + i as u32 * task.size as u32;
 
@@ -3259,9 +3259,9 @@ impl HubrisArchive {
         };
 
         if let Some(v) = self.structs.get(&goff) {
-            /*
-             * This is a structure; iterate over its members.
-             */
+            //
+            // This is a structure; iterate over its members.
+            //
             if v.members.is_empty() {
                 return Ok(rval);
             }
@@ -3333,10 +3333,10 @@ impl HubrisArchive {
         }
 
         if let Some(union) = self.enums.get(&goff) {
-            /*
-             * For enums, we need to determine which variant this actually
-             * is -- which necessitates looking at our discriminant.
-             */
+            //
+            // For enums, we need to determine which variant this actually
+            // is -- which necessitates looking at our discriminant.
+            //
             match union.discriminant {
                 Some(HubrisDiscriminant::Value(g, offs)) => {
                     let size = match self.basetypes.get(&g) {
@@ -3578,9 +3578,9 @@ impl HubrisArchive {
             }
         };
 
-        /*
-         * Write our ELF header
-         */
+        //
+        // Write our ELF header
+        //
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
@@ -3590,9 +3590,9 @@ impl HubrisArchive {
 
         let mut bytes = [0x0u8; goblin::elf32::program_header::SIZEOF_PHDR];
 
-        /*
-         * Write our program headers, starting with our note headers.
-         */
+        //
+        // Write our program headers, starting with our note headers.
+        //
         for note in &notes {
             let size = notesz(note);
 
@@ -3634,24 +3634,24 @@ impl HubrisArchive {
             total += region.size;
         }
         for note in &notes {
-            /*
-             * Now write our note section, starting with our note header...
-             */
+            //
+            // Now write our note section, starting with our note header...
+            //
             let mut bytes = [0x0u8; size_of::<goblin::elf::note::Nhdr32>()];
             bytes.pwrite_with(note, 0, ctx.le)?;
             file.write_all(&bytes)?;
 
-            /*
-             * ...and our note name
-             */
+            //
+            // ...and our note name
+            //
             let bytes = oxide.as_bytes();
             file.write_all(bytes)?;
             let npad = 1 + pad!(note.n_namesz) as usize;
             file.write_all(&pad[0..npad])?;
 
-            /*
-             * ...and finally, the note itself.
-             */
+            //
+            // ...and finally, the note itself.
+            //
             match note.n_type {
                 OXIDE_NT_HUBRIS_REGISTERS => {
                     let mut bytes = [0x0u8; 8];
@@ -3674,10 +3674,10 @@ impl HubrisArchive {
             file.write_all(&pad[0..npad])?;
         }
 
-        /*
-         * And now we write our segments.  This takes a little while, so
-         * we're going to indicate our progress as we go.
-         */
+        //
+        // And now we write our segments.  This takes a little while, so
+        // we're going to indicate our progress as we go.
+        //
         let mut written = 0;
 
         let started = Instant::now();
@@ -4342,14 +4342,14 @@ pub struct HubrisUnion {
 }
 
 impl HubrisUnion {
-    /*
-     * This is really horrid, but we are going to heuristically determine if
-     * this is a MaybeUninit -- and if so, return the GOFF of the "value"
-     * member.  It should go without saying that this is brittle in obvious
-     * ways:  if another union has the same two members as MaybeUninit or
-     * MaybeUninit starts naming its members differently, this will break --
-     * and it will deserve to be broken.
-     */
+    //
+    // This is really horrid, but we are going to heuristically determine if
+    // this is a MaybeUninit -- and if so, return the GOFF of the "value"
+    // member.  It should go without saying that this is brittle in obvious
+    // ways:  if another union has the same two members as MaybeUninit or
+    // MaybeUninit starts naming its members differently, this will break --
+    // and it will deserve to be broken.
+    //
     pub fn maybe_uninit(&self) -> Option<HubrisGoff> {
         if self.variants.len() != 2 {
             return None;

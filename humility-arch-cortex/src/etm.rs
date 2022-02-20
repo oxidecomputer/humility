@@ -15,9 +15,9 @@ macro_rules! etm_register {
     )
 }
 
-/*
- * ETM Main Configuration Register
- */
+//
+// ETM Main Configuration Register
+//
 etm_register!(ETMCR, 0x000,
     #[derive(Copy, Clone)]
     pub struct ETMCR(u32);
@@ -47,9 +47,9 @@ etm_register!(ETMCR, 0x000,
     pub power_down, set_power_down: 0;
 );
 
-/*
- * ETM Configuration Code Register
- */
+//
+// ETM Configuration Code Register
+//
 etm_register!(ETMCCR, 0x001,
     #[derive(Copy, Clone)]
     pub struct ETMCCR(u32);
@@ -69,9 +69,9 @@ etm_register!(ETMCCR, 0x001,
     pub num_address_comparators, _: 3, 0;
 );
 
-/*
- * ETM Status Register
- */
+//
+// ETM Status Register
+//
 etm_register!(ETMSR, 0x004,
     #[derive(Copy, Clone)]
     pub struct ETMSR(u32);
@@ -82,9 +82,9 @@ etm_register!(ETMSR, 0x004,
     pub untraced_overflow, _: 0;
 );
 
-/*
- * ETM System Configuration Register
- */
+//
+// ETM System Configuration Register
+//
 etm_register!(ETMSCR, 0x005,
     #[derive(Copy, Clone)]
     pub struct ETMSCR(u32);
@@ -103,9 +103,9 @@ etm_register!(ETMSCR, 0x005,
     pub max_port_size, _: 2, 0;
 );
 
-/*
- * ETM TraceEnable Event Register
- */
+//
+// ETM TraceEnable Event Register
+//
 etm_register!(ETMTEEVR, 0x008,
     #[derive(Copy, Clone)]
     pub struct ETMTEEVR(u32);
@@ -115,9 +115,9 @@ etm_register!(ETMTEEVR, 0x008,
     pub resource_a, set_resource_a: 6, 0;
 );
 
-/*
- * ETM TraceEnable Control 1 Register
- */
+//
+// ETM TraceEnable Control 1 Register
+//
 etm_register!(ETMTECR1, 0x009,
     #[derive(Copy, Clone)]
     pub struct ETMTECR1(u32);
@@ -128,9 +128,9 @@ etm_register!(ETMTECR1, 0x009,
     pub comparator_select, set_comparator_select: 7, 0;
 );
 
-/*
- * ETM FIFOFULL Region Register
- */
+//
+// ETM FIFOFULL Region Register
+//
 etm_register!(ETMFFRR, 0x00a,
     #[derive(Copy, Clone)]
     pub struct ETMFFRR(u32);
@@ -140,9 +140,9 @@ etm_register!(ETMFFRR, 0x00a,
     pub comparator_select, set_comparator_select: 7, 0;
 );
 
-/*
- * ETM FIFOFULL Level Register
- */
+//
+// ETM FIFOFULL Level Register
+//
 etm_register!(ETMFFLR, 0x00b,
     #[derive(Copy, Clone)]
     pub struct ETMFFLR(u32);
@@ -150,9 +150,9 @@ etm_register!(ETMFFLR, 0x00b,
     pub fifo_full_level, set_fifo_full_level: 7, 0;
 );
 
-/*
- * ETM Identification Register
- */
+//
+// ETM Identification Register
+//
 etm_register!(ETMIDR, 0x079,
     #[derive(Copy, Clone)]
     pub struct ETMIDR(u32);
@@ -168,9 +168,9 @@ etm_register!(ETMIDR, 0x079,
     pub etm_revision, _: 3, 0;
 );
 
-/*
- * ETM Configuration Code Extension Register
- */
+//
+// ETM Configuration Code Extension Register
+//
 etm_register!(ETMCCER, 0x07a,
     #[derive(Copy, Clone)]
     pub struct ETMCCER(u32);
@@ -190,9 +190,9 @@ etm_register!(ETMCCER, 0x07a,
     pub num_extended_input_selectors, _: 2, 0;
 );
 
-/*
- * ETM Trace ID Register
- */
+//
+// ETM Trace ID Register
+//
 etm_register!(ETMTRACEIDR, 0x080,
     #[derive(Copy, Clone)]
     pub struct ETMTRACEIDR(u32);
@@ -200,9 +200,9 @@ etm_register!(ETMTRACEIDR, 0x080,
     pub traceid, set_traceid: 6, 0;
 );
 
-/*
- * ETM Identification Register 2
- */
+//
+// ETM Identification Register 2
+//
 etm_register!(ETMIDR2, 0x082,
     #[derive(Copy, Clone)]
     pub struct ETMIDR2(u32);
@@ -211,9 +211,9 @@ etm_register!(ETMIDR2, 0x082,
     pub rfe_cpsr_before_pc, _: 0;
 );
 
-/*
- * ETM Lock Access Register
- */
+//
+// ETM Lock Access Register
+//
 etm_register!(ETMLAR, 0x3ec,
     #[derive(Copy, Clone)]
     pub struct ETMLAR(u32);
@@ -223,9 +223,9 @@ etm_register!(ETMLAR, 0x3ec,
 
 impl ETMLAR {
     pub fn unlock(core: &mut dyn humility::core::Core) -> Result<()> {
-        /*
-         * To unlock, we write "CoreSight Access" in l33t
-         */
+        //
+        // To unlock, we write "CoreSight Access" in l33t
+        //
         let val: u32 = 0xc5ac_ce55;
         core.write_word_32(ETMLAR::ADDRESS, val)?;
         Ok(())
@@ -238,9 +238,9 @@ impl ETMLAR {
     }
 }
 
-/*
- * ETM Lock Status Register
- */
+//
+// ETM Lock Status Register
+//
 etm_register!(ETMLSR, 0x3ed,
     #[derive(Copy, Clone)]
     pub struct ETMLSR(u32);
@@ -488,9 +488,9 @@ fn etm_packet_state(
         ndx + 1
     };
 
-    /*
-     * This assumes the alternative encoding for branch packets.
-     */
+    //
+    // This assumes the alternative encoding for branch packets.
+    //
     assert!(config.alternative_encoding);
 
     match hdr {
@@ -504,15 +504,15 @@ fn etm_packet_state(
             } else {
                 let last = payload[payload.len() - 1];
 
-                /*
-                 * If the high order bit is set, we are always awaiting more
-                 * payload -- regardless of whether that is in one of the
-                 * address bytes (up to five) or one of the exception bytes
-                 * (up to three).
-                 *
-                 * If bit 6 is set, we are awaiting an Exception Information
-                 * Byte.
-                 */
+                //
+                // If the high order bit is set, we are always awaiting more
+                // payload -- regardless of whether that is in one of the
+                // address bytes (up to five) or one of the exception bytes
+                // (up to three).
+                //
+                // If bit 6 is set, we are awaiting an Exception Information
+                // Byte.
+                //
                 if (last & 0b1000_0000) != 0 || (last & 0b0100_0000) != 0 {
                     ETM3PacketState::AwaitingPayload
                 } else {
@@ -647,32 +647,32 @@ fn etm_payload_decode(
             let mut xcp = None;
 
             for (i, pld) in payload.iter().enumerate() {
-                /*
-                 * If our continue bit is set, we always have seven new bits
-                 * of address; or it in, increase the number of bits and
-                 * continue.
-                 */
+                //
+                // If our continue bit is set, we always have seven new bits
+                // of address; or it in, increase the number of bits and
+                // continue.
+                //
                 if (pld & 0b1000_0000) != 0 {
                     target |= ((pld & 0b0111_1111) as u32) << nbits;
                     nbits += 7;
                     continue;
                 }
 
-                /*
-                 * The continue bit is not set, so this packet terminates
-                 * our address.  Bit 6 will indicate whether or not we have
-                 * exception bytes; if we have exception bytes, we'll pull
-                 * those now.
-                 */
+                //
+                // The continue bit is not set, so this packet terminates
+                // our address.  Bit 6 will indicate whether or not we have
+                // exception bytes; if we have exception bytes, we'll pull
+                // those now.
+                //
                 if (pld & 0b0100_0000) != 0 {
                     xcp = Some(exception(i + 1));
                 }
 
-                /*
-                 * For our final address packet, it is generally six bits --
-                 * unless we have a full address change, in which case only
-                 * four bits remain.
-                 */
+                //
+                // For our final address packet, it is generally six bits --
+                // unless we have a full address change, in which case only
+                // four bits remain.
+                //
                 if i < 4 {
                     target |= ((pld & 0b0011_1111) as u32) << nbits;
                     nbits += 6;
@@ -784,10 +784,10 @@ pub fn etm_ingest(
 
         match (state, hdr) {
             (IngestState::ISyncSearching, ETM3Header::ISync) => {
-                /*
-                 * We have our ISync packet -- we can now ingest everything
-                 * (starting with this packet).
-                 */
+                //
+                // We have our ISync packet -- we can now ingest everything
+                // (starting with this packet).
+                //
                 state = IngestState::Ingesting;
             }
             (_, _) => {}
