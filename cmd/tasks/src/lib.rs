@@ -254,10 +254,10 @@ fn tasks(
         let cur =
             core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
 
-        /*
-         * We read the entire task table at a go to get as consistent a
-         * snapshot as possible.
-         */
+        //
+        // We read the entire task table at a go to get as consistent a
+        // snapshot as possible.
+        //
         let mut taskblock = vec![0; task_t.size * task_count as usize];
         core.read_8(base, &mut taskblock)?;
 

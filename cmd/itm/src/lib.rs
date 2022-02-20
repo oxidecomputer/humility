@@ -113,21 +113,21 @@ fn itmcmd_probe(core: &mut dyn Core, coreinfo: &CoreInfo) -> Result<()> {
 }
 
 fn itmcmd_disable(core: &mut dyn Core) -> Result<()> {
-    /*
-     * Unlock the ITM.
-     */
+    //
+    // Unlock the ITM.
+    //
     ITM_LAR::unlock(core)?;
 
-    /*
-     * Disable the ITM.
-     */
+    //
+    // Disable the ITM.
+    //
     let mut tcr = ITM_TCR::read(core)?;
     tcr.set_itm_enable(false);
     tcr.write(core)?;
 
-    /*
-     * Now disable TRCENA in the DEMCR.
-     */
+    //
+    // Now disable TRCENA in the DEMCR.
+    //
     let mut val = DEMCR::read(core)?;
     val.set_trcena(false);
     val.write(core)?;
@@ -266,9 +266,9 @@ fn itmcmd(
         }
     }
 
-    /*
-     * For all of the other commands, we need to actually attach to the chip.
-     */
+    //
+    // For all of the other commands, we need to actually attach to the chip.
+    //
     let mut c = attach_live(args)?;
     let core = c.as_mut();
     hubris.validate(core, HubrisValidate::ArchiveMatch)?;
@@ -291,9 +291,9 @@ fn itmcmd(
             core.init_swv()?;
         }
 
-        /*
-         * By default, we enable all logging (ports 0-7).
-         */
+        //
+        // By default, we enable all logging (ports 0-7).
+        //
         let stim = 0x0000_000f;
         let clockscaler = match subargs.clockscaler {
             Some(value) => value,

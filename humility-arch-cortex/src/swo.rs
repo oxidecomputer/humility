@@ -9,16 +9,16 @@ use humility::core::Core;
 use num_traits::FromPrimitive;
 use num_traits::ToPrimitive;
 
-/*
- * SWO Current Output Divisor Register
- */
+//
+// SWO Current Output Divisor Register
+//
 register_offs!(SWO_CODR, 0x10,
     pub prescaler, set_prescaler: 15, 0;
 );
 
-/*
- * SWO Selected Pin Protocol Register
- */
+//
+// SWO Selected Pin Protocol Register
+//
 register_offs!(SWO_SPPR, 0xf0,
     pub pprot, set_pprot: 1, 0;
 );
@@ -42,9 +42,9 @@ impl From<SWOMode> for u32 {
     }
 }
 
-/*
- * SWO Formatter and Flush Status Register
- */
+//
+// SWO Formatter and Flush Status Register
+//
 register_offs!(SWO_FFSR, 0x300,
     pub formatter_nonstop, _: 3;
     pub tracectl_present, _: 2;
@@ -52,9 +52,9 @@ register_offs!(SWO_FFSR, 0x300,
     pub flush_in_progress, _: 0;
 );
 
-/*
- * SWO Lock Access Register
- */
+//
+// SWO Lock Access Register
+//
 register_offs!(SWO_LAR, 0xfb0,
     pub key, _: 1;
 );
@@ -64,9 +64,9 @@ impl SWO_LAR {
         core: &mut dyn humility::core::Core,
         base: u32,
     ) -> Result<()> {
-        /*
-         * To unlock, we write "CoreSight Access" in l33t
-         */
+        //
+        // To unlock, we write "CoreSight Access" in l33t
+        //
         let val: u32 = 0xc5ac_ce55;
         core.write_word_32(SWO_LAR::address(base), val)?;
         Ok(())

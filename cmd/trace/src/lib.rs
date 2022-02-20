@@ -210,9 +210,9 @@ fn tracecmd(
     let subargs = &TraceArgs::try_parse_from(subargs)?;
     let mut tasks: HashMap<u32, String> = HashMap::new();
 
-    /*
-     * First, read the task block to get a mapping of IDs to names.
-     */
+    //
+    // First, read the task block to get a mapping of IDs to names.
+    //
     let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
     let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
 
@@ -238,9 +238,9 @@ fn tracecmd(
         tasks.insert(i, module.to_string());
     }
 
-    /*
-     * Now enable ITM and ingest.
-     */
+    //
+    // Now enable ITM and ingest.
+    //
     let traceid = itm_enable_ingest(core, hubris, 0xf000_0000)?;
     tracecmd_ingest(core, subargs, hubris, &tasks, traceid)?;
 

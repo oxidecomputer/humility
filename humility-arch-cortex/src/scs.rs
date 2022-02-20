@@ -188,28 +188,27 @@ impl CoreSightComponent {
         let major = devtype.major();
         let sub = devtype.sub();
 
-        /*
-         * Determining the CoreSight component that we're looking at is -- in
-         * classic ARM fashion -- ridiculously complicated.  Table B2-1 in
-         * the CoreSight 3.0 Architecture Specification requires that
-         * we look at up to 13 different fields (!) across 8
-         * different registers (!!) adding to a total of 74 bits
-         * (!!!).  On the one hand, it's reassuring that we can have
-         * a unique CoreSight component for every grain of sand on
-         * Earth and still have enough room to similarly
-         * grant a CoreSight component for the grains of sand on a thousand
-         * other such planets. On the other hand, this is obviously absurd,
-         * and no two bodies of software seem to make this determination the
-         * same way.  (One notable body of software from ARM claims to be
-         * written from the canonical description, which is apparently to be
-         * found on -- wait for it -- an internal Wiki!)
-         *
-         * Absent a single authoritative doc, we muddle through the best we
-         * can, cribbing from various internet sources (searching GitHub for
-         * known constants and their associated components is remarkably
-         * effective).  The ordering here is: part numbers, falling back to
-         * archid second, falling back to device type last.
-         */
+        //
+        // Determining the CoreSight component that we're looking at is -- in
+        // classic ARM fashion -- ridiculously complicated.  Table B2-1 in the
+        // CoreSight 3.0 Architecture Specification requires that we look at
+        // up to 13 different fields (!) across 8 different registers (!!)
+        // adding to a total of 74 bits (!!!).  On the one hand, it's
+        // reassuring that we can have a unique CoreSight component for every
+        // grain of sand on Earth and still have enough room to similarly
+        // grant a CoreSight component for the grains of sand on a thousand
+        // other such planets. On the other hand, this is obviously absurd,
+        // and no two bodies of software seem to make this determination the
+        // same way.  (One notable body of software from ARM claims to be
+        // written from the canonical description, which is apparently to be
+        // found on -- wait for it -- an internal Wiki!)
+        //
+        // Absent a single authoritative doc, we muddle through the best we
+        // can, cribbing from various internet sources (searching GitHub for
+        // known constants and their associated components is remarkably
+        // effective).  The ordering here is: part numbers, falling back to
+        // archid second, falling back to device type last.
+        //
         Ok(match page.part {
             0x001 => CoreSightComponent::ITM,
             0x002 => CoreSightComponent::DWT,
@@ -339,18 +338,18 @@ pub fn read_rom(
     base: u32,
     components: &mut MultiMap<CoreSightComponent, u32>,
 ) -> Result<()> {
-    /*
-     * We need to determine if this, in fact, a ROM table.
-     */
+    //
+    // We need to determine if this, in fact, a ROM table.
+    //
     let page = CoreSightPage::new(core, base)?;
     let max = 0x900;
 
     match page.class {
         CoreSightClass::ROM => {
-            /*
-             * This is a ROM table, so we want to read its entries, and
-             * descend.
-             */
+            //
+            // This is a ROM table, so we want to read its entries, and
+            // descend.
+            //
             for offset in (0..max).step_by(size_of::<u32>() as usize) {
                 let val = core.read_word_32(base + offset as u32)?;
 
@@ -386,11 +385,11 @@ register!(CPUID, 0xe000_ed00,
     pub revision, _: 3, 0;
 );
 
-/*
- * This is the much shorter list of vendors whose parts we support -- and
- * therefore are willing to hard-code special case handling for, to some
- * extent.
- */
+//
+// This is the much shorter list of vendors whose parts we support -- and
+// therefore are willing to hard-code special case handling for, to some
+// extent.
+//
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Vendor {
     ST,
@@ -438,10 +437,10 @@ impl CoreInfo {
         };
 
         if vendor == Vendor::ST && part == ARMCore::CortexM7 {
-            /*
-             * Before we can walk the M7's ROM tables, we need to make sure
-             * that the debug parts are clocked.
-             */
+            //
+            // Before we can walk the M7's ROM tables, we need to make sure
+            // that the debug parts are clocked.
+            //
             let mut cr = STM32H7_DBGMCU_CR::read(core)?;
             cr.set_srdbgcken(true);
             cr.set_cddbgcken(true);
@@ -450,14 +449,14 @@ impl CoreInfo {
         }
 
         if vendor == Vendor::NXP && part == ARMCore::CortexM33 {
-            /*
-             * Before we can talk to the TPIU on the LPC55, we need to make
-             * sure that it is clocked: TRACECLKSEL.SEL must be set to 0 to
-             * select the Trace Divided Clock, and TRACECLKDIV.HALT,
-             * TRACECLKDIV.REQFLAG and TRACECLKDIV.RESET must all be cleared.
-             * (We also must check that IOCON is clocked -- though we expect
-             * this to be true.)
-             */
+            //
+            // Before we can talk to the TPIU on the LPC55, we need to make
+            // sure that it is clocked: TRACECLKSEL.SEL must be set to 0 to
+            // select the Trace Divided Clock, and TRACECLKDIV.HALT,
+            // TRACECLKDIV.REQFLAG and TRACECLKDIV.RESET must all be cleared.
+            // (We also must check that IOCON is clocked -- though we expect
+            // this to be true.)
+            //
             let mut sel = LPC55_SYSCON_TRACECLKSEL::read(core)?;
             sel.set_sel(0);
             sel.write(core)?;

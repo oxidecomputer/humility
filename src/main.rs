@@ -11,24 +11,24 @@ use clap::Parser;
 mod cmd;
 
 fn main() {
-    /*
-     * This isn't hugely efficient, but we actually parse our arguments
-     * twice: the first is with our subcommands grafted into our
-     * arguments to get us a unified help and error message in the event
-     * of any parsing value or request for a help message; if that works,
-     * we parse our arguments again but relying on the
-     * external_subcommand to directive to allow our subcommand to do any
-     * parsing on its own.
-     */
+    //
+    // This isn't hugely efficient, but we actually parse our arguments
+    // twice: the first is with our subcommands grafted into our
+    // arguments to get us a unified help and error message in the event
+    // of any parsing value or request for a help message; if that works,
+    // we parse our arguments again but relying on the
+    // external_subcommand to directive to allow our subcommand to do any
+    // parsing on its own.
+    //
     let (commands, clap) = cmd::init(Args::into_app());
 
     let m = clap.get_matches();
     let _args = Args::from_arg_matches(&m);
 
-    /*
-     * If we're here, we know that our arguments pass muster from the
-     * Structopt/ Clap perspective.
-     */
+    //
+    // If we're here, we know that our arguments pass muster from the
+    // Structopt/ Clap perspective.
+    //
     let mut args = Args::parse();
 
     //

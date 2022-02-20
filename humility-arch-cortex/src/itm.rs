@@ -13,9 +13,9 @@ use bitfield::bitfield;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 
-/*
- * ITM Trace Enable Register
- */
+//
+// ITM Trace Enable Register
+//
 register!(ITM_TER, 0xe000_0e00,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -24,9 +24,9 @@ register!(ITM_TER, 0xe000_0e00,
     pub enabled, set_enabled: 31, 0;
 );
 
-/*
- * ITM Trace Privilege Register
- */
+//
+// ITM Trace Privilege Register
+//
 register!(ITM_TPR, 0xe000_0e40,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -35,9 +35,9 @@ register!(ITM_TPR, 0xe000_0e40,
     pub privmask, set_privmask: 31, 0;
 );
 
-/*
- * ITM Trace Configuration Register
- */
+//
+// ITM Trace Configuration Register
+//
 register!(ITM_TCR, 0xe000_0e80,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -53,9 +53,9 @@ register!(ITM_TCR, 0xe000_0e80,
     pub itm_enable, set_itm_enable: 0;
 );
 
-/*
- * ITM Lock Access Register
- */
+//
+// ITM Lock Access Register
+//
 register!(ITM_LAR, 0xe000_0fb0,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -64,9 +64,9 @@ register!(ITM_LAR, 0xe000_0fb0,
     pub key, _: 1;
 );
 
-/*
- * ITM Lock Status Register
- */
+//
+// ITM Lock Status Register
+//
 register!(ITM_LSR, 0xe000_0fb4,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -78,9 +78,9 @@ register!(ITM_LSR, 0xe000_0fb4,
 
 impl ITM_LAR {
     pub fn unlock(core: &mut dyn humility::core::Core) -> Result<()> {
-        /*
-         * To unlock, we write "CoreSight Access" in l33t
-         */
+        //
+        // To unlock, we write "CoreSight Access" in l33t
+        //
         let val: u32 = 0xc5ac_ce55;
         core.write_word_32(ITM_LAR::ADDRESS, val)?;
         Ok(())
@@ -434,19 +434,19 @@ pub fn itm_enable_explicit(
     traceid: u8,
     stimuli: u32,
 ) -> Result<()> {
-    /*
-     * First, enable TRCENA in the DEMCR.
-     */
+    //
+    // First, enable TRCENA in the DEMCR.
+    //
     let mut val = DEMCR::read(core)?;
     val.set_trcena(true);
     val.write(core)?;
 
     match (coreinfo.vendor, coreinfo.part) {
         (Vendor::ST, ARMCore::CortexM4) => {
-            /*
-             * STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and
-             * set the trace mode to be asynchronous.
-             */
+            //
+            // STM32F4xx-specific: enable TRACE_IOEN in the DBGMCU_CR, and
+            // set the trace mode to be asynchronous.
+            //
             let mut val = STM32F4_DBGMCU_CR::read(core)?;
             val.set_trace_ioen(true);
             val.set_trace_mode(0);
@@ -454,9 +454,9 @@ pub fn itm_enable_explicit(
         }
 
         (Vendor::ST, ARMCore::CortexM7) => {
-            /*
-             * STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
-             */
+            //
+            // STM32H7xx-specific: enable D3 and D1 clock domain + traceclk
+            //
             let mut cr = STM32H7_DBGMCU_CR::read(core)?;
             cr.set_srdbgcken(true);
             cr.set_cddbgcken(true);
@@ -466,10 +466,10 @@ pub fn itm_enable_explicit(
             let components = &coreinfo.components;
 
             if let Some(cstf) = components.get_vec(&CoreSightComponent::CSTF) {
-                /*
-                 * If we have two funnels, the first is in D3 -- and it needs
-                 * to be unlocked and enabled.
-                 */
+                //
+                // If we have two funnels, the first is in D3 -- and it needs
+                // to be unlocked and enabled.
+                //
                 if cstf.len() > 1 {
                     log::trace!("SWTF found at {:x}", cstf[0]);
                     SWO_LAR::unlock(core, cstf[0])?;
@@ -486,9 +486,9 @@ pub fn itm_enable_explicit(
     let swoscaler = clockscaler as u32;
 
     if let Some(swo) = coreinfo.address(CoreSightComponent::SWO) {
-        /*
-         * If we have a SWO unit, configure it instead of the TPIU
-         */
+        //
+        // If we have a SWO unit, configure it instead of the TPIU
+        //
         log::trace!("SWO found at {:x}", swo);
 
         SWO_LAR::unlock(core, swo)?;
@@ -501,9 +501,9 @@ pub fn itm_enable_explicit(
         sppr.register.set_pprot(SWOMode::NRZ.into());
         sppr.write(core)?;
     } else {
-        /*
-         * Otherwise setup the TPIU.
-         */
+        //
+        // Otherwise setup the TPIU.
+        //
         let mut val = TPIU_SPPR::read(core)?;
         val.set_txmode(TPIUMode::NRZ);
         val.write(core)?;
@@ -518,50 +518,50 @@ pub fn itm_enable_explicit(
         log::trace!("{:#x?}", TPIU_ACPR::read(core)?);
     }
 
-    /*
-     * Unlock the ITM.
-     */
+    //
+    // Unlock the ITM.
+    //
     ITM_LAR::unlock(core)?;
 
-    /*
-     * Disable the ITM.
-     */
+    //
+    // Disable the ITM.
+    //
     let mut tcr = ITM_TCR::read(core)?;
     tcr.set_itm_enable(false);
     tcr.write(core)?;
 
-    /*
-     * Spin until the ITM is not busy
-     */
+    //
+    // Spin until the ITM is not busy
+    //
     while ITM_TCR::read(core)?.itm_busy() {
         continue;
     }
 
-    /*
-     * Enable the DWT to generate a synchronization packet every 8M cycles.
-     */
+    //
+    // Enable the DWT to generate a synchronization packet every 8M cycles.
+    //
     let mut dwt = DWT_CTRL::read(core)?;
     dwt.set_synctap(DWTSyncTapFrequency::CycCnt8M);
     dwt.set_cyccnt_enabled(true);
     dwt.write(core)?;
 
-    /*
-     * Enable stimuli
-     */
+    //
+    // Enable stimuli
+    //
     let mut ter = ITM_TER::read(core)?;
     ter.set_enabled(stimuli);
     ter.write(core)?;
 
-    /*
-     * Allow unprivileged access to all stimulus ports
-     */
+    //
+    // Allow unprivileged access to all stimulus ports
+    //
     let mut tpr = ITM_TPR::read(core)?;
     tpr.set_privmask(0);
     tpr.write(core)?;
 
-    /*
-     * Set the trace ID
-     */
+    //
+    // Set the trace ID
+    //
     tcr = ITM_TCR::read(core)?;
     tcr.set_traceid(traceid.into());
     tcr.set_timestamp_enable(stimuli & 0xffff_0000 != 0);
@@ -586,10 +586,10 @@ pub fn itm_enable_ingest(
     let _info = core.halt();
     core.init_swv()?;
 
-    /*
-     * Pull our clock scaler from the Hubris archive -- and set our traceid
-     * to be a recognizable value.
-     */
+    //
+    // Pull our clock scaler from the Hubris archive -- and set our traceid
+    // to be a recognizable value.
+    //
     let clockscaler = swoscaler(hubris, core)?;
     let traceid = 0x3a;
 

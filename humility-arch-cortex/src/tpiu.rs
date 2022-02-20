@@ -16,9 +16,9 @@ register!(TPIU_SSPSR, 0xe004_0000,
     swidth, _: 31, 0;
 );
 
-/*
- * TPIU Asynchronous Clock Prescaler Register
- */
+//
+// TPIU Asynchronous Clock Prescaler Register
+//
 register!(TPIU_ACPR, 0xe004_0010,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -27,9 +27,9 @@ register!(TPIU_ACPR, 0xe004_0010,
     pub swoscaler, set_swoscaler: 15, 0;
 );
 
-/*
- * TPIU Selected Pin Protocol Register
- */
+//
+// TPIU Selected Pin Protocol Register
+//
 register!(TPIU_SPPR, 0xe004_00f0,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -56,9 +56,9 @@ impl TPIU_SPPR {
     }
 }
 
-/*
- * TPIU Supported Test Patterns/Modes Register
- */
+//
+// TPIU Supported Test Patterns/Modes Register
+//
 register!(TPIU_STMR, 0xe004_0200,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -72,9 +72,9 @@ register!(TPIU_STMR, 0xe004_0200,
     pub walking_1s_pattern, _: 0;
 );
 
-/*
- * TPIU Flush and Format Status Register
- */
+//
+// TPIU Flush and Format Status Register
+//
 register!(TPIU_FFSR, 0xe004_0300,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -85,9 +85,9 @@ register!(TPIU_FFSR, 0xe004_0300,
     pub flush_in_progress, _: 0;
 );
 
-/*
- * TPIU Flush and Format Control Register
- */
+//
+// TPIU Flush and Format Control Register
+//
 register!(TPIU_FFCR, 0xe004_0304,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -97,9 +97,9 @@ register!(TPIU_FFCR, 0xe004_0304,
     pub continuous_formatting, set_continuous_formatting: 1;
 );
 
-/*
- * TPIU Formatter Synchronization Counter Register
- */
+//
+// TPIU Formatter Synchronization Counter Register
+//
 register!(TPIU_FSCR, 0xe004_0308,
     #[derive(Copy, Clone)]
     #[allow(non_camel_case_types)]
@@ -151,10 +151,10 @@ const TPIU_ID_NULL: u8 = 0;
 fn tpiu_next_state(state: TPIUState, byte: u8, offset: usize) -> TPIUState {
     let sync = &TPIU_FRAME_SYNC;
 
-    /*
-     * Based on our current state and the byte, we're looking at, determine
-     * our next framing state.
-     */
+    //
+    // Based on our current state and the byte, we're looking at, determine
+    // our next framing state.
+    //
     let nstate = match state {
         TPIUState::SearchingSyncing(next) if byte != sync[next] => {
             TPIUState::Searching
@@ -219,12 +219,12 @@ fn tpiu_check_frame(
     valid: &[bool],
     intermixed: bool,
 ) -> bool {
-    /*
-     * To check a frame, we go through its half words, checking them for
-     * inconsistency.  The false positive rate will very much depend on how
-     * crowded the ID space is:  the sparser the valid space, the less likely
-     * we are to accept a frame that is in fact invalid.
-     */
+    //
+    // To check a frame, we go through its half words, checking them for
+    // inconsistency.  The false positive rate will very much depend on how
+    // crowded the ID space is:  the sparser the valid space, the less likely
+    // we are to accept a frame that is in fact invalid.
+    //
     let max = frame.len() / 2;
 
     for i in 0..max {
@@ -232,20 +232,20 @@ fn tpiu_check_frame(
         let half = TPIUFrameHalfWord::from((frame[base].0, frame[base + 1].0));
 
         if half.f_control() {
-            /*
-             * The NULL source identifier denotes data we need to explicitly
-             * chuck; check for it.
-             */
+            //
+            // The NULL source identifier denotes data we need to explicitly
+            // chuck; check for it.
+            //
             if half.data_or_id() == TPIU_ID_NULL as u16 {
                 continue;
             }
 
-            /*
-             * The two conditions under which we can reject a frame:  we
-             * either have an ID that isn't expected, or we are not expecting
-             * intermixed output and we have an ID on anything but the first
-             * half-word of the frame.
-             */
+            //
+            // The two conditions under which we can reject a frame:  we
+            // either have an ID that isn't expected, or we are not expecting
+            // intermixed output and we have an ID on anything but the first
+            // half-word of the frame.
+            //
             if !valid[half.data_or_id() as usize] || (i > 0 && !intermixed) {
                 return false;
             }
@@ -278,11 +278,11 @@ fn tpiu_process_frame(
         let last = i == max - 1;
 
         if half.f_control() {
-            /*
-             * If our bit is set, the sense of the auxiliary bit tells us
-             * if the ID takes effect with this halfword (bit is clear), or
-             * with the next (bit is set).
-             */
+            //
+            // If our bit is set, the sense of the auxiliary bit tells us
+            // if the ID takes effect with this halfword (bit is clear), or
+            // with the next (bit is set).
+            //
             let delay = auxbit != 0;
             let mut packet = TPIUPacket {
                 id: Some(half.data_or_id() as u8),
@@ -292,12 +292,12 @@ fn tpiu_process_frame(
             };
 
             if last {
-                /*
-                 * If this is the last half-word, the auxiliary bit "must be
-                 * ignored" (Sec. D4.2 in the ARM CoreSight Architecture
-                 * Specification), and applies to the subsequent record.  So
-                 * in this case, we just return the ID.
-                 */
+                //
+                // If this is the last half-word, the auxiliary bit "must be
+                // ignored" (Sec. D4.2 in the ARM CoreSight Architecture
+                // Specification), and applies to the subsequent record.  So
+                // in this case, we just return the ID.
+                //
                 return Ok(packet.id.unwrap());
             }
 
@@ -312,23 +312,23 @@ fn tpiu_process_frame(
                     packet.id = saved;
                 }
                 (true, None) => {
-                    /*
-                     * We have no old ID -- we are going to discard this
-                     * byte, but also warn about it.
-                     */
+                    //
+                    // We have no old ID -- we are going to discard this
+                    // byte, but also warn about it.
+                    //
                     warn!("orphaned byte at offset {}", packet.offset);
                 }
             }
 
             current = packet.id;
         } else {
-            /*
-             * If our bit is NOT set, the auxiliary bit is the actual bit
-             * of data.  If our current is not set, then we are still
-             * searching for a first frame; we don't have an ID
-             * to associate with it, so we need to chuck the
-             * data.
-             */
+            //
+            // If our bit is NOT set, the auxiliary bit is the actual bit
+            // of data.  If our current is not set, then we are still
+            // searching for a first frame; we don't have an ID
+            // to associate with it, so we need to chuck the
+            // data.
+            //
             let id = match current {
                 Some(id) => id,
                 None => {
@@ -357,10 +357,10 @@ fn tpiu_process_frame(
         }
     }
 
-    /*
-     * We shouldn't be able to get here:  the last half-word handling logic
-     * should assure that we return from within the loop.
-     */
+    //
+    // We shouldn't be able to get here:  the last half-word handling logic
+    // should assure that we return from within the loop.
+    //
     unreachable!();
 }
 
@@ -442,10 +442,10 @@ pub fn tpiu_ingest(
                 state = tpiu_next_state(state, datum, offs);
 
                 if state == TPIUState::Searching {
-                    /*
-                     * We just got kicked back into searching; we need to
-                     * replay this datum to see if it starts a frame.
-                     */
+                    //
+                    // We just got kicked back into searching; we need to
+                    // replay this datum to see if it starts a frame.
+                    //
                     replay.push((datum, time, offs));
                     continue;
                 }
@@ -477,10 +477,10 @@ pub fn tpiu_ingest(
                     continue;
                 }
 
-                /*
-                 * We have a complete frame.  We need to now check the entire
-                 * frame.
-                 */
+                //
+                // We have a complete frame.  We need to now check the entire
+                // frame.
+                //
                 if tpiu_check_frame(&frame, valid, true) {
                     humility::msg!(
                         "valid TPIU frame starting at offset {}",
@@ -493,9 +493,9 @@ pub fn tpiu_ingest(
                     continue;
                 }
 
-                /*
-                 * That wasn't a valid frame; we need to replay.
-                 */
+                //
+                // That wasn't a valid frame; we need to replay.
+                //
                 while ndx > 1 {
                     replay.push(frame[ndx - 1]);
                     ndx -= 1;
@@ -526,11 +526,11 @@ pub fn tpiu_ingest(
                     continue;
                 }
 
-                /*
-                 * We have a complete frame, but we more or less expect it to
-                 * be correct.  If this fails, we need to go back in time
-                 * and resume our search for a frame.
-                 */
+                //
+                // We have a complete frame, but we more or less expect it to
+                // be correct.  If this fails, we need to go back in time
+                // and resume our search for a frame.
+                //
                 if !tpiu_check_frame(&frame, valid, true) {
                     warn!(
                         "after {} frame{}, invalid frame at offset {}",
