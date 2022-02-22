@@ -157,6 +157,7 @@ environment variable.
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
+- [humility flash](#humility-flash): flash archive onto attached device
 - [humility gpio](#humility-gpio): GPIO pin manipulation
 - [humility hiffy](#humility-hiffy): manipulate HIF execution
 - [humility i2c](#humility-i2c): scan for and read I2C devices
@@ -264,6 +265,21 @@ ID ADDR     TASK               GEN STATE
 ### `humility etm`
 
 No documentation yet for `humility etm`; pull requests welcome!
+
+### `humility flash`
+
+Flashes the target with the image that is contained within the specified
+archive (or dump).  This merely executes the underlying flashing
+mechanism (either PyOCD or OpenOCD, depending on the target); if the
+requisite software is not installed (or isn't in the path), this will
+fail.  Temporary files are created as part of this process; if they are to
+be retained, the `-R` (`--retain-temporaries`) flag should be set.
+To see what would be executed without actually executing any commands,
+use the `-n` (`--dry-run`) flag.  As a precautionary measure, if
+the specified archive already appears to be on the target, `humility
+flash` will fail unless the `-F` (`--force`) flag is set.
+
+
 
 ### `humility gpio`
 

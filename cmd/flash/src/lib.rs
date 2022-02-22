@@ -4,6 +4,17 @@
 
 //! ## `humility flash`
 //!
+//! Flashes the target with the image that is contained within the specified
+//! archive (or dump).  This merely executes the underlying flashing
+//! mechanism (either PyOCD or OpenOCD, depending on the target); if the
+//! requisite software is not installed (or isn't in the path), this will
+//! fail.  Temporary files are created as part of this process; if they are to
+//! be retained, the `-R` (`--retain-temporaries`) flag should be set.
+//! To see what would be executed without actually executing any commands,
+//! use the `-n` (`--dry-run`) flag.  As a precautionary measure, if
+//! the specified archive already appears to be on the target, `humility
+//! flash` will fail unless the `-F` (`--force`) flag is set.
+//!
 
 use anyhow::{bail, Context, Result};
 use clap::App;
@@ -11,8 +22,8 @@ use clap::IntoApp;
 use clap::Parser;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Command};
-use std::io::Write;
 use path_slash::PathExt;
+use std::io::Write;
 
 use serde::Deserialize;
 
@@ -27,7 +38,7 @@ struct FlashArgs {
     #[clap(long = "dry-run", short = 'n')]
     dryrun: bool,
 
-    /// retain any configuration files
+    /// retain any temporary files
     #[clap(long = "retain-temporaries", short = 'R')]
     retain: bool,
 }
@@ -96,11 +107,21 @@ fn flashcmd(
                 );
             } else {
                 bail!("archive appears to be already flashed on attached device; \
-                    use -F (--force) to force re-flash");
+                    use -F (\"--force\") to force re-flash");
             }
         }
 
         core.info().1
+    };
+
+    let dryrun = |cmd: &std::process::Command| {
+        let args: Vec<_> =
+            cmd.get_args().map(|o| o.to_string_lossy()).collect();
+        humility::msg!(
+            "would execute: \"{} {}\"",
+            cmd.get_program().to_string_lossy(),
+            args.join(" ")
+        );
     };
 
     match config.program {
@@ -117,7 +138,6 @@ fn flashcmd(
 
             if let Some(serial) = serial {
                 humility::msg!("specifying serial {}", serial);
-                // writeln!(conf, "interface hla\nhla_serial {}", serial)?;
                 writeln!(conf, "adapter serial {}", serial)?;
             }
 
@@ -170,8 +190,71 @@ fn flashcmd(
             }
         }
 
-        _ => {
-            bail!("unsupported program type {:?}", config.program);
+        FlashProgram::PyOcd(ref reset_args) => {
+            let mut flash = std::process::Command::new("pyocd");
+            let mut reset = std::process::Command::new("pyocd");
+
+            let ihex = tempfile::NamedTempFile::new()?;
+            std::fs::write(&ihex, flash_config.ihex)?;
+            let ihex_path = ihex.path();
+
+            for arg in config.args {
+                match arg {
+                    FlashArgument::Direct(ref val) => {
+                        flash.arg(val);
+                    }
+                    FlashArgument::Payload => {
+                        flash.arg(ihex_path);
+                    }
+                    _ => {
+                        anyhow::bail!("unexpected PyOCD argument {:?}", arg);
+                    }
+                }
+            }
+
+            for arg in reset_args {
+                if let FlashArgument::Direct(ref val) = arg {
+                    reset.arg(val);
+                } else {
+                    anyhow::bail!("unexpected PyOCD reset argument {:?}", arg);
+                }
+            }
+
+            if let Some(serial) = serial {
+                humility::msg!("specifying serial {}", serial);
+                flash.arg("-u");
+                flash.arg(&serial);
+                reset.arg("-u");
+                reset.arg(&serial);
+            }
+
+            if subargs.retain || subargs.dryrun {
+                humility::msg!("retaining ihex as {}", ihex_path.display());
+                ihex.keep()?;
+            }
+
+            if subargs.dryrun {
+                dryrun(&flash);
+                dryrun(&reset);
+
+                return Ok(());
+            }
+
+            let status = flash
+                .status()
+                .with_context(|| format!("failed to flash ({:?})", flash))?;
+
+            if !status.success() {
+                anyhow::bail!("flash command ({:?}) failed; see output", flash);
+            }
+
+            let status = reset
+                .status()
+                .with_context(|| format!("failed to reset ({:?})", reset))?;
+
+            if !status.success() {
+                anyhow::bail!("reset command ({:?}) failed; see output", reset);
+            }
         }
     };
 

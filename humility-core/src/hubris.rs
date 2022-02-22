@@ -2327,26 +2327,28 @@ impl HubrisArchive {
         let mut archive = zip::ZipArchive::new(cursor)?;
 
         macro_rules! slurp {
-            ($name:tt) => {
-                {
-                    let mut buffer = Vec::new();
+            ($name:tt) => {{
+                let mut buffer = Vec::new();
                 archive
                     .by_name($name)
-                    .map_err(|e| anyhow!("failed to find \"{}\": {}", $name, e))?
+                    .map_err(|e| {
+                        anyhow!("failed to find \"{}\": {}", $name, e)
+                    })?
                     .read_to_end(&mut buffer)?;
                 buffer
-                }
-            };
+            }};
         }
 
         let mut flash = String::new();
 
         archive
             .by_name("img/flash.ron")
-            .map_err(|_| anyhow!(
+            .map_err(|_| {
+                anyhow!(
                 "could not find img/flash.ron in archive; \
                 does archive pre-date addition of flash information?"
-            ))?
+            )
+            })?
             .read_to_string(&mut flash)?;
 
         Ok(HubrisFlashConfig {
