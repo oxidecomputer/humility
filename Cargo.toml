@@ -16,6 +16,7 @@ members = [
     "cmd/dump",
     "cmd/etm",
     "cmd/gpio",
+    "cmd/flash",
     "cmd/hiffy",
     "cmd/i2c",
     "cmd/itm",
@@ -62,6 +63,7 @@ cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
+cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
 cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
 cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
 cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }

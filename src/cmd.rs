@@ -22,6 +22,7 @@ pub fn init(
         cmd_diagnose::init,
         cmd_dump::init,
         cmd_etm::init,
+        cmd_flash::init,
         cmd_gpio::init,
         cmd_hiffy::init,
         cmd_i2c::init,

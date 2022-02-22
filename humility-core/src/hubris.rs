@@ -223,6 +223,15 @@ impl HubrisSensorKind {
     }
 }
 
+//
+// Flash information pulled from the archive
+//
+pub struct HubrisFlashConfig {
+    pub metadata: String,
+    pub srec: Vec<u8>,
+    pub ihex: Vec<u8>,
+}
+
 #[derive(Debug)]
 pub struct HubrisArchive {
     // the entire archive
@@ -2313,6 +2322,40 @@ impl HubrisArchive {
         Ok(())
     }
 
+    pub fn load_flash_config(&self) -> Result<HubrisFlashConfig> {
+        let cursor = Cursor::new(&self.archive);
+        let mut archive = zip::ZipArchive::new(cursor)?;
+
+        macro_rules! slurp {
+            ($name:tt) => {
+                {
+                    let mut buffer = Vec::new();
+                archive
+                    .by_name($name)
+                    .map_err(|e| anyhow!("failed to find \"{}\": {}", $name, e))?
+                    .read_to_end(&mut buffer)?;
+                buffer
+                }
+            };
+        }
+
+        let mut flash = String::new();
+
+        archive
+            .by_name("img/flash.ron")
+            .map_err(|_| anyhow!(
+                "could not find img/flash.ron in archive; \
+                does archive pre-date addition of flash information?"
+            ))?
+            .read_to_string(&mut flash)?;
+
+        Ok(HubrisFlashConfig {
+            metadata: flash,
+            srec: slurp!("img/final.srec"),
+            ihex: slurp!("img/final.ihex"),
+        })
+    }
+
     fn load_registers(&mut self, r: &[u8]) -> Result<()> {
         if r.len() % 8 != 0 {
             bail!("bad length {} in registers note", r.len());
@@ -2361,6 +2404,7 @@ impl HubrisArchive {
                         match note.n_type {
                             OXIDE_NT_HUBRIS_ARCHIVE => {
                                 self.load_archive(note.desc)?;
+                                self.archive = note.desc.to_vec();
                             }
                             OXIDE_NT_HUBRIS_REGISTERS => {
                                 self.load_registers(note.desc)?;
@@ -4064,6 +4108,7 @@ impl HubrisArchive {
         }
     }
 }
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum HubrisTask {
     Kernel,
