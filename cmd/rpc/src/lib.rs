@@ -206,7 +206,6 @@ fn rpc_call(
             }
         }
     };
-    println!("Got {:?}", out_bytes);
     let code = u32::from_be_bytes(buf[0..4].try_into().unwrap());
     if code == 0 {
         let fmt =
