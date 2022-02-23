@@ -115,13 +115,7 @@ fn flashcmd(
     };
 
     let dryrun = |cmd: &std::process::Command| {
-        let args: Vec<_> =
-            cmd.get_args().map(|o| o.to_string_lossy()).collect();
-        humility::msg!(
-            "would execute: \"{} {}\"",
-            cmd.get_program().to_string_lossy(),
-            args.join(" ")
-        );
+        humility::msg!("would execute: {:?}", cmd);
     };
 
     match config.program {
