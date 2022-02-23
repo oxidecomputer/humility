@@ -16,7 +16,7 @@ pub struct IdolOperation<'a> {
     pub code: u16,
     pub args: &'a HubrisStruct,
     pub ok: HubrisGoff,
-    pub error: &'a HubrisEnum,
+    pub error: Option<&'a HubrisEnum>,
 }
 
 #[derive(Debug)]
@@ -355,7 +355,7 @@ pub fn lookup_reply<'a>(
     hubris: &'a HubrisArchive,
     m: &HubrisModule,
     op: &str,
-) -> Result<(HubrisGoff, &'a HubrisEnum)> {
+) -> Result<(HubrisGoff, Option<&'a HubrisEnum>)> {
     let iface = m.iface.as_ref().unwrap();
     let reply = &iface
         .ops
@@ -372,11 +372,11 @@ pub fn lookup_reply<'a>(
             }?;
 
             if let Ok(goff) = hubris.lookup_basetype_byname(&ok.ty.0) {
-                Ok((*goff, err))
+                Ok((*goff, Some(err)))
             } else if let Ok(e) = m.lookup_enum_byname(hubris, &ok.ty.0) {
-                Ok((e.goff, err))
+                Ok((e.goff, Some(err)))
             } else if let Ok(s) = m.lookup_struct_byname(hubris, &ok.ty.0) {
-                Ok((s.goff, err))
+                Ok((s.goff, Some(err)))
             } else {
                 //
                 // As a last ditch, we look up the REPLY type. This is a last
@@ -386,7 +386,29 @@ pub fn lookup_reply<'a>(
                 let t = format!("{}_{}_REPLY", iface.name, op);
 
                 if let Ok(s) = hubris.lookup_struct_byname(&t) {
-                    Ok((s.goff, err))
+                    Ok((s.goff, Some(err)))
+                } else {
+                    bail!("no type for {}.{}: {:?}", iface.name, op, reply);
+                }
+            }
+        }
+        Reply::Simple(ok) => {
+            if let Ok(goff) = hubris.lookup_basetype_byname(&ok.ty.0) {
+                Ok((*goff, None))
+            } else if let Ok(e) = m.lookup_enum_byname(hubris, &ok.ty.0) {
+                Ok((e.goff, None))
+            } else if let Ok(s) = m.lookup_struct_byname(hubris, &ok.ty.0) {
+                Ok((s.goff, None))
+            } else {
+                //
+                // As a last ditch, we look up the REPLY type. This is a last
+                // effort because it might not be there:  if no task calls
+                // the function, the type will be absent.
+                //
+                let t = format!("{}_{}_REPLY", iface.name, op);
+
+                if let Ok(s) = hubris.lookup_struct_byname(&t) {
+                    Ok((s.goff, None))
                 } else {
                     bail!("no type for {}.{}: {:?}", iface.name, op, reply);
                 }
