@@ -87,9 +87,8 @@
 //! ```
 
 use anyhow::Result;
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
@@ -370,7 +369,7 @@ fn probecmd(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "probe",
@@ -379,6 +378,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Match,
             run: probecmd,
         },
-        ProbeArgs::into_app(),
+        ProbeArgs::command(),
     )
 }
