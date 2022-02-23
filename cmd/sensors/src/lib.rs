@@ -19,9 +19,8 @@
 //! all thermal sensors from either device).
 
 use anyhow::{bail, Context, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
@@ -51,15 +50,25 @@ struct SensorsArgs {
     sleep: bool,
 
     /// restrict sensors by type of sensor
-    #[clap(long, short, value_name = "sensor type", use_delimiter = true)]
+    #[clap(
+        long,
+        short,
+        value_name = "sensor type",
+        use_value_delimiter = true
+    )]
     types: Option<Vec<String>>,
 
     /// restrict sensors by device
-    #[clap(long, short, value_name = "device", use_delimiter = true)]
+    #[clap(long, short, value_name = "device", use_value_delimiter = true)]
     devices: Option<Vec<String>>,
 
     /// restrict sensors by name
-    #[clap(long, short, value_name = "sensor name", use_delimiter = true)]
+    #[clap(
+        long,
+        short,
+        value_name = "sensor name",
+        use_value_delimiter = true
+    )]
     named: Option<Vec<String>>,
 }
 
@@ -309,7 +318,7 @@ fn sensors(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "sensors",
@@ -318,6 +327,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: sensors,
         },
-        SensorsArgs::into_app(),
+        SensorsArgs::command(),
     )
 }

@@ -62,7 +62,8 @@
 //! we can see from the `map` output has been sized to only 256 bytes.)
 
 use anyhow::Result;
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
@@ -112,7 +113,7 @@ fn mapcmd(
 }
 
 /// This is some init right here
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "map",
@@ -121,6 +122,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: mapcmd,
         },
-        MapArgs::into_app(),
+        MapArgs::command(),
     )
 }

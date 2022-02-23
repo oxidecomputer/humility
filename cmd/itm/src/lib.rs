@@ -33,7 +33,8 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
@@ -333,13 +334,13 @@ fn itmcmd(
     rval
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "itm",
             archive: Archive::Optional,
             run: itmcmd,
         },
-        ItmArgs::into_app(),
+        ItmArgs::command(),
     )
 }
