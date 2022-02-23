@@ -3,9 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{anyhow, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
@@ -247,7 +246,7 @@ fn tracecmd(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "trace",
@@ -256,6 +255,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Match,
             run: tracecmd,
         },
-        TraceArgs::into_app(),
+        TraceArgs::command(),
     )
 }

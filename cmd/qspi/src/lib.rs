@@ -12,7 +12,8 @@ use std::io::Read;
 use std::time::Instant;
 
 use anyhow::{bail, Result};
-use clap::{App, ArgGroup, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 
 use indicatif::{HumanBytes, HumanDuration};
@@ -327,7 +328,7 @@ fn qspi(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "qspi",
@@ -336,6 +337,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: qspi,
         },
-        QspiArgs::into_app(),
+        QspiArgs::command(),
     )
 }

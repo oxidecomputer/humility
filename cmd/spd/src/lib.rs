@@ -10,7 +10,8 @@ use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 
 #[derive(Parser, Debug)]
@@ -350,7 +351,7 @@ fn spd(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "spd",
@@ -359,6 +360,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: spd,
         },
-        SpdArgs::into_app(),
+        SpdArgs::command(),
     )
 }

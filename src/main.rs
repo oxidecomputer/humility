@@ -4,8 +4,8 @@
 
 use humility_cmd::{Args, Subcommand};
 
+use clap::CommandFactory;
 use clap::FromArgMatches;
-use clap::IntoApp;
 use clap::Parser;
 
 mod cmd;
@@ -20,7 +20,7 @@ fn main() {
     // external_subcommand to directive to allow our subcommand to do any
     // parsing on its own.
     //
-    let (commands, clap) = cmd::init(Args::into_app());
+    let (commands, clap) = cmd::init(Args::command());
 
     let m = clap.get_matches();
     let _args = Args::from_arg_matches(&m);

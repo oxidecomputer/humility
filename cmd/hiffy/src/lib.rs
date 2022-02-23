@@ -43,9 +43,8 @@
 
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
@@ -84,7 +83,7 @@ struct HiffyArgs {
     task: Option<String>,
 
     /// arguments
-    #[clap(long, short, requires = "call", use_delimiter = true)]
+    #[clap(long, short, requires = "call", use_value_delimiter = true)]
     arguments: Vec<String>,
 }
 
@@ -281,7 +280,7 @@ fn hiffy(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "hiffy",
@@ -290,6 +289,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: hiffy,
         },
-        HiffyArgs::into_app(),
+        HiffyArgs::command(),
     )
 }
