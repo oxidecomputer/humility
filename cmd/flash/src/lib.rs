@@ -6,7 +6,7 @@
 //!
 //! Flashes the target with the image that is contained within the specified
 //! archive (or dump).  This merely executes the underlying flashing
-//! mechanism (either PyOCD or OpenOCD, depending on the target); if the
+//! mechanism (either pyOCD or OpenOCD, depending on the target); if the
 //! requisite software is not installed (or isn't in the path), this will
 //! fail.  Temporary files are created as part of this process; if they are to
 //! be retained, the `-R` (`--retain-temporaries`) flag should be set.
@@ -221,7 +221,7 @@ fn flashcmd(
                         flash.arg(ihex_path);
                     }
                     _ => {
-                        anyhow::bail!("unexpected PyOCD argument {:?}", arg);
+                        anyhow::bail!("unexpected pyOCD argument {:?}", arg);
                     }
                 }
             }
@@ -230,7 +230,7 @@ fn flashcmd(
                 if let FlashArgument::Direct(ref val) = arg {
                     reset.arg(val);
                 } else {
-                    anyhow::bail!("unexpected PyOCD reset argument {:?}", arg);
+                    anyhow::bail!("unexpected pyOCD reset argument {:?}", arg);
                 }
             }
 

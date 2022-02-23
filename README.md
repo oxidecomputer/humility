@@ -270,7 +270,7 @@ No documentation yet for `humility etm`; pull requests welcome!
 
 Flashes the target with the image that is contained within the specified
 archive (or dump).  This merely executes the underlying flashing
-mechanism (either PyOCD or OpenOCD, depending on the target); if the
+mechanism (either pyOCD or OpenOCD, depending on the target); if the
 requisite software is not installed (or isn't in the path), this will
 fail.  Temporary files are created as part of this process; if they are to
 be retained, the `-R` (`--retain-temporaries`) flag should be set.
