@@ -138,7 +138,22 @@ fn flashcmd(
 
             if let Some(serial) = serial {
                 humility::msg!("specifying serial {}", serial);
-                writeln!(conf, "adapter serial {}", serial)?;
+
+                //
+                // In OpenOCD 0.11 dev, hla_serial has been deprecated, and
+                // using it results in this warning:
+                //
+                //   DEPRECATED! use 'adapter serial' not 'hla_serial'
+                //
+                // Unfortunately, the newer variant ("adapter serial") does
+                // not exist prior to this interface being deprecated; in
+                // order to allow execution on older OpenOCD variants, we
+                // deliberately use the deprecated interface.  (And yes, it
+                // would probably be convenient if OpenOCD just made the old
+                // thing work instead of shouting about it and then doing it
+                // anyway.)
+                //
+                writeln!(conf, "interface hla\nhla_serial {}", serial)?;
             }
 
             if let FlashProgramConfig::Payload(ref payload) = payload {
@@ -157,7 +172,7 @@ fn flashcmd(
             let conf_path = conf.path().to_slash_lossy();
             let srec_path = srec.path().to_slash_lossy();
 
-            if subargs.retain {
+            if subargs.retain || subargs.dryrun {
                 humility::msg!("retaining OpenOCD config as {:?}", conf.path());
                 humility::msg!("retaining srec as {}", srec_path);
                 conf.keep()?;
@@ -179,6 +194,11 @@ fn flashcmd(
                         anyhow::bail!("unexpected OpenOCD argument {:?}", arg);
                     }
                 }
+            }
+
+            if subargs.dryrun {
+                dryrun(&flash);
+                return Ok(());
             }
 
             let status = flash
@@ -236,7 +256,6 @@ fn flashcmd(
             if subargs.dryrun {
                 dryrun(&flash);
                 dryrun(&reset);
-
                 return Ok(());
             }
 
