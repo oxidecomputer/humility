@@ -41,7 +41,8 @@
 //! `humility manifest` can operate on either an archive or on a dump.
 
 use anyhow::Result;
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisArchive;
 use humility_cmd::{Archive, Args, Command};
 
@@ -58,13 +59,13 @@ fn manifestcmd(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "manifest",
             archive: Archive::Required,
             run: manifestcmd,
         },
-        ManifestArgs::into_app(),
+        ManifestArgs::command(),
     )
 }

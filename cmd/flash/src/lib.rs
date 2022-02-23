@@ -17,9 +17,8 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Command};
 use path_slash::PathExt;
@@ -274,13 +273,13 @@ fn flashcmd(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "flash",
             archive: Archive::Required,
             run: flashcmd,
         },
-        FlashArgs::into_app(),
+        FlashArgs::command(),
     )
 }

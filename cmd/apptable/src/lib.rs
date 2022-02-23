@@ -10,7 +10,8 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::{App, AppSettings, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::hubris::{HubrisArchive, HubrisPrintFormat};
 use humility_cmd::{Archive, Args, Command};
 use std::convert::TryInto;
@@ -152,13 +153,13 @@ fn apptablecmd(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "apptable",
             archive: Archive::Optional,
             run: apptablecmd,
         },
-        ApptableArgs::into_app().setting(AppSettings::Hidden),
+        ApptableArgs::command().hide(true),
     )
 }
