@@ -1,0 +1,18 @@
+[package]
+name = "humility-cmd-flash"
+version = "0.1.0"
+edition = "2021"
+description = "flash archive onto attached device"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cortex = { path = "../../humility-arch-cortex" }
+humility-cmd = { path = "../../humility-cmd" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+log = {version = "0.4.8", features = ["std"]}
+num-traits = "0.2"
+serde = { version = "1.0.126", features = ["derive"] }
+tempfile = "3.3"
+ron = "0.7"
+path-slash = "0.1.4"
