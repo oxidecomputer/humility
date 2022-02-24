@@ -3804,6 +3804,17 @@ impl HubrisArchive {
             },
         );
 
+        println!(
+            "{:>12} => {}",
+            "image id",
+            match &self.imageid {
+                Some(s) => {
+                    format!("{:x?}", s.1)
+                }
+                None => "<none>".to_string(),
+            },
+        );
+
         print(
             "board",
             match &self.manifest.board {
