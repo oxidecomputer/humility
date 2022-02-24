@@ -850,6 +850,7 @@ dependencies = [
  "humility-cmd-renbb",
  "humility-cmd-rencm",
  "humility-cmd-ringbuf",
+ "humility-cmd-rng",
  "humility-cmd-sensors",
  "humility-cmd-spd",
  "humility-cmd-spi",
@@ -1208,6 +1209,19 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+]
+
+[[package]]
+name = "humility-cmd-rng"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "parse_int",
 ]
 
 [[package]]
