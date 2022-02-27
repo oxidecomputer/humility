@@ -65,6 +65,10 @@ struct SpiArgs {
     /// number of bytes to discard when printing read result
     #[clap(long, short, value_name = "nbytes", requires = "read")]
     discard: Option<usize>,
+
+    /// device open which to operate
+    #[clap(long, short = 'D', value_name = "device")]
+    device: Option<String>,
 }
 
 /// Looks up which Hubris task is associated with SPI (accepting a peripheral
@@ -135,8 +139,8 @@ fn spi(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    let spi_read = funcs.get("SpiRead", 3)?;
-    let spi_write = funcs.get("SpiWrite", 2)?;
+    let spi_read = funcs.get("SpiRead", 4)?;
+    let spi_write = funcs.get("SpiWrite", 3)?;
 
     let task = spi_task(hubris, subargs.peripheral)?;
     let mut ops = vec![];
@@ -145,6 +149,17 @@ fn spi(
         ops.push(Op::Push32(task));
     } else {
         bail!("SPI task cannot be the kernel");
+    }
+
+    if let Some(device) = subargs.device {
+        if let Ok(device) = parse_int::parse::<u8>(&device) {
+            ops.push(Op::Push(device));
+        } else {
+            bail!("illegal device {}", device);
+        }
+    } else {
+        // Device 0
+        ops.push(Op::Push(0));
     }
 
     humility::msg!("SPI master is {}", hubris.lookup_module(task)?.name);
