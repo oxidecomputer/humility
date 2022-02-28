@@ -153,7 +153,7 @@ impl<'a> Vsc7448<'a> {
         // Write 7 bytes from the data array over SPI
         let ops = [
             Op::Push32(self.task.task()),
-            Op::Push(0), // Device 0
+            Op::Push(0),     // Device 0
             Op::Push32(0x7), // Write size
             Op::Call(spi_write.id),
             Op::Done,
@@ -186,7 +186,7 @@ impl<'a> Vsc7448<'a> {
         // (3 address bytes, 1 padding byte, 4 bytes of result)
         let ops = [
             Op::Push32(self.task.task()),
-            Op::Push(0), // Device 0
+            Op::Push(0),     // Device 0
             Op::Push32(0x3), // Write size
             Op::Push32(0x8), // Read size
             Op::Call(spi_read.id),

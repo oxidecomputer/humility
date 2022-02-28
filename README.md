@@ -155,6 +155,7 @@ environment variable.
 - [humility apptable](#humility-apptable): print Hubris apptable
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
+- [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
 - [humility flash](#humility-flash): flash archive onto attached device
@@ -213,6 +214,15 @@ reporting issues in a running system. It's mostly concerned with
 This is application-independent logic, so it doesn't have any visibility
 into things the _application_ may think are fishy -- only general behaviors
 at the OS level, like faults.
+
+
+### `humility doc`
+
+Provides detailed documentation for Humility and its commands.  To
+get documentation on Humility, run `humility doc`; to get documentation
+for a specific command (like this one!) run `humility doc` and specify
+the command name -- and run `humility --help` to list all commands.
+
 
 
 ### `humility dump`
@@ -913,7 +923,7 @@ documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/s
 
 `humility sensors` communicates with the `sensor` Hubris task via its
 `Sensor` Idol interface to get sensor data.  If there is no `sensor` task
-or if there are no sensors defined in the in Hurbis application
+or if there are no sensors defined in the in Hubris application
 description, this command will not provide any meaningful output. To list
 all available sensors, use `-l` (`--list`); to summarize sensor values,
 use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`

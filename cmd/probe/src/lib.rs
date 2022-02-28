@@ -376,7 +376,7 @@ pub fn init() -> (Command, App<'static>) {
             name: "probe",
             archive: Archive::Optional,
             attach: Attach::LiveOnly,
-            validate: Validate::Match,
+            validate: Validate::None,
             run: probecmd,
         },
         ProbeArgs::into_app(),

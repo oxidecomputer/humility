@@ -9,49 +9,21 @@ use humility_cmd::Args;
 use humility_cmd::{Archive, Command};
 use std::collections::HashMap;
 
+//
+// Our build.rs creates cmds.rs, which looks at our workspace to assemble
+// the commands, and creates a function (`dcmds`) that we call to get
+// a vector of them.
+//
+include!(concat!(env!("OUT_DIR"), "/cmds.rs"));
+
 pub fn init(
     app: App<'static>,
 ) -> (HashMap<&'static str, Command>, App<'static>) {
     let mut cmds = HashMap::new();
     let mut rval = app;
 
-    let dcmds = [
-        cmd_apptable::init,
-        cmd_etm::init,
-        cmd_dashboard::init,
-        cmd_diagnose::init,
-        cmd_dump::init,
-        cmd_etm::init,
-        cmd_flash::init,
-        cmd_gpio::init,
-        cmd_hiffy::init,
-        cmd_i2c::init,
-        cmd_itm::init,
-        cmd_jefe::init,
-        cmd_lpc55gpio::init,
-        cmd_manifest::init,
-        cmd_map::init,
-        cmd_pmbus::init,
-        cmd_probe::init,
-        cmd_qspi::init,
-        cmd_readmem::init,
-        cmd_readvar::init,
-        cmd_renbb::init,
-        cmd_rencm::init,
-        cmd_ringbuf::init,
-        cmd_sensors::init,
-        cmd_spd::init,
-        cmd_spi::init,
-        cmd_stackmargin::init,
-        cmd_tasks::init,
-        cmd_test::init,
-        cmd_trace::init,
-        cmd_stmsecure::init,
-        cmd_vsc7448::init,
-    ];
-
-    for dcmd in &dcmds {
-        let (cmd, subcmd) = dcmd();
+    for dcmd in dcmds() {
+        let (cmd, subcmd) = (dcmd.init)();
 
         let name = match cmd {
             Command::Attached { name, .. } => name,
@@ -59,7 +31,8 @@ pub fn init(
         };
 
         cmds.insert(name, cmd);
-        rval = rval.subcommand(subcmd);
+
+        rval = rval.subcommand(subcmd.after_help(dcmd.docmsg));
     }
 
     (cmds, rval)
