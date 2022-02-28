@@ -10,8 +10,8 @@ use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
-use clap::IntoApp;
-use clap::{App, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use indexmap::IndexMap;
 use pmbus::commands::*;
@@ -77,7 +77,7 @@ struct PmbusArgs {
     commands: Option<Vec<String>>,
 
     /// specifies writes to perform
-    #[clap(long, short = 'w', use_delimiter = false)]
+    #[clap(long, short = 'w', use_value_delimiter = false)]
     writes: Option<Vec<String>>,
 
     /// specifies an I2C controller
@@ -105,7 +105,7 @@ struct PmbusArgs {
     device: Option<String>,
 
     /// specifies a rail within the specified device
-    #[clap(long, short = 'r', value_name = "rail", use_delimiter = true)]
+    #[clap(long, short = 'r', value_name = "rail", use_value_delimiter = true)]
     rail: Option<Vec<String>>,
 }
 
@@ -1613,7 +1613,7 @@ fn pmbus(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "pmbus",
@@ -1622,6 +1622,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: pmbus,
         },
-        PmbusArgs::into_app(),
+        PmbusArgs::command(),
     )
 }

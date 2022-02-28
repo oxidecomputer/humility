@@ -17,7 +17,8 @@ use humility_cmd::{attach, Archive, Args, Attach, Command, Dumper, Validate};
 use itertools::Itertools;
 
 use anyhow::{bail, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use idt8a3xxxx::*;
 use std::collections::BTreeMap;
@@ -802,13 +803,13 @@ fn rencm(
     })
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "rencm",
             archive: Archive::Optional,
             run: rencm,
         },
-        RencmArgs::into_app(),
+        RencmArgs::command(),
     )
 }

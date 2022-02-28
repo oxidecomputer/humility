@@ -49,7 +49,8 @@
 //!
 
 use anyhow::Result;
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
@@ -79,7 +80,7 @@ fn dumpcmd(
     rval
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "dump",
@@ -88,6 +89,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: dumpcmd,
         },
-        DumpArgs::into_app(),
+        DumpArgs::command(),
     )
 }

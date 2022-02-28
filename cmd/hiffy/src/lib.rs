@@ -43,9 +43,8 @@
 
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
@@ -84,7 +83,7 @@ struct HiffyArgs {
     task: Option<String>,
 
     /// arguments
-    #[clap(long, short, requires = "call", use_delimiter = true)]
+    #[clap(long, short, requires = "call", use_value_delimiter = true)]
     arguments: Vec<String>,
 }
 
@@ -116,10 +115,21 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, e)) => match &op.1.reply {
+            Ok((_, Some(e))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
                     println!("{:m$}{:<15} {}", "", "<error>", e.name, m = m);
+                }
+                _ => {
+                    log::warn!("Mismatch between expected reply and operation");
+                }
+            },
+            Ok((_, None)) => match &op.1.reply {
+                Reply::Simple(ok) => {
+                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
+                }
+                _ => {
+                    log::warn!("Mismatch between expected reply and operation");
                 }
             },
             Err(e) => {
@@ -281,7 +291,7 @@ fn hiffy(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "hiffy",
@@ -290,6 +300,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: hiffy,
         },
-        HiffyArgs::into_app(),
+        HiffyArgs::command(),
     )
 }

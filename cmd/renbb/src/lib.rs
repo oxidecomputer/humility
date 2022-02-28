@@ -9,7 +9,8 @@ use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
@@ -278,7 +279,7 @@ fn renbb(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "renbb",
@@ -287,6 +288,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: renbb,
         },
-        RenbbArgs::into_app(),
+        RenbbArgs::command(),
     )
 }

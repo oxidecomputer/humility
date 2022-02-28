@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Context, Result};
-use clap::App;
+use clap::Command as ClapCommand;
 use humility::hubris::*;
 use humility_cmd::Args;
 use humility_cmd::{Archive, Command};
@@ -17,8 +17,8 @@ use std::collections::HashMap;
 include!(concat!(env!("OUT_DIR"), "/cmds.rs"));
 
 pub fn init(
-    app: App<'static>,
-) -> (HashMap<&'static str, Command>, App<'static>) {
+    app: ClapCommand<'static>,
+) -> (HashMap<&'static str, Command>, ClapCommand<'static>) {
     let mut cmds = HashMap::new();
     let mut rval = app;
 

@@ -11,7 +11,8 @@ use humility_cmd::{Archive, Args, Attach, Validate};
 use humility_cmd_spi::spi_task;
 
 use anyhow::{anyhow, bail, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use hif::*;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
@@ -473,7 +474,7 @@ fn vsc7448_get_info(
     Ok(())
 }
 
-pub fn init() -> (humility_cmd::Command, App<'static>) {
+pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
     // We do a bonus parse of the command-line arguments here to see if we're
     // doing a `vsc7448 info` subcommand, which doesn't require a Hubris image
     // or attached device; skipping those steps improves runtime (especially
@@ -486,7 +487,7 @@ pub fn init() -> (humility_cmd::Command, App<'static>) {
             validate: Validate::Booted,
             run: vsc7448,
         },
-        Vsc7448Args::into_app(),
+        Vsc7448Args::command(),
     );
     let subcmd_unattached = (
         humility_cmd::Command::Unattached {
@@ -494,7 +495,7 @@ pub fn init() -> (humility_cmd::Command, App<'static>) {
             archive: Archive::Ignored,
             run: vsc7448_get_info,
         },
-        Vsc7448Args::into_app(),
+        Vsc7448Args::command(),
     );
 
     // If there's a `vsc7448` subcommand, then attempt to parse the subcmd

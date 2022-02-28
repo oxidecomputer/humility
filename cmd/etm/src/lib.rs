@@ -3,9 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
@@ -623,13 +622,13 @@ fn etmcmd(
     rval
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "etm",
             archive: Archive::Required,
             run: etmcmd,
         },
-        EtmArgs::into_app(),
+        EtmArgs::command(),
     )
 }

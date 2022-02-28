@@ -33,7 +33,8 @@
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
 use anyhow::{bail, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::doppel::{Ringbuf, StaticCell};
@@ -181,7 +182,7 @@ fn ringbuf(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "ringbuf",
@@ -190,6 +191,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Match,
             run: ringbuf,
         },
-        RingbufArgs::into_app(),
+        RingbufArgs::command(),
     )
 }

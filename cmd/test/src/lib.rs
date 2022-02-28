@@ -108,7 +108,8 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::{App, IntoApp, Parser};
+use clap::Command as ClapCommand;
+use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::test::*;
@@ -298,7 +299,7 @@ fn test(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
             name: "test",
@@ -307,6 +308,6 @@ pub fn init() -> (Command, App<'static>) {
             validate: Validate::Booted,
             run: test,
         },
-        TestArgs::into_app(),
+        TestArgs::command(),
     )
 }
