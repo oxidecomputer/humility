@@ -524,6 +524,9 @@ fn explain_fault_info(
                 Err(_) => print!("panic with invalid message"),
             }
         }
+        FaultInfo::FromServer(task_id, reason) => {
+            print!("reply fault: task id {}, reason {:?}", task_id, reason);
+        }
     }
     Ok(())
 }
