@@ -102,6 +102,6 @@ fn main() {
 
 #[test]
 fn validate_clap() {
-    let (_, clap) = cmd::init(Args::into_app());
+    let (_, clap) = cmd::init(Args::command());
     clap.clone().debug_assert();
 }
