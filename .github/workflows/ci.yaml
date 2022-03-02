@@ -64,7 +64,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --profile=ci
+          args: --all --profile=ci
 
   clippy:
     name: Clippy
