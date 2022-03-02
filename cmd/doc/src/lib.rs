@@ -11,7 +11,8 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::{App, IntoApp, Parser};
+use clap::{IntoApp, Parser};
+use clap::Command as ClapCommand;
 use humility::hubris::HubrisArchive;
 use humility_cmd::{Archive, Args, Command};
 use std::collections::HashMap;
@@ -63,13 +64,13 @@ fn doc(
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
+pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "doc",
             archive: Archive::Ignored,
             run: doc,
         },
-        DocArgs::into_app(),
+        DocArgs::command(),
     )
 }

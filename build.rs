@@ -20,8 +20,12 @@ fn main() -> Result<()> {
         output,
         r##"
 
+//
+// Our generated command description.  Note that this definition assumes
+// that `clap::Command` is being used as `ClapCommand`
+//
 struct CommandDescription {{
-    init: fn() -> (Command, App<'static>),
+    init: fn() -> (Command, ClapCommand<'static>),
     docmsg: &'static str,
 }}
 
