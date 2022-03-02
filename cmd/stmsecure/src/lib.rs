@@ -9,21 +9,21 @@
 //!
 //! A typical sequence to set the secure region at 0x08000000
 //!
-//! ```
+//! ```text
 //! humility stmsecure set-secure-bit
 //! humility stmsecure set-secure-region 0x08000000 0xa000
 //! ```
 //!
 //! To undo the secure region:
 //!
-//! ```
+//! ```text
 //! humility stmsecure unset-secure-region
 //! humility stmsecure unset-secure-bit
 //! ```
 //!
 //! The STM32 has support for flash bank swapping as well
 //!
-//! ```
+//! ```text
 //! humility stmsecure bank-swap
 //! ```
 
