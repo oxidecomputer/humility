@@ -1,0 +1,15 @@
+Long version flag:
+
+```
+$ humility --version
+humility 0.6.0
+
+```
+
+Short version flag:
+
+```
+$ humility -V
+humility 0.6.0
+
+```
