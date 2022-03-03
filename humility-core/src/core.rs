@@ -206,7 +206,7 @@ impl Core for ProbeCore {
         use probe_rs::architecture::arm::swo::SwoConfig;
 
         let config = SwoConfig::new(0).set_baud(2_000_000);
-        self.session.setup_swv(&config)?;
+        self.session.setup_swv(0, &config)?;
 
         //
         // Because the probe can have sticky errors, we perform one read
@@ -1001,7 +1001,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             // debug probe because something else has already attached to it;
             // we pull this error out to yield a more actionable suggestion!
             //
-            if let Err(probe_rs::DebugProbeError::USB(Some(ref err))) = res {
+            if let Err(probe_rs::DebugProbeError::Usb(Some(ref err))) = res {
                 if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
                     if *rcode == rusb::Error::Busy {
                         bail!(

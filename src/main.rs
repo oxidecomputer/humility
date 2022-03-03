@@ -43,7 +43,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let log_level = if args.verbose { "trace" } else { "info" };
+    let log_level = if args.verbose { "trace" } else { "warn" };
 
     let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
 
