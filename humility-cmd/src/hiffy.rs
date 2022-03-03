@@ -120,7 +120,12 @@ impl HiffyFunctions {
             .get(name)
             .ok_or_else(|| anyhow!("did not find {} function", name))?;
         if f.args.len() != nargs {
-            bail!("mismatched function signature on {}", name);
+            bail!(
+                "mismatched function signature on {} (args.len:{}, nargs:{}",
+                name,
+                f.args.len(),
+                nargs
+            );
         }
         Ok(f)
     }
@@ -208,6 +213,7 @@ impl<'a> HiffyContext<'a> {
             data: Self::variable(hubris, "HIFFY_DATA", false)?,
             rstack: Self::variable(hubris, "HIFFY_RSTACK", false)?,
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
+            // scratch: Self::variable(hubris, "HIFFY_SCRATCH", false)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
             failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
             functions: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
@@ -533,5 +539,15 @@ impl<'a> HiffyContext<'a> {
         self.state = State::ResultsConsumed;
 
         Ok(rvec)
+    }
+
+    pub fn rstack_size(&self) -> usize {
+        // self.rstack.size
+        2048 // This value should be discovered.
+    }
+
+    pub fn scratch_size(&self) -> usize {
+        // self.scratch.size
+        256 // This value should be discovered.
     }
 }
