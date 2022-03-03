@@ -271,6 +271,7 @@ pub enum Base {
     I64(i64),
     I128(i128),
 
+    U0,
     U8(u8),
     U16(u16),
     U32(u32),
@@ -328,11 +329,34 @@ impl Base {
             None
         }
     }
+
+    /// Checks whether this is a type that should be printed in hex (with a
+    /// leading '0x' prefix), returing true if that's reasonable.
+    ///
+    /// As a example, 0xtrue and 0xfalse look silly, so this function returns
+    /// false for Bool
+    pub fn supports_hex(&self) -> bool {
+        match self {
+            Self::I8(_)
+            | Self::I16(_)
+            | Self::I32(_)
+            | Self::I64(_)
+            | Self::I128(_)
+            | Self::U8(_)
+            | Self::U16(_)
+            | Self::U32(_)
+            | Self::U64(_)
+            | Self::U128(_) => true,
+
+            Self::Bool(_) | Self::F32(_) | Self::F64(_) | Self::U0 => false,
+        }
+    }
 }
 
 impl core::fmt::Display for Base {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
+            Self::U0 => write!(f, "()"),
             Self::U8(x) => x.fmt(f),
             Self::U16(x) => x.fmt(f),
             Self::U32(x) => x.fmt(f),
@@ -355,7 +379,7 @@ impl core::fmt::Display for Base {
 
 impl core::fmt::LowerHex for Base {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        use core::fmt::{Display, LowerHex};
+        use core::fmt::LowerHex;
 
         match self {
             Self::U8(x) => LowerHex::fmt(&x, f),
@@ -370,11 +394,11 @@ impl core::fmt::LowerHex for Base {
             Self::I64(x) => LowerHex::fmt(&x, f),
             Self::I128(x) => LowerHex::fmt(&x, f),
 
-            // Things that aren't integers get formatted normally here, because
-            // e.g. floats don't implement LowerHex.
-            Self::F32(x) => Display::fmt(&x, f),
-            Self::F64(x) => Display::fmt(&x, f),
-            Self::Bool(x) => Display::fmt(&x, f),
+            // This should match the list of variants that return `false`
+            // in Base::supports_hex.
+            Self::U0 | Self::F32(_) | Self::F64(_) | Self::Bool(_) => {
+                panic!("Cannot format {} as hex", self)
+            }
         }
     }
 }
@@ -387,7 +411,7 @@ impl Format for Base {
         out: &mut dyn std::io::Write,
     ) -> Result<()> {
         // Special case for booleans, because "0xfalse" looks silly
-        if fmt.hex && !matches!(self, Self::Bool(_)) {
+        if fmt.hex && self.supports_hex() {
             write!(out, "0x{:x}", self)?;
         } else {
             write!(out, "{}", self)?;
@@ -812,6 +836,7 @@ pub fn load_base(buf: &[u8], ty: &HubrisBasetype, addr: usize) -> Result<Base> {
             Base::I128(i128::from_le_bytes(buf.try_into().unwrap()))
         }
 
+        (Unsigned, 0) => Base::U0,
         (Unsigned, 1) => Base::U8(buf[0] as u8),
         (Unsigned, 2) => Base::U16(u16::from_le_bytes(buf.try_into().unwrap())),
         (Unsigned, 4) => Base::U32(u32::from_le_bytes(buf.try_into().unwrap())),
