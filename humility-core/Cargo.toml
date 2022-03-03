@@ -29,7 +29,7 @@ idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
 # that we can float necessary patches on probe-rs.
 #
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-stable" }
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.12.0" }
 
 #
 # We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,
