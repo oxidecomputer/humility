@@ -1554,9 +1554,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da32515d9f6e6e489d7bc9d84c71b060db7247dc035bbe44eac88cf87486d8d5"
+checksum = "87f3e037eac156d1775da914196f0f37741a274155e34a0b7e427c35d2a2ecb9"
 
 [[package]]
 name = "os_str_bytes"
@@ -2112,9 +2112,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ecab6c735a6bb4139c0caafd0cc3635748bbb3acf4550e8138122099251f309"
+checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 
 [[package]]
 name = "spd"
@@ -2128,7 +2128,7 @@ dependencies = [
 [[package]]
 name = "spdm"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/spdm.git?branch=main#5bf64da95553c29f4dc2419773e4eca131197e3d"
+source = "git+https://github.com/oxidecomputer/spdm.git?branch=main#475f6afd026c51fd15cd9fba1c9a6a42e1973cd7"
 dependencies = [
  "anyhow",
  "bitflags",
@@ -2370,7 +2370,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-info"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#c48345f64739d01ecee4be1aeaf4227bf2464635"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#873309872f2260672bd875a5c4a4ad5121da52df"
 dependencies = [
  "lazy_static",
  "postcard",
@@ -2383,7 +2383,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-types"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#c48345f64739d01ecee4be1aeaf4227bf2464635"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#873309872f2260672bd875a5c4a4ad5121da52df"
 dependencies = [
  "serde",
 ]

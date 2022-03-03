@@ -144,31 +144,51 @@ fn run_vca(ctx: &mut HiffyContext, core: &mut dyn Core) -> Result<()> {
     loop {
         println!("Requester State = {}", requester.state().name());
         let req = requester.next_request(&mut req_buf).unwrap();
-        println!("Sending request: {:?}", req);
+
+        // TODO: Move all this formatting into SPDM
+        match req[1] {
+            spdm::msgs::GetVersion::SPDM_CODE => {
+                let msg =
+                    spdm::msgs::GetVersion::parse_body(&req[2..]).unwrap();
+                println!("Request: {:#?}", msg);
+            }
+            spdm::msgs::GetCapabilities::SPDM_CODE => {
+                let msg =
+                    spdm::msgs::GetCapabilities::parse_body(&req[2..]).unwrap();
+                println!("Request: {:#?}", msg);
+            }
+            spdm::msgs::NegotiateAlgorithms::SPDM_CODE => {
+                let msg =
+                    spdm::msgs::NegotiateAlgorithms::parse_body(&req[2..])
+                        .unwrap();
+                println!("Request: {:#?}", msg);
+            }
+            _ => panic!("Unexpected Request"),
+        }
+
         let rsp = exchange(ctx, core, req)?;
 
+        // TODO: Move all this formatting into SPDM
         match rsp[1] {
             spdm::msgs::Version::SPDM_CODE => {
                 let version =
                     spdm::msgs::Version::parse_body(&rsp[2..]).unwrap();
-                println!("Received version {:?}", version);
+                println!("Response: {:#?}", version);
             }
             spdm::msgs::Capabilities::SPDM_CODE => {
                 let capabilities =
                     spdm::msgs::Capabilities::parse_body(&rsp[2..]).unwrap();
-                println!("Received capabilities {:?}", capabilities);
+                println!("Response {:#?}", capabilities);
             }
             spdm::msgs::Algorithms::SPDM_CODE => {
                 let algorithms =
                     spdm::msgs::Algorithms::parse_body(&rsp[2..]).unwrap();
-                println!("Received algorithms {:?}", algorithms);
+                println!("Response: {:#?}", algorithms);
             }
             _ => {
                 println!("Unexpected Response: {:?}", rsp);
             }
         }
-
-        println!("Received response: {:?}", rsp);
         if requester.handle_msg(&rsp).unwrap() {
             break;
         }
