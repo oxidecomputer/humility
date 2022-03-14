@@ -11,8 +11,8 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::{IntoApp, Parser};
 use clap::Command as ClapCommand;
+use clap::{IntoApp, Parser};
 use humility::hubris::HubrisArchive;
 use humility_cmd::{Archive, Args, Command};
 use std::collections::HashMap;
