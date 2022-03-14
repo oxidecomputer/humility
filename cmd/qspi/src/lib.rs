@@ -521,7 +521,7 @@ fn qspi(
                 for byte in buf {
                     print!("{:02x}", byte);
                 }
-                println!("");
+                println!();
             }
             Err(e) => {
                 bail!("hash failed: {}", e);
