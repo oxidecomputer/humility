@@ -24,6 +24,7 @@ zip = "0.5"
 rusb = "0.5.5"
 parse_int = "0.4.0"
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+regex = "1.5"
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure

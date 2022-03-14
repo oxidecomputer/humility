@@ -4608,7 +4608,10 @@ impl HubrisModule {
                         .expect("structs-structs_byname inconsistency"))
                 }
             }
-            _ => Err(anyhow!("expected structure {} not found", name)),
+            _ => self.lookup_struct_byname(
+                hubris,
+                try_scoped(name, "structure", &hubris.structs_byname)?,
+            ),
         }
     }
 
@@ -4635,7 +4638,10 @@ impl HubrisModule {
                         .expect("structs-structs_byname inconsistency"))
                 }
             }
-            _ => Err(anyhow!("expected enum {} not found", name)),
+            _ => self.lookup_enum_byname(
+                hubris,
+                try_scoped(name, "enum", &hubris.enums_byname)?,
+            ),
         }
     }
 }
@@ -4662,6 +4668,57 @@ impl HubrisPrintFormat {
 pub enum HubrisValidate {
     ArchiveMatch,
     Booted,
+}
+
+//
+// When looking up a type by name, it is possible that we are looking for a
+// type that is present, but more explicitly scoped than the name we're using
+// to look it up.  As with many things, there are several ways to solve this:
+// the Right Way, the Wrong Way -- and the Max Power way.  It should be no
+// surprise which way we opt for here.
+//
+fn try_scoped<'a>(
+    name: &'a str,
+    kind: &'static str,
+    map: &'a MultiMap<String, HubrisGoff>,
+) -> Result<&'a str> {
+    let search = name.replace("<", "<.*::");
+
+    if search == name {
+        Err(anyhow!("expected {} not found", kind))
+    } else {
+        use regex::Regex;
+
+        let expr = format!("^{}$", search);
+        let re = Regex::new(&expr).unwrap();
+
+        let mut matched = vec![];
+
+        for (n, _) in map.iter() {
+            if re.is_match(n) {
+                matched.push(n);
+            }
+        }
+
+        if matched.len() == 0 {
+            Err(anyhow!(
+                "expected {} {} not found (also tried {})",
+                kind,
+                name,
+                search
+            ))
+        } else if matched.len() > 1 {
+            Err(anyhow!(
+                "expected {} {} not found ({} matched multiple types: {:?})",
+                kind,
+                name,
+                search,
+                matched
+            ))
+        } else {
+            Ok(matched[0])
+        }
+    }
 }
 
 fn dwarf_name<'a>(
