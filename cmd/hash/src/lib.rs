@@ -134,7 +134,7 @@ fn hash(
         }
         Some(data.as_slice())
     } else if subargs.string.is_some() {
-        data.extend_from_slice(&subargs.string.unwrap().as_bytes());
+        data.extend_from_slice(subargs.string.unwrap().as_bytes());
         Some(data.as_slice())
     } else {
         None
@@ -285,20 +285,20 @@ fn hash(
                 "\x1b[41mFail\x1b[m:"
             }
         );
-        for index in 0..256 / 8 {
-            print!("{:02x}", v1[index]);
+        for byte in v1.iter().take(256 / 8) {
+            print!("{:02x}", byte);
         }
         println!(" result");
-        for index in 0..256 / 8 {
-            print!("{:02x}", correct[index]);
+        for byte in correct.iter().take(256 / 8) {
+            print!("{:02x}", byte);
         }
         println!(" correct");
     };
 
     let mut datacmd = |_info, id, data: Option<&[u8]>| {
         ops.clear();
-        if data.is_some() {
-            ops.push(Op::Push32(data.unwrap().len() as u32));
+        if let Some(payload) = data {
+            ops.push(Op::Push32(payload.len() as u32));
         }
         ops.push(Op::Call(id));
         ops.push(Op::Done);
@@ -306,7 +306,7 @@ fn hash(
             core,
             ops.as_slice(),
             match data {
-                Some(ref data) => Some(data),
+                Some(data) => Some(data),
                 _ => None,
             },
         )
@@ -410,10 +410,7 @@ fn hash(
     // Let the message be the binary-coded form of the ASCII string which
     // consists of 1,000,000 repetitions of the character "a" results in a
     // SHA-256 message digest of
-    let mut block = Vec::new();
-    for _ in 0..scratch_size {
-        block.push(b'a');
-    }
+    let block = vec![b'a'; scratch_size];
     let block = block.as_slice();
     let expected_sum: [u8; 256 / 8] = [
         0xCD, 0xC7, 0x6E, 0x5C, 0x99, 0x14, 0xFB, 0x92, 0x81, 0xA1, 0xC7, 0xE2,
@@ -466,14 +463,14 @@ fn hash(
 }
 
 fn print_hash(buf: &[u8]) {
-    if buf.len() > 0 {
+    if !buf.is_empty() {
         if buf.len() != 32 {
             println!("Warning: return len != 256 bits");
         }
-        for index in 0..buf.len() {
-            print!("{:02x}", buf[index]);
+        for byte in buf {
+            print!("{:02x}", byte);
         }
-        println!("");
+        println!();
     } else {
         println!("returned buffer is empty!");
     }
