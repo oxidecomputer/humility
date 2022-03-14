@@ -4700,7 +4700,7 @@ fn try_scoped<'a>(
             }
         }
 
-        if matched.len() == 0 {
+        if matched.is_empty() {
             Err(anyhow!(
                 "expected {} {} not found (also tried {})",
                 kind,
