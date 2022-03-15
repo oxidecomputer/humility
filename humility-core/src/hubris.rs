@@ -4295,7 +4295,7 @@ pub struct HubrisEnumVariant {
     pub tag: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum HubrisDiscriminant {
     Expected(HubrisGoff),
     Value(HubrisGoff, usize),
@@ -4388,6 +4388,27 @@ impl HubrisEnum {
 
             Ok(&self.variants[0])
         }
+    }
+
+    //
+    // This is a little... loose.  It compares one enum to another and
+    // determines if they have the same variant names, offsets, tags, etc.
+    // This can still be fooled, but it would have to be by enums that
+    // appear pretty similar to one another.  If it becomes time to make this
+    // correct, it will probably be a good occasion to rethink how we store
+    // type information.
+    //
+    pub fn approximately_same(&self, rhs: &HubrisEnum) -> bool {
+        for (l, r) in self.variants.iter().zip(rhs.variants.iter()) {
+            if l.name != r.name || l.offset != r.offset || l.tag != r.tag {
+                return false;
+            }
+        }
+
+        self.name == rhs.name
+            && self.size == rhs.size
+            && self.discriminant == rhs.discriminant
+            && self.variants.len() == rhs.variants.len()
     }
 }
 
@@ -4602,10 +4623,7 @@ impl HubrisModule {
                 } else if m.is_empty() {
                     Err(anyhow!("no {} in {}", name, self.name))
                 } else {
-                    Ok(hubris
-                        .structs
-                        .get(m[0])
-                        .expect("structs-structs_byname inconsistency"))
+                    Ok(hubris.structs.get(m[0]).unwrap())
                 }
             }
             _ => self.lookup_struct_byname(
@@ -4628,14 +4646,27 @@ impl HubrisModule {
                     .collect::<Vec<&HubrisGoff>>();
 
                 if m.len() > 1 {
-                    Err(anyhow!("{} matches more than one enum", name))
+                    let e = hubris.enums.get(m[0]).unwrap();
+                    let mut same = true;
+
+                    for r in m.iter().skip(1) {
+                        let rhs = hubris.enums.get(r).unwrap();
+
+                        if !e.approximately_same(rhs) {
+                            same = false;
+                            break;
+                        }
+                    }
+
+                    if same {
+                        Ok(e)
+                    } else {
+                        Err(anyhow!("{} matches more than one enum", name))
+                    }
                 } else if m.is_empty() {
                     Err(anyhow!("no {} in {}", name, self.name))
                 } else {
-                    Ok(hubris
-                        .enums
-                        .get(m[0])
-                        .expect("structs-structs_byname inconsistency"))
+                    Ok(hubris.enums.get(m[0]).unwrap())
                 }
             }
             _ => self.lookup_enum_byname(
