@@ -53,10 +53,18 @@ jobs:
           toolchain: stable
           override: true
       - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/install@v0.1
+      - name: Cache install of cargo-readme
+        uses: actions/cache@v2
         with:
-          crate: cargo-readme
-          use-tool-cache: true
+          path: |
+            ~/.cargo/bin/cargo-readme
+            ~/.cargo/bin/cargo-readme.exe
+          key: ${{ runner.os }}-cargo-readme
+      - name: Install cargo-readme
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -77,10 +85,18 @@ jobs:
           toolchain: ${{ env.MSRV }}
           override: true
       - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/install@v0.1
+      - name: Cache install of cargo-readme
+        uses: actions/cache@v2
         with:
-          crate: cargo-readme
-          use-tool-cache: true
+          path: |
+            ~/.cargo/bin/cargo-readme
+            ~/.cargo/bin/cargo-readme.exe
+          key: ${{ runner.os }}-cargo-readme
+      - name: Install cargo-readme
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -102,10 +118,18 @@ jobs:
           override: true
           components: clippy
       - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/install@v0.1
+      - name: Cache install of cargo-readme
+        uses: actions/cache@v2
         with:
-          crate: cargo-readme
-          use-tool-cache: true
+          path: |
+            ~/.cargo/bin/cargo-readme
+            ~/.cargo/bin/cargo-readme.exe
+          key: ${{ runner.os }}-cargo-readme
+      - name: Install cargo-readme
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
