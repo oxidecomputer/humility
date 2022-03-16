@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev && cargo install cargo-readme
       - uses: actions/checkout@v2
         with:
           submodules: true
@@ -21,9 +21,6 @@ jobs:
           profile: minimal
           toolchain: ${{ env.MSRV }}
           override: true
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
@@ -34,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev && cargo install cargo-readme
       - uses: actions/checkout@v2
         with:
           submodules: true
@@ -43,9 +40,6 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
