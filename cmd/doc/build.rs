@@ -46,6 +46,11 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
     )?;
 
     for (cmd, (_, path)) in &cmds {
+        println!(
+            "cargo:rerun-if-changed={}",
+            path.parent().unwrap().join("src/lib.rs").display()
+        );
+
         let mut gencmd = Command::new("cargo");
         gencmd.arg("readme");
         gencmd.arg("--no-title");
