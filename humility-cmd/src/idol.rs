@@ -64,12 +64,9 @@ impl<'a> IdolOperation<'a> {
             // on its encoding strategy (with a special case for `bool`, which
             // is packed into a single `u8`).
             let ty = &arg.1.ty.0;
-            let arg_name = if matches!(arg.1.recv, RecvStrategy::FromBytes)
-                && ty != "bool"
-            {
-                arg.0.to_owned()
-            } else {
-                format!("raw_{}", arg.0)
+            let arg_name = match arg.1.recv {
+                RecvStrategy::FromBytes if ty != "bool" => arg.0.to_owned(),
+                _ => format!("raw_{}", arg.0),
             };
 
             let member = self
