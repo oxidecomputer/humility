@@ -30,7 +30,7 @@ jobs:
             ~/.cargo/bin/cargo-readme.exe
           key: ${{ runner.os }}-cargo-readme
       - name: Install cargo-readme
-        run: cargo install cargo-readme
+        run: cargo -vV && cargo install cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: check
