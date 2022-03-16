@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev && cargo install cargo-readme
+        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
       - uses: actions/checkout@v2
         with:
           submodules: true
@@ -22,6 +22,10 @@ jobs:
           toolchain: ${{ env.MSRV }}
           override: true
       - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
+          use-tool-cache: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -31,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev && cargo install cargo-readme
+        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
       - uses: actions/checkout@v2
         with:
           submodules: true
@@ -41,6 +45,10 @@ jobs:
           toolchain: stable
           override: true
       - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
+          use-tool-cache: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -64,6 +72,10 @@ jobs:
         with:
           crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
+          use-tool-cache: true
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -84,10 +96,11 @@ jobs:
           toolchain: ${{ env.MSRV }}
           override: true
           components: clippy
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-readme
-      - uses: Swatinem/rust-cache@v1
+          use-tool-cache: true
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
