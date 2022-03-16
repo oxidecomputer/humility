@@ -30,10 +30,7 @@ jobs:
             ~/.cargo/bin/cargo-readme.exe
           key: ${{ runner.os }}-cargo-readme
       - name: Install cargo-readme
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-readme
+        run: cargo install cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -61,10 +58,7 @@ jobs:
             ~/.cargo/bin/cargo-readme.exe
           key: ${{ runner.os }}-cargo-readme
       - name: Install cargo-readme
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-readme
+        run: cargo install cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -93,10 +87,7 @@ jobs:
             ~/.cargo/bin/cargo-readme.exe
           key: ${{ runner.os }}-cargo-readme
       - name: Install cargo-readme
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-readme
+        run: cargo install cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -126,10 +117,7 @@ jobs:
             ~/.cargo/bin/cargo-readme.exe
           key: ${{ runner.os }}-cargo-readme
       - name: Install cargo-readme
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-readme
+        run: cargo install cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
