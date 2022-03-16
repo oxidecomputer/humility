@@ -65,7 +65,7 @@ impl<'a> IdolOperation<'a> {
             // is packed into a single `u8`).
             let ty = &arg.1.ty.0;
             let arg_name = match arg.1.recv {
-                RecvStrategy::FromBytes if ty != "bool" => arg.0.to_owned(),
+                RecvStrategy::FromBytes if ty != "bool" => arg.0.to_string(),
                 _ => format!("raw_{}", arg.0),
             };
 
