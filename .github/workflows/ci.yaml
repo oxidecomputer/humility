@@ -21,6 +21,9 @@ jobs:
           profile: minimal
           toolchain: ${{ env.MSRV }}
           override: true
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
@@ -40,6 +43,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
@@ -60,6 +66,9 @@ jobs:
           profile: minimal
           toolchain: ${{ env.MSRV }}
           override: true
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
@@ -81,6 +90,9 @@ jobs:
           toolchain: ${{ env.MSRV }}
           override: true
           components: clippy
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-readme
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
