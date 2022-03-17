@@ -34,6 +34,7 @@ fi
 pkg list -v "${need[@]}"
 
 cargo --version
+cargo install cargo-readme
 rustc --version
 
 banner test
