@@ -2,6 +2,35 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility spi`
+//!
+//! `humility spi` can be used to read or write to attached SPI devices,
+//! (as defined in the application TOML).
+//!
+//! The SPI peripheral (block) to be used can be specified with the
+//! `--peripheral` (`-p`) option.  This should be a number that matches SPI
+//! peripheral number; if it is not specified (and there is only one
+//! SPI-controlling task found), the peripheral associated with that task will
+//! be assumed.
+//!
+//! Because of the full duplex nature of SPI, bytes will always be written
+//! *and* read; to actually write specific bytes, the bytes to be written
+//! should be specified via `--write` (`-w`).  To report bytes read back,
+//! `--read` (`-r`) should be specified, along with the number of bytes via
+//! `--nbytes` (`-n`).
+//!
+//! For example, to write the byte sequence `0x1`, `0x0`, `0x0` and then read
+//! 32 bytes (discarding the first three) from device 0 on SPI2:
+//!
+//! ```console
+//! % humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
+//! humility: attached to 0483:374e:003C00174741500520383733 via ST-Link V3
+//! humility: SPI master is spi2_driver
+//!              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+//! 0x00000000 | 01 de aa 55 00 00 00 ff 06 00 00 00 1c 01 0b 00 | ...U............
+//! 0x00000010 | 00 00 00 00 ff ff ff 06 12 00 00 00 06          | .............
+//! ```
+//!
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
