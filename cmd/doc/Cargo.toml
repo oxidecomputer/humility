@@ -1,0 +1,17 @@
+[package]
+name = "humility-cmd-doc"
+version = "0.1.0"
+edition = "2021"
+description = "print command documentation"
+
+[build-dependencies]
+cargo_metadata = "0.12.0"
+anyhow = "1.0.32"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+termimad = "0.14"
+lazy_static = "1.4.0"

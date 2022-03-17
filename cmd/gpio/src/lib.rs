@@ -2,6 +2,96 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility gpio`
+//!
+//! `humility gpio` allows for GPIO pins to be set, reset, queried or
+//! configured on STM32 targets.  Commands:
+//!
+//! - `--set` (`-s`): Sets a pin (sets it high)
+//! - `--reset` (`-r`): Resets a pin (sets it low)
+//! - `--toggle` (`-t`): Toggles a pin (sets it high if low, low if high)
+//! - `--input` (`-i`): Queries the state of a pin (or all pins if no pin
+//!   is specified)
+//! - `--configure` (`-c`): Configures a pin
+//!
+//! ### Set, reset, toggle
+//!
+//! To change the state of a pin (or pins), specify the pin (or pins) and
+//! the desired command.  For example, to toggle the state on pin 14 on
+//! port B:
+//!
+//! ```console
+//! % humility gpio --toggle --pins B:14
+//! humility: attached via ST-Link V3
+//! [Ok([])]
+//! ```
+//!
+//! To set pins B:0, B:14 and E:1:
+//!
+//! ```console
+//! % humility gpio --set --pins B:0,B:14,E:1
+//! humility: attached via ST-Link V3
+//! [Ok([]), Ok([]), Ok([])]
+//! ```
+//!
+//! To reset pin E:1:
+//!
+//! ```console
+//! % humility gpio --reset --pins E:1
+//! humility: attached via ST-Link V3
+//! [Ok([])]
+//! ```
+//!
+//! ### Input
+//!
+//! To get input values for a particular pin:
+//!
+//! ```console
+//! % humility gpio --input --pins B:0,B:14,E:1
+//! humility: attached via ST-Link V3
+//! B:0  = 1
+//! B:14 = 1
+//! E:1  = 0
+//! ```
+//!
+//! To get input values for all pins, leave the pin unspecified:
+//!
+//! ```console
+//! % humility gpio --input
+//! humility: attached via ST-Link V3
+//! Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+//! -----------------------------------------------------------------------
+//! Port A    0   0   1   0   0   0   0   0   0   0   0   0   0   1   1   1
+//! Port B    1   0   0   0   1   0   0   0   0   0   0   0   0   0   1   0
+//! Port C    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port D    0   0   0   0   0   0   0   0   1   1   0   0   0   0   1   0
+//! Port E    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port F    1   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port G    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port H    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port I    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port J    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port K    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! ```
+//!
+//! ### Configure
+//!
+//! To configure a pin, the configuration should be specified as a
+//! colon-delimited 5-tuple consisting of:
+//!
+//! - Mode: `Input`, `Output`, `Alternate`, or `Analog`
+//! - Output type: `PushPull` or `OpenDrain`
+//! - Speed: `Low`, `Medium`, `High`, or `VeryHigh`
+//! - Pull direction: `None`, `Up`, or `Down`
+//! - Alternate function: one of `AF0` through `AF15`
+//!
+//! For example, to configure pin 5 on port A as a push-pull output:
+//!
+//! ```console
+//! % humility gpio -c Output:PushPull:High:None:AF0 -p A:5
+//! ```
+//!
+
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
@@ -25,7 +115,7 @@ struct GpioArgs {
     )]
     timeout: u32,
 
-    /// toggle specified pins
+    /// shows the state of an input pin (or all pins if pin is unspecified)
     #[clap(
         long, short,
         conflicts_with_all = &["toggle", "set", "reset", "configure"]
@@ -57,7 +147,7 @@ struct GpioArgs {
     configure: Option<String>,
 
     /// specifies GPIO pins on which to operate
-    #[clap(long, short, value_name = "pins")]
+    #[clap(long, short, value_name = "pins", use_value_delimiter = true)]
     pins: Option<Vec<String>>,
 }
 
@@ -105,7 +195,10 @@ fn gpio(
     } else if subargs.input {
         gpio_input.id
     } else {
-        bail!("expected one of input, toggle, set, or reset to be specified");
+        bail!(
+            "expected one of configure, set, \
+            reset, toggle, or input to be specified"
+        );
     };
 
     let mut args: Vec<(u16, Option<u8>, String)> = vec![];

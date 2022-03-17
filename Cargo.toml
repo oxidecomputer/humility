@@ -13,6 +13,7 @@ members = [
     "cmd/apptable",
     "cmd/dashboard",
     "cmd/diagnose",
+    "cmd/doc",
     "cmd/dump",
     "cmd/etm",
     "cmd/gpio",
@@ -52,6 +53,10 @@ debug = true
 inherits = "dev"
 debug = false # default true
 
+[build-dependencies]
+cargo_metadata = "0.12.0"
+anyhow = "1.0.32"
+
 [dependencies]
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
 hif = { git = "https://github.com/oxidecomputer/hif" }
@@ -62,6 +67,7 @@ humility-cmd = { path = "./humility-cmd" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
+cmd-doc = { path = "./cmd/doc", package = "humility-cmd-doc" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
