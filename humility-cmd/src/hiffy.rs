@@ -121,7 +121,9 @@ impl HiffyFunctions {
             .ok_or_else(|| anyhow!("did not find {} function", name))?;
         if f.args.len() != nargs {
             bail!(
-                "mismatched function signature on {} (args.len:{}, nargs:{}",
+                "mismatched function signature on {} \
+                (target has {} args, but we expected {}); \
+                missing Hubris/Humility flag day?",
                 name,
                 f.args.len(),
                 nargs
