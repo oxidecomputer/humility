@@ -1,0 +1,8 @@
+When we don't have a subcommand, we should get the help:
+
+```
+$ humility
+? failed
+humility failed: subcommand expected (--help to list)
+
+```
