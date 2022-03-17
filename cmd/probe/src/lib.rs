@@ -375,7 +375,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             name: "probe",
             archive: Archive::Optional,
             attach: Attach::LiveOnly,
-            validate: Validate::Match,
+            validate: Validate::None,
             run: probecmd,
         },
         ProbeArgs::command(),

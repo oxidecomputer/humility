@@ -155,10 +155,12 @@ environment variable.
 - [humility apptable](#humility-apptable): print Hubris apptable
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
+- [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
 - [humility flash](#humility-flash): flash archive onto attached device
 - [humility gpio](#humility-gpio): GPIO pin manipulation
+- [humility hash](#humility-hash): Access to the HASH block
 - [humility hiffy](#humility-hiffy): manipulate HIF execution
 - [humility i2c](#humility-i2c): scan for and read I2C devices
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
@@ -213,6 +215,15 @@ reporting issues in a running system. It's mostly concerned with
 This is application-independent logic, so it doesn't have any visibility
 into things the _application_ may think are fishy -- only general behaviors
 at the OS level, like faults.
+
+
+### `humility doc`
+
+Provides detailed documentation for Humility and its commands.  To
+get documentation on Humility, run `humility doc`; to get documentation
+for a specific command (like this one!) run `humility doc` and specify
+the command name -- and run `humility --help` to list all commands.
+
 
 
 ### `humility dump`
@@ -283,7 +294,98 @@ flash` will fail unless the `-F` (`--force`) flag is set.
 
 ### `humility gpio`
 
-No documentation yet for `humility gpio`; pull requests welcome!
+`humility gpio` allows for GPIO pins to be set, reset, queried or
+configured on STM32 targets.  Commands:
+
+- `--set` (`-s`): Sets a pin (sets it high)
+- `--reset` (`-r`): Resets a pin (sets it low)
+- `--toggle` (`-t`): Toggles a pin (sets it high if low, low if high)
+- `--input` (`-i`): Queries the state of a pin (or all pins if no pin
+  is specified)
+- `--configure` (`-c`): Configures a pin
+
+#### Set, reset, toggle
+
+To change the state of a pin (or pins), specify the pin (or pins) and
+the desired command.  For example, to toggle the state on pin 14 on
+port B:
+
+```console
+% humility gpio --toggle --pins B:14
+humility: attached via ST-Link V3
+[Ok([])]
+```
+
+To set pins B:0, B:14 and E:1:
+
+```console
+% humility gpio --set --pins B:0,B:14,E:1
+humility: attached via ST-Link V3
+[Ok([]), Ok([]), Ok([])]
+```
+
+To reset pin E:1:
+
+```console
+% humility gpio --reset --pins E:1
+humility: attached via ST-Link V3
+[Ok([])]
+```
+
+#### Input
+
+To get input values for a particular pin:
+
+```console
+% humility gpio --input --pins B:0,B:14,E:1
+humility: attached via ST-Link V3
+B:0  = 1
+B:14 = 1
+E:1  = 0
+```
+
+To get input values for all pins, leave the pin unspecified:
+
+```console
+% humility gpio --input
+humility: attached via ST-Link V3
+Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+-----------------------------------------------------------------------
+Port A    0   0   1   0   0   0   0   0   0   0   0   0   0   1   1   1
+Port B    1   0   0   0   1   0   0   0   0   0   0   0   0   0   1   0
+Port C    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port D    0   0   0   0   0   0   0   0   1   1   0   0   0   0   1   0
+Port E    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port F    1   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port G    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port H    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port I    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port J    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+Port K    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+```
+
+#### Configure
+
+To configure a pin, the configuration should be specified as a
+colon-delimited 5-tuple consisting of:
+
+- Mode: `Input`, `Output`, `Alternate`, or `Analog`
+- Output type: `PushPull` or `OpenDrain`
+- Speed: `Low`, `Medium`, `High`, or `VeryHigh`
+- Pull direction: `None`, `Up`, or `Down`
+- Alternate function: one of `AF0` through `AF15`
+
+For example, to configure pin 5 on port A as a push-pull output:
+
+```console
+% humility gpio -c Output:PushPull:High:None:AF0 -p A:5
+```
+
+
+
+### `humility hash`
+
+No documentation yet for `humility hash`; pull requests welcome!
 
 ### `humility hiffy`
 
@@ -913,7 +1015,7 @@ documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/s
 
 `humility sensors` communicates with the `sensor` Hubris task via its
 `Sensor` Idol interface to get sensor data.  If there is no `sensor` task
-or if there are no sensors defined in the in Hurbis application
+or if there are no sensors defined in the in Hubris application
 description, this command will not provide any meaningful output. To list
 all available sensors, use `-l` (`--list`); to summarize sensor values,
 use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
@@ -932,7 +1034,34 @@ No documentation yet for `humility spd`; pull requests welcome!
 
 ### `humility spi`
 
-No documentation yet for `humility spi`; pull requests welcome!
+`humility spi` can be used to read or write to attached SPI devices,
+(as defined in the application TOML).
+
+The SPI peripheral (block) to be used can be specified with the
+`--peripheral` (`-p`) option.  This should be a number that matches SPI
+peripheral number; if it is not specified (and there is only one
+SPI-controlling task found), the peripheral associated with that task will
+be assumed.
+
+Because of the full duplex nature of SPI, bytes will always be written
+*and* read; to actually write specific bytes, the bytes to be written
+should be specified via `--write` (`-w`).  To report bytes read back,
+`--read` (`-r`) should be specified, along with the number of bytes via
+`--nbytes` (`-n`).
+
+For example, to write the byte sequence `0x1`, `0x0`, `0x0` and then read
+32 bytes, discarding the first three, from device 0 on SPI2:
+
+```console
+% humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
+humility: attached to 0483:374e:003C00174741500520383733 via ST-Link V3
+humility: SPI master is spi2_driver
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00000000 | 01 de aa 55 00 00 00 ff 06 00 00 00 1c 01 0b 00 | ...U............
+0x00000010 | 00 00 00 00 ff ff ff 06 12 00 00 00 06          | .............
+```
+
+
 
 ### `humility stackmargin`
 

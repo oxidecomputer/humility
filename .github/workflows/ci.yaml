@@ -22,6 +22,10 @@ jobs:
           toolchain: ${{ env.MSRV }}
           override: true
       - uses: Swatinem/rust-cache@v1
+      - name: Install cargo-readme
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -41,6 +45,10 @@ jobs:
           toolchain: stable
           override: true
       - uses: Swatinem/rust-cache@v1
+      - name: Install cargo-readme
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -61,6 +69,10 @@ jobs:
           toolchain: ${{ env.MSRV }}
           override: true
       - uses: Swatinem/rust-cache@v1
+      - name: Install cargo-readme
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -82,6 +94,10 @@ jobs:
           override: true
           components: clippy
       - uses: Swatinem/rust-cache@v1
+      - name: Install cargo-readme
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-readme
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
