@@ -3480,6 +3480,8 @@ impl HubrisArchive {
         if let Some(v) = self.basetypes.get(&goff) {
             if v.encoding == HubrisEncoding::Float {
                 write!(rval, "{}", readfloat(buf, 0, v.size)?)?;
+            } else if v.encoding == HubrisEncoding::Bool {
+                write!(rval, "{}", buf[0] != 0)?;
             } else if v.size == 0 {
                 write!(rval, "()")?;
             } else {
