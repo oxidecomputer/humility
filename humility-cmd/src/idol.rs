@@ -47,78 +47,74 @@ impl<'a> IdolOperation<'a> {
     }
 
     pub fn payload(&self, args: &[(&str, IdolArgument)]) -> Result<Vec<u8>> {
-        let mut map = IndexMap::new();
         let hubris = self.hubris;
         let module = hubris.lookup_module(self.task)?;
 
-        for arg in args {
-            map.insert(arg.0, &arg.1);
-        }
+        let mut map: IndexMap<_, _> =
+            args.iter().map(|arg| (arg.0, &arg.1)).collect();
 
         let mut payload = vec![0u8; self.args.size];
 
         for arg in &self.operation.args {
-            if let Some(val) = map.remove(arg.0 as &str) {
-                if let RecvStrategy::FromBytes = arg.1.recv {
-                    let member = self
-                        .args
-                        .members
-                        .iter()
-                        .find(|&m| m.name == *arg.0)
-                        .ok_or_else(|| {
-                            anyhow!("did not find {} in {:?}", arg.0, self.args)
-                        })?;
+            let val = map.remove(arg.0 as &str).ok_or_else(|| {
+                anyhow!("argument \"{}\" is not specified", arg.0)
+            })?;
+
+            // Find the expected name of the argument in the struct, based
+            // on its encoding strategy (with a special case for `bool`, which
+            // is packed into a single `u8`).
+            let ty = &arg.1.ty.0;
+            let arg_name = match arg.1.recv {
+                RecvStrategy::FromBytes if ty != "bool" => arg.0.to_string(),
+                _ => format!("raw_{}", arg.0),
+            };
+
+            let member = self
+                .args
+                .members
+                .iter()
+                .find(|&m| m.name == arg_name)
+                .ok_or_else(|| {
+                    anyhow!("did not find {} in {:?}", arg.0, self.args)
+                })?;
+
+            // Now, we have to decide how to pack the argument into the payload
+            //
+            // The easiest option is if we're doing `FromBytes`, which encodes
+            // the value directly (with a special case for booleans).
+            if matches!(arg.1.recv, RecvStrategy::FromBytes) {
+                if ty != "bool" {
                     call_arg(hubris, member, val, &mut payload)?;
                 } else {
-                    let raw = format!("raw_{}", arg.0);
-
-                    let member = self
-                        .args
-                        .members
-                        .iter()
-                        .find(|&m| m.name == raw)
-                        .ok_or_else(|| {
-                            anyhow!(
-                                "did not find {} or {} in {:?}",
-                                arg.0,
-                                raw,
-                                self.args
-                            )
-                        })?;
-
-                    let ty = &arg.1.ty.0;
-
-                    //
-                    // We have a raw type, so we need to figure out how
-                    // to encode it.  First, see if we can look up the
-                    // AttributedType as an enum...
-                    //
-                    if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
-                        #[rustfmt::skip]
-                        call_arg_enum(
-                            hubris, arg.0, member, e, val, &mut payload,
-                        )?;
-                        continue;
-                    }
-
-                    //
-                    // Now look it up as a structure.  If it's a structure,
-                    // we will allow it if it's a newtype -- otherwise we'll
-                    // toss.
-                    //
-                    if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
-                        if s.newtype().is_some() {
-                            call_arg(hubris, &s.members[0], val, &mut payload)?;
-                            continue;
-                        }
-
-                        bail!("structure arguments currently unsupported");
-                    }
-
-                    bail!("don't know what to do with {:?}", self.args);
+                    let v = IdolArgument::String(match val {
+                        IdolArgument::String("true") => "1",
+                        IdolArgument::String("false") => "0",
+                        _ => bail!("Invalid bool argument {:?}", val),
+                    });
+                    call_arg(hubris, member, &v, &mut payload)?;
+                }
+            }
+            //
+            // We have a raw type, so we need to figure out how
+            // to encode it.  First, see if we can look up the
+            // AttributedType as an enum...
+            //
+            else if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
+                call_arg_enum(hubris, arg.0, member, e, val, &mut payload)?;
+            }
+            //
+            // Now look it up as a structure.  If it's a structure,
+            // we will allow it if it's a newtype -- otherwise we'll
+            // toss.
+            //
+            else if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
+                if s.newtype().is_some() {
+                    call_arg(hubris, &s.members[0], val, &mut payload)?;
+                } else {
+                    bail!("structure arguments currently unsupported");
                 }
             } else {
-                bail!("argument \"{}\" is not specified", arg.0);
+                bail!("don't know what to do with {:?}", self.args);
             }
         }
 
