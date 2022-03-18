@@ -58,6 +58,7 @@ members = [
     "cmd/gdb",
     "cmd/gimlet",
     "cmd/gpio",
+    "cmd/fpga",
     "cmd/hash",
     "cmd/hiffy",
     "cmd/host",
@@ -160,6 +161,7 @@ cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
 cmd-exec = { path = "./cmd/exec", package = "humility-cmd-exec" }
 cmd-extract = { path = "./cmd/extract", package = "humility-cmd-extract" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
+cmd-fpga = { path = "./cmd/fpga", package = "humility-cmd-fpga" }
 cmd-gdb = { path = "./cmd/gdb", package = "humility-cmd-gdb" }
 cmd-gimlet = { path = "./cmd/gimlet", package = "humility-cmd-gimlet" }
 cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
@@ -296,7 +298,7 @@ humility-cli = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-bankerase = { workspace = true }
-cmd-console-proxy = { workspace = true } 
+cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
@@ -308,6 +310,7 @@ cmd-etm = { workspace = true }
 cmd-exec = { workspace = true }
 cmd-extract = { workspace = true }
 cmd-flash = { workspace = true }
+cmd-fpga = { workspace = true }
 cmd-gdb = { workspace = true }
 cmd-gimlet = { workspace = true }
 cmd-gpio = { workspace = true }

@@ -1222,6 +1222,7 @@ dependencies = [
  "humility-cmd-exec",
  "humility-cmd-extract",
  "humility-cmd-flash",
+ "humility-cmd-fpga",
  "humility-cmd-gdb",
  "humility-cmd-gimlet",
  "humility-cmd-gpio",
@@ -1542,6 +1543,22 @@ dependencies = [
  "ron 0.7.1",
  "srec",
  "tempfile",
+]
+
+[[package]]
+name = "humility-cmd-fpga"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.23",
+ "hif",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "indicatif",
+ "parse_int",
 ]
 
 [[package]]
