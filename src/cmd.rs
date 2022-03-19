@@ -54,9 +54,13 @@ pub fn subcommand(
 
         if *archive != Archive::Ignored {
             if let Some(archive) = &args.archive {
-                hubris.load(archive).context("failed to load archive")?;
+                hubris.load(archive).with_context(|| {
+                    format!("failed to load archive \"{}\"", archive)
+                })?;
             } else if let Some(dump) = &args.dump {
-                hubris.load_dump(dump).context("failed to load dump")?;
+                hubris.load_dump(dump).with_context(|| {
+                    format!("failed to load dump \"{}\"", dump)
+                })?;
             }
         }
 
