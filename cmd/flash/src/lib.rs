@@ -16,7 +16,7 @@
 //! flash` will fail unless the `-F` (`--force`) flag is set.
 //!
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
@@ -82,6 +82,76 @@ fn flashcmd(
 
     let config: FlashConfig = ron::from_str(&flash_config.metadata)?;
 
+    // This is incredibly ugly! It also gives us backwards compatibility!
+
+    let chip = match config.program {
+        FlashProgram::PyOcd(args) => {
+            let s69 = regex::Regex::new(r"lpc55s69").unwrap();
+            let s28 = regex::Regex::new(r"lpc55s28").unwrap();
+            let mut c: Option<String> = None;
+            for arg in args {
+                c = match arg {
+                    FlashArgument::Direct(s) => {
+                        if s69.is_match(&s) {
+                            Some("LPC55S69JBD100".to_string())
+                        } else if s28.is_match(&s) {
+                            Some("LPC55S28JBD64".to_string())
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+
+                if c.is_some() {
+                    break;
+                }
+            }
+
+            if c.is_none() {
+                bail!("Failed to find chip from pyOCD config");
+            }
+
+            c.unwrap()
+        }
+        FlashProgram::OpenOcd(a) => match a {
+            FlashProgramConfig::Payload(d) => {
+                let h7 = regex::Regex::new(r"find target/stm32h7").unwrap();
+                let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
+                let f4 = regex::Regex::new(r"find target/stm32f4").unwrap();
+                let g0 = regex::Regex::new(r"find target/stm32g0").unwrap();
+
+                let mut c: Option<String> = None;
+
+                for s in d.split('\n') {
+                    if h7.is_match(s) {
+                        c = Some("STM32H753ZITx".to_string());
+                        break;
+                    }
+                    if f3.is_match(s) {
+                        c = Some("STM32F301C6Tx".to_string());
+                        break;
+                    }
+                    if f4.is_match(s) {
+                        c = Some("STM32F401CBUx".to_string());
+                        break;
+                    }
+                    if g0.is_match(s) {
+                        c = Some("STM32G030C6Tx".to_string());
+                        break;
+                    }
+                }
+
+                if c.is_none() {
+                    bail!("Failed to get chip from OpenOCD config");
+                }
+
+                c.unwrap()
+            }
+            _ => bail!("Unexpected config?"),
+        },
+    };
+
     //
     // We need to attach to (1) confirm that we're plugged into something
     // and (2) extract serial information.
@@ -91,180 +161,35 @@ fn flashcmd(
         None => "auto",
     };
 
-    let serial = {
-        let mut c = humility::core::attach(probe, hubris)?;
-        let core = c.as_mut();
+    humility::msg!("Attaching to flash chip {:x?}", chip);
+    let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
+    let core = c.as_mut();
 
-        //
-        // We want to actually try validating to determine if this archive
-        // already matches; if it does, this command may well be in error,
-        // and we want to force the user to force their intent.
-        //
-        if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
-            if subargs.force {
-                humility::msg!(
-                    "archive appears to be already flashed; forcing re-flash"
-                );
-            } else {
-                bail!("archive appears to be already flashed on attached device; \
-                    use -F (\"--force\") to force re-flash");
-            }
+    //
+    // We want to actually try validating to determine if this archive
+    // already matches; if it does, this command may well be in error,
+    // and we want to force the user to force their intent.
+    //
+    if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
+        if subargs.force {
+            humility::msg!(
+                "archive appears to be already flashed; forcing re-flash"
+            );
+        } else {
+            bail!(
+                "archive appears to be already flashed on attached device; \
+                    use -F (\"--force\") to force re-flash"
+            );
         }
+    }
 
-        core.info().1
-    };
+    let ihex = tempfile::NamedTempFile::new()?;
+    std::fs::write(&ihex, flash_config.ihex)?;
+    let ihex_path = ihex.path();
 
-    let dryrun = |cmd: &std::process::Command| {
-        humility::msg!("would execute: {:?}", cmd);
-    };
+    core.load(ihex_path)?;
 
-    match config.program {
-        FlashProgram::OpenOcd(payload) => {
-            let mut flash = std::process::Command::new("openocd");
-
-            //
-            // We need to create a temporary file to hold our OpenOCD
-            // configuration file and the SREC file that we're going to
-            // actually program.
-            //
-            let mut conf = tempfile::NamedTempFile::new()?;
-            let srec = tempfile::NamedTempFile::new()?;
-
-            if let Some(serial) = serial {
-                humility::msg!("specifying serial {}", serial);
-
-                //
-                // In OpenOCD 0.11 dev, hla_serial has been deprecated, and
-                // using it results in this warning:
-                //
-                //   DEPRECATED! use 'adapter serial' not 'hla_serial'
-                //
-                // Unfortunately, the newer variant ("adapter serial") does
-                // not exist prior to this interface being deprecated; in
-                // order to allow execution on older OpenOCD variants, we
-                // deliberately use the deprecated interface.  (And yes, it
-                // would probably be convenient if OpenOCD just made the old
-                // thing work instead of shouting about it and then doing it
-                // anyway.)
-                //
-                writeln!(conf, "interface hla\nhla_serial {}", serial)?;
-            }
-
-            if let FlashProgramConfig::Payload(ref payload) = payload {
-                write!(conf, "{}", payload)?;
-            } else {
-                bail!("unexpected OpenOCD payload: {:?}", payload);
-            }
-
-            std::fs::write(&srec, generate_srec_from_elf(&flash_config.elf)?)?;
-
-            //
-            // OpenOCD only deals with slash paths, not native paths
-            // (regardless of platform), so we turn our paths into slash
-            // paths.
-            //
-            let conf_path = conf.path().to_slash_lossy();
-            let srec_path = srec.path().to_slash_lossy();
-
-            if subargs.retain || subargs.dryrun {
-                humility::msg!("retaining OpenOCD config as {:?}", conf.path());
-                humility::msg!("retaining srec as {}", srec_path);
-                conf.keep()?;
-                srec.keep()?;
-            }
-
-            for arg in config.args {
-                match arg {
-                    FlashArgument::Direct(ref val) => {
-                        flash.arg(val);
-                    }
-                    FlashArgument::FormattedPayload(ref pre, ref post) => {
-                        flash.arg(format!("{} {} {}", pre, srec_path, post));
-                    }
-                    FlashArgument::Config => {
-                        flash.arg(&conf_path);
-                    }
-                    _ => {
-                        anyhow::bail!("unexpected OpenOCD argument {:?}", arg);
-                    }
-                }
-            }
-
-            if subargs.dryrun {
-                dryrun(&flash);
-                return Ok(());
-            }
-
-            let status = nice_status(&mut flash)?;
-
-            if !status.success() {
-                anyhow::bail!("flash command ({:?}) failed; see output", flash);
-            }
-        }
-
-        FlashProgram::PyOcd(ref reset_args) => {
-            let mut flash = std::process::Command::new("pyocd");
-            let mut reset = std::process::Command::new("pyocd");
-
-            let ihex = tempfile::NamedTempFile::new()?;
-            std::fs::write(&ihex, generate_ihex_from_elf(&flash_config.elf)?)?;
-            let ihex_path = ihex.path();
-
-            for arg in config.args {
-                match arg {
-                    FlashArgument::Direct(ref val) => {
-                        flash.arg(val);
-                    }
-                    FlashArgument::Payload => {
-                        flash.arg(ihex_path);
-                    }
-                    _ => {
-                        anyhow::bail!("unexpected pyOCD argument {:?}", arg);
-                    }
-                }
-            }
-
-            for arg in reset_args {
-                if let FlashArgument::Direct(ref val) = arg {
-                    reset.arg(val);
-                } else {
-                    anyhow::bail!("unexpected pyOCD reset argument {:?}", arg);
-                }
-            }
-
-            if let Some(serial) = serial {
-                humility::msg!("specifying serial {}", serial);
-                flash.arg("-u");
-                flash.arg(&serial);
-                reset.arg("-u");
-                reset.arg(&serial);
-            }
-
-            if subargs.retain || subargs.dryrun {
-                humility::msg!("retaining ihex as {}", ihex_path.display());
-                ihex.keep()?;
-            }
-
-            if subargs.dryrun {
-                dryrun(&flash);
-                dryrun(&reset);
-                return Ok(());
-            }
-
-            let status = nice_status(&mut flash)?;
-
-            if !status.success() {
-                anyhow::bail!("flash command ({:?}) failed; see output", flash);
-            }
-
-            let status = nice_status(&mut reset)?;
-
-            if !status.success() {
-                anyhow::bail!("reset command ({:?}) failed; see output", reset);
-            }
-        }
-    };
-
+    humility::msg!("Flash done.");
     Ok(())
 }
 
