@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use probe_rs::MemoryInterface;
-use probe_rs::Probe;
+use probe_rs::{flashing, Probe};
 
 use anyhow::{anyhow, bail, ensure, Result};
 
@@ -17,6 +17,7 @@ use std::fs;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
+use std::path::Path;
 use std::str;
 use std::time::Duration;
 use std::time::Instant;
@@ -47,6 +48,13 @@ pub trait Core {
         Ok(u64::from_le_bytes(buf))
     }
 
+    ///
+    /// Called to load a flash image.
+    ///
+    fn load(&mut self, path: &Path) -> Result<()>;
+
+    fn reset(&mut self) -> Result<()>;
+
     /// Called before starting a series of operations.  May halt the target if
     /// the target does not allow operations while not halted.  Should not be
     /// intermixed with [`halt`]/[`run`].
@@ -71,6 +79,7 @@ pub struct ProbeCore {
     unhalted_reads: bool,
     halted: u32,
     unhalted_read: BTreeMap<u32, u32>,
+    can_flash: bool,
 }
 
 impl ProbeCore {
@@ -81,6 +90,7 @@ impl ProbeCore {
         product_id: u16,
         serial_number: Option<String>,
         unhalted_reads: bool,
+        can_flash: bool,
     ) -> Self {
         Self {
             session,
@@ -91,6 +101,7 @@ impl ProbeCore {
             unhalted_reads,
             halted: 0,
             unhalted_read: crate::arch::unhalted_read_regions(),
+            can_flash,
         }
     }
 
@@ -248,6 +259,29 @@ impl Core for ProbeCore {
 
     fn read_swv(&mut self) -> Result<Vec<u8>> {
         Ok(self.session.read_swo()?)
+    }
+
+    fn load(&mut self, path: &Path) -> Result<()> {
+        if !self.can_flash {
+            bail!("cannot flash without explicitly attaching to flash");
+        }
+
+        if let Err(e) = flashing::download_file(
+            &mut self.session,
+            path,
+            flashing::Format::Hex,
+        ) {
+            bail!("Flash loading failed {:?}", e);
+        };
+
+        self.reset()?;
+        Ok(())
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.reset()?;
+        Ok(())
     }
 
     fn op_start(&mut self) -> Result<()> {
@@ -538,6 +572,14 @@ impl Core for OpenOCDCore {
 
     fn step(&mut self) -> Result<()> {
         todo!();
+    }
+
+    fn load(&mut self, _path: &Path) -> Result<()> {
+        bail!("Flash loading is not supported with OpenOCD");
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        bail!("Reset is not supported with OpenOCD");
     }
 }
 
@@ -865,6 +907,14 @@ impl Core for GDBCore {
     fn read_swv(&mut self) -> Result<Vec<u8>> {
         Err(anyhow!("GDB target does not support SWV"))
     }
+
+    fn load(&mut self, _path: &Path) -> Result<()> {
+        bail!("Flash loading is not supported with GDB");
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        bail!("Reset is not supported with GDB");
+    }
 }
 
 pub struct DumpCore {
@@ -1025,12 +1075,21 @@ impl Core for DumpCore {
     fn is_dump(&self) -> bool {
         true
     }
+
+    fn load(&mut self, _path: &Path) -> Result<()> {
+        bail!("Flash loading is not supported on a dump");
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        bail!("Reset is not supported on a dump");
+    }
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-pub fn attach(
+fn attach_to_chip(
     mut probe: &str,
     hubris: &HubrisArchive,
+    chip: Option<&str>,
 ) -> Result<Box<dyn Core>> {
     let mut index: Option<usize> = None;
 
@@ -1045,15 +1104,6 @@ pub fn attach(
             }
         }
     }
-
-    //
-    // Regrettably, probe-rs needs us to specify a chip that it knows about --
-    // but it only really uses this information for flashing the part (which
-    // we don't currently use probe-rs to do).  So we specify a generic
-    // ARMv7-M; if/when "humility flash" uses probe-rs natively to flash the
-    // part, this will need to change.
-    //
-    let chip = "armv7m";
 
     match probe {
         "usb" => {
@@ -1098,7 +1148,19 @@ pub fn attach(
             let probe = res?;
 
             let name = probe.get_name();
-            let session = probe.attach(chip)?;
+
+            //
+            // probe-rs needs us to specify a chip that it knows about -- but
+            // it only really uses this information for flashing the part.  If
+            // we are attaching to the part for not pusposes of flashing, we
+            // specify a generic ARMv7-M (but then we also indicate that can't
+            // flash to assure that we can fail explicitly should flashing be
+            // attempted).
+            //
+            let (session, can_flash) = match chip {
+                Some(chip) => (probe.attach(chip)?, true),
+                None => (probe.attach("armv7m")?, false),
+            };
 
             crate::msg!("attached via {}", name);
 
@@ -1109,6 +1171,7 @@ pub fn attach(
                 probes[selected].product_id,
                 probes[selected].serial_number.clone(),
                 hubris.unhalted_reads(),
+                can_flash,
             )))
         }
 
@@ -1126,15 +1189,15 @@ pub fn attach(
         }
 
         "auto" => {
-            if let Ok(probe) = attach("ocd", hubris) {
+            if let Ok(probe) = attach_to_chip("ocd", hubris, chip) {
                 return Ok(probe);
             }
 
-            if let Ok(probe) = attach("jlink", hubris) {
+            if let Ok(probe) = attach_to_chip("jlink", hubris, chip) {
                 return Ok(probe);
             }
 
-            attach("usb", hubris)
+            attach_to_chip("usb", hubris, chip)
         }
 
         "ocdgdb" => {
@@ -1161,7 +1224,15 @@ pub fn attach(
 
                 let probe = probe_rs::Probe::open(selector)?;
                 let name = probe.get_name();
-                let session = probe.attach(chip)?;
+
+                //
+                // See the block comment in the generic "usb" attach for
+                // why we use armv7m here.
+                //
+                let (session, can_flash) = match chip {
+                    Some(chip) => (probe.attach(chip)?, true),
+                    None => (probe.attach("armv7m")?, false),
+                };
 
                 crate::msg!("attached to {} via {}", vidpid, name);
 
@@ -1172,11 +1243,24 @@ pub fn attach(
                     pid,
                     serial,
                     hubris.unhalted_reads(),
+                    can_flash,
                 )))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
         },
     }
+}
+
+pub fn attach_for_flashing(
+    probe: &str,
+    hubris: &HubrisArchive,
+    chip: &str,
+) -> Result<Box<dyn Core>> {
+    attach_to_chip(probe, hubris, Some(chip))
+}
+
+pub fn attach(probe: &str, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
+    attach_to_chip(probe, hubris, None)
 }
 
 pub fn attach_dump(
