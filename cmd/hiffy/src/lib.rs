@@ -199,7 +199,17 @@ fn hiffy_call(
             println!("{}.{}() = {}", op.name.0, op.name.1, dumped);
         }
         Err(e) => {
-            println!("Err({:x?})", e);
+            let variant = if let Some(error) = op.error {
+                error.lookup_variant(*e as u64)
+            } else {
+                None
+            };
+
+            if let Some(variant) = variant {
+                println!("Err({})", variant.name);
+            } else {
+                println!("Err({:x?})", e);
+            }
         }
     }
 
