@@ -1,0 +1,6 @@
+fs.sandbox = true
+fs.base = "rencm"
+
+bin.name = "humility"
+args = "rencm -g -i t6-clock.xml"
+
