@@ -1,0 +1,457 @@
+{{ <!--
+########################################
+# I2C, OneByteAddresses
+# ClockMatrix (24.2)
+# 2/1/2022 3:37:44 PM
+########################################
+-->}}
+
+<aardvark>
+<configure i2c="1" spi="0" gpio="0" tpower="1" pullups="1" />
+<i2c_write addr="0x00" radix="16">FC 00 C0 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 81 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C1 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">60 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">64 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6C 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">70 00</i2c_write>
+<i2c_write addr="0x00" radix="16">71 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">94 80 96 98 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9B 00 00 00 00 00 00 00 00 00 00 00 12 FD ED 02 FF FF 89 40</i2c_write>
+<i2c_write addr="0x00" radix="16">B0 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C0 00 00 00 00 00 00 00 00 00 00 00 00 01 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D0 00 00 00 00 00 00 00 00 00 00 00 00 02 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C2 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00 00 00 00 00 00 00 00 03 00</i2c_write>
+<i2c_write addr="0x00" radix="16">10 00 00 00 00 00 00 00 00 00 00 00 00 04 00</i2c_write>
+<i2c_write addr="0x00" radix="16">20 00 00 00 00 00 00 00 00 00 00 00 00 05 00</i2c_write>
+<i2c_write addr="0x00" radix="16">30 00 00 00 00 00 00 00 00 00 00 00 00 06 00</i2c_write>
+<i2c_write addr="0x00" radix="16">40 00 00 00 00 00 00 00 00 00 00 00 00 07 20</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00 00 00 00 00 00 00 00 00 00 08 00</i2c_write>
+<i2c_write addr="0x00" radix="16">60 00 00 00 00 00 00 00 00 00 00 00 00 09 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00 00 00 00 00 00 00 0A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">90 00 00 00 00 00 00 00 00 00 00 00 00 0B 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A0 00 00 00 00 00 00 00 00 00 00 00 00 0C 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B0 00 00 00 00 00 00 00 00 00 00 00 00 0D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C0 00 00 00 00 00 00 00 00 00 00 00 00 0E 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D0 00 00 00 00 00 00 00 00 00 00 00 00 0F 40</i2c_write>
+<i2c_write addr="0x00" radix="16">E0 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E8 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">EB 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">F4 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">F7 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C3 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">08 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">14 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">17 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">20 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">23 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2C 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2F 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">38 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3B 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">42 00</i2c_write>
+<i2c_write addr="0x00" radix="16">44 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">47 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">53 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5C 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5F 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">68 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">74 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">77 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">88 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">94 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">97 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A0 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A3 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AC 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AF 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B6 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">DB 00 00 00 00 00 00 00 08 08 00 00 00 30</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C4 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 30 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3B 08 00 00 00 00 00 00 00 0A 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 30 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">BB 04 00 00 00 00 00 00 00 0A 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C5 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 04 00 00 00 00 00 00 00 0A 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3B 04 00 00 00 00 00 00 00 0A 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 04 00 00 00 00 00 00 00 0A 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">BB 0A 01 00 00 25 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C6 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">05 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">07 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0B 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0D 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">11 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">13 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">18 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">23 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">27 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">30 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">35 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">37 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">39 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">41 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">43 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">47 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">49 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4D 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4F 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">54 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">57 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5F 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">63 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">69 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6C 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">71 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">73 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">75 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 04 19</i2c_write>
+<i2c_write addr="0x00" radix="16">85 80 00</i2c_write>
+<i2c_write addr="0x00" radix="16">87 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8B 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8D 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">91 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">93 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">98 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A3 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A7 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AD 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B0 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B5 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">B7 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B9 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C1 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C3 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C7 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C9 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">CD 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">CF 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D4 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D7 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">DF 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E3 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E9 00</i2c_write>
+<i2c_write addr="0x00" radix="16">EC 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">F1 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">F3 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">F5 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C7 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 04 19</i2c_write>
+<i2c_write addr="0x00" radix="16">05 80 00</i2c_write>
+<i2c_write addr="0x00" radix="16">07 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0B 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0D 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">11 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">13 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">18 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">23 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">27 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">30 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">35 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">37 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">39 00 00 00 00 00 00 04 19</i2c_write>
+<i2c_write addr="0x00" radix="16">41 80 00</i2c_write>
+<i2c_write addr="0x00" radix="16">43 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">47 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">49 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4D 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4F 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">54 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">57 00 00 9B 32 47 CD 1D FF</i2c_write>
+<i2c_write addr="0x00" radix="16">5F FF 04 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">63 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">69 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6C 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">71 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">73 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">75 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 04 19</i2c_write>
+<i2c_write addr="0x00" radix="16">85 80 00</i2c_write>
+<i2c_write addr="0x00" radix="16">87 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8B 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8D 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">91 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">93 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">98 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9B 00 C0 41 FF 98 40 25 FF</i2c_write>
+<i2c_write addr="0x00" radix="16">A3 FF 04 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A7 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AD 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B0 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B5 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">B7 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B9 00 00 00 00 00 00 04 19</i2c_write>
+<i2c_write addr="0x00" radix="16">C1 80 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C3 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C7 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C9 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">CD 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">CF 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D4 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D7 00 00 9B 32 47 CD 1D FF</i2c_write>
+<i2c_write addr="0x00" radix="16">DF FF 0A 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E3 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E9 00</i2c_write>
+<i2c_write addr="0x00" radix="16">EC 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">F1 00 A1</i2c_write>
+<i2c_write addr="0x00" radix="16">F3 2A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">F5 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C8 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 04</i2c_write>
+<i2c_write addr="0x00" radix="16">04 64</i2c_write>
+<i2c_write addr="0x00" radix="16">05 80 00</i2c_write>
+<i2c_write addr="0x00" radix="16">07 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0B 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0D 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">11 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">13 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">15 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">18 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1B 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1F 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">23 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">27 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2B 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2F 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">33 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">37 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">40 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">45 00</i2c_write>
+<i2c_write addr="0x00" radix="16">48 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">55 00</i2c_write>
+<i2c_write addr="0x00" radix="16">58 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">60 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">65 00</i2c_write>
+<i2c_write addr="0x00" radix="16">68 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">70 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">75 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">87 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8F 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">97 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9F 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A7 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AF 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B7 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">BF 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C2 02 00 00 00 02</i2c_write>
+<i2c_write addr="0x00" radix="16">C7 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D4 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E6 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 C9 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">12 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">24 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">36 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">48 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5A 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 02 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">92 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A4 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B6 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">DA 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 CA 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">12 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">20 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">22 00</i2c_write>
+<i2c_write addr="0x00" radix="16">23 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">27 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2B 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">30 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">33 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">37 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3B 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">40 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">43 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">47 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4B 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">53 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">57 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5B 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">60 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">63 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">67 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6B 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">70 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">73 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">83 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">87 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8C 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8F 00</i2c_write>
+<i2c_write addr="0x00" radix="16">90 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">93 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">97 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9C 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9F 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A2 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A3 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A7 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AC 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">AF 00 04 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B3 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B4 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B7 00 41 24</i2c_write>
+<i2c_write addr="0x00" radix="16">BC 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">BF 00 04 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C3 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C6 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C7 00 41 20</i2c_write>
+<i2c_write addr="0x00" radix="16">CC 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">CF 00 0A 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D3 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D7 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D8 03 24</i2c_write>
+<i2c_write addr="0x00" radix="16">DC 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">DF 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E3 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">E7 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 CB 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">08 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">10 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">18 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">20 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">28 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">30 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">38 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">40 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">48 00</i2c_write>
+<i2c_write addr="0x00" radix="16">49 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">53 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">58 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">60 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">68 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">70 00</i2c_write>
+<i2c_write addr="0x00" radix="16">71 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">75 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">88 00</i2c_write>
+<i2c_write addr="0x00" radix="16">89 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">90 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">93 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">98 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9D 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A0 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A8 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B0 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B1 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B8 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">BB 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C0 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C5 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C8 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">CE 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D0 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D2 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 CC 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">01 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">03 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">05 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">07 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">60 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">90 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">A0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">B0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">C0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">D0 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 CD 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00 00 22 00</i2c_write>
+<i2c_write addr="0x00" radix="16">08 00 00 00 00 00 22 00</i2c_write>
+<i2c_write addr="0x00" radix="16">10 00 00 00 00 00 22 00</i2c_write>
+<i2c_write addr="0x00" radix="16">18 00 00 00 00 00 22 00</i2c_write>
+<i2c_write addr="0x00" radix="16">20 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">80 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">82 00</i2c_write>
+<i2c_write addr="0x00" radix="16">84 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">86 00</i2c_write>
+<i2c_write addr="0x00" radix="16">88 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8C 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">8E 00</i2c_write>
+<i2c_write addr="0x00" radix="16">90 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">92 00</i2c_write>
+<i2c_write addr="0x00" radix="16">94 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">96 00</i2c_write>
+<i2c_write addr="0x00" radix="16">98 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9C 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">9E 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 CE 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">04 00</i2c_write>
+<i2c_write addr="0x00" radix="16">06 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">0C 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">10 00</i2c_write>
+<i2c_write addr="0x00" radix="16">12 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">14 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">16 00</i2c_write>
+<i2c_write addr="0x00" radix="16">18 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1C 00</i2c_write>
+<i2c_write addr="0x00" radix="16">1E 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">22 00</i2c_write>
+<i2c_write addr="0x00" radix="16">24 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">28 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2A 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2C 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">2E 00</i2c_write>
+<i2c_write addr="0x00" radix="16">30 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">34 00</i2c_write>
+<i2c_write addr="0x00" radix="16">36 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3A 00</i2c_write>
+<i2c_write addr="0x00" radix="16">3C 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">40 00</i2c_write>
+<i2c_write addr="0x00" radix="16">42 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">44 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">46 00</i2c_write>
+<i2c_write addr="0x00" radix="16">48 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4C 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4E 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">52 00</i2c_write>
+<i2c_write addr="0x00" radix="16">54 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">58 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5A 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">5E 00</i2c_write>
+<i2c_write addr="0x00" radix="16">FC 00 CF 10 20</i2c_write>
+<i2c_write addr="0x00" radix="16">40 05 35 64 00 77 00 30 60 01 35</i2c_write>
+<i2c_write addr="0x00" radix="16">4A 05 35 64 00</i2c_write>
+<i2c_write addr="0x00" radix="16">4E 77</i2c_write>
+<i2c_write addr="0x00" radix="16">50 00 00 00 00 00 00 00 00 0A 00 01</i2c_write>
+<i2c_write addr="0x00" radix="16">5B 00 00 00 00 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">63 00 00 00 01 00 00 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6B 00 00</i2c_write>
+<i2c_write addr="0x00" radix="16">6D 00</i2c_write>
+</aardvark>

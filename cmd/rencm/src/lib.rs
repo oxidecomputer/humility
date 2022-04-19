@@ -90,7 +90,7 @@ struct RencmArgs {
     ingest: Option<String>,
 
     /// Generage a Rust payload definition to the specified file
-    #[clap(long, short, requires = "inget")]
+    #[clap(long, short, requires = "ingest")]
     generate: bool,
 }
 
