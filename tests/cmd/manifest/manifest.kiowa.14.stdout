@@ -1,0 +1,59 @@
+     version => hubris build archive v1.0.0
+     git rev => 85e28aa1c3f5d23ebb88ce6d270bf925e766e9f6-dirty
+    image id => <none>
+       board => gimlet-1
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 231K
+ kernel size => 30K
+       tasks => 14
+                ID TASK                SIZE FEATURES
+                 0 hiffy              43.9K h753, stm32h7, itm, i2c, gpio, spi, qspi
+                 1 thermal            21.9K itm, h753
+                 2 gimlet_seq         42.6K h753
+                 3 jefe                6.7K itm
+                 4 spi4_driver        10.7K spi4, h753
+                 5 spi2_driver        11.1K spi2, h753
+                 6 i2c_driver         12.7K h753, itm
+                 7 spd                20.2K h753, itm
+                 8 hf                  8.6K h753
+                 9 sensor              4.7K itm
+                10 rcc_driver          4.7K h753
+                11 gpio_driver         5.8K h753
+                12 power               7.1K itm, h753
+                13 idle                0.1K 
+   i2c buses => 4 controllers, 5 buses
+                C PORT MODE NAME          DESCRIPTION
+                1 B    trgt spd           SPD proxy
+                2 B    init m2            M.2 bus
+                2 F    init front         Front bus
+                3 H    init mid           Mid bus
+                4 F    init rear          Rear bus
+ i2c devices => 26 devices
+                C P  MUX ADDR DEVICE        DESCRIPTION
+                2 F  -   0x48 tmp117        Front temperature sensor (zone 1)
+                2 F  -   0x49 tmp117        Front temperature sensor (zone 2)
+                2 F  -   0x4a tmp117        Front temperature sensor (zone 3)
+                2 F  -   0x70 pca9545       U.2 ABCD mux
+                2 F  -   0x71 pca9545       U.2 EFGH mux
+                2 F  -   0x72 pca9545       U.2 IJ mux
+                2 B  -   0x73 pca9545       M.2 mux
+                3 H  -   0x24 tps546b24a    A2 3.3V rail
+                3 H  -   0x27 tps546b24a    A2 1.8V rail
+                3 H  -   0x29 tps546b24a    A2 5V rail
+                3 H  -   0x3a max5970       M.2 hot plug controller
+                3 H  -   0x4c sbtsi         CPU temperature sensor
+                3 H  -   0x58 idt8a34004    Clock generator
+                3 H  -   0x5a raa229618     CPU power controller
+                3 H  -   0x5b raa229618     SoC power controller
+                3 H  -   0x5c isl68224      DIMM ABCD power controller
+                3 H  -   0x5d isl68224      DIMM EFGH power controller
+                4 F  -   0x10 adm1272       Fan hot swap controller
+                4 F  -   0x14 adm1272       Sled hot swap controller
+                4 F  -   0x20 max31790      Fan controller
+                4 F  -   0x48 tmp117        Rear temperature sensor (zone 1)
+                4 F  -   0x49 tmp117        Rear temperature sensor (zone 2)
+                4 F  -   0x4a tmp117        Rear temperature sensor (zone 3)
+                4 F  -   0x4c tmp451        T6 temperature sensor
+                4 F  -   0x5f isl68224      T6 power controller
+                4 F  -   0x67 bmr491        IBC

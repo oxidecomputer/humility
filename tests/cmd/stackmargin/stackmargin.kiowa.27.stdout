@@ -1,0 +1,13 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20005000       1536        624        912
+ 1 hiffy              0x20008000       2048        840       1208
+ 2 idle               0x2000dc00        256        112        144
+ 3 syscon_driver      0x20005800       1000        176        824
+ 4 gpio_driver        0x20006000       1000        248        752
+ 5 user_leds          0x20006800       1000        296        704
+ 6 usart_driver       0x20007000       1000        272        728
+ 7 i2c_driver         0x20007800       1000        264        736
+ 8 rng_driver         0x2000c000       1000        184        816
+ 9 spi0_driver        0x2000c800       1000        304        696
+10 ping               0x2000d800        512        216        296
+11 pong               0x2000d000       1000        208        792

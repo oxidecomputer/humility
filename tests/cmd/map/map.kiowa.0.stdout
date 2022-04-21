@@ -1,0 +1,12 @@
+DESC       LOW          HIGH          SIZE ATTR  ID TASK
+-          0x08000000 - 0x08004e33   19KiB r-x-- -  kernel
+-          0x08004e34 - 0x08004f43     272 r-x-- -  kernel
+0x08004e64 0x08008000 - 0x0800bfff   16KiB r-x-- 0  runner
+0x08004e84 0x08010000 - 0x08017fff   32KiB r-x-- 1  suite
+0x08004ea4 0x08018000 - 0x08019fff    8KiB r-x-- 2  assist
+0x08004ec4 0x0801a000 - 0x0801a0ff     256 r-x-- 3  idle
+-          0x20000000 - 0x20000fff    4KiB rw--- -  kernel
+0x08004e74 0x20001000 - 0x20001fff    4KiB rw--- 0  runner
+0x08004e94 0x20002000 - 0x20002fff    4KiB rw--- 1  suite
+0x08004eb4 0x20003000 - 0x20003fff    4KiB rw--- 2  assist
+0x08004ed4 0x20004000 - 0x200040ff     256 rw--- 3  idle

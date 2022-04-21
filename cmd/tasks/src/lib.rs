@@ -121,7 +121,7 @@ use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
 use humility_cmd::reflect::{self, Format, Load};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use num_traits::FromPrimitive;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]
 #[clap(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -209,7 +209,7 @@ fn print_stack(
     }
 }
 
-fn print_regs(regs: &HashMap<ARMRegister, u32>, additional: bool) {
+fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
     let bar = if additional { "|" } else { " " };
 
     print!("   |\n   +--->");

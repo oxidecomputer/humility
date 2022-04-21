@@ -1,0 +1,19 @@
+     version => hubris build archive v1.0.0
+     git rev => 189f70169fa1a1d8b0a59fcabc76d1d62231e322-dirty
+    image id => [d6, 75, 7e, 7c, f1, 5d, 47, 12]
+       board => stm32g0b1
+      target => thumbv6m-none-eabi
+    features => g0b1, panic-halt
+  total size => 43K
+ kernel size => 13K
+       tasks => 9
+                ID TASK                SIZE FEATURES
+                 0 hiffy              15.0K 
+                 1 jefe                3.2K log-null
+                 2 ping                5.0K uart
+                 3 gpio_driver         2.7K g0b1
+                 4 usart_driver        1.5K g0b1
+                 5 user_leds           1.1K stm32g0
+                 6 rcc_driver          0.7K g0b1
+                 7 pong                0.7K 
+                 8 idle                0.1K 

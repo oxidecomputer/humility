@@ -1,0 +1,352 @@
+ NDX LINE      GEN    COUNT PAYLOAD
+  56  337       34        1 A1Power(0x5, 0x7)
+  57  350       34        1 RailsOn
+  58  359       34        1 A0Power(0x7)
+  59  359       34        1 A0Power(0x8)
+  60  359       34       19 A0Power(0xa)
+  61  359       34        3 A0Power(0xb)
+  62  359       34        1 A0Power(0xc)
+  63  290       34        1 Done
+   0  305       35        1 GetState
+   1  290       35        1 Done
+   2  305       35        1 GetState
+   3  290       35        1 Done
+   4  305       35        1 GetState
+   5  290       35        1 Done
+   6  305       35        1 GetState
+   7  290       35        1 Done
+   8  305       35        1 GetState
+   9  290       35        1 Done
+  10  305       35        1 GetState
+  11  290       35        1 Done
+  12  305       35        1 GetState
+  13  290       35        1 Done
+  14  305       35        1 GetState
+  15  290       35        1 Done
+  16  305       35        1 GetState
+  17  290       35        1 Done
+  18  305       35        1 GetState
+  19  290       35        1 Done
+  20  305       35        1 GetState
+  21  290       35        1 Done
+  22  305       35        1 GetState
+  23  290       35        1 Done
+  24  305       35        1 GetState
+  25  290       35        1 Done
+  26  305       35        1 GetState
+  27  290       35        1 Done
+  28  305       35        1 GetState
+  29  290       35        1 Done
+  30  305       35        1 GetState
+  31  290       35        1 Done
+  32  305       35        1 GetState
+  33  290       35        1 Done
+  34  305       35        1 GetState
+  35  290       35        1 Done
+  36  305       35        1 GetState
+  37  290       35        1 Done
+  38  305       35        1 GetState
+  39  290       35        1 Done
+  40  305       35        1 GetState
+  41  290       35        1 Done
+  42  305       35        1 GetState
+  43  290       35        1 Done
+  44  305       35        1 GetState
+  45  290       35        1 Done
+  46  305       35        1 GetState
+  47  290       35        1 Done
+  48  305       35        1 GetState
+  49  290       35        1 Done
+  50  305       35        1 GetState
+  51  290       35        1 Done
+  52  305       35        1 GetState
+  53  290       35        1 Done
+  54  305       35        1 GetState
+  55  290       35        1 Done
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  250        1        1 Read(GlobalConfiguration, 0x27)
+   1  250        1        1 Read(Fan1Configuration, 0x28)
+   2  295        1        1 Write(Fan1Configuration, 0x28)
+   3  295        1        1 Write(PWMOut1TargetDutyCycleMSB, 0x0)
+   4  250        1        1 Read(Fan2Configuration, 0x28)
+   5  295        1        1 Write(Fan2Configuration, 0x28)
+   6  295        1        1 Write(PWMOut2TargetDutyCycleMSB, 0x0)
+   7  250        1        1 Read(Fan3Configuration, 0x28)
+   8  295        1        1 Write(Fan3Configuration, 0x28)
+   9  295        1        1 Write(PWMOut3TargetDutyCycleMSB, 0x0)
+  10  250        1        1 Read(Fan4Configuration, 0x28)
+  11  295        1        1 Write(Fan4Configuration, 0x28)
+  12  295        1        1 Write(PWMOut4TargetDutyCycleMSB, 0x0)
+  13  250        1        1 Read(Fan5Configuration, 0x28)
+  14  295        1        1 Write(Fan5Configuration, 0x28)
+  15  295        1        1 Write(PWMOut5TargetDutyCycleMSB, 0x0)
+  16  250        1        1 Read(Fan6Configuration, 0x28)
+  17  295        1        1 Write(Fan6Configuration, 0x28)
+  18  295        1        1 Write(PWMOut6TargetDutyCycleMSB, 0x0)
+ NDX LINE      GEN    COUNT PAYLOAD
+  21  552     2568        2 ReadISR(0x8021)
+  22  552     2568        1 ReadISR(0x8025)
+  23  595     2568        2 ReadWaitISR(0x8021)
+  24  595     2568        1 ReadWaitISR(0x8061)
+  25  358     2568        1 WaitISR(0x21)
+  26  444     2568        1 WriteISR(0x21)
+  27  444     2568        2 WriteISR(0x8021)
+  28  444     2568        1 WriteISR(0x8023)
+  29  482     2568        1 WriteWaitISR(0x8020)
+  30  482     2568        2 WriteWaitISR(0x8021)
+  31  482     2568        1 WriteWaitISR(0x8061)
+  32  552     2568        2 ReadISR(0x8021)
+  33  552     2568        1 ReadISR(0x8025)
+  34  595     2568        2 ReadWaitISR(0x8021)
+  35  595     2568        1 ReadWaitISR(0x8061)
+  36  358     2568        1 WaitISR(0x21)
+  37  444     2568        1 WriteISR(0x21)
+  38  444     2568        2 WriteISR(0x8021)
+  39  444     2568        1 WriteISR(0x8023)
+  40  482     2568        3 WriteWaitISR(0x8021)
+  41  482     2568        1 WriteWaitISR(0x8061)
+  42  552     2568        2 ReadISR(0x8021)
+  43  552     2568        1 ReadISR(0x8025)
+  44  552     2568        2 ReadISR(0x8021)
+  45  552     2568        1 ReadISR(0x8025)
+  46  595     2568        2 ReadWaitISR(0x8021)
+  47  595     2568        1 ReadWaitISR(0x8061)
+   0  358     2569        1 WaitISR(0x21)
+   1  444     2569        1 WriteISR(0x21)
+   2  444     2569        2 WriteISR(0x8021)
+   3  444     2569        1 WriteISR(0x8023)
+   4  444     2569        1 WriteISR(0x8020)
+   5  444     2569        1 WriteISR(0x8023)
+   6  482     2569        3 WriteWaitISR(0x8020)
+   7  482     2569        1 WriteWaitISR(0x8061)
+   8  358     2569        1 WaitISR(0x21)
+   9  444     2569        1 WriteISR(0x21)
+  10  444     2569        2 WriteISR(0x8021)
+  11  444     2569        1 WriteISR(0x8023)
+  12  482     2569        1 WriteWaitISR(0x8020)
+  13  482     2569        2 WriteWaitISR(0x8021)
+  14  482     2569        1 WriteWaitISR(0x8061)
+  15  552     2569        2 ReadISR(0x8021)
+  16  552     2569        1 ReadISR(0x8025)
+  17  552     2569        2 ReadISR(0x8021)
+  18  552     2569        1 ReadISR(0x8025)
+  19  595     2569        2 ReadWaitISR(0x8021)
+  20  595     2569        1 ReadWaitISR(0x8061)
+ NDX LINE      GEN    COUNT PAYLOAD
+   4  849    20355        1 TxISR(0x3c8005)
+   5  902    20355        1 WaitTx
+   6  849    20355        1 TxISR(0x3c8005)
+   7  902    20355        1 WaitTx
+   8  849    20355        1 TxISR(0x3c8005)
+   9  902    20355        1 WaitTx
+  10  849    20355        1 TxISR(0x3c8005)
+  11  902    20355        1 WaitTx
+  12  849    20355        1 TxISR(0x3c8005)
+  13  902    20355        1 WaitTx
+  14  849    20355        1 TxISR(0x3c8005)
+  15  902    20355        1 WaitTx
+  16  849    20355        1 TxISR(0x3c8005)
+  17  902    20355        1 WaitTx
+  18  849    20355        1 TxISR(0x3c8005)
+  19  902    20355        1 WaitTx
+  20  849    20355        1 TxISR(0x3c8005)
+  21  902    20355        1 WaitTx
+  22  849    20355        1 TxISR(0x3c8005)
+  23  902    20355        1 WaitTx
+  24  849    20355        1 TxISR(0x3c8005)
+  25  902    20355        1 WaitTx
+  26  849    20355        1 TxISR(0x3c8005)
+  27  902    20355        1 WaitTx
+  28  849    20355        1 TxISR(0x3c8005)
+  29  902    20355        1 WaitTx
+  30  849    20355        1 TxISR(0x3c8005)
+  31  902    20355        1 WaitTx
+  32  849    20355        1 TxISR(0x3c8005)
+  33  902    20355        1 WaitTx
+  34  849    20355        1 TxISR(0x3c8005)
+  35  902    20355        1 WaitTx
+  36  849    20355        1 TxISR(0x3c8005)
+  37  902    20355        1 WaitTx
+  38  849    20355        1 TxISR(0x3c8005)
+  39  902    20355        1 WaitTx
+  40  849    20355        1 TxISR(0x3c8005)
+  41  902    20355        1 WaitTx
+  42  849    20355        1 TxISR(0x3c8005)
+  43  902    20355        1 WaitTx
+  44  849    20355        1 TxISR(0x3c8005)
+  45  902    20355        1 WaitTx
+  46  849    20355        1 TxISR(0x3c8005)
+  47  902    20355        1 WaitTx
+   0  849    20356        1 TxISR(0x3c8005)
+   1  902    20356        1 WaitTx
+   2  849    20356        1 TxISR(0x3c8005)
+   3  902    20356        1 WaitTx
+ NDX LINE      GEN    COUNT PAYLOAD
+   1  117        1        4 Some(BusLocked)
+   2  117        1       37 Some(NoDevice)
+   3  117        1        1 Some(BusLocked)
+   4  117        1      154 Some(NoDevice)
+   5  117        1        1 Some(BusLocked)
+   6  117        1       17 Some(NoDevice)
+   7  117        1        1 Some(BusLocked)
+   8  117        1      184 Some(NoDevice)
+   9  117        1        1 Some(BusLocked)
+  10  117        1       28 Some(NoDevice)
+  11  117        1        1 Some(BusLocked)
+  12  117        1      247 Some(NoDevice)
+  13  117        1        1 Some(BusLocked)
+  14  117        1       63 Some(NoDevice)
+  15  117        1        1 Some(BusLocked)
+   0  117        2       25 Some(NoDevice)
+ NDX LINE      GEN    COUNT PAYLOAD
+  49  381     2413        1 Tx(0x1, 0x0)
+  50  381     2413        1 Tx(0x2, 0xb)
+  51  381     2413        1 Tx(0x3, 0x0)
+  52  381     2413        1 Tx(0x4, 0x0)
+  53  381     2413        1 Tx(0x5, 0x0)
+  54  381     2413        1 Tx(0x6, 0x0)
+  55  381     2413        1 Tx(0x7, 0x0)
+  56  381     2413        1 Tx(0x8, 0x0)
+  57  381     2413        1 Tx(0x9, 0x0)
+  58  381     2413        1 Tx(0xa, 0x0)
+  59  381     2413        1 Tx(0xb, 0x0)
+  60  381     2413        1 Tx(0xc, 0x0)
+  61  381     2413        1 Tx(0xd, 0x0)
+  62  381     2413        1 Tx(0xe, 0x0)
+  63  381     2413        1 Tx(0xf, 0x0)
+   0  407     2414        1 Rx(0x0, 0x0)
+   1  407     2414        1 Rx(0x1, 0x0)
+   2  407     2414        1 Rx(0x2, 0x0)
+   3  407     2414        1 Rx(0x3, 0xb)
+   4  407     2414        1 Rx(0x4, 0x1c)
+   5  407     2414        1 Rx(0x5, 0xf)
+   6  407     2414        1 Rx(0x6, 0xc)
+   7  407     2414        1 Rx(0x7, 0xff)
+   8  407     2414        1 Rx(0x8, 0x0)
+   9  407     2414        1 Rx(0x9, 0x55)
+  10  407     2414        1 Rx(0xa, 0x3)
+  11  407     2414        1 Rx(0xb, 0x1e)
+  12  407     2414        1 Rx(0xc, 0xff)
+  13  407     2414        1 Rx(0xd, 0xff)
+  14  407     2414        1 Rx(0xe, 0xff)
+  15  407     2414        1 Rx(0xf, 0x6)
+  16  297     2414        1 Start(exchange, (0x10, 0x10))
+  17  381     2414        1 Tx(0x0, 0x1)
+  18  381     2414        1 Tx(0x1, 0x0)
+  19  381     2414        1 Tx(0x2, 0xb)
+  20  381     2414        1 Tx(0x3, 0x0)
+  21  381     2414        1 Tx(0x4, 0x0)
+  22  381     2414        1 Tx(0x5, 0x0)
+  23  381     2414        1 Tx(0x6, 0x0)
+  24  381     2414        1 Tx(0x7, 0x0)
+  25  381     2414        1 Tx(0x8, 0x0)
+  26  381     2414        1 Tx(0x9, 0x0)
+  27  381     2414        1 Tx(0xa, 0x0)
+  28  381     2414        1 Tx(0xb, 0x0)
+  29  381     2414        1 Tx(0xc, 0x0)
+  30  381     2414        1 Tx(0xd, 0x0)
+  31  381     2414        1 Tx(0xe, 0x0)
+  32  381     2414        1 Tx(0xf, 0x0)
+  33  407     2414        1 Rx(0x0, 0x0)
+  34  407     2414        1 Rx(0x1, 0x0)
+  35  407     2414        1 Rx(0x2, 0x0)
+  36  407     2414        1 Rx(0x3, 0xc)
+  37  407     2414        1 Rx(0x4, 0x1c)
+  38  407     2414        1 Rx(0x5, 0xf)
+  39  407     2414        1 Rx(0x6, 0x4)
+  40  407     2414        1 Rx(0x7, 0xff)
+  41  407     2414        1 Rx(0x8, 0x0)
+  42  407     2414        1 Rx(0x9, 0x55)
+  43  407     2414        1 Rx(0xa, 0x3)
+  44  407     2414        1 Rx(0xb, 0x1e)
+  45  407     2414        1 Rx(0xc, 0xff)
+  46  407     2414        1 Rx(0xd, 0xff)
+  47  407     2414        1 Rx(0xe, 0xff)
+  48  407     2414        1 Rx(0xf, 0x6)
+ NDX LINE      GEN    COUNT PAYLOAD
+  31  577     2230        1 Execute((0x88, Call(TargetFunction(0x1))))
+  32  577     2230        1 Execute((0x8a, DropN(0x8)))
+  33  577     2230        1 Execute((0x8c, Push(0xc)))
+  34  577     2230        1 Execute((0x8e, Push(0x1)))
+  35  577     2230        1 Execute((0x90, Push(0xd)))
+  36  577     2230        1 Execute((0x92, Push(0x0)))
+  37  577     2230        1 Execute((0x94, Push(0x0)))
+  38  577     2230        1 Execute((0x96, Push(0x0)))
+  39  577     2230        1 Execute((0x98, Push(0x4)))
+  40  577     2230        1 Execute((0x9a, Push(0x4)))
+  41  577     2230        1 Execute((0x9c, Call(TargetFunction(0x1))))
+  42  577     2230        1 Execute((0x9e, DropN(0x8)))
+  43  577     2230        1 Execute((0xa0, Push(0xc)))
+  44  577     2230        1 Execute((0xa2, Push(0x1)))
+  45  577     2230        1 Execute((0xa4, Push(0x1a)))
+  46  577     2230        1 Execute((0xa6, Push(0x0)))
+  47  577     2230        1 Execute((0xa8, Push(0x0)))
+  48  577     2230        1 Execute((0xaa, Push(0x0)))
+  49  577     2230        1 Execute((0xac, Push(0x4)))
+  50  577     2230        1 Execute((0xae, Push(0x4)))
+  51  577     2230        1 Execute((0xb0, Call(TargetFunction(0x1))))
+  52  577     2230        1 Execute((0xb2, DropN(0x8)))
+  53  577     2230        1 Execute((0xb4, Push(0xc)))
+  54  577     2230        1 Execute((0xb6, Push(0x1)))
+  55  577     2230        1 Execute((0xb8, Push(0x1b)))
+  56  577     2230        1 Execute((0xba, Push(0x0)))
+  57  577     2230        1 Execute((0xbc, Push(0x0)))
+  58  577     2230        1 Execute((0xbe, Push(0x0)))
+  59  577     2230        1 Execute((0xc0, Push(0x4)))
+  60  577     2230        1 Execute((0xc2, Push(0x4)))
+  61  577     2230        1 Execute((0xc4, Call(TargetFunction(0x1))))
+  62  577     2230        1 Execute((0xc6, DropN(0x8)))
+  63  577     2230        1 Execute((0xc8, Push(0xc)))
+   0  577     2231        1 Execute((0xca, Push(0x1)))
+   1  577     2231        1 Execute((0xcc, Push(0x1c)))
+   2  577     2231        1 Execute((0xce, Push(0x0)))
+   3  577     2231        1 Execute((0xd0, Push(0x0)))
+   4  577     2231        1 Execute((0xd2, Push(0x0)))
+   5  577     2231        1 Execute((0xd4, Push(0x4)))
+   6  577     2231        1 Execute((0xd6, Push(0x4)))
+   7  577     2231        1 Execute((0xd8, Call(TargetFunction(0x1))))
+   8  577     2231        1 Execute((0xda, DropN(0x8)))
+   9  577     2231        1 Execute((0xdc, Push(0xc)))
+  10  577     2231        1 Execute((0xde, Push(0x1)))
+  11  577     2231        1 Execute((0xe0, Push(0x1d)))
+  12  577     2231        1 Execute((0xe2, Push(0x0)))
+  13  577     2231        1 Execute((0xe4, Push(0x0)))
+  14  577     2231        1 Execute((0xe6, Push(0x0)))
+  15  577     2231        1 Execute((0xe8, Push(0x4)))
+  16  577     2231        1 Execute((0xea, Push(0x4)))
+  17  577     2231        1 Execute((0xec, Call(TargetFunction(0x1))))
+  18  577     2231        1 Execute((0xee, DropN(0x8)))
+  19  577     2231        1 Execute((0xf0, Push(0xc)))
+  20  577     2231        1 Execute((0xf2, Push(0x1)))
+  21  577     2231        1 Execute((0xf4, Push(0x1e)))
+  22  577     2231        1 Execute((0xf6, Push(0x0)))
+  23  577     2231        1 Execute((0xf8, Push(0x0)))
+  24  577     2231        1 Execute((0xfa, Push(0x0)))
+  25  577     2231        1 Execute((0xfc, Push(0x4)))
+  26  577     2231        1 Execute((0xfe, Push(0x4)))
+  27  577     2231        1 Execute((0x100, Call(TargetFunction(0x1))))
+  28  577     2231        1 Execute((0x102, DropN(0x8)))
+  29  577     2231        1 Execute((0x104, Done))
+  30  581     2231        1 Success
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  127        1       17 State(A2)
+   1  127        1      392 State(A0)
+   2  127        1      658 State(A2)
+   3  127        1       28 State(A0)
+ NDX LINE      GEN    COUNT PAYLOAD
+  14  338      810        1 MuxState(Idle, AwaitingSegment)
+  15  316      810        1 Rx(0x4a, 0x80)
+   0  338      811        1 MuxState(AwaitingSegment, Done)
+   1  311      811        4 Initiate(0x1e, false)
+   2  311      811        1 Initiate(0x4a, true)
+   3  316      811        1 Rx(0x4a, 0x3)
+   4  338      811        1 MuxState(Idle, AwaitingSegment)
+   5  316      811        1 Rx(0x4a, 0x80)
+   6  338      811        1 MuxState(AwaitingSegment, Done)
+   7  311      811        4 Initiate(0x1f, false)
+   8  311      811        1 Initiate(0x4a, true)
+   9  316      811        1 Rx(0x4a, 0x3)
+  10  338      811        1 MuxState(Idle, AwaitingSegment)
+  11  316      811        1 Rx(0x4a, 0x40)
+  12  338      811        1 MuxState(AwaitingSegment, Done)
+  13  311      811        3 Initiate(0x1e, false)

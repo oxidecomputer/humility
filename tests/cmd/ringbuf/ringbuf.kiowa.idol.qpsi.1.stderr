@@ -1,0 +1,10 @@
+humility: attached to dump
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in spd:
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi4_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi2_driver:
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
+humility: ring buffer task_spd::__RINGBUF in spd:

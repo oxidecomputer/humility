@@ -1,0 +1,21 @@
+     version => hubris build archive v1.0.0
+     git rev => 25ddde583deaddf6a6e6661015cb1b64aeb045e4-dirty
+    image id => <none>
+       board => gimletlet-2
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 80K
+ kernel size => 19K
+       tasks => 11
+                ID TASK                SIZE FEATURES
+                 0 jefe               10.5K itm
+                 1 rcc_driver          5.1K 
+                 2 gpio_driver         5.7K 
+                 3 usart_driver        6.2K h743
+                 4 i2c_driver          9.1K h743, itm
+                 5 spi_driver          6.9K 
+                 6 spi                 0.9K itm
+                 7 user_leds           5.3K stm32h7
+                 8 pong                4.8K 
+                 9 i2c_debug           6.2K itm
+                10 idle                0.1K 

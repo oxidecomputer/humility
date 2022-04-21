@@ -1,0 +1,59 @@
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  111        1        1 (Some(SwitchControl), 0x0)
+ NDX LINE      GEN    COUNT PAYLOAD
+   2  518        1        1 0x1
+   3  518        1        1 0x201
+   4  501        1        1 0x1
+   5  518        1        1 0x1
+   6  518        1        2 0x8001
+   7  518        1        1 0x201
+   8  501        1        1 0x0
+   9  518        1        1 0x1
+  10  518        1        2 0x8001
+  11  518        1        1 0x201
+  12  501        1        1 0x1
+  13  518        1        1 0x1
+  14  518        1        2 0x8001
+  15  518        1        1 0x201
+  16  296        1        1 0x1
+  17  329        1        1 0x1
+  18  329        1        2 0x8001
+  19  329        1        1 0x8011
+  20  483        1       79 0x8001
+  21  483        1        1 0x21
+  22  501        1        1 0x0
+  23  518        1        1 0x21
+  24  518        1        2 0x8021
+  25  518        1        1 0x8061
+  26  501        1        1 0x1
+  27  518        1        3 0x8021
+  28  518        1        1 0x8061
+  29  501        1        1 0x0
+  30  518        1        3 0x8021
+  31  518        1        1 0x8221
+   0  501        2        1 0x1
+   1  518        2        3 0x8021
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  623        1        1 0x1
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  519        1        1 Some(BadMuxAddress)
+   1  142        1        1 Some(BadMuxAddress)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  137        1        1 0x0
+ NDX LINE      GEN    COUNT PAYLOAD
+   9   47    43835        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41    43835        1 Calling
+  11   47    43835        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41    43835        1 Calling
+  13   47    43835        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41    43835        1 Calling
+  15   47    43835        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41    43836        1 Calling
+   1   47    43836        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41    43836        1 Calling
+   3   47    43836        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41    43836        1 Calling
+   5   47    43836        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41    43836        1 Calling
+   7   47    43836        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41    43836        1 Calling

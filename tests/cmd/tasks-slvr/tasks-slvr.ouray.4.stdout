@@ -1,0 +1,97 @@
+system time = 48664
+ID TASK                 GEN PRI STATE    
+ 0 jefe                   0   0 recv, notif: bit0
+   |
+   +--->  0x20001318 0x08011cda userlib::sys_recv_stub
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
+   |      0x20001400 0x080101ca userlib::sys_recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:207
+   |      0x20001400 0x080101c2 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:163
+   |      0x20001400 0x080101da main
+   |                 @ /home/bmc/hubris-fixes/task-jefe/src/main.rs:80
+   |
+   |
+   +--->   R0 = 0x08012454   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x200013d4
+   |       R4 = 0x08012454   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x00000014   R9 = 0x00000001  R10 = 0x00000001  R11 = 0x00000001
+   |      R12 = 0x200013cc   SP = 0x200012f8   LR = 0x080101db   PC = 0x08011cda
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x8012454,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x14,
+                        r9: 0x1,
+                        r10: 0x1,
+                        r11: 0x1,
+                        psp: 0x20001290,
+                        exc_return: 0xffffffed
+                    },
+                    priority: Priority(0x0),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000028 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80047dc (&abi::TaskDesc)
+                }
+
+ 1 rcc_driver             0   1 recv
+   |
+   +--->  0x200017d8 0x08018e22 userlib::sys_recv_stub
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
+   |      0x20001800 0x0801806e userlib::sys_recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:207
+   |      0x20001800 0x0801806e userlib::hl::recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:78
+   |      0x20001800 0x0801806e userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:116
+   |      0x20001800 0x0801807c main
+   |                 @ /home/bmc/hubris-fixes/drv/stm32f4-rcc/src/main.rs:100
+   |
+   |
+   +--->   R0 = 0x200017e0   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200017e4
+   |       R4 = 0x200017e0   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x08019284   R9 = 0x00000001  R10 = 0x40023810  R11 = 0x00000001
+   |      R12 = 0x00000008   SP = 0x200017b8   LR = 0x0801807d   PC = 0x08018e22
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x200017e0,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x8019284,
+                        r9: 0x1,
+                        r10: 0x40023810,
+                        r11: 0x1,
+                        psp: 0x20001750,
+                        exc_return: 0xffffffed
+                    },
+                    priority: Priority(0x1),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000048 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80047f4 (&abi::TaskDesc)
+                }
+
+ 2 usart_driver           0   2 RUNNING
