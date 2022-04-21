@@ -1,0 +1,18 @@
+     version => hubris build archive v1.0.0
+     git rev => 8bfecc97f80523c2f2bc17a00868036186d232f6
+    image id => <none>
+       board => stm32f4-discovery
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 62K
+ kernel size => 18K
+       tasks => 8
+                ID TASK                SIZE FEATURES
+                 0 jefe                9.7K itm
+                 1 rcc_driver          5.0K 
+                 2 usart_driver        6.3K 
+                 3 user_leds           5.7K stm32f4
+                 4 ping                6.4K uart, defmt-trace
+                 5 log                 5.2K 
+                 6 pong                5.9K defmt-trace
+                 7 idle                0.2K 

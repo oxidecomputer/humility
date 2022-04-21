@@ -1,0 +1,25 @@
+     version => hubris build archive v1.0.0
+     git rev => 742d04ef9151fcbc484ffafc45b1038e8e128d8f-dirty
+    image id => <none>
+       board => nucleo-h743zi2
+      target => thumbv7em-none-eabihf
+    features => itm, h743
+  total size => 126K
+ kernel size => 29K
+       tasks => 12
+                ID TASK                SIZE FEATURES
+                 0 hiffy              24.0K stm32h7, itm, i2c, gpio, qspi
+                 1 jefe               10.9K itm
+                 2 i2c_driver         10.0K h743
+                 3 spi_driver         10.4K spi3
+                 4 hf                  8.4K 
+                 5 rcc_driver          4.9K 
+                 6 gpio_driver         5.8K 
+                 7 usart_driver        5.9K h743
+                 8 user_leds           5.4K stm32h7
+                 9 pong                4.9K 
+                10 ping                5.5K uart
+                11 idle                0.1K 
+   i2c buses => 1 controller, 1 bus
+                C PORT MODE NAME          DESCRIPTION
+                2 F    init -             -

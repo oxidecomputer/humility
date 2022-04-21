@@ -1,0 +1,15 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20013000       1536        336       1200
+ 1 rcc_driver         0x20015800       1024        176        848
+ 2 gpio_driver        0x20015c00       1024        200        824
+ 3 spi4_driver        0x20001000       1000        320        680
+ 4 spi2_driver        0x20012000       1000        512        488
+ 5 i2c_driver         0x20013800       1024        560        464
+ 6 spd                0x20004000       1024        448        576
+ 7 thermal            0x20002000       2048       1240        808
+ 8 power              0x20014000       1200        400        800
+ 9 hiffy              0x20008000       1024        888        136
+10 gimlet_seq         0x20010000       1024        640        384
+11 hf                 0x20014800       2048        600       1448
+12 sensor             0x20015000       2000        720       1280
+13 idle               0x20016000        256        112        144

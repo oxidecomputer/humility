@@ -1,0 +1,21 @@
+     version => hubris build archive v1.0.0
+     git rev => 0f867eee39f73c89f4bcbe634b5172c917a38f75-dirty
+    image id => <none>
+       board => stm32h7b3i-dk
+      target => thumbv7em-none-eabihf
+    features => itm, h7b3
+  total size => 98K
+ kernel size => 20K
+       tasks => 11
+                ID TASK                SIZE FEATURES
+                 0 jefe               10.6K itm
+                 1 rcc_driver          5.1K 
+                 2 gpio_driver         5.7K 
+                 3 usart_driver        6.2K h7b3
+                 4 i2c_driver          9.2K h7b3
+                 5 user_leds           5.3K stm32h7
+                 6 pong                4.8K 
+                 7 ping                5.5K uart
+                 8 hiffy              15.5K itm
+                 9 i2c_debug           9.7K itm
+                10 idle                0.1K 

@@ -1,0 +1,23 @@
+     version => hubris build archive v1.0.0
+     git rev => 97b88d40ab26c1dc9cb230ee31911d49830f0e1e-dirty
+    image id => <none>
+       board => gemini-bu-1
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 127K
+ kernel size => 20K
+       tasks => 13
+                ID TASK                SIZE FEATURES
+                 0 jefe                9.6K itm
+                 1 rcc_driver          5.1K 
+                 2 gpio_driver         5.8K 
+                 3 usart_driver        6.3K h743
+                 4 i2c_driver         12.8K h743, itm, external-max7358
+                 5 spd                 9.1K h743, itm
+                 6 spi_driver          6.9K 
+                 7 spi                 0.9K itm
+                 8 user_leds           5.3K stm32h7
+                 9 pong                4.8K 
+                10 i2c_debug           6.2K itm
+                11 thermal            33.7K itm
+                12 idle                0.1K 

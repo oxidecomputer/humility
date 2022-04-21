@@ -1,0 +1,11 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20001000       1024       1024          0
+ 1 rcc_driver         0x20001400       1024       1024          0
+ 2 gpio_driver        0x20001800       1024       1024          0
+ 3 usart_driver       0x20001c00       1024       1024          0
+ 4 i2c_driver         0x20002000       1024       1024          0
+ 5 user_leds          0x20002400       1024       1024          0
+ 6 pong               0x20002800       1024       1024          0
+ 7 adt7420            0x20008000      32768      32768          0
+ 8 i2c_debug          0x20010000       8192       8192          0
+ 9 idle               0x20012000        256        256          0

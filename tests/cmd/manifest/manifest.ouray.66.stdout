@@ -1,0 +1,23 @@
+     version => hubris build archive v1.0.0
+     git rev => a122e66854f18dbed0d0607096f5acfa8b53f2bd
+    image id => <none>
+       board => lpcxpresso55s69
+      target => thumbv8m.main-none-eabihf
+    features => itm
+  total size => 112K
+ kernel size => 29K
+       tasks => 13
+                ID TASK                SIZE FEATURES
+                 0 jefe               10.6K itm
+                 1 hiffy              12.6K lpc55, gpio
+                 2 syscon_driver       4.6K 
+                 3 gpio_driver         8.1K 
+                 4 user_leds           5.6K lpc55
+                 5 usart_driver        6.2K 
+                 6 i2c_driver          6.8K 
+                 7 rng_driver          5.4K 
+                 8 spi_driver          7.4K 
+                 9 ping                5.5K uart
+                10 pong                4.9K 
+                11 spam                4.4K 
+                12 idle                0.1K 

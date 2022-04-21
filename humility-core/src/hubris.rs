@@ -2690,7 +2690,9 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        let n = core.read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)?;
+        let n = core
+            .read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)
+            .context("failed to read TASK_TABLE_SIZE")?;
 
         if n == ntasks as u32 {
             return Ok(());
@@ -2937,14 +2939,14 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
         t: HubrisTask,
-    ) -> Result<HashMap<ARMRegister, u32>> {
+    ) -> Result<BTreeMap<ARMRegister, u32>> {
         let base =
             core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
         let cur =
             core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
 
         let module = self.lookup_module(t)?;
-        let mut rval = HashMap::new();
+        let mut rval = BTreeMap::new();
 
         let ndx = match module.task {
             HubrisTask::Task(ndx) => ndx,
@@ -3073,7 +3075,7 @@ impl HubrisArchive {
         core: &mut dyn crate::core::Core,
         task: HubrisTask,
         limit: u32,
-        regs: &HashMap<ARMRegister, u32>,
+        regs: &BTreeMap<ARMRegister, u32>,
     ) -> Result<Vec<HubrisStackFrame>> {
         let regions = self.regions(core)?;
         let sp = regs
@@ -4564,9 +4566,21 @@ pub enum HubrisTarget {
 pub struct HubrisStackFrame<'a> {
     pub cfa: u32,
     pub sym: Option<&'a HubrisSymbol>,
-    pub registers: HashMap<ARMRegister, u32>,
+    pub registers: BTreeMap<ARMRegister, u32>,
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
+
+/*
+impl fmt::Debug for HubrisStackFrame<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HubrisStackFrame {{ cfa: {:?}, sym: {:?}, inlined: {:?} }}",
+            self.cfa, self.sym, self.inlined)
+
+        if let Some(r0) = self.registers.get(ARMRegister::R0)
+        write!(f, "R0: 0x{:x}
+    }
+}
+*/
 
 #[derive(Clone, Debug)]
 pub struct HubrisSrc {

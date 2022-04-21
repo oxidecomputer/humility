@@ -1,0 +1,14 @@
+     version => hubris build archive v1.0.0
+     git rev => b161eb6525ab14d5db215a0ea83f052004c606cd
+    image id => <none>
+       board => stm32h7b3i-dk
+      target => thumbv7em-none-eabihf
+    features => itm, h7b3
+  total size => 69K
+ kernel size => 19K
+       tasks => 4
+                ID TASK                SIZE FEATURES
+                 0 runner             12.2K itm
+                 1 suite              30.1K 
+                 2 assist              7.2K itm
+                 3 idle                0.1K 
