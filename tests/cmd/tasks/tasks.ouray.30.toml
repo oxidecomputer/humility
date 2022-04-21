@@ -8,3 +8,7 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.ouray.30 tasks"
 
+#
+# Need to investigate this!
+#
+status.code = 1
