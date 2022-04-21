@@ -1,0 +1,3 @@
+humility: attached to dump
+humility: ring buffer RINGBUF in i2c_target:
+humility: ringbuf dump failed: member missing from struct: cell

@@ -7,7 +7,16 @@ use std::collections::{BTreeMap, HashMap};
 
 #[allow(non_camel_case_types)]
 #[derive(
-    Copy, Clone, Debug, Hash, FromPrimitive, ToPrimitive, PartialEq, Eq,
+    Copy,
+    Clone,
+    Debug,
+    Hash,
+    FromPrimitive,
+    ToPrimitive,
+    PartialEq,
+    Eq,
+    Ord,
+    PartialOrd,
 )]
 pub enum ARMRegister {
     R0 = 0,
@@ -177,7 +186,7 @@ pub fn presyscall_pushes(
 // unwinding the stack!  (And we know that we will only be off by 4 bytes;
 // if the bit is set, the needed realignment is 4 -- not 1 or 2.)
 //
-pub fn exception_stack_realign(regs: &HashMap<ARMRegister, u32>) -> u32 {
+pub fn exception_stack_realign(regs: &BTreeMap<ARMRegister, u32>) -> u32 {
     if let Some(psr) = regs.get(&ARMRegister::PSR) {
         if (psr & (1 << 9)) != 0 {
             return 4;

@@ -871,8 +871,9 @@ impl Core for DumpCore {
                 // fall out to the bail below.
             } else if (addr - base) + rsize as u32 > size {
                 bail!(
-                    "0x{:x} is valid, but size ({}) exceeds max ({})",
-                    addr, rsize, size - (addr - base)
+                    "0x{:x} is valid, but relative to base (0x{:x}), \
+                    offset (0x{:x}) exceeds max (0x{:x})",
+                    addr, base, (addr - base) + rsize as u32, size
                 );
             } else {
                 let offs = offset + (addr - base) as usize;
@@ -895,8 +896,9 @@ impl Core for DumpCore {
                 // fall out to the bail below.
             } else if (addr - base) + rsize as u32 > size {
                 bail!(
-                    "0x{:x} is valid, but size ({}) exceeds max ({})",
-                    addr, rsize, size - (addr - base)
+                    "0x{:x} is valid, but relative to base (0x{:x}), \
+                    offset (0x{:x}) exceeds max (0x{:x})",
+                    addr, base, (addr - base) + rsize as u32, size
                 );
             } else {
                 let offs = offset + (addr - base) as usize;

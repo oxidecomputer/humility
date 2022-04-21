@@ -1,0 +1,869 @@
+system time = 1342206
+ID TASK                 GEN PRI STATE    
+ 0 jefe                   0   0 RUNNING
+   |
+   +--->  0x200015c0 0x080081fa <core::result::Result<T,E> as core::ops::try::Try>::into_result
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1635
+   |      0x200015c0 0x080081f2 <&mut ssmarshal::Deserializer as serde::de::EnumAccess>::variant_seed
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:778
+   |      0x200015c0 0x080081f2 serde::de::EnumAccess::variant
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/serde-1.0.129/src/de/mod.rs:1978
+   |      0x200015c0 0x080081f2 <abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize::__Visitor as serde::de::Visitor>::visit_enum
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/abi/src/lib.rs:297
+   |      0x200015c0 0x080081f2 <&mut ssmarshal::Deserializer as serde::de::Deserializer>::deserialize_enum
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:732
+   |      0x200015c0 0x080081f2 abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/abi/src/lib.rs:297
+   |      0x200015c0 0x080081ee ssmarshal::deserialize
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:130
+   |      0x200015c0 0x080081e6 userlib::kipc::read_task_status
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/kipc.rs:7
+   |      0x200015c0 0x080081fa task_jefe::check_tasks
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:89
+   |      0x20001600 0x0800890a task_jefe::main::{{closure}}
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:150
+   |      0x20001600 0x0800889c userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |      0x20001600 0x08008916 main
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:132
+   |
+   |
+   +--->   R0 = 0x20001580   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000001
+   |       R4 = 0x20001554   R5 = 0x00000000   R6 = 0x20001580   R7 = 0x200015b8
+   |       R8 = 0x200015e0   R9 = 0x00000004  R10 = 0x00000001  R11 = 0x00000004
+   |      R12 = 0x20001568   SP = 0x20001508   LR = 0x080081fb   PC = 0x080081fa
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x3,
+                        r6: 0x4,
+                        r7: 0x20001554,
+                        r8: 0x14,
+                        r9: 0x800a6cc,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20001480,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0xffffffff
+                    },
+                    priority: Priority(0x0),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000002c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005318 (&abi::TaskDesc)
+                }
+
+ 1 rcc_driver             0   1 recv
+   |
+   +--->  0x20001bd8 0x0800ce66 userlib::sys_recv_stub
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
+   |      0x20001c00 0x0800c06c userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
+   |      0x20001c00 0x0800c06c userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |      0x20001c00 0x0800c06c userlib::hl::recv_without_notification
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:117
+   |      0x20001c00 0x0800c07a main
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc/src/main.rs:108
+   |
+   |
+   +--->   R0 = 0x20001be0   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20001be4
+   |       R4 = 0x20001be0   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x0800d2b8   R9 = 0x00000001  R10 = 0x0000ffff  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20001bb8   LR = 0x0800c07b   PC = 0x0800ce66
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20001be0,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x800d2b8,
+                        r9: 0x1,
+                        r10: 0xffff,
+                        r11: 0x1,
+                        psp: 0x20001b50,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x1),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000004c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005330 (&abi::TaskDesc)
+                }
+
+ 2 gpio_driver            0   2 recv
+   |
+   +--->  0x20001fc0 0x0800f012 userlib::sys_recv_stub
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
+   |      0x20002000 0x0800e166 userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
+   |      0x20002000 0x0800e166 userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:168
+   |      0x20002000 0x0800e166 userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |      0x20002000 0x0800e166 userlib::hl::recv_without_notification
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:117
+   |      0x20002000 0x0800e176 main
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-gpio/src/main.rs:143
+   |
+   |
+   +--->   R0 = 0x20001fd0   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x20001fd8
+   |       R4 = 0x20001fd0   R5 = 0x00000005   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x0000ffff   R9 = 0x0800f528  R10 = 0x20001fd8  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20001fa0   LR = 0x0800e177   PC = 0x0800f012
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20001fd0,
+                        r5: 0x5,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0xffff,
+                        r9: 0x800f528,
+                        r10: 0x20001fd8,
+                        r11: 0x1,
+                        psp: 0x20001f38,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000006c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005348 (&abi::TaskDesc)
+                }
+
+ 3 usart_driver           0   2 recv, notif: bit0
+   |
+   +--->  0x200023c0 0x08010fe6 userlib::sys_recv_stub
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
+   |      0x20002400 0x0801018e userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
+   |      0x20002400 0x0801018e userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:168
+   |      0x20002400 0x0801018e userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |      0x20002400 0x0801019e main
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-usart/src/main.rs:48
+   |
+   |
+   +--->   R0 = 0x080114f0   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x200023d8
+   |       R4 = 0x080114f0   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x0000ffff   R9 = 0x080114f0  R10 = 0x200023d8  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x200023a0   LR = 0x0801019f   PC = 0x08010fe6
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x80114f0,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0xffff,
+                        r9: 0x80114f0,
+                        r10: 0x200023d8,
+                        r11: 0x1,
+                        psp: 0x20002338,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000008c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005360 (&abi::TaskDesc)
+                }
+
+ 4 i2c_driver             0   2 recv
+   |
+   +--->  0x20002b20 0x0801622a userlib::sys_recv_stub
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
+   |      0x20002c00 0x080144ce userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
+   |      0x20002c00 0x080144ce userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:168
+   |      0x20002c00 0x080144ce userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |      0x20002c00 0x080144ce userlib::hl::recv_without_notification
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:117
+   |      0x20002c00 0x080144de main
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-i2c-server/src/main.rs:179
+   |
+   |
+   +--->   R0 = 0x20002bcc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20002bdc
+   |       R4 = 0x20002bcc   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000001   R9 = 0x00000002  R10 = 0x20002bcc  R11 = 0x00000001
+   |      R12 = 0x00000004   SP = 0x20002b00   LR = 0x080144df   PC = 0x0801622a
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20002bcc,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x1,
+                        r9: 0x2,
+                        r10: 0x20002bcc,
+                        r11: 0x1,
+                        psp: 0x20002a98,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200000ac (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005378 (&abi::TaskDesc)
+                }
+
+ 5 spd                   14   2 FAULT: panicked at 'called `Result::unwrap()` on an `Err` value: BadArg', drv/stm32h7-rcc-api/src/lib.rs:56:50 (was: ready)
+   |
+   +--->  0x20003268 0x080198e6 userlib::sys_panic_stub
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:655
+   |      0x20003318 0x0801992e userlib::sys_panic
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:646
+   |      0x20003318 0x08019934 rust_begin_unwind
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:833
+   |      0x20003330 0x0801892a core::panicking::panic_fmt
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/panicking.rs:77
+   |      0x20003370 0x08019122 core::result::unwrap_failed
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/result.rs:1354
+   |      0x20003380 0x080195b8 core::result::Result<T,E>::unwrap
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1034
+   |      0x200033d0 0x08019506 core::cell::Cell<T>::get
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/cell.rs:433
+   |      0x200033d0 0x08019506 userlib::hl::send_with_retry
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:504
+   |      0x200033d0 0x08019506 drv_stm32h7_rcc_api::Rcc::leave_reset_raw
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc-api/src/lib.rs:143
+   |      0x200033d0 0x08019506 drv_stm32h7_rcc_api::Rcc::leave_reset
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc-api/src/lib.rs:137
+   |      0x200033d0 0x08019506 drv_stm32h7_i2c::I2cController::enable
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-i2c/src/lib.rs:182
+   |      0x20003400 0x080186c0 main
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-spd/src/main.rs:53
+   |
+   |
+   +--->   R0 = 0x20003270   R1 = 0x00000067   R2 = 0x00000000   R3 = 0x00000001
+   |       R4 = 0x20003270   R5 = 0x00000067   R6 = 0x2000338c   R7 = 0x20003310
+   |       R8 = 0x00000004   R9 = 0x200033a8  R10 = 0x20003388  R11 = 0x00000008
+   |      R12 = 0x00000002   SP = 0x20003258   LR = 0x08019935   PC = 0x080198e6
+   |      PSR = 0x81000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20003270,
+                        r5: 0x67,
+                        r6: 0x2000338c,
+                        r7: 0x20003310,
+                        r8: 0x4,
+                        r9: 0x200033a8,
+                        r10: 0x20003388,
+                        r11: 0x8,
+                        psp: 0x200031f0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Faulted {
+                        fault: Panic,
+                        original_state: Runnable
+                    },
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0xe),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200000cc (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005390 (&abi::TaskDesc)
+                }
+
+ 6 spi2_driver            0   2 ready
+   |
+   +--->  0x200043e8 0x0801c001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x200043e8   LR = 0xffffffff   PC = 0x0801c001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20004380,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200000ec (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80053a8 (&abi::TaskDesc)
+                }
+
+ 7 spi4_driver            0   2 ready
+   |
+   +--->  0x200053e8 0x08020001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x200053e8   LR = 0xffffffff   PC = 0x08020001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20005380,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000010c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80053c0 (&abi::TaskDesc)
+                }
+
+ 8 user_leds              0   2 ready
+   |
+   +--->  0x20006400 0x08024001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x20006400   LR = 0xffffffff   PC = 0x08024001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20006398,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000012c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80053d8 (&abi::TaskDesc)
+                }
+
+ 9 pong                   0   3 ready
+   |
+   +--->  0x20006800 0x08026001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x20006800   LR = 0xffffffff   PC = 0x08026001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20006798,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000014c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80053f0 (&abi::TaskDesc)
+                }
+
+10 thermal                0   3 ready
+   |
+   +--->  0x20008800 0x08030001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x20008800   LR = 0xffffffff   PC = 0x08030001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20008798,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000016c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005408 (&abi::TaskDesc)
+                }
+
+11 power                  0   3 ready
+   |
+   +--->  0x2000a800 0x08040001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x2000a800   LR = 0xffffffff   PC = 0x08040001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x2000a798,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x2000018c (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005420 (&abi::TaskDesc)
+                }
+
+12 hiffy                  0   3 ready
+   |
+   +--->  0x2000c800 0x08050001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x2000c800   LR = 0xffffffff   PC = 0x08050001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x2000c798,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200001ac (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005438 (&abi::TaskDesc)
+                }
+
+13 idle                   0   5 ready
+   |
+   +--->  0x20010100 0x08058001 _start
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x20010100   LR = 0xffffffff   PC = 0x08058001
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20010098,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200001cc (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005450 (&abi::TaskDesc)
+                }
+

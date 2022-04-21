@@ -1,0 +1,73 @@
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   82        1     5983 (Some(SwitchControl), 0x0)
+ NDX LINE      GEN    COUNT PAYLOAD
+  11  447     1122        1 0x8005
+  12  477     1122        2 0x8001
+  13  287     1122        1 0x8001
+  14  269     1122        1 0x1000d6
+  15  287     1122        1 0x1
+  16  447     1122        2 0x1
+  17  447     1122        1 0x8005
+  18  477     1122        3 0x8001
+  19  287     1122        1 0x8001
+  20  269     1122        1 0x1000d6
+  21  287     1122        1 0x1
+  22  447     1122        2 0x1
+  23  447     1122        1 0x8005
+  24  477     1122        3 0x8001
+  25  287     1122        1 0x8001
+  26  269     1122        1 0x1000d6
+  27  287     1122        1 0x1
+  28  447     1122        2 0x1
+  29  447     1122        1 0x8005
+  30  477     1122        3 0x8001
+  31  287     1122        1 0x8001
+   0  269     1123        1 0x1000d6
+   1  287     1123        1 0x1
+   2  447     1123        2 0x1
+   3  447     1123        1 0x8005
+   4  477     1123        2 0x8001
+   5  287     1123        1 0x8001
+   6  269     1123        1 0x1000d6
+   7  287     1123        1 0x1
+   8  447     1123        2 0x1
+   9  447     1123        1 0x8005
+  10  477     1123        1 0x8001
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  642        1        1 0x1
+ NDX LINE      GEN    COUNT PAYLOAD
+  14  520      747        1 Some(ControllerLocked)
+  15  142      747        1 Some(ControllerLocked)
+   0  520      748        1 Some(ControllerLocked)
+   1  142      748        1 Some(ControllerLocked)
+   2  520      748        1 Some(ControllerLocked)
+   3  142      748        1 Some(ControllerLocked)
+   4  520      748        1 Some(ControllerLocked)
+   5  142      748        1 Some(ControllerLocked)
+   6  520      748        1 Some(ControllerLocked)
+   7  142      748        1 Some(ControllerLocked)
+   8  520      748        1 Some(ControllerLocked)
+   9  142      748        1 Some(ControllerLocked)
+  10  520      748        1 Some(ControllerLocked)
+  11  142      748        1 Some(ControllerLocked)
+  12  520      748        1 Some(ControllerLocked)
+  13  142      748        1 Some(ControllerLocked)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  137        1        1 0x0
+ NDX LINE      GEN    COUNT PAYLOAD
+  11   47     1308        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41     1308        1 Calling
+  13   47     1308        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41     1308        1 Calling
+  15   47     1308        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41     1309        1 Calling
+   1   47     1309        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41     1309        1 Calling
+   3   47     1309        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41     1309        1 Calling
+   5   47     1309        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41     1309        1 Calling
+   7   47     1309        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41     1309        1 Calling
+   9   47     1309        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41     1309        1 Calling

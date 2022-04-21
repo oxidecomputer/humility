@@ -1,0 +1,12 @@
+humility: attached to dump
+humility: ring buffer ADM1272_RINGBUF in power:
+humility: ring buffer DS2482_RINGBUF in thermal:
+humility: ring buffer MAX31790_RINGBUF in thermal:
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:
+humility: ring buffer TASK_POWER_RINGBUF in power:
+humility: ring buffer TASK_SPD_RINGBUF in spd:
+humility: ring buffer TASK_SPI_RINGBUF in spi:

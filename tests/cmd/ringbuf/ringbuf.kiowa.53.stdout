@@ -1,0 +1,90 @@
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  121        1        1 CommandError(DeviceReset, SegmentDisconnected)
+ NDX LINE      GEN    COUNT PAYLOAD
+   9  268        2        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  10  268        2        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  11  268        2        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  12  268        2        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  13  268        2        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+  14  268        2        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+  15  268        2        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  16  268        2        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  17  268        2        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  18  268        2        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  19  268        2        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+  20  268        2        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+  21  268        2        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  22  268        2        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  23  268        2        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  24  268        2        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  25  268        2        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+  26  268        2        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+  27  268        2        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  28  268        2        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  29  268        2        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  30  268        2        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  31  268        2        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+   0  268        3        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+   1  268        3        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+   2  268        3        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+   3  268        3        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+   4  268        3        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+   5  268        3        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+   6  268        3        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+   7  268        3        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+   8  268        3        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+ NDX LINE      GEN    COUNT PAYLOAD
+  10  394      161        1 WriteISR(0x8023)
+  11  432      161        3 WriteWaitISR(0x8020)
+  12  432      161        1 WriteWaitISR(0x8061)
+  13  314      161        3 WaitISR(0x8021)
+  14  338      161        1 BusySleep
+  15  314      161        1 WaitISR(0x21)
+   0  394      162        1 WriteISR(0x21)
+   1  394      162        2 WriteISR(0x8021)
+   2  394      162        1 WriteISR(0x8023)
+   3  432      162        1 WriteWaitISR(0x8020)
+   4  432      162        2 WriteWaitISR(0x8021)
+   5  432      162        1 WriteWaitISR(0x8061)
+   6  497      162        2 ReadISR(0x8021)
+   7  497      162        1 ReadISR(0x8025)
+   8  539      162        1 ReadWaitISR(0x8021)
+   9  539      162  5705168 ReadWaitISR(0x8221)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  704        1        1 AddrISR(0x1)
+ NDX LINE      GEN    COUNT PAYLOAD
+  12  157        2        5 Some(NoDevice)
+  13  157        2        8 Some(MuxNotFound)
+  14  157        2        2 Some(BusLocked)
+  15  157        2        2 Some(NoDevice)
+   0  157        3        4 Some(SegmentDisconnected)
+   1  157        3        5 Some(NoDevice)
+   2  157        3        8 Some(MuxNotFound)
+   3  157        3        2 Some(BusLocked)
+   4  157        3        2 Some(NoDevice)
+   5  157        3        4 Some(SegmentDisconnected)
+   6  157        3        5 Some(NoDevice)
+   7  157        3        8 Some(MuxNotFound)
+   8  157        3        2 Some(BusLocked)
+   9  157        3        2 Some(NoDevice)
+  10  157        3        4 Some(SegmentDisconnected)
+  11  157        3        3 Some(NoDevice)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  137        1        1 0x0
+ NDX LINE      GEN    COUNT PAYLOAD
+  11   47     9447        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41     9447        1 Calling
+  13   47     9447        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41     9447        1 Calling
+  15   47     9447        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41     9448        1 Calling
+   1   47     9448        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41     9448        1 Calling
+   3   47     9448        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41     9448        1 Calling
+   5   47     9448        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41     9448        1 Calling
+   7   47     9448        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41     9448        1 Calling
+   9   47     9448        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41     9448        1 Calling

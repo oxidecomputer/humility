@@ -1,0 +1,5 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 runner             0x20001000       1600        720        880
+ 1 suite              0x20002000       1600        440       1160
+ 2 assist             0x20003000       1600        376       1224
+ 3 idle               0x20004000        256        104        152

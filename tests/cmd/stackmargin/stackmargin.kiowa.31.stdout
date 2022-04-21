@@ -1,0 +1,7 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20000a00        368        216        152
+ 1 sys                0x20000900        256        128        128
+ 2 pong               0x20000c00        256        152        104
+ 3 user_leds          0x20000d00        256        208         48
+ 4 hiffy              0x20001000        912        776        136
+ 5 idle               0x20000800         64         40         24
