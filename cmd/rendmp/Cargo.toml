@@ -1,8 +1,8 @@
 [package]
-name = "humility-cmd-renbb"
+name = "humility-cmd-rendmp"
 version = "0.1.0"
 edition = "2021"
-description = "Renesas black box operations"
+description = "Renesas digitial muliphase controller operations"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

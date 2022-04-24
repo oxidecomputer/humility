@@ -847,8 +847,8 @@ dependencies = [
  "humility-cmd-qspi",
  "humility-cmd-readmem",
  "humility-cmd-readvar",
- "humility-cmd-renbb",
  "humility-cmd-rencm",
+ "humility-cmd-rendmp",
  "humility-cmd-ringbuf",
  "humility-cmd-sensors",
  "humility-cmd-spd",
@@ -1166,21 +1166,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-cmd-renbb"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "hif",
- "humility-cmd",
- "humility-core",
- "indicatif",
- "log",
- "parse_int",
- "pmbus",
-]
-
-[[package]]
 name = "humility-cmd-rencm"
 version = "0.1.0"
 dependencies = [
@@ -1197,6 +1182,21 @@ dependencies = [
  "serde",
  "serde-xml-rs",
  "serde_derive",
+]
+
+[[package]]
+name = "humility-cmd-rendmp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "indicatif",
+ "log",
+ "parse_int",
+ "pmbus",
 ]
 
 [[package]]
