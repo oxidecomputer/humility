@@ -1,0 +1,14 @@
+[package]
+name = "humility-cmd-spctrl"
+version = "0.1.0"
+edition = "2021"
+description = "RoT -> SP control"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+parse_int = "0.4.0"
+log = {version = "0.4.8", features = ["std"]}

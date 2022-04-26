@@ -36,6 +36,7 @@ members = [
     "cmd/ringbuf",
     "cmd/sensors",
     "cmd/spd",
+    "cmd/spctrl",
     "cmd/spi",
     "cmd/stackmargin",
     "cmd/stmsecure",
@@ -90,6 +91,7 @@ cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
+cmd-spctrl = { path = "./cmd/spctrl", package = "humility-cmd-spctrl" }
 cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
 cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }
 cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
