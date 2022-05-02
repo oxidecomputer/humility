@@ -31,6 +31,7 @@ members = [
     "cmd/openocd",
     "cmd/pmbus",
     "cmd/probe",
+    "cmd/spirot",
     "cmd/qspi",
     "cmd/readmem",
     "cmd/readvar",
@@ -102,6 +103,7 @@ cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
 cmd-spctrl = { path = "./cmd/spctrl", package = "humility-cmd-spctrl" }
 cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
+cmd-spirot = { path = "./cmd/spirot", package = "humility-cmd-spirot" }
 cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }
 cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
 cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }

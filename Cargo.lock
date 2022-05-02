@@ -868,6 +868,7 @@ dependencies = [
  "humility-cmd-spctrl",
  "humility-cmd-spd",
  "humility-cmd-spi",
+ "humility-cmd-spirot",
  "humility-cmd-stackmargin",
  "humility-cmd-stmsecure",
  "humility-cmd-tasks",
@@ -1329,6 +1330,20 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "log",
+ "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-spirot"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "indicatif",
  "log",
  "parse_int",
 ]
