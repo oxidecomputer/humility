@@ -112,7 +112,7 @@ fn rendmp_gen(
     commands: &HashMap<String, (u8, pmbus::Operation, pmbus::Operation)>,
 ) -> Result<()> {
     println!(
-r##"// This Source Code Form is subject to the terms of the Mozilla Public
+        r##"// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
@@ -127,10 +127,10 @@ pub fn {}_payload<E>(
 ) -> Result<(), E> {{
 
     const PAYLOAD: &[&[u8]] = &["##,
-            device.name(),
-            device.name(),
+        device.name(),
+        device.name(),
     );
- 
+
     let dmaaddr = match commands.get("DMAADDR") {
         Some((code, _, write)) => {
             if *write != pmbus::Operation::WriteWord {
@@ -161,12 +161,13 @@ pub fn {}_payload<E>(
                 let p = addr.to_le_bytes();
 
                 println!("        // DMAADDR = 0x{:04x}", addr);
-                println!("        &[ 0x{:02x}, 0x{:02x}, 0x{:02x} ],\n",
-                    dmaaddr, p[0], p[1]);
+                println!(
+                    "        &[ 0x{:02x}, 0x{:02x}, 0x{:02x} ],\n",
+                    dmaaddr, p[0], p[1]
+                );
 
                 println!("        // DMAFIX = {:x?}", packet.payload);
                 print!("        &[ 0x{:02x}, ", dmafix);
-
             }
 
             Address::Pmbus(code, name) => {
@@ -197,10 +198,7 @@ pub fn {}_payload<E>(
     Ok(())
 }
 
-
-fn rendmp_ingest(
-    subargs: &RendmpArgs,
-) -> Result<()> {
+fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     let filename = subargs.ingest.as_ref().unwrap();
     let file = fs::File::open(filename)?;
     let lines = BufReader::new(file).lines();
@@ -246,32 +244,26 @@ fn rendmp_ingest(
         }
 
         let payload = match payload.len() {
-            4 => {
-                match parse_int::parse::<u8>(payload) {
-                    Ok(val) => val.to_le_bytes().to_vec(),
-                    Err(_) => {
-                        bail!("bad payload on line {}: {}", lineno, payload);
-                    }
+            4 => match parse_int::parse::<u8>(payload) {
+                Ok(val) => val.to_le_bytes().to_vec(),
+                Err(_) => {
+                    bail!("bad payload on line {}: {}", lineno, payload);
                 }
-            }
+            },
 
-            6 => {
-                match parse_int::parse::<u16>(payload) {
-                    Ok(val) => val.to_le_bytes().to_vec(),
-                    Err(_) => {
-                        bail!("bad payload on line {}: {}", lineno, payload);
-                    }
+            6 => match parse_int::parse::<u16>(payload) {
+                Ok(val) => val.to_le_bytes().to_vec(),
+                Err(_) => {
+                    bail!("bad payload on line {}: {}", lineno, payload);
                 }
-            }
+            },
 
-            10 => {
-                match parse_int::parse::<u32>(payload) {
-                    Ok(val) => val.to_le_bytes().to_vec(),
-                    Err(_) => {
-                        bail!("bad payload on line {}: {}", lineno, payload);
-                    }
+            10 => match parse_int::parse::<u32>(payload) {
+                Ok(val) => val.to_le_bytes().to_vec(),
+                Err(_) => {
+                    bail!("bad payload on line {}: {}", lineno, payload);
                 }
-            }
+            },
 
             _ => {
                 bail!("badly sized payload on line {}: {}", lineno, payload);
@@ -283,7 +275,7 @@ fn rendmp_ingest(
         //
         // This is lame, but the only way to differentiate PMBus writes
         // (single-byte address) from DMA writes (dual-byte) is to look
-        // at length of the string:  
+        // at length of the string:
         //
         if !address.starts_with("0x") {
             bail!("bad address on line {}: {}", lineno, address);
@@ -298,22 +290,21 @@ fn rendmp_ingest(
             }
         } else {
             match parse_int::parse::<u8>(address) {
-                Ok(paddr) => Address::Pmbus(paddr, &allcmds.get(&paddr).unwrap()),
+                Ok(paddr) => {
+                    Address::Pmbus(paddr, &allcmds.get(&paddr).unwrap())
+                }
                 Err(_) => {
                     bail!("bad PMBus address on line {}: {}", lineno, address);
                 }
             }
         };
 
-        packets.push(Packet {
-            address,
-            payload
-        });
+        packets.push(Packet { address, payload });
     }
 
     packets.push(Packet {
         address: Address::Pmbus(0xe7, &allcmds.get(&0xe7).unwrap()),
-        payload: vec![1],
+        payload: vec![1, 0],
     });
 
     let commands = all_commands(device);

@@ -42,6 +42,7 @@ members = [
     "cmd/tasks",
     "cmd/test",
     "cmd/trace",
+    "cmd/validate",
     "cmd/vsc7448",
     "xtask",
 ]
@@ -97,6 +98,7 @@ cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
 cmd-vsc7448 = { path = "./cmd/vsc7448", package = "humility-cmd-vsc7448" }
+cmd-validate = { path = "./cmd/validate", package = "humility-cmd-validate" }
 
 fallible-iterator = "0.2.0"
 log = {version = "0.4.8", features = ["std"]}

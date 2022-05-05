@@ -173,8 +173,8 @@ environment variable.
 - [humility qspi](#humility-qspi): QSPI status, reading and writing
 - [humility readmem](#humility-readmem): read and display memory region
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
-- [humility renbb](#humility-renbb): Renesas black box operations
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
+- [humility rendmp](#humility-rendmp): Renesas digitial muliphase controller operations
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spd](#humility-spd): scan for and read SPD devices
@@ -184,6 +184,7 @@ environment variable.
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility trace](#humility-trace): trace Hubris operations
+- [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vsc7448](#humility-vsc7448): VSC7448 operations
 ### `humility apptable`
 
@@ -969,16 +970,16 @@ CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
 
 
 
-### `humility renbb`
-
-No documentation yet for `humility renbb`; pull requests welcome!
-
 ### `humility rencm`
 
 Query the Renesas 8A3400X ClockMatrix part -- or process a trace from
 Renesas configuration software.
 
 
+
+### `humility rendmp`
+
+No documentation yet for `humility rendmp`; pull requests welcome!
 
 ### `humility ringbuf`
 
@@ -1050,7 +1051,7 @@ should be specified via `--write` (`-w`).  To report bytes read back,
 `--nbytes` (`-n`).
 
 For example, to write the byte sequence `0x1`, `0x0`, `0x0` and then read
-32 bytes, discarding the first three, from device 0 on SPI2:
+32 bytes (discarding the first three) from device 0 on SPI2:
 
 ```console
 % humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
@@ -1096,21 +1097,21 @@ flash options bits
 
 A typical sequence to set the secure region at 0x08000000
 
-```rust
+```
 humility stmsecure set-secure-bit
 humility stmsecure set-secure-region 0x08000000 0xa000
 ```
 
 To undo the secure region:
 
-```rust
+```
 humility stmsecure unset-secure-region
 humility stmsecure unset-secure-bit
 ```
 
 The STM32 has support for flash bank swapping as well
 
-```rust
+```
 humility stmsecure bank-swap
 ```
 
@@ -1334,6 +1335,11 @@ allowing these transient failures to be differentiated from deeper issues.
 ### `humility trace`
 
 No documentation yet for `humility trace`; pull requests welcome!
+
+### `humility validate`
+
+XXX
+
 
 ### `humility vsc7448`
 

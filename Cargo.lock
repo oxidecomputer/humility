@@ -858,6 +858,7 @@ dependencies = [
  "humility-cmd-tasks",
  "humility-cmd-test",
  "humility-cmd-trace",
+ "humility-cmd-validate",
  "humility-cmd-vsc7448",
  "humility-core",
  "humility-cortex",
@@ -1305,6 +1306,21 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+]
+
+[[package]]
+name = "humility-cmd-validate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
