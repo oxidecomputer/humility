@@ -49,6 +49,37 @@ impl<'a> I2cArgs<'a> {
         }
     }
 
+    pub fn matches_device(&self, device: &'a HubrisI2cDevice) -> bool {
+        if device.controller != self.controller {
+            return false;
+        }
+
+        if device.port.index != self.port.index {
+            return false;
+        }
+
+        if let Some(address) = self.address {
+            if address != device.address {
+                return false;
+            }
+        }
+
+        if let Some((m, s)) = self.mux {
+            match (device.mux, device.segment) {
+                (Some(mux), Some(segment)) => {
+                    if mux != m || segment != s {
+                        return false;
+                    }
+                }
+                (_, _) => {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
     pub fn parse(
         hubris: &'a HubrisArchive,
         bus: &Option<String>,

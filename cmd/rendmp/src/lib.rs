@@ -106,7 +106,7 @@ struct Packet<'a> {
 }
 
 fn rendmp_gen(
-    subargs: &RendmpArgs,
+    _subargs: &RendmpArgs,
     device: &pmbus::Device,
     packets: &Vec<Packet>,
     commands: &HashMap<String, (u8, pmbus::Operation, pmbus::Operation)>,
