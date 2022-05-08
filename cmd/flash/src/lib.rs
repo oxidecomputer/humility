@@ -155,7 +155,7 @@ fn flashcmd(
                 bail!("unexpected OpenOCD payload: {:?}", payload);
             }
 
-            std::fs::write(&srec, flash_config.srec)?;
+            std::fs::write(&srec, generate_srec_from_elf(&flash_config.elf)?)?;
 
             //
             // OpenOCD only deals with slash paths, not native paths
@@ -208,7 +208,7 @@ fn flashcmd(
             let mut reset = std::process::Command::new("pyocd");
 
             let ihex = tempfile::NamedTempFile::new()?;
-            std::fs::write(&ihex, flash_config.ihex)?;
+            std::fs::write(&ihex, generate_ihex_from_elf(&flash_config.elf)?)?;
             let ihex_path = ihex.path();
 
             for arg in config.args {
@@ -282,4 +282,84 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         },
         FlashArgs::command(),
     )
+}
+
+/// While it may sound like the impetus for an OSHA investigation at the North
+/// Pole, this function is _actually_ designed to generate small (32-byte)
+/// chunks describing the data in the PHDRs of an ELF file. Unless the file is
+/// missing PHDRs, because objcopy sometimes does that for whatever reason, in
+/// which case we do the section headers.
+///
+/// This is an implementation factor of both SREC and IHEX generation.
+fn elf_chunks(elf_data: &[u8]) -> Result<Vec<(u32, &[u8])>> {
+    let elf = goblin::elf::Elf::parse(elf_data)?;
+
+    let mut addr_slices = vec![];
+
+    if elf.program_headers.is_empty() {
+        for sh in &elf.section_headers {
+            if sh.sh_type != goblin::elf::section_header::SHT_PROGBITS {
+                continue;
+            }
+
+            let addr = u32::try_from(sh.sh_addr)?;
+            let offset = usize::try_from(sh.sh_offset)?;
+            let size = usize::try_from(sh.sh_size)?;
+
+            for (i, chunk) in
+                elf_data[offset..offset + size].chunks(32).enumerate()
+            {
+                addr_slices.push((addr + i as u32 * 32, chunk));
+            }
+        }
+    } else {
+        for ph in &elf.program_headers {
+            if ph.p_type != goblin::elf::program_header::PT_LOAD {
+                continue;
+            }
+
+            let addr = u32::try_from(ph.p_vaddr)?;
+            let offset = usize::try_from(ph.p_offset)?;
+            let size = usize::try_from(ph.p_filesz)?;
+
+            for (i, chunk) in
+                elf_data[offset..offset + size].chunks(32).enumerate()
+            {
+                addr_slices.push((addr + i as u32 * 32, chunk));
+            }
+        }
+    }
+
+    Ok(addr_slices)
+}
+
+fn generate_srec_from_elf(data: &[u8]) -> Result<String> {
+    let mut records = vec![srec::Record::S0("humility!".into())];
+
+    for (addr, slice) in elf_chunks(data)? {
+        records.push(srec::Record::S3(srec::Data {
+            address: srec::Address32(addr),
+            data: slice.to_vec(),
+        }));
+    }
+    records.push(srec::Record::S7(srec::Address32(0))); // bogus entry point
+
+    Ok(srec::writer::generate_srec_file(&records))
+}
+
+fn generate_ihex_from_elf(data: &[u8]) -> Result<String> {
+    // Build up IHEX records from that information.
+    let mut records = vec![];
+
+    for (addr, slice) in elf_chunks(data)? {
+        records.push(ihex::Record::ExtendedLinearAddress((addr >> 16) as u16));
+        records.push(ihex::Record::Data {
+            offset: addr as u16,
+            value: slice.to_vec(),
+        });
+    }
+
+    records.push(ihex::Record::EndOfFile);
+
+    Ok(ihex::create_object_file_representation(&records)?)
 }

@@ -228,8 +228,7 @@ impl HubrisSensorKind {
 //
 pub struct HubrisFlashConfig {
     pub metadata: String,
-    pub srec: Vec<u8>,
-    pub ihex: Vec<u8>,
+    pub elf: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -2351,11 +2350,7 @@ impl HubrisArchive {
             })?
             .read_to_string(&mut flash)?;
 
-        Ok(HubrisFlashConfig {
-            metadata: flash,
-            srec: slurp!("img/final.srec"),
-            ihex: slurp!("img/final.ihex"),
-        })
+        Ok(HubrisFlashConfig { metadata: flash, elf: slurp!("img/final.elf") })
     }
 
     fn load_registers(&mut self, r: &[u8]) -> Result<()> {
