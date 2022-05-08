@@ -851,6 +851,7 @@ dependencies = [
  "humility-cmd-rendmp",
  "humility-cmd-ringbuf",
  "humility-cmd-sensors",
+ "humility-cmd-spctrl",
  "humility-cmd-spd",
  "humility-cmd-spi",
  "humility-cmd-stackmargin",
@@ -1222,6 +1223,19 @@ dependencies = [
  "humility-core",
  "idol",
  "indexmap",
+ "log",
+ "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-spctrl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
  "log",
  "parse_int",
 ]

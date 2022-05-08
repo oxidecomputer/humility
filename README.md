@@ -177,6 +177,7 @@ environment variable.
 - [humility rendmp](#humility-rendmp): Renesas digitial muliphase controller operations
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility sensors](#humility-sensors): query sensors and sensor data
+- [humility spctrl](#humility-spctrl): RoT -> SP control
 - [humility spd](#humility-spd): scan for and read SPD devices
 - [humility spi](#humility-spi): SPI reading and writing
 - [humility stackmargin](#humility-stackmargin): calculate and print stack margins by task
@@ -1027,6 +1028,49 @@ a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 either device), but if multiple kinds of specifications are present, they
 serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
 all thermal sensors from either device).
+
+
+### `humility spctrl`
+
+`humility spctrl` runs commands on the RoT to control the SP.
+
+You must run `humility spctrl init` before any other commands
+
+```console
+% humility spctrl init
+[Ok([])]
+```
+
+You can read/write memory on the SP via the RoT
+```console
+% humility spctrl -W read 0x08000000 64
+humility: attached via CMSIS-DAP
+                   \/        4        8        c
+0x08000000 | 20000400 08000299 08003b6d 08004271 | ... ....m;..qB..
+0x08000010 | 08003c8d 08003ccd 08003cd3 00000000 | .<...<...<......
+0x08000020 | 00000000 00000000 00000000 0800398b | .............9..
+0x08000030 | 08003b6d 00000000 08003aa9 080039dd | m;.......:...9..
+
+% humility spctrl -W read 0x00000000 64
+humility: attached via CMSIS-DAP
+                   \/        4        8        c
+0x00000000 | 3d0fbf49 991373d9 9107611c f6d84242 | I..=.s...a..BB..
+0x00000010 | 742397db c7c60242 decc7515 ce719848 | ..#tB....u..H.q.
+0x00000020 | b2d2639e faf8049b e202de8c 2ae12025 | .c..........% .*
+0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
+
+% humility spctrl -W write 0x00000000 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88
+humility: attached via CMSIS-DAP
+[Ok([])]
+
+% humility spctrl -W read 0x00000000 64
+humility: attached via CMSIS-DAP
+                   \/        4        8        c
+0x00000000 | 44332211 88776655 9107611c f6d84242 | ."3DUfw..a..BB..
+0x00000010 | 742397db c7c60242 decc7515 ce719848 | ..#tB....u..H.q.
+0x00000020 | b2d2639e faf8049b e202de8c 2ae12025 | .c..........% .*
+0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
+```
 
 
 ### `humility spd`
