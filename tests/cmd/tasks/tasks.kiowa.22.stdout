@@ -9,5 +9,5 @@ ID TASK                 GEN PRI STATE
  6 user_leds              0   2 recv
  7 ping               40023   4 wait: reply from usart_driver/gen0
  8 pong                   0   3 recv, notif: bit0(T+484)
- 9 hiffy                  0   3 notif: bit0(T+234)
+ 9 hiffy                  0   3 notif: bit31(T+234)
 10 idle                   0   5 RUNNING

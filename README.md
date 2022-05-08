@@ -1338,7 +1338,8 @@ No documentation yet for `humility trace`; pull requests welcome!
 
 ### `humility validate`
 
-XXX
+Validates your parking.
+
 
 
 ### `humility vsc7448`

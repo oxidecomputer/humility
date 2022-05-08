@@ -360,7 +360,7 @@ pub fn lookup_reply<'a>(
         .reply;
 
     let lookup_ok =
-        |ok| { 
+        |ok| {
             match hubris.lookup_basetype_byname(ok) {
                 Ok(goff) => Ok(*goff),
                 Err(basetype_err) => match m.lookup_enum_byname(hubris, ok) {

@@ -136,6 +136,7 @@ struct HubrisConfigI2cDevice {
     description: String,
     pmbus: Option<HubrisConfigI2cPmbus>,
     sensors: Option<HubrisConfigI2cSensors>,
+    removable: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -182,6 +183,7 @@ pub struct HubrisI2cDevice {
     pub address: u8,
     pub description: String,
     pub class: HubrisI2cDeviceClass,
+    pub removable: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -2108,6 +2110,7 @@ impl HubrisArchive {
                         },
                         None => HubrisI2cDeviceClass::Unspecified,
                     },
+                    removable: device.removable.unwrap_or(false),
                 });
             }
         }
@@ -2169,7 +2172,7 @@ impl HubrisArchive {
                         }
                     };
 
-                    task_irqs.push((irq, *notification));
+                    task_irqs.push((*notification, irq));
                 }
 
                 self.manifest.task_irqs.insert(name.clone(), task_irqs);

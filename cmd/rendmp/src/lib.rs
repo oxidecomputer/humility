@@ -70,9 +70,7 @@ struct RendmpArgs {
         long,
         short = 'i',
         value_name = "filename",
-        conflicts_with_all = &[
-            "register", "module", "scan", "bus", "device",
-        ],
+        conflicts_with_all = &["bus", "device"],
     )]
     ingest: Option<String>,
 }
@@ -108,7 +106,7 @@ struct Packet<'a> {
 fn rendmp_gen(
     _subargs: &RendmpArgs,
     device: &pmbus::Device,
-    packets: &Vec<Packet>,
+    packets: &[Packet],
     commands: &HashMap<String, (u8, pmbus::Operation, pmbus::Operation)>,
 ) -> Result<()> {
     println!(
@@ -227,7 +225,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
         let line = line?;
         let lineno = ndx + 1;
 
-        if line.len() == 0 || line.starts_with("#") {
+        if line.is_empty() || line.starts_with('#') {
             continue;
         }
 
@@ -291,7 +289,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
         } else {
             match parse_int::parse::<u8>(address) {
                 Ok(paddr) => {
-                    Address::Pmbus(paddr, &allcmds.get(&paddr).unwrap())
+                    Address::Pmbus(paddr, allcmds.get(&paddr).unwrap())
                 }
                 Err(_) => {
                     bail!("bad PMBus address on line {}: {}", lineno, address);
@@ -303,7 +301,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     }
 
     packets.push(Packet {
-        address: Address::Pmbus(0xe7, &allcmds.get(&0xe7).unwrap()),
+        address: Address::Pmbus(0xe7, allcmds.get(&0xe7).unwrap()),
         payload: vec![1, 0],
     });
 

@@ -452,4 +452,4 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8006ca0 (&TaskDesc)
                 }
 
- 7 hiffy                  0   3 notif: bit0(T+43)
+ 7 hiffy                  0   3 notif: bit31(T+43)

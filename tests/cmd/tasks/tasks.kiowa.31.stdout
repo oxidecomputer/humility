@@ -4,5 +4,5 @@ ID TASK                 GEN PRI STATE
  1 sys                    0   1 recv
  2 pong                   0   4 recv, notif: bit0(T+262)
  3 user_leds              0   3 recv
- 4 hiffy                  0   4 notif: bit0(T+13)
+ 4 hiffy                  0   4 notif: bit31(T+13)
  5 idle                   0   5 RUNNING

@@ -450,7 +450,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8006ca0 (&TaskDesc)
                 }
 
- 7 hiffy                  0   3 notif: bit0(T+16)
+ 7 hiffy                  0   3 notif: bit31(T+16)
    |
    +--->  0x200040f8 0x08009774 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-m0/sys/userlib/src/lib.rs:335

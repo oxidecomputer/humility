@@ -1314,6 +1314,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "hif",
  "humility-cmd",
  "humility-core",

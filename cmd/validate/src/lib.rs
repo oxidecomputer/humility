@@ -10,13 +10,14 @@
 use anyhow::{Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
+use colored::Colorize;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
+use humility_cmd::i2c::I2cArgs;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
-use humility_cmd::i2c::I2cArgs;
 
 #[derive(Parser, Debug)]
 #[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -63,10 +64,7 @@ struct ValidateArgs {
     device: Option<String>,
 }
 
-fn list(
-    hubris: &HubrisArchive,
-    hargs: &Option<I2cArgs>,
-) -> Result<()> {
+fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
     println!(
         "{:2} {:<4} {:>2} {:2} {:3} {:4} {:13}",
         "ID", "TYPE", "C", "P", "MUX", "ADDR", "DEVICE"
@@ -144,6 +142,10 @@ fn validate(
             if !hargs.matches_device(device) {
                 continue;
             }
+        } else if let Some(ref d) = subargs.device {
+            if device.device != *d {
+                continue;
+            }
         }
 
         devices.push((ndx, device));
@@ -164,21 +166,40 @@ fn validate(
     };
 
     println!(
-        "{:2} {:<4} {:>2} {:2} {:3} {:4} {:13} {}",
-        "ID", "TYPE", "C", "P", "MUX", "ADDR", "DEVICE", "VALIDATION"
+        "{:2} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "ID", "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
     );
+
+    let ok = hubris.lookup_enum(op.ok)?;
 
     for (rndx, (ndx, device)) in devices.iter().enumerate() {
         let result = match &results[rndx] {
             Ok(val) => {
-                hubris.printfmt(val, op.ok, &fmt)?
-            }
-            Err(e) => {
-                match op.error.unwrap().lookup_variant(*e as u64) {
-                    Some(variant) => format!("{}", variant.name),
-                    None => format!("Err(0x{:x?})", e),
+                if let Some(variant) = ok.lookup_variant(val[0].into()) {
+                    match variant.name.as_str() {
+                        "Present" => "present".yellow(),
+                        "Validated" => "validated".green(),
+                        _ => format!("<{}>", variant.name).cyan(),
+                    }
+                } else {
+                    hubris.printfmt(val, op.ok, &fmt)?.white()
                 }
             }
+            Err(e) => match op.error.unwrap().lookup_variant(*e as u64) {
+                Some(variant) => match variant.name.as_str() {
+                    "NotPresent" => {
+                        if device.removable {
+                            "removed".blue()
+                        } else {
+                            "absent".red()
+                        }
+                    }
+                    "BadValidation" => "failed".red(),
+                    "DeviceTimeout" => "timeout".red(),
+                    _ => format!("<{}>", variant.name).red(),
+                },
+                None => format!("Err(0x{:x?})", e).red(),
+            },
         };
 
         let mux = match (device.mux, device.segment) {
@@ -188,14 +209,15 @@ fn validate(
         };
 
         println!(
-            "{:2}  i2c {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
             ndx,
+            result,
             device.controller,
             device.port.name,
             mux,
             device.address,
             device.device,
-            result,
+            device.description
         );
     }
 

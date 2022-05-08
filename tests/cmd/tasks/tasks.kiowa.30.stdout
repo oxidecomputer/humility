@@ -5,7 +5,7 @@ ID TASK                 GEN PRI STATE
  2 spi4_driver            0   2 recv
  3 spi2_driver          124   2 RUNNING
  4 i2c_driver             0   2 recv
- 5 spd                    0   2 notif: bit0(T+2)
+ 5 spd                    0   2 notif: bit31(T+2)
  6 thermal                0   3 ready
  7 power                  2   3 ready
  8 hiffy                  0   3 ready
