@@ -977,14 +977,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "goblin",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+ "ihex",
  "log",
  "num-traits",
  "path-slash",
  "ron 0.7.0",
  "serde",
+ "srec",
  "tempfile",
 ]
 
@@ -2388,6 +2391,12 @@ checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
 dependencies = [
  "lock_api",
 ]
+
+[[package]]
+name = "srec"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17c3a0538ec242e3cd333cdcdc8b720faa2fa0a9d7f444cf1ff63e7d3303adfb"
 
 [[package]]
 name = "stable_deref_trait"
