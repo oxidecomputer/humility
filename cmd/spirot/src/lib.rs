@@ -6,9 +6,8 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
-use std::mem;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
@@ -27,73 +26,53 @@ struct SpirotArgs {
     timeout: u32,
 
     /// message type
-    #[clap(long, short, default_value = "1")]
-    msgtype: u32,
+    #[clap(long, short, default_value = "echo")]
+    msgtype: String,
 
-    /// perform a read
-    #[clap(
-        long, short, group = "command", requires_all = &["addr", "nbytes"]
-    )]
-    sendrecv: bool,
-
-    /// specify size in bytes
-    #[clap(long, short, value_name = "nbytes",
-        parse(try_from_str = parse_int::parse),
-    )]
-    nbytes: Option<usize>,
-
-    /// comma-separated bytes to send
-    #[clap(
-        long,
-        short,
-        value_name = "bytes",
-        group = "command",
-        requires = "addr"
-    )]
-    write: Option<String>,
+    /// Send bytes and receive response
+    #[clap(long, short, group = "command")]
+    send: Option<String>,
 }
 
-fn optional_nbytes<'a>(
-    core: &'a mut dyn Core,
-    context: &'a mut HiffyContext,
-    cmd: &HiffyFunction,
-    nbytes: Option<usize>,
-) -> Result<u32> {
-    // Nbytes (-n) is optional and defaults to
-    // the entire flash contents.
-    // Read the flash size from the flash part itself if nbytes
-    // is not specified.
-    match nbytes {
-        Some(nbytes) => Ok(nbytes as u32),
-        None => {
-            let ops = vec![Op::Call(cmd.id), Op::Done];
-            // Result<
-            //  Vec<
-            //      Result<Vec<u8>, u32>
-            //  >, anyhow::Error>
-            match context.run(core, ops.as_slice(), None) {
-                Ok(results) => match &results[0] {
-                    Ok(buf) => {
-                        if mem::size_of::<DeviceIdData>() == buf.len() {
-                            let did: DeviceIdData = unsafe {
-                                std::ptr::read(buf.as_ptr() as *const _)
-                            };
-                            Ok(did.size()? as u32)
-                        } else {
-                            Err(anyhow!(
-                                "Unexpected result length: {} != {}",
-                                mem::size_of::<DeviceIdData>(),
-                                buf.len()
-                            ))
-                        }
-                    }
-                    Err(e) => Err(anyhow!("{}", e)),
-                },
-                Err(e) => Err(e),
-            }
+#[derive(Copy,Clone,PartialEq,Eq,Debug)]
+#[repr(u8)]
+pub enum MsgType {
+    Invalid = 0,
+    Error = 1,
+    Echo = 2,
+    EchoReturn = 3,
+    Status = 4,
+    Sprockets = 5,
+    Unknown = 0xff,
+}
+
+impl From<&str> for MsgType {
+    fn from(typename: &str) -> Self {
+        match typename {
+            "invalid" => MsgType::Invalid,
+            "error" => MsgType::Error,
+            "echo" => MsgType::Echo,
+            "echoreturn" => MsgType::EchoReturn,
+            "status" => MsgType::Status,
+            "sprockets" => MsgType::Sprockets,
+            _ => MsgType::Unknown,
         }
     }
 }
+
+impl From<u8> for MsgType {
+    fn from(protocol: u8) -> Self {
+        match protocol {
+            0 => MsgType::Invalid,
+            1 => MsgType::Error,
+            2 => MsgType::Echo,
+            3 => MsgType::EchoReturn,
+            4 => MsgType::Status,
+            _ => MsgType::Unknown,
+        }
+    }
+}
+
 
 fn spirot(
     hubris: &HubrisArchive,
@@ -105,15 +84,11 @@ fn spirot(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    let sector_size = 64 * 1024;
-    let block_size = 256; // Conflating flash block size with hubris scratch buffer.
-
     let mut ops = vec![];
-    let mut hash_name = "".to_string();
 
-    let data = if subargs.sendrecv {
-        let spirot_sendrecv = funcs.get("SpirotSendRecv", 2)?;
-        let bytes: Vec<&str> = write.split(',').collect();
+    let data = if let Some(ref send) = subargs.send {
+        let spirot_sendrecv = funcs.get("SpirotSendRecv", 1)?;
+        let bytes: Vec<&str> = send.split(',').collect();
         let mut arr = vec![];
 
         for byte in &bytes {
@@ -124,8 +99,17 @@ fn spirot(
             }
         }
 
-        ops.push(Op::Push32(subargs.msgtype as u32));
-        ops.push(Op::Push32(arr.len() as u32));
+        let msgtype = if let Ok(mtype) = subargs.msgtype.parse::<u32>() {
+            mtype
+        } else {
+            MsgType::from(subargs.msgtype.as_str()) as u32
+        };
+        if msgtype == MsgType::Unknown as u32 {
+            bail!("Using unknown message type. Expected one of: invalid, error, echo, echoReturn, status");
+        }
+        println!("msgtype: {:?}", msgtype);
+        ops.push(Op::Push32(msgtype));
+        // ops.push(Op::Push32(arr.len() as u32));
 
         ops.push(Op::Call(spirot_sendrecv.id));
         Some(arr)
@@ -134,6 +118,7 @@ fn spirot(
     };
 
     ops.push(Op::Done);
+    println!("ops: {:?}", ops);
 
     let results = context.run(
         core,
@@ -144,7 +129,7 @@ fn spirot(
         },
     )?;
 
-    if subargs.sendrecv {
+    if subargs.send.is_some() {
         if let Ok(results) = &results[0] {
             Dumper::new().dump(results, 0);
             return Ok(());
