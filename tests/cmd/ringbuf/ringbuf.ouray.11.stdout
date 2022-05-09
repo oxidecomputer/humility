@@ -1,3 +1,5 @@
+humility: ring buffer RINGBUF in adt7420:
+humility: ring buffer RINGBUF in max31790:
  NDX LINE      GEN    COUNT PAYLOAD
    1  221       33        1 (Some(Tach5CountMSB), Ok([ 0xff, 0xe0 ]))
    2  221       33        1 (Some(Tach6CountMSB), Ok([ 0xff, 0xe0 ]))
@@ -31,6 +33,7 @@
   30  221       33        1 (Some(Tach4CountMSB), Ok([ 0xff, 0xe0 ]))
   31  221       33        1 (Some(Tach5CountMSB), Ok([ 0xff, 0xe0 ]))
    0  221       34        1 (Some(Tach6CountMSB), Ok([ 0xff, 0xe0 ]))
+humility: ring buffer RINGBUF in ds2482:
  NDX LINE      GEN    COUNT PAYLOAD
    0   55        1        1 (Some((SetReadPointer, Some(Configuration))), Ok(0x0))
    1   76        1        1 (Some((OneWireReset, None)), Ok(0x0))

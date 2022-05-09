@@ -1,0 +1,117 @@
+humility: ring buffer drv_i2c_devices::adm1272::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   91        1        1 Config(CommandData(0x3f37))
+   1  101        1        1 WriteConfig(CommandData(0x3f3f))
+   2  138        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   3  156        1        1 Coefficients(Coefficients { m: 0x297, b: 0x5000, R: 0xff })
+   4  184        1        1 Coefficients(Coefficients { m: 0x2927, b: 0x0, R: 0xfd })
+   5   91        1        1 Config(CommandData(0x3f37))
+   6  101        1        1 WriteConfig(CommandData(0x3f3f))
+   7  138        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   8  156        1        1 Coefficients(Coefficients { m: 0x52e, b: 0x5000, R: 0xff })
+   9  184        1        1 Coefficients(Coefficients { m: 0x524e, b: 0x0, R: 0xfd })
+  10  101        1      502 WriteConfig(CommandData(0x3f3f))
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   3  443     3134        1 WriteISR(0x21)
+   4  443     3134        2 WriteISR(0x8021)
+   5  443     3134        1 WriteISR(0x8023)
+   6  443     3134        1 WriteISR(0x8020)
+   7  443     3134        1 WriteISR(0x8023)
+   8  443     3134        3 WriteISR(0x8020)
+   9  443     3134        1 WriteISR(0x8023)
+  10  481     3134        3 WriteWaitISR(0x8020)
+  11  481     3134        1 WriteWaitISR(0x8061)
+  12  357     3134        1 WaitISR(0x21)
+  13  443     3134        1 WriteISR(0x21)
+  14  443     3134        2 WriteISR(0x8021)
+  15  443     3134        1 WriteISR(0x8023)
+  16  481     3134        1 WriteWaitISR(0x8020)
+  17  481     3134        2 WriteWaitISR(0x8021)
+  18  481     3134        1 WriteWaitISR(0x8061)
+  19  551     3134        2 ReadISR(0x8021)
+  20  551     3134        1 ReadISR(0x8025)
+  21  551     3134        2 ReadISR(0x8021)
+  22  551     3134        1 ReadISR(0x8025)
+  23  594     3134        2 ReadWaitISR(0x8021)
+  24  594     3134        1 ReadWaitISR(0x8061)
+  25  357     3134        1 WaitISR(0x21)
+  26  443     3134        1 WriteISR(0x21)
+  27  443     3134        2 WriteISR(0x8021)
+  28  443     3134        1 WriteISR(0x8023)
+  29  481     3134        1 WriteWaitISR(0x8020)
+  30  481     3134        2 WriteWaitISR(0x8021)
+  31  481     3134        1 WriteWaitISR(0x8061)
+  32  551     3134        2 ReadISR(0x8021)
+  33  551     3134        1 ReadISR(0x8025)
+  34  551     3134        2 ReadISR(0x8021)
+  35  551     3134        1 ReadISR(0x8025)
+  36  594     3134        2 ReadWaitISR(0x8021)
+  37  594     3134        1 ReadWaitISR(0x8061)
+  38  357     3134        1 WaitISR(0x21)
+  39  443     3134        1 WriteISR(0x21)
+  40  443     3134        2 WriteISR(0x8021)
+  41  443     3134        1 WriteISR(0x8023)
+  42  481     3134        1 WriteWaitISR(0x8020)
+  43  481     3134        2 WriteWaitISR(0x8021)
+  44  481     3134        1 WriteWaitISR(0x8061)
+  45  551     3134        2 ReadISR(0x8021)
+  46  551     3134        1 ReadISR(0x8025)
+  47  551     3134        2 ReadISR(0x8021)
+   0  551     3135        1 ReadISR(0x8025)
+   1  594     3135        2 ReadWaitISR(0x8021)
+   2  594     3135        1 ReadWaitISR(0x8061)
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+  46  796     1005        1 RxISR(0x3e8005)
+  47  834     1005        1 RxNack(0x1f, 0xa0)
+   0  796     1006        1 RxISR(0x3e8001)
+   1  840     1006        1 WaitRx
+   2  796     1006        1 RxISR(0x3e0021)
+   3  848     1006        1 TxISR(0x3e0001)
+   4  901     1006        1 WaitTx
+   5  848     1006        1 TxISR(0x3e0001)
+   6  901     1006        1 WaitTx
+   7  848     1006        1 TxISR(0x3e0001)
+   8  901     1006        1 WaitTx
+   9  848     1006        1 TxISR(0x3e8009)
+  10  758     1006        1 AddrISR(0x3e8009)
+  11  766     1006        1 AddrMatch
+  12  790     1006        1 AddrNack(0x1f)
+  13  796     1006        1 RxISR(0x3e8001)
+  14  840     1006        1 WaitRx
+  15  796     1006        1 RxISR(0x3e8001)
+  16  840     1006        1 WaitRx
+  17  796     1006        1 RxISR(0x3e8001)
+  18  840     1006        1 WaitRx
+  19  796     1006        1 RxISR(0x3e8005)
+  20  834     1006        1 RxNack(0x1f, 0x1)
+  21  796     1006        1 RxISR(0x3e8001)
+  22  840     1006        1 WaitRx
+  23  796     1006        1 RxISR(0x3e8001)
+  24  840     1006        1 WaitRx
+  25  796     1006        1 RxISR(0x3e8001)
+  26  840     1006        1 WaitRx
+  27  796     1006        1 RxISR(0x3e8005)
+  28  834     1006        1 RxNack(0x1f, 0x4)
+  29  796     1006        1 RxISR(0x3e8001)
+  30  840     1006        1 WaitRx
+  31  796     1006        1 RxISR(0x3e8001)
+  32  840     1006        1 WaitRx
+  33  796     1006        1 RxISR(0x3e8001)
+  34  840     1006        1 WaitRx
+  35  796     1006        1 RxISR(0x3e8005)
+  36  834     1006        1 RxNack(0x1f, 0x8)
+  37  796     1006        1 RxISR(0x3e8001)
+  38  840     1006        1 WaitRx
+  39  796     1006        1 RxISR(0x3e0021)
+  40  848     1006        1 TxISR(0x3e0001)
+  41  901     1006        1 WaitTx
+  42  848     1006        1 TxISR(0x3e0001)
+  43  901     1006        1 WaitTx
+  44  848     1006        1 TxISR(0x3e0001)
+  45  901     1006        1 WaitTx
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  117        1      104 Some(NoDevice)
+   1  117        1        7 Some(BusLocked)

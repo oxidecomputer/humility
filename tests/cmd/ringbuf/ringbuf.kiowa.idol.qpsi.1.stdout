@@ -1,3 +1,4 @@
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    3  272       11        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
    4  272       11        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
@@ -31,6 +32,7 @@
    0  272       12        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
    1  272       12        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
    2  272       12        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   36  456      185        1 WriteWaitISR(0x8020)
   37  456      185        2 WriteWaitISR(0x8021)
@@ -80,11 +82,15 @@
   33  526      186        1 ReadISR(0x8025)
   34  569      186        2 ReadWaitISR(0x8021)
   35  569      186        1 ReadWaitISR(0x8061)
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  733        1        1 AddrISR(0x1)
    1  745        1        1 WaitAddr
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    0  117        1        2 Some(NoDevice)
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi4_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi2_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   22  379     2119        1 Tx(0x84, 0x0)
   23  379     2119        1 Tx(0x85, 0x0)
@@ -150,6 +156,7 @@
   19  379     2120        1 Tx(0x4, 0xff)
   20  379     2120        1 Tx(0x5, 0xff)
   21  379     2120        1 Tx(0x6, 0xff)
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
   12  576       16        1 Execute((0xe, Push32(0x10000)))
   13  576       16        1 Execute((0x13, Add))
@@ -215,9 +222,11 @@
    9  576       17        1 Execute((0xd, Drop))
   10  576       17        1 Execute((0xe, Push32(0x100)))
   11  576       17        1 Execute((0x13, Call(TargetFunction(0xe))))
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
  NDX LINE      GEN    COUNT PAYLOAD
    0  110        1        1 Request(Hold, TaskIndex(0x8))
    1  120        1        1 Disposition(TaskIndex(0x8), Hold)
+humility: ring buffer task_spd::__RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  156        1        1 BankAbsent(0x0)
    1  156        1        1 BankAbsent(0x1)

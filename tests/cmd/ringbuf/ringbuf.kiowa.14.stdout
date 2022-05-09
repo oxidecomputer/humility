@@ -1,3 +1,4 @@
+humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
  NDX LINE      GEN    COUNT PAYLOAD
    0  104        1        1 Ice40Rails(false, false)
    1  134        1        1 Ice40PowerGoodV1P2(true)
@@ -52,6 +53,7 @@
   50  290        1        1 Done
   51  305        1        1 GetState
   52  290        1        1 Done
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    0  250        1        1 Read(GlobalConfiguration, 0x27)
    1  250        1        1 Read(Fan1Configuration, 0x28)
@@ -72,6 +74,7 @@
   16  250        1        1 Read(Fan6Configuration, 0x28)
   17  295        1        1 Write(Fan6Configuration, 0x28)
   18  295        1        1 Write(PWMOut6TargetDutyCycleMSB, 0x0)
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   17  552      131        1 ReadISR(0x8025)
   18  595      131        2 ReadWaitISR(0x8021)
@@ -121,6 +124,7 @@
   14  552      132        1 ReadISR(0x8025)
   15  595      132        2 ReadWaitISR(0x8021)
   16  595      132        1 ReadWaitISR(0x8061)
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
   10  849    27027        1 TxISR(0x948005)
   11  902    27027        1 WaitTx
@@ -170,8 +174,11 @@
    7  902    27028        1 WaitTx
    8  849    27028        1 TxISR(0x948005)
    9  902    27028        1 WaitTx
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    0  117        1       27 Some(NoDevice)
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi4_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi2_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   48  381     2264        1 Tx(0x1, 0x0)
   49  381     2264        1 Tx(0x2, 0xb)
@@ -237,6 +244,7 @@
   45  407     2265        1 Rx(0xd, 0xff)
   46  407     2265        1 Rx(0xe, 0xff)
   47  407     2265        1 Rx(0xf, 0x6)
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
    0  577        1        1 Execute((0x0, Push(0xa)))
    1  577        1        1 Execute((0x2, Push(0x2)))
@@ -247,9 +255,12 @@
    6  577        1        1 Execute((0xc, DropN(0x5)))
    7  577        1        1 Execute((0xe, Done))
    8  581        1        1 Success
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
+humility: ring buffer task_power::__RINGBUF in power:
  NDX LINE      GEN    COUNT PAYLOAD
    0  125        1       12 State(A2)
    1  125        1        2 State(A0)
+humility: ring buffer task_spd::__RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    5  311      400        1 Initiate(0x36, true)
    6  316      400        1 Rx(0x36, 0x61)

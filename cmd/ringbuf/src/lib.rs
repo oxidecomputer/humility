@@ -190,8 +190,8 @@ fn ringbuf(
     for v in ringbufs {
         // Try not to use `?` here, because it causes one bad ringbuf to make
         // them all unavailable.
-        humility::msg!(
-            "ring buffer {} in {}:",
+        println!(
+            "humility: ring buffer {} in {}:",
             v.0,
             taskname(hubris, v.1).unwrap_or("???")
         );

@@ -1,0 +1,62 @@
+humility: ring buffer MAX7358_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  20  111      207        1 (Some(SwitchControl), 0x2)
+  21  111      207        1 (Some(SwitchControl), 0x4)
+  22  111      207        1 (Some(SwitchControl), 0x8)
+  23  111      207        1 (Some(SwitchControl), 0x10)
+  24  111      207        1 (Some(SwitchControl), 0x20)
+  25  111      207        1 (Some(SwitchControl), 0x40)
+  26  111      207        1 (Some(SwitchControl), 0x80)
+  27  111      207        1 (Some(SwitchControl), 0x1)
+  28  111      207        1 (Some(SwitchControl), 0x2)
+  29  111      207        1 (Some(SwitchControl), 0x4)
+  30  111      207        1 (Some(SwitchControl), 0x8)
+  31  111      207        1 (Some(SwitchControl), 0x10)
+   0  111      208        1 (Some(SwitchControl), 0x20)
+   1  111      208        1 (Some(SwitchControl), 0x40)
+   2  111      208        1 (Some(SwitchControl), 0x80)
+   3  111      208        1 (Some(SwitchControl), 0x1)
+   4  111      208        1 (Some(SwitchControl), 0x2)
+   5  111      208        1 (Some(SwitchControl), 0x4)
+   6  111      208        1 (Some(SwitchControl), 0x8)
+   7  111      208        1 (Some(SwitchControl), 0x10)
+   8  111      208        1 (Some(SwitchControl), 0x20)
+   9  111      208        1 (Some(SwitchControl), 0x40)
+  10  111      208        1 (Some(SwitchControl), 0x80)
+  11  111      208        1 (Some(SwitchControl), 0x1)
+  12  111      208        1 (Some(SwitchControl), 0x2)
+  13  111      208        1 (Some(SwitchControl), 0x4)
+  14  111      208        1 (Some(SwitchControl), 0x8)
+  15  111      208        1 (Some(SwitchControl), 0x10)
+  16  111      208        1 (Some(SwitchControl), 0x20)
+  17  111      208        1 (Some(SwitchControl), 0x40)
+  18  111      208        1 (Some(SwitchControl), 0x80)
+  19  111      208        1 (Some(SwitchControl), 0x1)
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   6  363    58568       47 0x8121
+   7  363    58568        1 0x8161
+   0  409    58569       95 0x8121
+   1  409    58569        1 0x8125
+   2  439    58569        4 0x8121
+   3  297    58569        1 0x121
+   4  325    58569        1 0x121
+   5  325    58569 33054854 0x8121
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   1  142        8       17 Some(SegmentDisconnected)
+   2  142        8        1 Some(BusLockedMux)
+   3  162        8        1 None
+   4  142        8       22 Some(SegmentDisconnected)
+   5  142        8        1 Some(BusLockedMux)
+   6  162        8        1 None
+   7  142        8        2 Some(SegmentDisconnected)
+   8  142        8        1 Some(BadMuxAddress)
+   9  142        8        1 Some(SegmentDisconnected)
+  10  142        8        1 Some(BadMuxAddress)
+  11  142        8        2 Some(SegmentDisconnected)
+  12  142        8        1 Some(BadMuxAddress)
+  13  142        8       25 Some(SegmentDisconnected)
+  14  142        8        1 Some(BusLockedMux)
+  15  162        8        1 None
+   0  142        9       21 Some(SegmentDisconnected)

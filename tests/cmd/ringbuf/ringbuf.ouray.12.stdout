@@ -1,3 +1,4 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
  177   87      297        1 (Some((SetReadPointer, Some(Status))), Ok(0x43))
  178   87      297        1 (Some((SetReadPointer, Some(Status))), Ok(0x4a))
@@ -195,6 +196,7 @@
  174   87      298        1 (Some((SetReadPointer, Some(Status))), Ok(0x43))
  175   87      298        1 (Some((SetReadPointer, Some(Status))), Ok(0x4a))
  176  110      298        1 (Some((OneWireWriteByte, None)), Ok(0x0))
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   15  242       35        1 (Some(Tach5CountMSB), Ok([ 0xff, 0xe0 ]))
   16  242       35        1 (Some(Tach6CountMSB), Ok([ 0xff, 0xe0 ]))
@@ -228,3 +230,4 @@
   12  242       36        1 (Some(Tach4CountMSB), Ok([ 0xff, 0xe0 ]))
   13  242       36        1 (Some(Tach5CountMSB), Ok([ 0xff, 0xe0 ]))
   14  242       36        1 (Some(Tach6CountMSB), Ok([ 0xff, 0xe0 ]))
+humility: ring buffer RINGBUF in spd:

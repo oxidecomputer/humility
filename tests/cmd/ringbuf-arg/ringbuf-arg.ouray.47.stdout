@@ -1,0 +1,2 @@
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:

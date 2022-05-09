@@ -1,4 +1,7 @@
+humility: ring buffer drv_lpc55_spi_server::__RINGBUF in spi0_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    0  105        1        1 IRQ
    1  112        1        8 Tx(0xaa)
    2  105        1        1 IRQ
+humility: ring buffer task_hiffy::lpc55::__RINGBUF in hiffy:
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:

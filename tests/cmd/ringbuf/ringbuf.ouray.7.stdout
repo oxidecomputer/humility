@@ -1,3 +1,4 @@
+humility: ring buffer RINGBUF in adt7420:
  NDX LINE      GEN    COUNT PAYLOAD
   83   92       14        1 (22.5, 72.5)
   84   92       14        1 (22.4375, 72.3875)
