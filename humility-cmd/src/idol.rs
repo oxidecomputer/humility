@@ -359,6 +359,49 @@ pub fn lookup_reply<'a>(
         .ok_or_else(|| anyhow!("unknown operation \"{}\"", op))?
         .reply;
 
+    let lookup_ok =
+        |ok| {
+            match hubris.lookup_basetype_byname(ok) {
+                Ok(goff) => Ok(*goff),
+                Err(basetype_err) => match m.lookup_enum_byname(hubris, ok) {
+                    Ok(e) => Ok(e.goff),
+                    Err(enum_err) => match m.lookup_struct_byname(hubris, ok) {
+                        Ok(s) => Ok(s.goff),
+                        Err(struct_err) => {
+                            //
+                            // As a last ditch, we look up the REPLY type.
+                            // This is a last effort because it might not be
+                            // there:  if no task calls the function, the type
+                            // will be absent.
+                            //
+                            let t = format!("{}_{}_REPLY", iface.name, op);
+
+                            match hubris.lookup_struct_byname(&t) {
+                                Ok(s) => Ok(s.goff),
+                                Err(reply_err) => {
+                                    //
+                                    // If all of that has failed, we want to
+                                    // generate an error message that contains
+                                    // all of the failures we encountered:
+                                    // this is (much) more likely to be due to
+                                    // Humility limitations rather than
+                                    // anything else.
+                                    //
+                                    bail!(
+                                        "no type for {}.{}: {:?} (as basetype: \
+                                        \"{:?}\"; as enum: \"{:?}\"; as \
+                                        struct: \"{:?}\"; as REPLY: \"{:?}\")",
+                                        iface.name, op, reply, basetype_err,
+                                        enum_err, struct_err, reply_err
+                                    );
+                                }
+                            }
+                        }
+                    },
+                },
+            }
+        };
+
     match reply {
         Reply::Result { ok, err } => {
             let err = match err {
@@ -367,48 +410,8 @@ pub fn lookup_reply<'a>(
                     .context(format!("failed to find error type {:?}", reply)),
             }?;
 
-            if let Ok(goff) = hubris.lookup_basetype_byname(&ok.ty.0) {
-                Ok((*goff, Some(err)))
-            } else if let Ok(e) = m.lookup_enum_byname(hubris, &ok.ty.0) {
-                Ok((e.goff, Some(err)))
-            } else if let Ok(s) = m.lookup_struct_byname(hubris, &ok.ty.0) {
-                Ok((s.goff, Some(err)))
-            } else {
-                //
-                // As a last ditch, we look up the REPLY type. This is a last
-                // effort because it might not be there:  if no task calls
-                // the function, the type will be absent.
-                //
-                let t = format!("{}_{}_REPLY", iface.name, op);
-
-                if let Ok(s) = hubris.lookup_struct_byname(&t) {
-                    Ok((s.goff, Some(err)))
-                } else {
-                    bail!("no type for {}.{}: {:?}", iface.name, op, reply);
-                }
-            }
+            Ok((lookup_ok(&ok.ty.0)?, Some(err)))
         }
-        Reply::Simple(ok) => {
-            if let Ok(goff) = hubris.lookup_basetype_byname(&ok.ty.0) {
-                Ok((*goff, None))
-            } else if let Ok(e) = m.lookup_enum_byname(hubris, &ok.ty.0) {
-                Ok((e.goff, None))
-            } else if let Ok(s) = m.lookup_struct_byname(hubris, &ok.ty.0) {
-                Ok((s.goff, None))
-            } else {
-                //
-                // As a last ditch, we look up the REPLY type. This is a last
-                // effort because it might not be there:  if no task calls
-                // the function, the type will be absent.
-                //
-                let t = format!("{}_{}_REPLY", iface.name, op);
-
-                if let Ok(s) = hubris.lookup_struct_byname(&t) {
-                    Ok((s.goff, None))
-                } else {
-                    bail!("no type for {}.{}: {:?}", iface.name, op, reply);
-                }
-            }
-        }
+        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty.0)?, None)),
     }
 }

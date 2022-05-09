@@ -1,5 +1,8 @@
+humility: ring buffer ADM1272_RINGBUF in power:
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    0  121        1        1 CommandError(DeviceReset, SegmentDisconnected)
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   15  268       47        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   16  268       47        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
@@ -33,6 +36,7 @@
   12  268       48        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
   13  268       48        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   14  268       48        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   30  351     1304        1 BusySleep
   31  327     1304        1 WaitISR(0x21)
@@ -82,6 +86,7 @@
   27  521     1305        1 ReadISR(0x8025)
   28  564     1305        2 ReadWaitISR(0x8021)
   29  564     1305        1 ReadWaitISR(0x8061)
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
   46  818      259        1 TxISR(0xa18000)
   47  865      259        1 WaitTx
@@ -131,6 +136,7 @@
   43  818      260        1 TxISR(0xa18000)
   44  865      260        1 WaitTx
   45  818      260        1 TxISR(0xa18003)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    5  148       31        4 Some(SegmentDisconnected)
    6  148       31        2 Some(NoDevice)
@@ -148,6 +154,9 @@
    2  148       32        2 Some(NoDevice)
    3  148       32        4 Some(SegmentDisconnected)
    4  148       32        2 Some(NoDevice)
+humility: ring buffer STM32H7_SPI_SERVER_RINGBUF in spi2_driver:
+humility: ring buffer STM32H7_SPI_SERVER_RINGBUF in spi4_driver:
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
   45  693       48        1 Execute((0x12, Add))
   46  693       48        1 Execute((0x13, Push(0xff)))
@@ -213,8 +222,11 @@
   42  693       49        1 Execute((0x6, Call(TargetFunction(0x0))))
   43  693       49        1 Execute((0x8, Done))
   44  710       49        1 Success
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:
  NDX LINE      GEN    COUNT PAYLOAD
    0  166        1        1 SetDisposition(0x5, Hold)
+humility: ring buffer TASK_POWER_RINGBUF in power:
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    6  269       69        1 Rx(0x50, 0xfb)
    7  282       69        1 MemSetOffset(0x0, 0xfb)

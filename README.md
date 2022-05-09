@@ -173,8 +173,8 @@ environment variable.
 - [humility qspi](#humility-qspi): QSPI status, reading and writing
 - [humility readmem](#humility-readmem): read and display memory region
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
-- [humility renbb](#humility-renbb): Renesas black box operations
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
+- [humility rendmp](#humility-rendmp): Renesas digitial muliphase controller operations
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
@@ -185,6 +185,7 @@ environment variable.
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility trace](#humility-trace): trace Hubris operations
+- [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vsc7448](#humility-vsc7448): VSC7448 operations
 ### `humility apptable`
 
@@ -970,16 +971,16 @@ CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
 
 
 
-### `humility renbb`
-
-No documentation yet for `humility renbb`; pull requests welcome!
-
 ### `humility rencm`
 
 Query the Renesas 8A3400X ClockMatrix part -- or process a trace from
 Renesas configuration software.
 
 
+
+### `humility rendmp`
+
+No documentation yet for `humility rendmp`; pull requests welcome!
 
 ### `humility ringbuf`
 
@@ -1005,6 +1006,27 @@ ADDR        NDX LINE  GEN    COUNT PAYLOAD
 0x2000a358  565   92    1        3 (21.4375, 70.58749389648438)
 0x2000a368  566   92    1        4 (21.5, 70.69999694824219)
 0x2000a378  567   92    1        1 (21.4375, 70.58749389648438)
+...
+```
+
+If an argument is provided, only ring buffers that have a name that
+contains the argument as a substring, or are in a task that contains
+the argument as a substring will be displayed.  For example,
+to display every ring buffer that has `i2c` in the name or the
+containing task:
+
+```console
+% humility -d ./hubris.core.76 ringbuf ksz
+humility: attached to dump
+humility: ring buffer ksz8463::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   2  134       89        1 Read(IADR5, 0x4000)
+   3  134       89        1 Read(IADR4, 0x0)
+   4  134       89        1 Read(P1MBSR, 0x780c)
+   5  148       89        1 Write(IACR, 0x1c00)
+   6  134       89        1 Read(IADR5, 0x4000)
+   7  134       89        1 Read(IADR4, 0x0)
+   8  148       89        1 Write(IACR, 0x1c14)
 ...
 ```
 
@@ -1378,6 +1400,12 @@ allowing these transient failures to be differentiated from deeper issues.
 ### `humility trace`
 
 No documentation yet for `humility trace`; pull requests welcome!
+
+### `humility validate`
+
+Validates your parking.
+
+
 
 ### `humility vsc7448`
 

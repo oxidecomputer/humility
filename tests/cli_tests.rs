@@ -33,6 +33,7 @@ fn make_tests() -> Result<()> {
         Test::basic("spd"),
         Test::basic("map"),
         Test::basic("ringbuf"),
+        Test::witharg("ringbuf-arg", "ringbuf", "i2c"),
         Test::witharg("readvar-list", "readvar", "-l"),
         Test::witharg("readvar-ticks", "readvar", "TICKS"),
         Test::basic("stackmargin"),

@@ -1,5 +1,8 @@
+humility: ring buffer ADM1272_RINGBUF in power:
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    0  121        1        1 CommandError(DeviceReset, SegmentDisconnected)
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    9  268        2        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   10  268        2        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
@@ -33,6 +36,7 @@
    6  268        3        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
    7  268        3        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
    8  268        3        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   10  394      161        1 WriteISR(0x8023)
   11  432      161        3 WriteWaitISR(0x8020)
@@ -50,8 +54,10 @@
    7  497      162        1 ReadISR(0x8025)
    8  539      162        1 ReadWaitISR(0x8021)
    9  539      162  5705168 ReadWaitISR(0x8221)
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  704        1        1 AddrISR(0x1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   12  157        2        5 Some(NoDevice)
   13  157        2        8 Some(MuxNotFound)
@@ -69,8 +75,13 @@
    9  157        3        2 Some(NoDevice)
   10  157        3        4 Some(SegmentDisconnected)
   11  157        3        3 Some(NoDevice)
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:
+humility: ring buffer TASK_POWER_RINGBUF in power:
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
  NDX LINE      GEN    COUNT PAYLOAD
   11   47     9447        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
   12   41     9447        1 Calling

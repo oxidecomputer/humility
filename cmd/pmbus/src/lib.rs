@@ -1320,6 +1320,10 @@ fn pmbus(
         return Ok(());
     }
 
+    if core.is_dump() {
+        bail!("can only list PMBus devices on a dump");
+    }
+
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let func = funcs.get("I2cRead", 7)?;
@@ -1618,7 +1622,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Attached {
             name: "pmbus",
             archive: Archive::Required,
-            attach: Attach::LiveOnly,
+            attach: Attach::Any,
             validate: Validate::Booted,
             run: pmbus,
         },

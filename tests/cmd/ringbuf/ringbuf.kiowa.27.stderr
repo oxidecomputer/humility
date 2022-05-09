@@ -1,4 +1,1 @@
 humility: attached to dump
-humility: ring buffer drv_lpc55_spi_server::__RINGBUF in spi0_driver:
-humility: ring buffer task_hiffy::lpc55::__RINGBUF in hiffy:
-humility: ring buffer task_jefe::external::__RINGBUF in jefe:

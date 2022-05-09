@@ -1,5 +1,7 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    0  121        1        1 CommandError(DeviceReset, BusLockedMux)
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   13  268    11361        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   14  268    11361        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
@@ -33,6 +35,7 @@
   10  268    11362        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
   11  268    11362        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   12  268    11362        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    0  308    22102        1 WaitISR(0x21)
    1  384    22102        1 WriteISR(0x21)
@@ -50,8 +53,10 @@
   13  384    22102        1 WriteISR(0x21)
   14  384    22102        2 WriteISR(0x8021)
   15  384    22102        1 WriteISR(0x31)
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  663        1        1 AddrISR(0x1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   10  142    12461        4 Some(NoDevice)
   11  142    12461        3 Some(SegmentDisconnected)
@@ -69,8 +74,10 @@
    7  142    12462        3 Some(SegmentDisconnected)
    8  142    12462        8 Some(MuxNotFound)
    9  142    12462        4 Some(NoDevice)
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
  NDX LINE      GEN    COUNT PAYLOAD
   13   47    50922        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
   14   41    50922        1 Calling

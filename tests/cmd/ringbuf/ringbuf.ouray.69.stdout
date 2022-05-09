@@ -1,3 +1,7 @@
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi_driver:
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
   62  526     3442        1 Execute((0x1e, Push32(0x5000)))
   63  526     3442        1 Execute((0x23, BranchGreaterThan(Target(0x0))))
@@ -63,3 +67,4 @@
   59  526     3443        1 Execute((0x23, BranchGreaterThan(Target(0x0))))
   60  526     3443        1 Execute((0x25, Done))
   61  530     3443        1 Success
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:

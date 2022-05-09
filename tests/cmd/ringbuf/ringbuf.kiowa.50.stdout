@@ -1,5 +1,8 @@
+humility: ring buffer ADM1272_RINGBUF in power:
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    0  121        1        1 CommandError(DeviceReset, SegmentDisconnected)
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   13  268      630        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   14  268      630        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
@@ -33,6 +36,7 @@
   10  268      631        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
   11  268      631        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   12  268      631        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    3  394    64693        1 WriteISR(0x8023)
    4  432    64693        3 WriteWaitISR(0x8020)
@@ -50,8 +54,10 @@
    0  497    64694        1 ReadISR(0x8025)
    1  539    64694        1 ReadWaitISR(0x8021)
    2  539    64694 10999633 ReadWaitISR(0x8221)
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  704        1        1 AddrISR(0x1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   14  157     1166        1 Some(SegmentDisconnected)
   15  157     1166        1 Some(NoDevice)
@@ -69,6 +75,7 @@
   11  157     1167        1 Some(SegmentDisconnected)
   12  157     1167        1 Some(BusLocked)
   13  157     1167        2 Some(NoDevice)
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
   42  304      705        1 Execute((0x15, Call(TargetFunction(0x0))))
   43  304      705        1 Execute((0x17, Drop))
@@ -134,6 +141,8 @@
   39  304      706        1 Execute((0xa, Push(0x20)))
   40  304      706        1 Execute((0xc, Push(0x1)))
   41  304      706        1 Execute((0xe, Call(TargetFunction(0x0))))
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:
+humility: ring buffer TASK_POWER_RINGBUF in power:
  NDX LINE      GEN    COUNT PAYLOAD
    4   45      431        1 Datum(Tps546b24a, VOut(Volts(1.1933594)))
    5   45      431        1 Datum(Tps546b24a, IOut(Amperes(-0.25878906)))
@@ -151,8 +160,10 @@
    1   45      432        1 Datum(Tps546b24a, IOut(Amperes(-0.25878906)))
    2   45      432        1 Datum(Tps546b24a, VOut(Volts(1.1933594)))
    3   45      432        1 Datum(Tps546b24a, IOut(Amperes(-0.24243164)))
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
  NDX LINE      GEN    COUNT PAYLOAD
   11   47    24759        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
   12   41    24759        1 Calling

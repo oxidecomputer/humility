@@ -1,5 +1,8 @@
+humility: ring buffer ADM1272_RINGBUF in power:
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
    0  121        1        1 CommandError(DeviceReset, SegmentDisconnected)
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   27  268     2531        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   28  268     2531        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
@@ -33,6 +36,7 @@
   24  268     2532        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
   25  268     2532        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
   26  268     2532        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    6  437    49528        1 WriteWaitISR(0x8020)
    7  437    49528        2 WriteWaitISR(0x8021)
@@ -50,8 +54,10 @@
    3  399    49529        1 WriteISR(0x21)
    4  399    49529        2 WriteISR(0x8021)
    5  399    49529        1 WriteISR(0x8031)
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  730        1        1 AddrISR(0x1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    2  157     4615        5 Some(NoDevice)
    3  157     4615        8 Some(MuxNotFound)
@@ -69,6 +75,7 @@
   15  157     4615        2 Some(NoDevice)
    0  157     4616        4 Some(SegmentDisconnected)
    1  157     4616        2 Some(NoDevice)
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
    0  383        1        1 Execute((0x0, Push16(0xc)))
    1  383        1        1 Execute((0x3, Push16(0x3)))
@@ -78,10 +85,14 @@
    5  383        1        1 Execute((0x0, Push16(0x8)))
    6  383        1        1 Execute((0x3, Push(0x8)))
    7  383        1        1 Execute((0x5, Call(TargetFunction(0x3))))
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:
  NDX LINE      GEN    COUNT PAYLOAD
    0  166        1        1 SetDisposition(0xc, Hold)
+humility: ring buffer TASK_POWER_RINGBUF in power:
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  153        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
  NDX LINE      GEN    COUNT PAYLOAD
    1   47    36018        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
    2   41    36018        1 Calling

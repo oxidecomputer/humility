@@ -190,7 +190,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800773c (&TaskDesc)
                 }
 
- 3 usart_driver           0   2 recv, notif: bit0
+ 3 usart_driver           0   2 recv, notif: bit0(irq39)
    |
    +--->  0x20005bc0 0x08024e9a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288

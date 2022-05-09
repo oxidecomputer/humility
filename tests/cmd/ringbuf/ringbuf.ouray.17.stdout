@@ -1,5 +1,9 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
+humility: ring buffer MAX31790_RINGBUF in thermal:
+humility: ring buffer MAX7358_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    0  111        1        1 (Some(SwitchControl), 0x0)
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    2  518        1        1 0x1
    3  518        1        1 0x201
@@ -33,13 +37,17 @@
   31  518        1        1 0x8221
    0  501        2        1 0x1
    1  518        2        3 0x8021
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  623        1        1 0x1
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    0  519        1        1 Some(BadMuxAddress)
    1  142        1        1 Some(BadMuxAddress)
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
  NDX LINE      GEN    COUNT PAYLOAD
    9   47    43835        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
   10   41    43835        1 Calling

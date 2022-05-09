@@ -128,7 +128,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004a30 (&abi::TaskDesc)
                 }
 
- 2 usart_driver           0   2 recv, notif: bit0
+ 2 usart_driver           0   2 recv, notif: bit0(irq38)
    |
    +--->  0x20001fc0 0x0801d202 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -375,7 +375,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004a90 (&abi::TaskDesc)
                 }
 
- 6 hiffy                  0   3 notif: bit0(T+203)
+ 6 hiffy                  0   3 notif: bit31(T+203)
    |
    +--->  0x20004588 0x08029ae6 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
