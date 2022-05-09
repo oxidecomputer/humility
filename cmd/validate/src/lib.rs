@@ -53,21 +53,21 @@ struct ValidateArgs {
     #[clap(long, short, value_name = "mux:segment", requires = "controller")]
     mux: Option<String>,
 
-    /// specifies I2C multiplexer and segment to validate
-    #[clap(long, short, value_name = "index", 
-        conflicts_with_all = &["port", "controller", "bus", "device"]
-    )]
-    index: Option<usize>,
-
     /// specifies a device name to validate
     #[clap(long, short = 'd', value_name = "device")]
     device: Option<String>,
+
+    /// specifies a device identifier to validate
+    #[clap(long, short = 'i', value_name = "id",
+        conflicts_with_all = &["port", "controller", "bus", "device"]
+    )]
+    id: Option<usize>,
 }
 
 fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
     println!(
-        "{:2} {:<4} {:>2} {:2} {:3} {:4} {:13}",
-        "ID", "TYPE", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "ID", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
@@ -84,13 +84,14 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         };
 
         println!(
-            "{:2}  i2c {:2} {:2} {:3} 0x{:02x} {:13}",
+            "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {}",
             ndx,
             device.controller,
             device.port.name,
             mux,
             device.address,
             device.device,
+            device.description
         );
     }
 
@@ -132,8 +133,8 @@ fn validate(
     let mut devices = vec![];
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
-        if let Some(index) = subargs.index {
-            if ndx != index {
+        if let Some(id) = subargs.id {
+            if ndx != id {
                 continue;
             }
         }
@@ -196,6 +197,7 @@ fn validate(
                     }
                     "BadValidation" => "failed".red(),
                     "DeviceTimeout" => "timeout".red(),
+                    "DeviceError" => "error".red(),
                     _ => format!("<{}>", variant.name).red(),
                 },
                 None => format!("Err(0x{:x?})", e).red(),
