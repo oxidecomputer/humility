@@ -31,8 +31,8 @@ members = [
     "cmd/qspi",
     "cmd/readmem",
     "cmd/readvar",
-    "cmd/renbb",
     "cmd/rencm",
+    "cmd/rendmp",
     "cmd/ringbuf",
     "cmd/sensors",
     "cmd/spd",
@@ -43,6 +43,7 @@ members = [
     "cmd/tasks",
     "cmd/test",
     "cmd/trace",
+    "cmd/validate",
     "cmd/vsc7448",
     "xtask",
 ]
@@ -86,8 +87,8 @@ cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
 cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
 cmd-readmem = { path = "./cmd/readmem", package = "humility-cmd-readmem" }
 cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
-cmd-renbb = { path = "./cmd/renbb", package = "humility-cmd-renbb" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
+cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
@@ -99,6 +100,7 @@ cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
 cmd-vsc7448 = { path = "./cmd/vsc7448", package = "humility-cmd-vsc7448" }
+cmd-validate = { path = "./cmd/validate", package = "humility-cmd-validate" }
 
 fallible-iterator = "0.2.0"
 log = {version = "0.4.8", features = ["std"]}

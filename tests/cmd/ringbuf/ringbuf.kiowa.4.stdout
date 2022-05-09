@@ -1,3 +1,4 @@
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    6  497      249        1 ReadISR(0x8011)
    7  314      249        1 WaitISR(0x21)
@@ -15,6 +16,7 @@
    3  539      250     7903 ReadWaitISR(0x80a1)
    4  539      250    11485 ReadWaitISR(0x90a1)
    5  539      250  8383202 ReadWaitISR(0x10a1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    1  157        5        4 Some(BusLocked)
    2  157        5        1 Some(NoDevice)
@@ -32,6 +34,7 @@
   14  157        5        1 Some(NoDevice)
   15  157        5        2 Some(BusLocked)
    0  157        6        4 Some(NoDevice)
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
   41  243       58        1 Execute((0xb, Drop))
   42  243       58        1 Execute((0xc, Swap))
@@ -97,3 +100,4 @@
   38  243       59        1 Execute((0xc, Swap))
   39  243       59        1 Execute((0xd, Push(0x1)))
   40  243       59        1 Execute((0xf, Call(TargetFunction(0x0))))
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:

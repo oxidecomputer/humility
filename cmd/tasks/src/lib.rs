@@ -575,6 +575,7 @@ fn explain_recv(
     struct NoteInfo {
         irqs: Vec<u32>,
         timer: Option<i64>,
+        bit: usize,
     }
     let mut note_types = vec![];
     for i in 0..32 {
@@ -597,7 +598,7 @@ fn explain_recv(
             timer.and_then(
                 |(ts, mask)| if mask & bitmask != 0 { Some(ts) } else { None },
             );
-        note_types.push(NoteInfo { irqs: irqnums, timer: timer_assoc });
+        note_types.push(NoteInfo { irqs: irqnums, timer: timer_assoc, bit: i });
     }
 
     // Display kernel receives as "wait" and others as "recv", noting the
@@ -620,8 +621,8 @@ fn explain_recv(
     // Display notification bits, along with meaning where we can.
     if notmask != 0 {
         print!("{}notif:", if outer_first { "" } else { ", " });
-        for (i, nt) in note_types.into_iter().enumerate() {
-            print!(" bit{}", i);
+        for nt in note_types {
+            print!(" bit{}", nt.bit);
             if !nt.irqs.is_empty() || nt.timer.is_some() {
                 print!("(");
                 let mut first = true;

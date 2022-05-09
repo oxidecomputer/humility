@@ -1,0 +1,17 @@
+[package]
+name = "humility-cmd-validate"
+version = "0.1.0"
+edition = "2021"
+description = "validate presence and operation of devices"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+colored = "2.0.0"
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+parse_int = "0.4.0"
+indexmap = "1.7"
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+log = {version = "0.4.8", features = ["std"]}

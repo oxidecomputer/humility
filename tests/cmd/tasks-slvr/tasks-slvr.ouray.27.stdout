@@ -192,7 +192,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004dd8 (&abi::TaskDesc)
                 }
 
- 3 usart_driver           0   2 recv, notif: bit0
+ 3 usart_driver           0   2 recv, notif: bit0(irq39)
    |
    +--->  0x20001fc0 0x0801116a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -322,7 +322,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004e08 (&abi::TaskDesc)
                 }
 
- 5 spd                    0   2 notif: bit0
+ 5 spd                    0   2 notif: bit1(irq33/irq34)
    |
    +--->  0x20002b50 0x080198fa userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -384,7 +384,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004e20 (&abi::TaskDesc)
                 }
 
- 6 spi_driver             0   2 notif: bit0
+ 6 spi_driver             0   2 notif: bit0(irq84)
    |
    +--->  0x20003398 0x0801d3b2 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -638,7 +638,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004e80 (&abi::TaskDesc)
                 }
 
-10 i2c_debug              0   3 notif: bit0(T+23)
+10 i2c_debug              0   3 notif: bit31(T+23)
    |
    +--->  0x20006388 0x08028dee userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -702,7 +702,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004e98 (&abi::TaskDesc)
                 }
 
-11 thermal                0   3 notif: bit0(T+182)
+11 thermal                0   3 notif: bit31(T+182)
    |
    +--->  0x200085d0 0x08034d7a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -766,7 +766,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004eb0 (&abi::TaskDesc)
                 }
 
-12 net                    0   2 notif: bit0(T+1)
+12 net                    0   2 notif: bit31(T+1)
    |
    +--->  0x2000a3d8 0x0804224e userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261

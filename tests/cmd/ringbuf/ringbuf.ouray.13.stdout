@@ -1,3 +1,4 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   35   88     1320        1 (Some((SetReadPointer, Some(Status))), Ok(0x4a))
   36  111     1320        1 (Some((OneWireWriteByte, None)), Ok(0x0))
@@ -195,6 +196,7 @@
   32   88     1321        1 (Some((SetReadPointer, Some(Status))), Ok(0x4b))
   33   88     1321        1 (Some((SetReadPointer, Some(Status))), Ok(0x4a))
   34   88     1321        1 (Some((SetReadPointer, Some(ReadData))), Ok(0x1))
+humility: ring buffer MAX31790_RINGBUF in thermal:
  NDX LINE      GEN    COUNT PAYLOAD
   13  245      156        1 (Some(Tach5CountMSB), Ok([ 0xff, 0xe0 ]))
   14  245      156        1 (Some(Tach6CountMSB), Ok([ 0xff, 0xe0 ]))
@@ -228,6 +230,7 @@
   10  245      157        1 (Some(Tach4CountMSB), Ok([ 0xff, 0xe0 ]))
   11  245      157        1 (Some(Tach5CountMSB), Ok([ 0xff, 0xe0 ]))
   12  245      157        1 (Some(Tach6CountMSB), Ok([ 0xff, 0xe0 ]))
+humility: ring buffer MAX7358_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
   20  111      207        1 (Some(SwitchControl), 0x2)
   21  111      207        1 (Some(SwitchControl), 0x4)
@@ -261,6 +264,7 @@
   17  111      208        1 (Some(SwitchControl), 0x40)
   18  111      208        1 (Some(SwitchControl), 0x80)
   19  111      208        1 (Some(SwitchControl), 0x1)
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    6  363    58568       47 0x8121
    7  363    58568        1 0x8161
@@ -270,8 +274,10 @@
    3  297    58569        1 0x121
    4  325    58569        1 0x121
    5  325    58569 33054854 0x8121
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  612        1        1 0x1
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
  NDX LINE      GEN    COUNT PAYLOAD
    1  142        8       17 Some(SegmentDisconnected)
    2  142        8        1 Some(BusLockedMux)
@@ -289,5 +295,6 @@
   14  142        8        1 Some(BusLockedMux)
   15  162        8        1 None
    0  142        9       21 Some(SegmentDisconnected)
+humility: ring buffer TASK_SPD_RINGBUF in spd:
  NDX LINE      GEN    COUNT PAYLOAD
    0  137        1        1 0x0

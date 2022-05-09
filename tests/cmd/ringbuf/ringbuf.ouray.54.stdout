@@ -1,8 +1,10 @@
+humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
  NDX LINE      GEN    COUNT PAYLOAD
    0  331        1        1 Execute((0x0, Push16(0x4)))
    1  331        1        1 Execute((0x3, Push16(0x3)))
    2  331        1        1 Execute((0x6, Call(TargetFunction(0x0))))
    3  331        1        1 Execute((0x8, Done))
    4  347        1        1 Success
+humility: ring buffer TASK_JEFE_RINGBUF in jefe:
  NDX LINE      GEN    COUNT PAYLOAD
    0  166        1        1 SetDisposition(0x4, Hold)

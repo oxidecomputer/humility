@@ -1,6 +1,1 @@
 humility: attached to dump
-humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
-humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
-humility: ring buffer STM32H7_SPI_SERVER_RINGBUF in spi_driver:
-humility: ring buffer TASK_HIFFY_RINGBUF in hiffy:
-humility: ring buffer TASK_JEFE_RINGBUF in jefe:

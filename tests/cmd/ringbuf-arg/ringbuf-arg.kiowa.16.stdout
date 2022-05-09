@@ -1,0 +1,139 @@
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  250        1        1 Read(GlobalConfiguration, 0x27)
+   1  250        1        1 Read(Fan1Configuration, 0x28)
+   2  295        1        1 Write(Fan1Configuration, 0x28)
+   3  295        1        1 Write(PWMOut1TargetDutyCycleMSB, 0x0)
+   4  250        1        1 Read(Fan2Configuration, 0x28)
+   5  295        1        1 Write(Fan2Configuration, 0x28)
+   6  295        1        1 Write(PWMOut2TargetDutyCycleMSB, 0x0)
+   7  250        1        1 Read(Fan3Configuration, 0x28)
+   8  295        1        1 Write(Fan3Configuration, 0x28)
+   9  295        1        1 Write(PWMOut3TargetDutyCycleMSB, 0x0)
+  10  250        1        1 Read(Fan4Configuration, 0x28)
+  11  295        1        1 Write(Fan4Configuration, 0x28)
+  12  295        1        1 Write(PWMOut4TargetDutyCycleMSB, 0x0)
+  13  250        1        1 Read(Fan5Configuration, 0x28)
+  14  295        1        1 Write(Fan5Configuration, 0x28)
+  15  295        1        1 Write(PWMOut5TargetDutyCycleMSB, 0x0)
+  16  250        1        1 Read(Fan6Configuration, 0x28)
+  17  295        1        1 Write(Fan6Configuration, 0x28)
+  18  295        1        1 Write(PWMOut6TargetDutyCycleMSB, 0x0)
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  21  552     2568        2 ReadISR(0x8021)
+  22  552     2568        1 ReadISR(0x8025)
+  23  595     2568        2 ReadWaitISR(0x8021)
+  24  595     2568        1 ReadWaitISR(0x8061)
+  25  358     2568        1 WaitISR(0x21)
+  26  444     2568        1 WriteISR(0x21)
+  27  444     2568        2 WriteISR(0x8021)
+  28  444     2568        1 WriteISR(0x8023)
+  29  482     2568        1 WriteWaitISR(0x8020)
+  30  482     2568        2 WriteWaitISR(0x8021)
+  31  482     2568        1 WriteWaitISR(0x8061)
+  32  552     2568        2 ReadISR(0x8021)
+  33  552     2568        1 ReadISR(0x8025)
+  34  595     2568        2 ReadWaitISR(0x8021)
+  35  595     2568        1 ReadWaitISR(0x8061)
+  36  358     2568        1 WaitISR(0x21)
+  37  444     2568        1 WriteISR(0x21)
+  38  444     2568        2 WriteISR(0x8021)
+  39  444     2568        1 WriteISR(0x8023)
+  40  482     2568        3 WriteWaitISR(0x8021)
+  41  482     2568        1 WriteWaitISR(0x8061)
+  42  552     2568        2 ReadISR(0x8021)
+  43  552     2568        1 ReadISR(0x8025)
+  44  552     2568        2 ReadISR(0x8021)
+  45  552     2568        1 ReadISR(0x8025)
+  46  595     2568        2 ReadWaitISR(0x8021)
+  47  595     2568        1 ReadWaitISR(0x8061)
+   0  358     2569        1 WaitISR(0x21)
+   1  444     2569        1 WriteISR(0x21)
+   2  444     2569        2 WriteISR(0x8021)
+   3  444     2569        1 WriteISR(0x8023)
+   4  444     2569        1 WriteISR(0x8020)
+   5  444     2569        1 WriteISR(0x8023)
+   6  482     2569        3 WriteWaitISR(0x8020)
+   7  482     2569        1 WriteWaitISR(0x8061)
+   8  358     2569        1 WaitISR(0x21)
+   9  444     2569        1 WriteISR(0x21)
+  10  444     2569        2 WriteISR(0x8021)
+  11  444     2569        1 WriteISR(0x8023)
+  12  482     2569        1 WriteWaitISR(0x8020)
+  13  482     2569        2 WriteWaitISR(0x8021)
+  14  482     2569        1 WriteWaitISR(0x8061)
+  15  552     2569        2 ReadISR(0x8021)
+  16  552     2569        1 ReadISR(0x8025)
+  17  552     2569        2 ReadISR(0x8021)
+  18  552     2569        1 ReadISR(0x8025)
+  19  595     2569        2 ReadWaitISR(0x8021)
+  20  595     2569        1 ReadWaitISR(0x8061)
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   4  849    20355        1 TxISR(0x3c8005)
+   5  902    20355        1 WaitTx
+   6  849    20355        1 TxISR(0x3c8005)
+   7  902    20355        1 WaitTx
+   8  849    20355        1 TxISR(0x3c8005)
+   9  902    20355        1 WaitTx
+  10  849    20355        1 TxISR(0x3c8005)
+  11  902    20355        1 WaitTx
+  12  849    20355        1 TxISR(0x3c8005)
+  13  902    20355        1 WaitTx
+  14  849    20355        1 TxISR(0x3c8005)
+  15  902    20355        1 WaitTx
+  16  849    20355        1 TxISR(0x3c8005)
+  17  902    20355        1 WaitTx
+  18  849    20355        1 TxISR(0x3c8005)
+  19  902    20355        1 WaitTx
+  20  849    20355        1 TxISR(0x3c8005)
+  21  902    20355        1 WaitTx
+  22  849    20355        1 TxISR(0x3c8005)
+  23  902    20355        1 WaitTx
+  24  849    20355        1 TxISR(0x3c8005)
+  25  902    20355        1 WaitTx
+  26  849    20355        1 TxISR(0x3c8005)
+  27  902    20355        1 WaitTx
+  28  849    20355        1 TxISR(0x3c8005)
+  29  902    20355        1 WaitTx
+  30  849    20355        1 TxISR(0x3c8005)
+  31  902    20355        1 WaitTx
+  32  849    20355        1 TxISR(0x3c8005)
+  33  902    20355        1 WaitTx
+  34  849    20355        1 TxISR(0x3c8005)
+  35  902    20355        1 WaitTx
+  36  849    20355        1 TxISR(0x3c8005)
+  37  902    20355        1 WaitTx
+  38  849    20355        1 TxISR(0x3c8005)
+  39  902    20355        1 WaitTx
+  40  849    20355        1 TxISR(0x3c8005)
+  41  902    20355        1 WaitTx
+  42  849    20355        1 TxISR(0x3c8005)
+  43  902    20355        1 WaitTx
+  44  849    20355        1 TxISR(0x3c8005)
+  45  902    20355        1 WaitTx
+  46  849    20355        1 TxISR(0x3c8005)
+  47  902    20355        1 WaitTx
+   0  849    20356        1 TxISR(0x3c8005)
+   1  902    20356        1 WaitTx
+   2  849    20356        1 TxISR(0x3c8005)
+   3  902    20356        1 WaitTx
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   1  117        1        4 Some(BusLocked)
+   2  117        1       37 Some(NoDevice)
+   3  117        1        1 Some(BusLocked)
+   4  117        1      154 Some(NoDevice)
+   5  117        1        1 Some(BusLocked)
+   6  117        1       17 Some(NoDevice)
+   7  117        1        1 Some(BusLocked)
+   8  117        1      184 Some(NoDevice)
+   9  117        1        1 Some(BusLocked)
+  10  117        1       28 Some(NoDevice)
+  11  117        1        1 Some(BusLocked)
+  12  117        1      247 Some(NoDevice)
+  13  117        1        1 Some(BusLocked)
+  14  117        1       63 Some(NoDevice)
+  15  117        1        1 Some(BusLocked)
+   0  117        2       25 Some(NoDevice)
