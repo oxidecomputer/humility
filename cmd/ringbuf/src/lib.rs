@@ -29,6 +29,27 @@
 //! ...
 //! ```
 //!
+//! If an argument is provided, only ring buffers that have a name that
+//! contains the argument as a substring, or are in a task that contains
+//! the argument as a substring will be displayed.  For example,
+//! to display every ring buffer that has `i2c` in the name or the
+//! containing task:
+//!
+//! ```console
+//! % humility -d ./hubris.core.76 ringbuf ksz
+//! humility: attached to dump
+//! humility: ring buffer ksz8463::__RINGBUF in net:
+//!  NDX LINE      GEN    COUNT PAYLOAD
+//!    2  134       89        1 Read(IADR5, 0x4000)
+//!    3  134       89        1 Read(IADR4, 0x0)
+//!    4  134       89        1 Read(P1MBSR, 0x780c)
+//!    5  148       89        1 Write(IACR, 0x1c00)
+//!    6  134       89        1 Read(IADR5, 0x4000)
+//!    7  134       89        1 Read(IADR4, 0x0)
+//!    8  148       89        1 Write(IACR, 0x1c14)
+//! ...
+//! ```
+//!
 //! See the [`ringbuf`
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
@@ -47,9 +68,9 @@ struct RingbufArgs {
     /// list variables
     #[clap(long, short)]
     list: bool,
-    /// print only a single ringbuffer by name
+    /// print only a single ringbuffer by substring of name
     #[clap(conflicts_with = "list")]
-    variable: Option<String>,
+    name: Option<String>,
 }
 
 fn ringbuf_dump(
@@ -131,8 +152,12 @@ fn ringbuf(
     let mut ringbufs = vec![];
 
     for v in hubris.qualified_variables() {
-        if let Some(ref variable) = subargs.variable {
-            if v.0.eq(variable) {
+        if let Some(ref name) = subargs.name {
+            if v.0.eq(name)
+                || (v.0.ends_with("RINGBUF")
+                    && (v.0.contains(name)
+                        || taskname(hubris, v.1)?.contains(name)))
+            {
                 ringbufs.push(v);
             }
         } else if v.0.ends_with("RINGBUF") {
@@ -141,8 +166,8 @@ fn ringbuf(
     }
 
     if ringbufs.is_empty() {
-        if let Some(variable) = subargs.variable {
-            bail!("ring buffer \"{}\" not found (-l to list)", variable);
+        if let Some(name) = subargs.name {
+            bail!("no ring buffer name contains \"{}\" (-l to list)", name);
         } else {
             bail!("no ring buffers found");
         }
