@@ -2372,7 +2372,11 @@ impl HubrisArchive {
             let reg = match ARMRegister::from_u32(id) {
                 Some(r) => r,
                 None => {
-                    bail!("illegal register 0x{:x} at offset {}", id, i * 8);
+                    // This can totally happen if we encounter a future coredump
+                    // where we decided to store, say, additional MSRs or a
+                    // floating point register. Since this version of Humility
+                    // doesn't understand them, we'll just skip it.
+                    continue;
                 }
             };
 
@@ -3152,8 +3156,12 @@ impl HubrisArchive {
             //
             let cfa = match unwind_info.cfa() {
                 gimli::CfaRule::RegisterAndOffset { register, offset } => {
-                    let reg = ARMRegister::from_u16(register.0).unwrap();
-                    *frameregs.get(&reg).unwrap() + *offset as u32
+                    if let Some(reg) = ARMRegister::from_u16(register.0) {
+                        *frameregs.get(&reg).unwrap() + *offset as u32
+                    } else {
+                        // A register we don't model -- that's OK.
+                        continue;
+                    }
                 }
                 _ => {
                     panic!("unimplemented CFA rule");
@@ -3180,8 +3188,12 @@ impl HubrisArchive {
                     }
                 };
 
-                let reg = ARMRegister::from_u16(register.0).unwrap();
-                frameregs.insert(reg, val);
+                if let Some(reg) = ARMRegister::from_u16(register.0) {
+                    frameregs.insert(reg, val);
+                } else {
+                    // Skip register we don't model.
+                    continue;
+                }
             }
 
             frameregs.insert(ARMRegister::SP, cfa);
