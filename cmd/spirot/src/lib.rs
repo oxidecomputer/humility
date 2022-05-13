@@ -87,7 +87,7 @@ fn spirot(
     let mut ops = vec![];
 
     let data = if let Some(ref send) = subargs.send {
-        let spirot_sendrecv = funcs.get("SpirotSendRecv", 1)?;
+        let spirot_sendrecv = funcs.get("SpirotSendRecv", 2)?;
         let bytes: Vec<&str> = send.split(',').collect();
         let mut arr = vec![];
 
@@ -109,8 +109,7 @@ fn spirot(
         }
         println!("msgtype: {:?}", msgtype);
         ops.push(Op::Push32(msgtype));
-        // ops.push(Op::Push32(arr.len() as u32));
-
+        ops.push(Op::Push32(arr.len() as u32));
         ops.push(Op::Call(spirot_sendrecv.id));
         Some(arr)
     } else {
