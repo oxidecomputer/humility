@@ -45,6 +45,7 @@ pub struct HubrisManifest {
     task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     peripherals: BTreeMap<String, u32>,
+    peripherals_byaddr: BTreeMap<u32, String>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
@@ -231,6 +232,14 @@ impl HubrisSensorKind {
 pub struct HubrisFlashConfig {
     pub metadata: String,
     pub elf: Vec<u8>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum HubrisArchiveDoneness {
+    /// Fully load archive
+    Cook,
+    /// Load archive into memory, but do not otherwise process
+    Raw,
 }
 
 #[derive(Debug)]
@@ -1778,7 +1787,10 @@ impl HubrisArchive {
         task: HubrisTask,
         buffer: &[u8],
     ) -> Result<()> {
+        use goblin::elf::section_header;
+
         let mut heapbss = (None, None);
+        let mut kstack = (None, None);
 
         let elf = Elf::parse(buffer).map_err(|e| {
             anyhow!("unrecognized ELF object: {}: {}", object, e)
@@ -1804,6 +1816,16 @@ impl HubrisArchive {
             }
             Some(sec) => sec,
         };
+
+        let allocs = elf
+            .section_headers
+            .iter()
+            .enumerate()
+            .filter(|(_, sh)| {
+                (sh.sh_flags as u32) & section_header::SHF_ALLOC != 0
+            })
+            .map(|(ndx, _)| ndx)
+            .collect::<HashSet<_>>();
 
         let offset = textsec.sh_offset as u32;
         let size = textsec.sh_size as u32;
@@ -1834,7 +1856,27 @@ impl HubrisArchive {
                 heapbss.1 = Some(sym.st_value as u32);
             }
 
-            if sym.st_size == 0 {
+            //
+            // If this is the kernel, keep track of _stack_base and _stack_start
+            // if/when we encounter them
+            //
+            if task == HubrisTask::Kernel
+                && sym.st_shndx == section_header::SHN_ABS as usize
+            {
+                if name == "_stack_base" {
+                    kstack.0 = Some(sym.st_value as u32);
+                }
+
+                if name == "_stack_start" {
+                    kstack.1 = Some(sym.st_value as u32);
+                }
+            }
+
+            //
+            // If this is a zero-sized symbol or not against an allocated
+            // section (e.g., .idolatry), we don't want to keep track of it.
+            //
+            if sym.st_size == 0 || allocs.get(&sym.st_shndx).is_none() {
                 continue;
             }
 
@@ -1904,7 +1946,7 @@ impl HubrisArchive {
                     device: false,
                     dma: false,
                 },
-                task,
+                tasks: vec![task],
             })
             .for_each(|region| {
                 self.loaded.insert(region.base, region);
@@ -1935,7 +1977,25 @@ impl HubrisArchive {
                     sec.sh_addr as u32,
                     buffer[base..base + len].to_vec(),
                 ));
-            } else {
+            }
+
+            if let (Some(base), Some(start)) = kstack {
+                let region = HubrisRegion {
+                    daddr: None,
+                    base,
+                    size: start - base,
+                    mapsize: start - base,
+                    attr: HubrisRegionAttr {
+                        read: true,
+                        write: true,
+                        execute: false,
+                        device: false,
+                        dma: false,
+                    },
+                    tasks: vec![task],
+                };
+
+                self.loaded.insert(region.base, region);
             }
         }
 
@@ -2131,6 +2191,9 @@ impl HubrisArchive {
         if let Some(peripherals) = peripherals {
             for (name, p) in peripherals {
                 self.manifest.peripherals.insert(name.clone(), p.address);
+                self.manifest
+                    .peripherals_byaddr
+                    .insert(p.address, name.clone());
 
                 if let Some(ref interrupts) = p.interrupts {
                     for (interrupt, irq) in interrupts {
@@ -2303,7 +2366,11 @@ impl HubrisArchive {
         Ok(())
     }
 
-    pub fn load(&mut self, archive: &str) -> Result<()> {
+    pub fn load(
+        &mut self,
+        archive: &str,
+        doneness: HubrisArchiveDoneness,
+    ) -> Result<()> {
         let metadata = fs::metadata(archive)?;
 
         if metadata.is_dir() {
@@ -2318,7 +2385,11 @@ impl HubrisArchive {
         // any generated dump.
         //
         let contents = fs::read(archive)?;
-        self.load_archive(&contents)?;
+
+        if doneness == HubrisArchiveDoneness::Cook {
+            self.load_archive(&contents)?;
+        }
+
         self.archive = contents;
 
         Ok(())
@@ -2388,7 +2459,11 @@ impl HubrisArchive {
         Ok(())
     }
 
-    pub fn load_dump(&mut self, dumpfile: &str) -> Result<()> {
+    pub fn load_dump(
+        &mut self,
+        dumpfile: &str,
+        doneness: HubrisArchiveDoneness,
+    ) -> Result<()> {
         //
         // We expect the dump to be an ELF core dump.
         //
@@ -2407,7 +2482,10 @@ impl HubrisArchive {
 
                         match note.n_type {
                             OXIDE_NT_HUBRIS_ARCHIVE => {
-                                self.load_archive(note.desc)?;
+                                if doneness == HubrisArchiveDoneness::Cook {
+                                    self.load_archive(note.desc)?;
+                                }
+
                                 self.archive = note.desc.to_vec();
                             }
                             OXIDE_NT_HUBRIS_REGISTERS => {
@@ -2819,8 +2897,8 @@ impl HubrisArchive {
         // descriptors.
         //
         for region in self.loaded.values() {
-            if region.task == HubrisTask::Kernel {
-                regions.insert(region.base, *region);
+            if region.tasks[0] == HubrisTask::Kernel {
+                regions.insert(region.base, region.clone());
             }
         }
 
@@ -2846,7 +2924,7 @@ impl HubrisArchive {
                             device: false,
                             dma: false,
                         },
-                        task: HubrisTask::Kernel,
+                        tasks: vec![HubrisTask::Kernel],
                     },
                 );
             }
@@ -2906,27 +2984,30 @@ impl HubrisArchive {
                     continue;
                 }
 
-                regions.insert(
+                let region = HubrisRegion {
+                    daddr: Some(daddr),
                     base,
-                    HubrisRegion {
-                        daddr: Some(daddr),
-                        base,
-                        size: if attr & WRITE != 0 {
-                            size
-                        } else {
-                            mapsize(attr, base, size)
-                        },
-                        mapsize: size,
-                        attr: HubrisRegionAttr {
-                            read: attr & READ != 0,
-                            write: attr & WRITE != 0,
-                            execute: attr & EXECUTE != 0,
-                            device: attr & DEVICE != 0,
-                            dma: attr & DMA != 0,
-                        },
-                        task: HubrisTask::Task(i as u32),
+                    size: if attr & WRITE != 0 {
+                        size
+                    } else {
+                        mapsize(attr, base, size)
                     },
-                );
+                    mapsize: size,
+                    attr: HubrisRegionAttr {
+                        read: attr & READ != 0,
+                        write: attr & WRITE != 0,
+                        execute: attr & EXECUTE != 0,
+                        device: attr & DEVICE != 0,
+                        dma: attr & DMA != 0,
+                    },
+                    tasks: vec![HubrisTask::Task(i as u32)],
+                };
+
+                if let Some(existing) = regions.get_mut(&base) {
+                    existing.tasks.push(HubrisTask::Task(i as u32));
+                } else {
+                    regions.insert(base, region);
+                }
             }
         }
 
@@ -3228,10 +3309,20 @@ impl HubrisArchive {
                 registers: frameregs.clone(),
             });
 
+            let lr = *frameregs.get(&ARMRegister::LR).unwrap();
+
             //
-            // Get our LR, and make sure that the low (Thumb) bit is clear
+            // If this is a kernel stack and we have hit an EXC_RETURN, we're
+            // done.
             //
-            let lr = *frameregs.get(&ARMRegister::LR).unwrap() & !1;
+            if task == HubrisTask::Kernel && (lr >> 28 == 0xf) {
+                break;
+            }
+
+            //
+            // Make sure that the low (Thumb) bit is clear
+            //
+            let lr = lr & !1;
 
             frameregs.insert(ARMRegister::PC, lr);
 
@@ -3546,6 +3637,47 @@ impl HubrisArchive {
             buf,
             goff,
             &HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() },
+        )
+    }
+
+    pub fn explain(
+        &self,
+        regions: &BTreeMap<u32, HubrisRegion>,
+        val: u32,
+    ) -> Option<String> {
+        //
+        // Find the region for this value.
+        //
+        let (_, region) = regions.range(..=val).next_back()?;
+        let offset = val - region.base;
+
+        if offset > region.size {
+            return None;
+        }
+
+        Some(if region.attr.device {
+            if let Some(p) = self.lookup_peripheral_byaddr(region.base) {
+                format!("[{}]+0x{:x}", p, offset)
+            } else {
+                format!("[0x{:x}]+0x{:x}", region.base, offset)
+            }
+        } else if region.tasks.len() != 1 {
+                format!("<{:x?}>", region)
+            } else if let Some(sval) = self.instr_sym(val) {
+                format!(
+                    "{}: {}+0x{:x}",
+                    self.lookup_module(region.tasks[0]).ok()?.name,
+                    sval.0,
+                    val - sval.1
+                )
+            } else {
+                format!(
+                    "{}: 0x{:x}+0x{:x}",
+                    self.lookup_module(region.tasks[0]).ok()?.name,
+                    region.base,
+                    offset
+                )
+            }
         )
     }
 
@@ -4021,6 +4153,10 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_peripheral_byaddr(&self, addr: u32) -> Option<&String> {
+        self.manifest.peripherals_byaddr.get(&addr)
+    }
+
     pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
         self.manifest
             .i2c_buses
@@ -4126,6 +4262,10 @@ impl HubrisArchive {
 
             None => Ok(None),
         }
+    }
+
+    pub fn archive(&self) -> &[u8] {
+        &self.archive
     }
 
     pub fn apptable(&self) -> Option<&[u8]> {
@@ -4291,14 +4431,25 @@ pub struct HubrisRegionAttr {
     pub dma: bool,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct HubrisRegion {
+    /// Address of description in kernel RAM
     pub daddr: Option<u32>,
+
+    /// Base address of region
     pub base: u32,
+
+    /// Size of region
     pub size: u32,
+
+    /// Size of mapping, which (for flash mappings) is memory in use
     pub mapsize: u32,
+
+    /// Attributes of this region
     pub attr: HubrisRegionAttr,
-    pub task: HubrisTask,
+
+    /// Tasks using this region (usually just one)
+    pub tasks: Vec<HubrisTask>,
 }
 
 #[derive(Clone, Debug)]
@@ -4579,18 +4730,6 @@ pub struct HubrisStackFrame<'a> {
     pub registers: BTreeMap<ARMRegister, u32>,
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
-
-/*
-impl fmt::Debug for HubrisStackFrame<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "HubrisStackFrame {{ cfa: {:?}, sym: {:?}, inlined: {:?} }}",
-            self.cfa, self.sym, self.inlined)
-
-        if let Some(r0) = self.registers.get(ARMRegister::R0)
-        write!(f, "R0: 0x{:x}
-    }
-}
-*/
 
 #[derive(Clone, Debug)]
 pub struct HubrisSrc {

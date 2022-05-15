@@ -89,6 +89,7 @@ pub enum Validate {
 }
 
 pub enum Command {
+    /// Attached to a live system or dump
     Attached {
         name: &'static str,
         archive: Archive,
@@ -96,9 +97,15 @@ pub enum Command {
         validate: Validate,
         run: fn(&HubrisArchive, &mut dyn Core, &Args, &[String]) -> Result<()>,
     },
+    /// Not attached to a live system or dump
     Unattached {
         name: &'static str,
         archive: Archive,
+        run: fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>,
+    },
+    /// Operate on a raw archive, from either the command line or a dump
+    Raw {
+        name: &'static str,
         run: fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>,
     },
 }

@@ -22,7 +22,6 @@ jefe               JEFE_EXTERNAL_REQUEST          0x20000bb0 4
 jefe               JEFE_EXTERNAL_REQUESTS         0x20000bbc 4
 jefe               JEFE_EXTERNAL_TASKINDEX        0x20000bb4 4
 jefe               __RINGBUF                      0x20000b70 60
-sys                _SYS_IDOL_DEFINITION           0x00000000 2587
 pong               USER_LEDS                      0x0800326c 2
 user_leds          SYS                            0x0800774e 2
 hiffy              HIFFY_DATA                     0x200014a0 256

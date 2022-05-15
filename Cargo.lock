@@ -832,6 +832,7 @@ dependencies = [
  "humility-cmd-doc",
  "humility-cmd-dump",
  "humility-cmd-etm",
+ "humility-cmd-extract",
  "humility-cmd-flash",
  "humility-cmd-gpio",
  "humility-cmd-hash",
@@ -847,6 +848,7 @@ dependencies = [
  "humility-cmd-qspi",
  "humility-cmd-readmem",
  "humility-cmd-readvar",
+ "humility-cmd-registers",
  "humility-cmd-rencm",
  "humility-cmd-rendmp",
  "humility-cmd-ringbuf",
@@ -970,6 +972,17 @@ dependencies = [
  "humility-cortex",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-extract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cmd",
+ "humility-core",
+ "zip",
 ]
 
 [[package]]
@@ -1168,6 +1181,18 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-registers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "num-traits",
 ]
 
 [[package]]

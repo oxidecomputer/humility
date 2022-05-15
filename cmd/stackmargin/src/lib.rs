@@ -85,10 +85,10 @@ fn stackmargin(
         let module = hubris.lookup_module(HubrisTask::Task(i))?;
         let region = find(initial)?;
 
-        if region.task != module.task {
+        if region.tasks.len() != 1 || region.tasks[0] != module.task {
             bail!(format!(
                 "mismatched task on 0x{:x}: expected {:?}, found {:?}",
-                initial, module.task, region.task)
+                initial, module.task, region.tasks)
             )
         }
 

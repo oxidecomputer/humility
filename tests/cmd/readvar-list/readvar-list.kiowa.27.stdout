@@ -36,7 +36,6 @@ hiffy              HIFFY_VERSION_MAJOR            0x2000a6ac 4
 hiffy              HIFFY_VERSION_MINOR            0x20008e14 4
 hiffy              HIFFY_VERSION_PATCH            0x20008e18 4
 hiffy              PANIC_BUFFER                   0x2000a61c 128
-hiffy              _TASK_SLOT_TABLE_GPIO          0x00000000 19
 hiffy              __RINGBUF                      0x20008808 1548
 syscon_driver      PANIC_BUFFER                   0x20005be8 128
 gpio_driver        PANIC_BUFFER                   0x200063e8 128
@@ -45,7 +44,6 @@ user_leds          GPIO                           0x0001c508 2
 usart_driver       GPIO                           0x0001f18e 2
 usart_driver       PANIC_BUFFER                   0x200073e8 128
 usart_driver       SYSCON                         0x0001f18c 2
-usart_driver       _TASK_SLOT_TABLE_GPIO          0x00000015 19
 i2c_driver         GPIO                           0x000213d6 2
 i2c_driver         PANIC_BUFFER                   0x20007be8 128
 i2c_driver         SYSCON                         0x000213d4 2
@@ -58,5 +56,4 @@ spi0_driver        __RINGBUF                      0x2000cbe8 780
 ping               PANIC_BUFFER                   0x2000da00 128
 ping               PEER                           0x00024ff8 2
 ping               UART                           0x00024ffa 2
-ping               _TASK_SLOT_TABLE_UART          0x0000000c 20
 pong               USER_LEDS                      0x0002622c 2

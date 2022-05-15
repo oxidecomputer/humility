@@ -28,12 +28,12 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x00004d3c 0x20004000 - 0x200043ff    1KiB rwx-- 9  ping
 0x00004d5c 0x20004400 - 0x200047ff    1KiB rwx-- 10 pong
 0x00004d7c 0x20004800 - 0x20004bff    1KiB rwx-- 11 spam
-0x00004b7c 0x40000000 - 0x40000fff    4KiB rw-d- 2  syscon_driver
-0x00004bac 0x40001000 - 0x40001fff    4KiB rw-d- 10 pong
-0x00004b8c 0x40013000 - 0x40013fff    4KiB rw-d- 2  syscon_driver
-0x00004bdc 0x40020000 - 0x40020fff    4KiB rw-d- 7  rng_driver
-0x00004bfc 0x4003a000 - 0x4003afff    4KiB rw-d- 7  rng_driver
-0x00004bbc 0x40086000 - 0x40086fff    4KiB rw-d- 5  usart_driver
-0x00004bcc 0x4008a000 - 0x4008afff    4KiB rw-d- 6  i2c_driver
-0x00004b9c 0x4008c000 - 0x4008e483    9KiB rw-d- 3  gpio_driver
-0x00004bec 0x4009f000 - 0x4009ffff    4KiB rw-d- 8  spi_driver
+0x00004b7c 0x40000000 - 0x40000fff    4KiB rw-d- 2  [syscon] syscon_driver
+0x00004bac 0x40001000 - 0x40001fff    4KiB rw-d- 3  [iocon] gpio_driver, user_leds, usart_driver, i2c_driver, spi_driver, pong
+0x00004b8c 0x40013000 - 0x40013fff    4KiB rw-d- 2  [anactrl] syscon_driver
+0x00004bdc 0x40020000 - 0x40020fff    4KiB rw-d- 2  [pmc] syscon_driver, rng_driver
+0x00004bfc 0x4003a000 - 0x4003afff    4KiB rw-d- 7  [rng] rng_driver
+0x00004bbc 0x40086000 - 0x40086fff    4KiB rw-d- 5  [flexcomm0] usart_driver
+0x00004bcc 0x4008a000 - 0x4008afff    4KiB rw-d- 6  [flexcomm4] i2c_driver
+0x00004b9c 0x4008c000 - 0x4008e483    9KiB rw-d- 3  [gpio] gpio_driver
+0x00004bec 0x4009f000 - 0x4009ffff    4KiB rw-d- 8  [flexcomm8] spi_driver

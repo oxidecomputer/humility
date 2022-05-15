@@ -1,0 +1,12 @@
+[package]
+name = "humility-cmd-extract"
+version = "0.1.0"
+edition = "2021"
+description = "extract all or part of a Hubris archive"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+zip = "0.5"

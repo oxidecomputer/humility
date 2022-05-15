@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
+use num_traits::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
 
 #[allow(non_camel_case_types)]
@@ -18,6 +19,11 @@ use std::collections::{BTreeMap, HashMap};
     Ord,
     PartialOrd,
 )]
+///
+/// The definition of an ARM register, as encoded in the Debug Core Register
+/// Selector Register (DCRSR); see (e.g.) C1.6.3 in the ARM v7-M Architecture
+/// Reference Manual.
+///
 pub enum ARMRegister {
     R0 = 0,
     R1,
@@ -32,14 +38,89 @@ pub enum ARMRegister {
     R10,
     R11,
     R12,
-    SP = 0b1101,
-    LR = 0b1110,
-    PC = 0b1111,
-    PSR = 0b1_0000,
-    MSP = 0b1_0001,
-    PSP = 0b1_0010,
-    SPR = 0b1_0100,
-    FPSCR = 0b10_0001,
+    SP = 0b000_1101,
+    LR = 0b000_1110,
+    PC = 0b000_1111,
+    PSR = 0b001_0000,
+    MSP = 0b001_0001,
+    PSP = 0b001_0010,
+    SPR = 0b001_0100,
+    FPSCR = 0b010_0001,
+    S0 = 0b100_0000,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    S6,
+    S7,
+    S8,
+    S9,
+    S10,
+    S11,
+    S12,
+    S13,
+    S14,
+    S15,
+    S16,
+    S17,
+    S18,
+    S19,
+    S20,
+    S21,
+    S22,
+    S23,
+    S24,
+    S25,
+    S26,
+    S27,
+    S28,
+    S29,
+    S30,
+    S31,
+}
+
+impl ARMRegister {
+    pub fn is_general_purpose(&self) -> bool {
+        matches!(
+            self,
+            ARMRegister::R0
+                | ARMRegister::R1
+                | ARMRegister::R2
+                | ARMRegister::R3
+                | ARMRegister::R4
+                | ARMRegister::R5
+                | ARMRegister::R6
+                | ARMRegister::R7
+                | ARMRegister::R8
+                | ARMRegister::R9
+                | ARMRegister::R10
+                | ARMRegister::R11
+                | ARMRegister::R12
+                | ARMRegister::SP
+                | ARMRegister::PC
+                | ARMRegister::LR
+        )
+    }
+
+    pub fn is_special(&self) -> bool {
+        matches!(
+            self,
+            ARMRegister::PSR
+                | ARMRegister::MSP
+                | ARMRegister::PSP
+                | ARMRegister::SPR
+                | ARMRegister::FPSCR
+        )
+    }
+
+    pub fn is_floating_point(&self) -> bool {
+        self.to_u16() >= ARMRegister::S0.to_u16()
+    }
+
+    pub fn max() -> u16 {
+        128
+    }
 }
 
 use capstone::prelude::*;

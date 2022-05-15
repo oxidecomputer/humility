@@ -28,14 +28,14 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08007650 0x20004c00 - 0x20004dff     512 rw--- 10 ping
 0x08007670 0x20004e00 - 0x20004eff     256 rw--- 11 idle
 0x08007610 0x20008000 - 0x2000ffff   32KiB rw--- 8  hiffy
-0x08007460 0x40003c00 - 0x40003fff    1KiB rw-d- 5  spi_driver
-0x080074a0 0x40004800 - 0x40004bff    1KiB rw-d- 3  usart_driver
-0x080074b0 0x40005400 - 0x400057ff    1KiB rw-d- 4  i2c_driver
-0x080074c0 0x40005800 - 0x40005bff    1KiB rw-d- 4  i2c_driver
-0x080074d0 0x40005c00 - 0x40005fff    1KiB rw-d- 4  i2c_driver
-0x080074f0 0x52005000 - 0x52005fff    4KiB rw-d- 9  hf
-0x080074e0 0x58001c00 - 0x58001fff    1KiB rw-d- 4  i2c_driver
-0x08007410 0x58020000 - 0x58021fff    8KiB rw-d- 2  gpio_driver
-0x08007420 0x58022000 - 0x580227ff    2KiB rw-d- 2  gpio_driver
-0x08007430 0x58022800 - 0x58022bff    1KiB rw-d- 2  gpio_driver
-0x08007400 0x58024400 - 0x580247ff    1KiB rw-d- 1  rcc_driver
+0x08007460 0x40003c00 - 0x40003fff    1KiB rw-d- 5  [spi3] spi_driver
+0x080074a0 0x40004800 - 0x40004bff    1KiB rw-d- 3  [usart3] usart_driver
+0x080074b0 0x40005400 - 0x400057ff    1KiB rw-d- 4  [i2c1] i2c_driver
+0x080074c0 0x40005800 - 0x40005bff    1KiB rw-d- 4  [i2c2] i2c_driver
+0x080074d0 0x40005c00 - 0x40005fff    1KiB rw-d- 4  [i2c3] i2c_driver
+0x080074f0 0x52005000 - 0x52005fff    4KiB rw-d- 9  [quadspi] hf
+0x080074e0 0x58001c00 - 0x58001fff    1KiB rw-d- 4  [i2c4] i2c_driver
+0x08007410 0x58020000 - 0x58021fff    8KiB rw-d- 2  [gpios1] gpio_driver
+0x08007420 0x58022000 - 0x580227ff    2KiB rw-d- 2  [gpios2] gpio_driver
+0x08007430 0x58022800 - 0x58022bff    1KiB rw-d- 2  [gpios3] gpio_driver
+0x08007400 0x58024400 - 0x580247ff    1KiB rw-d- 1  [rcc] rcc_driver
