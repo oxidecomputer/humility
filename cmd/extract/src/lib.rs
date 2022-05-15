@@ -10,6 +10,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisArchive;
 use humility_cmd::{Args, Command};
+use std::fs::File;
 use std::io::Cursor;
 use std::io::{self, Read, Write};
 
@@ -19,6 +20,10 @@ struct ExtractArgs {
     /// list contents
     #[clap(long, short)]
     list: bool,
+
+    /// file for output
+    #[clap(long, short)]
+    output: Option<String>,
 
     /// Optional file to extract
     file: Option<String>,
@@ -46,7 +51,7 @@ fn extract(
         return Ok(());
     }
 
-    if let Some(filename) = subargs.file {
+    let buffer = if let Some(ref filename) = subargs.file {
         let cursor = Cursor::new(archive);
         let mut archive = zip::ZipArchive::new(cursor)?;
         let mut found = vec![];
@@ -54,7 +59,7 @@ fn extract(
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
 
-            if file.name().contains(&filename) {
+            if file.name().contains(filename) {
                 found.push((i, file.name().to_string()));
             }
         }
@@ -84,12 +89,25 @@ fn extract(
 
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
+        buffer
+    } else {
+        archive.to_vec()
+    };
+
+    if let Some(output) = subargs.output {
+        let mut ofile = File::create(output)?;
+        ofile.write_all(&buffer)?;
+    } else {
+        //
+        // As a precaution against naive use, we force an output file to be
+        // specified if the entire archive is to be written.
+        //
+        if subargs.file.is_none() {
+            bail!("must specify output file name to extract entire archive");
+        }
+
         io::stdout().write_all(&buffer)?;
-
-        return Ok(());
     }
-
-    println!("in extract, archive len is {}", archive.len());
 
     Ok(())
 }

@@ -29,6 +29,8 @@ impl Test {
 
 fn make_tests() -> Result<()> {
     let postmortem = [
+        Test::witharg("extract", "extract", "app.toml"),
+        Test::witharg("extract-list", "extract", "--list"),
         Test::basic("manifest"),
         Test::basic("spd"),
         Test::basic("map"),

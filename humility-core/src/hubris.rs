@@ -3662,23 +3662,22 @@ impl HubrisArchive {
                 format!("[0x{:x}]+0x{:x}", region.base, offset)
             }
         } else if region.tasks.len() != 1 {
-                format!("<{:x?}>", region)
-            } else if let Some(sval) = self.instr_sym(val) {
-                format!(
-                    "{}: {}+0x{:x}",
-                    self.lookup_module(region.tasks[0]).ok()?.name,
-                    sval.0,
-                    val - sval.1
-                )
-            } else {
-                format!(
-                    "{}: 0x{:x}+0x{:x}",
-                    self.lookup_module(region.tasks[0]).ok()?.name,
-                    region.base,
-                    offset
-                )
-            }
-        )
+            format!("<{:x?}>", region)
+        } else if let Some(sval) = self.instr_sym(val) {
+            format!(
+                "{}: {}+0x{:x}",
+                self.lookup_module(region.tasks[0]).ok()?.name,
+                sval.0,
+                val - sval.1
+            )
+        } else {
+            format!(
+                "{}: 0x{:x}+0x{:x}",
+                self.lookup_module(region.tasks[0]).ok()?.name,
+                region.base,
+                offset
+            )
+        })
     }
 
     pub fn dump(

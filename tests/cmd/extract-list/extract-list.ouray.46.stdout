@@ -1,0 +1,15 @@
+        SIZE NAME
+         405 README.TXT
+          46 git-rev
+        1732 app.toml
+      235308 elf/task/runner
+      402068 elf/task/suite
+      197484 elf/task/assist
+       16952 elf/task/idle
+      448304 elf/kernel
+         494 info/allocations.txt
+         895 info/map.txt
+      153529 img/combined.srec
+       74836 img/combined.elf
+      209516 img/combined.ihex
+      114776 img/combined.bin
