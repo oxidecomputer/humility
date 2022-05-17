@@ -2231,7 +2231,13 @@ impl HubrisArchive {
             // as a separator.
             //
             let path = match chip.rsplit('/').next() {
-                Some(p) => p,
+                // Newer archive files may include the chip peripherals with
+                // the generic name "chip.toml" instead of something like
+                // "stm32h7.toml".  This is the case when the `chip` parameter
+                // in the app config is a path rather than a filename ending
+                // in ".toml"
+                Some(p) if p.ends_with(".toml") => p,
+                Some(_) => "chip.toml",
                 None => chip,
             };
 
