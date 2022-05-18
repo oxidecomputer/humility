@@ -23,6 +23,10 @@ struct GdbArgs {
     /// when set, calls `load` and `stepi` upon attaching
     #[clap(long, short)]
     load: bool,
+
+    /// when set, runs an OpenOCD process before starting GDB
+    #[clap(long)]
+    run_openocd: bool,
 }
 
 fn gdb(
@@ -71,23 +75,45 @@ fn gdb(
         }
     }
 
+    // Build the GDB command
     let mut cmd = cmd.ok_or_else(|| {
         anyhow::anyhow!("GDB not found.  Tried: {:?}", GDB_NAMES)
     })?;
-
     cmd.arg("-q").arg("-x").arg("script.gdb").arg("-x").arg("openocd.gdb");
-
     if subargs.load {
         // start the process but immediately halt the processor
         cmd.arg("-ex").arg("load").arg("-ex").arg("stepi");
     }
     cmd.arg("final.elf");
     cmd.current_dir(work_dir.path());
-    println!("{:?}", cmd);
 
+    // If OpenOCD is requested, then run it in a subprocess here
+    let openocd = if subargs.run_openocd {
+        hubris.extract_file_to(
+            "debug/openocd.cfg",
+            &work_dir.path().join("openocd.cfg"),
+        )?;
+        let mut cmd = Command::new("openocd");
+        cmd.arg("-f").arg("openocd.cfg");
+        cmd.current_dir(work_dir.path());
+        cmd.stdin(std::process::Stdio::piped());
+        Some(cmd.spawn()?)
+    } else {
+        None
+    };
+
+    // Run GDB, ignoring Ctrl-C (so it can handle them)
     ctrlc::set_handler(|| {}).expect("Error setting Ctrl-C handler");
-    let status = cmd.status()?;
-    if !status.success() {
+    let status = cmd.status();
+
+    // Immediately kill OpenOCD, instead of leaving it running
+    // (regardless of the GDB return status)
+    if let Some(mut openocd) = openocd {
+        openocd.kill()?;
+    }
+
+    // Then check on the GDB status
+    if !status?.success() {
         anyhow::bail!("command failed, see output for details");
     }
     Ok(())
