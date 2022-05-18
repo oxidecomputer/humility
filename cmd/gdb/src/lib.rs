@@ -7,12 +7,12 @@
 //! This command launches GDB and attaches to a running device.
 //!
 
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command as HumilityCmd, Validate};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 
 #[derive(Parser, Debug)]
@@ -27,6 +27,10 @@ struct GdbArgs {
     /// when set, runs an OpenOCD process before starting GDB
     #[clap(long)]
     run_openocd: bool,
+
+    /// specifies the `openocd` executable to run
+    #[clap(long)]
+    openocd: Option<String>,
 }
 
 fn gdb(
@@ -69,7 +73,12 @@ fn gdb(
 
     const GDB_NAMES: [&str; 2] = ["arm-none-eabi-gdb", "gdb-multiarch"];
     for candidate in &GDB_NAMES {
-        if Command::new(candidate).arg("--version").status().is_ok() {
+        if Command::new(candidate)
+            .arg("--version")
+            .stdout(Stdio::piped())
+            .status()
+            .is_ok()
+        {
             cmd = Some(Command::new(candidate));
             break;
         }
@@ -93,11 +102,13 @@ fn gdb(
             "debug/openocd.cfg",
             &work_dir.path().join("openocd.cfg"),
         )?;
-        let mut cmd = Command::new("openocd");
+        let mut cmd = Command::new(
+            subargs.openocd.unwrap_or_else(|| "openocd".to_string()),
+        );
         cmd.arg("-f").arg("openocd.cfg");
         cmd.current_dir(work_dir.path());
-        cmd.stdin(std::process::Stdio::piped());
-        Some(cmd.spawn()?)
+        cmd.stdin(Stdio::piped());
+        Some(cmd.spawn().context("Could not start `openocd`")?)
     } else {
         None
     };
