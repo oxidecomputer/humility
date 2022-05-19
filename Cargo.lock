@@ -853,6 +853,7 @@ dependencies = [
  "humility-cmd-lpc55gpio",
  "humility-cmd-manifest",
  "humility-cmd-map",
+ "humility-cmd-openocd",
  "humility-cmd-pmbus",
  "humility-cmd-probe",
  "humility-cmd-qspi",
@@ -1013,7 +1014,6 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "tempfile",
- "zip",
 ]
 
 [[package]]
@@ -1128,6 +1128,18 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-openocd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ctrlc",
+ "humility-cmd",
+ "humility-core",
+ "tempfile",
 ]
 
 [[package]]

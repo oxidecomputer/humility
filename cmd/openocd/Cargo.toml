@@ -1,10 +1,8 @@
 [package]
-name = "humility-cmd-gdb"
+name = "humility-cmd-openocd"
 version = "0.1.0"
 edition = "2021"
-description = "Attach to a running system using GDB"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Run OpenOCD for the given archive"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }

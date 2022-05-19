@@ -27,6 +27,7 @@ members = [
     "cmd/lpc55gpio",
     "cmd/manifest",
     "cmd/map",
+    "cmd/openocd",
     "cmd/pmbus",
     "cmd/probe",
     "cmd/qspi",
@@ -84,6 +85,7 @@ cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
+cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
 cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
 cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
