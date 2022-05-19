@@ -10,7 +10,7 @@
 use std::process::{Command, Stdio};
 
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command as HumilityCmd, Validate};
+use humility_cmd::{Archive, Args, Command as HumilityCmd};
 
 use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
@@ -35,19 +35,10 @@ struct GdbArgs {
 
 fn gdb(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = GdbArgs::try_parse_from(subargs)?;
-
-    // Do a dummy attach to confirm that the image matches
-    humility_cmd::attach(
-        hubris,
-        args,
-        Attach::LiveOnly,
-        Validate::Match,
-        |_, _| Ok(()),
-    )?;
 
     let work_dir = tempfile::tempdir()?;
     let name = match &hubris.manifest.name {
@@ -73,7 +64,7 @@ fn gdb(
     hubris
         .extract_file_to("img/final.elf", &work_dir.path().join("final.elf"))?;
 
-    let mut cmd = None;
+    let mut gdb_cmd = None;
 
     const GDB_NAMES: [&str; 2] = ["arm-none-eabi-gdb", "gdb-multiarch"];
     for candidate in &GDB_NAMES {
@@ -83,25 +74,25 @@ fn gdb(
             .status()
             .is_ok()
         {
-            cmd = Some(Command::new(candidate));
+            gdb_cmd = Some(candidate);
             break;
         }
     }
 
-    // Build the GDB command
-    let mut cmd = cmd.ok_or_else(|| {
+    // Select the GDB command
+    let gdb_cmd = gdb_cmd.ok_or_else(|| {
         anyhow::anyhow!("GDB not found.  Tried: {:?}", GDB_NAMES)
     })?;
-    cmd.arg("-q").arg("-x").arg("script.gdb").arg("-x").arg("openocd.gdb");
-    if subargs.load {
-        // start the process but immediately halt the processor
-        cmd.arg("-ex").arg("load").arg("-ex").arg("stepi");
-    }
-    cmd.arg("final.elf");
-    cmd.current_dir(work_dir.path());
 
-    // If OpenOCD is requested, then run it in a subprocess here
-    let openocd = if subargs.run_openocd {
+    // If OpenOCD is requested, then run it in a subprocess here, with an RAII
+    // handle to ensure that it's killed before the program exits.
+    struct OpenOcdRunner(std::process::Child);
+    impl Drop for OpenOcdRunner {
+        fn drop(&mut self) {
+            self.0.kill().expect("Could not kill `openocd`")
+        }
+    }
+    let _openocd = if subargs.run_openocd {
         hubris
             .extract_file_to(
                 "debug/openocd.cfg",
@@ -114,23 +105,71 @@ fn gdb(
         cmd.arg("-f").arg("openocd.cfg");
         cmd.current_dir(work_dir.path());
         cmd.stdin(Stdio::piped());
-        Some(cmd.spawn().context("Could not start `openocd`")?)
+        Some(OpenOcdRunner(cmd.spawn().context("Could not start `openocd`")?))
     } else {
         None
     };
 
-    // Run GDB, ignoring Ctrl-C (so it can handle them)
-    ctrlc::set_handler(|| {}).expect("Error setting Ctrl-C handler");
-    let status = cmd.status();
-
-    // Immediately kill OpenOCD, instead of leaving it running
-    // (regardless of the GDB return status)
-    if let Some(mut openocd) = openocd {
-        openocd.kill()?;
+    // Alright, here's where it gets awkward.  We are either
+    // - Running OpenOCD, launched by the block above
+    // - Running OpenOCD in a separate terminal, through humility openocd
+    //   or manually
+    // - Running PyOCD in a separate terminal
+    //
+    // If we aren't loading new firmware, then we want to check that the
+    // running firmware matches the image.  However, we can't use
+    // humility_cmd::attach like normal, because that's not compatible with
+    // PyOCD (which doesn't expose the TCL port).
+    //
+    // Instead, we fall back to the one interface that we _know_ these three
+    // cases have in common: GDB.  Also, GDB is _terrible_: `print/x` doesn't
+    // work if we're attached to the target and have all of our sections
+    // loaded.
+    if !subargs.load {
+        let mut cmd = Command::new(gdb_cmd);
+        let image_id_addr = hubris.image_id_addr().unwrap();
+        let image_id = hubris.image_id().unwrap();
+        cmd.arg("-q")
+            .arg("-x")
+            .arg("openocd.gdb")
+            .arg("-ex")
+            .arg(format!(
+                "dump binary memory image_id {} {}",
+                image_id_addr,
+                image_id_addr as usize + image_id.len(),
+            ))
+            .arg("-ex")
+            .arg("set confirm off")
+            .arg("-ex")
+            .arg("quit");
+        cmd.current_dir(work_dir.path());
+        let status = cmd.status()?;
+        if !status.success() {
+            anyhow::bail!("could not get image_id, see output for details");
+        }
+        let image_id_actual = std::fs::read(work_dir.path().join("image_id"))?;
+        if image_id_actual != image_id {
+            bail!(
+                "Invalid image ID: expected {:?}, got {:?}",
+                image_id,
+                image_id_actual
+            );
+        }
     }
 
-    // Then check on the GDB status
-    if !status?.success() {
+    let mut cmd = Command::new(gdb_cmd);
+    cmd.arg("-q").arg("-x").arg("script.gdb").arg("-x").arg("openocd.gdb");
+    if subargs.load {
+        // start the process but immediately halt the processor
+        cmd.arg("-ex").arg("load").arg("-ex").arg("stepi");
+    }
+    cmd.arg("final.elf");
+    cmd.current_dir(work_dir.path());
+
+    // Run GDB, ignoring Ctrl-C (so it can handle them)
+    ctrlc::set_handler(|| {}).expect("Error setting Ctrl-C handler");
+    let status = cmd.status()?;
+    if !status.success() {
         anyhow::bail!("command failed, see output for details");
     }
     Ok(())

@@ -2737,6 +2737,14 @@ impl HubrisArchive {
         );
     }
 
+    pub fn image_id_addr(&self) -> Option<u32> {
+        self.imageid.as_ref().map(|i| i.0)
+    }
+
+    pub fn image_id(&self) -> Option<&[u8]> {
+        self.imageid.as_ref().map(|i| i.1.as_slice())
+    }
+
     pub fn member_offset(
         &self,
         structure: &HubrisStruct,

@@ -10,7 +10,7 @@
 use std::process::Command;
 
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command as HumilityCmd, Validate};
+use humility_cmd::{Archive, Args, Command as HumilityCmd};
 
 use anyhow::{Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
@@ -31,19 +31,10 @@ struct OcdArgs {
 
 fn openocd(
     hubris: &mut HubrisArchive,
-    args: &Args,
+    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = OcdArgs::try_parse_from(subargs)?;
-
-    // Do a dummy attach to confirm that the image matches
-    humility_cmd::attach(
-        hubris,
-        args,
-        Attach::LiveOnly,
-        Validate::Match,
-        |_, _| Ok(()),
-    )?;
 
     let work_dir = tempfile::tempdir()?;
     hubris
