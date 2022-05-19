@@ -25,12 +25,16 @@ struct GdbArgs {
     load: bool,
 
     /// when set, runs an OpenOCD process before starting GDB
-    #[clap(long)]
+    #[clap(long, group = "run_openocd")]
     run_openocd: bool,
 
     /// specifies the `openocd` executable to run
-    #[clap(long)]
+    #[clap(long, requires = "run_openocd")]
     openocd: Option<String>,
+
+    /// specifies the probe serial name to use with OpenOCD
+    #[clap(long, requires = "run_openocd")]
+    probe: Option<String>,
 }
 
 fn gdb(
@@ -103,6 +107,12 @@ fn gdb(
             subargs.openocd.unwrap_or_else(|| "openocd".to_string()),
         );
         cmd.arg("-f").arg("openocd.cfg");
+        if let Some(probe) = subargs.probe {
+            cmd.arg("-c")
+                .arg("interface hla")
+                .arg("-c")
+                .arg(format!("hla_serial {}", probe));
+        }
         cmd.current_dir(work_dir.path());
         cmd.stdin(Stdio::piped());
         Some(OpenOcdRunner(cmd.spawn().context("Could not start `openocd`")?))

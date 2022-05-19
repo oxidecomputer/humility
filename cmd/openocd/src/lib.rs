@@ -24,6 +24,10 @@ struct OcdArgs {
     #[clap(short, long)]
     exec: Option<String>,
 
+    /// specifies the probe serial name to use with OpenOCD
+    #[clap(long)]
+    probe: Option<String>,
+
     /// Extra options to pass to `openocd`
     #[clap(last = true)]
     extra_options: Vec<String>,
@@ -46,6 +50,12 @@ fn openocd(
     let mut cmd =
         Command::new(subargs.exec.unwrap_or_else(|| "openocd".to_string()));
     cmd.arg("-f").arg("openocd.cfg");
+    if let Some(probe) = subargs.probe {
+        cmd.arg("-c")
+            .arg("interface hla")
+            .arg("-c")
+            .arg(format!("hla_serial {}", probe));
+    }
     cmd.current_dir(work_dir.path());
 
     for opt in subargs.extra_options {
