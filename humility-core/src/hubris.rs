@@ -3983,6 +3983,9 @@ impl HubrisArchive {
     pub fn extract_elfs_to(&self, p: &Path) -> Result<()> {
         self.extract_file_to("elf/kernel", &p.join("kernel"))?;
 
+        // `stage0` is only present in some cases, so we ignore errors here
+        let _ = self.extract_file_to("img/stage0", &p.join("stage0"));
+
         let cursor = Cursor::new(self.archive.as_slice());
         let archive = zip::ZipArchive::new(cursor)?;
         Self::for_each_task(archive, |path, buffer| {
