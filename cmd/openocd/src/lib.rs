@@ -12,7 +12,7 @@ use std::process::Command;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command as HumilityCmd, Validate};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 
 #[derive(Parser, Debug)]
@@ -46,10 +46,12 @@ fn openocd(
     )?;
 
     let work_dir = tempfile::tempdir()?;
-    hubris.extract_file_to(
-        "debug/openocd.cfg",
-        &work_dir.path().join("openocd.cfg"),
-    )?;
+    hubris
+        .extract_file_to(
+            "debug/openocd.cfg",
+            &work_dir.path().join("openocd.cfg"),
+        )
+        .context("OpenOCD config missing. Is your Hubris build too old?")?;
     let mut cmd =
         Command::new(subargs.exec.unwrap_or_else(|| "openocd".to_string()));
     cmd.arg("-f").arg("openocd.cfg");

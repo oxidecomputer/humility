@@ -58,14 +58,18 @@ fn gdb(
     std::fs::create_dir_all(&elf_dir)?;
     hubris.extract_elfs_to(&elf_dir)?;
 
-    hubris.extract_file_to(
-        "debug/openocd.gdb",
-        &work_dir.path().join("openocd.gdb"),
-    )?;
-    hubris.extract_file_to(
-        "debug/script.gdb",
-        &work_dir.path().join("script.gdb"),
-    )?;
+    hubris
+        .extract_file_to(
+            "debug/openocd.gdb",
+            &work_dir.path().join("openocd.gdb"),
+        )
+        .context("GDB config missing. Is your Hubris build too old?")?;
+    hubris
+        .extract_file_to(
+            "debug/script.gdb",
+            &work_dir.path().join("script.gdb"),
+        )
+        .context("GDB script missing. Is your Hubris build too old?")?;
     hubris
         .extract_file_to("img/final.elf", &work_dir.path().join("final.elf"))?;
 
@@ -98,10 +102,12 @@ fn gdb(
 
     // If OpenOCD is requested, then run it in a subprocess here
     let openocd = if subargs.run_openocd {
-        hubris.extract_file_to(
-            "debug/openocd.cfg",
-            &work_dir.path().join("openocd.cfg"),
-        )?;
+        hubris
+            .extract_file_to(
+                "debug/openocd.cfg",
+                &work_dir.path().join("openocd.cfg"),
+            )
+            .context("openocd config missing. Is your Hubris build too old?")?;
         let mut cmd = Command::new(
             subargs.openocd.unwrap_or_else(|| "openocd".to_string()),
         );
