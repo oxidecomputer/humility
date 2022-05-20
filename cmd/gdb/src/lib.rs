@@ -6,6 +6,16 @@
 //!
 //! This command launches GDB and attaches to a running device.
 //!
+//! By default, the user must be running `openocd` or `pyocd` in a separate
+//! terminal.
+//!
+//! The `--run-openocd` option automatically launches `openocd` based on the
+//! `openocd.cfg` file included in the build archive.
+//!
+//! When using `pyocd`, it must be launched with the `--persist` option,
+//! because `humility gdb` connects to it multiple times (once to check the
+//! app id, then again to run the console).
+//!
 
 use std::process::{Command, Stdio};
 
