@@ -5,7 +5,7 @@
 //! ## `humility apptable`
 //!
 //! This is a deprecated command that allows for the display of the app table
-//! found in old Hubris arhives; see `humility manifest` to understand
+//! found in old Hubris archives; see `humility manifest` to understand
 //! the contents of an archive.
 //!
 
