@@ -12,7 +12,7 @@ use std::process::Command;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Command as HumilityCmd};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 
 #[derive(Parser, Debug)]
@@ -24,9 +24,9 @@ struct OcdArgs {
     #[clap(short, long)]
     exec: Option<String>,
 
-    /// specifies the probe serial name to use with OpenOCD
+    /// specifies the probe serial number to use with OpenOCD
     #[clap(long)]
-    probe: Option<String>,
+    serial: Option<String>,
 
     /// Extra options to pass to `openocd`
     #[clap(last = true)]
@@ -35,9 +35,13 @@ struct OcdArgs {
 
 fn openocd(
     hubris: &mut HubrisArchive,
-    _args: &Args,
+    args: &Args,
     subargs: &[String],
 ) -> Result<()> {
+    if args.probe.is_some() {
+        bail!("Cannot specify --probe with `openocd` subcommand");
+    }
+
     let subargs = OcdArgs::try_parse_from(subargs)?;
 
     let work_dir = tempfile::tempdir()?;
@@ -50,11 +54,11 @@ fn openocd(
     let mut cmd =
         Command::new(subargs.exec.unwrap_or_else(|| "openocd".to_string()));
     cmd.arg("-f").arg("openocd.cfg");
-    if let Some(probe) = subargs.probe {
+    if let Some(serial) = subargs.serial {
         cmd.arg("-c")
             .arg("interface hla")
             .arg("-c")
-            .arg(format!("hla_serial {}", probe));
+            .arg(format!("hla_serial {}", serial));
     }
     cmd.current_dir(work_dir.path());
 
@@ -73,7 +77,7 @@ fn openocd(
     // `ExitStatus` docs), so this saves us from printing a spurious error
     // message.
     if !status.success() && status.code().is_some() {
-        anyhow::bail!(
+        bail!(
             "command failed ({:?}), see output for details",
             status.code().unwrap()
         );

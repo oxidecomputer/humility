@@ -32,16 +32,20 @@ struct GdbArgs {
     #[clap(long, requires = "run_openocd")]
     openocd: Option<String>,
 
-    /// specifies the probe serial name to use with OpenOCD
+    /// specifies the probe serial number to use with OpenOCD
     #[clap(long, requires = "run_openocd")]
-    probe: Option<String>,
+    serial: Option<String>,
 }
 
 fn gdb(
     hubris: &mut HubrisArchive,
-    _args: &Args,
+    args: &Args,
     subargs: &[String],
 ) -> Result<()> {
+    if args.probe.is_some() {
+        bail!("Cannot specify --probe with `gdb` subcommand");
+    }
+
     let subargs = GdbArgs::try_parse_from(subargs)?;
 
     let work_dir = tempfile::tempdir()?;
@@ -107,11 +111,11 @@ fn gdb(
             subargs.openocd.unwrap_or_else(|| "openocd".to_string()),
         );
         cmd.arg("-f").arg("openocd.cfg");
-        if let Some(probe) = subargs.probe {
+        if let Some(serial) = subargs.serial {
             cmd.arg("-c")
                 .arg("interface hla")
                 .arg("-c")
-                .arg(format!("hla_serial {}", probe));
+                .arg(format!("hla_serial {}", serial));
         }
         cmd.current_dir(work_dir.path());
         cmd.stdin(Stdio::piped());
