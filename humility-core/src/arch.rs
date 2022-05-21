@@ -6,6 +6,22 @@ use anyhow::{bail, Result};
 use num_traits::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
 
+#[derive(Copy, Clone, Debug)]
+pub struct ARMRegisterField {
+    pub highbit: u16,
+    pub lowbit: u16,
+    pub name: &'static str,
+}
+
+impl ARMRegisterField {
+    fn field(highbit: u16, lowbit: u16, name: &'static str) -> Self {
+        Self { highbit, lowbit, name }
+    }
+    fn bit(bit: u16, name: &'static str) -> Self {
+        Self { highbit: bit, lowbit: bit, name }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Copy,
@@ -120,6 +136,32 @@ impl ARMRegister {
 
     pub fn max() -> u16 {
         128
+    }
+
+    pub fn fields(&self) -> Option<Vec<ARMRegisterField>> {
+        match self {
+            ARMRegister::PSR => Some(vec![
+                ARMRegisterField::bit(31, "N"),
+                ARMRegisterField::bit(30, "Z"),
+                ARMRegisterField::bit(29, "C"),
+                ARMRegisterField::bit(28, "V"),
+                ARMRegisterField::bit(27, "Q"),
+                ARMRegisterField::field(26, 25, "IC/IT"),
+                ARMRegisterField::bit(24, "T"),
+                ARMRegisterField::field(19, 16, "GE"),
+                ARMRegisterField::field(15, 10, "IC/IT"),
+                ARMRegisterField::field(8, 0, "Exception"),
+            ]),
+            ARMRegister::SPR => Some(vec![
+                ARMRegisterField::bit(26, "CONTROL.FPCA"),
+                ARMRegisterField::bit(25, "CONTROL.SPSEL"),
+                ARMRegisterField::bit(24, "CONTROL.nPRIV"),
+                ARMRegisterField::bit(16, "FAULTMASK"),
+                ARMRegisterField::field(15, 8, "BASEPRI"),
+                ARMRegisterField::bit(0, "PRIMASK"),
+            ]),
+            _ => None,
+        }
     }
 }
 

@@ -5,10 +5,10 @@
 //! ## `humility registers`
 //!
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
+use humility::arch::{ARMRegister, ARMRegisterField};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
@@ -32,42 +32,77 @@ struct RegistersArgs {
     fp: bool,
 }
 
-fn print_stack(
-    hubris: &HubrisArchive,
-    stack: &[HubrisStackFrame],
-    subargs: &RegistersArgs,
-) {
-    for frame in stack {
-        let pc = frame.registers.get(&ARMRegister::PC).unwrap();
+fn print_reg(reg: ARMRegister, val: u32, fields: &[ARMRegisterField]) {
+    print!("{:>5} = 0x{:08x} <- ", reg, val);
+    let indent = 5 + "= 0x00000000 <- ".len();
 
-        if let Some(ref inlined) = frame.inlined {
-            for inline in inlined {
-                println!(
-                    "0x{:08x} 0x{:08x} {}",
-                    frame.cfa, inline.addr, inline.name
-                );
+    for i in (0..32).step_by(4).rev() {
+        print!("{:04b}", (val >> i) & 0b1111);
 
-                if subargs.line {
-                    if let Some(src) = hubris.lookup_src(inline.origin) {
-                        println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
-                    }
-                }
-            }
-        }
-
-        if let Some(sym) = frame.sym {
-            println!(
-                "0x{:08x} 0x{:08x} {}",
-                frame.cfa, *pc, sym.demangled_name
-            );
-
-            if subargs.line {
-                if let Some(src) = hubris.lookup_src(sym.goff) {
-                    println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
-                }
-            }
+        if i != 0 {
+            print!("_");
         } else {
-            println!("0x{:08x} 0x{:08x}", frame.cfa, *pc);
+            println!();
+        }
+    }
+
+    fn print_bars(f: &[ARMRegisterField], elbow: bool) {
+        let mut pos = 32;
+
+        for i in 0..f.len() {
+            while pos > f[i].lowbit {
+                print!(" ");
+
+                if pos % 4 == 0 && pos != 32 {
+                    print!(" ");
+                }
+
+                pos -= 1;
+            }
+
+            if elbow && i == f.len() - 1 {
+                print!("+");
+
+                while pos > 0 {
+                    print!("-");
+                    if pos % 4 == 0 && pos != 32 {
+                        print!("-");
+                    }
+
+                    pos -= 1;
+                }
+
+                print!(" ");
+                break;
+            }
+
+            print!("|");
+
+            if pos == 0 {
+                break;
+            }
+
+            if pos % 4 == 0 && pos != 32 {
+                print!(" ");
+            }
+            pos -= 1;
+        }
+    }
+
+    print!("{:indent$}", "");
+    print_bars(fields, false);
+    println!();
+
+    for (ndx, field) in fields.iter().enumerate().rev() {
+        print!("{:indent$}", "");
+        print_bars(&fields[0..=ndx], true);
+
+        let mask = ((1u64 << (field.highbit - field.lowbit + 1)) - 1) as u32;
+
+        if mask == 1 {
+            println!("{} = {}", field.name, (val >> field.lowbit) & mask);
+        } else {
+            println!("{} = 0x{:x}", field.name, (val >> field.lowbit) & mask);
         }
     }
 
@@ -83,7 +118,7 @@ fn registers(
     let subargs = RegistersArgs::try_parse_from(subargs)?;
     let mut regs = BTreeMap::new();
 
-    if subargs.fp {
+    if subargs.fp && !core.is_dump() {
         let mvfr = MVFR0::read(core)?;
 
         if mvfr.simd_registers() != 1 {
@@ -109,6 +144,9 @@ fn registers(
         }
     };
 
+    //
+    // Read all of our registers first...
+    //
     for i in 0..=ARMRegister::max() {
         let reg = match ARMRegister::from_u16(i) {
             Some(r) => r,
@@ -129,48 +167,74 @@ fn registers(
         };
 
         regs.insert(reg, val);
+    }
+
+    let printer = humility_cmd::stack::StackPrinter {
+        indent: 8,
+        line: subargs.line,
+        ..Default::default()
+    };
+
+    for (reg, val) in regs.iter() {
+        let val = *val;
+
+        if let Some(fields) = reg.fields() {
+            print_reg(*reg, val, &fields);
+            continue;
+        }
 
         println!(
             "{:>5} = 0x{:08x}{}",
-            format!("{:?}", reg),
+            reg,
             val,
-            if reg.is_general_purpose() {
+            if !reg.is_floating_point() {
                 match hubris.explain(&regions, val) {
-                    Some(explain) => format!("  <- {}", explain),
+                    Some(explain) => format!(" <- {}", explain),
                     None => "".to_string(),
                 }
             } else {
                 "".to_string()
             }
         );
-    }
 
-    if subargs.stack {
-        //
-        // Determine the task that contains the SP
-        //
-        let sp = regs.get(&ARMRegister::SP).ok_or_else(|| {
-            let _ = core.run();
-            anyhow!("can't print stack: SP missing")
-        })?;
+        if subargs.stack && *reg == ARMRegister::SP {
+            if let Some((_, region)) = regions.range(..=val).next_back() {
+                let task = if region.tasks.len() == 1 {
+                    region.tasks[0]
+                } else {
+                    humility::msg!(
+                        "multiple tasks map 0x{:x}: {:?}",
+                        val,
+                        region.tasks
+                    );
+                    continue;
+                };
 
-        if let Some((_, region)) = regions.range(..=sp).next_back() {
-            let task = if region.tasks.len() == 1 {
-                region.tasks[0]
-            } else {
-                core.run()?;
-                bail!("multiple tasks map 0x{:x}: {:?}", sp, region.tasks);
-            };
+                match hubris.stack(core, task, region.base + region.size, &regs)
+                {
+                    Ok(stack) => printer.print(hubris, &stack),
+                    Err(e) => {
+                        //
+                        // If this a kernel stack and it's a dump, it's quite
+                        // likely that this dump pre-dates our dumping of
+                        // kernel stacks; in classic Humility fashion, phrase
+                        // our hunch in the form of a question.
+                        //
+                        if core.is_dump() && task == HubrisTask::Kernel {
+                            humility::msg!(
+                                "kernel stack missing; \
+                                does the dump pre-date dumped kernel stacks?"
+                            );
+                        } else {
+                            humility::msg!("stack unwind failed: {:?} ", e);
+                        }
 
-            match hubris.stack(core, task, region.base + region.size, &regs) {
-                Ok(stack) => print_stack(hubris, &stack, &subargs),
-                Err(e) => {
-                    eprintln!("   stack unwind failed: {:?} ", e);
+                        continue;
+                    }
                 }
+            } else {
+                humility::msg!("unknown region for SP 0x{:08x}", val);
             }
-        } else {
-            core.run()?;
-            bail!("unknown region for SP 0x{:08x}", sp);
         }
     }
 
