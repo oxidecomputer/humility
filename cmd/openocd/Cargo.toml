@@ -1,0 +1,13 @@
+[package]
+name = "humility-cmd-openocd"
+version = "0.1.0"
+edition = "2021"
+description = "Run OpenOCD for the given archive"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+ctrlc = "3.1.5"
+tempfile = "3.3"

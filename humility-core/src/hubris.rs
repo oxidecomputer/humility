@@ -41,6 +41,7 @@ pub struct HubrisManifest {
     gitrev: Option<String>,
     features: Vec<String>,
     board: Option<String>,
+    pub name: Option<String>,
     target: Option<String>,
     task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
@@ -61,6 +62,7 @@ pub struct HubrisManifest {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfig {
     target: String,
+    name: String,
     board: String,
     kernel: HubrisConfigKernel,
     tasks: IndexMap<String, HubrisConfigTask>,
@@ -2183,6 +2185,7 @@ impl HubrisArchive {
         peripherals: Option<&IndexMap<String, HubrisConfigPeripheral>>,
     ) -> Result<()> {
         self.manifest.board = Some(config.board.clone());
+        self.manifest.name = Some(config.name.clone());
         self.manifest.target = Some(config.target.clone());
         self.manifest.features = config.kernel.features.clone();
 
@@ -2343,6 +2346,23 @@ impl HubrisArchive {
         // fact that these are stored in task ID order in the
         // archive.
         //
+        Self::for_each_task(archive, |path, buffer| {
+            self.load_object(
+                path.file_name().unwrap().to_str().unwrap(),
+                HubrisTask::Task(id),
+                buffer,
+            )?;
+            id += 1;
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    fn for_each_task<F: FnMut(&Path, &[u8]) -> Result<()>>(
+        mut archive: zip::ZipArchive<Cursor<&[u8]>>,
+        mut f: F,
+    ) -> Result<()> {
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
             let path = Path::new(file.name());
@@ -2356,19 +2376,10 @@ impl HubrisArchive {
                 continue;
             }
 
-            let object = match pieces[pieces.len() - 1].to_str() {
-                Some(s) => s.to_string(),
-                None => {
-                    bail!("bad object name for \"{}\"", file.name());
-                }
-            };
-
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
-            self.load_object(&object, HubrisTask::Task(id), &buffer)?;
-            id += 1;
+            f(Path::new(file.name()), &buffer)?;
         }
-
         Ok(())
     }
 
@@ -2802,6 +2813,14 @@ impl HubrisArchive {
             boot; to debug, reset while running either \"humility itm\" or \
             (if ITM is unavailable), debug via semihosting"
         );
+    }
+
+    pub fn image_id_addr(&self) -> Option<u32> {
+        self.imageid.as_ref().map(|i| i.0)
+    }
+
+    pub fn image_id(&self) -> Option<&[u8]> {
+        self.imageid.as_ref().map(|i| i.1.as_slice())
     }
 
     pub fn member_offset(
@@ -4084,6 +4103,35 @@ impl HubrisArchive {
             }
         }
 
+        Ok(())
+    }
+
+    pub fn extract_file_to(&self, filename: &str, target: &Path) -> Result<()> {
+        let cursor = Cursor::new(self.archive.as_slice());
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let mut file = archive
+            .by_name(filename)
+            .map_err(|e| anyhow!("failed to find '{}': {}", filename, e))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+
+        std::fs::write(target, &buffer).map_err(Into::into)
+    }
+
+    /// Copies the kernel and every task ELF file to the given directory.
+    pub fn extract_elfs_to(&self, p: &Path) -> Result<()> {
+        self.extract_file_to("elf/kernel", &p.join("kernel"))?;
+
+        // `stage0` is only present in some cases, so we ignore errors here
+        let _ = self.extract_file_to("img/stage0", &p.join("stage0"));
+
+        let cursor = Cursor::new(self.archive.as_slice());
+        let archive = zip::ZipArchive::new(cursor)?;
+        Self::for_each_task(archive, |path, buffer| {
+            let file_name = p.join(path.file_name().unwrap());
+            std::fs::write(file_name, &buffer)?;
+            Ok(())
+        })?;
         Ok(())
     }
 

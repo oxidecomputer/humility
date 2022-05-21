@@ -17,8 +17,9 @@ members = [
     "cmd/dump",
     "cmd/etm",
     "cmd/extract",
-    "cmd/gpio",
     "cmd/flash",
+    "cmd/gdb",
+    "cmd/gpio",
     "cmd/hash",
     "cmd/hiffy",
     "cmd/i2c",
@@ -27,6 +28,7 @@ members = [
     "cmd/lpc55gpio",
     "cmd/manifest",
     "cmd/map",
+    "cmd/openocd",
     "cmd/pmbus",
     "cmd/probe",
     "cmd/qspi",
@@ -76,6 +78,7 @@ cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
 cmd-extract = { path = "./cmd/extract", package = "humility-cmd-extract" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
+cmd-gdb = { path = "./cmd/gdb", package = "humility-cmd-gdb" }
 cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
 cmd-hash = { path = "./cmd/hash", package = "humility-cmd-hash" }
 cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
@@ -85,6 +88,7 @@ cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
+cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
 cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
 cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
