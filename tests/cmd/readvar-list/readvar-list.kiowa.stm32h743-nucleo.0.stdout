@@ -19,10 +19,8 @@ jefe               JEFE_EXTERNAL_REQUESTS         0x2000464c 4
 jefe               JEFE_EXTERNAL_TASKINDEX        0x20004644 4
 jefe               __RINGBUF                      0x20004600 60
 gpio_driver        RCC                            0x08023304 2
-gpio_driver        _TASK_SLOT_TABLE_RCC           0x00000000 18
 usart_driver       GPIO                           0x0802522e 2
 usart_driver       RCC                            0x0802522c 2
-usart_driver       _TASK_SLOT_TABLE_GPIO          0x00000012 19
 i2c_driver         GPIO                           0x08015d5a 2
 i2c_driver         RCC                            0x08015d58 2
 i2c_driver         __RINGBUF                      0x20004f0c 204
@@ -46,8 +44,6 @@ hiffy              HIFFY_VERSION_MAJOR            0x2000ee2c 4
 hiffy              HIFFY_VERSION_MINOR            0x20008e14 4
 hiffy              HIFFY_VERSION_PATCH            0x20008e18 4
 hiffy              I2C                            0x0800b9b6 2
-hiffy              _TASK_SLOT_TABLE_GPIO          0x0000000a 19
-hiffy              _TASK_SLOT_TABLE_I2C           0x0000001d 18
 hiffy              __RINGBUF                      0x20008808 1548
 hf                 GPIO                           0x0801daa6 2
 hf                 RCC                            0x0801daa4 2

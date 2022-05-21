@@ -19,10 +19,8 @@ jefe               JEFE_EXTERNAL_REQUESTS         0x2001164c 4
 jefe               JEFE_EXTERNAL_TASKINDEX        0x20011644 4
 jefe               __RINGBUF                      0x20011600 60
 gpio_driver        RCC                            0x08043304 2
-gpio_driver        _TASK_SLOT_TABLE_RCC           0x00000000 18
 spi4_driver        GPIO                           0x0802dff2 2
 spi4_driver        RCC                            0x0802dff0 2
-spi4_driver        _TASK_SLOT_TABLE_GPIO          0x00000012 19
 spi4_driver        __RINGBUF                      0x200013e8 1036
 spi2_driver        GPIO                           0x0803214e 2
 spi2_driver        RCC                            0x0803214c 2
@@ -35,7 +33,6 @@ spd                GPIO                           0x0803a3b6 2
 spd                I2C                            0x0803a3b8 2
 spd                RCC                            0x0803a3b4 2
 spd                SPD_DATA                       0x20004818 8192
-spd                _TASK_SLOT_TABLE_I2C           0x00000025 18
 spd                __RINGBUF                      0x20004400 268
 spd                __RINGBUF                      0x2000450c 780
 thermal            I2C                            0x08013e1c 2
@@ -54,11 +51,8 @@ hiffy              HIFFY_VERSION_MAJOR            0x2000ee2c 4
 hiffy              HIFFY_VERSION_MINOR            0x20008e14 4
 hiffy              HIFFY_VERSION_PATCH            0x20008e18 4
 hiffy              I2C                            0x0800bcee 2
-hiffy              _TASK_SLOT_TABLE_GPIO          0x0000000a 19
-hiffy              _TASK_SLOT_TABLE_I2C           0x0000001d 18
 hiffy              __RINGBUF                      0x20008808 1548
 gimlet_seq         GPIO                           0x08026db0 2
 gimlet_seq         SPI                            0x08026db2 2
-gimlet_seq         _TASK_SLOT_TABLE_SPI           0x00000013 18
 hf                 GPIO                           0x0803da82 2
 hf                 RCC                            0x0803da80 2

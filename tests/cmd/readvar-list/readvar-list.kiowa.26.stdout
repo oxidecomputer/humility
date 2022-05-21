@@ -24,7 +24,6 @@ jefe               JEFE_EXTERNAL_REQUEST          0x20001640 4
 jefe               JEFE_EXTERNAL_REQUESTS         0x2000164c 4
 jefe               JEFE_EXTERNAL_TASKINDEX        0x20001644 4
 jefe               __RINGBUF                      0x20001600 60
-sys                _SYS_IDOL_DEFINITION           0x00000000 2587
 usart_driver       PANIC_BUFFER                   0x20006f80 128
 usart_driver       SYS                            0x0800b09c 2
 i2c_driver         PANIC_BUFFER                   0x20001f58 128
@@ -53,7 +52,6 @@ user_leds          SYS                            0x08006f1a 2
 ping               PANIC_BUFFER                   0x20007780 128
 ping               PEER                           0x08030ff8 2
 ping               UART                           0x08030ffa 2
-ping               _TASK_SLOT_TABLE_UART          0x0000000c 20
 pong               USER_LEDS                      0x08005a2c 2
 udpecho            NET                            0x0802ee74 2
 udpecho            PANIC_BUFFER                   0x20005004 128
@@ -72,5 +70,4 @@ hiffy              HIFFY_VERSION_PATCH            0x20008e18 4
 hiffy              I2C                            0x080234fa 2
 hiffy              PANIC_BUFFER                   0x2000ee1c 128
 hiffy              SYS                            0x080234f8 2
-hiffy              _TASK_SLOT_TABLE_I2C           0x0000000b 18
 hiffy              __RINGBUF                      0x20008808 1548

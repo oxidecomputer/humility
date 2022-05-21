@@ -30,12 +30,10 @@ hiffy              HIFFY_VERSION_MAJOR            0x2000a628 4
 hiffy              HIFFY_VERSION_MINOR            0x20008e10 4
 hiffy              HIFFY_VERSION_PATCH            0x20008e14 4
 hiffy              LPC55_RINGBUF                  0x20008808 1544
-hiffy              _TASK_SLOT_TABLE_GPIO          0x00000000 19
 gpio_driver        SYSCON                         0x00025bc0 2
 user_leds          GPIO                           0x000292e8 2
 usart_driver       GPIO                           0x0002d47e 2
 usart_driver       SYSCON                         0x0002d47c 2
-usart_driver       _TASK_SLOT_TABLE_GPIO          0x00000015 19
 i2c_driver         GPIO                           0x00031696 2
 i2c_driver         SYSCON                         0x00031694 2
 rng_driver         SYSCON                         0x00035188 2
@@ -43,7 +41,6 @@ spi_driver         GPIO                           0x0003991e 2
 spi_driver         SYSCON                         0x0003991c 2
 ping               PEER                           0x0003d200 2
 ping               UART                           0x0003d202 2
-ping               _TASK_SLOT_TABLE_UART          0x0000000c 20
 pong               USER_LEDS                      0x0003eff0 2
 spam               HSTDOUT                        0x2000c7e8 8
 spam               I2C                            0x00041010 2

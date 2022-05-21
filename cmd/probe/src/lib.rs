@@ -329,6 +329,12 @@ fn probecmd(
         core.halt()?;
     }
 
+    //
+    // We want to eat any errors here: if we can't ascertain our memory
+    // regions, it will just mean that we can't annotate register values.
+    //
+    let regions = hubris.regions(core).unwrap_or_default();
+
     for i in 0..31 {
         let reg = match ARMRegister::from_u16(i) {
             Some(r) => r,
@@ -343,18 +349,10 @@ fn probecmd(
             "{:>12} => 0x{:8} {}",
             format!("{:?}", reg),
             format!("{:x}", val),
-            if i <= 15 {
-                if let Some(sval) = hubris.instr_sym(val) {
-                    format!(" <- {}{}+0x{:x}",
-                        match hubris.instr_mod(val) {
-                            Some(module) if module != "kernel" => {
-                                format!("{}:", module)
-                            }
-                            _ => "".to_string()
-                        },
-                        sval.0, val - sval.1)
-                } else {
-                    "".to_string()
+            if reg.is_general_purpose() {
+                match hubris.explain(&regions, val) {
+                    Some(explain) => format!("  <- {}", explain),
+                    None => "".to_string(),
                 }
             } else {
                 "".to_string()

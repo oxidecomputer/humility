@@ -17,7 +17,8 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08005740 0x08060000 - 0x08061fff    8KiB r-x-- 12 sensor
 0x08005600 0x08062000 - 0x080627ff    2KiB r-x-- 2  sys
 0x08005780 0x08062800 - 0x0806287f     128 r-x-- 14 idle
-0x080055a0 0x1ff00000 - 0x1ff1ffff  128KiB rw-d- 1  net
+0x080055a0 0x1ff00000 - 0x1ff1ffff  128KiB rw-d- 1  [system_flash] net
+-          0x20000000 - 0x200003ff    1KiB rw--- -  kernel
 -          0x20000400 - 0x20001fff    7KiB rw--- -  kernel
 0x080055e0 0x20002000 - 0x20003fff    8KiB rw--- 1  net
 0x08005690 0x20004000 - 0x20007fff   16KiB rw--- 6  spd
@@ -35,16 +36,16 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08005610 0x20017800 - 0x20017bff    1KiB rw--- 2  sys
 0x08005790 0x20017c00 - 0x20017cff     256 rw--- 14 idle
 0x080055f0 0x30000000 - 0x30003fff   16KiB rw--m 1  net
-0x08005510 0x40003800 - 0x40003bff    1KiB rw-d- 4  spi2_driver
-0x08005530 0x40005400 - 0x400057ff    1KiB rw-d- 6  spd
-0x08005540 0x40005800 - 0x40005bff    1KiB rw-d- 5  i2c_driver
-0x08005550 0x40005c00 - 0x40005fff    1KiB rw-d- 5  i2c_driver
-0x08005520 0x40013400 - 0x400137ff    1KiB rw-d- 3  spi4_driver
-0x08005580 0x40028000 - 0x40028fff    4KiB rw-d- 1  net
-0x08005590 0x40029000 - 0x400293ff    1KiB rw-d- 1  net
-0x08005570 0x52005000 - 0x52005fff    4KiB rw-d- 11 hf
-0x08005560 0x58001c00 - 0x58001fff    1KiB rw-d- 5  i2c_driver
-0x080054e0 0x58020000 - 0x58021fff    8KiB rw-d- 2  sys
-0x080054f0 0x58022000 - 0x580227ff    2KiB rw-d- 2  sys
-0x08005500 0x58022800 - 0x58022bff    1KiB rw-d- 2  sys
-0x080054d0 0x58024400 - 0x580247ff    1KiB rw-d- 2  sys
+0x08005510 0x40003800 - 0x40003bff    1KiB rw-d- 4  [spi2] spi2_driver
+0x08005530 0x40005400 - 0x400057ff    1KiB rw-d- 6  [i2c1] spd
+0x08005540 0x40005800 - 0x40005bff    1KiB rw-d- 5  [i2c2] i2c_driver
+0x08005550 0x40005c00 - 0x40005fff    1KiB rw-d- 5  [i2c3] i2c_driver
+0x08005520 0x40013400 - 0x400137ff    1KiB rw-d- 3  [spi4] spi4_driver
+0x08005580 0x40028000 - 0x40028fff    4KiB rw-d- 1  [eth] net
+0x08005590 0x40029000 - 0x400293ff    1KiB rw-d- 1  [eth_dma] net
+0x08005570 0x52005000 - 0x52005fff    4KiB rw-d- 11 [quadspi] hf
+0x08005560 0x58001c00 - 0x58001fff    1KiB rw-d- 5  [i2c4] i2c_driver
+0x080054e0 0x58020000 - 0x58021fff    8KiB rw-d- 2  [gpios1] sys
+0x080054f0 0x58022000 - 0x580227ff    2KiB rw-d- 2  [gpios2] sys
+0x08005500 0x58022800 - 0x58022bff    1KiB rw-d- 2  [gpios3] sys
+0x080054d0 0x58024400 - 0x580247ff    1KiB rw-d- 2  [rcc] sys

@@ -8,6 +8,7 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08002d00 0x08004000 - 0x08005fff    8KiB r-x-- 4  hiffy
 0x08002c80 0x08006000 - 0x08006fff    4KiB r-x-- 0  jefe
 0x08002ce0 0x08007000 - 0x080077ff    2KiB r-x-- 3  user_leds
+-          0x20000000 - 0x2000027f     640 rw--- -  kernel
 -          0x20000280 - 0x200007c7    1KiB rw--- -  kernel
 0x08002d30 0x20000800 - 0x2000083f      64 rw--- 5  idle
 0x08002cb0 0x20000900 - 0x200009ff     256 rw--- 1  sys
@@ -15,5 +16,5 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08002cd0 0x20000c00 - 0x20000cff     256 rw--- 2  pong
 0x08002cf0 0x20000d00 - 0x20000dff     256 rw--- 3  user_leds
 0x08002d10 0x20001000 - 0x200017ff    2KiB rw--- 4  hiffy
-0x08002c50 0x40021000 - 0x400213ff    1KiB rw-d- 1  sys
-0x08002c60 0x50000000 - 0x50001fff    8KiB rw-d- 1  sys
+0x08002c50 0x40021000 - 0x400213ff    1KiB rw-d- 1  [rcc] sys
+0x08002c60 0x50000000 - 0x50001fff    8KiB rw-d- 1  [gpio] sys

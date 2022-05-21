@@ -18,11 +18,9 @@ jefe               JEFE_EXTERNAL_REQUEST          0x20013640 4
 jefe               JEFE_EXTERNAL_REQUESTS         0x2001364c 4
 jefe               JEFE_EXTERNAL_TASKINDEX        0x20013644 4
 jefe               __RINGBUF                      0x20013600 60
-rcc_driver         _RCC_IDOL_DEFINITION           0x00000000 1075
 gpio_driver        RCC                            0x0804f304 2
 spi4_driver        GPIO                           0x08036092 2
 spi4_driver        RCC                            0x08036090 2
-spi4_driver        _TASK_SLOT_TABLE_GPIO          0x00000012 19
 spi4_driver        __RINGBUF                      0x200013e8 1036
 spi2_driver        GPIO                           0x0803a22e 2
 spi2_driver        RCC                            0x0803a22c 2
@@ -35,7 +33,6 @@ spd                GPIO                           0x080424de 2
 spd                I2C                            0x080424e0 2
 spd                RCC                            0x080424dc 2
 spd                SPD_DATA                       0x20004818 8192
-spd                _TASK_SLOT_TABLE_I2C           0x00000025 18
 spd                __RINGBUF                      0x20004400 268
 spd                __RINGBUF                      0x2000450c 780
 thermal            I2C                            0x08013b60 2
@@ -44,7 +41,6 @@ thermal            __RINGBUF                      0x20002800 524
 power              I2C                            0x08051688 2
 power              SENSOR                         0x0805168a 2
 power              SEQUENCER                      0x0805168c 2
-power              _TASK_SLOT_TABLE_SEQUENCER     0x00000020 18
 power              __RINGBUF                      0x200144b0 396
 hiffy              GPIO                           0x0800bf40 2
 hiffy              HF                             0x0800bda8 2
@@ -60,15 +56,11 @@ hiffy              HIFFY_VERSION_MAJOR            0x2000ea2c 4
 hiffy              HIFFY_VERSION_MINOR            0x20008a14 4
 hiffy              HIFFY_VERSION_PATCH            0x20008a18 4
 hiffy              I2C                            0x0800bf42 2
-hiffy              _TASK_SLOT_TABLE_GPIO          0x0000000a 19
-hiffy              _TASK_SLOT_TABLE_I2C           0x0000001d 18
 hiffy              __RINGBUF                      0x20008408 1548
 gimlet_seq         GPIO                           0x08029078 2
 gimlet_seq         HF                             0x0802907c 2
 gimlet_seq         I2C                            0x080290c0 2
 gimlet_seq         SPI                            0x0802907a 2
-gimlet_seq         _TASK_SLOT_TABLE_I2C           0x0000002f 18
-gimlet_seq         _TASK_SLOT_TABLE_SPI           0x00000013 18
 gimlet_seq         __RINGBUF                      0x20010400 1036
 hf                 GPIO                           0x08045b52 2
 hf                 RCC                            0x08045b50 2

@@ -19,9 +19,6 @@ spd                I2C                            0x08019b90 2
 spd                RCC                            0x08019b8c 2
 spd                STM32H7_I2C_RINGBUF            0x20003400 264
 spd                TASK_SPD_RINGBUF               0x20003508 200
-spd                _peer_task_GPIO                0x00000012 19
-spd                _peer_task_I2C                 0x00000025 18
-spd                _peer_task_RCC                 0x00000000 18
 spi2_driver        STM32H7_SPI_SERVER_RINGBUF     0x200043e8 1288
 spi4_driver        STM32H7_SPI_SERVER_RINGBUF     0x200053e8 1288
 thermal            DS2482_RINGBUF                 0x20008800 3144

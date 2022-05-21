@@ -20,7 +20,7 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x080047b0 0x20003000 - 0x20003fff    4KiB rwx-- 5  log
 0x080047d0 0x20004000 - 0x20004fff    4KiB rwx-- 6  pong
 0x080047f0 0x20005000 - 0x200050ff     256 rwx-- 7  idle
-0x080046c0 0x40004400 - 0x400047ff    1KiB rw-d- 2  usart_driver
-0x080046e0 0x40020000 - 0x400203ff    1KiB rw-d- 2  usart_driver
-0x080046f0 0x40020c00 - 0x40020fff    1KiB rw-d- 3  user_leds
-0x080046d0 0x40023800 - 0x40023bff    1KiB rw-d- 1  rcc_driver
+0x080046c0 0x40004400 - 0x400047ff    1KiB rw-d- 2  [usart2] usart_driver
+0x080046e0 0x40020000 - 0x400203ff    1KiB rw-d- 2  [gpioa] usart_driver
+0x080046f0 0x40020c00 - 0x40020fff    1KiB rw-d- 3  [gpiod] user_leds
+0x080046d0 0x40023800 - 0x40023bff    1KiB rw-d- 1  [rcc] rcc_driver

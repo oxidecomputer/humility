@@ -16,6 +16,7 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08005148 0x0803e000 - 0x0803ffff    8KiB r-x-- 7  thermal
 0x080051e8 0x08040000 - 0x08041fff    8KiB r-x-- 12 sensor
 0x08005208 0x08042000 - 0x0804207f     128 r-x-- 13 idle
+-          0x20000000 - 0x200003ff    1KiB rw--- -  kernel
 -          0x20000400 - 0x20000fff    3KiB rw--- -  kernel
 0x08005178 0x20001000 - 0x20001fff    4KiB rw--- 8  power
 0x080051b8 0x20002000 - 0x20002fff    4KiB rw--- 10 gimlet_seq
@@ -31,14 +32,14 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08005098 0x20012800 - 0x20012bff    1KiB rw--- 1  rcc_driver
 0x080050b8 0x20012c00 - 0x20012fff    1KiB rw--- 2  gpio_driver
 0x08005218 0x20013000 - 0x200130ff     256 rw--- 13 idle
-0x08004fe8 0x40003800 - 0x40003bff    1KiB rw-d- 4  spi2_driver
-0x08005018 0x40005400 - 0x400057ff    1KiB rw-d- 6  spd
-0x08005028 0x40005800 - 0x40005bff    1KiB rw-d- 5  i2c_driver
-0x08005038 0x40005c00 - 0x40005fff    1KiB rw-d- 5  i2c_driver
-0x08004ff8 0x40013400 - 0x400137ff    1KiB rw-d- 3  spi4_driver
-0x08005058 0x52005000 - 0x52005fff    4KiB rw-d- 11 hf
-0x08005048 0x58001c00 - 0x58001fff    1KiB rw-d- 5  i2c_driver
-0x08004fb8 0x58020000 - 0x58021fff    8KiB rw-d- 2  gpio_driver
-0x08004fc8 0x58022000 - 0x580227ff    2KiB rw-d- 2  gpio_driver
-0x08004fd8 0x58022800 - 0x58022bff    1KiB rw-d- 2  gpio_driver
-0x08004fa8 0x58024400 - 0x580247ff    1KiB rw-d- 1  rcc_driver
+0x08004fe8 0x40003800 - 0x40003bff    1KiB rw-d- 4  [spi2] spi2_driver
+0x08005018 0x40005400 - 0x400057ff    1KiB rw-d- 6  [i2c1] spd
+0x08005028 0x40005800 - 0x40005bff    1KiB rw-d- 5  [i2c2] i2c_driver
+0x08005038 0x40005c00 - 0x40005fff    1KiB rw-d- 5  [i2c3] i2c_driver
+0x08004ff8 0x40013400 - 0x400137ff    1KiB rw-d- 3  [spi4] spi4_driver
+0x08005058 0x52005000 - 0x52005fff    4KiB rw-d- 11 [quadspi] hf
+0x08005048 0x58001c00 - 0x58001fff    1KiB rw-d- 5  [i2c4] i2c_driver
+0x08004fb8 0x58020000 - 0x58021fff    8KiB rw-d- 2  [gpios1] gpio_driver
+0x08004fc8 0x58022000 - 0x580227ff    2KiB rw-d- 2  [gpios2] gpio_driver
+0x08004fd8 0x58022800 - 0x58022bff    1KiB rw-d- 2  [gpios3] gpio_driver
+0x08004fa8 0x58024400 - 0x580247ff    1KiB rw-d- 1  [rcc] rcc_driver

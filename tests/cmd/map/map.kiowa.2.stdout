@@ -22,12 +22,12 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08004b78 0x20002800 - 0x20002bff    1KiB rw--- 6  pong
 0x08004b98 0x20004000 - 0x20005fff    8KiB rw--- 7  i2c_debug
 0x08004bb8 0x20006000 - 0x200060ff     256 rw--- 8  idle
-0x08004a58 0x40004800 - 0x40004bff    1KiB rw-d- 3  usart_driver
-0x08004a68 0x40005400 - 0x400057ff    1KiB rw-d- 4  i2c_driver
-0x08004a78 0x40005800 - 0x40005bff    1KiB rw-d- 4  i2c_driver
-0x08004a88 0x40005c00 - 0x40005fff    1KiB rw-d- 4  i2c_driver
-0x08004a98 0x58001c00 - 0x58001fff    1KiB rw-d- 4  i2c_driver
-0x08004a28 0x58020000 - 0x58021fff    8KiB rw-d- 2  gpio_driver
-0x08004a38 0x58022000 - 0x580227ff    2KiB rw-d- 2  gpio_driver
-0x08004a48 0x58022800 - 0x58022bff    1KiB rw-d- 2  gpio_driver
-0x08004a18 0x58024400 - 0x580247ff    1KiB rw-d- 1  rcc_driver
+0x08004a58 0x40004800 - 0x40004bff    1KiB rw-d- 3  [usart3] usart_driver
+0x08004a68 0x40005400 - 0x400057ff    1KiB rw-d- 4  [i2c1] i2c_driver
+0x08004a78 0x40005800 - 0x40005bff    1KiB rw-d- 4  [i2c2] i2c_driver
+0x08004a88 0x40005c00 - 0x40005fff    1KiB rw-d- 4  [i2c3] i2c_driver
+0x08004a98 0x58001c00 - 0x58001fff    1KiB rw-d- 4  [i2c4] i2c_driver
+0x08004a28 0x58020000 - 0x58021fff    8KiB rw-d- 2  [gpios1] gpio_driver
+0x08004a38 0x58022000 - 0x580227ff    2KiB rw-d- 2  [gpios2] gpio_driver
+0x08004a48 0x58022800 - 0x58022bff    1KiB rw-d- 2  [gpios3] gpio_driver
+0x08004a18 0x58024400 - 0x580247ff    1KiB rw-d- 1  [rcc] rcc_driver

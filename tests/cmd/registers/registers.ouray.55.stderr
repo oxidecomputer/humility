@@ -1,0 +1,2 @@
+humility: attached to dump
+humility: failed to determine memory regions: 0x20000004 is valid, but relative to base (0x8058000), offset (0x17fa8008) exceeds max (0x58)

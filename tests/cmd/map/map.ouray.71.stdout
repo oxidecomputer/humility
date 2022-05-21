@@ -15,6 +15,7 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08007a5c 0x0802a000 - 0x0802bfff    8KiB r-x-- 7  user_leds
 0x08007a7c 0x0802c000 - 0x0802dfff    8KiB r-x-- 8  pong
 0x08007adc 0x0802e000 - 0x0802e0ff     256 r-x-- 11 idle
+-          0x20000000 - 0x200003ff    1KiB rw--- -  kernel
 -          0x20000400 - 0x20000fff    3KiB rw--- -  kernel
 0x08007a4c 0x20001000 - 0x20001fff    4KiB rw--- 6  spi_driver
 0x0800798c 0x20002000 - 0x200027ff    2KiB rw--- 0  jefe
@@ -28,13 +29,13 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x08007a6c 0x20010400 - 0x200107ff    1KiB rw--- 7  user_leds
 0x08007a8c 0x20010800 - 0x20010bff    1KiB rw--- 8  pong
 0x08007aec 0x20010c00 - 0x20010cff     256 rw--- 11 idle
-0x0800791c 0x40004800 - 0x40004bff    1KiB rw-d- 3  usart_driver
-0x0800793c 0x40005800 - 0x40005bff    1KiB rw-d- 5  spd
-0x0800794c 0x40005c00 - 0x40005fff    1KiB rw-d- 4  i2c_driver
-0x080078ec 0x40013400 - 0x400137ff    1KiB rw-d- 6  spi_driver
-0x0800796c 0x52005000 - 0x52005fff    4KiB rw-d- 10 hf
-0x0800795c 0x58001c00 - 0x58001fff    1KiB rw-d- 4  i2c_driver
-0x0800788c 0x58020000 - 0x58021fff    8KiB rw-d- 2  gpio_driver
-0x0800789c 0x58022000 - 0x580227ff    2KiB rw-d- 2  gpio_driver
-0x080078ac 0x58022800 - 0x58022bff    1KiB rw-d- 2  gpio_driver
-0x0800787c 0x58024400 - 0x580247ff    1KiB rw-d- 1  rcc_driver
+0x0800791c 0x40004800 - 0x40004bff    1KiB rw-d- 3  [usart3] usart_driver
+0x0800793c 0x40005800 - 0x40005bff    1KiB rw-d- 5  [i2c2] spd
+0x0800794c 0x40005c00 - 0x40005fff    1KiB rw-d- 4  [i2c3] i2c_driver
+0x080078ec 0x40013400 - 0x400137ff    1KiB rw-d- 6  [spi4] spi_driver
+0x0800796c 0x52005000 - 0x52005fff    4KiB rw-d- 10 [quadspi] hf
+0x0800795c 0x58001c00 - 0x58001fff    1KiB rw-d- 4  [i2c4] i2c_driver
+0x0800788c 0x58020000 - 0x58021fff    8KiB rw-d- 2  [gpios1] gpio_driver
+0x0800789c 0x58022000 - 0x580227ff    2KiB rw-d- 2  [gpios2] gpio_driver
+0x080078ac 0x58022800 - 0x58022bff    1KiB rw-d- 2  [gpios3] gpio_driver
+0x0800787c 0x58024400 - 0x580247ff    1KiB rw-d- 1  [rcc] rcc_driver
