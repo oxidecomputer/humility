@@ -16,9 +16,10 @@ members = [
     "cmd/doc",
     "cmd/dump",
     "cmd/etm",
+    "cmd/extract",
+    "cmd/flash",
     "cmd/gdb",
     "cmd/gpio",
-    "cmd/flash",
     "cmd/hash",
     "cmd/hiffy",
     "cmd/i2c",
@@ -33,6 +34,7 @@ members = [
     "cmd/qspi",
     "cmd/readmem",
     "cmd/readvar",
+    "cmd/registers",
     "cmd/rencm",
     "cmd/rendmp",
     "cmd/ringbuf",
@@ -74,6 +76,7 @@ cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-doc = { path = "./cmd/doc", package = "humility-cmd-doc" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
+cmd-extract = { path = "./cmd/extract", package = "humility-cmd-extract" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
 cmd-gdb = { path = "./cmd/gdb", package = "humility-cmd-gdb" }
 cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
@@ -91,6 +94,7 @@ cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
 cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
 cmd-readmem = { path = "./cmd/readmem", package = "humility-cmd-readmem" }
 cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
+cmd-registers = { path = "./cmd/registers", package = "humility-cmd-registers" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }

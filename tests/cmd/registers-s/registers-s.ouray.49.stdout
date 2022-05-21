@@ -1,0 +1,55 @@
+   R0 = 0x00000008
+   R1 = 0x00000001
+   R2 = 0x00000008
+   R3 = 0x20002ad4 <- i2c_driver: 0x20002800+0x2d4
+   R4 = 0x00000008
+   R5 = 0x00000001
+   R6 = 0x00008220
+   R7 = 0x20002b18 <- i2c_driver: 0x20002800+0x318
+   R8 = 0x20002bd0 <- i2c_driver: 0x20002800+0x3d0
+   R9 = 0x08014051 <- i2c_driver: call_once<closure-1,(u32)>+0x1
+  R10 = 0x00000040
+  R11 = 0x00000007
+  R12 = 0x00000000
+   SP = 0x20002ae0 <- i2c_driver: 0x20002800+0x2e0
+        |
+        +--->  0x20002af0 0x08016408 userlib::sys_irq_control_stub
+               0x20002b20 0x08015b9c drv_stm32h7_i2c::I2cController::write_read
+               0x20002b20 0x08015b9c drv_stm32h7_i2c::ltc4306::write_reg_u8
+               0x20002b20 0x08015bc0 <drv_stm32h7_i2c::ltc4306::Ltc4306 as drv_stm32h7_i2c::I2cMuxDriver>::enable_segment
+               0x20002c00 0x08014852 drv_stm32h7_i2c_server::configure_mux::{{closure}}
+               0x20002c00 0x08014830 drv_stm32h7_i2c_server::find_mux
+               0x20002c00 0x08014830 drv_stm32h7_i2c_server::configure_mux
+               0x20002c00 0x0801476e drv_stm32h7_i2c_server::main::{{closure}}
+               0x20002c00 0x0801476e userlib::hl::recv_without_notification::{{closure}}
+               0x20002c00 0x0801447a userlib::hl::recv
+               0x20002c00 0x0801447a userlib::hl::recv_without_notification
+               0x20002c00 0x080148a8 main
+               0x20002c00 0x0801404e _start
+
+   LR = 0x08015bc1 <- i2c_driver: enable_segment+0x10d
+   PC = 0x08016408 <- i2c_driver: sys_irq_control_stub+0xe
+  PSR = 0x01000000 <- 0000_0001_0000_0000_0000_0000_0000_0000
+                      |||| | ||         |       |           |
+                      |||| | ||         |       |           + Exception = 0x0
+                      |||| | ||         |       +------------ IC/IT = 0x0
+                      |||| | ||         +-------------------- GE = 0x0
+                      |||| | |+------------------------------ T = 1
+                      |||| | +------------------------------- IC/IT = 0x0
+                      |||| +--------------------------------- Q = 0
+                      |||+----------------------------------- V = 0
+                      ||+------------------------------------ C = 0
+                      |+------------------------------------- Z = 0
+                      +-------------------------------------- N = 0
+
+  MSP = 0x20000f58 <- kernel: 0x20000000+0xf58
+  PSP = 0x20002ae0 <- i2c_driver: 0x20002800+0x2e0
+  SPR = 0x07000000 <- 0000_0111_0000_0000_0000_0000_0000_0000
+                            |||         |         |         |
+                            |||         |         |         + PRIMASK = 0
+                            |||         |         +---------- BASEPRI = 0x0
+                            |||         +-------------------- FAULTMASK = 0
+                            ||+------------------------------ CONTROL.nPRIV = 1
+                            |+------------------------------- CONTROL.SPSEL = 1
+                            +-------------------------------- CONTROL.FPCA = 1
+

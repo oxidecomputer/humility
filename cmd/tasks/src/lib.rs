@@ -150,65 +150,6 @@ struct TasksArgs {
     task: Option<String>,
 }
 
-fn print_stack(
-    hubris: &HubrisArchive,
-    stack: &[HubrisStackFrame],
-    subargs: &TasksArgs,
-) {
-    let additional = subargs.registers || subargs.verbose;
-    let bar = if additional { "|" } else { " " };
-
-    print!("   |\n   +--->  ");
-
-    for i in 0..stack.len() {
-        let frame = &stack[i];
-        let pc = frame.registers.get(&ARMRegister::PC).unwrap();
-
-        if let Some(ref inlined) = frame.inlined {
-            for inline in inlined {
-                println!(
-                    "0x{:08x} 0x{:08x} {}",
-                    frame.cfa, inline.addr, inline.name
-                );
-                print!("   {}      ", bar);
-
-                if subargs.line {
-                    if let Some(src) = hubris.lookup_src(inline.origin) {
-                        println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
-                        print!("   {}      ", bar);
-                    }
-                }
-            }
-        }
-
-        if let Some(sym) = frame.sym {
-            println!(
-                "0x{:08x} 0x{:08x} {}",
-                frame.cfa, *pc, sym.demangled_name
-            );
-
-            if subargs.line {
-                if let Some(src) = hubris.lookup_src(sym.goff) {
-                    print!("   {}      ", bar);
-                    println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
-                }
-            }
-        } else {
-            println!("0x{:08x} 0x{:08x}", frame.cfa, *pc);
-        }
-
-        if i + 1 < stack.len() {
-            print!("   {}      ", bar);
-        }
-    }
-
-    if additional {
-        println!("   {}", bar);
-    } else {
-        println!();
-    }
-}
-
 fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
     let bar = if additional { "|" } else { " " };
 
@@ -248,6 +189,12 @@ fn tasks(
     let task_t = hubris.lookup_struct_byname("Task")?;
 
     let mut found = false;
+
+    let printer = humility_cmd::stack::StackPrinter {
+        indent: 3,
+        line: subargs.line,
+        additional: subargs.registers || subargs.verbose,
+    };
 
     loop {
         core.halt()?;
@@ -329,7 +276,7 @@ fn tasks(
 
                 if subargs.stack {
                     match hubris.stack(core, t, desc.initial_stack, &regs) {
-                        Ok(stack) => print_stack(hubris, &stack, &subargs),
+                        Ok(stack) => printer.print(hubris, &stack),
                         Err(e) => {
                             println!("   stack unwind failed: {:?} ", e);
                         }

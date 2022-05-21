@@ -169,9 +169,9 @@ register!(HFSR, 0xe000_ed2c,
     pub vector_fault, _: 1;
 );
 
-/*
- * Debug Fault Status Register
- */
+//
+// Debug Fault Status Register
+//
 register!(DFSR, 0xe000_ed30,
     #[derive(Copy, Clone)]
     pub struct DFSR(u32);
@@ -183,9 +183,9 @@ register!(DFSR, 0xe000_ed30,
     pub halted, _: 0;
 );
 
-/*
- * Debug Halting Control Status Register
- */
+//
+// Debug Halting Control Status Register
+//
 register!(DHCSR, 0xe000_edf0,
     #[derive(Copy, Clone)]
     pub struct DHCSR(u32);
@@ -233,6 +233,23 @@ register!(DEMCR, 0xe000_edfc,
     pub vc_mmerr, set_vc_mmerr: 4;
     /// Enable Reset Vector Catch
     pub vc_corereset, set_vc_corereset: 0;
+);
+
+//
+// Media and FP Feature Register 0
+//
+register!(MVFR0, 0xe000_ef40,
+    #[derive(Copy, Clone)]
+    pub struct MVFR0(u32);
+    impl Debug;
+    pub fp_rounding_modes, _: 31, 28;
+    pub short_vectors, _: 27, 24;
+    pub squre_root, _: 23, 20;
+    pub divide, _: 19, 16;
+    pub fp_exception_trapping, _: 15, 12;
+    pub double_precision, _: 11, 8;
+    pub single_precision, _: 7, 4;
+    pub simd_registers, _: 3, 0;
 );
 
 register!(STM32F4_DBGMCU_IDCODE, 0xe004_2000,

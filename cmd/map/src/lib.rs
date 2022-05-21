@@ -78,7 +78,9 @@ fn mapcmd(
     _args: &Args,
     _subargs: &[String],
 ) -> Result<()> {
+    core.halt()?;
     let regions = hubris.regions(core)?;
+    core.run()?;
 
     println!(
         "{:10} {:10}   {:10} {:>7} {:5} {:2} TASK",
@@ -86,6 +88,16 @@ fn mapcmd(
     );
 
     for (_, region) in regions.iter() {
+        let name = {
+            let mut names = vec![];
+
+            for t in &region.tasks {
+                names.push(hubris.lookup_module(*t)?.name.clone());
+            }
+
+            names.join(", ")
+        };
+
         println!(
             "{:10} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{} {:2} {}",
             match region.daddr {
@@ -104,8 +116,16 @@ fn mapcmd(
             if region.attr.execute { "x" } else { "-" },
             if region.attr.device { "d" } else { "-" },
             if region.attr.dma { "m" } else { "-" },
-            region.task.id(),
-            hubris.lookup_module(region.task)?.name
+            region.tasks[0].id(),
+            if region.attr.device {
+                if let Some(p) = hubris.lookup_peripheral_byaddr(region.base) {
+                    format!("[{}] {}", p, name)
+                } else {
+                    format!("[??] {}", name)
+                }
+            } else {
+                name.to_string()
+            }
         );
     }
 

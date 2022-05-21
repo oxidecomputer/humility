@@ -30,12 +30,12 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 0x0000f60c 0x2000c000 - 0x2000c3ff    1KiB rwx-- 11 pong
 0x0000f62c 0x2000c400 - 0x2000c7ff    1KiB rwx-- 12 spam
 0x0000f4ec 0x2000c800 - 0x2000c8ff     256 rwx-- 2  idle
-0x0000f40c 0x40000000 - 0x40000fff    4KiB rw-d- 3  syscon_driver
-0x0000f43c 0x40001000 - 0x40001fff    4KiB rw-d- 4  gpio_driver
-0x0000f41c 0x40013000 - 0x40013fff    4KiB rw-d- 3  syscon_driver
-0x0000f46c 0x40020000 - 0x40020fff    4KiB rw-d- 8  rng_driver
-0x0000f48c 0x4003a000 - 0x4003afff    4KiB rw-d- 8  rng_driver
-0x0000f44c 0x40086000 - 0x40086fff    4KiB rw-d- 6  usart_driver
-0x0000f45c 0x4008a000 - 0x4008afff    4KiB rw-d- 7  i2c_driver
-0x0000f42c 0x4008c000 - 0x4008e483    9KiB rw-d- 4  gpio_driver
-0x0000f47c 0x4009f000 - 0x4009ffff    4KiB rw-d- 9  spi_driver
+0x0000f40c 0x40000000 - 0x40000fff    4KiB rw-d- 3  [syscon] syscon_driver
+0x0000f43c 0x40001000 - 0x40001fff    4KiB rw-d- 4  [iocon] gpio_driver
+0x0000f41c 0x40013000 - 0x40013fff    4KiB rw-d- 3  [anactrl] syscon_driver
+0x0000f46c 0x40020000 - 0x40020fff    4KiB rw-d- 3  [pmc] syscon_driver, rng_driver
+0x0000f48c 0x4003a000 - 0x4003afff    4KiB rw-d- 8  [rng] rng_driver
+0x0000f44c 0x40086000 - 0x40086fff    4KiB rw-d- 6  [flexcomm0] usart_driver
+0x0000f45c 0x4008a000 - 0x4008afff    4KiB rw-d- 7  [flexcomm4] i2c_driver
+0x0000f42c 0x4008c000 - 0x4008e483    9KiB rw-d- 4  [gpio] gpio_driver
+0x0000f47c 0x4009f000 - 0x4009ffff    4KiB rw-d- 9  [flexcomm8] spi_driver

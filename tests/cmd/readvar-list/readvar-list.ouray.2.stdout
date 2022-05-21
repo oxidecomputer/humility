@@ -13,9 +13,6 @@ kernel             __RESET_VECTOR                 0x08000004 4
 ping               ACQUIRED                       0x20002100 1
 ping               BUFFER                         0x20002000 256
 ping               BUFFER_LEN                     0x20002104 4
-ping               DEFMT_LOG_STATEMENT            0x00000000 1
-ping               DEFMT_LOG_STATEMENT            0x00000001 1
-ping               DEFMT_LOG_STATEMENT            0x00000002 1
 pong               ACQUIRED                       0x20004100 1
 pong               BUFFER                         0x20004000 256
 pong               BUFFER_LEN                     0x20004104 4

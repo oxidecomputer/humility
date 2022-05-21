@@ -28,6 +28,7 @@ pub fn init(
         let name = match cmd {
             Command::Attached { name, .. } => name,
             Command::Unattached { name, .. } => name,
+            Command::Raw { name, .. } => name,
         };
 
         cmds.insert(name, cmd);
@@ -44,27 +45,37 @@ pub fn subcommand(
     subargs: &[String],
 ) -> Result<()> {
     if let Some(command) = commands.get(&subargs[0].as_str()) {
-        let archive = match command {
-            Command::Attached { archive, .. } => archive,
-            Command::Unattached { archive, .. } => archive,
-        };
-
         let mut hubris =
             HubrisArchive::new().context("failed to initialize")?;
 
-        if *archive != Archive::Ignored {
+        let (archive, doneness) = match command {
+            Command::Attached { archive, .. } => {
+                (*archive, HubrisArchiveDoneness::Cook)
+            }
+            Command::Unattached { archive, .. } => {
+                (*archive, HubrisArchiveDoneness::Cook)
+            }
+            Command::Raw { .. } => {
+                (Archive::Required, HubrisArchiveDoneness::Raw)
+            }
+        };
+
+        if archive != Archive::Ignored {
             if let Some(archive) = &args.archive {
-                hubris.load(archive).with_context(|| {
+                hubris.load(archive, doneness).with_context(|| {
                     format!("failed to load archive \"{}\"", archive)
                 })?;
             } else if let Some(dump) = &args.dump {
-                hubris.load_dump(dump).with_context(|| {
+                hubris.load_dump(dump, doneness).with_context(|| {
                     format!("failed to load dump \"{}\"", dump)
                 })?;
             }
         }
 
-        if *archive == Archive::Required && !hubris.loaded() {
+        if archive == Archive::Required
+            && doneness == HubrisArchiveDoneness::Cook
+            && !hubris.loaded()
+        {
             bail!("must provide a Hubris archive or dump");
         }
 
@@ -81,6 +92,7 @@ pub fn subcommand(
             Command::Unattached { run, .. } => {
                 (run)(&mut hubris, args, subargs)
             }
+            Command::Raw { run, .. } => (run)(&mut hubris, args, subargs),
         }
     } else {
         bail!("command {} not found", subargs[0]);

@@ -23,16 +23,13 @@ jefe               JEFE_EXTERNAL_REQUEST          0x200045a0 4
 jefe               JEFE_EXTERNAL_REQUESTS         0x200045ac 4
 jefe               JEFE_EXTERNAL_TASKINDEX        0x200045a4 4
 jefe               __RINGBUF                      0x20004560 60
-rcc_driver         _RCC_IDOL_DEFINITION           0x00000000 1075
 gpio_driver        RCC                            0x08010a52 2
 usart_driver       GPIO                           0x0801152e 2
 usart_driver       RCC                            0x0801152c 2
-usart_driver       _TASK_SLOT_TABLE_GPIO          0x00000012 19
 user_leds          GPIO                           0x08011c06 2
 pong               USER_LEDS                      0x0801266c 2
 ping               PEER                           0x0800f144 2
 ping               UART                           0x0800f146 2
-ping               _TASK_SLOT_TABLE_UART          0x0000000c 20
 hiffy              HIFFY_DATA                     0x20002bc0 2048
 hiffy              HIFFY_ERRORS                   0x20003bc4 4
 hiffy              HIFFY_FAILURE                  0x200023b0 8
