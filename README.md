@@ -216,6 +216,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility hash](#humility-hash): Access to the HASH block
 - [humility hiffy](#humility-hiffy): manipulate HIF execution
 - [humility i2c](#humility-i2c): scan for and read I2C devices
+- [humility isp](#humility-isp): run ISP commands on the LPC55
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
@@ -735,6 +736,19 @@ after writing it to confirm that the value is as expected:
 humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0x4 = 0x1f
 ```
+
+
+
+### `humility isp`
+
+The LPC55 has a built-in In-System Programming (ISP) mode. ISP mode
+does _not_ work over the regular debug probe but over UART. You must
+give the UART path as an argument.
+
+$ humility isp --port /dev/ttyUSB0 read-memory 0x0 32
+            \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00000000 | 00 40 00 20 31 01 00 00 f3 02 00 00 a5 04 00 00 | .@. 1...........
+0x00000010 | a1 01 00 00 a3 01 00 00 a5 01 00 00 a7 01 00 00 | ................
 
 
 
