@@ -1,0 +1,12 @@
+TICKS (0x2000104c) = [
+     {
+        v: UnsafeCell<u32> {
+            value: 0x0
+        }
+    },
+     {
+        v: UnsafeCell<u32> {
+            value: 0x0
+        }
+    }
+]

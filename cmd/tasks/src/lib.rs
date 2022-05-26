@@ -181,9 +181,7 @@ fn tasks(
 ) -> Result<()> {
     let subargs = TasksArgs::try_parse_from(subargs)?;
 
-    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let task_count =
-        core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+    let (base, task_count) = hubris.task_table(core)?;
     let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
 
     let task_t = hubris.lookup_struct_byname("Task")?;

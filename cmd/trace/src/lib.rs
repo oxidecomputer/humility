@@ -212,8 +212,7 @@ fn tracecmd(
     //
     // First, read the task block to get a mapping of IDs to names.
     //
-    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
+    let (base, size) = hubris.task_table(core)?;
 
     let task = hubris.lookup_struct_byname("Task")?;
     let descriptor = task.lookup_member("descriptor")?.offset as u32;

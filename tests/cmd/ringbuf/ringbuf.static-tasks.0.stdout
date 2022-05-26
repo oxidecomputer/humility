@@ -1,0 +1,75 @@
+humility: ring buffer drv_stm32h7_i2c::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32h7_i2c_server::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi_driver:
+humility: ring buffer ksz8463::__RINGBUF in net:
+humility: ring buffer stm32h7_update_server::__RINGBUF in update_server:
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
+ NDX LINE      GEN    COUNT PAYLOAD
+  18  622    28592        1 Execute((0x5, Push32(0x100)))
+  19  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  20  622    28592        1 Execute((0xc, Done))
+  21  626    28592        1 Success
+  22  622    28592        1 Execute((0x0, Push32(0x20000)))
+  23  622    28592        1 Execute((0x5, Push32(0x80)))
+  24  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  25  622    28592        1 Execute((0xc, Done))
+  26  626    28592        1 Success
+  27  622    28592        1 Execute((0x0, Push32(0x120000)))
+  28  622    28592        1 Execute((0x5, Push32(0x80)))
+  29  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  30  622    28592        1 Execute((0xc, Done))
+  31  626    28592        1 Success
+  32  622    28592        1 Execute((0x0, Push32(0x120000)))
+  33  622    28592        1 Execute((0x5, Push32(0x100)))
+  34  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  35  622    28592        1 Execute((0xc, Done))
+  36  626    28592        1 Success
+  37  622    28592        1 Execute((0x0, Push32(0x120000)))
+  38  622    28592        1 Execute((0x5, Push32(0x80)))
+  39  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  40  622    28592        1 Execute((0xc, Done))
+  41  626    28592        1 Success
+  42  622    28592        1 Execute((0x0, Push32(0x120000)))
+  43  622    28592        1 Execute((0x5, Push32(0x80)))
+  44  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  45  622    28592        1 Execute((0xc, Done))
+  46  626    28592        1 Success
+  47  622    28592        1 Execute((0x0, Push32(0x120000)))
+  48  622    28592        1 Execute((0x5, Push32(0x80)))
+  49  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  50  622    28592        1 Execute((0xc, Done))
+  51  626    28592        1 Success
+  52  622    28592        1 Execute((0x0, Push32(0x120000)))
+  53  622    28592        1 Execute((0x5, Push32(0x80)))
+  54  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  55  622    28592        1 Execute((0xc, Done))
+  56  626    28592        1 Success
+  57  622    28592        1 Execute((0x0, Push32(0x120000)))
+  58  622    28592        1 Execute((0x5, Push32(0x80)))
+  59  622    28592        1 Execute((0xa, Call(TargetFunction(0x10))))
+  60  622    28592        1 Execute((0xc, Done))
+  61  626    28592        1 Success
+  62  622    28592        1 Execute((0x0, Push32(0x120000)))
+  63  622    28592        1 Execute((0x5, Push32(0x80)))
+   0  622    28593        1 Execute((0xa, Call(TargetFunction(0x10))))
+   1  622    28593        1 Execute((0xc, Done))
+   2  626    28593        1 Success
+   3  622    28593        1 Execute((0x0, Push32(0x120001)))
+   4  622    28593        1 Execute((0x5, Push32(0x80)))
+   5  622    28593        1 Execute((0xa, Call(TargetFunction(0x10))))
+   6  622    28593        1 Execute((0xc, Done))
+   7  626    28593        1 Success
+   8  622    28593        1 Execute((0x0, Push32(0x120000)))
+   9  622    28593        1 Execute((0x5, Push32(0x80)))
+  10  622    28593        1 Execute((0xa, Call(TargetFunction(0x10))))
+  11  622    28593        1 Execute((0xc, Done))
+  12  626    28593        1 Success
+  13  622    28593        1 Execute((0x0, Push32(0x120000)))
+  14  622    28593        1 Execute((0x5, Push32(0x80)))
+  15  622    28593        1 Execute((0xa, Call(TargetFunction(0x13))))
+  16  622    28593        1 Execute((0xc, Done))
+  17  626    28593        1 Success
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
+humility: ring buffer task_net::bsp::gimletlet_nic::__RINGBUF in net:
+humility: ring buffer task_uartecho::__RINGBUF in uartecho:
+humility: ring buffer task_validate::__RINGBUF in validate:
