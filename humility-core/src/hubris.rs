@@ -2696,6 +2696,36 @@ impl HubrisArchive {
         self.tasks.iter().find(|(_, &i)| i == index).map(|(name, _)| &**name)
     }
 
+    pub fn task_table(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<(u32, u32)> {
+        //
+        // On older kernels, we expect to find the task table through an
+        // indirect pointer (TASK_TABLE_BASE); on newer kernels, it's entirely
+        // statically allocated (HUBRIS_TASK_TABLE_SPACE).
+        //
+        if let Ok(base) = self.lookup_symword("TASK_TABLE_BASE") {
+            let size = core
+                .read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)
+                .context("failed to read TASK_TABLE_SIZE")?;
+
+            let base = core
+                .read_word_32(base)
+                .context("failed to read TASK_TABLE_BASE")?;
+
+            Ok((base, size))
+        } else if let Ok(t) = self.lookup_variable("HUBRIS_TASK_TABLE_SPACE") {
+            let task = self.lookup_struct_byname("Task")?;
+            Ok((t.addr, (t.size / task.size) as u32))
+        } else {
+            bail!(
+                "could not find task table as \
+                TASK_TABLE_BASE or HUBRIS_TASK_TABLE_SPACE"
+            )
+        }
+    }
+
     pub fn lookup_src(&self, goff: HubrisGoff) -> Option<&HubrisSrc> {
         self.src.get(&goff)
     }
@@ -2787,9 +2817,7 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        let n = core
-            .read_word_32(self.lookup_symword("TASK_TABLE_SIZE")?)
-            .context("failed to read TASK_TABLE_SIZE")?;
+        let (_, n) = self.task_table(core)?;
 
         if n == ntasks as u32 {
             return Ok(());
@@ -2894,8 +2922,7 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
     ) -> Result<BTreeMap<u32, HubrisRegion>> {
-        let task_table_base = self.lookup_symword("TASK_TABLE_BASE")?;
-        let base = core.read_word_32(task_table_base)?;
+        let (base, _) = self.task_table(core)?;
         let task = self.lookup_struct_byname("Task")?;
         let desc = self.lookup_struct_byname("RegionDesc")?;
 
@@ -3048,8 +3075,7 @@ impl HubrisArchive {
         core: &mut dyn crate::core::Core,
         t: HubrisTask,
     ) -> Result<BTreeMap<ARMRegister, u32>> {
-        let base =
-            core.read_word_32(self.lookup_symword("TASK_TABLE_BASE")?)?;
+        let (base, _) = self.task_table(core)?;
         let cur =
             core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
 

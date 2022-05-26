@@ -1,0 +1,54 @@
+   R0 = 0x00000000
+   R1 = 0x0000000a
+   R2 = 0x80000000
+   R3 = 0x00000000
+   R4 = 0x00000000
+   R5 = 0x00000000
+   R6 = 0x20000410 <- kernel: HUBRIS_TASK_TABLE_SPACE+0x0
+   R7 = 0x200002a0 <- kernel: 0x20000000+0x2a0
+   R8 = 0x20000318 <- kernel: 0x20000000+0x318
+   R9 = 0x20000400 <- kernel: TASK_TABLE_IN_USE+0x0
+  R10 = 0x00000002
+  R11 = 0x00000000
+  R12 = 0x20000244 <- kernel: 0x20000000+0x244
+   SP = 0x20000278 <- kernel: 0x20000000+0x278
+        |
+        +--->  0x200002a8 0x08003b7e rust_begin_unwind
+               0x200002c0 0x080004b0 core::panicking::panic_fmt
+               0x200002e8 0x08000a30 core::panicking::panic
+               0x200002f0 0x08001516 kern::task::Task::set_healthy_state
+               0x20000398 0x080020dc <kern::task::NextTask as core::cmp::PartialEq>::eq
+               0x20000398 0x080020dc kern::task::NextTask::combine
+               0x20000398 0x080020ce kern::syscalls::send
+               0x20000398 0x08001ac6 kern::syscalls::safe_syscall_entry
+               0x20000398 0x08001ac6 kern::syscalls::syscall_entry::{{closure}}
+               0x20000398 0x08001ab0 kern::startup::with_task_table
+               0x20000398 0x080020dc syscall_entry
+               0x20000398 0x08003326 SVCall
+
+   LR = 0x08003a97 <- kernel: write_str<cortex_m::itm::Port>+0xd
+   PC = 0x08003b7e <- kernel: panic+0x36
+  PSR = 0x4100000b <- 0100_0001_0000_0000_0000_0000_0000_1011
+                      |||| | ||         |       |           |
+                      |||| | ||         |       |           + Exception = 0xb
+                      |||| | ||         |       +------------ IC/IT = 0x0
+                      |||| | ||         +-------------------- GE = 0x0
+                      |||| | |+------------------------------ T = 1
+                      |||| | +------------------------------- IC/IT = 0x0
+                      |||| +--------------------------------- Q = 0
+                      |||+----------------------------------- V = 0
+                      ||+------------------------------------ C = 0
+                      |+------------------------------------- Z = 1
+                      +-------------------------------------- N = 0
+
+  MSP = 0x20000278 <- kernel: 0x20000000+0x278
+  PSP = 0x200106a0 <- uartecho: 0x20010000+0x6a0
+  SPR = 0x05000001 <- 0000_0101_0000_0000_0000_0000_0000_0001
+                            |||         |         |         |
+                            |||         |         |         + PRIMASK = 1
+                            |||         |         +---------- BASEPRI = 0x0
+                            |||         +-------------------- FAULTMASK = 0
+                            ||+------------------------------ CONTROL.nPRIV = 1
+                            |+------------------------------- CONTROL.SPSEL = 0
+                            +-------------------------------- CONTROL.FPCA = 1
+

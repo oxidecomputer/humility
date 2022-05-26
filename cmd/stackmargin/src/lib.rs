@@ -48,9 +48,7 @@ fn stackmargin(
 ) -> Result<()> {
     let regions = hubris.regions(core)?;
 
-    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let size = core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)?;
-
+    let (base, size) = hubris.task_table(core)?;
     let task = hubris.lookup_struct_byname("Task")?;
     let taskdesc = hubris.lookup_struct_byname("TaskDesc")?;
 
