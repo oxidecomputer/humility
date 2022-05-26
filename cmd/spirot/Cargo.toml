@@ -13,3 +13,7 @@ anyhow = { version = "1.0.44", features = ["backtrace"] }
 parse_int = "0.4.0"
 indicatif = "0.15"
 log = {version = "0.4.8", features = ["std"]}
+sprockets-common = { path = "../../../sprockets/common", features = ["rand"]}
+hubpack = { rev = "df08cc3a6e1f97381cd0472ae348e310f0119e25", git = "https://github.com/cbiffle/hubpack.git"}
+serde = { version = "1.0.136", features = ["derive"]  }
+serde-big-array = { version = "0.3.2" }

@@ -2,10 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use hubpack::{deserialize, serialize, SerializedSize};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
+use sprockets_common::msgs::{RotOpV1, RotRequestV1, RotResponseV1};
+use sprockets_common::Nonce;
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
@@ -34,7 +37,7 @@ struct SpirotArgs {
     send: Option<String>,
 }
 
-#[derive(Copy,Clone,PartialEq,Eq,Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum MsgType {
     Invalid = 0,
@@ -73,7 +76,6 @@ impl From<u8> for MsgType {
     }
 }
 
-
 fn spirot(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -81,63 +83,96 @@ fn spirot(
     subargs: &[String],
 ) -> Result<()> {
     let subargs = SpirotArgs::try_parse_from(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
+    let (msgtype, data) = if let Some(ref send) = subargs.send {
+        let msgtype = MsgType::from(subargs.msgtype.as_str());
 
-    let mut ops = vec![];
-
-    let data = if let Some(ref send) = subargs.send {
-        let spirot_sendrecv = funcs.get("SpirotSendRecv", 2)?;
-        let bytes: Vec<&str> = send.split(',').collect();
-        let mut arr = vec![];
-
-        for byte in &bytes {
-            if let Ok(val) = parse_int::parse::<u8>(byte) {
-                arr.push(val);
-            } else {
-                bail!("invalid byte {}", byte)
+        let data = match msgtype {
+            MsgType::Sprockets => send_sprockets(send),
+            MsgType::Unknown => {
+                bail!("Using unknown message type. Expected one of: invalid, error, echo, echoReturn, status");
             }
-        }
-
-        let msgtype = if let Ok(mtype) = subargs.msgtype.parse::<u32>() {
-            mtype
-        } else {
-            MsgType::from(subargs.msgtype.as_str()) as u32
+            _ => send_other(send),
         };
-        if msgtype == MsgType::Unknown as u32 {
-            bail!("Using unknown message type. Expected one of: invalid, error, echo, echoReturn, status");
-        }
-        println!("msgtype: {:?}", msgtype);
-        ops.push(Op::Push32(msgtype));
-        ops.push(Op::Push32(arr.len() as u32));
-        ops.push(Op::Call(spirot_sendrecv.id));
-        Some(arr)
+        (msgtype, data)
     } else {
         bail!("expected an operation");
     };
 
+    println!("msgtype: {:?}", msgtype as u32);
+
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
+    println!("size = {}", context.scratch_size());
+
+    let funcs = context.functions()?;
+    let spirot_sendrecv = funcs.get("SpirotSendRecv", 2)?;
+    let mut ops = vec![];
+    ops.push(Op::Push32(msgtype as u32));
+    ops.push(Op::Push32(data.len() as u32));
+    ops.push(Op::Call(spirot_sendrecv.id));
     ops.push(Op::Done);
     println!("ops: {:?}", ops);
 
-    let results = context.run(
-        core,
-        ops.as_slice(),
-        match data {
-            Some(ref data) => Some(data.as_slice()),
-            _ => None,
-        },
-    )?;
+    println!("data: {:?}", data);
+
+    let results = context.run(core, ops.as_slice(), Some(data.as_slice()))?;
 
     if subargs.send.is_some() {
         if let Ok(results) = &results[0] {
-            Dumper::new().dump(results, 0);
-            return Ok(());
+            if msgtype == MsgType::Sprockets {
+                println!("Sprockets response!");
+                let (response, _) = deserialize::<RotResponseV1>(results)?;
+                println!("{:x?}", response);
+            } else {
+                Dumper::new().dump(results, 0);
+            }
+        } else {
+            println!("Oh balls!");
+            println!("{:x?}", results);
         }
     }
 
-    println!("{:x?}", results);
-
     Ok(())
+}
+
+// TODO: This should probably be a clap subcommand, but that would require
+// changing the overall flow of the existing comamnds for spirot.
+fn send_sprockets(command: &str) -> Vec<u8> {
+    let op = match command {
+        "get-certs" => RotOpV1::GetCertificates,
+        "get-measurements" => RotOpV1::GetMeasurements(Nonce::new()),
+        _ => panic!(
+            "Expected 'get-certs' or 'get-measurements'. Got {}",
+            command
+        ),
+    };
+
+    let req = RotRequestV1 {
+        version: 1,
+        id: 1,
+        op,
+    };
+
+    let mut buf = vec![0; RotRequestV1::MAX_SIZE];
+    let size = serialize(&mut buf, &req).unwrap();
+    buf.truncate(size);
+    buf
+}
+
+// Return a request other than sprockets to send to spirot via HIF
+fn send_other(command: &str) -> Vec<u8> {
+    let bytes: Vec<&str> = command.split(',').collect();
+    let mut arr = vec![];
+
+    for byte in &bytes {
+        if let Ok(val) = parse_int::parse::<u8>(byte) {
+            arr.push(val);
+        } else {
+            panic!("invalid byte {}", byte);
+        }
+    }
+
+    arr
 }
 
 pub fn init() -> (Command, ClapCommand<'static>) {
