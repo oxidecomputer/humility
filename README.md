@@ -978,7 +978,80 @@ humility:          SPR => 0x7000000
 
 ### `humility qspi`
 
-No documentation yet for `humility qspi`; pull requests welcome!
+`humility qspi` manipulates (and importantly, writes to) QSPI-attached
+flash in Hubris.  To read the device identifier, use the `--id` (`-i`)
+option:
+
+```console
+% humility qspi -i
+humility: attached via ST-Link V3
+DeviceIdData {
+    manufacturer_id: Micron(0x20)
+    memory_type: 3V(186)
+    memory_capacity: 33554432
+    uid_n: 16
+    # If a Micron device:
+    ext_device_id: 0b1000100
+        2nd device generation,
+        Standard BP scheme,
+        HOLD#/RESET#=HOLD
+        Additional HW RESET# is available,
+        Sector size is Uniform 64KB,
+    device_configuration_info: 0
+    uid: [9a, ec, 0b, 00, 19, f9, ff$, 39, 00, be, 69, 97, f4, a2]
+}
+[Ok([20, ba, 19, 10, 44, 0, 9a, ec, b, 0, 19, f9, ff, 39, 0, be, 69, 97, f4, a2])]
+```
+
+To write an image from a file, use the `--writefile` (`-W`) option:
+
+```console
+% humility -W ./milan-spew-115k2-2dpc-0.4.1-dataeye.bin
+humility: attached via ST-Link V3
+humility: erasing 16777216 bytes...
+humility: ... done
+humility: flashed 16.00MB in 5 minutes
+```
+
+If writing similar images, it is much faster to write only those blocks
+that differ.  To perform a differential write, use the `--diffwrite` (`-D`)
+option:
+
+```console
+% humility qspi -D ./milan-spew-115k2-2dpc-0.4.1.bin
+humility: attached via ST-Link V3
+humility: erasing 65536 bytes...
+humility: ... done
+humility: hashed 16.00MB, wrote 64.00KB in 16 seconds
+```
+
+To read, write or hash a particular region, use the `--read` (`-r`),
+`--write` (`-w`), or `--hash` (`-H`) respectively -- giving the address
+via `--address` (`-a`) and the number of bytes via `--nbytes` (`-n`).
+For example, to read 128 bytes from address 0x120000:
+
+```console
+% humility qspi -r -a 0x120000 -n 128
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00120000 | 24 50 53 50 ee 7a 31 28 10 00 00 00 20 cd 48 20 | $PSP.z1(.... .H
+0x00120010 | 00 00 00 00 40 04 00 00 00 30 12 00 00 00 00 00 | ....@....0......
+0x00120020 | 01 00 00 00 00 54 01 00 00 40 12 00 00 00 00 00 | .....T...@......
+0x00120030 | 03 00 00 00 00 54 01 00 00 a0 13 00 00 00 00 00 | .....T..........
+0x00120040 | 08 00 00 00 40 ea 01 00 00 00 15 00 00 00 00 00 | ....@...........
+0x00120050 | 09 00 00 00 40 06 00 00 00 f0 16 00 00 00 00 00 | ....@...........
+0x00120060 | 0a 00 00 00 40 06 00 00 00 00 17 00 00 00 00 00 | ....@...........
+0x00120070 | 0b 00 00 00 ff ff ff ff 01 00 00 00 00 00 00 00 | ................
+```
+
+To get the SHA256 hash for that same region:
+
+```console
+% humility qspi -H -a 0x120000 -n 128
+humility: attached via ST-Link V3
+120000..000080: 4d07112733efe240f990fad785726c52de4335d6c5c30a33e60096d4c2576742
+```
+
+
 
 ### `humility readmem`
 
