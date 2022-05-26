@@ -1,0 +1,16 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20013000       1536        336       1200
+ 1 sys                0x20015000        896        200        696
+ 2 i2c_driver         0x20013800        896        800         96
+ 3 spi_driver         0x20014000        880        736        144
+ 4 user_leds          0x20015400        896        264        632
+ 5 pong               0x20015800        896        216        680
+ 6 uartecho           0x20010000       2048        352       1696
+ 7 hiffy              0x20008000       2048        104       1944
+ 8 hf                 0x20014800       1920        104       1816
+ 9 net                0x20004000       4320        104       4216
+10 udpecho            0x20002000       4096        104       3992
+11 validate           0x20011000       1024        104        920
+12 idle               0x20015e00        256        104        152
+13 rng_driver         0x20015c00        256        104        152
+14 update_server      0x20012000       2048        104       1944
