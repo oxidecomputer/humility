@@ -1196,6 +1196,7 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
+ "sha2",
 ]
 
 [[package]]

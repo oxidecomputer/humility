@@ -2,10 +2,87 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility qspi`
+//!
+//! `humility qspi` manipulates (and importantly, writes to) QSPI-attached
+//! flash in Hubris.  To read the device identifier, use the `--id` (`-i`)
+//! option:
+//!
+//! ```console
+//! % humility qspi -i
+//! humility: attached via ST-Link V3
+//! DeviceIdData {
+//! 	manufacturer_id: Micron(0x20)
+//! 	memory_type: 3V(186)
+//! 	memory_capacity: 33554432
+//! 	uid_n: 16
+//! 	# If a Micron device:
+//! 	ext_device_id: 0b1000100
+//! 		2nd device generation,
+//! 		Standard BP scheme,
+//! 		HOLD#/RESET#=HOLD
+//! 		Additional HW RESET# is available,
+//! 		Sector size is Uniform 64KB,
+//! 	device_configuration_info: 0
+//! 	uid: [9a, ec, 0b, 00, 19, f9, ff$, 39, 00, be, 69, 97, f4, a2]
+//! }
+//! [Ok([20, ba, 19, 10, 44, 0, 9a, ec, b, 0, 19, f9, ff, 39, 0, be, 69, 97, f4, a2])]
+//! ```
+//!
+//! To write an image from a file, use the `--writefile` (`-W`) option:
+//!
+//! ```console
+//! % humility -W ./milan-spew-115k2-2dpc-0.4.1-dataeye.bin
+//! humility: attached via ST-Link V3
+//! humility: erasing 16777216 bytes...
+//! humility: ... done
+//! humility: flashed 16.00MB in 5 minutes
+//! ```
+//!
+//! If writing similar images, it is much faster to write only those blocks
+//! that differ.  To perform a differential write, use the `--diffwrite` (`-D`)
+//! option:
+//!
+//! ```console
+//! % humility qspi -D ./milan-spew-115k2-2dpc-0.4.1.bin
+//! humility: attached via ST-Link V3
+//! humility: erasing 65536 bytes...
+//! humility: ... done
+//! humility: hashed 16.00MB, wrote 64.00KB in 16 seconds
+//! ```
+//!
+//! To read, write or hash a particular region, use the `--read` (`-r`),
+//! `--write` (`-w`), or `--hash` (`-H`) respectively -- giving the address
+//! via `--address` (`-a`) and the number of bytes via `--nbytes` (`-n`).
+//! For example, to read 128 bytes from address 0x120000:
+//!
+//! ```console
+//! % humility qspi -r -a 0x120000 -n 128
+//!              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+//! 0x00120000 | 24 50 53 50 ee 7a 31 28 10 00 00 00 20 cd 48 20 | $PSP.z1(.... .H 
+//! 0x00120010 | 00 00 00 00 40 04 00 00 00 30 12 00 00 00 00 00 | ....@....0......
+//! 0x00120020 | 01 00 00 00 00 54 01 00 00 40 12 00 00 00 00 00 | .....T...@......
+//! 0x00120030 | 03 00 00 00 00 54 01 00 00 a0 13 00 00 00 00 00 | .....T..........
+//! 0x00120040 | 08 00 00 00 40 ea 01 00 00 00 15 00 00 00 00 00 | ....@...........
+//! 0x00120050 | 09 00 00 00 40 06 00 00 00 f0 16 00 00 00 00 00 | ....@...........
+//! 0x00120060 | 0a 00 00 00 40 06 00 00 00 00 17 00 00 00 00 00 | ....@...........
+//! 0x00120070 | 0b 00 00 00 ff ff ff ff 01 00 00 00 00 00 00 00 | ................
+//! ```
+//!
+//! To get the SHA256 hash for that same region:
+//!
+//! ```console
+//! % humility qspi -H -a 0x120000 -n 128
+//! humility: attached via ST-Link V3
+//! 120000..000080: 4d07112733efe240f990fad785726c52de4335d6c5c30a33e60096d4c2576742
+//! ```
+//!
+
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
+use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
 use std::fs::File;
@@ -98,6 +175,15 @@ struct QspiArgs {
     /// file to read
     #[clap(long, short = 'R', value_name = "filename", group = "command")]
     readfile: Option<String>,
+
+    /// file to differentially write
+    #[clap(long, short = 'D', value_name = "filename", group = "command")]
+    diffwrite: Option<String>,
+}
+
+struct QspiDevice {
+    block_size: u32,
+    sector_size: u32,
 }
 
 fn optional_nbytes<'a>(
@@ -142,6 +228,172 @@ fn optional_nbytes<'a>(
     }
 }
 
+///
+/// Determine the deltas between the on-disk file and the specified vector
+/// of sha256 sums
+///
+fn deltas(
+    device: &QspiDevice,
+    filename: &str,
+    compare: &[(u32, Vec<u8>)],
+    mut diff: impl FnMut(u32, &[u8]) -> Result<()>,
+) -> Result<()> {
+    let filelen = fs::metadata(filename.to_string())?.len() as u32;
+    let mut file = File::open(filename)?;
+
+    let mut offset = 0;
+
+    for (c, result) in compare {
+        let mut buf = vec![0u8; device.sector_size as usize];
+
+        if offset != *c {
+            bail!("mismatched offset; expected {}, found {}", offset, c);
+        }
+
+        let len = if offset + device.sector_size > filelen {
+            filelen - offset
+        } else {
+            device.sector_size
+        };
+
+        file.read_exact(&mut buf[..len as usize])?;
+
+        let mut hasher = Sha256::new();
+        hasher.update(&buf);
+        let sum = hasher.finalize();
+
+        if !sum.iter().eq(result.iter()) {
+            diff(offset, &buf[..len as usize])?;
+        }
+
+        offset += device.sector_size;
+    }
+
+    Ok(())
+}
+
+///
+/// Erase specified sectors
+///
+fn erase(
+    device: &QspiDevice,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+    sectors: &[u32],
+) -> Result<()> {
+    let f = funcs.get("QspiSectorErase", 1)?;
+    let mut ops = vec![];
+
+    humility::msg!(
+        "erasing {} bytes...",
+        sectors.len() as u32 * device.sector_size
+    );
+
+    for addr in sectors {
+        if addr % device.sector_size != 0 {
+            bail!("illegal erase address 0x{:x}", addr);
+        }
+
+        ops.push(Op::Push32(*addr));
+        ops.push(Op::Call(f.id));
+    }
+
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    for (i, block_result) in results.iter().enumerate() {
+        if let Err(err) = *block_result {
+            bail!("failed to erase 0x{:x}: {}", sectors[i], f.strerror(err));
+        }
+    }
+
+    humility::msg!("... done");
+
+    Ok(())
+}
+
+///
+/// Write in units of blocksize.
+///
+fn write(
+    device: &QspiDevice,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+    addr: u32,
+    writelen: u32,
+    mut getbytes: impl FnMut(&mut [u8]) -> Result<()>,
+) -> Result<()> {
+    let qspi_page_program = funcs.get("QspiPageProgram", 3)?;
+
+    let data_size = context.data_size() as u32;
+    let chunk = data_size - (data_size % device.block_size);
+    let mut offset = 0;
+
+    let mut buf = vec![0u8; chunk as usize];
+
+    loop {
+        let len = if offset + chunk > writelen {
+            //
+            // Zero the end of the buffer so we don't have to deal with
+            // sub-block size writes inside of HIF
+            //
+            for i in writelen - offset..chunk {
+                buf[i as usize] = 0;
+            }
+
+            writelen - offset
+        } else {
+            chunk
+        };
+
+        getbytes(&mut buf[..len as usize])?;
+
+        //
+        // We have our chunk; now a HIF loop to write our chunk
+        // in block_size nibbles.
+        //
+        let ops = vec![
+            Op::Push32(addr + offset),        // Push flash address.
+            Op::Push32(0),                    // Buffer offset = 0.
+            Op::PushNone,                     // Placeholder to be dropped.
+            Op::Label(Target(0)),             // Start of loop
+            Op::Drop,                         // Drop placeholder/limit.
+            Op::Push32(device.block_size),    // Push length of this xfer.
+            Op::Call(qspi_page_program.id),   // Call (&flash, &buf, len)
+            Op::Add,                          // Add len of xfer to buf offset
+            Op::Swap,                         // Address now at top
+            Op::Push32(device.block_size),    // Push length
+            Op::Add,                          // Add to address
+            Op::Swap,                         // Buf offset back to top
+            Op::Push32(len),                  // Push limit.
+            Op::BranchGreaterThan(Target(0)), // Continue if not at limit.
+            Op::Done,
+        ];
+
+        let results = context.run(core, ops.as_slice(), Some(&buf))?;
+
+        for (i, block_result) in results.iter().enumerate() {
+            if let Err(err) = block_result {
+                bail!(
+                    "failed on block {} at offset {}: {}",
+                    i,
+                    offset,
+                    qspi_page_program.strerror(*err),
+                );
+            }
+        }
+
+        offset += chunk;
+
+        if offset >= writelen {
+            return Ok(());
+        }
+    }
+}
+
 fn qspi(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -155,17 +407,19 @@ fn qspi(
     let sector_size = 64 * 1024;
     let block_size = 256; // Conflating flash block size with hubris scratch buffer.
 
+    let device = QspiDevice { block_size, sector_size };
+
     let mut ops = vec![];
     let mut hash_name = "".to_string();
 
-    let data = if subargs.status {
+    let (data, func) = if subargs.status {
         let qspi_read_status = funcs.get("QspiReadStatus", 0)?;
         ops.push(Op::Call(qspi_read_status.id));
-        None
+        (None, qspi_read_status)
     } else if subargs.id {
         let qspi_read_id = funcs.get("QspiReadId", 0)?;
         ops.push(Op::Call(qspi_read_id.id));
-        None
+        (None, qspi_read_id)
     } else if subargs.hash {
         let qspi_hash = funcs.get("QspiHash", 2)?;
         let qspi_read_id = funcs.get("QspiReadId", 0)?;
@@ -178,22 +432,22 @@ fn qspi(
         ops.push(Op::Push32(nbytes));
         ops.push(Op::Call(qspi_hash.id));
         hash_name = format!("{:06x}..{:06x}", addr, nbytes);
-        None
+        (None, qspi_hash)
     } else if subargs.erase {
         let qspi_sector_erase = funcs.get("QspiSectorErase", 1)?;
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Call(qspi_sector_erase.id));
-        None
+        (None, qspi_sector_erase)
     } else if subargs.bulkerase {
         let qspi_bulk_erase = funcs.get("QspiBulkErase", 0)?;
         ops.push(Op::Call(qspi_bulk_erase.id));
-        None
+        (None, qspi_bulk_erase)
     } else if subargs.read {
         let qspi_read = funcs.get("QspiRead", 2)?;
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
         ops.push(Op::Call(qspi_read.id));
-        None
+        (None, qspi_read)
     } else if let Some(ref write) = subargs.write {
         let qspi_page_program = funcs.get("QspiPageProgram", 3)?;
         let bytes: Vec<&str> = write.split(',').collect();
@@ -211,7 +465,7 @@ fn qspi(
         ops.push(Op::Push(0));
         ops.push(Op::Push32(arr.len() as u32));
         ops.push(Op::Call(qspi_page_program.id));
-        Some(arr)
+        (Some(arr), qspi_page_program)
     } else if let Some(filename) = subargs.writefile {
         let qspi_sector_erase = funcs.get("QspiSectorErase", 1)?;
         let qspi_page_program = if subargs.verify {
@@ -308,7 +562,7 @@ fn qspi(
                 Op::Push32(block_size), //
                 Op::Add,  //
                 Op::Swap, // Now pointing to next xfer.
-                Op::Push32(chunk), // Push limit.
+                Op::Push32(len), // Push limit.
                 Op::BranchGreaterThan(Target(0)), // Continue if not at limit.
                 Op::Done,
             ];
@@ -479,6 +733,140 @@ fn qspi(
         );
 
         return Ok(());
+    } else if let Some(filename) = subargs.diffwrite {
+        let filelen = fs::metadata(filename.clone())?.len() as u32;
+        let qspi_hash = funcs.get("QspiHash", 2)?;
+        let started = Instant::now();
+
+        //
+        // We are going to hash the contents to find the differences, and
+        // then erase/flash the different sectors.
+        //
+        let mut address = 0u32;
+        let mut sums = vec![];
+
+        let bar = ProgressBar::new(filelen as u64);
+
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("humility: hashing [{bar:30}] {bytes}/{total_bytes}"),
+        );
+
+        loop {
+            let mut ops = vec![];
+            let max = 8;
+            let mut laps = 0;
+            let base = address;
+
+            bar.set_position(address.into());
+
+            loop {
+                let len = if address + sector_size > filelen {
+                    filelen - address
+                } else {
+                    sector_size
+                };
+
+                ops.push(Op::Push32(address));
+                ops.push(Op::Push32(len));
+                ops.push(Op::Call(qspi_hash.id));
+
+                laps += 1;
+                address += len;
+
+                if address >= filelen || laps >= max {
+                    break;
+                }
+            }
+
+            ops.push(Op::Done);
+            let results = context.run(core, ops.as_slice(), None)?;
+
+            for (sector, result) in results.iter().enumerate() {
+                match result {
+                    Err(err) => {
+                        bail!(
+                            "failed on address 0x{:x}: {}",
+                            base + sector as u32 * sector_size,
+                            qspi_hash.strerror(*err),
+                        );
+                    }
+                    Ok(hash) => {
+                        sums.push((
+                            base + sector as u32 * sector_size,
+                            hash.clone(),
+                        ));
+                    }
+                }
+            }
+
+            if address + sector_size >= filelen {
+                break;
+            }
+        }
+
+        bar.finish_and_clear();
+
+        let mut sectors = vec![];
+        let mut bufs: Vec<Vec<u8>> = vec![];
+        let mut nbytes = 0;
+
+        deltas(&device, &filename, &sums, |offset, buf| {
+            sectors.push(offset);
+            bufs.push(buf.to_vec());
+            nbytes += buf.len();
+            Ok(())
+        })?;
+
+        if sectors.is_empty() {
+            humility::msg!(
+                "no delta; hashed {} in {}",
+                HumanBytes(filelen as u64),
+                HumanDuration(started.elapsed())
+            );
+
+            return Ok(());
+        }
+
+        erase(&device, core, &mut context, &funcs, &sectors)?;
+
+        let bar = ProgressBar::new(nbytes as u64);
+
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("humility: writing [{bar:30}] {bytes}/{total_bytes}"),
+        );
+
+        let mut total = 0;
+
+        //
+        // Now write each sector.
+        //
+        for (addr, buf) in sectors.iter().zip(bufs.iter()) {
+            let mut offs = 0;
+            let writelen = buf.len() as u32;
+
+            let w = |dest: &mut [u8]| {
+                bar.set_position(total);
+                dest.clone_from_slice(&buf[offs..offs + dest.len()]);
+                offs += dest.len();
+                total += dest.len() as u64;
+                Ok(())
+            };
+
+            write(&device, core, &mut context, &funcs, *addr, writelen, w)?;
+        }
+
+        bar.finish_and_clear();
+
+        humility::msg!(
+            "hashed {}, wrote {} in {}",
+            HumanBytes(filelen as u64),
+            HumanBytes(total),
+            HumanDuration(started.elapsed())
+        );
+
+        return Ok(());
     } else {
         bail!("expected an operation");
     };
@@ -496,7 +884,7 @@ fn qspi(
 
     if subargs.read {
         if let Ok(results) = &results[0] {
-            Dumper::new().dump(results, 0);
+            Dumper::new().dump(results, subargs.addr.unwrap_or(0) as u32);
             return Ok(());
         }
     } else if subargs.id {
@@ -524,7 +912,7 @@ fn qspi(
                 println!();
             }
             Err(e) => {
-                bail!("hash failed: {}", e);
+                bail!("hash failed: {}", func.strerror(*e));
             }
         }
         return Ok(());
