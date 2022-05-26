@@ -986,19 +986,19 @@ option:
 % humility qspi -i
 humility: attached via ST-Link V3
 DeviceIdData {
-	manufacturer_id: Micron(0x20)
-	memory_type: 3V(186)
-	memory_capacity: 33554432
-	uid_n: 16
-	# If a Micron device:
-	ext_device_id: 0b1000100
-		2nd device generation,
-		Standard BP scheme,
-		HOLD#/RESET#=HOLD
-		Additional HW RESET# is available,
-		Sector size is Uniform 64KB,
-	device_configuration_info: 0
-	uid: [9a, ec, 0b, 00, 19, f9, ff$, 39, 00, be, 69, 97, f4, a2]
+    manufacturer_id: Micron(0x20)
+    memory_type: 3V(186)
+    memory_capacity: 33554432
+    uid_n: 16
+    # If a Micron device:
+    ext_device_id: 0b1000100
+        2nd device generation,
+        Standard BP scheme,
+        HOLD#/RESET#=HOLD
+        Additional HW RESET# is available,
+        Sector size is Uniform 64KB,
+    device_configuration_info: 0
+    uid: [9a, ec, 0b, 00, 19, f9, ff$, 39, 00, be, 69, 97, f4, a2]
 }
 [Ok([20, ba, 19, 10, 44, 0, 9a, ec, b, 0, 19, f9, ff, 39, 0, be, 69, 97, f4, a2])]
 ```
