@@ -9,6 +9,8 @@ bin.name = "humility"
 args = "-d hubris.core.kiowa.17 tasks -slvr"
 
 #
-# This is totally busted and needs to be investigated!
+# This dump is somehow short by exactly 6K -- which results in an error
+# when printing one of the stack traces, but otherwise drives on and exits
+# without error.
 #
-status.code = 101
+status.code = 0

@@ -270,7 +270,7 @@ fn itmcmd(
     //
     // For all of the other commands, we need to actually attach to the chip.
     //
-    let mut c = attach_live(args)?;
+    let mut c = attach_live(args, hubris)?;
     let core = c.as_mut();
     hubris.validate(core, HubrisValidate::ArchiveMatch)?;
 

@@ -186,12 +186,7 @@ fn readmem(
 
     let mut bytes = vec![0u8; length];
 
-    let _info = core.halt()?;
-
-    let rval = core.read_8(addr, &mut bytes);
-    core.run()?;
-
-    rval?;
+    core.read_8(addr, &mut bytes)?;
 
     if subargs.symbol {
         for offs in (0..length).step_by(size) {

@@ -78,9 +78,9 @@ fn mapcmd(
     _args: &Args,
     _subargs: &[String],
 ) -> Result<()> {
-    core.halt()?;
+    core.op_start()?;
     let regions = hubris.regions(core)?;
-    core.run()?;
+    core.op_done()?;
 
     println!(
         "{:10} {:10}   {:10} {:>7} {:5} {:2} TASK",
