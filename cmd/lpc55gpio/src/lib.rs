@@ -25,7 +25,7 @@ struct GpioArgs {
     )]
     timeout: u32,
 
-    /// toggle specified pins
+    /// read specified pins
     #[clap(
         long, short,
         conflicts_with_all = &["toggle", "set", "reset", "configure"]
