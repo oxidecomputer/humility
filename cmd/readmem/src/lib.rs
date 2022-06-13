@@ -138,7 +138,7 @@ struct ReadmemArgs {
     address: String,
 
     /// length to read
-    #[clap(parse(try_from_str = parse_int::parse))]
+    #[clap(value_parser=parse_int::parse::<usize>)]
     length: Option<usize>,
 }
 

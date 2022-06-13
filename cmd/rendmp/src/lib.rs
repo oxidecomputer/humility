@@ -25,7 +25,7 @@ struct RendmpArgs {
     /// sets timeout
     #[clap(
         long, short, default_value = "5000", value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser=parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -37,7 +37,7 @@ struct RendmpArgs {
 
     /// specifies an I2C controller
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser=parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 

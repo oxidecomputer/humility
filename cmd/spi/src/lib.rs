@@ -50,7 +50,7 @@ struct SpiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value = "5000", value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser=parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -68,7 +68,7 @@ struct SpiArgs {
 
     /// specify number of bytes to read
     #[clap(long, short, value_name = "nbytes",
-        parse(try_from_str = parse_int::parse),
+        value_parser=parse_int::parse::<usize>,
     )]
     nbytes: Option<usize>,
 

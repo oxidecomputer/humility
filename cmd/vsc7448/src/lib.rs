@@ -23,7 +23,7 @@ struct Vsc7448Args {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value = "5000", value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser=parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -56,7 +56,7 @@ impl Vsc7448Args {
 enum Command {
     Info {
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u32>)]
         value: Option<u32>,
     },
     Read {
@@ -64,7 +64,7 @@ enum Command {
     },
     Write {
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u32>)]
         value: u32,
     },
     Phy {
@@ -87,7 +87,7 @@ enum PhyCommand {
         #[clap(flatten)]
         addr: PhyAddr,
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u16>)]
         value: u16,
     },
 }

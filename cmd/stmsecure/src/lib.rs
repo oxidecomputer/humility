@@ -71,9 +71,9 @@ enum StmSecureArgs {
     /// region before this is programmed otherwise you will brick the device
     /// !!!
     SetSecureRegion {
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u32>)]
         address: u32,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u32>)]
         size: u32,
         #[clap(long)]
         doit: bool,

@@ -57,8 +57,11 @@ fn main() {
     // line) to win the conflict.
     //
     if args.dump.is_some() && args.archive.is_some() {
-        match (m.occurrences_of("dump") == 1, m.occurrences_of("archive") == 1)
-        {
+        let dump_count =
+            m.get_many::<usize>("dump").map(|m| m.len()).unwrap_or(0);
+        let archive_count =
+            m.get_many::<usize>("archive").map(|m| m.len()).unwrap_or(0);
+        match (dump_count == 1, archive_count == 1) {
             (true, true) => {
                 log::error!("cannot specify both a dump and an archive");
                 std::process::exit(1);

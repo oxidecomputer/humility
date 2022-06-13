@@ -114,7 +114,7 @@ fallible-iterator = "0.2.0"
 log = {version = "0.4.8", features = ["std"]}
 env_logger = "0.9.0"
 bitfield = "0.13.2"
-clap = "3.0.12"
+clap = "3.2.5"
 csv = "1.1.3"
 serde = "1.0.126"
 parse_int = "0.4.0"

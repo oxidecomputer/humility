@@ -34,7 +34,8 @@ struct EtmArgs {
     /// sets ETM trace identifier
     #[clap(
         long, short, value_name = "identifier",
-        default_value = "0x54", parse(try_from_str = parse_int::parse),
+        default_value = "0x54",
+        value_parser=parse_int::parse::<u8>,
     )]
     traceid: u8,
     /// ingest ETM data as CSV
@@ -46,7 +47,7 @@ struct EtmArgs {
     /// sets the value of SWOSCALER
     #[clap(
         long, short, value_name = "scaler", requires = "enable",
-        parse(try_from_str = parse_int::parse)
+        value_parser=parse_int::parse::<u16>,
     )]
     clockscaler: Option<u16>,
     /// output ETM data as CSV

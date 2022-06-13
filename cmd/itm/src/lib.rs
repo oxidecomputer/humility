@@ -67,7 +67,7 @@ struct ItmArgs {
     /// sets ITM trace identifier
     #[clap(
         long, short, default_value = "0x3a", value_name = "identifier",
-        parse(try_from_str = parse_int::parse)
+        value_parser=parse_int::parse::<u8>,
     )]
     traceid: u8,
     /// ingest ITM data as CSV
@@ -81,7 +81,7 @@ struct ItmArgs {
     bypass: bool,
     /// sets the value of SWOSCALER
     #[clap(long, short, value_name = "scaler", requires = "enable",
-        parse(try_from_str = parse_int::parse),
+        value_parser=parse_int::parse::<u16>,
     )]
     clockscaler: Option<u16>,
 }

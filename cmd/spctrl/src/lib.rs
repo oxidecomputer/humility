@@ -60,12 +60,12 @@ use hif::*;
 #[clap(name = "subcmd")]
 enum SpCtrlCmd {
     Write {
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u32>)]
         addr: u32,
         bytes: String,
     },
     Read {
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser=parse_int::parse::<u32>)]
         addr: u32,
         nbytes: usize,
     },
@@ -78,7 +78,7 @@ struct SpCtrlArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value = "5000", value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser=parse_int::parse::<u32>,
     )]
     timeout: u32,
 
