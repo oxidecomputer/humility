@@ -907,13 +907,13 @@ impl DumpCore {
         //
         // This really shouldn't happen, as it means that we have a defined
         // region in a program header for memory that wasn't in fact dumped.
-        // Still, this might occur if the dump is turncated or otherwise
+        // Still, this might occur if the dump is truncated or otherwise
         // corrupt; offer a message pointing in that direction.
         //
         bail!(
             "0x{:x} is valid, but offset in dump \
             (0x{:x}) + size (0x{:x}) exceeds max (0x{:x}); \
-            is the dump trunctated or otherwise corrupt?",
+            is the dump truncated or otherwise corrupt?",
             addr,
             offs,
             rsize,
