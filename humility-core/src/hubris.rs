@@ -16,7 +16,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Cursor;
 use std::mem::size_of;
 use std::path::Path;
-use std::str;
+use std::str::{self, FromStr};
 use std::time::Instant;
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
