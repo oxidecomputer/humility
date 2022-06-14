@@ -403,15 +403,17 @@ pub fn lookup_reply<'a>(
         };
 
     match reply {
-        Reply::Result { ok, err } => {
-            let err = match err {
-                ::idol::syntax::Error::CLike(t) => m
-                    .lookup_enum_byname(hubris, &t.0)
-                    .context(format!("failed to find error type {:?}", reply)),
-            }?;
-
-            Ok((lookup_ok(&ok.ty.0)?, Some(err)))
-        }
+        Reply::Result { ok, err } => match err {
+            ::idol::syntax::Error::CLike(t) => {
+                let err = m.lookup_enum_byname(hubris, &t.0).context(
+                    format!("failed to find error type {:?}", reply),
+                )?;
+                Ok((lookup_ok(&ok.ty.0)?, Some(err)))
+            }
+            ::idol::syntax::Error::ServerDeath => {
+                Ok((lookup_ok(&ok.ty.0)?, None))
+            }
+        },
         Reply::Simple(ok) => Ok((lookup_ok(&ok.ty.0)?, None)),
     }
 }
