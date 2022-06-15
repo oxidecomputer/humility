@@ -16,7 +16,7 @@ For more information try --help
 
 ```
 $ humility --chip this-can-be-anything -V
-humility 0.6.0
+humility 0.7.0
 
 ```
 
@@ -34,7 +34,7 @@ For more information try --help
 
 ```
 $ humility -c apx432 -V
-humility 0.6.0
+humility 0.7.0
 
 ```
 
