@@ -33,6 +33,7 @@ pub trait Core {
     fn read_swv(&mut self) -> Result<Vec<u8>>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
     fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()>;
+
     fn halt(&mut self) -> Result<()>;
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
@@ -45,6 +46,20 @@ pub trait Core {
         self.read_8(addr, &mut buf)?;
         Ok(u64::from_le_bytes(buf))
     }
+
+    /// Called before starting a series of operations.  May halt the target if
+    /// the target does not allow operations while not halted.  Should not be
+    /// intermixed with [`halt`]/[`run`].
+    fn op_start(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    /// Called after completing a series of operations.  May run the target if
+    /// the target does not allow operations while not halted.  Should not be
+    /// intermixed with [`halt`]/[`run`].
+    fn op_done(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
 
 pub struct ProbeCore {
@@ -53,7 +68,8 @@ pub struct ProbeCore {
     pub vendor_id: u16,
     pub product_id: u16,
     pub serial_number: Option<String>,
-    halted: bool,
+    unhalted_reads: bool,
+    halted: u32,
     unhalted_read: BTreeMap<u32, u32>,
 }
 
@@ -64,6 +80,7 @@ impl ProbeCore {
         vendor_id: u16,
         product_id: u16,
         serial_number: Option<String>,
+        unhalted_reads: bool,
     ) -> Self {
         Self {
             session,
@@ -71,31 +88,36 @@ impl ProbeCore {
             vendor_id,
             product_id,
             serial_number,
-            halted: false,
+            unhalted_reads,
+            halted: 0,
             unhalted_read: crate::arch::unhalted_read_regions(),
         }
     }
 
-    fn halt_and_exec(
+    fn halt_and_read(
         &mut self,
         mut func: impl FnMut(&mut probe_rs::Core) -> Result<()>,
     ) -> Result<()> {
         let mut core = self.session.core(0)?;
 
-        let halted = if !self.halted && !core.core_halted()? {
-            core.halt(std::time::Duration::from_millis(1000))?;
-            true
+        if self.unhalted_reads {
+            func(&mut core)
         } else {
-            false
-        };
+            let halted = if self.halted == 0 && !core.core_halted()? {
+                core.halt(std::time::Duration::from_millis(1000))?;
+                true
+            } else {
+                false
+            };
 
-        let rval = func(&mut core);
+            let rval = func(&mut core);
 
-        if halted {
-            core.run()?;
+            if halted {
+                core.run()?;
+            }
+
+            rval
         }
-
-        rval
     }
 }
 
@@ -123,7 +145,7 @@ impl Core for ProbeCore {
             }
         }
 
-        self.halt_and_exec(|core| {
+        self.halt_and_read(|core| {
             rval = core.read_word_32(addr)?;
             Ok(())
         })?;
@@ -144,7 +166,7 @@ impl Core for ProbeCore {
             }
         }
 
-        self.halt_and_exec(|core| Ok(core.read_8(addr, data)?))
+        self.halt_and_read(|core| Ok(core.read_8(addr, data)?))
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
@@ -183,16 +205,23 @@ impl Core for ProbeCore {
     }
 
     fn halt(&mut self) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.halt(std::time::Duration::from_millis(1000))?;
-        self.halted = true;
+        if self.halted == 0 {
+            let mut core = self.session.core(0)?;
+            core.halt(std::time::Duration::from_millis(1000))?;
+        }
+
+        self.halted += 1;
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
-        let mut core = self.session.core(0)?;
-        core.run()?;
-        self.halted = false;
+        self.halted -= 1;
+
+        if self.halted == 0 {
+            let mut core = self.session.core(0)?;
+            core.run()?;
+        }
+
         Ok(())
     }
 
@@ -219,6 +248,22 @@ impl Core for ProbeCore {
 
     fn read_swv(&mut self) -> Result<Vec<u8>> {
         Ok(self.session.read_swo()?)
+    }
+
+    fn op_start(&mut self) -> Result<()> {
+        if !self.unhalted_reads {
+            self.halt()?;
+        }
+
+        Ok(())
+    }
+
+    fn op_done(&mut self) -> Result<()> {
+        if !self.unhalted_reads {
+            self.run()?;
+        }
+
+        Ok(())
     }
 }
 
@@ -853,6 +898,28 @@ impl DumpCore {
 
         Ok(Self { contents, regions, registers: hubris.dump_registers() })
     }
+
+    fn check_offset(&self, addr: u32, rsize: usize, offs: usize) -> Result<()> {
+        if rsize + offs <= self.contents.len() {
+            return Ok(());
+        }
+
+        //
+        // This really shouldn't happen, as it means that we have a defined
+        // region in a program header for memory that wasn't in fact dumped.
+        // Still, this might occur if the dump is truncated or otherwise
+        // corrupt; offer a message pointing in that direction.
+        //
+        bail!(
+            "0x{:x} is valid, but offset in dump \
+            (0x{:x}) + size (0x{:x}) exceeds max (0x{:x}); \
+            is the dump truncated or otherwise corrupt?",
+            addr,
+            offs,
+            rsize,
+            self.contents.len()
+        );
+    }
 }
 
 #[rustfmt::skip::macros(bail)]
@@ -878,6 +945,8 @@ impl Core for DumpCore {
             } else {
                 let offs = offset + (addr - base) as usize;
 
+                self.check_offset(addr, rsize, offs)?;
+
                 return Ok(u32::from_le_bytes(
                     self.contents[offs..offs + rsize].try_into().unwrap(),
                 ));
@@ -902,10 +971,10 @@ impl Core for DumpCore {
                 );
             } else {
                 let offs = offset + (addr - base) as usize;
+                self.check_offset(addr, rsize, offs)?;
 
                 data[..rsize]
                     .copy_from_slice(&self.contents[offs..rsize + offs]);
-
                 return Ok(());
             }
         }
@@ -959,7 +1028,10 @@ impl Core for DumpCore {
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+pub fn attach(
+    mut probe: &str,
+    hubris: &HubrisArchive,
+) -> Result<Box<dyn Core>> {
     let mut index: Option<usize> = None;
 
     if probe.contains('-') {
@@ -973,6 +1045,15 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
             }
         }
     }
+
+    //
+    // Regrettably, probe-rs needs us to specify a chip that it knows about --
+    // but it only really uses this information for flashing the part (which
+    // we don't currently use probe-rs to do).  So we specify a generic
+    // ARMv7-M; if/when "humility flash" uses probe-rs natively to flash the
+    // part, this will need to change.
+    //
+    let chip = "armv7m";
 
     match probe {
         "usb" => {
@@ -1027,6 +1108,7 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
                 probes[selected].vendor_id,
                 probes[selected].product_id,
                 probes[selected].serial_number.clone(),
+                hubris.unhalted_reads(),
             )))
         }
 
@@ -1044,15 +1126,15 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
         }
 
         "auto" => {
-            if let Ok(probe) = attach("ocd", chip) {
+            if let Ok(probe) = attach("ocd", hubris) {
                 return Ok(probe);
             }
 
-            if let Ok(probe) = attach("jlink", chip) {
+            if let Ok(probe) = attach("jlink", hubris) {
                 return Ok(probe);
             }
 
-            attach("usb", chip)
+            attach("usb", hubris)
         }
 
         "ocdgdb" => {
@@ -1083,7 +1165,14 @@ pub fn attach(mut probe: &str, chip: &str) -> Result<Box<dyn Core>> {
 
                 crate::msg!("attached to {} via {}", vidpid, name);
 
-                Ok(Box::new(ProbeCore::new(session, name, vid, pid, serial)))
+                Ok(Box::new(ProbeCore::new(
+                    session,
+                    name,
+                    vid,
+                    pid,
+                    serial,
+                    hubris.unhalted_reads(),
+                )))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
         },

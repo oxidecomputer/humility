@@ -121,7 +121,7 @@ use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
 use humility_cmd::reflect::{self, Format, Load};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use num_traits::FromPrimitive;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Parser, Debug)]
 #[clap(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -185,6 +185,9 @@ fn tasks(
     let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
 
     let task_t = hubris.lookup_struct_byname("Task")?;
+    let save = task_t.lookup_member("save")?.offset;
+    let state = hubris.lookup_struct_byname("SavedState")?;
+    let r4 = save + state.lookup_member("r4")?.offset;
 
     let mut found = false;
 
@@ -207,7 +210,41 @@ fn tasks(
         let mut taskblock = vec![0; task_t.size * task_count as usize];
         core.read_8(base, &mut taskblock)?;
 
-        if !subargs.stack {
+        let mut tasks = vec![];
+        let mut panicked = false;
+        let mut regs = HashMap::new();
+
+        for i in 0..task_count {
+            let addr = base + i * task_t.size as u32;
+            let offs = i as usize * task_t.size;
+
+            let task_value: reflect::Value =
+                reflect::load(hubris, &taskblock, task_t, offs)?;
+            let task: Task = Task::from_value(&task_value)?;
+
+            //
+            // Always load R4, R5 and R6, which are in the saved state in our
+            // task structure (and are needed to print state).
+            //
+            for r in 4..=6 {
+                let o = offs + r4 + (r - 4) * 4;
+                let v =
+                    u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
+                regs.insert((i, ARMRegister::from_usize(r).unwrap()), v);
+            }
+
+            tasks.push((addr, task_value, task));
+
+            if let TaskState::Faulted { fault, .. } = task.state {
+                if fault == doppel::FaultInfo::Panic {
+                    panicked = true;
+                }
+            }
+        }
+
+        let keep_halted = subargs.stack || subargs.registers || panicked;
+
+        if !keep_halted {
             core.run()?;
         }
 
@@ -217,13 +254,9 @@ fn tasks(
             "ID", "TASK", "GEN", "PRI", "STATE");
 
         let mut any_names_truncated = false;
-        for i in 0..task_count {
-            let addr = base + i * task_t.size as u32;
-            let offs = i as usize * task_t.size;
 
-            let task_value: reflect::Value =
-                reflect::load(hubris, &taskblock, task_t, offs)?;
-            let task: Task = Task::from_value(&task_value)?;
+        for (i, (addr, task_value, task)) in tasks.iter().enumerate() {
+            let i = i as u32;
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
             let module =
                 hubris.instr_mod(desc.entry_point).unwrap_or("<unknown>");
@@ -261,8 +294,9 @@ fn tasks(
                 hubris,
                 core,
                 i,
+                &regs,
                 task.state,
-                addr == cur,
+                *addr == cur,
                 irqs,
                 timer,
             )?;
@@ -309,7 +343,7 @@ fn tasks(
                 humility manifest to see them.");
         }
 
-        if subargs.stack {
+        if keep_halted {
             core.run()?;
         }
 
@@ -325,10 +359,12 @@ fn tasks(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn explain_state(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
+    regs: &HashMap<(u32, ARMRegister), u32>,
     ts: TaskState,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
@@ -337,16 +373,16 @@ fn explain_state(
     match ts {
         TaskState::Healthy(ss) => {
             explain_sched_state(
-                hubris, core, task_index, current, irqs, timer, ss,
+                hubris, task_index, regs, current, irqs, timer, ss,
             )?;
         }
         TaskState::Faulted { fault, original_state } => {
-            explain_fault_info(hubris, core, task_index, fault)?;
+            explain_fault_info(hubris, core, task_index, regs, fault)?;
             print!(" (was: ");
             explain_sched_state(
                 hubris,
-                core,
                 task_index,
+                regs,
                 current,
                 irqs,
                 timer,
@@ -360,8 +396,8 @@ fn explain_state(
 
 fn explain_sched_state(
     hubris: &HubrisArchive,
-    core: &mut dyn Core,
     task_index: u32,
+    regs: &HashMap<(u32, ARMRegister), u32>,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
     timer: Option<(i64, u32)>,
@@ -391,9 +427,7 @@ fn explain_sched_state(
             print_task_id(hubris, tid);
         }
         SchedState::InRecv(tid) => {
-            let r = hubris.registers(core, HubrisTask::Task(task_index))?;
-            let notmask = *r.get(&ARMRegister::R6).unwrap();
-
+            let notmask = *regs.get(&(task_index, ARMRegister::R6)).unwrap();
             explain_recv(hubris, tid, notmask, irqs, timer);
         }
     }
@@ -412,6 +446,7 @@ fn explain_fault_info(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
+    regs: &HashMap<(u32, ARMRegister), u32>,
     fi: doppel::FaultInfo,
 ) -> Result<()> {
     use doppel::FaultInfo;
@@ -458,9 +493,8 @@ fn explain_fault_info(
             explain_usage_error(ue);
         }
         FaultInfo::Panic => {
-            let r = hubris.registers(core, HubrisTask::Task(task_index))?;
-            let msg_base = *r.get(&ARMRegister::R4).unwrap();
-            let msg_len = *r.get(&ARMRegister::R5).unwrap();
+            let msg_base = *regs.get(&(task_index, ARMRegister::R4)).unwrap();
+            let msg_len = *regs.get(&(task_index, ARMRegister::R5)).unwrap();
             let msg_len = msg_len.min(255) as usize;
             let mut buf = vec![0; msg_len];
             core.read_8(msg_base, &mut buf)?;

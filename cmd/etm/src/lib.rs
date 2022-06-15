@@ -588,7 +588,7 @@ fn etmcmd(
     //
     // For all of the other commands, we need to actually attach to the chip.
     //
-    let mut core = attach_live(args)?;
+    let mut core = attach_live(args, hubris)?;
     let _info = core.halt()?;
 
     humility::msg!("core halted");

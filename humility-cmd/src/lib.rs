@@ -28,16 +28,7 @@ pub struct Args {
     #[clap(long, short = 'V')]
     pub version: bool,
 
-    /// specific chip on attached device
-    #[clap(
-        long,
-        short,
-        env = "HUMILITY_CHIP",
-        default_value = "STM32F407VGTx"
-    )]
-    pub chip: String,
-
-    /// chip probe to use
+    /// probe to use
     #[clap(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
     pub probe: Option<String>,
 
@@ -111,7 +102,10 @@ pub enum Command {
     },
 }
 
-pub fn attach_live(args: &Args) -> Result<Box<dyn Core>> {
+pub fn attach_live(
+    args: &Args,
+    hubris: &HubrisArchive,
+) -> Result<Box<dyn Core>> {
     if args.dump.is_some() {
         bail!("must be run against a live system");
     } else {
@@ -120,7 +114,7 @@ pub fn attach_live(args: &Args) -> Result<Box<dyn Core>> {
             None => "auto",
         };
 
-        humility::core::attach(probe, &args.chip)
+        humility::core::attach(probe, hubris)
     }
 }
 
@@ -143,13 +137,13 @@ pub fn attach(
     mut run: impl FnMut(&HubrisArchive, &mut dyn Core) -> Result<()>,
 ) -> Result<()> {
     let mut c = match attach {
-        Attach::LiveOnly => attach_live(args),
+        Attach::LiveOnly => attach_live(args, hubris),
         Attach::DumpOnly => attach_dump(args, hubris),
         Attach::Any => {
             if args.dump.is_some() {
                 attach_dump(args, hubris)
             } else {
-                attach_live(args)
+                attach_live(args, hubris)
             }
         }
     }?;
