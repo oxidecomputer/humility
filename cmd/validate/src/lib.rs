@@ -55,7 +55,7 @@ use humility_cmd::idol;
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
-#[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ValidateArgs {
     /// sets timeout
     #[clap(
