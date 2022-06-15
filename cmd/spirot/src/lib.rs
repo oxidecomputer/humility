@@ -29,7 +29,7 @@ struct SpirotArgs {
     timeout: u32,
 
     /// message type
-    #[clap(long, short, default_value = "echo")]
+    #[clap(long, short, default_value = "echoreq")]
     msgtype: String,
 
     /// Send bytes and receive response
@@ -37,27 +37,33 @@ struct SpirotArgs {
     send: Option<String>,
 }
 
+// XXX This needs to come from hubris spi-msg crate.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum MsgType {
     Invalid = 0,
-    Error = 1,
-    Echo = 2,
-    EchoReturn = 3,
-    Status = 4,
-    Sprockets = 5,
+    ErrorRsp = 1,
+    EchoReq = 2,
+    EchoRsp = 3,
+    StatusReq = 4,
+    StatusRsp = 5,
+    SprocketsReq = 6,
+    SprocketsRsp = 7,
     Unknown = 0xff,
 }
 
 impl From<&str> for MsgType {
     fn from(typename: &str) -> Self {
-        match typename {
+        let lc = typename.to_lowercase();
+        match lc.as_str() {
             "invalid" => MsgType::Invalid,
-            "error" => MsgType::Error,
-            "echo" => MsgType::Echo,
-            "echoreturn" => MsgType::EchoReturn,
-            "status" => MsgType::Status,
-            "sprockets" => MsgType::Sprockets,
+            "errorrsp" => MsgType::ErrorRsp,
+            "echoreq" => MsgType::EchoReq,
+            "echorsp" => MsgType::EchoRsp,
+            "statusreq" => MsgType::StatusReq,
+            "statusrsp" => MsgType::StatusRsp,
+            "sprocketsreq" => MsgType::SprocketsReq,
+            "sprocketsrsp" => MsgType::SprocketsRsp,
             _ => MsgType::Unknown,
         }
     }
@@ -67,10 +73,13 @@ impl From<u8> for MsgType {
     fn from(protocol: u8) -> Self {
         match protocol {
             0 => MsgType::Invalid,
-            1 => MsgType::Error,
-            2 => MsgType::Echo,
-            3 => MsgType::EchoReturn,
-            4 => MsgType::Status,
+            1 => MsgType::ErrorRsp,
+            2 => MsgType::EchoReq,
+            3 => MsgType::EchoRsp,
+            4 => MsgType::StatusReq,
+            5 => MsgType::StatusRsp,
+            6 => MsgType::SprocketsReq,
+            7 => MsgType::SprocketsRsp,
             _ => MsgType::Unknown,
         }
     }
@@ -83,22 +92,20 @@ fn spirot(
     subargs: &[String],
 ) -> Result<()> {
     let subargs = SpirotArgs::try_parse_from(subargs)?;
-    let (msgtype, data) = if let Some(ref send) = subargs.send {
-        let msgtype = MsgType::from(subargs.msgtype.as_str());
-
-        let data = match msgtype {
-            MsgType::Sprockets => send_sprockets(send),
-            MsgType::Unknown => {
-                bail!("Using unknown message type. Expected one of: invalid, error, echo, echoReturn, status");
-            }
+    let msgtype = MsgType::from(subargs.msgtype.as_str());
+    let data = if let Some(ref send) = subargs.send {
+        match msgtype {
+            MsgType::SprocketsReq => send_sprockets(send),
+            MsgType::Unknown => bail!("Using unknown message type"),
             _ => send_other(send),
-        };
-        (msgtype, data)
+        }
     } else {
-        bail!("expected an operation");
+        match msgtype {
+            MsgType::SprocketsReq => bail!("-s data is required"),
+            MsgType::Unknown => bail!("Using unknown message type"),
+            _ => send_other(""),
+        }
     };
-
-    println!("msgtype: {:?}", msgtype as u32);
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
@@ -115,19 +122,24 @@ fn spirot(
 
     println!("data: {:?}", data);
 
-    let results = context.run(core, ops.as_slice(), Some(data.as_slice()))?;
+    let results = if data.len() > 0 {
+        context.run(core, ops.as_slice(), Some(data.as_slice()))?
+    } else {
+        context.run(core, ops.as_slice(), None)?
+    };
+    println!("results={:?}", results);
 
     if subargs.send.is_some() {
         if let Ok(results) = &results[0] {
-            if msgtype == MsgType::Sprockets {
-                println!("Sprockets response!");
+            if msgtype == MsgType::SprocketsRsp {
+                println!("SprocketsRsp!");
                 let (response, _) = deserialize::<RotResponseV1>(results)?;
                 println!("{:x?}", response);
             } else {
                 Dumper::new().dump(results, 0);
             }
         } else {
-            println!("Oh balls!");
+            println!("Fail!");
             println!("{:x?}", results);
         }
     }
@@ -161,17 +173,15 @@ fn send_sprockets(command: &str) -> Vec<u8> {
 
 // Return a request other than sprockets to send to spirot via HIF
 fn send_other(command: &str) -> Vec<u8> {
-    let bytes: Vec<&str> = command.split(',').collect();
     let mut arr = vec![];
 
-    for byte in &bytes {
+    for byte in command.split_terminator(',') {
         if let Ok(val) = parse_int::parse::<u8>(byte) {
             arr.push(val);
         } else {
             panic!("invalid byte {}", byte);
         }
     }
-
     arr
 }
 
