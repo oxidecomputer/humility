@@ -40,6 +40,21 @@ pub struct Args {
     #[clap(long, short, env = "HUMILITY_DUMP")]
     pub dump: Option<String>,
 
+    //
+    // probe-rs requires the chip to be specified when creating a session,
+    // even though it is only used for flashing (which we don't use probe-rs
+    // to do).  Historically, we had a `-c` option to specify this, but its
+    // presence was causing confusion and it has been deprecated.  However,
+    // Hubris uses Humility to flash, and specifies this option.  Because we
+    // may want to use this properly in the future (namely, if/when we use
+    // probe-rs to flash), we continue to accept this option (and test for its
+    // presence), thereby eliminating two potential Hubris flag days.  (Until
+    // it once again means something, we hide the option from the help
+    // output.)
+    //
+    #[clap(long, short, env = "HUMILITY_CHIP", hide = true)]
+    pub chip: Option<String>,
+
     #[clap(subcommand)]
     pub cmd: Option<Subcommand>,
 }

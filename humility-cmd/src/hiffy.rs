@@ -2,7 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::idol;
+use crate::{
+    doppel::StaticCell,
+    idol,
+    reflect::{self, Load, Value},
+};
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::Core;
@@ -33,6 +37,7 @@ pub struct HiffyContext<'a> {
     errors: &'a HubrisVariable,
     failure: &'a HubrisVariable,
     functions: HubrisGoff,
+    scratch_size: usize,
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
     timeout: u32,
@@ -219,6 +224,27 @@ impl<'a> HiffyContext<'a> {
             );
         }
 
+        let scratch_size = if let Ok(scratch) =
+            Self::variable(hubris, "HIFFY_SCRATCH", false)
+        {
+            let mut buf: Vec<u8> = vec![];
+            buf.resize_with(scratch.size, Default::default);
+
+            core.op_start()?;
+            core.read_8(scratch.addr, buf.as_mut_slice())?;
+            core.op_done()?;
+
+            let def = hubris.lookup_struct(scratch.goff)?;
+            let val: Value =
+                Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
+            let scratch_cell: StaticCell = StaticCell::from_value(&val)?;
+            scratch_cell.cell.value.as_array()?.len()
+        } else {
+            // Backwards compatibility
+            // Previous versions stored a 256 byte array on the stack
+            256
+        };
+
         Ok(Self {
             hubris,
             ready: Self::variable(hubris, "HIFFY_READY", true)?,
@@ -227,10 +253,10 @@ impl<'a> HiffyContext<'a> {
             data: Self::variable(hubris, "HIFFY_DATA", false)?,
             rstack: Self::variable(hubris, "HIFFY_RSTACK", false)?,
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
-            // scratch: Self::variable(hubris, "HIFFY_SCRATCH", false)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
             failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
             functions: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
+            scratch_size,
             cached: None,
             kicked: None,
             timeout,
@@ -556,12 +582,10 @@ impl<'a> HiffyContext<'a> {
     }
 
     pub fn rstack_size(&self) -> usize {
-        // self.rstack.size
-        2048 // This value should be discovered.
+        self.rstack.size
     }
 
     pub fn scratch_size(&self) -> usize {
-        // self.scratch.size
-        256 // This value should be discovered.
+        self.scratch_size
     }
 }
