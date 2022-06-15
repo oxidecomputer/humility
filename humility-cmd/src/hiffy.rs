@@ -230,9 +230,9 @@ impl<'a> HiffyContext<'a> {
             let mut buf: Vec<u8> = vec![];
             buf.resize_with(scratch.size, Default::default);
 
-            let _info = core.halt()?;
+            core.op_start()?;
             core.read_8(scratch.addr, buf.as_mut_slice())?;
-            core.run()?;
+            core.op_done()?;
 
             let def = hubris.lookup_struct(scratch.goff)?;
             let val: Value =
