@@ -138,18 +138,6 @@ Dumps are offered in lieu of a probe and an archive and specified via
 the `-d` option (long form `--dump`) or the `HUMILITY_DUMP` environment
 variable.
 
-### Chip
-
-While some autodetection is possible, Humility regrettably may need to be made
-aware of the specifics of the target chip.  Supported chips include:
-
-- `STM32F407VGTx` (default): STM32F407 as found on the reference Discovery board
-- `LPC55S69JBD100`: LPC55S69 as found on the LPCXpresso55S69
-- `STM32H7B3LIHxQ`: STM32H7B3 as found on the STM32H7B3I-DK
-
-The target chip can be specified via the `-c` option or the `HUMILITY_CHIP`
-environment variable.
-
 ## Commands
 
 - [humility apptable](#humility-apptable): print Hubris apptable

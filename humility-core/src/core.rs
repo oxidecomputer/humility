@@ -1046,7 +1046,14 @@ pub fn attach(
         }
     }
 
-    let chip = "STM32F407VGTx";
+    //
+    // Regrettably, probe-rs needs us to specify a chip that it knows about --
+    // but it only really uses this information for flashing the part (which
+    // we don't currently use probe-rs to do).  So we specify a generic
+    // ARMv7-M; if/when "humility flash" uses probe-rs natively to flash the
+    // part, this will need to change.
+    //
+    let chip = "armv7m";
 
     match probe {
         "usb" => {
