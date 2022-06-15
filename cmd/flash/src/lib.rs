@@ -91,7 +91,7 @@ fn flashcmd(
     };
 
     let serial = {
-        let mut c = humility::core::attach(probe, &args.chip)?;
+        let mut c = humility::core::attach(probe, hubris)?;
         let core = c.as_mut();
 
         //

@@ -384,4 +384,4 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004e20 (&abi::TaskDesc)
                 }
 
- 6 spi_driver             0   2 
+ 6 spi_driver             0   2 notif: bit0(irq84)

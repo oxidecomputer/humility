@@ -183,14 +183,14 @@ impl<'a> HiffyContext<'a> {
         core: &mut dyn Core,
         timeout: u32,
     ) -> Result<HiffyContext<'a>> {
-        core.halt()?;
+        core.op_start()?;
 
         let (major, minor) = (
             Self::read_word(hubris, core, "HIFFY_VERSION_MAJOR"),
             Self::read_word(hubris, core, "HIFFY_VERSION_MINOR"),
         );
 
-        core.run()?;
+        core.op_done()?;
 
         let target = (major?, minor?);
         let ours = (HIF_VERSION_MAJOR, HIF_VERSION_MINOR);
@@ -200,6 +200,18 @@ impl<'a> HiffyContext<'a> {
         // and Hubris.
         //
         if ours != target {
+            //
+            // If the version in core appears wildly wrong (i.e, anything
+            // greater than a byte), it may be because Hiffy is getting
+            // starved; generate a messaage pointing in that direction.
+            //
+            if target.0 > 255 || target.1 > 255 {
+                bail!(
+                    "HIF versions appear uninitialized; \
+                    has the hiffy task not yet run?"
+                );
+            }
+
             #[rustfmt::skip]
             bail!(
                 "HIF version mismatch: target has {}.{}; ours is {}.{}",
@@ -388,10 +400,10 @@ impl<'a> HiffyContext<'a> {
         let mut text: Vec<u8> = vec![];
         text.resize_with(self.text.size, Default::default);
 
-        core.halt()?;
+        core.op_start()?;
 
         if core.read_word_32(self.ready.addr)? != 1 {
-            core.run()?;
+            core.op_done()?;
             bail!("HIF execution facility unavailable");
         }
 
@@ -409,18 +421,18 @@ impl<'a> HiffyContext<'a> {
             core.write_8(self.data.addr, data)?;
         }
 
-        core.write_word_32(self.kick.addr, 1)?;
-
         self.cached = Some((
             core.read_word_32(self.requests.addr)?,
             core.read_word_32(self.errors.addr)?,
         ));
 
+        core.write_word_32(self.kick.addr, 1)?;
+
         self.kicked = Some(Instant::now());
 
         self.state = State::Kicked;
 
-        core.run()?;
+        core.op_done()?;
 
         Ok(())
     }
@@ -444,14 +456,14 @@ impl<'a> HiffyContext<'a> {
             bail!("invalid state for waiting: {:?}", self.state);
         }
 
-        core.halt()?;
+        core.op_start()?;
 
         let vars = (
             core.read_word_32(self.requests.addr)?,
             core.read_word_32(self.errors.addr)?,
         );
 
-        core.run()?;
+        core.op_done()?;
 
         if let Some(kicked) = self.kicked {
             if kicked.elapsed().as_millis() > self.timeout.into() {
@@ -472,9 +484,9 @@ impl<'a> HiffyContext<'a> {
                 let mut buf: Vec<u8> = vec![];
                 buf.resize_with(self.failure.size, Default::default);
 
-                core.halt()?;
+                core.op_start()?;
                 let r = core.read_8(self.failure.addr, buf.as_mut_slice());
-                core.run()?;
+                core.op_done()?;
 
                 match r {
                     Ok(_) => {
@@ -511,12 +523,12 @@ impl<'a> HiffyContext<'a> {
         let mut rstack: Vec<u8> = vec![];
         rstack.resize_with(self.rstack.size, Default::default);
 
-        core.halt()?;
+        core.op_start()?;
 
         let mut rvec = vec![];
         core.read_8(self.rstack.addr, rstack.as_mut_slice())?;
 
-        core.run()?;
+        core.op_done()?;
 
         let mut result = &rstack[0..];
 

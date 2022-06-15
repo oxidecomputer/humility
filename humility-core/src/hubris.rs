@@ -4353,6 +4353,14 @@ impl HubrisArchive {
             Some(apptable) => Some(&apptable.1),
         }
     }
+
+    pub fn unhalted_reads(&self) -> bool {
+        if let Some(ref target) = self.manifest.target {
+            target != "thumbv6m-none-eabi"
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
