@@ -52,15 +52,23 @@ struct GpioArgs {
          conflicts_with_all = &["configure"])]
     reset: bool,
 
-    /// configures specified pins
+    /// configures specified pins with colon separated arguments:{n}
+    ///  AltFn:Mode:Slew:Invert:Digimode:Opendrain{n}
+    /// Where:{n}
+    ///  AltFn = Alt[0-9]{n}
+    ///  Mode = {NoPull, PullDown, PullUp, Repeater}{n}
+    ///  Slew = {Standard, Fast}{n}
+    ///  Invert = {Disable, Enabled}{n}
+    ///  Digimode = {Analog, Digital}{n}
+    ///  Opendrain = {Normal, Opendrain}
     #[clap(long, short, requires = "pins")]
     configure: Option<String>,
 
-    /// configures specified pins
+    /// configures specified pins as {Input, Output}
     #[clap(long, short, requires = "pins")]
     direction: Option<String>,
 
-    /// specifies GPIO pins on which to operate
+    /// specifies GPIO pins on which to operate: PIO[0..=1]_[0..=31]
     #[clap(long, short, value_name = "pins")]
     pins: Option<Vec<String>>,
 }
