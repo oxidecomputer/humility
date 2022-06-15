@@ -2,7 +2,7 @@
 name = "humility-cmd-rendmp"
 version = "0.1.0"
 edition = "2021"
-description = "Renesas digitial muliphase controller operations"
+description = "Renesas digital muliphase controller operations"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
