@@ -1,0 +1,40 @@
+Various tests to check for the presence of the `--chip` option, even though it
+(for the moment) does nothing, as it's depended upon by Hubris.  (See the
+comment above the option declaration for details and rationale.)
+
+```
+$ humility --chip -V
+? failed
+error: The argument '--chip <CHIP>' requires a value but none was supplied
+
+USAGE:
+    humility [OPTIONS] [SUBCOMMAND]
+
+For more information try --help
+
+```
+
+```
+$ humility --chip this-can-be-anything -V
+humility 0.6.0
+
+```
+
+```
+$ humility -c -V
+? failed
+error: The argument '--chip <CHIP>' requires a value but none was supplied
+
+USAGE:
+    humility [OPTIONS] [SUBCOMMAND]
+
+For more information try --help
+
+```
+
+```
+$ humility -c apx432 -V
+humility 0.6.0
+
+```
+
