@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use clap::ValueSource;
 use humility_cmd::{Args, Subcommand};
 
 use clap::CommandFactory;
@@ -57,17 +58,18 @@ fn main() {
     // line) to win the conflict.
     //
     if args.dump.is_some() && args.archive.is_some() {
-        let dump_count =
-            m.get_many::<usize>("dump").map(|m| m.len()).unwrap_or(0);
-        let archive_count =
-            m.get_many::<usize>("archive").map(|m| m.len()).unwrap_or(0);
-        match (dump_count == 1, archive_count == 1) {
-            (true, true) => {
+        use ValueSource::*;
+
+        let dump = m.value_source("dump").unwrap();
+        let archive = m.value_source("archive").unwrap();
+
+        match (dump, archive) {
+            (CommandLine, CommandLine) => {
                 log::error!("cannot specify both a dump and an archive");
                 std::process::exit(1);
             }
 
-            (false, false) => {
+            (EnvVariable, EnvVariable) => {
                 log::error!(
                     "both dump and archive have been set via environment \
                     variables; unset one of them, or use a command-line option \
@@ -76,19 +78,22 @@ fn main() {
                 std::process::exit(1);
             }
 
-            (true, false) => {
+            (CommandLine, EnvVariable) => {
                 log::warn!(
                     "dump on command-line overriding archive in environment"
                 );
                 args.archive = None;
             }
 
-            (false, true) => {
+            (EnvVariable, CommandLine) => {
                 log::warn!(
                     "archive on command-line overriding dump in environment"
                 );
                 args.dump = None;
             }
+            // this can only happen if we start using default values for these, which doesn't make
+            // much sense so let's call it unreachable.
+            (_, _) => unreachable!(),
         }
     }
 
