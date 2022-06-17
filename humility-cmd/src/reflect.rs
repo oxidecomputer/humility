@@ -969,3 +969,208 @@ impl<T: Load> Load for Vec<T> {
         Ok(out)
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+/// Deserializes ssmarshal-encoded data from `buf` and represents it as a
+/// `Value`. This is intended for values which are encoded using `ssmarshal`
+pub fn deserialize_value<'a>(
+    hubris: &'a HubrisArchive,
+    buf: &'a [u8],
+    ty: HubrisType<'a>,
+) -> Result<(Value, &'a [u8])> {
+    match ty {
+        HubrisType::Struct(sty) => {
+            deserialize_struct_or_tuple(hubris, buf, sty)
+        }
+        HubrisType::Enum(ety) => {
+            deserialize_enum(hubris, buf, ety).map(|(v, b)| (Value::Enum(v), b))
+        }
+        HubrisType::Base(bty) => {
+            deserialize_base(buf, bty).map(|(v, b)| (Value::Base(v), b))
+        }
+        HubrisType::Array(bty) => deserialize_array(hubris, buf, bty)
+            .map(|(v, b)| (Value::Array(v), b)),
+        HubrisType::Ptr(t) => {
+            deserialize_ptr(buf, t).map(|(v, b)| (Value::Ptr(v), b))
+        }
+        _ => panic!("{:?}", ty),
+    }
+}
+
+/// Deserializes a pointer from `buf` and interprets it as a pointer to the
+/// type designated by `ty`.
+pub fn deserialize_ptr(buf: &[u8], ty: HubrisGoff) -> Result<(Ptr, &[u8])> {
+    let (dest, cnt) = ssmarshal::deserialize(buf).unwrap();
+    Ok((Ptr(ty, dest), &buf[cnt..]))
+}
+
+/// Deserializes an `Array` from `buf`
+pub fn deserialize_array<'a>(
+    hubris: &'a HubrisArchive,
+    mut buf: &'a [u8],
+    ty: &'a HubrisArray,
+) -> Result<(Array, &'a [u8])> {
+    let elt_ty = hubris.lookup_type(ty.goff)?;
+
+    let mut elements = Vec::with_capacity(ty.count);
+    for _ in 0..ty.count {
+        let out = deserialize_value(hubris, buf, elt_ty)?;
+        elements.push(out.0);
+        buf = out.1;
+    }
+    Ok((Array(elements), buf))
+}
+
+/// Deserializes either a struct or tuple from `buf`
+///
+/// See details on [load_struct_or_tuple] above
+pub fn deserialize_struct_or_tuple<'a>(
+    hubris: &'a HubrisArchive,
+    mut buf: &'a [u8],
+    ty: &'a HubrisStruct,
+) -> Result<(Value, &'a [u8])> {
+    // Scan the shape of the type to tell if it's tupley. Tuples are structs
+    // that only have fields of the form __#, where # is a decimal number.
+    let mut probably_a_tuple = true;
+    for m in &ty.members {
+        if !m.name.starts_with("__") {
+            probably_a_tuple = false;
+            break;
+        }
+        if !m.name[2..].chars().all(|c| c.is_numeric()) {
+            probably_a_tuple = false;
+            break;
+        }
+    }
+
+    if probably_a_tuple {
+        // Assume that tuple fields were serialized in order
+        let mut contents = vec![];
+        for i in 0..ty.members.len() {
+            let m = ty
+                .members
+                .iter()
+                .find(|m| m.name == format!("__{}", i))
+                .unwrap();
+            let mty = hubris.lookup_type(m.goff)?;
+            let out = deserialize_value(hubris, buf, mty)?;
+            contents.push(out.0);
+            buf = out.1;
+        }
+        Ok((Value::Tuple(Tuple(ty.name.clone(), contents)), buf))
+    } else {
+        let (out, buf) = deserialize_struct(hubris, buf, ty)?;
+        Ok((Value::Struct(out), buf))
+    }
+}
+
+/// Deserializes a struct from `buf`
+pub fn deserialize_struct<'a>(
+    hubris: &'a HubrisArchive,
+    mut buf: &'a [u8],
+    ty: &'a HubrisStruct,
+) -> Result<(Struct, &'a [u8])> {
+    let mut s = Struct { name: ty.name.clone(), ..Default::default() };
+
+    for m in &ty.members {
+        let mty = hubris.lookup_type(m.goff)?;
+        let out = deserialize_value(hubris, buf, mty)?;
+        s.members.insert(m.name.clone(), Box::new(out.0));
+        buf = out.1;
+    }
+
+    Ok((s, buf))
+}
+
+/// Deserializes an enum from `buf`
+pub fn deserialize_enum<'a>(
+    hubris: &'a HubrisArchive,
+    mut buf: &'a [u8],
+    ty: &'a HubrisEnum,
+) -> Result<(Enum, &'a [u8])> {
+    // ssmarshal packs enums as a single byte followed by data (if present)
+    let out = ssmarshal::deserialize::<u8>(buf)?;
+    buf = &buf[out.1..];
+    let var = ty
+        .lookup_variant(u64::from(out.0))
+        .ok_or_else(|| anyhow!("unknown variant: {:#x}", out.0))?;
+    let val = if let Some(goff) = var.goff {
+        let out = deserialize_value(hubris, buf, hubris.lookup_type(goff)?)?;
+        buf = out.1;
+        Some(Box::new(out.0))
+    } else {
+        None
+    };
+
+    Ok((Enum(var.name.to_string(), val), buf))
+}
+
+/// Deserializes a basetype from `buf`
+pub fn deserialize_base<'a>(
+    buf: &'a [u8],
+    ty: &'a HubrisBasetype,
+) -> Result<(Base, &'a [u8])> {
+    use humility::hubris::HubrisEncoding::*;
+    let (v, buf) = match (ty.encoding, ty.size) {
+        (Signed, 1) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::I8(v), &buf[cnt..])
+        }
+        (Signed, 2) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::I16(v), &buf[cnt..])
+        }
+        (Signed, 4) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::I32(v), &buf[cnt..])
+        }
+        (Signed, 8) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::I64(v), &buf[cnt..])
+        }
+        (Signed, 16) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::I128(v), &buf[cnt..])
+        }
+
+        (Unsigned, 0) => (Base::U0, buf),
+        (Unsigned, 1) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::U8(v), &buf[cnt..])
+        }
+        (Unsigned, 2) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::U16(v), &buf[cnt..])
+        }
+        (Unsigned, 4) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::U32(v), &buf[cnt..])
+        }
+        (Unsigned, 8) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::U64(v), &buf[cnt..])
+        }
+        (Unsigned, 16) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::U128(v), &buf[cnt..])
+        }
+
+        (Bool, 1) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::Bool(v), &buf[cnt..])
+        }
+
+        (Float, 4) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::F32(v), &buf[cnt..])
+        }
+        (Float, 8) => {
+            let (v, cnt) = ssmarshal::deserialize(buf)?;
+            (Base::F64(v), &buf[cnt..])
+        }
+
+        _ => panic!("unexpected basetype: {:?}", ty),
+    };
+    Ok((v, buf))
+}
