@@ -4907,7 +4907,20 @@ impl HubrisModule {
                     .collect::<Vec<&HubrisGoff>>();
 
                 if m.len() > 1 {
-                    Err(anyhow!("{} matches more than one structure", name))
+                    // It's possible for one struct to end up in the debug data
+                    // multiple times (e.g. if it's included in both a client
+                    // and server). We do a deep-ish comparison here to avoid
+                    // false failures.
+                    let struct_a = hubris.structs.get(m[0]).unwrap();
+                    for i in m[1..].iter() {
+                        let struct_b = hubris.structs.get(i).unwrap();
+                        if struct_a.size != struct_b.size
+                            || struct_a.members != struct_b.members
+                        {
+                            bail!("{} matches more than one structure", name)
+                        }
+                    }
+                    Ok(struct_a)
                 } else if m.is_empty() {
                     Err(anyhow!("no {} in {}", name, self.name))
                 } else {
