@@ -1000,13 +1000,13 @@ pub fn deserialize_value<'a>(
 
 /// Deserializes a pointer from `buf` and interprets it as a pointer to the
 /// type designated by `ty`.
-pub fn deserialize_ptr(buf: &[u8], ty: HubrisGoff) -> Result<(Ptr, &[u8])> {
+fn deserialize_ptr(buf: &[u8], ty: HubrisGoff) -> Result<(Ptr, &[u8])> {
     let (dest, cnt) = ssmarshal::deserialize(buf).unwrap();
     Ok((Ptr(ty, dest), &buf[cnt..]))
 }
 
 /// Deserializes an `Array` from `buf`
-pub fn deserialize_array<'a>(
+fn deserialize_array<'a>(
     hubris: &'a HubrisArchive,
     mut buf: &'a [u8],
     ty: &'a HubrisArray,
@@ -1025,7 +1025,7 @@ pub fn deserialize_array<'a>(
 /// Deserializes either a struct or tuple from `buf`
 ///
 /// See details on [load_struct_or_tuple] above
-pub fn deserialize_struct_or_tuple<'a>(
+fn deserialize_struct_or_tuple<'a>(
     hubris: &'a HubrisArchive,
     mut buf: &'a [u8],
     ty: &'a HubrisStruct,
@@ -1066,7 +1066,7 @@ pub fn deserialize_struct_or_tuple<'a>(
 }
 
 /// Deserializes a struct from `buf`
-pub fn deserialize_struct<'a>(
+fn deserialize_struct<'a>(
     hubris: &'a HubrisArchive,
     mut buf: &'a [u8],
     ty: &'a HubrisStruct,
@@ -1084,7 +1084,7 @@ pub fn deserialize_struct<'a>(
 }
 
 /// Deserializes an enum from `buf`
-pub fn deserialize_enum<'a>(
+fn deserialize_enum<'a>(
     hubris: &'a HubrisArchive,
     mut buf: &'a [u8],
     ty: &'a HubrisEnum,
@@ -1107,7 +1107,7 @@ pub fn deserialize_enum<'a>(
 }
 
 /// Deserializes a basetype from `buf`
-pub fn deserialize_base<'a>(
+fn deserialize_base<'a>(
     buf: &'a [u8],
     ty: &'a HubrisBasetype,
 ) -> Result<(Base, &'a [u8])> {
