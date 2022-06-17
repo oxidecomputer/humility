@@ -2434,8 +2434,6 @@ impl HubrisArchive {
                         Humility supports v{} and earlier; archive is v{}.\n\
                         Please update Humility.",
                         MAX_HUBRIS_VERSION, v)
-                } else {
-                    Ok(())
                 }
             }
             None => {
@@ -2444,6 +2442,7 @@ impl HubrisArchive {
                     comment)
             }
         }
+        Ok(())
     }
 
     pub fn load_flash_config(&self) -> Result<HubrisFlashConfig> {
