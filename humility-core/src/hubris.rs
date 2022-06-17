@@ -35,6 +35,8 @@ const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
+const MAX_HUBRIS_VERSION: u32 = 2;
+
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
     version: Option<String>,
@@ -2409,6 +2411,40 @@ impl HubrisArchive {
 
         self.archive = contents;
 
+        let cursor = Cursor::new(&self.archive);
+        let archive = zip::ZipArchive::new(cursor)?;
+        let comment = str::from_utf8(archive.comment())
+            .context("Failed to decode comment string")?;
+        Self::check_version(comment)
+    }
+
+    fn check_version(comment: &str) -> Result<()> {
+        match comment.strip_prefix("hubris build archive v") {
+            Some(v) => {
+                let archive_version = match v {
+                    // Special-case for older archives
+                    "1.0.0" => 1,
+                    // There was no v1, just v1.0.0
+                    "1" => bail!("Invalid archive version 'v1'"),
+                    // Otherwise, expect an integer
+                    v => v.parse().with_context(|| {
+                        format!("Failed to parse version string {}", v)
+                    })?,
+                };
+                if archive_version > MAX_HUBRIS_VERSION {
+                    bail!("\
+                        Hubris archive version is unsupported.\n\
+                        Humility supports v{} and earlier; archive is v{}.\n\
+                        Please update Humility.",
+                        MAX_HUBRIS_VERSION, v)
+                }
+            }
+            None => {
+                bail!(
+                    "Could not parse hubris archive version from '{}'",
+                    comment)
+            }
+        }
         Ok(())
     }
 
@@ -5023,4 +5059,24 @@ fn demangle_name(name: &str) -> String {
     // Note: "alternate mode" # causes rustc_demangle to leave off the ugly hash
     // values on functions.
     format!("{:#}", rustc_demangle::demangle(name))
+}
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_check_version() {
+        let f = HubrisArchive::check_version;
+        assert!(f("hubris app archive").is_err());
+        assert!(f("hubris build archive").is_err());
+        assert!(f("hubris build archive v1").is_err());
+        assert!(f("hubris build archive vaaagh").is_err());
+
+        assert!(f("hubris build archive v1.0.0").is_ok());
+        assert!(f("hubris build archive v2").is_ok());
+
+        assert!(f("hubris build archive v3").is_err());
+    }
 }
