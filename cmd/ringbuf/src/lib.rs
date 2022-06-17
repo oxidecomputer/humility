@@ -58,8 +58,8 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
+use humility::reflect::{self, Format, Load, Value};
 use humility_cmd::doppel::{Ringbuf, StaticCell};
-use humility_cmd::reflect::{self, Format, Load, Value};
 use humility_cmd::{Archive, Args, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]

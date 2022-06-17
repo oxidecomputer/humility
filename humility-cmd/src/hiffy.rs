@@ -2,15 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::{
-    doppel::StaticCell,
-    idol,
-    reflect::{self, Load, Value},
-};
+use crate::{doppel::StaticCell, idol};
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::reflect::{self, Load, Value};
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -523,7 +520,7 @@ impl<'a> HiffyContext<'a> {
 
                         let hubris = self.hubris;
                         let f =
-                            hubris.printfmt(&buf, self.failure.goff, &fmt)?;
+                            hubris.printfmt(&buf, self.failure.goff, fmt)?;
                         bail!("request failed: {}", f);
                     }
                     _ => {
