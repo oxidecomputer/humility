@@ -4530,6 +4530,20 @@ impl HubrisStruct {
             None
         }
     }
+
+    pub fn probably_a_tuple(&self) -> bool {
+        // Scan the shape of the type to tell if it's tupley. Tuples are structs
+        // that only have fields of the form __#, where # is a decimal number.
+        for m in &self.members {
+            if !m.name.starts_with("__") {
+                return false;
+            }
+            if !m.name[2..].chars().all(|c| c.is_numeric()) {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

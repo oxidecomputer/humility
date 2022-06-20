@@ -743,21 +743,7 @@ pub fn load_struct_or_tuple(
     ty: &HubrisStruct,
     addr: usize,
 ) -> Result<Value> {
-    // Scan the shape of the type to tell if it's tupley. Tuples are structs
-    // that only have fields of the form __#, where # is a decimal number.
-    let mut probably_a_tuple = true;
-    for m in &ty.members {
-        if !m.name.starts_with("__") {
-            probably_a_tuple = false;
-            break;
-        }
-        if !m.name[2..].chars().all(|c| c.is_numeric()) {
-            probably_a_tuple = false;
-            break;
-        }
-    }
-
-    if probably_a_tuple {
+    if ty.probably_a_tuple() {
         // Start off the tuple filled with nonsense, so that we can set the
         // values out of order if required. Do tuple members ever appear out of
         // order? No idea! But if they do, this method will keep working.
@@ -1030,21 +1016,7 @@ fn deserialize_struct_or_tuple<'a>(
     mut buf: &'a [u8],
     ty: &'a HubrisStruct,
 ) -> Result<(Value, &'a [u8])> {
-    // Scan the shape of the type to tell if it's tupley. Tuples are structs
-    // that only have fields of the form __#, where # is a decimal number.
-    let mut probably_a_tuple = true;
-    for m in &ty.members {
-        if !m.name.starts_with("__") {
-            probably_a_tuple = false;
-            break;
-        }
-        if !m.name[2..].chars().all(|c| c.is_numeric()) {
-            probably_a_tuple = false;
-            break;
-        }
-    }
-
-    if probably_a_tuple {
+    if ty.probably_a_tuple() {
         // Assume that tuple fields were serialized in order
         let mut contents = vec![];
         for i in 0..ty.members.len() {
