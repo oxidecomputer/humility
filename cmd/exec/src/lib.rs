@@ -13,7 +13,7 @@ use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisArchive;
-use humility_cmd::{Archive, Args, Environment, Command, RunUnattached};
+use humility_cmd::{Archive, Args, Command, Environment, RunUnattached};
 
 #[derive(Parser, Debug)]
 #[clap(name = "exec", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -29,7 +29,7 @@ struct ExecArgs {
 
 fn parse_cmd<'a>(
     cmd: &str,
-    cmds: &'a humility_cmd::env::Commands
+    cmds: &'a humility_cmd::env::Commands,
 ) -> Result<Vec<&'a str>> {
     let c = cmd.split(".").collect::<Vec<_>>();
 
@@ -63,7 +63,7 @@ fn parse_cmd<'a>(
 }
 
 fn exec(
-    _hubris: &mut HubrisArchive, 
+    _hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &[String],
     env: Option<&Environment>,
