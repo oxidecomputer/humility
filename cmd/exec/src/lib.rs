@@ -47,8 +47,11 @@ fn parse_cmd<'a>(
                     "on" => &power.on,
                     "off" => &power.off,
                     _ => {
-                        bail!("unknown power command \
-                            \"{}\"; --list for commands", c[1]);
+                        bail!(
+                            "unknown power command \
+                            \"{}\"; --list for commands",
+                            c[1]
+                        );
                     }
                 }
             } else {
@@ -118,18 +121,22 @@ fn exec(
         let cmdline = parse_cmd(&cmd, &cmds)?;
 
         let args = splitty::split_unquoted_char(cmdline, ' ')
-            .unwrap_quotes(true).collect::<Vec<_>>();
+            .unwrap_quotes(true)
+            .collect::<Vec<_>>();
 
         humility::msg!("{} {}: executing: '{}' ...", name, cmd, cmdline);
         println!("{:?}", args);
 
-        let status = 
+        let status =
             std::process::Command::new(args[0]).args(&args[1..]).status()?;
 
-        humility::msg!("{} {}: done ({})", name, cmd,
+        humility::msg!(
+            "{} {}: done ({})",
+            name,
+            cmd,
             match status.code() {
                 Some(code) => format!("status code {code}"),
-                None => format!("terminated by signal")
+                None => format!("terminated by signal"),
             }
         );
     }
