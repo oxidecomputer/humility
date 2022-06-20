@@ -22,7 +22,7 @@ use humility::hubris::*;
 use humility_cmd::doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use humility_cmd::jefe;
 use humility_cmd::reflect;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use std::num::NonZeroU32;
 use std::time::Duration;
 
@@ -34,7 +34,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: diagnose,
+            run: Run::Subargs(diagnose),
         },
         DiagnoseArgs::command(),
     )
@@ -86,7 +86,6 @@ fn section(title: &str) {
 fn diagnose(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = DiagnoseArgs::try_parse_from(subargs)?;

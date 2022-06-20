@@ -10,7 +10,7 @@
 use std::process::Command;
 
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command as HumilityCmd};
+use humility_cmd::{Archive, Args, Command as HumilityCmd, RunUnattached};
 
 use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
@@ -90,7 +90,7 @@ pub fn init() -> (HumilityCmd, ClapCommand<'static>) {
         HumilityCmd::Unattached {
             name: "openocd",
             archive: Archive::Required,
-            run: openocd,
+            run: RunUnattached::Args(openocd),
         },
         OcdArgs::command(),
     )

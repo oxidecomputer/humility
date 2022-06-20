@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::{HiffyContext, HiffyFunctions};
-use humility_cmd::{Archive, Args, Attach, Validate};
+use humility_cmd::{Archive, Attach, Run, RunUnattached, Validate};
 use humility_cmd_spi::spi_task;
 
 use anyhow::{anyhow, bail, Result};
@@ -330,7 +330,6 @@ impl<'a> Vsc7448<'a> {
 fn vsc7448(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = Vsc7448Args::try_parse_from(subargs)?;
@@ -444,7 +443,6 @@ fn vsc7448(
 
 fn vsc7448_get_info(
     hubris: &mut HubrisArchive,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     assert!(!hubris.loaded());
@@ -485,7 +483,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: vsc7448,
+            run: Run::Subargs(vsc7448),
         },
         Vsc7448Args::command(),
     );
@@ -493,7 +491,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
         humility_cmd::Command::Unattached {
             name: "vsc7448",
             archive: Archive::Ignored,
-            run: vsc7448_get_info,
+            run: RunUnattached::Subargs(vsc7448_get_info),
         },
         Vsc7448Args::command(),
     );

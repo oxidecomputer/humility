@@ -53,7 +53,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "dump", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -64,7 +64,6 @@ struct DumpArgs {
 fn dumpcmd(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = DumpArgs::try_parse_from(subargs)?;
@@ -87,7 +86,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: dumpcmd,
+            run: Run::Subargs(dumpcmd),
         },
         DumpArgs::command(),
     )

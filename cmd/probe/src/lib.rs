@@ -92,7 +92,7 @@ use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use humility_cortex::debug::*;
 use humility_cortex::itm::*;
 use humility_cortex::scs::*;
@@ -105,7 +105,6 @@ struct ProbeArgs {}
 fn probecmd(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     _subargs: &[String],
 ) -> Result<()> {
     use num_traits::FromPrimitive;
@@ -374,7 +373,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Optional,
             attach: Attach::LiveOnly,
             validate: Validate::None,
-            run: probecmd,
+            run: Run::Subargs(probecmd),
         },
         ProbeArgs::command(),
     )

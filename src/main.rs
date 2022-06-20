@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility_cmd::{Args, Subcommand};
+use humility_cmd::{env::Environment, Args, Subcommand};
 
 use clap::CommandFactory;
 use clap::FromArgMatches;
@@ -49,6 +49,40 @@ fn main() {
 
     env_logger::init_from_env(env);
 
+    let env = match (&args.environment, &args.name) {
+        (Some(ref env), Some(ref name)) => {
+            let env = match Environment::from_file(env, name) {
+                Ok(e) => e,
+                Err(err) => {
+                    eprintln!("failed to match environment: {:?}", err);
+                    std::process::exit(1);
+                }
+            };
+
+            //
+            // Cannot specify a dump/probe and also an environment and name
+            //
+            assert!(args.dump.is_none());
+            assert!(args.probe.is_none());
+
+            args.probe = Some(env.probe.clone());
+            args.archive = Some(env.archive.clone());
+
+            Some(env)
+        }
+
+        (Some(ref env), None) => {
+            if let Err(err) = Environment::validate(env) {
+                eprintln!("failed to parse environment: {:?}", err);
+                std::process::exit(1);
+            }
+
+            None
+        }
+
+        _ => None,
+    };
+
     //
     // Check to see if we have both a dump and an archive.  Because these
     // conflict with one another but because we allow both of them to be
@@ -94,7 +128,7 @@ fn main() {
     //
     let Subcommand::Other(subargs) = args.cmd.as_ref().unwrap();
 
-    if let Err(err) = cmd::subcommand(&commands, &args, subargs) {
+    if let Err(err) = cmd::subcommand(&commands, &args, subargs, env.as_ref()) {
         eprintln!("humility {} failed: {:?}", subargs[0], err);
         std::process::exit(1);
     }

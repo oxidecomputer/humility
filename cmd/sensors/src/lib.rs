@@ -26,7 +26,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use std::collections::HashSet;
 use std::thread;
 use std::time::Duration;
@@ -234,7 +234,6 @@ fn print(
 fn sensors(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = SensorsArgs::try_parse_from(subargs)?;
@@ -325,7 +324,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: sensors,
+            run: Run::Subargs(sensors),
         },
         SensorsArgs::command(),
     )

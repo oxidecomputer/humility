@@ -6,7 +6,7 @@ use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use humility::hubris::*;
 use humility_cmd::Args;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, Environment, Run, RunUnattached};
 use std::collections::HashMap;
 
 //
@@ -43,6 +43,7 @@ pub fn subcommand(
     commands: &HashMap<&'static str, Command>,
     args: &Args,
     subargs: &[String],
+    env: Option<&Environment>,
 ) -> Result<()> {
     if let Some(command) = commands.get(&subargs[0].as_str()) {
         let mut hubris =
@@ -76,6 +77,10 @@ pub fn subcommand(
             && doneness == HubrisArchiveDoneness::Cook
             && !hubris.loaded()
         {
+            if args.environment.is_some() {
+                bail!("must provide a Hubris archive, dump, or name");
+            }
+
             bail!("must provide a Hubris archive or dump");
         }
 
@@ -86,13 +91,33 @@ pub fn subcommand(
                     args,
                     *attach,
                     *validate,
-                    |h, core| (run)(h, core, args, subargs),
+                    |h, core| match run {
+                        Run::Subargs(ref run) => (run)(h, core, subargs),
+                        Run::Args(ref run) => (run)(h, core, args, subargs),
+                        Run::Environment(ref run) => {
+                            (run)(h, core, args, subargs, env)
+                        }
+                    },
                 )
             }
-            Command::Unattached { run, .. } => {
-                (run)(&mut hubris, args, subargs)
-            }
-            Command::Raw { run, .. } => (run)(&mut hubris, args, subargs),
+            Command::Unattached { run, .. } => match run {
+                RunUnattached::Subargs(ref run) => (run)(&mut hubris, subargs),
+                RunUnattached::Args(ref run) => {
+                    (run)(&mut hubris, args, subargs)
+                }
+                RunUnattached::Environment(ref run) => {
+                    (run)(&mut hubris, args, subargs, env)
+                }
+            },
+            Command::Raw { run, .. } => match run {
+                RunUnattached::Subargs(ref run) => (run)(&mut hubris, subargs),
+                RunUnattached::Args(ref run) => {
+                    (run)(&mut hubris, args, subargs)
+                }
+                RunUnattached::Environment(ref run) => {
+                    (run)(&mut hubris, args, subargs, env)
+                }
+            },
         }
     } else {
         bail!("command {} not found", subargs[0]);

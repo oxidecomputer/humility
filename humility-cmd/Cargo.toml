@@ -15,3 +15,5 @@ postcard = "0.7.0"
 parse_int = "0.4.0"
 colored = "2.0.0"
 log = {version = "0.4.8", features = ["std"]}
+serde = { version = "1.0.126", features = ["derive"] }
+serde_json = "1.0"

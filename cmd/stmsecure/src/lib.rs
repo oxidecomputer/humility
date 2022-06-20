@@ -33,7 +33,7 @@ use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -298,7 +298,6 @@ fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
 fn stmsecure(
     _hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = StmSecureArgs::try_parse_from(subargs)?;
@@ -324,7 +323,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Optional,
             attach: Attach::Any,
             validate: Validate::None,
-            run: stmsecure,
+            run: Run::Subargs(stmsecure),
         },
         StmSecureArgs::command(),
     )

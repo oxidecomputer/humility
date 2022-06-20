@@ -7,7 +7,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
@@ -1286,7 +1286,6 @@ fn writes(
 fn pmbus(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = PmbusArgs::try_parse_from(subargs)?;
@@ -1624,7 +1623,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: pmbus,
+            run: Run::Subargs(pmbus),
         },
         PmbusArgs::command(),
     )

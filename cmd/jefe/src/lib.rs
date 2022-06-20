@@ -87,7 +87,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::jefe::{send_request, JefeRequest};
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use std::num::NonZeroU32;
 
 #[derive(Parser, Debug)]
@@ -122,7 +122,6 @@ struct JefeArgs {
 fn jefe(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = JefeArgs::try_parse_from(subargs)?;
@@ -170,7 +169,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: jefe,
+            run: Run::Subargs(jefe),
         },
         JefeArgs::command(),
     )
