@@ -997,6 +997,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+ "splitty",
 ]
 
 [[package]]
@@ -2494,6 +2495,12 @@ checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
 dependencies = [
  "lock_api",
 ]
+
+[[package]]
+name = "splitty"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8190298e89d4080e9c025535f73cacec4d51ff4495819dd8fdf1ae374c75ee80"
 
 [[package]]
 name = "srec"

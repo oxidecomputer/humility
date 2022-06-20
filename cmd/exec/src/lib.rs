@@ -30,7 +30,7 @@ struct ExecArgs {
 fn parse_cmd<'a>(
     cmd: &str,
     cmds: &'a humility_cmd::env::Commands,
-) -> Result<Vec<&'a str>> {
+) -> Result<&'a str> {
     let c = cmd.split(".").collect::<Vec<_>>();
 
     let spawn = match c[0] {
@@ -47,7 +47,8 @@ fn parse_cmd<'a>(
                     "on" => &power.on,
                     "off" => &power.off,
                     _ => {
-                        bail!("unknown power command \"{}\"", c[1]);
+                        bail!("unknown power command \
+                            \"{}\"; --list for commands", c[1]);
                     }
                 }
             } else {
@@ -59,7 +60,7 @@ fn parse_cmd<'a>(
         }
     };
 
-    Ok(spawn.split_whitespace().collect::<Vec<_>>())
+    Ok(spawn)
 }
 
 fn exec(
@@ -69,7 +70,6 @@ fn exec(
     env: Option<&Environment>,
 ) -> Result<()> {
     let subargs = ExecArgs::try_parse_from(subargs)?;
-    let name = args.name.as_ref().unwrap();
 
     let env = match env {
         None => {
@@ -77,6 +77,11 @@ fn exec(
         }
         Some(env) => env,
     };
+
+    //
+    // If we have an environment, we must also have a name.
+    //
+    let name = args.name.as_ref().unwrap();
 
     if subargs.list {
         let printcmd = |name, cmd| {
@@ -110,8 +115,23 @@ fn exec(
             }
         };
 
-        let args = parse_cmd(&cmd, &cmds)?;
+        let cmdline = parse_cmd(&cmd, &cmds)?;
+
+        let args = splitty::split_unquoted_char(cmdline, ' ')
+            .unwrap_quotes(true).collect::<Vec<_>>();
+
+        humility::msg!("{} {}: executing: '{}' ...", name, cmd, cmdline);
         println!("{:?}", args);
+
+        let status = 
+            std::process::Command::new(args[0]).args(&args[1..]).status()?;
+
+        humility::msg!("{} {}: done ({})", name, cmd,
+            match status.code() {
+                Some(code) => format!("status code {code}"),
+                None => format!("terminated by signal")
+            }
+        );
     }
 
     Ok(())
