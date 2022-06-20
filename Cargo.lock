@@ -908,6 +908,7 @@ dependencies = [
  "log",
  "parse_int",
  "postcard",
+ "ssmarshal",
 ]
 
 [[package]]
@@ -2487,6 +2488,16 @@ name = "srec"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17c3a0538ec242e3cd333cdcdc8b720faa2fa0a9d7f444cf1ff63e7d3303adfb"
+
+[[package]]
+name = "ssmarshal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3e6ad23b128192ed337dfa4f1b8099ced0c2bf30d61e551b65fda5916dbb850"
+dependencies = [
+ "encode_unicode",
+ "serde",
+]
 
 [[package]]
 name = "stable_deref_trait"
