@@ -195,8 +195,26 @@ fn hiffy_call(
 
     match result {
         Ok(val) => {
-            let dumped = hubris.printfmt(val, op.ok, &fmt)?;
-            println!("{}.{}() = {}", op.name.0, op.name.1, dumped);
+            let ty = hubris.lookup_type(op.ok).unwrap();
+            let v = match op.operation.encoding {
+                ::idol::syntax::Encoding::Zerocopy => {
+                    humility_cmd::reflect::load_value(hubris, val, ty, 0)?
+                }
+                ::idol::syntax::Encoding::Ssmarshal => {
+                    humility_cmd::reflect::deserialize_value(hubris, val, ty)?.0
+                }
+            };
+
+            use humility_cmd::reflect::Format;
+            let mut dumped = vec![];
+            v.format(hubris, fmt, &mut dumped).unwrap();
+
+            println!(
+                "{}.{}() = {}",
+                op.name.0,
+                op.name.1,
+                std::str::from_utf8(&dumped).unwrap()
+            );
         }
         Err(e) => {
             let variant = if let Some(error) = op.error {
