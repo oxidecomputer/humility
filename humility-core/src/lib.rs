@@ -5,6 +5,7 @@
 pub mod arch;
 pub mod core;
 pub mod hubris;
+pub mod reflect;
 
 #[macro_use]
 extern crate num_derive;

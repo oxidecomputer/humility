@@ -81,12 +81,13 @@ use std::convert::TryInto;
 
 use anyhow::{anyhow, bail, Result};
 
-use humility::core::Core;
-use humility::hubris::{
+use crate::core::Core;
+use crate::hubris::{
     HubrisArchive, HubrisArray, HubrisBasetype, HubrisEnum, HubrisGoff,
     HubrisPrintFormat, HubrisStruct, HubrisType,
 };
 
+// Re-export so that others can use #[derive(Load)]
 pub use humility_load_derive::Load;
 
 /// Trait for formatting reflected values, approximately the same way a
@@ -812,7 +813,7 @@ pub fn load_base(buf: &[u8], ty: &HubrisBasetype, addr: usize) -> Result<Base> {
         anyhow!("address {} out of range for type {:?}", addr, ty)
     })?;
 
-    use humility::hubris::HubrisEncoding::*;
+    use crate::hubris::HubrisEncoding::*;
     let v = match (ty.encoding, ty.size) {
         (Signed, 1) => Base::I8(buf[0] as i8),
         (Signed, 2) => Base::I16(i16::from_le_bytes(buf.try_into().unwrap())),
@@ -1083,7 +1084,7 @@ fn deserialize_base<'a>(
     buf: &'a [u8],
     ty: &'a HubrisBasetype,
 ) -> Result<(Base, &'a [u8])> {
-    use humility::hubris::HubrisEncoding::*;
+    use crate::hubris::HubrisEncoding::*;
     let (v, buf) = match (ty.encoding, ty.size) {
         (Signed, 1) => {
             let (v, cnt) = ssmarshal::deserialize(buf)?;
