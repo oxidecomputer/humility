@@ -50,7 +50,7 @@ fn gen_enum(
                     let name = syn::Ident::new(&format!("field_{}", i), fld.span());
                     let fty = &fld.ty;
                     quote_spanned!(fld.span()=>
-                        let #name: #fty = crate::reflect::Load::from_value(&contents[#i])?;
+                        let #name: #fty = humility::reflect::Load::from_value(&contents[#i])?;
                     )
                 });
                 let field_lets =
@@ -90,7 +90,7 @@ fn gen_enum(
                 let field_defs = fields.named.iter().map(|fld| {
                     let name = &fld.ident;
                     quote_spanned!(fld.span()=>
-                        #name: crate::reflect::Load::from_value(&contents[stringify!(#name)])?,
+                        #name: humility::reflect::Load::from_value(&contents[stringify!(#name)])?,
                     )
                 });
                 let field_defs =
@@ -113,8 +113,8 @@ fn gen_enum(
     let arms = arms.into_iter().collect::<proc_macro2::TokenStream>();
 
     quote_spanned!(ident.span() =>
-        impl crate::reflect::Load for #ident {
-            fn from_value(v: &crate::reflect::Value) -> anyhow::Result<Self> {
+        impl humility::reflect::Load for #ident {
+            fn from_value(v: &humility::reflect::Value) -> anyhow::Result<Self> {
                 let v = v.as_enum()?;
                 match (v.disc(), v.contents()) {
                     #arms
@@ -139,14 +139,14 @@ fn gen_named_struct(
     let field_defs = fields.named.iter().map(|fld| {
         let name = &fld.ident;
         quote_spanned!(fld.span()=>
-            #name: crate::reflect::Load::from_value(&v[stringify!(#name)])?,
+            #name: humility::reflect::Load::from_value(&v[stringify!(#name)])?,
         )
     });
     let field_defs = field_defs.collect::<proc_macro2::TokenStream>();
 
     quote_spanned!(ident.span()=>
-        impl crate::reflect::Load for #ident {
-            fn from_value(v: &crate::reflect::Value) -> anyhow::Result<Self> {
+        impl humility::reflect::Load for #ident {
+            fn from_value(v: &humility::reflect::Value) -> anyhow::Result<Self> {
                 let v = v.as_struct()?;
                 v.check_members(&[#field_name_strs])?;
                 Ok(Self {
@@ -166,7 +166,7 @@ fn gen_unnamed_struct(
         let name = syn::Ident::new(&format!("field_{}", i), fld.span());
         let fty = &fld.ty;
         quote_spanned!(fld.span()=>
-            let #name: #fty = crate::reflect::Load::from_value(&v[#i])?;
+            let #name: #fty = humility::reflect::Load::from_value(&v[#i])?;
         )
     });
     let field_lets = field_lets.collect::<proc_macro2::TokenStream>();
@@ -178,8 +178,8 @@ fn gen_unnamed_struct(
     let field_uses = field_uses.collect::<proc_macro2::TokenStream>();
 
     quote_spanned!(ident.span()=>
-        impl crate::reflect::Load for #ident {
-            fn from_value(v: &crate::reflect::Value) -> anyhow::Result<Self> {
+        impl humility::reflect::Load for #ident {
+            fn from_value(v: &humility::reflect::Value) -> anyhow::Result<Self> {
                 let v = v.as_tuple()?;
                 if v.len() != #len {
                     anyhow::bail!("wrong tuple size for {}: {:?}",

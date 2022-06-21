@@ -33,8 +33,8 @@
 //! breaking compatibility, and the application can have struct fields we don't
 //! interpret.
 
-use crate::reflect::{Load, Ptr, Value};
 use anyhow::{anyhow, bail, Result};
+use humility::reflect::{Load, Ptr, Value};
 use std::convert::TryInto;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
@@ -214,7 +214,7 @@ impl From<GenOrRestartCount> for u32 {
     }
 }
 
-impl crate::reflect::Load for GenOrRestartCount {
+impl humility::reflect::Load for GenOrRestartCount {
     fn from_value(v: &Value) -> Result<Self> {
         // At the time of this writing, we're in the midst of transitioning from
         // storing 6-bit generations in the kernel to storing 32-bit restart
@@ -254,7 +254,7 @@ impl std::fmt::Display for TaskId {
     }
 }
 
-impl crate::reflect::Load for TaskId {
+impl humility::reflect::Load for TaskId {
     fn from_value(v: &Value) -> Result<Self> {
         // In some older kernel cores there's a single case where a task ID is
         // represented as a u32 rather than a tuple struct. Handle this by

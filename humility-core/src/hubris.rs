@@ -3465,265 +3465,27 @@ impl HubrisArchive {
         &self,
         buf: &[u8],
         goff: HubrisGoff,
-        fmt: &HubrisPrintFormat,
+        fmt: HubrisPrintFormat,
     ) -> Result<String> {
-        let mut rval = String::new();
-        let delim = fmt.delim();
+        use crate::reflect::Format;
+        let mut rval = vec![];
+        crate::reflect::load_value(
+            self,
+            buf,
+            self.lookup_type(goff).unwrap(),
+            0,
+        )?
+        .format(self, fmt, &mut rval)?;
 
-        let mut f = *fmt;
-
-        let readval = |b: &[u8], o, sz| -> Result<u64> {
-            Ok(match sz {
-                1 => b[o] as u64,
-                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
-                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
-                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
-                _ => {
-                    bail!("{} has bad size {}", goff, sz);
-                }
-            })
-        };
-
-        let readfloat = |b: &[u8], o, sz| -> Result<f64> {
-            Ok(match sz {
-                4 => f32::from_le_bytes(b[o..o + 4].try_into()?) as f64,
-                8 => f64::from_le_bytes(b[o..o + 8].try_into()?) as f64,
-                _ => {
-                    bail!("bad float size!");
-                }
-            })
-        };
-
-        if let Some(v) = self.structs.get(&goff) {
-            //
-            // This is a structure; iterate over its members.
-            //
-            if v.members.is_empty() {
-                return Ok(rval);
-            }
-
-            f.indent += 4;
-
-            if v.members[0].name == "__0" {
-                let paren = !v.members.is_empty();
-
-                if paren {
-                    rval += "(";
-                }
-
-                for i in 0..v.members.len() {
-                    let m = &v.members[i];
-
-                    if let Some(child) = self.structs.get(&m.goff) {
-                        rval += &child.name;
-                    }
-
-                    rval += &self.printfmt(&buf[m.offset..], m.goff, &f)?;
-
-                    if i + 1 < v.members.len() {
-                        rval += ", ";
-                    }
-                }
-
-                if paren {
-                    rval += ")";
-                }
-
-                return Ok(rval);
-            }
-
-            rval += " {";
-            rval += delim;
-
-            for i in 0..v.members.len() {
-                let m = &v.members[i];
-
-                if fmt.newline && f.indent > 0 {
-                    rval += &format!("{:1$}", " ", f.indent);
-                }
-
-                rval += &m.name;
-                rval += ": ";
-
-                if let Some(child) = self.structs.get(&m.goff) {
-                    rval += &child.name;
-                }
-
-                rval += &self.printfmt(&buf[m.offset..], m.goff, &f)?;
-
-                if i + 1 < v.members.len() {
-                    rval += ",";
-                    rval += delim;
-                }
-            }
-
-            rval += delim;
-
-            if fmt.newline && fmt.indent > 0 {
-                rval += &format!("{:1$}", " ", fmt.indent);
-            }
-
-            rval += "}";
-
-            return Ok(rval);
-        }
-
-        if let Some(union) = self.enums.get(&goff) {
-            //
-            // For enums, we need to determine which variant this actually
-            // is -- which necessitates looking at our discriminant.
-            //
-            match union.discriminant {
-                Some(HubrisDiscriminant::Value(g, offs)) => {
-                    let size = match self.basetypes.get(&g) {
-                        Some(v) => v.size,
-                        None => {
-                            bail!(
-                                "enum {} has discriminant of unknown type: {}",
-                                goff, g
-                            );
-                        }
-                    };
-
-                    let val = readval(buf, offs, size)
-                        .context("failed to read discriminant".to_string())?;
-
-                    match union.lookup_variant(val) {
-                        None => {
-                            write!(rval, "<? (0x{:x})>", val)?;
-                        }
-
-                        Some(variant) => {
-                            rval += &variant.name;
-
-                            if let Some(goff) = variant.goff {
-                                rval += &self.printfmt(&buf[0..], goff, &f)?;
-                            }
-                        }
-                    }
-
-                    return Ok(rval);
-                }
-
-                None => {
-                    if union.variants.is_empty() {
-                        bail!("enum {} has no variants", goff);
-                    }
-
-                    if union.variants.len() > 1 {
-                        bail!(
-                            "enum {} has multiple variants but no discriminant",
-                            goff
-                        );
-                    }
-
-                    let variant = &union.variants[0];
-                    rval += &variant.name;
-
-                    if let Some(goff) = variant.goff {
-                        rval += &self.printfmt(&buf[0..], goff, &f)?;
-                    }
-
-                    return Ok(rval);
-                }
-
-                Some(HubrisDiscriminant::Expected(_)) => {
-                    bail!("enum {} has incomplete discriminant", goff);
-                }
-            }
-        }
-
-        if let Some(array) = self.arrays.get(&goff) {
-            let size = self.typesize(array.goff)?;
-
-            f.indent += 4;
-            let mut offset = 0;
-
-            rval += "[";
-            rval += delim;
-
-            for i in 0..array.count {
-                if fmt.newline && f.indent > 0 {
-                    rval += &format!("{:1$}", " ", f.indent);
-                }
-
-                rval += &self.printfmt(&buf[offset..], array.goff, &f)?;
-                offset += size;
-
-                if i + 1 < array.count {
-                    rval += ",";
-                    rval += delim;
-                }
-            }
-
-            rval += delim;
-
-            if fmt.newline && fmt.indent > 0 {
-                rval += &format!("{:1$}", " ", fmt.indent);
-            }
-
-            rval += "]";
-
-            return Ok(rval);
-        }
-
-        if let Some(v) = self.basetypes.get(&goff) {
-            if v.encoding == HubrisEncoding::Float {
-                write!(rval, "{}", readfloat(buf, 0, v.size)?)?;
-            } else if v.encoding == HubrisEncoding::Bool {
-                write!(rval, "{}", buf[0] != 0)?;
-            } else if v.size == 0 {
-                write!(rval, "()")?;
-            } else {
-                let val = readval(buf, 0, v.size)
-                    .context(format!("failed to read base type {}", goff))?;
-
-                if fmt.hex {
-                    write!(rval, "0x{:x}", val)?;
-                } else {
-                    write!(rval, "{}", val)?;
-                }
-            }
-
-            return Ok(rval);
-        }
-
-        if let Some(union) = self.unions.get(&goff) {
-            if let Some(goff) = union.maybe_uninit() {
-                rval += &self.printfmt(&buf[0..], goff, &f)?;
-            } else {
-                let val = readval(buf, 0, union.size)
-                    .context(format!("failed to read union {}", goff))?;
-
-                if fmt.hex {
-                    write!(rval, "0x{:x}", val)?;
-                } else {
-                    write!(rval, "{}", val)?;
-                }
-            }
-
-            return Ok(rval);
-        }
-
-        if let Some((name, _ptr)) = self.ptrtypes.get(&goff) {
-            let val = readval(buf, 0, 4)
-                .context(format!("failed to read pointer type {}", goff))?;
-
-            write!(rval, "0x{:x} ({})", val, name)?;
-
-            return Ok(rval);
-        }
-
-        rval = goff.to_string();
-
-        Ok(rval)
+        let out = std::str::from_utf8(&rval)?.to_owned();
+        Ok(out)
     }
 
     pub fn print(&self, buf: &[u8], goff: HubrisGoff) -> Result<String> {
         self.printfmt(
             buf,
             goff,
-            &HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() },
+            HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() },
         )
     }
 

@@ -198,14 +198,14 @@ fn hiffy_call(
             let ty = hubris.lookup_type(op.ok).unwrap();
             let v = match op.operation.encoding {
                 ::idol::syntax::Encoding::Zerocopy => {
-                    humility_cmd::reflect::load_value(hubris, val, ty, 0)?
+                    humility::reflect::load_value(hubris, val, ty, 0)?
                 }
                 ::idol::syntax::Encoding::Ssmarshal => {
-                    humility_cmd::reflect::deserialize_value(hubris, val, ty)?.0
+                    humility::reflect::deserialize_value(hubris, val, ty)?.0
                 }
             };
 
-            use humility_cmd::reflect::Format;
+            use humility::reflect::Format;
             let mut dumped = vec![];
             v.format(hubris, fmt, &mut dumped).unwrap();
 

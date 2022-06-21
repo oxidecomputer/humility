@@ -902,13 +902,11 @@ dependencies = [
  "colored",
  "hif",
  "humility-core",
- "humility_load_derive",
  "idol",
  "indexmap",
  "log",
  "parse_int",
  "postcard",
- "ssmarshal",
 ]
 
 [[package]]
@@ -1430,6 +1428,7 @@ dependencies = [
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
+ "humility_load_derive",
  "idol",
  "indexmap",
  "indicatif",
@@ -1444,6 +1443,7 @@ dependencies = [
  "rustc-demangle",
  "scroll",
  "serde",
+ "ssmarshal",
  "toml",
  "zip",
 ]
