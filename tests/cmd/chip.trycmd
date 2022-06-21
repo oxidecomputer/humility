@@ -7,9 +7,6 @@ $ humility --chip -V
 ? failed
 error: The argument '--chip <CHIP>' requires a value but none was supplied
 
-USAGE:
-    humility [OPTIONS] [SUBCOMMAND]
-
 For more information try --help
 
 ```
@@ -24,9 +21,6 @@ humility 0.7.0
 $ humility -c -V
 ? failed
 error: The argument '--chip <CHIP>' requires a value but none was supplied
-
-USAGE:
-    humility [OPTIONS] [SUBCOMMAND]
 
 For more information try --help
 
