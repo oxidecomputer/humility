@@ -125,7 +125,6 @@ fn exec(
             .collect::<Vec<_>>();
 
         humility::msg!("{} {}: executing: '{}' ...", name, cmd, cmdline);
-        println!("{:?}", args);
 
         let status =
             std::process::Command::new(args[0]).args(&args[1..]).status()?;
