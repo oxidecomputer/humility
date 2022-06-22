@@ -840,6 +840,7 @@ dependencies = [
  "humility-cmd-lpc55gpio",
  "humility-cmd-manifest",
  "humility-cmd-map",
+ "humility-cmd-monorail",
  "humility-cmd-openocd",
  "humility-cmd-pmbus",
  "humility-cmd-probe",
@@ -860,7 +861,6 @@ dependencies = [
  "humility-cmd-test",
  "humility-cmd-trace",
  "humility-cmd-validate",
- "humility-cmd-vsc7448",
  "humility-core",
  "humility-cortex",
  "indexmap",
@@ -1130,6 +1130,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cmd-monorail"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "log",
+ "parse_int",
+ "vsc7448-info",
+ "vsc7448-types",
+]
+
+[[package]]
 name = "humility-cmd-openocd"
 version = "0.1.0"
 dependencies = [
@@ -1387,22 +1404,6 @@ dependencies = [
  "indexmap",
  "log",
  "parse_int",
-]
-
-[[package]]
-name = "humility-cmd-vsc7448"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "hif",
- "humility-cmd",
- "humility-cmd-spi",
- "humility-core",
- "log",
- "parse_int",
- "vsc7448-info",
- "vsc7448-types",
 ]
 
 [[package]]

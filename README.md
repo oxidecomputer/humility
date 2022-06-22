@@ -158,6 +158,7 @@ variable.
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
+- [humility monorail](#humility-monorail): Management network control and debugging
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility probe](#humility-probe): probe for any attached devices
@@ -166,7 +167,7 @@ variable.
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
 - [humility registers](#humility-registers): print Hubris registers
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
-- [humility rendmp](#humility-rendmp): Renesas digitial muliphase controller operations
+- [humility rendmp](#humility-rendmp): Renesas digital muliphase controller operations
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
@@ -178,7 +179,6 @@ variable.
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility trace](#humility-trace): trace Hubris operations
 - [humility validate](#humility-validate): validate presence and operation of devices
-- [humility vsc7448](#humility-vsc7448): VSC7448 operations
 ### `humility apptable`
 
 This is a deprecated command that allows for the display of the app table
@@ -868,6 +868,10 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 (In this case, task 7, `oh_no`, has overflowed its stack -- which
 we can see from the `map` output has been sized to only 256 bytes.)
 
+
+### `humility monorail`
+
+No documentation yet for `humility monorail`; pull requests welcome!
 
 ### `humility openocd`
 
@@ -1784,8 +1788,4 @@ ID VALIDATION   C P  MUX ADDR DEVICE        DESCRIPTION
 ```
 
 
-
-### `humility vsc7448`
-
-No documentation yet for `humility vsc7448`; pull requests welcome!
 

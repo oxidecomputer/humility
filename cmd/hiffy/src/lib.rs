@@ -166,13 +166,17 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
     Ok(())
 }
 
-fn hiffy_call(
+/// Executes a Hiffy call, printing the output to the terminal
+///
+/// Returns an outer error if Hiffy communication fails, or an inner error
+/// if the Hiffy call returns an error code (formatted as a String).
+pub fn hiffy_call(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
-) -> Result<()> {
+) -> Result<std::result::Result<Vec<u8>, String>> {
     let funcs = context.functions()?;
     let mut ops = vec![];
 
@@ -180,28 +184,50 @@ fn hiffy_call(
     context.idol_call_ops(&funcs, op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
-    let results = context.run(core, ops.as_slice(), None)?;
+    let mut results = context.run(core, ops.as_slice(), None)?;
 
     if results.len() != 1 {
         bail!("unexpected results length: {:?}", results);
     }
 
-    let result = &results[0];
+    let r = results.pop().unwrap();
+    Ok(r.map_err(|e| {
+        let variant = if let Some(error) = op.error {
+            error.lookup_variant(e as u64)
+        } else {
+            None
+        };
+
+        if let Some(variant) = variant {
+            format!("Err({})", variant.name)
+        } else {
+            format!("Err({:x?})", e)
+        }
+    }))
+}
+
+fn hiffy_call_print(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    op: &idol::IdolOperation,
+    args: &[(&str, idol::IdolArgument)],
+) -> Result<()> {
+    let result = hiffy_call(hubris, core, context, op, args)?;
     let fmt = HubrisPrintFormat {
         newline: false,
         hex: true,
         ..HubrisPrintFormat::default()
     };
-
     match result {
         Ok(val) => {
             let ty = hubris.lookup_type(op.ok).unwrap();
             let v = match op.operation.encoding {
                 ::idol::syntax::Encoding::Zerocopy => {
-                    humility::reflect::load_value(hubris, val, ty, 0)?
+                    humility::reflect::load_value(hubris, &val, ty, 0)?
                 }
                 ::idol::syntax::Encoding::Ssmarshal => {
-                    humility::reflect::deserialize_value(hubris, val, ty)?.0
+                    humility::reflect::deserialize_value(hubris, &val, ty)?.0
                 }
             };
 
@@ -217,17 +243,7 @@ fn hiffy_call(
             );
         }
         Err(e) => {
-            let variant = if let Some(error) = op.error {
-                error.lookup_variant(*e as u64)
-            } else {
-                None
-            };
-
-            if let Some(variant) = variant {
-                println!("Err({})", variant.name);
-            } else {
-                println!("Err({:x?})", e);
-            }
+            println!("{}", e);
         }
     }
 
@@ -278,7 +294,7 @@ fn hiffy(
         };
 
         let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
-        hiffy_call(hubris, core, &mut context, &op, &args)?;
+        hiffy_call_print(hubris, core, &mut context, &op, &args)?;
 
         return Ok(());
     }
