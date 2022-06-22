@@ -76,22 +76,22 @@ fn exec(
 
     let env = match env {
         None => {
-            bail!("must provide a name within environment");
+            bail!("must provide a target within environment");
         }
         Some(env) => env,
     };
 
     //
-    // If we have an environment, we must also have a name.
+    // If we have an environment, we must also have a target.
     //
-    let name = args.name.as_ref().unwrap();
+    let target = args.target.as_ref().unwrap();
 
     if subargs.list {
-        let printcmd = |name, cmd| {
-            println!("{:14} {}", name, cmd);
+        let printcmd = |target, cmd| {
+            println!("{:14} {}", target, cmd);
         };
 
-        printcmd("NAME", "COMMAND");
+        printcmd("TARGET", "COMMAND");
 
         if let Some(cmds) = &env.cmds {
             if let Some(console) = &cmds.console {
@@ -107,14 +107,14 @@ fn exec(
         let cmds = match &env.cmds {
             Some(cmds) => cmds,
             None => {
-                bail!("no commands for {}", name);
+                bail!("no commands for {}", target);
             }
         };
 
         let cmd = match subargs.cmd {
             Some(cmd) => cmd,
             None => {
-                bail!("must provide command name; --list for commands");
+                bail!("must provide command; --list for commands");
             }
         };
 
@@ -124,14 +124,14 @@ fn exec(
             .unwrap_quotes(true)
             .collect::<Vec<_>>();
 
-        humility::msg!("{} {}: executing: '{}' ...", name, cmd, cmdline);
+        humility::msg!("{} {}: executing: '{}' ...", target, cmd, cmdline);
 
         let status =
             std::process::Command::new(args[0]).args(&args[1..]).status()?;
 
         humility::msg!(
             "{} {}: done ({})",
-            name,
+            target,
             cmd,
             match status.code() {
                 Some(code) => format!("status code {code}"),

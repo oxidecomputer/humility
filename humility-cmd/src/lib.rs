@@ -47,6 +47,11 @@ pub struct Args {
     #[clap(long, short, env = "HUMILITY_ENVIRONMENT")]
     pub environment: Option<String>,
 
+    /// target to use from specified environment
+    #[clap(long, short, env = "HUMILITY_TARGET", requires = "envrionment",
+        conflicts_with_all = &["dump", "probe"])]
+    pub target: Option<String>,
+
     //
     // probe-rs requires the chip to be specified when creating a session,
     // even though it is only used for flashing (which we don't use probe-rs
@@ -61,10 +66,6 @@ pub struct Args {
     //
     #[clap(long, short, env = "HUMILITY_CHIP", hide = true)]
     pub chip: Option<String>,
-
-    #[clap(long, short, requires = "envrionment",
-        conflicts_with_all = &["dump", "probe"])]
-    pub name: Option<String>,
 
     #[clap(subcommand)]
     pub cmd: Option<Subcommand>,

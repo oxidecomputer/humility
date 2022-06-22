@@ -40,14 +40,14 @@ impl Environment {
         Ok(())
     }
 
-    pub fn from_file(filename: &str, name: &str) -> Result<Self> {
+    pub fn from_file(filename: &str, target: &str) -> Result<Self> {
         let env = Self::read(filename)?;
 
-        if let Some(e) = env.get(name) {
+        if let Some(e) = env.get(target) {
             Ok(e.clone())
         } else {
             let keys = env.keys().map(|n| &**n).collect::<Vec<_>>().join(", ");
-            bail!("invalid name \"{}\" (expected one of: {})", name, keys);
+            bail!("invalid target \"{}\" (expected one of: {})", target, keys);
         }
     }
 }
