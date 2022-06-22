@@ -171,7 +171,6 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
 /// Returns an outer error if Hiffy communication fails, or an inner error
 /// if the Hiffy call returns an error code (formatted as a String).
 pub fn hiffy_call(
-    hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
     op: &idol::IdolOperation,
@@ -213,7 +212,7 @@ fn hiffy_call_print(
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
 ) -> Result<()> {
-    let result = hiffy_call(hubris, core, context, op, args)?;
+    let result = hiffy_call(core, context, op, args)?;
     let fmt = HubrisPrintFormat {
         newline: false,
         hex: true,

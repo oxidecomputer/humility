@@ -10,10 +10,9 @@ use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{IdolArgument, IdolOperation};
 use humility_cmd::{Archive, Args, Attach, Validate};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use hif::*;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
@@ -83,14 +82,6 @@ enum PhyCommand {
     },
 }
 
-#[derive(Parser, Debug)]
-struct PhyAddr {
-    #[clap(help = "MIIM peripheral (0-2)")]
-    miim: u8,
-    #[clap(help = "PHY address")]
-    phy: u8,
-}
-
 /// Parses either a register address (as an integer or hex literal), or a
 /// string representing a register's name.
 fn parse_reg_or_addr(s: &str) -> Result<TargetRegister> {
@@ -116,59 +107,207 @@ fn pretty_print_fields(value: u32, fields: &BTreeMap<String, Field<String>>) {
     }
 }
 
-/// Helper struct to work with a connected VSC7448 ethernet switch IC
-struct Monorail<'a> {
-    hubris: &'a HubrisArchive,
-    core: &'a mut dyn Core,
-    context: HiffyContext<'a>,
+fn monorail_read(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    reg: String,
+) -> Result<()> {
+    let reg = parse_reg_or_addr(&reg)?;
+    let addr = reg.address();
+    humility::msg!("Reading {} from 0x{:x}", reg, addr);
+
+    let op = IdolOperation::new(
+        hubris,
+        "Monorail",
+        "read_vsc7448_reg",
+        None, // TODO?
+    )?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        core,
+        context,
+        &op,
+        &[("addr", IdolArgument::Scalar(u64::from(addr)))],
+    )?;
+    match value {
+        Ok(v) => {
+            assert_eq!(v.len(), 4);
+            let value = u32::from_le_bytes(v.try_into().unwrap());
+            println!("{} => 0x{:x}", reg, value);
+            if value == 0x88888888 {
+                log::warn!(
+                    "0x88888888 typically indicates a communication issue!"
+                );
+            }
+            pretty_print_fields(value, reg.fields());
+        }
+        Err(e) => {
+            println!("Got error: {}", e);
+        }
+    }
+    Ok(())
 }
 
-impl<'a> Monorail<'a> {
-    pub fn new(
-        hubris: &'a HubrisArchive,
-        core: &'a mut dyn Core,
-        args: &MonorailArgs,
-    ) -> Result<Self> {
-        let mut context = HiffyContext::new(hubris, core, args.timeout)?;
+fn monorail_write(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    reg: String,
+    value: u32,
+) -> Result<()> {
+    let reg = parse_reg_or_addr(&reg)?;
+    let addr = reg.address();
+    humility::msg!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
+    pretty_print_fields(value, reg.fields());
 
-        Ok(Self { hubris, core, context })
+    let op = IdolOperation::new(hubris, "Monorail", "write_vsc7448_reg", None)?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        core,
+        context,
+        &op,
+        &[
+            ("addr", IdolArgument::Scalar(u64::from(addr))),
+            ("value", IdolArgument::Scalar(u64::from(value))),
+        ],
+    )?;
+    match value {
+        Ok(v) => assert!(v.is_empty()),
+        Err(e) => {
+            println!("Got error: {}", e);
+        }
+    }
+    Ok(())
+}
+
+/// Helper struct for a fully decoded PHY register. This is analogous to
+/// `vsc7448_info::parse::PhyRegister`, but flexibly allows for registers
+/// that are unknown to the PAC.
+struct ParsedPhyRegister {
+    name: String,
+    page: u16,
+    reg: u8,
+    fields: BTreeMap<String, Field<String>>,
+}
+
+/// Attempt to parse to known registers, then do a last-chance parse where we
+/// just attempt to read numbers, e.g. 5:13 (as page:reg).
+///
+/// This is necessary because the SDK PHY headers don't necessarily include
+/// every register in every PHY, and even lack some registers in the Microchip
+/// PHY that's on the dev kit (!!)
+fn parse_phy_register(reg: String) -> Result<ParsedPhyRegister> {
+    let parsed = reg.parse::<PhyRegister>();
+    if let Ok(reg) = parsed {
+        return Ok(ParsedPhyRegister {
+            page: reg.page_addr().try_into().unwrap(),
+            reg: reg.reg_addr(),
+            name: format!("{}", reg),
+            fields: reg.fields().clone(),
+        });
     }
 
-    /// Writes a single 32-bit register
-    fn write(&mut self, addr: u32, data: u32) -> Result<()> {
-        todo!()
+    if let Ok(nums) =
+        reg.split(':').map(|s| s.parse::<u16>()).collect::<Result<Vec<_>, _>>()
+    {
+        match nums.len() {
+            1 => Ok(ParsedPhyRegister {
+                page: 0,
+                reg: nums[0].try_into().unwrap(),
+                name: format!("0:{}", nums[0]),
+                fields: BTreeMap::new(),
+            }),
+            2 => Ok(ParsedPhyRegister {
+                page: nums[0],
+                reg: nums[1].try_into().unwrap(),
+                name: format!("{}:{}", nums[0], nums[1]),
+                fields: BTreeMap::new(),
+            }),
+            _ => Err(vsc7448_info::parse::ParseError::TooManyItems.into()),
+        }
+    } else {
+        // If the last-change parse failed, then just return the
+        // previous parse error.
+        Err(parsed.unwrap_err().into())
     }
+}
 
-    /// Reads a single 32-bit register
-    fn read(&mut self, addr: u32) -> Result<Result<Vec<u8>, String>> {
-        let op = IdolOperation::new(
-            self.hubris,
-            "Monorail",
-            "read_vsc7448_reg",
-            None, // TODO?
-        )?;
-        humility_cmd_hiffy::hiffy_call(
-            self.hubris,
-            self.core,
-            &mut self.context,
-            &op,
-            &[("addr", IdolArgument::Scalar(u64::from(addr)))],
-        )
+fn monorail_phy_read(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    port: u8,
+    reg: String,
+) -> Result<()> {
+    let reg = parse_phy_register(reg)?;
+    println!("Reading from port {} PHY, register {}", port, reg.name);
+    let op = IdolOperation::new(
+        hubris,
+        "Monorail",
+        "read_phy_reg",
+        None, // TODO?
+    )?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        core,
+        context,
+        &op,
+        &[
+            ("port", IdolArgument::Scalar(u64::from(port))),
+            ("page", IdolArgument::Scalar(u64::from(reg.page))),
+            ("reg", IdolArgument::Scalar(u64::from(reg.reg))),
+        ],
+    )?;
+    match value {
+        Ok(v) => {
+            assert_eq!(v.len(), 2);
+            let value = u16::from_le_bytes(v.try_into().unwrap());
+            println!("Got result 0x{:x}", value);
+            pretty_print_fields(value as u32, &reg.fields);
+        }
+        Err(e) => {
+            println!("Got error: {}", e);
+        }
     }
+    Ok(())
+}
 
-    fn phy_read(&mut self, port: u8, page: u16, reg: u8) -> Result<u16> {
-        todo!()
+fn monorail_phy_write(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    port: u8,
+    reg: String,
+    value: u16,
+) -> Result<()> {
+    let reg = parse_phy_register(reg)?;
+    println!(
+        "Writing 0x{:x} to port {} PHY, register {}",
+        value, port, reg.name
+    );
+    pretty_print_fields(value as u32, &reg.fields);
+    let op = IdolOperation::new(
+        hubris,
+        "Monorail",
+        "write_phy_reg",
+        None, // TODO?
+    )?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        core,
+        context,
+        &op,
+        &[
+            ("port", IdolArgument::Scalar(u64::from(port))),
+            ("page", IdolArgument::Scalar(u64::from(reg.page))),
+            ("reg", IdolArgument::Scalar(u64::from(reg.reg))),
+            ("value", IdolArgument::Scalar(u64::from(value))),
+        ],
+    )?;
+    match value {
+        Ok(v) => assert!(v.is_empty()),
+        Err(e) => {
+            println!("Got error: {}", e);
+        }
     }
-
-    fn phy_write(
-        &mut self,
-        port: u8,
-        page: u16,
-        reg: u8,
-        data: u16,
-    ) -> Result<()> {
-        todo!()
-    }
+    Ok(())
 }
 
 fn monorail(
@@ -178,114 +317,31 @@ fn monorail(
     subargs: &[String],
 ) -> Result<()> {
     let subargs = MonorailArgs::try_parse_from(subargs)?;
-    let mut vsc = Monorail::new(hubris, core, &subargs)?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
-        Command::Read { reg } => {
-            let reg = parse_reg_or_addr(&reg)?;
-            let addr = reg.address();
-            humility::msg!("Reading {} from 0x{:x}", reg, addr);
-            let value = vsc.read(addr)?;
-            match value {
-                Ok(v) => {
-                    assert_eq!(v.len(), 4);
-                    let value = u32::from_le_bytes(v.try_into().unwrap());
-                    println!("{} => 0x{:x}", reg, value);
-                    if value == 0x88888888 {
-                        log::warn!(
-                            "0x88888888 typically indicates a communication issue!"
-                        );
-                    }
-                    pretty_print_fields(value, reg.fields());
-                }
-                Err(e) => {
-                    println!("Got error: {}", e);
-                }
-            }
-        }
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
+
+        Command::Read { reg } => {
+            monorail_read(hubris, core, &mut context, reg)?
+        }
         Command::Write { reg, value } => {
-            let reg = parse_reg_or_addr(&reg)?;
-            let addr = reg.address();
-            humility::msg!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
-            pretty_print_fields(value, reg.fields());
-
-            vsc.write(addr, value)?;
+            monorail_write(hubris, core, &mut context, reg, value)?
         }
-        Command::Phy { cmd } => {
-            let dummy_fields = BTreeMap::new();
-            let (reg, port) = match &cmd {
-                PhyCommand::Write { reg, port, .. }
-                | PhyCommand::Read { reg, port } => (reg, *port),
-                _ => panic!("Invalid PHY command"),
-            };
 
-            // Attempt to parse to known registers, then do a last-chance parse
-            // where we just attempt to read numbers, e.g. 5:13 (as page:reg).
-            //
-            // This is necessary because the SDK PHY headers don't necessarily
-            // include every register in every PHY, and even lack some registers
-            // in the Microchip PHY that's on the dev kit (!!)
-            let parsed = reg.parse::<PhyRegister>();
-            let (page, reg, name, fields) = if let Ok(reg) = parsed {
-                (
-                    reg.page_addr().try_into().unwrap(),
-                    reg.reg_addr(),
-                    format!("{}", reg),
-                    reg.fields(),
-                )
-            } else if let Ok(nums) = reg
-                .split(':')
-                .map(|s| s.parse::<u16>())
-                .collect::<Result<Vec<_>, _>>()
-            {
-                match nums.len() {
-                    1 => (
-                        0,
-                        nums[0].try_into().unwrap(),
-                        format!("0:{}", nums[0]),
-                        &dummy_fields,
-                    ),
-                    2 => (
-                        nums[0],
-                        nums[1].try_into().unwrap(),
-                        format!("{}:{}", nums[0], nums[1]),
-                        &dummy_fields,
-                    ),
-                    _ => {
-                        return Err(
-                            vsc7448_info::parse::ParseError::TooManyItems
-                                .into(),
-                        );
-                    }
-                }
-            } else {
-                // If the last-change parse failed, then just return the
-                // previous parse error.
-                assert!(parsed.is_err());
-                parsed?;
-                unreachable!()
-            };
-            match cmd {
-                PhyCommand::Write { value, .. } => {
-                    println!(
-                        "Writing 0x{:x} to port {} PHY, register {}",
-                        value, port, name,
-                    );
-                    pretty_print_fields(value as u32, fields);
-                    vsc.phy_write(port, page, reg, value)?;
-                }
-                PhyCommand::Read { .. } => {
-                    println!(
-                        "Reading from port {} PHY, register {}",
-                        port, name,
-                    );
-                    let out = vsc.phy_read(port, page, reg)?;
-                    println!("Got result 0x{:x}", out);
-                    pretty_print_fields(out as u32, fields);
-                }
-                _ => panic!("Invalid PHY command"),
+        Command::Phy { cmd } => match cmd {
+            PhyCommand::Read { port, reg } => {
+                monorail_phy_read(hubris, core, &mut context, port, reg)?
             }
-        }
+            PhyCommand::Write { port, reg, value } => monorail_phy_write(
+                hubris,
+                core,
+                &mut context,
+                port,
+                reg,
+                value,
+            )?,
+            _ => panic!("Invalid PHY command"),
+        },
     };
     Ok(())
 }
