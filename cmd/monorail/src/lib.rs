@@ -341,8 +341,14 @@ fn monorail_status(
         // We run two hiffy loops back to back, which have the same form:
         // - Monorail.get_port_status for every port
         // - Monorail.get_phy_status for every port
+        //
+        // They're placed back-to-back in Hiffy code, so we'll call the two
+        // loops one after the other (i.e. values are not interleaved!)
         for op in [&op_port, &op_phy] {
+            assert_eq!(op.args.members.len(), 1); // Sanity-check!
             let ret_size = hubris.typesize(op.ok)? as u32;
+
+            // Here we go!
             ops.push(Op::Push32(op.task.task())); // Task id
             ops.push(Op::Push16(op.code)); // opcode
             ops.push(Op::Push(0)); // port (payload)
@@ -357,7 +363,7 @@ fn monorail_status(
                 ops.push(Op::Push(1)); // Increment by one
                 ops.push(Op::Add); // port = port + 1
                 ops.push(Op::Push(NUM_PORTS as u8)); // Comparison target
-                ops.push(Op::BranchGreaterThan(label)); // Jump to beginning of loop
+                ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
             }
             ops.push(Op::DropN(4)); // Cleanup
         }
