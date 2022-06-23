@@ -190,7 +190,19 @@ pub fn hiffy_call(
         bail!("unexpected results length: {:?}", results);
     }
 
-    let r = match results.pop().unwrap() {
+    hiffy_decode(hubris, op, results.pop().unwrap())
+}
+
+/// Decodes a value returned from [hiffy_call] or equivalent.
+///
+/// Returns an outer error if decoding fails, or an inner error if the Hiffy
+/// call returns an error code (formatted as a String).
+pub fn hiffy_decode(
+    hubris: &HubrisArchive,
+    op: &idol::IdolOperation,
+    val: Result<Vec<u8>, u32>,
+) -> Result<std::result::Result<humility::reflect::Value, String>> {
+    let r = match val {
         Ok(val) => {
             let ty = hubris.lookup_type(op.ok).unwrap();
             Ok(match op.operation.encoding {

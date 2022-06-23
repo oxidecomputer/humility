@@ -325,6 +325,66 @@ fn monorail_status(
     context: &mut HiffyContext,
     ports: &[u8],
 ) -> Result<()> {
+    const NUM_PORTS: u8 = 53;
+    let results = {
+        let op_port =
+            IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
+        let op_phy =
+            IdolOperation::new(hubris, "Monorail", "get_phy_status", None)?;
+        use hif::*;
+        let funcs = context.functions()?;
+        let send = funcs.get("Send", 4)?;
+        let mut ops = vec![];
+
+        let label = Target(0);
+
+        // We run two hiffy loops back to back, which have the same form:
+        // - Monorail.get_port_status for every port
+        // - Monorail.get_phy_status for every port
+        for op in [&op_port, &op_phy] {
+            let ret_size = hubris.typesize(op.ok)? as u32;
+            ops.push(Op::Push32(op.task.task())); // Task id
+            ops.push(Op::Push16(op.code)); // opcode
+            ops.push(Op::Push(0)); // port (payload)
+            ops.push(Op::Push(NUM_PORTS as u8)); // comparison target (dummy)
+            ops.push(Op::Label(label));
+            {
+                ops.push(Op::Drop); // Drop comparison target
+                ops.push(Op::Push(1)); // Payload length
+                ops.push(Op::Push32(ret_size)); // Return size
+                ops.push(Op::Call(send.id));
+                ops.push(Op::DropN(2)); // Drop payload and return size
+                ops.push(Op::Push(1)); // Increment by one
+                ops.push(Op::Add); // port = port + 1
+                ops.push(Op::Push(NUM_PORTS as u8)); // Comparison target
+                ops.push(Op::BranchGreaterThan(label)); // Jump to beginning of loop
+            }
+            ops.push(Op::DropN(4)); // Cleanup
+        }
+        ops.push(Op::Done); // Finish
+                            //
+        let mut results = context.run(core, ops.as_slice(), None)?;
+        let phy_results = results.split_off(NUM_PORTS as usize);
+        let port_results = results;
+        assert_eq!(port_results.len(), NUM_PORTS as usize);
+        assert_eq!(phy_results.len(), NUM_PORTS as usize);
+
+        let port_results = port_results
+            .into_iter()
+            .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_port, r))
+            .collect::<Result<Vec<Result<_, _>>>>()?;
+        let phy_results = phy_results
+            .into_iter()
+            .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_phy, r))
+            .collect::<Result<Vec<Result<_, _>>>>()?;
+
+        // Decode the port and phy status values into reflect::Value
+        port_results
+            .into_iter()
+            .zip(phy_results.into_iter())
+            .collect::<Vec<_>>()
+    };
+
     // Convert ports in a lookup-friendly structure
     let ports = ports.iter().collect::<BTreeSet<_>>();
 
@@ -359,26 +419,14 @@ fn monorail_status(
         dev => panic!("Expected tuple, got {:?}", dev),
     };
 
-    let op_port =
-        IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
-    let op_phy =
-        IdolOperation::new(hubris, "Monorail", "get_phy_status", None)?;
-
     println!("PORT | MODE    SPEED  DEV     SERDES  LINK UP |   PHY    MAC LINK  MEDIA LINK");
     println!("-----|----------------------------------------|-------------------------------");
-    for port in 0..53 {
+    for (port, (port_value, phy_value)) in (0..NUM_PORTS).zip(results) {
         if !ports.is_empty() && !ports.contains(&port) {
             continue;
         }
-        let value = humility_cmd_hiffy::hiffy_call(
-            hubris,
-            core,
-            context,
-            &op_port,
-            &[("port", IdolArgument::Scalar(u64::from(port)))],
-        )?;
         print!(" {:<3} | ", port);
-        match value {
+        match port_value {
             Ok(v) => match v {
                 Value::Struct(s) => {
                     assert_eq!(s.name(), "PortStatus");
@@ -416,14 +464,7 @@ fn monorail_status(
                 }
             }
         }
-        let value = humility_cmd_hiffy::hiffy_call(
-            hubris,
-            core,
-            context,
-            &op_phy,
-            &[("port", IdolArgument::Scalar(u64::from(port)))],
-        )?;
-        match value {
+        match phy_value {
             Ok(v) => match v {
                 Value::Struct(s) => {
                     assert_eq!(s.name(), "PhyStatus");
