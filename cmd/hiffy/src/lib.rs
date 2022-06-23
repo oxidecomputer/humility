@@ -210,7 +210,7 @@ pub fn hiffy_call(
             };
 
             if let Some(variant) = variant {
-                Err(format!("{}", variant.name))
+                Err(variant.name.to_string())
             } else {
                 Err(format!("{:x?}", e))
             }
