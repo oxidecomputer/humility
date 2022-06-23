@@ -319,24 +319,6 @@ fn monorail_phy_write(
     Ok(())
 }
 
-struct DecodedPortStatus {
-    mode: String,
-    speed: String,
-    dev: String,
-    serdes: String,
-    link_up: bool,
-}
-
-impl std::fmt::Display for DecodedPortStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:<3} | {:<8} | {:<8} | {:<9} | {:<11} |",
-            self.mode, self.speed, self.dev, self.serdes, self.link_up
-        )
-    }
-}
-
 fn monorail_status(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -377,10 +359,13 @@ fn monorail_status(
         dev => panic!("Expected tuple, got {:?}", dev),
     };
 
-    let op = IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
+    let op_port =
+        IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
+    let op_phy =
+        IdolOperation::new(hubris, "Monorail", "get_phy_status", None)?;
 
-    println!("port| mode   | speed | dev       | serdes      | link up");
-    println!("----|--------|-------|-----------|-------------|--------");
+    println!("PORT | MODE    SPEED  DEV     SERDES  LINK UP |   PHY    MAC LINK  MEDIA LINK");
+    println!("-----|----------------------------------------|-------------------------------");
     for port in 0..53 {
         if !ports.is_empty() && !ports.contains(&port) {
             continue;
@@ -389,10 +374,10 @@ fn monorail_status(
             hubris,
             core,
             context,
-            &op,
+            &op_port,
             &[("port", IdolArgument::Scalar(u64::from(port)))],
         )?;
-        print!(" {:<2} | ", port);
+        print!(" {:<3} | ", port);
         match value {
             Ok(v) => match v {
                 Value::Struct(s) => {
@@ -403,7 +388,12 @@ fn monorail_status(
                             let dev = decode_dev(&cfg["dev"]);
                             let serdes = decode_dev(&cfg["serdes"]);
                             let (mode, speed) = decode_mode(&cfg["mode"]);
-                            (dev, serdes, mode, speed)
+                            (
+                                dev.replace("DEV", ""),
+                                serdes.replace("SERDES", ""),
+                                mode,
+                                speed,
+                            )
                         }
                         v => panic!("Expected Struct, got {:?}", v),
                     };
@@ -411,18 +401,54 @@ fn monorail_status(
                         Value::Base(Base::Bool(b)) => b,
                         b => panic!("Could not get bool from {:?}", b),
                     };
-                    println!(
-                        "{:<6} | {:<5} | {:<9} | {:<11} | {}",
+                    print!(
+                        "{:<6}  {:<5}  {:<6}  {:<6}  {:<7} | ",
                         mode, speed, dev, serdes, link_up
                     )
                 }
                 v => panic!("Expected Struct, got {:?}", v),
             },
             Err(e) => {
-                if e == "Err(UnconfiguredPort)" {
+                if e == "UnconfiguredPort" {
+                    print!("--      --     --      --      --      | ");
+                } else {
+                    println!("Got unexpected error {}", e);
+                }
+            }
+        }
+        let value = humility_cmd_hiffy::hiffy_call(
+            hubris,
+            core,
+            context,
+            &op_phy,
+            &[("port", IdolArgument::Scalar(u64::from(port)))],
+        )?;
+        match value {
+            Ok(v) => match v {
+                Value::Struct(s) => {
+                    assert_eq!(s.name(), "PhyStatus");
+                    let phy_ty = match &s["ty"] {
+                        Value::Enum(e) => e.disc().to_uppercase(),
+                        v => panic!("Expected struct, got {:?}", v),
+                    };
+                    let mac_link_up = match &s["mac_link_up"] {
+                        Value::Base(Base::Bool(b)) => b,
+                        b => panic!("Could not get bool from {:?}", b),
+                    };
+                    let media_link_up = match &s["media_link_up"] {
+                        Value::Base(Base::Bool(b)) => b,
+                        b => panic!("Could not get bool from {:?}", b),
+                    };
                     println!(
-                        "--     | --    | --        | --          | --   "
-                    );
+                        "{:<6}  {:<8}  {:<10}",
+                        phy_ty, mac_link_up, media_link_up
+                    )
+                }
+                v => panic!("Expected Struct, got {:?}", v),
+            },
+            Err(e) => {
+                if e == "UnconfiguredPort" || e == "NoPhy" {
+                    println!("--       --         --");
                 } else {
                     println!("Got unexpected error {}", e);
                 }

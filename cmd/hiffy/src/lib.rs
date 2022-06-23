@@ -210,9 +210,9 @@ pub fn hiffy_call(
             };
 
             if let Some(variant) = variant {
-                Err(format!("Err({})", variant.name))
+                Err(format!("{}", variant.name))
             } else {
-                Err(format!("Err({:x?})", e))
+                Err(format!("{:x?}", e))
             }
         }
     };
@@ -246,7 +246,7 @@ fn hiffy_call_print(
             );
         }
         Err(e) => {
-            println!("{}", e);
+            println!("Err({})", e);
         }
     }
 
