@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
 use humility::core::Core;
@@ -50,7 +50,11 @@ enum Command {
         #[clap(parse(try_from_str = parse_int::parse))]
         value: Option<u32>,
     },
-    Status,
+    Status {
+        /// arguments
+        #[clap(long, short, use_value_delimiter = true)]
+        ports: Vec<u8>,
+    },
     Read {
         reg: String,
     },
@@ -337,9 +341,12 @@ fn monorail_status(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
+    ports: &[u8],
 ) -> Result<()> {
-    let op = IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
+    // Convert ports in a lookup-friendly structure
+    let ports = ports.iter().collect::<BTreeSet<_>>();
 
+    // Helper functions:
     let decode_mode = |value: &Value| match value {
         Value::Enum(m) => {
             let mode = m.disc().to_uppercase();
@@ -369,15 +376,21 @@ fn monorail_status(
         }
         dev => panic!("Expected tuple, got {:?}", dev),
     };
+
+    let op = IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
+
     println!("port| mode   | speed | dev       | serdes      | link up");
     println!("----|--------|-------|-----------|-------------|--------");
     for port in 0..53 {
+        if !ports.is_empty() && !ports.contains(&port) {
+            continue;
+        }
         let value = humility_cmd_hiffy::hiffy_call(
             hubris,
             core,
             context,
             &op,
-            &[("port", IdolArgument::Scalar(port))],
+            &[("port", IdolArgument::Scalar(u64::from(port)))],
         )?;
         print!(" {:<2} | ", port);
         match value {
@@ -429,7 +442,9 @@ fn monorail(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
-        Command::Status => monorail_status(hubris, core, &mut context)?,
+        Command::Status { ports } => {
+            monorail_status(hubris, core, &mut context, &ports)?
+        }
 
         Command::Read { reg } => {
             monorail_read(hubris, core, &mut context, reg)?
