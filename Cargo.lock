@@ -907,6 +907,7 @@ dependencies = [
  "log",
  "parse_int",
  "postcard",
+ "ssmarshal",
 ]
 
 [[package]]
