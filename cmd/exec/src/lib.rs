@@ -31,7 +31,7 @@ fn parse_cmd<'a>(
     cmd: &str,
     cmds: &'a humility_cmd::env::Commands,
 ) -> Result<&'a str> {
-    let c = cmd.split(".").collect::<Vec<_>>();
+    let c = cmd.split('.').collect::<Vec<_>>();
 
     let spawn = match c[0] {
         "console" if c.len() == 1 => {
@@ -118,7 +118,7 @@ fn exec(
             }
         };
 
-        let cmdline = parse_cmd(&cmd, &cmds)?;
+        let cmdline = parse_cmd(&cmd, cmds)?;
 
         let args = splitty::split_unquoted_char(cmdline, ' ')
             .unwrap_quotes(true)
@@ -135,7 +135,7 @@ fn exec(
             cmd,
             match status.code() {
                 Some(code) => format!("status code {code}"),
-                None => format!("terminated by signal"),
+                None => "terminated by signal".to_string(),
             }
         );
     }

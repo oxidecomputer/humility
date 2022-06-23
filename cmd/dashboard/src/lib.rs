@@ -797,10 +797,18 @@ fn pwm_ops(
 }
 
 fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
+    //
+    // We want the right panel to be 30 characters wide (a left-justified 20
+    // and a right justified 8 + margins), but we don't want it to consume
+    // more than 80%; calculate accordingly.
+    //
+    let r = std::cmp::min((30 * 100) / parent.width, 80);
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
-            [Constraint::Ratio(4, 5), Constraint::Ratio(1, 5)].as_ref(),
+            [Constraint::Percentage(100 - r), Constraint::Percentage(r)]
+                .as_ref(),
         )
         .split(parent);
 
@@ -881,10 +889,10 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
 
         rows.push(ListItem::new(Spans::from(vec![
             Span::styled(
-                format!("{:<15}", s.name),
+                format!("{:<20}", s.name),
                 Style::default().fg(s.color),
             ),
-            Span::styled(val, Style::default().fg(s.color)),
+            Span::styled(format!("{:>8}", val), Style::default().fg(s.color)),
         ])));
     }
 
