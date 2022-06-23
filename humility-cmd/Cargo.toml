@@ -12,5 +12,6 @@ idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 indexmap = { version = "1.7", features = ["serde-1"] }
 postcard = "0.7.0"
 parse_int = "0.4.0"
+ssmarshal = {version = "1"}
 colored = "2.0.0"
 log = {version = "0.4.8", features = ["std"]}
