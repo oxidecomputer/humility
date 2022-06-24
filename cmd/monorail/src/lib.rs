@@ -1,6 +1,20 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! ## `humility monorail`
+//! `humility monorail` exposes commands to interact with the management
+//! network switch and PHYs.  It is for _management_ of the management network,
+//! and can therefore only be run on two images:
+//! - `app/sidecar/app.toml` running on Sidecar hardware
+//! - `app/gimletlet/app-vsc7448.toml`, running on a Gimletlet which is
+//!   attached to a VSC7448 dev kit (VSC5627EV) via SPI.  This setup is
+//!   non-trivial; if you find yourself with a dev kit, talk to Matt about
+//!   how to wire it up.
+//!
+//! Use `humility monorail -h` to see help, or `humility monorail status` for
+//! a bird's-eye view of the ports.
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
@@ -46,30 +60,34 @@ impl MonorailArgs {
 
 #[derive(Parser, Debug)]
 enum Command {
+    /// Get info about a particular VSC7448 register
     Info {
         reg: String,
         #[clap(parse(try_from_str = parse_int::parse))]
         value: Option<u32>,
     },
+    /// Print a table showing port status
     Status {
         /// arguments
         #[clap(long, short, use_value_delimiter = true)]
         ports: Vec<u8>,
     },
+    /// Print or reset VSC7448 port counters
     Counters {
         #[clap(long, short)]
         port: u8,
         #[clap(long, short)]
         reset: bool,
     },
-    Read {
-        reg: String,
-    },
+    /// Read a VSC7448 register
+    Read { reg: String },
+    /// Write to a VSC7448 register
     Write {
         reg: String,
         #[clap(parse(try_from_str = parse_int::parse))]
         value: u32,
     },
+    /// Subcommand to control PHYs
     Phy {
         #[clap(subcommand)]
         cmd: PhyCommand,
@@ -78,14 +96,15 @@ enum Command {
 
 #[derive(Parser, Debug)]
 enum PhyCommand {
-    Info {
-        reg: String,
-    },
+    /// Get info about a particular PHY register
+    Info { reg: String },
+    /// Read from a register in the PHY associated with a particular VSC7448 port
     Read {
         #[clap(long, short)]
         port: u8,
         reg: String,
     },
+    /// Write to a register in the PHY associated with a particular VSC7448 port
     Write {
         #[clap(long, short)]
         port: u8,

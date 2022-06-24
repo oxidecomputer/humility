@@ -870,8 +870,18 @@ we can see from the `map` output has been sized to only 256 bytes.)
 
 
 ### `humility monorail`
+`humility monorail` exposes commands to interact with the management
+network switch and PHYs.  It is for _management_ of the management network,
+and can therefore only be run on two images:
+- `app/sidecar/app.toml` running on Sidecar hardware
+- `app/gimletlet/app-vsc7448.toml`, running on a Gimletlet which is
+  attached to a VSC7448 dev kit (VSC5627EV) via SPI.  This setup is
+  non-trivial; if you find yourself with a dev kit, talk to Matt about
+  how to wire it up.
 
-No documentation yet for `humility monorail`; pull requests welcome!
+Use `humility monorail -h` to see help, or `humility monorail status` for
+a bird's-eye view of the ports.
+
 
 ### `humility openocd`
 
