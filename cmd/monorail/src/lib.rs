@@ -146,6 +146,11 @@ fn monorail_read(
                 bail!("Got bad reflected value: expected U32, got {:?}", v);
             };
             println!("{} => 0x{:x}", reg, value);
+
+            // The VSC7448 is configured to return 0x88888888 if a register is
+            // read too fast.  This should never happen, because the `monorail`
+            // task configures appropriate padding bytes between setting the
+            // target register and reading it back.
             if value == 0x88888888 {
                 log::warn!(
                     "0x88888888 typically indicates a communication issue!"
