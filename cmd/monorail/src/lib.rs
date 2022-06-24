@@ -326,6 +326,9 @@ fn monorail_status(
     context: &mut HiffyContext,
     ports: &[u8],
 ) -> Result<()> {
+    // We're going to get the status of *every* port, then just print the ones
+    // that are specified by the caller; the time it takes to poll a single
+    // port is dwarfed by the Hiffy call overhead, so no need to optimize.
     const NUM_PORTS: u8 = 53;
     let results = {
         let op_port =
