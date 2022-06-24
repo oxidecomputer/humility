@@ -56,6 +56,12 @@ enum Command {
         #[clap(long, short, use_value_delimiter = true)]
         ports: Vec<u8>,
     },
+    Counters {
+        #[clap(long, short)]
+        port: u8,
+        #[clap(long, short)]
+        reset: bool,
+    },
     Read {
         reg: String,
     },
@@ -528,6 +534,83 @@ fn monorail_status(
     Ok(())
 }
 
+fn monorail_reset_counters(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    port: u8,
+) -> Result<()> {
+    let op =
+        IdolOperation::new(hubris, "Monorail", "reset_port_counters", None)?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        context,
+        &op,
+        &[("port", IdolArgument::Scalar(u64::from(port)))],
+    )?;
+    Ok(())
+}
+
+fn monorail_counters(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    port: u8,
+) -> Result<()> {
+    let op = IdolOperation::new(hubris, "Monorail", "get_port_counters", None)?;
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        context,
+        &op,
+        &[("port", IdolArgument::Scalar(u64::from(port)))],
+    )?;
+    let decode_count = |s: &Value| match s {
+        Value::Struct(s) => {
+            let mc = match &s["multicast"] {
+                Value::Base(Base::U32(v)) => *v,
+                v => panic!("Expected U32, got {:?}", v),
+            };
+            let uc = match &s["unicast"] {
+                Value::Base(Base::U32(v)) => *v,
+                v => panic!("Expected U32, got {:?}", v),
+            };
+            let bc = match &s["broadcast"] {
+                Value::Base(Base::U32(v)) => *v,
+                v => panic!("Expected U32, got {:?}", v),
+            };
+            (mc, uc, bc)
+        }
+        s => panic!("Expected Struct, got {:?}", s),
+    };
+
+    match value {
+        Ok(v) => {
+            match v {
+                Value::Struct(s) => {
+                    let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
+                    let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
+                    println!("{} (port {})", "Packet counters:".bold(), port);
+                    println!("  Receive:");
+                    println!("    Unicast:   {}", rx_uc);
+                    println!("    Multicast: {}", rx_mc);
+                    println!("    Brodcast:  {}", rx_bc);
+                    println!("  Transmit:");
+                    println!("    Unicast:   {}", tx_uc);
+                    println!("    Multicast: {}", tx_mc);
+                    println!("    Brodcast:  {}", tx_bc);
+                }
+                s => panic!("Expected struct, got {:?}", s),
+            };
+        }
+        Err(e) => {
+            println!("Got error: {}", e);
+        }
+    }
+    Ok(())
+}
+
 fn monorail(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -540,6 +623,13 @@ fn monorail(
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
         Command::Status { ports } => {
             monorail_status(hubris, core, &mut context, &ports)?
+        }
+        Command::Counters { port, reset } => {
+            if reset {
+                monorail_reset_counters(hubris, core, &mut context, port)?
+            } else {
+                monorail_counters(hubris, core, &mut context, port)?
+            }
         }
 
         Command::Read { reg } => {
