@@ -1276,6 +1276,8 @@ dependencies = [
  "humility-core",
  "indicatif",
  "log",
+ "num-derive",
+ "num-traits",
  "parse_int",
  "pmbus",
 ]
