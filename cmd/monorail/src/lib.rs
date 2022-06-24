@@ -11,7 +11,7 @@ use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{IdolArgument, IdolOperation};
 use humility_cmd::{Archive, Args, Attach, Validate};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -549,7 +549,7 @@ fn monorail_reset_counters(
         &op,
         &[("port", IdolArgument::Scalar(u64::from(port)))],
     )?;
-    Ok(())
+    value.map(|_| ()).map_err(|err| anyhow!("Got error {}", err))
 }
 
 fn monorail_counters(
@@ -595,11 +595,11 @@ fn monorail_counters(
                     println!("  Receive:");
                     println!("    Unicast:   {}", rx_uc);
                     println!("    Multicast: {}", rx_mc);
-                    println!("    Brodcast:  {}", rx_bc);
+                    println!("    Broadcast:  {}", rx_bc);
                     println!("  Transmit:");
                     println!("    Unicast:   {}", tx_uc);
                     println!("    Multicast: {}", tx_mc);
-                    println!("    Brodcast:  {}", tx_bc);
+                    println!("    Broadcast:  {}", tx_bc);
                 }
                 s => panic!("Expected struct, got {:?}", s),
             };
