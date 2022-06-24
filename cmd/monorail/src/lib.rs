@@ -14,6 +14,7 @@ use humility_cmd::{Archive, Args, Attach, Validate};
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
+use colored::Colorize;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
@@ -425,8 +426,9 @@ fn monorail_status(
         dev => panic!("Expected tuple, got {:?}", dev),
     };
 
-    println!("PORT | MODE    SPEED  DEV     SERDES  LINK UP |   PHY    MAC LINK  MEDIA LINK");
-    println!("-----|----------------------------------------|-------------------------------");
+    let fmt_link = |b| if b { "up".green() } else { "down".red() };
+    println!("{}", "PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK".bold());
+    println!("{}", "-----|-------------------------------------|-------------------------------".bold());
     for (port, (port_value, phy_value)) in (0..NUM_PORTS).zip(results) {
         if !ports.is_empty() && !ports.contains(&port) {
             continue;
@@ -455,21 +457,37 @@ fn monorail_status(
                         Value::Base(Base::Bool(b)) => b,
                         b => panic!("Could not get bool from {:?}", b),
                     };
+
+                    let fmt_mode = match mode.as_str() {
+                        "SGMII" => mode.cyan(),
+                        "QSGMII" => mode.blue(),
+                        "SFI" => mode.magenta(),
+                        v => v.into(),
+                    };
+
                     print!(
-                        "{:<6}  {:<5}  {:<6}  {:<6}  {:<7} | ",
-                        mode, speed, dev, serdes, link_up
+                        "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
+                        fmt_mode,
+                        speed,
+                        dev,
+                        serdes,
+                        fmt_link(*link_up)
                     )
                 }
                 v => panic!("Expected Struct, got {:?}", v),
             },
             Err(e) => {
                 if e == "UnconfiguredPort" {
-                    print!("--      --     --      --      --      | ");
+                    print!(
+                        "{}",
+                        "--      --     --      --      --  ".dimmed()
+                    );
                 } else {
                     println!("Got unexpected error {}", e);
                 }
             }
         }
+        print!(" | ");
         match phy_value {
             Ok(v) => match v {
                 Value::Struct(s) => {
@@ -488,14 +506,16 @@ fn monorail_status(
                     };
                     println!(
                         "{:<6}  {:<8}  {:<10}",
-                        phy_ty, mac_link_up, media_link_up
+                        phy_ty,
+                        fmt_link(*mac_link_up),
+                        fmt_link(*media_link_up),
                     )
                 }
                 v => panic!("Expected Struct, got {:?}", v),
             },
             Err(e) => {
                 if e == "UnconfiguredPort" || e == "NoPhy" {
-                    println!("--       --         --");
+                    println!("{}", "--       --         --".dimmed());
                 } else {
                     println!("Got unexpected error {}", e);
                 }
