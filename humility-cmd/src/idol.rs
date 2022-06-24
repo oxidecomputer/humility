@@ -129,7 +129,6 @@ impl<'a> IdolOperation<'a> {
         if matches!(arg.1.recv, RecvStrategy::FromBytes) {
             if ty != "bool" {
                 call_arg(hubris, member, val, payload)?;
-                println!("  call_arg {:?} {:?} => {:?}", member, val, payload);
             } else {
                 let v = IdolArgument::String(match val {
                     IdolArgument::String("true") => "1",

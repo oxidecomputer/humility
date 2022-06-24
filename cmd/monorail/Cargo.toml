@@ -1,0 +1,21 @@
+[package]
+name = "humility-cmd-monorail"
+version = "0.1.0"
+edition = "2021"
+description = "Management network control and debugging"
+
+[dependencies]
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+colored = "2.0.0"
+log = {version = "0.4.8", features = ["std"]}
+parse_int = "0.4.0"
+
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+humility-cmd-hiffy = { path = "../hiffy" }
+
+hif = { git = "https://github.com/oxidecomputer/hif" }
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
+vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
