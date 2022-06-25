@@ -13,13 +13,13 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indicatif::{ProgressBar, ProgressStyle};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::Write;
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
 
 #[derive(Parser, Debug)]
 #[clap(name = "rendmp", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -76,7 +76,7 @@ struct RendmpArgs {
     )]
     ingest: Option<String>,
 
-    /// flash a Power Navigator HEX image 
+    /// flash a Power Navigator HEX image
     #[clap(
         long,
         short = 'f',
@@ -84,6 +84,241 @@ struct RendmpArgs {
         conflicts_with_all = &["ingest", "dump"],
     )]
     flash: Option<String>,
+
+    /// display the number of NVM slots remaining
+    #[clap(long, short, conflicts_with_all = &["ingest", "dump", "flash"])]
+    slots: bool,
+}
+
+#[derive(Copy, Clone, Debug, FromPrimitive)]
+enum RendmpGenTwo {
+    ISL68220 = 0x63,
+    ISL68221 = 0x62,
+    ISL68222 = 0x61,
+    ISL68223 = 0x53,
+    ISL68224 = 0x52,
+    ISL68225 = 0x51,
+    ISL68226 = 0x50,
+    ISL68227 = 0x4F,
+    ISL68229 = 0x4E,
+    ISL68233 = 0x6B,
+    ISL68236 = 0x4D,
+    ISL68239 = 0x4B,
+    ISL69222 = 0x3E,
+    ISL69223 = 0x3D,
+    ISL69224 = 0x3C,
+    ISL69225 = 0x3B,
+    ISL69227 = 0x3A,
+    ISL69228 = 0x39,
+    ISL69234 = 0x43,
+    ISL69236 = 0x42,
+    ISL69237 = 0x66,
+    ISL69238 = 0x40,
+    ISL69239 = 0x41,
+    ISL69242 = 0x58,
+    ISL69243 = 0x59,
+    ISL69247 = 0x48,
+    ISL69248 = 0x47,
+    ISL69249 = 0x6D,
+    ISL69254 = 0x67,
+    ISL69255 = 0x38,
+    ISL69256 = 0x37,
+    ISL69259 = 0x46,
+    ISL69260 = 0x6E,
+    ISL69267 = 0x57,
+    ISL69268 = 0x3F,
+    ISL69269 = 0x55,
+    RAA228000 = 0x64,
+    RAA228004 = 0x65,
+    RAA228006 = 0x6C,
+    RAA229001 = 0x69,
+    RAA229004 = 0x6A,
+    RAA229022 = 0x6F,
+    RAA229126 = 0x7E,
+}
+
+#[derive(Copy, Clone, Debug, FromPrimitive)]
+enum RendmpGenTwoFive {
+    RAA228218 = 0x73,
+    RAA228227 = 0x75,
+    RAA228228 = 0x76,
+    RAA229618 = 0x99,
+}
+
+#[derive(Copy, Clone, Debug)]
+enum RendmpDevice {
+    RendmpGenTwo(RendmpGenTwo),
+    RendmpGenTwoFive(RendmpGenTwoFive),
+}
+
+impl std::fmt::Display for RendmpDevice {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            RendmpDevice::RendmpGenTwo(d) => write!(f, "{:?}", d),
+            RendmpDevice::RendmpGenTwoFive(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+
+impl RendmpDevice {
+    fn from_id(id: u8) -> Result<Self> {
+        let g2 = RendmpGenTwo::from_u8(id);
+        let g2p5 = RendmpGenTwoFive::from_u8(id);
+
+        match (g2, g2p5) {
+            (Some(d), None) => Ok(RendmpDevice::RendmpGenTwo(d)),
+            (None, Some(d)) => Ok(RendmpDevice::RendmpGenTwoFive(d)),
+            (Some(d1), Some(d2)) => {
+                panic!("id {:x} matches both {:?} and {:?}", id, d1, d2);
+            }
+            (None, None) => {
+                bail!("unknown device id 0x{:x}", id);
+            }
+        }
+    }
+
+    fn from_str(device: &str) -> Result<Self> {
+        let search = device.to_uppercase();
+
+        for i in 0..255u8 {
+            if let Ok(d) = Self::from_id(i) {
+                if search == format!("{}", d) {
+                    return Ok(d);
+                }
+            }
+        }
+
+        bail!("{} does not match a Renesas DMP device", device);
+    }
+
+    fn slot_addr(&self) -> [u8; 2] {
+        match self {
+            RendmpDevice::RendmpGenTwo(_) => 0x00c2u16,
+            RendmpDevice::RendmpGenTwoFive(_) => 0x00c4u16,
+        }
+        .to_le_bytes()
+    }
+}
+
+#[derive(Copy, Clone, Debug, FromPrimitive)]
+enum RendmpHexRecordKind {
+    Data = 0,
+    Header = 0x49,
+}
+
+#[derive(Debug)]
+struct RendmpHexRecord {
+    kind: RendmpHexRecordKind,
+    payload: Vec<u8>,
+}
+
+struct RendmpHex {
+    addr: u8,
+    device: RendmpDevice,
+    ic_device_id: [u8; 4],
+    ic_device_rev: [u8; 4],
+    data: Vec<Vec<u8>>,
+}
+
+impl RendmpHex {
+    fn from_file(filename: &str) -> Result<Self> {
+        let file = fs::File::open(filename)?;
+        let lines = BufReader::new(file).lines();
+
+        let mut data = vec![];
+        let mut headers = vec![];
+
+        for (ndx, line) in lines.enumerate() {
+            let line = line?;
+            let l = ndx + 1;
+
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+
+            let mut vals = vec![];
+
+            for i in (0..line.len()).step_by(2) {
+                let col = i + 1;
+
+                if i + 1 >= line.len() {
+                    bail!("short hex input on line {} in column {}", l, col);
+                }
+
+                let s = &line[i..i + 2];
+
+                if let Ok(val) = u8::from_str_radix(s, 16) {
+                    vals.push(val);
+                } else {
+                    bail!(
+                        "bad hex value on line {} in column {}: {}",
+                        l,
+                        col,
+                        s
+                    );
+                }
+            }
+
+            //
+            // We expect at least a record kind, length, and CRC.
+            //
+            if vals.len() < 2 {
+                bail!("short hex input on line {}", l);
+            }
+
+            let kind = match RendmpHexRecordKind::from_u8(vals[0]) {
+                Some(kind) => kind,
+                None => {
+                    bail!("bad record kind 0x{:x} on line {}", vals[0], l);
+                }
+            };
+
+            let reclen = vals[1] as usize;
+
+            if reclen != vals.len() - 2 {
+                bail!("bad record length {} on line {}", vals[1], l);
+            }
+
+            let payload = vals[2..reclen + 1].to_vec();
+
+            match kind {
+                RendmpHexRecordKind::Header => headers.push(payload),
+                RendmpHexRecordKind::Data => data.push(payload),
+            }
+        }
+
+        if headers.len() < 2 {
+            bail!("insufficient headers found");
+        }
+
+        //
+        // The IC_DEVICE_ID and IC_DEVICE_REV are (inexplicably?) big-endian in
+        // the HEX file -- even though they are little-endian off the device.
+        //
+        let id = &headers[0][2..];
+
+        if id.len() < 4 {
+            bail!("short IC_DEVICE_ID (found {} bytes)", id.len());
+        }
+
+        let ic_device_id = [id[3], id[2], id[1], id[0]];
+
+        let rev = &headers[1][2..];
+
+        if rev.len() < 4 {
+            bail!("short IC_DEVICE_REV(found {} bytes)", rev.len());
+        }
+
+        let ic_device_rev = [rev[3], rev[2], rev[1], rev[0]];
+
+        Ok(Self {
+            addr: headers[0][0] >> 1,
+            device: RendmpDevice::from_id(ic_device_id[1])?,
+            ic_device_id,
+            ic_device_rev,
+            data,
+        })
+    }
 }
 
 fn all_commands(
@@ -322,217 +557,6 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
-#[derive(Copy, Clone, Debug, FromPrimitive)]
-enum RendmpGenTwo {
-    ISL68220 = 0x63,
-    ISL68221 = 0x62,
-    ISL68222 = 0x61,
-    ISL68223 = 0x53,
-    ISL68224 = 0x52,
-    ISL68225 = 0x51,
-    ISL68226 = 0x50,
-    ISL68227 = 0x4F,
-    ISL68229 = 0x4E,
-    ISL68233 = 0x6B,
-    ISL68236 = 0x4D,
-    ISL68239 = 0x4B,
-    ISL69222 = 0x3E,
-    ISL69223 = 0x3D,
-    ISL69224 = 0x3C,
-    ISL69225 = 0x3B,
-    ISL69227 = 0x3A,
-    ISL69228 = 0x39,
-    ISL69234 = 0x43,
-    ISL69236 = 0x42,
-    ISL69237 = 0x66,
-    ISL69238 = 0x40,
-    ISL69239 = 0x41,
-    ISL69242 = 0x58,
-    ISL69243 = 0x59,
-    ISL69247 = 0x48,
-    ISL69248 = 0x47,
-    ISL69249 = 0x6D,
-    ISL69254 = 0x67,
-    ISL69255 = 0x38,
-    ISL69256 = 0x37,
-    ISL69259 = 0x46,
-    ISL69260 = 0x6E,
-    ISL69267 = 0x57,
-    ISL69268 = 0x3F,
-    ISL69269 = 0x55,
-    RAA228000 = 0x64,
-    RAA228004 = 0x65,
-    RAA228006 = 0x6C,
-    RAA229001 = 0x69,
-    RAA229004 = 0x6A,
-    RAA229022 = 0x6F,
-    RAA229126 = 0x7E,
-}
-
-#[derive(Copy, Clone, Debug, FromPrimitive)]
-enum RendmpGenTwoFive {
-    RAA228218 = 0x73,
-    RAA228227 = 0x75,
-    RAA228228 = 0x76,
-    RAA229618 = 0x99,
-}
-
-#[derive(Copy, Clone, Debug)]
-enum RendmpDevice {
-    RendmpGenTwo(RendmpGenTwo),
-    RendmpGenTwoFive(RendmpGenTwoFive),
-}
-
-impl std::fmt::Display for RendmpDevice {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            RendmpDevice::RendmpGenTwo(d) => write!(f, "{:?}", d),
-            RendmpDevice::RendmpGenTwoFive(d) => write!(f, "{:?}", d),
-        }
-    }
-}
-
-impl RendmpDevice {
-    fn from_id(id: u8) -> Result<Self> {
-        let g2 = RendmpGenTwo::from_u8(id);
-        let g2p5 = RendmpGenTwoFive::from_u8(id);
-
-        match (g2, g2p5) {
-            (Some(d), None) => Ok(RendmpDevice::RendmpGenTwo(d)),
-            (None, Some(d)) => Ok(RendmpDevice::RendmpGenTwoFive(d)),
-            (Some(d1), Some(d2)) => {
-                panic!("id {:x} matches both {:?} and {:?}", id, d1, d2);
-            }
-            (None, None) => {
-                bail!("unknown device id 0x{:x}", id);
-            }
-        }
-    }
-
-    fn slot_addr(&self) -> u16 {
-        match self {
-            RendmpDevice::RendmpGenTwo(_) => 0x00c2,
-            RendmpDevice::RendmpGenTwoFive(_) => 0x00c4,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, FromPrimitive)]
-enum RendmpHexRecordKind {
-    Data = 0,
-    Header = 0x49,
-}
-
-#[derive(Debug)]
-struct RendmpHexRecord {
-    kind: RendmpHexRecordKind,
-    payload: Vec<u8>,
-}
-
-struct RendmpHex {
-    addr: u8,
-    device: RendmpDevice,
-    ic_device_id: [u8; 4],
-    ic_device_rev: [u8; 4],
-    data: Vec<Vec<u8>>,
-}
-
-impl RendmpHex {
-    fn from_file(filename: &str) -> Result<Self> {
-        let file = fs::File::open(filename)?;
-        let lines = BufReader::new(file).lines();
-
-        let mut data = vec![];
-        let mut headers = vec![];
-
-        for (ndx, line) in lines.enumerate() {
-            let line = line?;
-            let l = ndx + 1;
-
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-
-            let mut vals = vec![];
-
-            for i in (0..line.len()).step_by(2) {
-                let col = i + 1;
-
-                if i + 1 >= line.len() {
-                    bail!("short hex input on line {} in column {}", l, col);
-                }
-
-                let s = &line[i..i + 2];
-
-                if let Ok(val) = u8::from_str_radix(s, 16) {
-                    vals.push(val);
-                } else {
-                    bail!("bad hex value on line {} in column {}: {}", l, col, s);
-                }
-            }
-
-            //
-            // We expect at least a record kind, length, and CRC.
-            //
-            if vals.len() < 2 {
-                bail!("short hex input on line {}", l);
-            }
-
-            let kind = match RendmpHexRecordKind::from_u8(vals[0]) {
-                Some(kind) => kind,
-                None => {
-                    bail!("bad record kind 0x{:x} on line {}", vals[0], l);
-                }
-            };
-
-            let reclen = vals[1] as usize;
-
-            if reclen != vals.len() - 2 {
-                bail!("bad record length {} on line {}", vals[1], l);
-            }
-
-            let payload = vals[2..reclen + 1].to_vec();
-
-            match kind {
-                RendmpHexRecordKind::Header => headers.push(payload),
-                RendmpHexRecordKind::Data => data.push(payload),
-            }
-        }
-
-        if headers.len() < 2 {
-            bail!("insufficient headers found");
-        }
-
-        //
-        // The IC_DEVICE_ID and IC_DEVICE_REV are (inexplicably?) big-endian in
-        // the HEX file -- even though they are little-endian off the device.
-        //
-        let id = &headers[0][2..];
-
-        if id.len() < 4 {
-            bail!("short IC_DEVICE_ID (found {} bytes)", id.len());
-        }
-
-        let ic_device_id = [id[3], id[2], id[1], id[0]];
-
-        let rev = &headers[1][2..];
-
-        if rev.len() < 4 {
-            bail!("short IC_DEVICE_REV(found {} bytes)", rev.len());
-        }
-
-        let ic_device_rev = [rev[3], rev[2], rev[1], rev[0]];
-
-        Ok(Self {
-            addr: headers[0][0] >> 1,
-            device: RendmpDevice::from_id(ic_device_id[1])?,
-            ic_device_id,
-            ic_device_rev,
-            data
-        })
-    }
-}
-
 fn rendmp(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -593,13 +617,13 @@ fn rendmp(
                 bail!("unknown device \"{}\"", driver);
             }
         }
-    } else if let Some(driver) = hargs.device {
+    } else if let Some(ref driver) = hargs.device {
         match pmbus::Device::from_str(&driver) {
             Some(device) => device,
             None => pmbus::Device::Common,
         }
     } else {
-        pmbus::Device::Common
+        bail!("not recognized as a Renesas DMP device");
     };
 
     let all = all_commands(device);
@@ -618,58 +642,6 @@ fn rendmp(
         base.push(Op::Push(address));
     } else {
         bail!("expected device");
-    }
-
-    if let Some(ref flash) = subargs.flash {
-        let hex = RendmpHex::from_file(flash)?;
-
-        println!("{:x?}", hex.device);
-        println!("{:x?}", hex.ic_device_id);
-        println!("{:x?}", hex.ic_device_rev);
-
-        //
-        // We first need to validate that the IC_DEVICE_ID matches.  The
-        // IC_DEVICE_REV is permitted to differ.
-        //
-        let mut ops = base.clone();
-
-        ops.push(Op::Push(pmbus::CommandCode::IC_DEVICE_ID as u8));
-        ops.push(Op::PushNone);
-        ops.push(Op::Call(i2c_read.id));
-        ops.push(Op::DropN(2));
-
-        ops.push(Op::Push(pmbus::CommandCode::IC_DEVICE_REV as u8));
-        ops.push(Op::PushNone);
-        ops.push(Op::Call(i2c_read.id));
-        ops.push(Op::Done);
-
-        let results = context.run(core, ops.as_slice(), None)?;
-
-        match &results[0] {
-            Err(err) => {
-                bail!("failed to read IC_DEVICE_ID: {}", i2c_read.strerror(*err));
-            }
-
-            Ok(result) => {
-                if result.len() != 4 {
-                    bail!("bad length on IC_DEVICE_ID: {:x?}", result);
-                }
-
-                if result[1] != hex.ic_device_id[1] {
-                    if let Ok(device) = RendmpDevice::from_id(result[1]) {
-                        bail!("device mismatch: expected {}, found {}",
-                           hex.device, device);
-                    }
-                }
-
-                if result != &hex.ic_device_id[0..4] {
-                    bail!("IC_DEVICE_ID mismatch: expected {:x?} found {:x?}",
-                        hex.ic_device_id, result);
-                }
-            }
-        }
-
-        return Ok(());
     }
 
     let dmaaddr = match all.get("DMAADDR") {
@@ -695,6 +667,154 @@ fn rendmp(
             bail!("no DMASEQ command found; is this a Renesas device?");
         }
     };
+
+    if subargs.slots {
+        let d = RendmpDevice::from_str(&hargs.device.as_ref().unwrap())?;
+        let mut ops = base.clone();
+
+        //
+        // Read the number of slots left.  First, a DMAADDR operation to set
+        // the address, and then a 4-byte DMASEQ read.
+        //
+        ops.push(Op::Push(dmaaddr));
+        let addr = d.slot_addr();
+        ops.push(Op::Push(addr[0]));
+        ops.push(Op::Push(addr[1]));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_write.id));
+        ops.push(Op::DropN(4));
+
+        ops.push(Op::Push(dmaseq));
+        ops.push(Op::Push(4));
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        ops.push(Op::Done);
+        let results = context.run(core, ops.as_slice(), None)?;
+
+        let nslots = match &results[1] {
+            Err(err) => {
+                bail!("failed to read slots: {}", i2c_read.strerror(*err));
+            }
+
+            Ok(result) => {
+                if result.len() != 4 {
+                    bail!("bad length on available slots: {:x?}", result);
+                }
+
+                u32::from_le_bytes(result[0..4].try_into().unwrap())
+            }
+        };
+
+        humility::msg!("{} at {} has {} slots available", d, &hargs, nslots);
+
+        return Ok(());
+    }
+
+    if let Some(ref flash) = subargs.flash {
+        let hex = RendmpHex::from_file(flash)?;
+
+        println!("{:x?}", hex.device);
+        println!("{:x?}", hex.ic_device_id);
+        println!("{:x?}", hex.ic_device_rev);
+
+        //
+        // We first need to validate that the IC_DEVICE_ID matches.  The
+        // IC_DEVICE_REV is permitted to differ.
+        //
+        let mut ops = base.clone();
+
+        //
+        // Read IC_DEVICE_ID. This is a block read, so the length is None.
+        //
+        ops.push(Op::Push(pmbus::CommandCode::IC_DEVICE_ID as u8));
+        ops.push(Op::PushNone);
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        //
+        // Read IC_DEVICE_REV. This too is a block read, so the length is None.
+        //
+        ops.push(Op::Push(pmbus::CommandCode::IC_DEVICE_REV as u8));
+        ops.push(Op::PushNone);
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        //
+        // Read the number of slots left.  First, a DMAADDR operation to set
+        // the address, and then a 4-byte DMASEQ read.
+        //
+        ops.push(Op::Push(dmaaddr));
+        let addr = hex.device.slot_addr();
+        ops.push(Op::Push(addr[0]));
+        ops.push(Op::Push(addr[1]));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_write.id));
+        ops.push(Op::DropN(4));
+
+        ops.push(Op::Push(dmaseq));
+        ops.push(Op::Push(4));
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        ops.push(Op::Done);
+        let results = context.run(core, ops.as_slice(), None)?;
+
+        match &results[0] {
+            Err(err) => {
+                bail!(
+                    "failed to read IC_DEVICE_ID: {}",
+                    i2c_read.strerror(*err)
+                );
+            }
+
+            Ok(result) => {
+                if result.len() != 4 {
+                    bail!("bad length on IC_DEVICE_ID: {:x?}", result);
+                }
+
+                if result[1] != hex.ic_device_id[1] {
+                    if let Ok(device) = RendmpDevice::from_id(result[1]) {
+                        bail!(
+                            "device mismatch: expected {}, found {}",
+                            hex.device,
+                            device
+                        );
+                    }
+                }
+
+                if result != &hex.ic_device_id[0..4] {
+                    bail!(
+                        "IC_DEVICE_ID mismatch: expected {:x?} found {:x?}",
+                        hex.ic_device_id,
+                        result
+                    );
+                }
+            }
+        }
+
+        let nslots = match &results[3] {
+            Err(err) => {
+                bail!("failed to read slots: {}", i2c_read.strerror(*err));
+            }
+
+            Ok(result) => {
+                if result.len() != 4 {
+                    bail!("bad length on available slots: {:x?}", result);
+                }
+
+                u32::from_le_bytes(result[0..4].try_into().unwrap())
+            }
+        };
+
+        println!("{} slots", nslots);
+
+        //
+        // Okay, time to burn!
+        //
+
+        return Ok(());
+    }
 
     if subargs.dump {
         let blocksize = 128u8;
