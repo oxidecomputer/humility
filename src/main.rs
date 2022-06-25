@@ -49,9 +49,9 @@ fn main() {
 
     env_logger::init_from_env(env);
 
-    let env = match (&args.environment, &args.name) {
-        (Some(ref env), Some(ref name)) => {
-            let env = match Environment::from_file(env, name) {
+    let env = match (&args.environment, &args.target) {
+        (Some(ref env), Some(ref target)) => {
+            let env = match Environment::from_file(env, target) {
                 Ok(e) => e,
                 Err(err) => {
                     eprintln!("failed to match environment: {:?}", err);
@@ -60,7 +60,7 @@ fn main() {
             };
 
             //
-            // Cannot specify a dump/probe and also an environment and name
+            // Cannot specify a dump/probe and also an environment and target
             //
             assert!(args.dump.is_none());
             assert!(args.probe.is_none());
