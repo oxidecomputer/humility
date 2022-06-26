@@ -290,6 +290,7 @@ enum RendmpHexRecordKind {
     Header = 0x49,
 }
 
+#[allow(dead_code)]
 struct RendmpHex {
     device: RendmpDevice,
     ic_device_id: [u8; 4],
@@ -699,7 +700,7 @@ fn rendmp(
             }
         }
     } else if let Some(ref driver) = hargs.device {
-        match pmbus::Device::from_str(&driver) {
+        match pmbus::Device::from_str(driver) {
             Some(device) => device,
             None => pmbus::Device::Common,
         }
@@ -753,7 +754,7 @@ fn rendmp(
     };
 
     if subargs.crc {
-        let d = RendmpDevice::from_str(&hargs.device.as_ref().unwrap())?;
+        let d = RendmpDevice::from_str(hargs.device.as_ref().unwrap())?;
         let mut ops = base.clone();
 
         ops.push(Op::Push(dmaaddr));
@@ -792,7 +793,7 @@ fn rendmp(
     }
 
     if subargs.slots {
-        let d = RendmpDevice::from_str(&hargs.device.as_ref().unwrap())?;
+        let d = RendmpDevice::from_str(hargs.device.as_ref().unwrap())?;
         let mut ops = base.clone();
 
         //
@@ -979,7 +980,7 @@ fn rendmp(
             //
             (hex.data.len() - 1, 1)
         } else {
-            (has.data.len(), 0)
+            (hex.data.len(), 0)
         };
 
         let mut nwritten = 0usize;

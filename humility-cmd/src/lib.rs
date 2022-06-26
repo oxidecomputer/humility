@@ -120,6 +120,7 @@ pub enum RunUnattached {
     ),
 }
 
+#[allow(clippy::type_complexity)]
 pub enum Run {
     Subargs(fn(&HubrisArchive, &mut dyn Core, &[String]) -> Result<()>),
     Args(fn(&HubrisArchive, &mut dyn Core, &Args, &[String]) -> Result<()>),
