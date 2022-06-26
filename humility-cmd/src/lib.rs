@@ -8,7 +8,6 @@ pub mod hiffy;
 pub mod i2c;
 pub mod idol;
 pub mod jefe;
-pub mod reflect;
 pub mod stack;
 pub mod test;
 

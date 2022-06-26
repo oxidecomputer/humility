@@ -217,7 +217,7 @@ fn validate(
                         _ => format!("<{}>", variant.name).cyan(),
                     }
                 } else {
-                    hubris.printfmt(val, op.ok, &fmt)?.white()
+                    hubris.printfmt(val, op.ok, fmt)?.white()
                 }
             }
             Err(e) => match op.error.unwrap().lookup_variant(*e as u64) {
