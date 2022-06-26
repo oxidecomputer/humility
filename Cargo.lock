@@ -1604,7 +1604,7 @@ checksum = "33a33a362ce288760ec6a508b94caaec573ae7d3bbbd91b87aa0bad4456839db"
 [[package]]
 name = "libusb1-sys"
 version = "0.5.0"
-source = "git+https://github.com/oxidecomputer/rusb?branch=probe-rs-0.12#36d0f8a96334bc3db1a98c067b9a01747c391d2d"
+source = "git+https://github.com/oxidecomputer/rusb?branch=probe-rs-0.12-libusb-v1.0.26#fa63411ad6a28bfd5f68f2905a0c258f1352d68e"
 dependencies = [
  "cc",
  "libc",
