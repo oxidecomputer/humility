@@ -12,6 +12,7 @@ use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
+use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -20,6 +21,8 @@ use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::Write;
+use std::thread;
+use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(name = "rendmp", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -88,6 +91,14 @@ struct RendmpArgs {
     /// display the number of NVM slots remaining
     #[clap(long, short, conflicts_with_all = &["ingest", "dump", "flash"])]
     slots: bool,
+
+    /// display the number of NVM slots remaining
+    #[clap(long, short = 'C', conflicts_with_all = &["slots", "ingest", "dump", "flash"])]
+    crc: bool,
+
+    /// perform dry-run of flash
+    #[clap(long = "dry-run", short = 'n', requires = "flash")]
+    dryrun: bool,
 }
 
 #[derive(Copy, Clone, Debug, FromPrimitive)]
@@ -160,6 +171,31 @@ impl std::fmt::Display for RendmpDevice {
     }
 }
 
+#[derive(Copy, Clone, Debug, FromPrimitive, PartialEq)]
+enum RendmpBankStatus {
+    CRCMismatchOTP = 0b1000,
+    CRCMismatchRAM = 0b0100,
+    Reserved = 0b0010,
+    BankWritten = 0b0001,
+    BankUnaffected = 0b0000,
+}
+
+impl std::fmt::Display for RendmpBankStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                RendmpBankStatus::CRCMismatchOTP => "CRC mismatch with OTP",
+                RendmpBankStatus::CRCMismatchRAM => "CRC mismatch with RAM",
+                RendmpBankStatus::Reserved => "<reserved>",
+                RendmpBankStatus::BankWritten => "bank written successfully",
+                RendmpBankStatus::BankUnaffected => "bank unaffected",
+            }
+        )
+    }
+}
+
 impl RendmpDevice {
     fn from_id(id: u8) -> Result<Self> {
         let g2 = RendmpGenTwo::from_u8(id);
@@ -198,6 +234,54 @@ impl RendmpDevice {
         }
         .to_le_bytes()
     }
+
+    fn crc_addr(&self) -> [u8; 2] {
+        match self {
+            RendmpDevice::RendmpGenTwo(_) => 0x003fu16,
+            RendmpDevice::RendmpGenTwoFive(_) => 0x003cu16,
+        }
+        .to_le_bytes()
+    }
+
+    fn programmer_status_addr(&self) -> [u8; 2] {
+        0x0707u16.to_le_bytes()
+    }
+
+    fn bank_status_addr(&self) -> [u8; 2] {
+        0x0709u16.to_le_bytes()
+    }
+
+    fn check_programmer_status(&self, status: u16) -> Result<()> {
+        if status & 0b0_0000_0001 == 1 {
+            Ok(())
+        } else if status & 0b0_0001_0000 != 0 {
+            bail!("flashing failed: CRC mismatch within RAM data");
+        } else if status & 0b0_0100_0000 != 0 {
+            bail!("flashing failed: CRC mismatch within OTP data");
+        } else if status & 0b1_0000_0000 != 0 {
+            bail!("flashing failed: configurations not available");
+        } else {
+            bail!("flashing failed: unknown failure: 0x{:x}", status);
+        }
+    }
+
+    fn bank_status(
+        &self,
+        status: &[u8],
+    ) -> Result<Vec<Option<RendmpBankStatus>>> {
+        let mut rval = vec![];
+
+        if status.len() != 8 {
+            bail!("short bank status");
+        }
+
+        for s in status {
+            rval.push(RendmpBankStatus::from_u8(s & 0b1111));
+            rval.push(RendmpBankStatus::from_u8((s >> 4) & 0b1111));
+        }
+
+        Ok(rval)
+    }
 }
 
 #[derive(Copy, Clone, Debug, FromPrimitive)]
@@ -206,14 +290,7 @@ enum RendmpHexRecordKind {
     Header = 0x49,
 }
 
-#[derive(Debug)]
-struct RendmpHexRecord {
-    kind: RendmpHexRecordKind,
-    payload: Vec<u8>,
-}
-
 struct RendmpHex {
-    addr: u8,
     device: RendmpDevice,
     ic_device_id: [u8; 4],
     ic_device_rev: [u8; 4],
@@ -221,7 +298,7 @@ struct RendmpHex {
 }
 
 impl RendmpHex {
-    fn from_file(filename: &str) -> Result<Self> {
+    fn from_file(filename: &str, address: u8) -> Result<Self> {
         let file = fs::File::open(filename)?;
         let lines = BufReader::new(file).lines();
 
@@ -279,7 +356,12 @@ impl RendmpHex {
                 bail!("bad record length {} on line {}", vals[1], l);
             }
 
-            let payload = vals[2..reclen + 1].to_vec();
+            if vals[2] >> 1 != address {
+                bail!("address mismatch on line {}: expected 0x{:x}, found 0x{:x}",
+                    l, vals[2] >> 1, address);
+            }
+
+            let payload = vals[3..reclen + 1].to_vec();
 
             match kind {
                 RendmpHexRecordKind::Header => headers.push(payload),
@@ -295,7 +377,7 @@ impl RendmpHex {
         // The IC_DEVICE_ID and IC_DEVICE_REV are (inexplicably?) big-endian in
         // the HEX file -- even though they are little-endian off the device.
         //
-        let id = &headers[0][2..];
+        let id = &headers[0][1..];
 
         if id.len() < 4 {
             bail!("short IC_DEVICE_ID (found {} bytes)", id.len());
@@ -303,7 +385,7 @@ impl RendmpHex {
 
         let ic_device_id = [id[3], id[2], id[1], id[0]];
 
-        let rev = &headers[1][2..];
+        let rev = &headers[1][1..];
 
         if rev.len() < 4 {
             bail!("short IC_DEVICE_REV(found {} bytes)", rev.len());
@@ -312,7 +394,6 @@ impl RendmpHex {
         let ic_device_rev = [rev[3], rev[2], rev[1], rev[0]];
 
         Ok(Self {
-            addr: headers[0][0] >> 1,
             device: RendmpDevice::from_id(ic_device_id[1])?,
             ic_device_id,
             ic_device_rev,
@@ -638,11 +719,14 @@ fn rendmp(
         base.push(Op::PushNone);
     }
 
-    if let Some(address) = hargs.address {
-        base.push(Op::Push(address));
-    } else {
-        bail!("expected device");
-    }
+    let address = match hargs.address {
+        Some(address) => address,
+        None => {
+            bail!("expected device");
+        }
+    };
+
+    base.push(Op::Push(address));
 
     let dmaaddr = match all.get("DMAADDR") {
         Some((code, _, write)) => {
@@ -668,6 +752,45 @@ fn rendmp(
         }
     };
 
+    if subargs.crc {
+        let d = RendmpDevice::from_str(&hargs.device.as_ref().unwrap())?;
+        let mut ops = base.clone();
+
+        ops.push(Op::Push(dmaaddr));
+        let addr = d.crc_addr();
+        ops.push(Op::Push(addr[0]));
+        ops.push(Op::Push(addr[1]));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_write.id));
+        ops.push(Op::DropN(4));
+
+        ops.push(Op::Push(dmaseq));
+        ops.push(Op::Push(4));
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        ops.push(Op::Done);
+        let results = context.run(core, ops.as_slice(), None)?;
+
+        let crc = match &results[1] {
+            Err(err) => {
+                bail!("failed to read CRC: {}", i2c_read.strerror(*err));
+            }
+
+            Ok(result) => {
+                if result.len() != 4 {
+                    bail!("bad length on CRC: {:x?}", result);
+                }
+
+                u32::from_le_bytes(result[0..4].try_into().unwrap())
+            }
+        };
+
+        humility::msg!("{} at {} has CRC 0x{:<08x}", d, &hargs, crc);
+
+        return Ok(());
+    }
+
     if subargs.slots {
         let d = RendmpDevice::from_str(&hargs.device.as_ref().unwrap())?;
         let mut ops = base.clone();
@@ -678,6 +801,22 @@ fn rendmp(
         //
         ops.push(Op::Push(dmaaddr));
         let addr = d.slot_addr();
+        ops.push(Op::Push(addr[0]));
+        ops.push(Op::Push(addr[1]));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_write.id));
+        ops.push(Op::DropN(4));
+
+        ops.push(Op::Push(dmaseq));
+        ops.push(Op::Push(4));
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        //
+        // And now read the CRC
+        //
+        ops.push(Op::Push(dmaaddr));
+        let addr = d.crc_addr();
         ops.push(Op::Push(addr[0]));
         ops.push(Op::Push(addr[1]));
         ops.push(Op::Push(2));
@@ -712,11 +851,7 @@ fn rendmp(
     }
 
     if let Some(ref flash) = subargs.flash {
-        let hex = RendmpHex::from_file(flash)?;
-
-        println!("{:x?}", hex.device);
-        println!("{:x?}", hex.ic_device_id);
-        println!("{:x?}", hex.ic_device_rev);
+        let hex = RendmpHex::from_file(flash, address)?;
 
         //
         // We first need to validate that the IC_DEVICE_ID matches.  The
@@ -807,11 +942,180 @@ fn rendmp(
             }
         };
 
-        println!("{} slots", nslots);
+        humility::msg!("{} NVM slots remain", nslots);
 
         //
-        // Okay, time to burn!
+        // Check that the number of available slots seems sane -- and (for
+        // now, anyway) refust to operate if we've burned through a bunch of
+        // slots.
         //
+        if nslots > 28 {
+            bail!("number of NVM slots is impossibly high; aborting");
+        }
+
+        if nslots < 10 {
+            bail!("number of available NVM slots is scarily low; aborting");
+        }
+
+        let nbytes = hex.data.iter().fold(0, |n, v| n + v.len());
+
+        humility::msg!("flashing {} bytes", nbytes);
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(nbytes as u64);
+
+        bar.set_style(
+            ProgressStyle::default_bar().template(
+                "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
+            ),
+        );
+
+        let (max, mut start) = if subargs.dryrun {
+            //
+            // For a dry-run, we want to stop short of the final command that
+            // burns the OTP -- but we also want to start after the command
+            // that initiates is, lest we not be able to program it after the
+            // dry run.
+            //
+            (hex.data.len() - 1, 1)
+        } else {
+            (has.data.len(), 0)
+        };
+
+        let mut nwritten = 0usize;
+        let nwrites = 32;
+
+        //
+        // Okay, time to burn!  To keep this simple, we are going to just pass
+        // our data in program text -- we aren't optimizing for performance
+        // here.
+        //
+        loop {
+            let mut ops = base.clone();
+
+            for i in start..start + nwrites {
+                if i < max {
+                    let payload = &hex.data[i];
+                    let len = payload.len() as u8;
+
+                    for datum in payload {
+                        ops.push(Op::Push(*datum));
+                    }
+
+                    ops.push(Op::Push(len - 1));
+                    ops.push(Op::Call(i2c_write.id));
+                    ops.push(Op::DropN(len + 1));
+                    nwritten += payload.len();
+                }
+            }
+
+            ops.push(Op::Done);
+            let results = context.run(core, ops.as_slice(), None)?;
+
+            bar.set_position(nwritten as u64);
+
+            for (ndx, r) in results.iter().enumerate() {
+                if let Err(err) = r {
+                    bail!(
+                        "failed to write {:x?}: {}",
+                        hex.data[start + ndx],
+                        i2c_write.strerror(*err)
+                    );
+                }
+            }
+
+            start += nwrites;
+
+            if start >= max {
+                break;
+            }
+        }
+
+        bar.finish_and_clear();
+
+        humility::msg!(
+            "flashed {} in {}",
+            HumanBytes(nbytes as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        //
+        // We are hopefully done!  Now we're going to sleep for two seconds and
+        // read the programmer status area and bank status.
+        //
+        thread::sleep(Duration::from_millis(2000));
+
+        let mut ops = base.clone();
+
+        ops.push(Op::Push(dmaaddr));
+        let addr = hex.device.programmer_status_addr();
+        ops.push(Op::Push(addr[0]));
+        ops.push(Op::Push(addr[1]));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_write.id));
+        ops.push(Op::DropN(4));
+
+        ops.push(Op::Push(dmaseq));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        ops.push(Op::Push(dmaaddr));
+        let addr = hex.device.bank_status_addr();
+        ops.push(Op::Push(addr[0]));
+        ops.push(Op::Push(addr[1]));
+        ops.push(Op::Push(2));
+        ops.push(Op::Call(i2c_write.id));
+        ops.push(Op::DropN(4));
+
+        ops.push(Op::Push(dmaseq));
+        ops.push(Op::Push(8));
+        ops.push(Op::Call(i2c_read.id));
+        ops.push(Op::DropN(2));
+
+        ops.push(Op::Done);
+        let results = context.run(core, ops.as_slice(), None)?;
+
+        let status = match &results[1] {
+            Err(err) => {
+                bail!("programmer status failed: {}", i2c_read.strerror(*err));
+            }
+
+            Ok(result) => {
+                if result.len() != 2 {
+                    bail!("bad length on status: {:x?}", result);
+                }
+
+                u16::from_le_bytes(result[0..2].try_into().unwrap())
+            }
+        };
+
+        let banks = match &results[3] {
+            Err(err) => {
+                bail!("bank status failed: {}", i2c_read.strerror(*err));
+            }
+
+            Ok(result) => hex.device.bank_status(result)?,
+        };
+
+        for (ndx, bank) in banks.iter().enumerate() {
+            match bank {
+                None => {
+                    bail!("banks {:x?}: bank {} invalid", banks, ndx);
+                }
+                Some(ref bank) if *bank != RendmpBankStatus::BankUnaffected => {
+                    humility::msg!("bank {}: {}", ndx, bank);
+                }
+                _ => {}
+            }
+        }
+
+        hex.device.check_programmer_status(status)?;
+
+        humility::msg!(
+            "flashed successfully; power cycle \
+             part to load new configuration"
+        );
 
         return Ok(());
     }
