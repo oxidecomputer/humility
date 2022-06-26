@@ -77,7 +77,7 @@ fn readvar_dump(
         ..HubrisPrintFormat::default()
     };
     let name = subargs.variable.as_ref().unwrap();
-    let dumped = hubris.printfmt(&buf, variable.goff, &fmt)?;
+    let dumped = hubris.printfmt(&buf, variable.goff, fmt)?;
 
     println!("{} (0x{:08x}) = {}", name, variable.addr, dumped);
 
