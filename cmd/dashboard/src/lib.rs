@@ -28,7 +28,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Args, Attach, Command, Validate};
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -662,6 +662,7 @@ fn run_dashboard<B: Backend>(
 fn dashboard(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
+    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = DashboardArgs::try_parse_from(subargs)?;
@@ -697,7 +698,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(dashboard),
+            run: dashboard,
         },
         DashboardArgs::command(),
     )
@@ -797,18 +798,10 @@ fn pwm_ops(
 }
 
 fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
-    //
-    // We want the right panel to be 30 characters wide (a left-justified 20
-    // and a right justified 8 + margins), but we don't want it to consume
-    // more than 80%; calculate accordingly.
-    //
-    let r = std::cmp::min((30 * 100) / parent.width, 80);
-
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
-            [Constraint::Percentage(100 - r), Constraint::Percentage(r)]
-                .as_ref(),
+            [Constraint::Ratio(4, 5), Constraint::Ratio(1, 5)].as_ref(),
         )
         .split(parent);
 
@@ -889,10 +882,10 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
 
         rows.push(ListItem::new(Spans::from(vec![
             Span::styled(
-                format!("{:<20}", s.name),
+                format!("{:<15}", s.name),
                 Style::default().fg(s.color),
             ),
-            Span::styled(format!("{:>8}", val), Style::default().fg(s.color)),
+            Span::styled(val, Style::default().fg(s.color)),
         ])));
     }
 
