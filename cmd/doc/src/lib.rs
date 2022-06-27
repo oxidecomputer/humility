@@ -14,7 +14,7 @@ use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{IntoApp, Parser};
 use humility::hubris::HubrisArchive;
-use humility_cmd::{Archive, Args, Command};
+use humility_cmd::{Archive, Command, RunUnattached};
 use std::collections::HashMap;
 use termimad::*;
 
@@ -28,11 +28,7 @@ struct DocArgs {
     command: Option<String>,
 }
 
-fn doc(
-    _hubris: &mut HubrisArchive,
-    _args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn doc(_hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
     let subargs = DocArgs::try_parse_from(subargs)?;
 
     let text = match subargs.command {
@@ -69,7 +65,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "doc",
             archive: Archive::Ignored,
-            run: doc,
+            run: RunUnattached::Subargs(doc),
         },
         DocArgs::command(),
     )

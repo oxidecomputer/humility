@@ -38,7 +38,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
-use humility_cmd::{Archive, Args, Command};
+use humility_cmd::{Archive, Args, Command, RunUnattached};
 use humility_cortex::debug::*;
 use humility_cortex::dwt::*;
 use humility_cortex::itm::*;
@@ -339,7 +339,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "itm",
             archive: Archive::Optional,
-            run: itmcmd,
+            run: RunUnattached::Args(itmcmd),
         },
         ItmArgs::command(),
     )

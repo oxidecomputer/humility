@@ -8,8 +8,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::attach_live;
-use humility_cmd::Args;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Args, Command, RunUnattached};
 use humility_cortex::debug::*;
 use humility_cortex::etm::*;
 use humility_cortex::scs::*;
@@ -627,7 +626,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "etm",
             archive: Archive::Required,
-            run: etmcmd,
+            run: RunUnattached::Args(etmcmd),
         },
         EtmArgs::command(),
     )

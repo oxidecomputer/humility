@@ -135,7 +135,7 @@ use clap::{CommandFactory, Parser};
 use humility::arch::{ARMRegister, ARMRegisterField};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
 use std::collections::BTreeMap;
@@ -236,7 +236,6 @@ fn print_reg(reg: ARMRegister, val: u32, fields: &[ARMRegisterField]) {
 fn registers(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = RegistersArgs::try_parse_from(subargs)?;
@@ -374,7 +373,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Optional,
             attach: Attach::Any,
             validate: Validate::None,
-            run: registers,
+            run: Run::Subargs(registers),
         },
         RegistersArgs::command(),
     )

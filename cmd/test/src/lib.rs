@@ -113,7 +113,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::test::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use humility_cortex::itm::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -285,7 +285,6 @@ fn test_ingest(
 fn test(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = TestArgs::try_parse_from(subargs)?;
@@ -306,7 +305,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: test,
+            run: Run::Subargs(test),
         },
         TestArgs::command(),
     )

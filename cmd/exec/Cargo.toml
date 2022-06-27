@@ -1,0 +1,13 @@
+[package]
+name = "humility-cmd-exec"
+version = "0.1.0"
+edition = "2021"
+description = "execute command within context of an environment"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+splitty = "0.1.0"
+serde_json = "1.0"

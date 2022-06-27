@@ -20,7 +20,7 @@ use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Command};
+use humility_cmd::{Archive, Args, Command, RunUnattached};
 use path_slash::PathExt;
 use std::io::Write;
 
@@ -278,7 +278,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "flash",
             archive: Archive::Required,
-            run: flashcmd,
+            run: RunUnattached::Args(flashcmd),
         },
         FlashArgs::command(),
     )

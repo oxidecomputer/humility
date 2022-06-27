@@ -47,7 +47,7 @@
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
+use humility_cmd::{Archive, Attach, Command, Dumper, Run, Validate};
 
 use std::str;
 
@@ -93,7 +93,6 @@ struct SpCtrlArgs {
 fn spctrl(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = SpCtrlArgs::try_parse_from(subargs)?;
@@ -163,7 +162,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: spctrl,
+            run: Run::Subargs(spctrl),
         },
         SpCtrlArgs::command(),
     )

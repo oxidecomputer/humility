@@ -44,17 +44,13 @@ use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisArchive;
-use humility_cmd::{Archive, Args, Command};
+use humility_cmd::{Archive, Command, RunUnattached};
 
 #[derive(Parser, Debug)]
 #[clap(name = "manifest", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ManifestArgs {}
 
-fn manifestcmd(
-    hubris: &mut HubrisArchive,
-    _args: &Args,
-    _subargs: &[String],
-) -> Result<()> {
+fn manifestcmd(hubris: &mut HubrisArchive, _subargs: &[String]) -> Result<()> {
     hubris.manifest()?;
     Ok(())
 }
@@ -64,7 +60,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Unattached {
             name: "manifest",
             archive: Archive::Required,
-            run: manifestcmd,
+            run: RunUnattached::Subargs(manifestcmd),
         },
         ManifestArgs::command(),
     )

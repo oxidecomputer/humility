@@ -133,7 +133,7 @@ use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisArchive;
-use humility_cmd::{Args, Command};
+use humility_cmd::{Command, RunUnattached};
 use std::fs::File;
 use std::io::Cursor;
 use std::io::{self, Read, Write};
@@ -153,11 +153,7 @@ struct ExtractArgs {
     file: Option<String>,
 }
 
-fn extract(
-    hubris: &mut HubrisArchive,
-    _args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn extract(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
     let archive = hubris.archive();
     let subargs = ExtractArgs::try_parse_from(subargs)?;
 
@@ -237,5 +233,8 @@ fn extract(
 }
 
 pub fn init() -> (Command, ClapCommand<'static>) {
-    (Command::Raw { name: "extract", run: extract }, ExtractArgs::command())
+    (
+        Command::Raw { name: "extract", run: RunUnattached::Subargs(extract) },
+        ExtractArgs::command(),
+    )
 }

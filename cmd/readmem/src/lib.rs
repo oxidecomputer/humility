@@ -116,7 +116,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command, Dumper, Validate};
+use humility_cmd::{Archive, Attach, Command, Dumper, Run, Validate};
 use std::convert::TryInto;
 
 #[derive(Parser, Debug)]
@@ -145,7 +145,6 @@ struct ReadmemArgs {
 fn readmem(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = ReadmemArgs::try_parse_from(subargs)?;
@@ -231,7 +230,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Optional,
             attach: Attach::Any,
             validate: Validate::None,
-            run: readmem,
+            run: Run::Subargs(readmem),
         },
         ReadmemArgs::command(),
     )

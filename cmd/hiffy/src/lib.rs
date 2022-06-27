@@ -50,7 +50,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -268,7 +268,6 @@ fn hiffy_call_print(
 fn hiffy(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = HiffyArgs::try_parse_from(subargs)?;
@@ -357,7 +356,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: hiffy,
+            run: Run::Subargs(hiffy),
         },
         HiffyArgs::command(),
     )
