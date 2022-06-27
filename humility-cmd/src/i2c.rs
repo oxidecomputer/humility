@@ -159,10 +159,18 @@ impl<'a> I2cArgs<'a> {
                 (None, None) => {
                     //
                     // If we haven't been given a controller or a bus, but we've
-                    // been given a device, see if we can
-                    // find exactly one of those devices.
+                    // been given a device; if that device hasn't been passed
+                    // as an address, see if we can find exactly one of those
+                    // devices.
                     //
                     if let Some(device) = device {
+                        if let Ok(_) = parse_int::parse::<u8>(device) {
+                            bail!(
+                                "need a controller or bus in addition to \
+                                a device address"
+                            );
+                        }
+
                         let found = hubris
                             .manifest
                             .i2c_devices

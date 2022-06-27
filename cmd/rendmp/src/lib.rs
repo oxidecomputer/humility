@@ -84,7 +84,7 @@ struct RendmpArgs {
         long,
         short = 'f',
         value_name = "filename",
-        conflicts_with_all = &["ingest", "dump"],
+        conflicts_with_all = &["ingest", "dump", "slots", "crc"],
     )]
     flash: Option<String>,
 
@@ -92,12 +92,18 @@ struct RendmpArgs {
     #[clap(long, short, conflicts_with_all = &["ingest", "dump", "flash"])]
     slots: bool,
 
-    /// display the number of NVM slots remaining
-    #[clap(long, short = 'C', conflicts_with_all = &["slots", "ingest", "dump", "flash"])]
+    /// display the current flash CRC
+    #[clap(
+        long, short = 'C',
+        conflicts_with_all = &["slots", "ingest", "dump", "flash"]
+    )]
     crc: bool,
 
     /// perform dry-run of flash
-    #[clap(long = "dry-run", short = 'n', requires = "flash")]
+    #[clap(
+        long = "dry-run", short = 'n', requires = "flash",
+        conflicts_with_all = &["slots", "crc", "ingest", "dump"]
+    )]
     dryrun: bool,
 }
 
@@ -261,7 +267,7 @@ impl RendmpDevice {
         } else if status & 0b1_0000_0000 != 0 {
             bail!("flashing failed: configurations not available");
         } else {
-            bail!("flashing failed: unknown failure: 0x{:x}", status);
+            bail!("flashing failed: unknown failure (status 0x{:x})", status);
         }
     }
 
@@ -290,6 +296,10 @@ enum RendmpHexRecordKind {
     Header = 0x49,
 }
 
+//
+// A structure for the Renesas HEX file, as documented in the Renesas Digital
+// Multiphase Programming Guide (both Gen 2 and Gen 2.5).
+//
 #[allow(dead_code)]
 struct RendmpHex {
     device: RendmpDevice,
@@ -305,6 +315,19 @@ impl RendmpHex {
 
         let mut data = vec![];
         let mut headers = vec![];
+
+        //
+        // The IC_DEVICE_ID and IC_DEVICE_REV are (inexplicably?) big-endian in
+        // the HEX file -- even though they are little-endian off the device.
+        // This is a convenience routine to flip them.
+        //
+        fn flip_word(val: &[u8], what: &'static str) -> Result<[u8; 4]> {
+            if val.len() != 4 {
+                bail!("bad {} length (found {} bytes)", what, val.len());
+            }
+
+            Ok([val[3], val[2], val[1], val[0]])
+        }
 
         for (ndx, line) in lines.enumerate() {
             let line = line?;
@@ -357,9 +380,18 @@ impl RendmpHex {
                 bail!("bad record length {} on line {}", vals[1], l);
             }
 
+            //
+            // This is in principle possible to support (that is, we could
+            // flash a different address than the one in the HEX file), but
+            // it seems much more likely that someone is trying to flash the
+            // wrong device -- and we want to preserve this as a check.
+            //
             if vals[2] >> 1 != address {
-                bail!("address mismatch on line {}: expected 0x{:x}, found 0x{:x}",
-                    l, vals[2] >> 1, address);
+                bail!(
+                    "image specifies address to be 0x{:x}; can't flash 0x{:x}",
+                    vals[2] >> 1,
+                    address
+                );
             }
 
             let payload = vals[3..reclen + 1].to_vec();
@@ -370,34 +402,20 @@ impl RendmpHex {
             }
         }
 
+        //
+        // We expecc at least our IC_DEVICE_ID and IC_DEVICE_REV as headers,
+        // in that order.
+        //
         if headers.len() < 2 {
             bail!("insufficient headers found");
         }
 
-        //
-        // The IC_DEVICE_ID and IC_DEVICE_REV are (inexplicably?) big-endian in
-        // the HEX file -- even though they are little-endian off the device.
-        //
-        let id = &headers[0][1..];
-
-        if id.len() < 4 {
-            bail!("short IC_DEVICE_ID (found {} bytes)", id.len());
-        }
-
-        let ic_device_id = [id[3], id[2], id[1], id[0]];
-
-        let rev = &headers[1][1..];
-
-        if rev.len() < 4 {
-            bail!("short IC_DEVICE_REV(found {} bytes)", rev.len());
-        }
-
-        let ic_device_rev = [rev[3], rev[2], rev[1], rev[0]];
+        let ic_device_id = flip_word(&headers[0][1..], "IC_DEVICE_ID")?;
 
         Ok(Self {
             device: RendmpDevice::from_id(ic_device_id[1])?,
             ic_device_id,
-            ic_device_rev,
+            ic_device_rev: flip_word(&headers[1][1..], "IC_DEVICE_REV")?,
             data,
         })
     }
@@ -682,6 +700,10 @@ fn rendmp(
             }
         }
 
+        (None, None) => {
+            bail!("must provide a device as either a rail or an address");
+        }
+
         (_, _) => I2cArgs::parse(
             hubris,
             &subargs.bus,
@@ -702,10 +724,12 @@ fn rendmp(
     } else if let Some(ref driver) = hargs.device {
         match pmbus::Device::from_str(driver) {
             Some(device) => device,
-            None => pmbus::Device::Common,
+            None => {
+                bail!("{} is not recognized as a PMBus device", driver);
+            }
         }
     } else {
-        bail!("not recognized as a Renesas DMP device");
+        bail!("not recognized as a device");
     };
 
     let all = all_commands(device);
@@ -753,6 +777,22 @@ fn rendmp(
         }
     };
 
+    let word_result = |result: &Result<Vec<u8>, u32>, what| -> Result<u32> {
+        match result {
+            Err(err) => {
+                bail!("failed to read {}: {}", what, i2c_read.strerror(*err));
+            }
+
+            Ok(result) => {
+                if result.len() != 4 {
+                    bail!("bad length on {}: {:x?}", what, result);
+                }
+
+                Ok(u32::from_le_bytes(result[0..4].try_into().unwrap()))
+            }
+        }
+    };
+
     if subargs.crc {
         let d = RendmpDevice::from_str(hargs.device.as_ref().unwrap())?;
         let mut ops = base.clone();
@@ -773,20 +813,7 @@ fn rendmp(
         ops.push(Op::Done);
         let results = context.run(core, ops.as_slice(), None)?;
 
-        let crc = match &results[1] {
-            Err(err) => {
-                bail!("failed to read CRC: {}", i2c_read.strerror(*err));
-            }
-
-            Ok(result) => {
-                if result.len() != 4 {
-                    bail!("bad length on CRC: {:x?}", result);
-                }
-
-                u32::from_le_bytes(result[0..4].try_into().unwrap())
-            }
-        };
-
+        let crc = word_result(&results[1], "CRC")?;
         humility::msg!("{} at {} has CRC 0x{:<08x}", d, &hargs, crc);
 
         return Ok(());
@@ -832,20 +859,7 @@ fn rendmp(
         ops.push(Op::Done);
         let results = context.run(core, ops.as_slice(), None)?;
 
-        let nslots = match &results[1] {
-            Err(err) => {
-                bail!("failed to read slots: {}", i2c_read.strerror(*err));
-            }
-
-            Ok(result) => {
-                if result.len() != 4 {
-                    bail!("bad length on available slots: {:x?}", result);
-                }
-
-                u32::from_le_bytes(result[0..4].try_into().unwrap())
-            }
-        };
-
+        let nslots = word_result(&results[1], "available slots")?;
         humility::msg!("{} at {} has {} slots available", d, &hargs, nslots);
 
         return Ok(());
@@ -929,20 +943,7 @@ fn rendmp(
             }
         }
 
-        let nslots = match &results[3] {
-            Err(err) => {
-                bail!("failed to read slots: {}", i2c_read.strerror(*err));
-            }
-
-            Ok(result) => {
-                if result.len() != 4 {
-                    bail!("bad length on available slots: {:x?}", result);
-                }
-
-                u32::from_le_bytes(result[0..4].try_into().unwrap())
-            }
-        };
-
+        let nslots = word_result(&results[3], "available slots")?;
         humility::msg!("{} NVM slots remain", nslots);
 
         //
