@@ -8,30 +8,17 @@ use std::collections::HashMap;
 use std::{fs, path::PathBuf};
 
 #[derive(Deserialize, Clone, Debug)]
-pub struct PowerCommand {
-    pub on: String,
-    pub off: String,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-pub struct Commands {
-    pub console: Option<String>,
-    pub power: Option<PowerCommand>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Environment {
     pub probe: String,
     pub archive: String,
-    pub cmds: Option<Commands>,
+    pub cmds: Option<serde_json::Value>,
 }
 
 impl Environment {
     fn read(filename: &str) -> Result<HashMap<String, Environment>> {
         let path = PathBuf::from(filename);
         let input = fs::read_to_string(&path)?;
-        // let env: HashMap<String, Environment> = serde_json::from_str(&input)?;
         Ok(serde_json::from_str(&input)?)
     }
 

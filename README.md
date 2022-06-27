@@ -138,6 +138,66 @@ Dumps are offered in lieu of a probe and an archive and specified via
 the `-d` option (long form `--dump`) or the `HUMILITY_DUMP` environment
 variable.
 
+### Environment
+
+On machines that have several different connected Hubris targets that have
+different purposes, Humility can become thorny to manage.  To aid this,
+Humility allows for *environments*: JSON files that define how targets can be
+reached and auxiliary operations that can be performed upon them.  The
+environment file is specified via either `-e` (long form `--environment`); a
+specific target within the environment is specified via `-t`.
+
+#### Environment file structure
+
+The environment file is file containing a JSON object in which each key
+represents a target.  The members of each target object must include `probe`
+and `archive`, which have the same meaning as the probe and archive, described
+above.  For example:
+
+```json
+{
+    "lucky": {
+        "probe": "0483:374e:002A00174741500520383733",
+        "archive": "/gimlet/hubris/archives/lucky/build-gimlet.zip"
+    },
+    "sweaty": {
+        "probe": "0483:374e:000D00184741500520383733",
+        "archive": "/gimlet/hubris/archives/sweaty/build-gimlet.zip"
+    },
+    "grimey": {
+        "probe": "0483:374e:003400185553500820393256",
+	"archive": "/gimlet/hubris/archives/grimey/build-gimlet.zip"
+    }
+}
+```
+
+This would allow one to (say) run `humility -t grimey tasks`.  In addition
+to `probe` and `archive`, one may also specify associated commands
+in a `cmds` object that contains a mapping of names to commands to
+execute.  For example:
+
+```json
+{
+    "grimey": {
+        "probe": "0483:374e:003400185553500820393256",
+        "archive": "/gimlet/hubris/archives/grimey/build-gimlet.zip"
+        "cmds": {
+            "console": "/bin/sh -c \"grabserial.sh $(findtty.sh grimey)\"",
+            "power": {
+                "on": "power.sh --on grimey",
+                "off": "power.sh --off grimey",
+                "status": "power.sh --status grimey",
+            }
+        }
+    }
+}
+```
+
+These commands can be in principle accessed by any debugging command, but the
+`humility exec` command in particular allows one to execute a command against
+a specified target.  (In the above example, one could execute `humility -t
+grimey exec power.on`.)
+
 ## Commands
 
 - [humility apptable](#humility-apptable): print Hubris apptable
@@ -146,6 +206,7 @@ variable.
 - [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
+- [humility exec](#humility-exec): execute command within context of an environment
 - [humility extract](#humility-extract): extract all or part of a Hubris archive
 - [humility flash](#humility-flash): flash archive onto attached device
 - [humility gdb](#humility-gdb): Attach to a running system using GDB
@@ -270,6 +331,24 @@ ID ADDR     TASK               GEN STATE
 ### `humility etm`
 
 No documentation yet for `humility etm`; pull requests welcome!
+
+### `humility exec`
+
+`humility exec` executes a command for a target within the specified
+environment.  The environment is specified to Humility via an argument
+(`--environment`) or an environment variable (`HUMILITY_ENVIRONMENT`);
+the target is similarly specified via an argument (`--target`) or
+an environment variable (`HUMILITY_TARGET`).  If specified via an
+argument, note that both the environment and target must occur before
+any subcommand, e.g.:
+
+```console
+$ humility -e /path/to/env.json -t my-target exec power.on
+```
+
+For more details, see the Humliity documenation on environments.
+
+
 
 ### `humility extract`
 

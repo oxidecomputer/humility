@@ -983,6 +983,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+ "serde_json",
  "splitty",
 ]
 

@@ -4,9 +4,19 @@
 
 //! ## `humility exec`
 //!
-//! `humility exec` executes a command within the named environment.
-//! This is useful when managing many Hubris targets from a single
-//! machine.
+//! `humility exec` executes a command for a target within the specified
+//! environment.  The environment is specified to Humility via an argument
+//! (`--environment`) or an environment variable (`HUMILITY_ENVIRONMENT`);
+//! the target is similarly specified via an argument (`--target`) or
+//! an environment variable (`HUMILITY_TARGET`).  If specified via an
+//! argument, note that both the environment and target must occur before
+//! any subcommand, e.g.:
+//!
+//! ```console
+//! $ humility -e /path/to/env.json -t my-target exec power.on
+//! ```
+//!
+//! For more details, see the Humliity documenation on environments.
 //!
 
 use anyhow::{bail, Result};
@@ -14,6 +24,8 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisArchive;
 use humility_cmd::{Archive, Args, Command, Environment, RunUnattached};
+use serde_json::Value;
+use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]
 #[clap(name = "exec", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -27,43 +39,34 @@ struct ExecArgs {
     cmd: Option<String>,
 }
 
-fn parse_cmd<'a>(
-    cmd: &str,
-    cmds: &'a humility_cmd::env::Commands,
-) -> Result<&'a str> {
-    let c = cmd.split('.').collect::<Vec<_>>();
-
-    let spawn = match c[0] {
-        "console" if c.len() == 1 => {
-            if let Some(console) = &cmds.console {
-                console
-            } else {
-                bail!("console command not present; --list for commands");
+fn load_cmds<'a>(
+    target: &str,
+    cmds: &'a Value,
+    stack: &mut Vec<&'a str>,
+    rval: &mut BTreeMap<String, String>,
+) -> Result<()> {
+    match cmds {
+        Value::Object(obj) => {
+            for (key, value) in obj.iter() {
+                stack.push(key);
+                load_cmds(target, value, stack, rval)?;
+                stack.pop();
             }
         }
-        "power" if c.len() == 2 => {
-            if let Some(power) = &cmds.power {
-                match c[1] {
-                    "on" => &power.on,
-                    "off" => &power.off,
-                    _ => {
-                        bail!(
-                            "unknown power command \
-                            \"{}\"; --list for commands",
-                            c[1]
-                        );
-                    }
-                }
-            } else {
-                bail!("power commands not present; --list for commands");
-            }
+        Value::String(cmd) => {
+            rval.insert(stack.join("."), cmd.to_string());
         }
         _ => {
-            bail!("unknown command \"{}\"; --list for commands", cmd);
+            bail!(
+                "illegal command for target {} at {}: {:?}",
+                target,
+                stack.join("."),
+                cmds
+            );
         }
-    };
+    }
 
-    Ok(spawn)
+    Ok(())
 }
 
 fn exec(
@@ -86,31 +89,28 @@ fn exec(
     //
     let target = args.target.as_ref().unwrap();
 
+    let cmds = match env.cmds {
+        Some(ref cmds) => cmds,
+        None => {
+            bail!("target {} has no defined commands", target);
+        }
+    };
+
+    let mut avail = BTreeMap::new();
+    let mut stack = Vec::new();
+    load_cmds(target, cmds, &mut stack, &mut avail)?;
+
     if subargs.list {
         let printcmd = |target, cmd| {
             println!("{:14} {}", target, cmd);
         };
 
-        printcmd("TARGET", "COMMAND");
+        printcmd("NAME", "COMMAND");
 
-        if let Some(cmds) = &env.cmds {
-            if let Some(console) = &cmds.console {
-                printcmd("console", console);
-            }
-
-            if let Some(power) = &cmds.power {
-                printcmd("power.on", &power.on);
-                printcmd("power.off", &power.off);
-            }
+        for (name, cmd) in &avail {
+            printcmd(name, cmd);
         }
     } else {
-        let cmds = match &env.cmds {
-            Some(cmds) => cmds,
-            None => {
-                bail!("no commands for {}", target);
-            }
-        };
-
         let cmd = match subargs.cmd {
             Some(cmd) => cmd,
             None => {
@@ -118,26 +118,29 @@ fn exec(
             }
         };
 
-        let cmdline = parse_cmd(&cmd, cmds)?;
+        if let Some(cmdline) = avail.get(&cmd) {
+            let args = splitty::split_unquoted_char(cmdline, ' ')
+                .unwrap_quotes(true)
+                .collect::<Vec<_>>();
 
-        let args = splitty::split_unquoted_char(cmdline, ' ')
-            .unwrap_quotes(true)
-            .collect::<Vec<_>>();
+            humility::msg!("{} {}: executing: '{}' ...", target, cmd, cmdline);
 
-        humility::msg!("{} {}: executing: '{}' ...", target, cmd, cmdline);
+            let status = std::process::Command::new(args[0])
+                .args(&args[1..])
+                .status()?;
 
-        let status =
-            std::process::Command::new(args[0]).args(&args[1..]).status()?;
-
-        humility::msg!(
-            "{} {}: done ({})",
-            target,
-            cmd,
-            match status.code() {
-                Some(code) => format!("status code {code}"),
-                None => "terminated by signal".to_string(),
-            }
-        );
+            humility::msg!(
+                "{} {}: done ({})",
+                target,
+                cmd,
+                match status.code() {
+                    Some(code) => format!("status code {code}"),
+                    None => "terminated by signal".to_string(),
+                }
+            );
+        } else {
+            bail!("unknown command \"{}\"; --list for commands", cmd);
+        }
     }
 
     Ok(())
