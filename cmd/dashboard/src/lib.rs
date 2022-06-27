@@ -28,7 +28,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Run, Attach, Command, Validate};
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -662,7 +662,6 @@ fn run_dashboard<B: Backend>(
 fn dashboard(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = DashboardArgs::try_parse_from(subargs)?;
@@ -698,7 +697,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: dashboard,
+            run: Run::Subargs(dashboard),
         },
         DashboardArgs::command(),
     )
