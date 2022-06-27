@@ -11,8 +11,10 @@ rustc-demangle = "0.1.21"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 gimli = "0.22.0"
 fallible-iterator = "0.2.0"
+humility_load_derive = {path = "../load_derive"}
 indexmap = { version = "1.7", features = ["serde-1"] }
 scroll = "0.10"
+ssmarshal = {version = "1"}
 multimap = "0.8.1"
 num-traits = "0.2"
 num-derive = "0.3"
@@ -21,7 +23,7 @@ toml = "0.5"
 bitfield = "0.13.2"
 log = {version = "0.4.8", features = ["std"]}
 zip = "0.5"
-rusb = "0.5.5"
+rusb = "0.8.1"
 parse_int = "0.4.0"
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 regex = "1.5"

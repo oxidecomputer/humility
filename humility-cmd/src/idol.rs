@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use ::idol::syntax::{Operation, RecvStrategy, Reply};
+use ::idol::syntax::{AttributedTy, Operation, RecvStrategy, Reply};
 use anyhow::{anyhow, bail, Context, Result};
 use humility::hubris::*;
 use indexmap::IndexMap;
@@ -54,6 +54,7 @@ impl<'a> IdolOperation<'a> {
             args.iter().map(|arg| (arg.0, &arg.1)).collect();
 
         let mut payload = vec![0u8; self.args.size];
+        let mut offset = 0;
 
         for arg in &self.operation.args {
             let val = map.remove(arg.0 as &str).ok_or_else(|| {
@@ -78,44 +79,27 @@ impl<'a> IdolOperation<'a> {
                     anyhow!("did not find {} in {:?}", arg.0, self.args)
                 })?;
 
-            // Now, we have to decide how to pack the argument into the payload
-            //
-            // The easiest option is if we're doing `FromBytes`, which encodes
-            // the value directly (with a special case for booleans).
-            if matches!(arg.1.recv, RecvStrategy::FromBytes) {
-                if ty != "bool" {
-                    call_arg(hubris, member, val, &mut payload)?;
-                } else {
-                    let v = IdolArgument::String(match val {
-                        IdolArgument::String("true") => "1",
-                        IdolArgument::String("false") => "0",
-                        _ => bail!("Invalid bool argument {:?}", val),
-                    });
-                    call_arg(hubris, member, &v, &mut payload)?;
+            match self.operation.encoding {
+                ::idol::syntax::Encoding::Zerocopy => self
+                    .payload_arg_zerocopy(
+                        hubris,
+                        module,
+                        member,
+                        arg,
+                        val,
+                        &mut payload,
+                    )?,
+                ::idol::syntax::Encoding::Ssmarshal => {
+                    offset += self.payload_arg_ssmarshal(
+                        hubris,
+                        module,
+                        member,
+                        arg,
+                        val,
+                        &mut payload[offset..],
+                    )?
                 }
-            }
-            //
-            // We have a raw type, so we need to figure out how
-            // to encode it.  First, see if we can look up the
-            // AttributedType as an enum...
-            //
-            else if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
-                call_arg_enum(hubris, arg.0, member, e, val, &mut payload)?;
-            }
-            //
-            // Now look it up as a structure.  If it's a structure,
-            // we will allow it if it's a newtype -- otherwise we'll
-            // toss.
-            //
-            else if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
-                if s.newtype().is_some() {
-                    call_arg(hubris, &s.members[0], val, &mut payload)?;
-                } else {
-                    bail!("structure arguments currently unsupported");
-                }
-            } else {
-                bail!("don't know what to do with {:?}", self.args);
-            }
+            };
         }
 
         if !map.is_empty() {
@@ -126,6 +110,93 @@ impl<'a> IdolOperation<'a> {
         }
 
         Ok(payload)
+    }
+
+    fn payload_arg_zerocopy(
+        &self,
+        hubris: &HubrisArchive,
+        module: &HubrisModule,
+        member: &HubrisStructMember,
+        arg: (&String, &AttributedTy),
+        val: &IdolArgument,
+        payload: &mut Vec<u8>,
+    ) -> Result<()> {
+        // Now, we have to decide how to pack the argument into the payload
+        //
+        // The easiest option is if we're doing `FromBytes`, which encodes
+        // the value directly (with a special case for booleans).
+        let ty = &arg.1.ty.0;
+        if matches!(arg.1.recv, RecvStrategy::FromBytes) {
+            if ty != "bool" {
+                call_arg(hubris, member, val, payload)?;
+            } else {
+                let v = IdolArgument::String(match val {
+                    IdolArgument::String("true") => "1",
+                    IdolArgument::String("false") => "0",
+                    _ => bail!("Invalid bool argument {:?}", val),
+                });
+                call_arg(hubris, member, &v, payload)?;
+            }
+        }
+        //
+        // We have a raw type, so we need to figure out how
+        // to encode it.  First, see if we can look up the
+        // AttributedType as an enum...
+        //
+        else if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
+            call_arg_enum(hubris, arg.0, member, e, val, payload)?;
+        }
+        //
+        // Now look it up as a structure.  If it's a structure,
+        // we will allow it if it's a newtype -- otherwise we'll
+        // toss.
+        //
+        else if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
+            if s.newtype().is_some() {
+                call_arg(hubris, &s.members[0], val, payload)?;
+            } else {
+                bail!("structure arguments currently unsupported");
+            }
+        } else {
+            bail!("don't know what to do with {:?}", self.args);
+        }
+        Ok(())
+    }
+
+    fn payload_arg_ssmarshal(
+        &self,
+        hubris: &HubrisArchive,
+        module: &HubrisModule,
+        member: &HubrisStructMember,
+        arg: (&String, &AttributedTy),
+        val: &IdolArgument,
+        buf: &mut [u8],
+    ) -> Result<usize> {
+        // This is identical to payload_arg_zerocopy, but builds the struct
+        // using ssmarshal serialization instead of from the raw data
+        let ty = &arg.1.ty.0;
+        if matches!(arg.1.recv, RecvStrategy::FromBytes) {
+            if ty != "bool" {
+                Ok(serialize_arg(hubris, member, val, buf)?)
+            } else {
+                let v = IdolArgument::String(match val {
+                    IdolArgument::String("true") => "1",
+                    IdolArgument::String("false") => "0",
+                    _ => bail!("Invalid bool argument {:?}", val),
+                });
+                Ok(serialize_arg(hubris, member, &v, buf)?)
+            }
+        } else if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
+            Ok(serialize_arg_enum(arg.0, e, val, buf)?)
+        } else if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
+            if s.newtype().is_some() {
+                Ok(serialize_arg(hubris, &s.members[0], val, buf)?)
+            } else {
+                bail!("structure arguments currently unsupported");
+            }
+        } else {
+            bail!("don't know what to do with {:?}", self.args);
+        }
     }
 }
 
@@ -277,6 +348,84 @@ fn call_arg(
     };
 
     Ok(())
+}
+
+fn serialize_arg(
+    hubris: &HubrisArchive,
+    member: &HubrisStructMember,
+    value: &IdolArgument,
+    buf: &mut [u8],
+) -> Result<usize> {
+    let t = hubris.lookup_type(member.goff)?;
+    let arg = &member.name;
+
+    let err = |err| anyhow!("illegal value for {}: {}", arg, err);
+
+    match t {
+        HubrisType::Base(base) => {
+            // If someone passed us a scalar, too bad - we're going to convert
+            // it into a string then immediately reparse it.
+            let value = match value {
+                IdolArgument::String(value) => value.to_string(),
+                IdolArgument::Scalar(value) => format!("{}", value),
+            };
+
+            match (base.encoding, base.size) {
+                (HubrisEncoding::Unsigned, 4) => {
+                    let v = parse_int::parse::<u32>(&value).map_err(err)?;
+                    Ok(ssmarshal::serialize(buf, &v)?)
+                }
+                (HubrisEncoding::Unsigned, 2) => {
+                    let v = parse_int::parse::<u16>(&value).map_err(err)?;
+                    Ok(ssmarshal::serialize(buf, &v)?)
+                }
+                (HubrisEncoding::Unsigned, 1) => {
+                    let v = parse_int::parse::<u8>(&value).map_err(err)?;
+                    Ok(ssmarshal::serialize(buf, &v)?)
+                }
+                (_, _) => {
+                    bail!(
+                        "encoding of {} ({:?}) not yet supported",
+                        member.name,
+                        base
+                    );
+                }
+            }
+        }
+        _ => {
+            bail!("type of {} ({:?}) not yet supported", member.name, t);
+        }
+    }
+}
+
+fn serialize_arg_enum(
+    arg: &str,
+    e: &HubrisEnum,
+    value: &IdolArgument,
+    buf: &mut [u8],
+) -> Result<usize> {
+    let value = match value {
+        IdolArgument::String(value) => *value,
+        _ => {
+            bail!("invalid value for arg {} {:?}", arg, value);
+        }
+    };
+    for variant in &e.variants {
+        if value == variant.name {
+            if let Some(tag) = variant.tag {
+                let v: u8 = tag
+                    .try_into()
+                    .context("Could not pack enum variant into u8")?;
+                return Ok(ssmarshal::serialize(buf, &v)?);
+            } else {
+                bail!("untagged enum: {:?}", e);
+            }
+        }
+    }
+
+    let all =
+        e.variants.iter().map(|v| v.name.clone()).collect::<Vec<String>>();
+    bail!("{} must be one of: {}", arg, all.join(", "));
 }
 
 fn call_arg_enum(

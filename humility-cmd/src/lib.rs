@@ -8,7 +8,6 @@ pub mod hiffy;
 pub mod i2c;
 pub mod idol;
 pub mod jefe;
-pub mod reflect;
 pub mod stack;
 pub mod test;
 
@@ -48,7 +47,7 @@ pub struct Args {
     pub environment: Option<String>,
 
     /// target to use from specified environment
-    #[clap(long, short, env = "HUMILITY_TARGET", requires = "envrionment",
+    #[clap(long, short, env = "HUMILITY_TARGET", requires = "environment",
         conflicts_with_all = &["dump", "probe"])]
     pub target: Option<String>,
 

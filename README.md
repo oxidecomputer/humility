@@ -138,6 +138,68 @@ Dumps are offered in lieu of a probe and an archive and specified via
 the `-d` option (long form `--dump`) or the `HUMILITY_DUMP` environment
 variable.
 
+### Environment
+
+On machines that have several different connected Hubris targets, Humility can
+become thorny to manage.  To aid this, Humility allows for *environments*:
+JSON files that define how targets can be reached and auxiliary operations
+that can be performed upon them.  The environment file is specified via either
+the `--environment` argument or via the `HUMILITY_ENVIRONMENT` environment
+variable; a specific target within the environment is specified via the
+`--target` argument or via the `HUMILITY_TARGET` environment variable.
+
+#### Environment file structure
+
+The environment file contains a JSON object in which each key represents a
+target.  The members of each target object must include `probe` and `archive`,
+which have the same meaning as the probe and archive as provided via the
+command line.  For example:
+
+```json
+{
+    "lucky": {
+        "probe": "0483:374e:002A00174741500520383733",
+        "archive": "/gimlet/hubris/archives/lucky/build-gimlet.zip"
+    },
+    "sweaty": {
+        "probe": "0483:374e:000D00184741500520383733",
+        "archive": "/gimlet/hubris/archives/sweaty/build-gimlet.zip"
+    },
+    "grimey": {
+        "probe": "0483:374e:003400185553500820393256",
+	"archive": "/gimlet/hubris/archives/grimey/build-gimlet.zip"
+    }
+}
+```
+
+The above definition -- when provided via `--environment` or
+`HUMILITY_ENVIRONMENT` -- would allow one to (say) run `humility --target
+grimey tasks`.  In addition to `probe` and `archive`, one may also specify
+associated commands in a `cmds` object that contains a mapping of names to
+commands to execute.  For example:
+
+```json
+{
+    "grimey": {
+        "probe": "0483:374e:003400185553500820393256",
+        "archive": "/gimlet/hubris/archives/grimey/build-gimlet.zip"
+        "cmds": {
+            "console": "/bin/sh -c \"grabserial.sh $(findtty.sh grimey)\"",
+            "power": {
+                "on": "power.sh --on grimey",
+                "off": "power.sh --off grimey",
+                "status": "power.sh --status grimey",
+            }
+        }
+    }
+}
+```
+
+These commands can be in principle accessed by any debugging command, but the
+`humility exec` command in particular allows one to execute a command against
+a specified target.  (In the above example, one could execute `humility
+--target grimey exec power.on`.)
+
 ## Commands
 
 - [humility apptable](#humility-apptable): print Hubris apptable
@@ -146,6 +208,7 @@ variable.
 - [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
+- [humility exec](#humility-exec): execute command within context of an environment
 - [humility extract](#humility-extract): extract all or part of a Hubris archive
 - [humility flash](#humility-flash): flash archive onto attached device
 - [humility gdb](#humility-gdb): Attach to a running system using GDB
@@ -158,6 +221,7 @@ variable.
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
+- [humility monorail](#humility-monorail): Management network control and debugging
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility probe](#humility-probe): probe for any attached devices
@@ -166,7 +230,7 @@ variable.
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
 - [humility registers](#humility-registers): print Hubris registers
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
-- [humility rendmp](#humility-rendmp): Renesas digitial muliphase controller operations
+- [humility rendmp](#humility-rendmp): Renesas digital muliphase controller operations
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
@@ -178,7 +242,6 @@ variable.
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility trace](#humility-trace): trace Hubris operations
 - [humility validate](#humility-validate): validate presence and operation of devices
-- [humility vsc7448](#humility-vsc7448): VSC7448 operations
 ### `humility apptable`
 
 This is a deprecated command that allows for the display of the app table
@@ -270,6 +333,26 @@ ID ADDR     TASK               GEN STATE
 ### `humility etm`
 
 No documentation yet for `humility etm`; pull requests welcome!
+
+### `humility exec`
+
+`humility exec` executes a command for a target within the specified
+environment.  The environment is specified to Humility via an argument
+(`--environment`) or an environment variable (`HUMILITY_ENVIRONMENT`);
+the target is similarly specified via an argument (`--target`) or
+an environment variable (`HUMILITY_TARGET`).  If specified via an
+argument, note that both the environment and target must occur before
+any subcommand, e.g.:
+
+```console
+$ humility -e /path/to/env.json -t my-target exec power.on
+```
+
+To list available commands, use the `--list` option.
+
+For more details, see the Humliity documenation on environments.
+
+
 
 ### `humility extract`
 
@@ -867,6 +950,20 @@ DESC       LOW          HIGH          SIZE ATTR  ID TASK
 
 (In this case, task 7, `oh_no`, has overflowed its stack -- which
 we can see from the `map` output has been sized to only 256 bytes.)
+
+
+### `humility monorail`
+`humility monorail` exposes commands to interact with the management
+network switch and PHYs.  It is for _management_ of the management network,
+and can therefore only be run on two images:
+- `app/sidecar/app.toml` running on Sidecar hardware
+- `app/gimletlet/app-vsc7448.toml`, running on a Gimletlet which is
+  attached to a VSC7448 dev kit (VSC5627EV) via SPI.  This setup is
+  non-trivial; if you find yourself with a dev kit, talk to Matt about
+  how to wire it up.
+
+Use `humility monorail -h` to see help, or `humility monorail status` for
+a bird's-eye view of the ports.
 
 
 ### `humility openocd`
@@ -1784,8 +1881,4 @@ ID VALIDATION   C P  MUX ADDR DEVICE        DESCRIPTION
 ```
 
 
-
-### `humility vsc7448`
-
-No documentation yet for `humility vsc7448`; pull requests welcome!
 

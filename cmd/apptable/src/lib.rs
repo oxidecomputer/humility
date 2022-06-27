@@ -93,7 +93,7 @@ fn apptablecmd(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
 
     println!(
         "App ={}\n",
-        hubris.printfmt(&apptable[0..app.size], app.goff, &fmt)?
+        hubris.printfmt(&apptable[0..app.size], app.goff, fmt)?
     );
 
     let mut offs = app.size;
@@ -108,7 +108,7 @@ fn apptablecmd(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
         println!("{} ={}\n", str, hubris.printfmt(
             &apptable[offs..offs + region.size],
             region.goff,
-            &fmt
+            fmt
         )?);
 
         offs += region.size;
@@ -124,7 +124,7 @@ fn apptablecmd(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
         println!("{} ={}\n", str, hubris.printfmt(
             &apptable[offs..offs + task.size],
             task.goff,
-            &fmt)?
+            fmt)?
         );
 
         offs += task.size;
@@ -140,7 +140,7 @@ fn apptablecmd(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
         println!("{} ={}\n", str, hubris.printfmt(
             &apptable[offs..offs + interrupt.size],
             interrupt.goff,
-            &fmt)?
+            fmt)?
         );
 
         offs += interrupt.size;

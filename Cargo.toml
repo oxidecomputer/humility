@@ -29,6 +29,7 @@ members = [
     "cmd/lpc55gpio",
     "cmd/manifest",
     "cmd/map",
+    "cmd/monorail",
     "cmd/openocd",
     "cmd/pmbus",
     "cmd/probe",
@@ -40,8 +41,8 @@ members = [
     "cmd/rendmp",
     "cmd/ringbuf",
     "cmd/sensors",
-    "cmd/spd",
     "cmd/spctrl",
+    "cmd/spd",
     "cmd/spi",
     "cmd/stackmargin",
     "cmd/stmsecure",
@@ -49,7 +50,6 @@ members = [
     "cmd/test",
     "cmd/trace",
     "cmd/validate",
-    "cmd/vsc7448",
     "xtask",
 ]
 
@@ -90,6 +90,7 @@ cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
+cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
 cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
 cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
@@ -101,15 +102,14 @@ cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
-cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
 cmd-spctrl = { path = "./cmd/spctrl", package = "humility-cmd-spctrl" }
+cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
 cmd-spi = { path = "./cmd/spi", package = "humility-cmd-spi" }
 cmd-stackmargin = { path = "./cmd/stackmargin", package = "humility-cmd-stackmargin" }
 cmd-stmsecure = { path = "./cmd/stmsecure", package = "humility-cmd-stmsecure" }
 cmd-tasks = { path = "./cmd/tasks", package = "humility-cmd-tasks" }
 cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
 cmd-trace = { path = "./cmd/trace", package = "humility-cmd-trace" }
-cmd-vsc7448 = { path = "./cmd/vsc7448", package = "humility-cmd-vsc7448" }
 cmd-validate = { path = "./cmd/validate", package = "humility-cmd-validate" }
 
 fallible-iterator = "0.2.0"
@@ -132,7 +132,7 @@ colored = "2.0.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
 
 [patch.crates-io]
-libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12" }
+libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
 
 [dev-dependencies]
 trycmd = "0.13.2"

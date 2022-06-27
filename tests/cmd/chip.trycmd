@@ -7,16 +7,13 @@ $ humility --chip -V
 ? failed
 error: The argument '--chip <CHIP>' requires a value but none was supplied
 
-USAGE:
-    humility [OPTIONS] [SUBCOMMAND]
-
 For more information try --help
 
 ```
 
 ```
 $ humility --chip this-can-be-anything -V
-humility 0.7.0
+humility 0.7.1
 
 ```
 
@@ -25,16 +22,13 @@ $ humility -c -V
 ? failed
 error: The argument '--chip <CHIP>' requires a value but none was supplied
 
-USAGE:
-    humility [OPTIONS] [SUBCOMMAND]
-
 For more information try --help
 
 ```
 
 ```
 $ humility -c apx432 -V
-humility 0.7.0
+humility 0.7.1
 
 ```
 
