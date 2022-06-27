@@ -60,7 +60,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cmd::doppel::{Ringbuf, StaticCell};
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -144,7 +144,6 @@ fn taskname<'a>(
 fn ringbuf(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = RingbufArgs::try_parse_from(subargs)?;
@@ -214,7 +213,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Match,
-            run: ringbuf,
+            run: Run::Subargs(ringbuf),
         },
         RingbufArgs::command(),
     )

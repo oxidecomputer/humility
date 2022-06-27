@@ -9,7 +9,7 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;
@@ -104,7 +104,6 @@ struct HashArgs {
 fn hash(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = HashArgs::try_parse_from(subargs)?;
@@ -483,7 +482,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: hash,
+            run: Run::Subargs(hash),
         },
         HashArgs::command(),
     )

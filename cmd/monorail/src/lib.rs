@@ -23,7 +23,7 @@ use humility::hubris::*;
 use humility::reflect::*;
 use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{IdolArgument, IdolOperation};
-use humility_cmd::{Archive, Args, Attach, Validate};
+use humility_cmd::{Archive, Attach, Run, RunUnattached, Validate};
 
 use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
@@ -638,7 +638,6 @@ fn monorail_counters(
 fn monorail(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = MonorailArgs::try_parse_from(subargs)?;
@@ -683,7 +682,6 @@ fn monorail(
 
 fn monorail_get_info(
     hubris: &mut HubrisArchive,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     assert!(!hubris.loaded());
@@ -724,7 +722,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: monorail,
+            run: Run::Subargs(monorail),
         },
         MonorailArgs::command(),
     );
@@ -732,7 +730,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
         humility_cmd::Command::Unattached {
             name: "monorail",
             archive: Archive::Ignored,
-            run: monorail_get_info,
+            run: RunUnattached::Subargs(monorail_get_info),
         },
         MonorailArgs::command(),
     );

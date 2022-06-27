@@ -32,7 +32,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use std::convert::TryInto;
 
 #[derive(Parser, Debug)]
@@ -43,7 +43,6 @@ struct StackmarginArgs {}
 fn stackmargin(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     _subargs: &[String],
 ) -> Result<()> {
     let regions = hubris.regions(core)?;
@@ -122,7 +121,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: stackmargin,
+            run: Run::Subargs(stackmargin),
         },
         StackmarginArgs::command(),
     )

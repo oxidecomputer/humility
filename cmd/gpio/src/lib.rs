@@ -95,7 +95,7 @@
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Args, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
@@ -154,7 +154,6 @@ struct GpioArgs {
 fn gpio(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    _args: &Args,
     subargs: &[String],
 ) -> Result<()> {
     let subargs = GpioArgs::try_parse_from(subargs)?;
@@ -345,7 +344,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: gpio,
+            run: Run::Subargs(gpio),
         },
         GpioArgs::command(),
     )

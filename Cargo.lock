@@ -810,7 +810,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -828,6 +828,7 @@ dependencies = [
  "humility-cmd-doc",
  "humility-cmd-dump",
  "humility-cmd-etm",
+ "humility-cmd-exec",
  "humility-cmd-extract",
  "humility-cmd-flash",
  "humility-cmd-gdb",
@@ -893,6 +894,8 @@ dependencies = [
  "log",
  "parse_int",
  "postcard",
+ "serde",
+ "serde_json",
  "ssmarshal",
 ]
 
@@ -970,6 +973,18 @@ dependencies = [
  "humility-cortex",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-exec"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cmd",
+ "humility-core",
+ "serde_json",
+ "splitty",
 ]
 
 [[package]]
@@ -2432,6 +2447,12 @@ checksum = "c530c2b0d0bf8b69304b39fe2001993e267461948b890cd037d8ad4293fa1a0d"
 dependencies = [
  "lock_api",
 ]
+
+[[package]]
+name = "splitty"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8190298e89d4080e9c025535f73cacec4d51ff4495819dd8fdf1ae374c75ee80"
 
 [[package]]
 name = "srec"

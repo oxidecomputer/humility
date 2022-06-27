@@ -1,6 +1,6 @@
 [package]
 name = "humility"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -16,6 +16,7 @@ members = [
     "cmd/doc",
     "cmd/dump",
     "cmd/etm",
+    "cmd/exec",
     "cmd/extract",
     "cmd/flash",
     "cmd/gdb",
@@ -76,6 +77,7 @@ cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-doc = { path = "./cmd/doc", package = "humility-cmd-doc" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
+cmd-exec = { path = "./cmd/exec", package = "humility-cmd-exec" }
 cmd-extract = { path = "./cmd/extract", package = "humility-cmd-extract" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
 cmd-gdb = { path = "./cmd/gdb", package = "humility-cmd-gdb" }

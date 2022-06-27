@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub mod doppel;
+pub mod env;
 pub mod hiffy;
 pub mod i2c;
 pub mod idol;
@@ -14,6 +15,8 @@ use anyhow::{bail, Result};
 use clap::{AppSettings, Parser};
 use humility::core::Core;
 use humility::hubris::*;
+
+pub use env::Environment;
 
 #[derive(Parser)]
 #[clap(name = "humility", max_term_width = 80)]
@@ -38,6 +41,15 @@ pub struct Args {
     /// Hubris dump
     #[clap(long, short, env = "HUMILITY_DUMP")]
     pub dump: Option<String>,
+
+    /// Hubris environment file
+    #[clap(long, short, env = "HUMILITY_ENVIRONMENT")]
+    pub environment: Option<String>,
+
+    /// target to use from specified environment
+    #[clap(long, short, env = "HUMILITY_TARGET", requires = "environment",
+        conflicts_with_all = &["dump", "probe"])]
+    pub target: Option<String>,
 
     //
     // probe-rs requires the chip to be specified when creating a session,
@@ -94,6 +106,34 @@ pub enum Validate {
     None,
 }
 
+pub enum RunUnattached {
+    Subargs(fn(&mut HubrisArchive, &[String]) -> Result<()>),
+    Args(fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>),
+    Environment(
+        fn(
+            &mut HubrisArchive,
+            &Args,
+            &[String],
+            Option<&Environment>,
+        ) -> Result<()>,
+    ),
+}
+
+#[allow(clippy::type_complexity)]
+pub enum Run {
+    Subargs(fn(&HubrisArchive, &mut dyn Core, &[String]) -> Result<()>),
+    Args(fn(&HubrisArchive, &mut dyn Core, &Args, &[String]) -> Result<()>),
+    Environment(
+        fn(
+            &HubrisArchive,
+            &mut dyn Core,
+            &Args,
+            &[String],
+            Option<&Environment>,
+        ) -> Result<()>,
+    ),
+}
+
 pub enum Command {
     /// Attached to a live system or dump
     Attached {
@@ -101,19 +141,12 @@ pub enum Command {
         archive: Archive,
         attach: Attach,
         validate: Validate,
-        run: fn(&HubrisArchive, &mut dyn Core, &Args, &[String]) -> Result<()>,
+        run: Run,
     },
     /// Not attached to a live system or dump
-    Unattached {
-        name: &'static str,
-        archive: Archive,
-        run: fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>,
-    },
+    Unattached { name: &'static str, archive: Archive, run: RunUnattached },
     /// Operate on a raw archive, from either the command line or a dump
-    Raw {
-        name: &'static str,
-        run: fn(&mut HubrisArchive, &Args, &[String]) -> Result<()>,
-    },
+    Raw { name: &'static str, run: RunUnattached },
 }
 
 pub fn attach_live(
