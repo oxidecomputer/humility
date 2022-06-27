@@ -16,6 +16,8 @@
 //! $ humility -e /path/to/env.json -t my-target exec power.on
 //! ```
 //!
+//! To list available commands, use the `--list` option.
+//!
 //! For more details, see the Humliity documenation on environments.
 //!
 
