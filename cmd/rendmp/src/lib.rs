@@ -947,7 +947,7 @@ fn rendmp(
 
         //
         // Check that the number of available slots seems sane -- and (for
-        // now, anyway) refust to operate if we've burned through a bunch of
+        // now, anyway) refuse to operate if we've burned through a bunch of
         // slots.
         //
         if nslots > 28 {
@@ -975,7 +975,7 @@ fn rendmp(
             //
             // For a dry-run, we want to stop short of the final command that
             // burns the OTP -- but we also want to start after the command
-            // that initiates is, lest we not be able to program it after the
+            // that initiates it, lest we not be able to program it after the
             // dry run.
             //
             (hex.data.len() - 1, 1)
