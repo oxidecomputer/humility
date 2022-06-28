@@ -164,7 +164,7 @@ impl<'a> I2cArgs<'a> {
                     // devices.
                     //
                     if let Some(device) = device {
-                        if let Ok(_) = parse_int::parse::<u8>(device) {
+                        if parse_int::parse::<u8>(device).is_ok() {
                             bail!(
                                 "need a controller or bus in addition to \
                                 a device address"
