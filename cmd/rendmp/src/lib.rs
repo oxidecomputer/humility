@@ -24,7 +24,7 @@
 //! entirely unprogrammed part generally has a CRC of 0:
 //!
 //! ```console
-//! $ humility rendmp -b mid -d 0x5a --crc
+//! % humility rendmp -b mid -d 0x5a --crc
 //! humility: attached via ST-Link V3
 //! humility: RAA229618 at I2C3, port H, dev 0x5a has CRC 0x00000000
 //! ```
@@ -35,7 +35,7 @@
 //! of the device; mismatches are not permitted, e.g.:
 //!
 //! ```console
-//! $ humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
+//! % humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
 //! humility: attached via ST-Link V3
 //! humility rendmp failed: image specifies address to be 0x5a; can't flash 0x5b
 //! ```
@@ -43,7 +43,7 @@
 //! Specify the proper device to flash:
 //!
 //! ```console
-//! $ humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
+//! % humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
 //! humility: attached via ST-Link V3
 //! humility: 28 NVM slots remain
 //! humility: flashing 2871 bytes
@@ -55,7 +55,7 @@
 //! To check a configuration, specify the image and the `--check` option:
 //!
 //! ```
-//! $ humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
+//! % humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
 //! humility: attached via ST-Link V3
 //! humility: 27 NVM slots remain
 //! humility: image CRC (0x841f35a5) matches OTP CRC
