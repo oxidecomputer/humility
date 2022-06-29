@@ -54,7 +54,7 @@
 //!
 //! To check a configuration, specify the image and the `--check` option:
 //!
-//! ```
+//! ```console
 //! % humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
 //! humility: attached via ST-Link V3
 //! humility: 27 NVM slots remain
