@@ -159,10 +159,18 @@ impl<'a> I2cArgs<'a> {
                 (None, None) => {
                     //
                     // If we haven't been given a controller or a bus, but we've
-                    // been given a device, see if we can
-                    // find exactly one of those devices.
+                    // been given a device; if that device hasn't been passed
+                    // as an address, see if we can find exactly one of those
+                    // devices.
                     //
                     if let Some(device) = device {
+                        if parse_int::parse::<u8>(device).is_ok() {
+                            bail!(
+                                "need a controller or bus in addition to \
+                                a device address"
+                            );
+                        }
+
                         let found = hubris
                             .manifest
                             .i2c_devices
@@ -213,8 +221,54 @@ impl<'a> I2cArgs<'a> {
         let (device, address) = match device {
             None => (None, None),
             Some(device) => {
-                if let Ok(val) = parse_int::parse::<u8>(device) {
-                    (None, Some(val))
+                if let Ok(address) = parse_int::parse::<u8>(device) {
+                    //
+                    // We have been provided a controller, port, mux/segment
+                    // and address.  If we actually have a device in the
+                    // manifest that matches this, we want to return its class
+                    // and driver.  (If we don't, we fall into the Unknown
+                    // class to allow for I2C operations to continue, albeit
+                    // without any additional device information.)
+                    //
+                    let mut found = hubris
+                        .manifest
+                        .i2c_devices
+                        .iter()
+                        .filter(|d| d.controller == controller)
+                        .filter(|d| d.port.index == port.index)
+                        .filter(|d| d.address == address)
+                        .filter(|d| match (mux, d.mux, d.segment) {
+                            (None, None, None) => true,
+                            (Some((m, s)), Some(dm), Some(ds)) => {
+                                m == dm && s == ds
+                            }
+                            _ => false,
+                        });
+
+                    if let Some(d) = found.next() {
+                        if let Some(n) = found.next() {
+                            //
+                            // We really don't expect this to happen: it means
+                            // that there are multiple device definitions that
+                            // have the same controller, port, address and
+                            // mux/segment.  (This is a bail!() instead of a
+                            // panic!() because it is possible with bad Hubris
+                            // TOML.)
+                            //
+                            bail!("devices {:?} and {:?} conflict!", d, n);
+                        }
+
+                        return Ok(Self {
+                            controller,
+                            port,
+                            mux,
+                            address: Some(address),
+                            device: Some(d.device.to_string()),
+                            class: &d.class,
+                        });
+                    }
+
+                    (None, Some(address))
                 } else {
                     let found = hubris
                         .manifest
