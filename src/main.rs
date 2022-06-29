@@ -66,7 +66,24 @@ fn main() {
             assert!(args.probe.is_none());
 
             args.probe = Some(env.probe.clone());
-            args.archive = Some(env.archive.clone());
+
+            //
+            // If we have an archive on the command-line or in an environment
+            // variable, we want ot prefer that over whatever is in the
+            // environment file -- but we also want to warn the user about
+            // what is going on.
+            //
+            if args.archive.is_some() {
+                let msg = if m.occurrences_of("archive") == 1 {
+                    "archive on command-line"
+                } else {
+                    "archive in environment variable"
+                };
+
+                log::warn!("{} overriding archive in environment file", msg);
+            } else {
+                args.archive = Some(env.archive.clone());
+            }
 
             Some(env)
         }
