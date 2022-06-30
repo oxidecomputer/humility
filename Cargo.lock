@@ -2718,7 +2718,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-info"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#d75eea6d244ca8fc5d782d23e064db404d11ff3a"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#a9e71588498885e9a77282186f2bb576812f1af2"
 dependencies = [
  "lazy_static",
  "postcard",
@@ -2731,7 +2731,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-types"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448.git#d75eea6d244ca8fc5d782d23e064db404d11ff3a"
+source = "git+https://github.com/oxidecomputer/vsc7448.git#a9e71588498885e9a77282186f2bb576812f1af2"
 dependencies = [
  "serde",
 ]
