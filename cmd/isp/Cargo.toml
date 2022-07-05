@@ -12,7 +12,7 @@ clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 log = {version = "0.4.8", features = ["std"]}
 num-traits = "0.2"
-serialport = "4.1.0"
+serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
 crc-any = "2.3.5"
 num-derive = { version = "0.3.0", features = [ "full-syntax" ] }
 strum = "0.22"
