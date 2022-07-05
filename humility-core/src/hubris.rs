@@ -126,6 +126,8 @@ struct HubrisConfigI2cSensors {
 
     #[serde(default)]
     speed: usize,
+
+    names: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2057,30 +2059,41 @@ impl HubrisArchive {
             }
         }
 
-        let sensor_name =
-            |d: &HubrisConfigI2cDevice, idx: usize| -> Result<String> {
-                if let Some(pmbus) = &d.pmbus {
-                    if let Some(rails) = &pmbus.rails {
-                        if idx < rails.len() {
-                            return Ok(rails[idx].clone());
-                        } else {
-                            bail!("sensor count exceeds rails for {:?}", d);
-                        }
-                    }
-                }
-
-                if let Some(name) = &d.name {
-                    if idx == 0 {
-                        Ok(name.clone())
+        let sensor_name = |d: &HubrisConfigI2cDevice,
+                           idx: usize|
+         -> Result<String> {
+            if let Some(pmbus) = &d.pmbus {
+                if let Some(rails) = &pmbus.rails {
+                    if idx < rails.len() {
+                        return Ok(rails[idx].clone());
                     } else {
-                        Ok(format!("{}#{}", name, idx))
+                        bail!("sensor count exceeds rails for {:?}", d);
                     }
-                } else if idx == 0 {
-                    Ok(d.device.clone())
-                } else {
-                    Ok(format!("{}#{}", d.device, idx))
                 }
-            };
+            }
+
+            if let Some(names) = &d.sensors.as_ref().unwrap().names {
+                if idx >= names.len() {
+                    bail!(
+                            "name array is too short ({}) for sensor index ({})",
+                            names.len(),
+                            idx
+                        );
+                } else {
+                    Ok(names[idx].clone())
+                }
+            } else if let Some(name) = &d.name {
+                if idx == 0 {
+                    Ok(name.clone())
+                } else {
+                    Ok(format!("{}#{}", name, idx))
+                }
+            } else if idx == 0 {
+                Ok(d.device.clone())
+            } else {
+                Ok(format!("{}#{}", d.device, idx))
+            }
+        };
 
         if let Some(ref devices) = i2c.devices {
             for device in devices {

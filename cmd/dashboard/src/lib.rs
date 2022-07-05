@@ -35,12 +35,13 @@ use std::io::Write;
 use std::time::{Duration, Instant};
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
     text::{Span, Spans},
     widgets::{
         Axis, Block, Borders, Chart, Dataset, List, ListItem, ListState,
+        Paragraph,
     },
     Frame, Terminal,
 };
@@ -386,12 +387,14 @@ struct Dashboard<'a> {
     hubris: &'a HubrisArchive,
     context: HiffyContext<'a>,
     ops: Vec<Op>,
+    status_ops: Vec<idol::IdolOperation<'a>>,
     graphs: Vec<Graph>,
     current: usize,
     work: Vec<Vec<Op>>,
     last: Instant,
     interval: u32,
     outstanding: bool,
+    status: Vec<String>,
     output: Option<File>,
 }
 
@@ -403,6 +406,12 @@ impl<'a> Dashboard<'a> {
     ) -> Result<Dashboard<'a>> {
         let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
         let mut ops = vec![];
+
+        let mut status_ops = vec![];
+        let mut status = vec![];
+
+        status_ops.push(sequencer_state_ops(hubris, &mut context, &mut ops)?);
+        status.push("".to_string());
 
         let temps = sensor_ops(hubris, &mut context, &mut ops, |s| {
             s.kind == HubrisSensorKind::Temperature
@@ -438,12 +447,14 @@ impl<'a> Dashboard<'a> {
             hubris,
             context,
             ops,
+            status_ops,
             graphs,
             current: 0,
             outstanding: true,
             last: Instant::now(),
             interval: 1000,
             work: Vec::new(),
+            status,
             output,
         })
     }
@@ -471,13 +482,51 @@ impl<'a> Dashboard<'a> {
         }
     }
 
+    fn deserialize_status(&mut self, idx: usize, val: &[u8]) -> Result<()> {
+        use humility::reflect::Format;
+
+        let op = &self.status_ops[idx];
+
+        let ty = self.hubris.lookup_type(op.ok).unwrap();
+        let v = match op.operation.encoding {
+            ::idol::syntax::Encoding::Zerocopy => {
+                humility::reflect::load_value(self.hubris, val, ty, 0)?
+            }
+            ::idol::syntax::Encoding::Ssmarshal => {
+                humility::reflect::deserialize_value(self.hubris, val, ty)?.0
+            }
+        };
+
+        let fmt = HubrisPrintFormat {
+            newline: false,
+            hex: true,
+            ..HubrisPrintFormat::default()
+        };
+
+        let mut dumped = vec![];
+        v.format(self.hubris, fmt, &mut dumped)?;
+        self.status[idx] = std::str::from_utf8(&dumped)?.to_string();
+
+        Ok(())
+    }
+
+    fn status(&self) -> Vec<(&str, &str)> {
+        vec![("Power state", &self.status[0])]
+    }
+
     fn need_update(&mut self, core: &mut dyn Core) -> Result<bool> {
         if self.outstanding {
             if self.context.done(core)? {
                 let results = self.context.results(core)?;
                 let mut raw = vec![];
 
-                for r in &results {
+                for (i, r) in results[0..self.status.len()].iter().enumerate() {
+                    if let Ok(val) = r {
+                        self.deserialize_status(i, val)?;
+                    }
+                }
+
+                for r in &results[self.status.len()..] {
                     raw.push(if let Ok(val) = r {
                         Some(f32::from_le_bytes(val[0..4].try_into()?))
                     } else {
@@ -737,6 +786,17 @@ fn sensor_ops(
     Ok(sensors)
 }
 
+fn sequencer_state_ops<'a>(
+    hubris: &'a HubrisArchive,
+    context: &mut HiffyContext,
+    ops: &mut Vec<Op>,
+) -> Result<idol::IdolOperation<'a>> {
+    let funcs = context.functions()?;
+    let op = idol::IdolOperation::new(hubris, "Sequencer", "get_state", None)?;
+    context.idol_call_ops(&funcs, &op, &[], ops)?;
+    Ok(op)
+}
+
 fn power_ops(
     hubris: &HubrisArchive,
     context: &mut HiffyContext,
@@ -913,8 +973,11 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
     f.render_stateful_widget(list, chunks[1], &mut graph.legend.state);
 }
 
-fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
-    let size = f.size();
+fn draw_graphs<B: Backend>(
+    f: &mut Frame<B>,
+    parent: Rect,
+    dashboard: &mut Dashboard,
+) {
     let screen = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -925,9 +988,57 @@ fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
             ]
             .as_ref(),
         )
-        .split(size);
+        .split(parent);
 
     draw_graph(f, screen[0], &mut dashboard.graphs[0]);
     draw_graph(f, screen[1], &mut dashboard.graphs[1]);
     draw_graph(f, screen[2], &mut dashboard.graphs[2]);
+}
+
+fn draw_status<B: Backend>(
+    f: &mut Frame<B>,
+    parent: Rect,
+    status: &[(&str, &str)],
+) {
+    let mut bar = vec![];
+
+    for i in 0..status.len() {
+        let s = &status[i];
+
+        bar.push(Span::styled(
+            s.0,
+            Style::default().add_modifier(Modifier::BOLD),
+        ));
+
+        bar.push(Span::styled(
+            ": ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ));
+
+        bar.push(Span::raw(s.1));
+
+        if i < status.len() - 1 {
+            bar.push(Span::raw(" | "));
+        }
+    }
+
+    let text = vec![Spans::from(bar)];
+
+    let para = Paragraph::new(text)
+        .alignment(Alignment::Right)
+        .style(Style::default().fg(Color::White).bg(Color::Black));
+
+    f.render_widget(para, parent);
+}
+
+fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
+    let size = f.size();
+
+    let screen = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)].as_ref())
+        .split(size);
+
+    draw_graphs(f, screen[0], dashboard);
+    draw_status(f, screen[1], &dashboard.status());
 }
