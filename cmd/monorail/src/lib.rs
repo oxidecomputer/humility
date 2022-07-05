@@ -112,6 +112,13 @@ enum PhyCommand {
         #[clap(parse(try_from_str = parse_int::parse))]
         value: u16,
     },
+    /// Dumps all PHY registers on the given port
+    Dump {
+        #[clap(long, short)]
+        port: u8,
+        #[clap(long, short)]
+        verbose: bool,
+    },
 }
 
 /// Parses either a register address (as an integer or hex literal), or a
@@ -125,17 +132,27 @@ fn parse_reg_or_addr(s: &str) -> Result<TargetRegister> {
     Ok(reg)
 }
 
-fn pretty_print_fields(value: u32, fields: &BTreeMap<String, Field<String>>) {
+fn pretty_print_fields(
+    value: u32,
+    fields: &BTreeMap<String, Field<String>>,
+    indent: usize,
+) {
     let mut field_keys = fields.keys().collect::<Vec<_>>();
     if field_keys.is_empty() {
         return;
     }
     field_keys.sort_by(|a, b| fields[*b].lo.cmp(&fields[*a].lo));
-    println!("  bits |    value   | field");
+    println!("{:indent$}  bits |    value   | field", "");
     for f in field_keys {
         let field = &fields[f];
         let bits = (value & ((1u64 << field.hi) - 1) as u32) >> field.lo;
-        println!(" {:>2}:{:<2} | 0x{:<8x} | {}", field.hi, field.lo, bits, f);
+        print!("{:indent$} ", "");
+        let range = if field.hi > field.lo + 1 {
+            format!("{}:{}", field.hi - 1, field.lo)
+        } else {
+            format!("{}", field.lo)
+        };
+        println!("{:>5} | 0x{:<8x} | {}", range, bits, f);
     }
 }
 
@@ -147,7 +164,7 @@ fn monorail_read(
 ) -> Result<()> {
     let reg = parse_reg_or_addr(&reg)?;
     let addr = reg.address();
-    humility::msg!("Reading {} from 0x{:x}", reg, addr);
+    humility::msg!("Reading {} from {:#x}", reg, addr);
 
     let op = IdolOperation::new(hubris, "Monorail", "read_vsc7448_reg", None)?;
     let value = humility_cmd_hiffy::hiffy_call(
@@ -164,7 +181,7 @@ fn monorail_read(
             } else {
                 bail!("Got bad reflected value: expected U32, got {:?}", v);
             };
-            println!("{} => 0x{:x}", reg, value);
+            println!("{} => {:#x}", reg, value);
 
             // The VSC7448 is configured to return 0x88888888 if a register is
             // read too fast.  This should never happen, because the `monorail`
@@ -175,7 +192,7 @@ fn monorail_read(
                     "0x88888888 typically indicates a communication issue!"
                 );
             }
-            pretty_print_fields(value, reg.fields());
+            pretty_print_fields(value, reg.fields(), 0);
         }
         Err(e) => {
             println!("Got error: {}", e);
@@ -193,8 +210,8 @@ fn monorail_write(
 ) -> Result<()> {
     let reg = parse_reg_or_addr(&reg)?;
     let addr = reg.address();
-    humility::msg!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
-    pretty_print_fields(value, reg.fields());
+    humility::msg!("Writing {:#x} to {} at {:#x}", value, reg, addr);
+    pretty_print_fields(value, reg.fields(), 0);
 
     let op = IdolOperation::new(hubris, "Monorail", "write_vsc7448_reg", None)?;
     let value = humility_cmd_hiffy::hiffy_call(
@@ -223,6 +240,7 @@ fn monorail_write(
 /// Helper struct for a fully decoded PHY register. This is analogous to
 /// `vsc7448_info::parse::PhyRegister`, but flexibly allows for registers
 /// that are unknown to the PAC.
+#[derive(Debug)]
 struct ParsedPhyRegister {
     name: String,
     page: u16,
@@ -236,7 +254,7 @@ struct ParsedPhyRegister {
 /// This is necessary because the SDK PHY headers don't necessarily include
 /// every register in every PHY, and even lack some registers in the Microchip
 /// PHY that's on the dev kit (!!)
-fn parse_phy_register(reg: String) -> Result<ParsedPhyRegister> {
+fn parse_phy_register(reg: &str) -> Result<ParsedPhyRegister> {
     let parsed = reg.parse::<PhyRegister>();
     if let Ok(reg) = parsed {
         return Ok(ParsedPhyRegister {
@@ -279,7 +297,7 @@ fn monorail_phy_read(
     port: u8,
     reg: String,
 ) -> Result<()> {
-    let reg = parse_phy_register(reg)?;
+    let reg = parse_phy_register(&reg)?;
     println!("Reading from port {} PHY, register {}", port, reg.name);
     let op = IdolOperation::new(hubris, "Monorail", "read_phy_reg", None)?;
     let value = humility_cmd_hiffy::hiffy_call(
@@ -300,8 +318,8 @@ fn monorail_phy_read(
             } else {
                 bail!("Got bad reflected value: expected U16, got {:?}", v);
             };
-            println!("Got result 0x{:x}", value);
-            pretty_print_fields(value as u32, &reg.fields);
+            println!("Got result {:#x}", value);
+            pretty_print_fields(value as u32, &reg.fields, 0);
         }
         Err(e) => {
             println!("Got error: {}", e);
@@ -318,12 +336,12 @@ fn monorail_phy_write(
     reg: String,
     value: u16,
 ) -> Result<()> {
-    let reg = parse_phy_register(reg)?;
+    let reg = parse_phy_register(&reg)?;
     println!(
-        "Writing 0x{:x} to port {} PHY, register {}",
+        "Writing {:#x} to port {} PHY, register {}",
         value, port, reg.name
     );
-    pretty_print_fields(value as u32, &reg.fields);
+    pretty_print_fields(value as u32, &reg.fields, 0);
     let op = IdolOperation::new(hubris, "Monorail", "write_phy_reg", None)?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
@@ -345,6 +363,92 @@ fn monorail_phy_write(
         }
         Err(e) => {
             println!("Got error: {}", e);
+        }
+    }
+    Ok(())
+}
+
+fn monorail_phy_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    port: u8,
+    verbose: bool,
+) -> Result<()> {
+    use hif::*;
+    let op = IdolOperation::new(hubris, "Monorail", "read_phy_reg", None)?;
+
+    let funcs = context.functions()?;
+    let send = funcs.get("Send", 4)?;
+    let ret_size = hubris.typesize(op.ok)? as u32;
+    assert_eq!(ret_size, 2);
+
+    let mut ops = vec![];
+    let label = Target(0);
+
+    struct Page {
+        name: &'static str,
+        page: u16,
+        reg_start: u8,
+        reg_end: u8,
+    }
+    const PAGES: [Page; 5] = [
+        Page { name: "STANDARD", page: 0, reg_start: 0, reg_end: 30 },
+        Page { name: "EXTENDED_1", page: 1, reg_start: 16, reg_end: 30 },
+        Page { name: "EXTENDED_2", page: 2, reg_start: 16, reg_end: 30 },
+        Page { name: "EXTENDED_3", page: 3, reg_start: 16, reg_end: 30 },
+        Page { name: "GPIO", page: 16, reg_start: 0, reg_end: 30 },
+    ];
+    // Loop over all page registers
+    for page in &PAGES {
+        assert!(page.reg_start < page.reg_end);
+        // The function takes arguments in the order
+        //      port: u8
+        //      page: u16
+        //      reg: u8
+        ops.push(Op::Push32(op.task.task()));
+        ops.push(Op::Push16(op.code));
+        ops.push(Op::Push(port)); // Port and page don't change
+        for b in page.page.to_le_bytes() {
+            ops.push(Op::Push(b));
+        }
+        ops.push(Op::Push(page.reg_start)); // Initial register
+        ops.push(Op::Push(page.reg_end)); // comparison target (dummy)
+        ops.push(Op::Label(label));
+        {
+            ops.push(Op::Drop); // Drop comparison target
+            ops.push(Op::Push(4)); // Payload length
+            ops.push(Op::Push32(ret_size)); // Payload length
+            ops.push(Op::Call(send.id));
+            ops.push(Op::DropN(2)); // Drop payload and return size
+            ops.push(Op::Push(1)); // Increment register by one
+            ops.push(Op::Add); // reg = reg + 1
+            ops.push(Op::Push(page.reg_end)); // Comparison target
+            ops.push(Op::BranchGreaterThan(label));
+        }
+        ops.push(Op::DropN(6)); // Cleanup
+    }
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+    let mut iter = results.into_iter();
+    for page in PAGES {
+        println!("\n{}", page.name);
+        for r in page.reg_start..page.reg_end {
+            let v: Vec<u8> = iter.next().unwrap().unwrap();
+            let value = u16::from_le_bytes([v[0], v[1]]);
+            print!("  {:>2}: {:#06x}", r, value);
+
+            let raw_name = format!("{}:{}", page.page, r);
+            let parsed = parse_phy_register(&raw_name).unwrap();
+            if parsed.name != raw_name {
+                println!("  {}", parsed.name.split(':').nth(1).unwrap());
+                if verbose {
+                    pretty_print_fields(value as u32, &parsed.fields, 4);
+                }
+            } else {
+                println!()
+            }
         }
     }
     Ok(())
@@ -674,6 +778,9 @@ fn monorail(
                 reg,
                 value,
             )?,
+            PhyCommand::Dump { port, verbose } => {
+                monorail_phy_dump(hubris, core, &mut context, port, verbose)?
+            }
             _ => panic!("Invalid PHY command"),
         },
     };
@@ -690,15 +797,20 @@ fn monorail_get_info(
         Command::Info { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;
             println!("Register {}", reg);
-            println!("Register address: 0x{:x}", reg.address());
+            println!("Register address: {:#x}", reg.address());
 
             if let Some(v) = value {
-                println!("Register value: 0x{:x}", v);
-                pretty_print_fields(v, reg.fields());
+                println!("Register value: {:#x}", v);
+                pretty_print_fields(v, reg.fields(), 0);
             } else {
                 println!("  bits |    field");
                 for (f, field) in reg.fields() {
-                    println!(" {:>2}:{:<2} | {}", field.hi, field.lo, f);
+                    let range = if field.hi > field.lo + 1 {
+                        format!(" {}:{}", field.hi - 1, field.lo)
+                    } else {
+                        format!("{}", field.lo)
+                    };
+                    println!(" {:>5} | {}", range, f);
                 }
             }
         }
