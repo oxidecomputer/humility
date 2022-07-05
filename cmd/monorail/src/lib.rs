@@ -606,7 +606,6 @@ fn monorail_status(
                         }
                         v => panic!("Expected Struct, got {:?}", v),
                     };
-                    let link_up = fmt_link(&s["link_up"]);
                     let fmt_mode = match mode.as_str() {
                         "SGMII" => mode.cyan(),
                         "QSGMII" => mode.blue(),
@@ -616,7 +615,11 @@ fn monorail_status(
 
                     print!(
                         "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
-                        fmt_mode, speed, dev, serdes, link_up,
+                        fmt_mode,
+                        speed,
+                        dev,
+                        serdes,
+                        fmt_link(&s["link_up"]),
                     )
                 }
                 v => panic!("Expected Struct, got {:?}", v),
