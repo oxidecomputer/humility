@@ -67,6 +67,7 @@ struct HubrisConfig {
     name: String,
     board: String,
     kernel: HubrisConfigKernel,
+    #[serde(default)]
     tasks: IndexMap<String, HubrisConfigTask>,
     peripherals: Option<IndexMap<String, HubrisConfigPeripheral>>,
     chip: Option<String>,
