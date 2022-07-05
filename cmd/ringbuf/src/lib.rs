@@ -156,7 +156,7 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
             Ok(s) => {
                 // Skip variables whose type does not indicate they contain a
                 // ringbuf; this check is imprecise but probably good enough
-                if s.name.contains("ringbuf::Ringbuf") {
+                if s.name.contains("Ringbuf") {
                     Some(s)
                 } else {
                     continue;
