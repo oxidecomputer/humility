@@ -574,7 +574,7 @@ fn monorail_status(
         Value::Enum(e) => match e.disc() {
             "Up" => "up".to_owned().green(),
             "Down" => "down".to_owned().red(),
-            "Error" => "error".to_owned().yellow(),
+            "Error" => "err".to_owned().yellow(),
             s => panic!("Unknown LinkStatus variant {:?}", s),
         },
         b => panic!("Could not get bool or enum from {:?}", b),
