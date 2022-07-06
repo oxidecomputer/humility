@@ -12,6 +12,7 @@ members = [
     "humility-arch-cortex",
     "cmd/apptable",
     "cmd/dashboard",
+    "cmd/debugmailbox",
     "cmd/diagnose",
     "cmd/doc",
     "cmd/dump",
@@ -74,6 +75,7 @@ humility-cmd = { path = "./humility-cmd" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
+cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugmailbox" }
 cmd-doc = { path = "./cmd/doc", package = "humility-cmd-doc" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
