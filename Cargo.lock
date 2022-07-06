@@ -869,6 +869,7 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-dashboard",
+ "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
  "humility-cmd-doc",
  "humility-cmd-dump",
@@ -970,6 +971,26 @@ dependencies = [
  "log",
  "parse_int",
  "tui",
+]
+
+[[package]]
+name = "humility-cmd-debugmailbox"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clap",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "log",
+ "num-derive",
+ "num-traits",
+ "parse_int",
+ "probe-rs",
+ "strum",
+ "strum_macros",
+ "zerocopy",
 ]
 
 [[package]]

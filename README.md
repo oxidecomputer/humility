@@ -204,6 +204,7 @@ a specified target.  (In the above example, one could execute `humility
 
 - [humility apptable](#humility-apptable): print Hubris apptable
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
+- [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
 - [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
@@ -260,6 +261,26 @@ Provides a captive dashboard that graphs sensor values over time.  (The
 If `-o` is provided, it specifies an output file for any raw sensor data
 graphed by the dashboard.
 
+
+
+### `humility debugmailbox`
+
+The LPC55 includes an extra access port referred to as the Debug Mailbox.
+This allows for running a fixed set of commands to do useful things such
+as forcing SWD enablement and putting the chip into ISP mode without
+needing to touch an external pin
+
+```console
+$ humility debugmailbox debug
+Looks like a plausible debug mailbox
+Reset chip successfully!
+entering debug
+
+$ humility debugmailbox isp
+Looks like a plausible debug mailbox
+Reset chip successfully!
+entered ISP mode!
+```
 
 
 ### `humility diagnose`
@@ -1454,7 +1475,7 @@ To determine the OTP CRC, use the `--crc` option.  Note that an
 entirely unprogrammed part generally has a CRC of 0:
 
 ```console
-$ humility rendmp -b mid -d 0x5a --crc
+% humility rendmp -b mid -d 0x5a --crc
 humility: attached via ST-Link V3
 humility: RAA229618 at I2C3, port H, dev 0x5a has CRC 0x00000000
 ```
@@ -1465,7 +1486,7 @@ Renesas PowerNavigator.  Note that this file specifies the address
 of the device; mismatches are not permitted, e.g.:
 
 ```console
-$ humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
+% humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
 humility: attached via ST-Link V3
 humility rendmp failed: image specifies address to be 0x5a; can't flash 0x5b
 ```
@@ -1473,7 +1494,7 @@ humility rendmp failed: image specifies address to be 0x5a; can't flash 0x5b
 Specify the proper device to flash:
 
 ```console
-$ humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
+% humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
 humility: attached via ST-Link V3
 humility: 28 NVM slots remain
 humility: flashing 2871 bytes
@@ -1484,8 +1505,8 @@ humility: flashed successfully after 246 ms; power cycle to load new configurati
 
 To check a configuration, specify the image and the `--check` option:
 
-```rust
-$ humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
+```console
+% humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
 humility: attached via ST-Link V3
 humility: 27 NVM slots remain
 humility: image CRC (0x841f35a5) matches OTP CRC
