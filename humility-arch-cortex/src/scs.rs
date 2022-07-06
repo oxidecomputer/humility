@@ -470,7 +470,7 @@ impl CoreInfo {
             let ctrl = LPC55_SYSCON_AHBCLKCTRL0::read(core)?;
 
             if !ctrl.iocon() {
-                bail!("IOCON is not clocked");
+                warn!("IOCON is not clocked");
             }
         }
 
