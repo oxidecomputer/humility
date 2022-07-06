@@ -85,6 +85,7 @@ cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
 cmd-hash = { path = "./cmd/hash", package = "humility-cmd-hash" }
 cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
 cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }
+cmd-isp = { path = "./cmd/isp", package = "humility-cmd-isp" }
 cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
