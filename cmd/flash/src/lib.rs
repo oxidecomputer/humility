@@ -23,6 +23,7 @@ use humility::hubris::*;
 use humility_cmd::{Archive, Args, Command, RunUnattached};
 use path_slash::PathExt;
 use std::io::Write;
+use std::process::ExitStatus;
 
 use serde::Deserialize;
 
@@ -194,9 +195,7 @@ fn flashcmd(
                 return Ok(());
             }
 
-            let status = flash
-                .status()
-                .with_context(|| format!("failed to flash ({:?})", flash))?;
+            let status = nice_status(&mut flash)?;
 
             if !status.success() {
                 anyhow::bail!("flash command ({:?}) failed; see output", flash);
@@ -252,17 +251,13 @@ fn flashcmd(
                 return Ok(());
             }
 
-            let status = flash
-                .status()
-                .with_context(|| format!("failed to flash ({:?})", flash))?;
+            let status = nice_status(&mut flash)?;
 
             if !status.success() {
                 anyhow::bail!("flash command ({:?}) failed; see output", flash);
             }
 
-            let status = reset
-                .status()
-                .with_context(|| format!("failed to reset ({:?})", reset))?;
+            let status = nice_status(&mut reset)?;
 
             if !status.success() {
                 anyhow::bail!("reset command ({:?}) failed; see output", reset);
@@ -271,6 +266,19 @@ fn flashcmd(
     };
 
     Ok(())
+}
+
+/// Executes `command` for its exit status, so that stdout/stderr are shared
+/// with this process. This is equivalent to calling `Command::status` except
+/// that, if the command fails to even _start,_ we provide a more detailed error
+/// message than the default "no such file or directory."
+fn nice_status(command: &mut std::process::Command) -> Result<ExitStatus> {
+    command.status().with_context(|| {
+        format!(
+            "unable to execute {:?}, is it in your PATH and executable?",
+            command.get_program(),
+        )
+    })
 }
 
 pub fn init() -> (Command, ClapCommand<'static>) {
