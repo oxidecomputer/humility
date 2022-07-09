@@ -12,6 +12,7 @@ use std::{fs, path::PathBuf};
 pub struct Environment {
     pub probe: String,
     pub archive: String,
+    pub description: Option<String>,
     pub cmds: Option<serde_json::Value>,
 }
 
@@ -25,6 +26,17 @@ impl Environment {
     pub fn validate(filename: &str) -> Result<()> {
         Self::read(filename)?;
         Ok(())
+    }
+
+    pub fn targets(filename: &str) -> Result<Vec<(String, Option<String>)>> {
+        let env = Self::read(filename)?;
+        let mut rval = vec![];
+
+        for (target, e) in &env {
+            rval.push((target.clone(), e.description.clone()))
+        }
+
+        Ok(rval)
     }
 
     pub fn from_file(filename: &str, target: &str) -> Result<Self> {

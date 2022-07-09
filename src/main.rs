@@ -38,9 +38,6 @@ fn main() {
     if args.version {
         println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
         std::process::exit(0);
-    } else if args.cmd.is_none() {
-        eprintln!("humility failed: subcommand expected (--help to list)");
-        std::process::exit(1);
     }
 
     let log_level = if args.verbose { "trace" } else { "warn" };
@@ -89,6 +86,42 @@ fn main() {
         }
 
         (Some(ref env), None) => {
+            if args.list_targets {
+                let targets = match Environment::targets(env) {
+                    Ok(targets) => targets,
+                    Err(err) => {
+                        eprintln!("failed to parse environment: {:?}", err);
+                        std::process::exit(1);
+                    }
+                };
+
+                if args.terse {
+                    println!(
+                        "{}",
+                        targets
+                            .iter()
+                            .map(|(t, _)| &**t)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                } else {
+                    println!("{:15} DESCRIPTION", "TARGET");
+
+                    for (target, description) in &targets {
+                        println!(
+                            "{:15} {}",
+                            target,
+                            match description {
+                                Some(d) => d,
+                                None => "-",
+                            }
+                        );
+                    }
+                }
+
+                std::process::exit(0);
+            }
+
             if let Err(err) = Environment::validate(env) {
                 eprintln!("failed to parse environment: {:?}", err);
                 std::process::exit(1);
@@ -99,6 +132,11 @@ fn main() {
 
         _ => None,
     };
+
+    if args.cmd.is_none() {
+        eprintln!("humility failed: subcommand expected (--help to list)");
+        std::process::exit(1);
+    }
 
     //
     // Check to see if we have both a dump and an archive.  Because these
