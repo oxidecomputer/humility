@@ -26,6 +26,10 @@ pub struct Args {
     #[clap(long, short)]
     pub verbose: bool,
 
+    /// terse output
+    #[clap(long, short = 'T', hide = true)]
+    pub terse: bool,
+
     /// print version information
     #[clap(long, short = 'V')]
     pub version: bool,
@@ -65,6 +69,11 @@ pub struct Args {
     //
     #[clap(long, short, env = "HUMILITY_CHIP", hide = true)]
     pub chip: Option<String>,
+
+    /// list targets within an environment
+    #[clap(long = "list-targets", requires = "environment",
+        conflicts_with_all = &["dump", "probe", "target"])]
+    pub list_targets: bool,
 
     #[clap(subcommand)]
     pub cmd: Option<Subcommand>,
