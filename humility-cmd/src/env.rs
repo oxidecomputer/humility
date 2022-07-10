@@ -3,8 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
+use indexmap::IndexMap;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::{fs, path::PathBuf};
 
 #[derive(Deserialize, Clone, Debug)]
@@ -12,11 +12,12 @@ use std::{fs, path::PathBuf};
 pub struct Environment {
     pub probe: String,
     pub archive: String,
+    pub description: Option<String>,
     pub cmds: Option<serde_json::Value>,
 }
 
 impl Environment {
-    fn read(filename: &str) -> Result<HashMap<String, Environment>> {
+    fn read(filename: &str) -> Result<IndexMap<String, Environment>> {
         let path = PathBuf::from(filename);
         let input = fs::read_to_string(&path)?;
         Ok(serde_json::from_str(&input)?)
@@ -25,6 +26,17 @@ impl Environment {
     pub fn validate(filename: &str) -> Result<()> {
         Self::read(filename)?;
         Ok(())
+    }
+
+    pub fn targets(filename: &str) -> Result<Vec<(String, Option<String>)>> {
+        let env = Self::read(filename)?;
+        let mut rval = vec![];
+
+        for (target, e) in &env {
+            rval.push((target.clone(), e.description.clone()))
+        }
+
+        Ok(rval)
     }
 
     pub fn from_file(filename: &str, target: &str) -> Result<Self> {
