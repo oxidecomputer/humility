@@ -563,7 +563,23 @@ fn monorail_status(
         dev => panic!("Expected tuple, got {:?}", dev),
     };
 
-    let fmt_link = |b| if b { "up".green() } else { "down".red() };
+    let fmt_link = |v: &Value| match v {
+        Value::Base(Base::Bool(b)) => {
+            if *b {
+                "up".to_owned().green()
+            } else {
+                "down".to_owned().red()
+            }
+        }
+        Value::Enum(e) => match e.disc() {
+            "Up" => "up".to_owned().green(),
+            "Down" => "down".to_owned().red(),
+            "Error" => "err".to_owned().yellow(),
+            s => panic!("Unknown LinkStatus variant {:?}", s),
+        },
+        b => panic!("Could not get bool or enum from {:?}", b),
+    };
+
     println!("{}", "PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK".bold());
     println!("{}", "-----|-------------------------------------|-------------------------------".bold());
     for (port, (port_value, phy_value)) in (0..NUM_PORTS).zip(results) {
@@ -590,11 +606,6 @@ fn monorail_status(
                         }
                         v => panic!("Expected Struct, got {:?}", v),
                     };
-                    let link_up = match &s["link_up"] {
-                        Value::Base(Base::Bool(b)) => b,
-                        b => panic!("Could not get bool from {:?}", b),
-                    };
-
                     let fmt_mode = match mode.as_str() {
                         "SGMII" => mode.cyan(),
                         "QSGMII" => mode.blue(),
@@ -608,7 +619,7 @@ fn monorail_status(
                         speed,
                         dev,
                         serdes,
-                        fmt_link(*link_up)
+                        fmt_link(&s["link_up"]),
                     )
                 }
                 v => panic!("Expected Struct, got {:?}", v),
@@ -633,19 +644,11 @@ fn monorail_status(
                         Value::Enum(e) => e.disc().to_uppercase(),
                         v => panic!("Expected struct, got {:?}", v),
                     };
-                    let mac_link_up = match &s["mac_link_up"] {
-                        Value::Base(Base::Bool(b)) => b,
-                        b => panic!("Could not get bool from {:?}", b),
-                    };
-                    let media_link_up = match &s["media_link_up"] {
-                        Value::Base(Base::Bool(b)) => b,
-                        b => panic!("Could not get bool from {:?}", b),
-                    };
                     println!(
                         "{:<6}  {:<8}  {:<10}",
                         phy_ty,
-                        fmt_link(*mac_link_up),
-                        fmt_link(*media_link_up),
+                        fmt_link(&s["mac_link_up"]),
+                        fmt_link(&s["media_link_up"]),
                     )
                 }
                 v => panic!("Expected Struct, got {:?}", v),
