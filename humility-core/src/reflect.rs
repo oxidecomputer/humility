@@ -84,7 +84,7 @@ use anyhow::{anyhow, bail, Result};
 use crate::core::Core;
 use crate::hubris::{
     HubrisArchive, HubrisArray, HubrisBasetype, HubrisEnum, HubrisGoff,
-    HubrisPrintFormat, HubrisStruct, HubrisType,
+    HubrisPrintFormat, HubrisStruct, HubrisType, HubrisUnion,
 };
 
 // Re-export so that others can use #[derive(Load)]
@@ -185,6 +185,23 @@ impl Value {
         } else {
             bail!("not a pointer: {:?}", self)
         }
+    }
+
+    /// Reassigns the name of the given `Value`.
+    ///
+    /// This is useful when loading a `MaybeUnint`, which is internally
+    /// represented as a union; it's more user-friendly to show the top-level
+    /// name.
+    pub fn set_name(&mut self, name: String) -> Result<()> {
+        match self {
+            Value::Base(..) => bail!("Cannot reassign name of base value"),
+            Value::Array(..) => bail!("Cannot reassign name of array value"),
+            Value::Ptr(..) => bail!("Cannot reassign name of pointer value"),
+            Value::Enum(e) => e.0 = name,
+            Value::Struct(s) => s.name = name,
+            Value::Tuple(t) => t.0 = name,
+        }
+        Ok(())
     }
 }
 
@@ -698,7 +715,7 @@ pub fn load_value(
             load_array(hubris, buf, bty, addr).map(Value::Array)
         }
         HubrisType::Ptr(t) => load_ptr(buf, t, addr).map(Value::Ptr),
-        _ => panic!("{:?}", ty),
+        HubrisType::Union(t) => load_union(hubris, buf, t, addr),
     }
 }
 
@@ -805,6 +822,36 @@ pub fn load_enum(
     };
 
     Ok(Enum(var.name.to_string(), val))
+}
+
+/// Loads a union from memory image `buf` at offset `addr`.
+///
+/// We assume that the only union types in our image are using
+/// `core::mem::MaybeUnint`, and extract the "value" variant.
+pub fn load_union(
+    hubris: &HubrisArchive,
+    buf: &[u8],
+    ty: &HubrisUnion,
+    addr: usize,
+) -> Result<Value> {
+    if !ty.name.contains("MaybeUninit") {
+        bail!("Can only decode `MaybeUninit` unions, not {:?}", ty);
+    }
+    for v in ty.variants.iter() {
+        if v.name == "value" {
+            let mut out = load_value(
+                hubris,
+                buf,
+                hubris.lookup_type(
+                    v.goff.ok_or_else(|| anyhow!("Missing goff in union"))?,
+                )?,
+                addr,
+            )?;
+            out.set_name(ty.name.to_owned())?;
+            return Ok(out);
+        }
+    }
+    bail!("Could not find 'value' in {:?}", ty);
 }
 
 /// Loads a basetype from memory image `buf` at offset `addr`.
