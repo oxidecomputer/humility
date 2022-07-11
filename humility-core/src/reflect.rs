@@ -834,6 +834,9 @@ pub fn load_union(
     ty: &HubrisUnion,
     addr: usize,
 ) -> Result<Value> {
+    if !ty.name.contains("MaybeUninit") {
+        bail!("Can only decode `MaybeUninit` unions, not {:?}", ty);
+    }
     for v in ty.variants.iter() {
         if v.name == "value" {
             let mut out = load_value(
