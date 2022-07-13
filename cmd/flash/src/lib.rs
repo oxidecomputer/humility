@@ -5,18 +5,25 @@
 //! ## `humility flash`
 //!
 //! Flashes the target with the image that is contained within the specified
-//! archive (or dump).  This merely executes the underlying flashing
-//! mechanism (either pyOCD or OpenOCD, depending on the target); if the
-//! requisite software is not installed (or isn't in the path), this will
-//! fail.  Temporary files are created as part of this process; if they are to
-//! be retained, the `-R` (`--retain-temporaries`) flag should be set.
-//! To see what would be executed without actually executing any commands,
-//! use the `-n` (`--dry-run`) flag.  As a precautionary measure, if
-//! the specified archive already appears to be on the target, `humility
-//! flash` will fail unless the `-F` (`--force`) flag is set.
+//! archive (or dump).  As a precautionary measure, if the specified archive
+//! already appears to be on the target, `humility flash` will fail unless the
+//! `-F` (`--force`) flag is set.
+//!
+//! This attempts to natively flash the part within Humility using probe-rs,
+//! but for some parts or configurations, it may need to use OpenOCD as a
+//! child process to flash it.  If OpenOCD is required but not installed (or
+//! isn't in the path), this will fail.  If OpenOCD is used, temporary files
+//! are created as part of this process; if they are to be retained, the `-R`
+//! (`--retain-temporaries`) flag should be set.  To see what would be
+//! executed without actually executing any commands, use the `-n`
+//! (`--dry-run`) flag.  Should use of OpenOCD need to be forced (that is,
+//! should probe-rs flashing fail), the `-O` (`--force-openocd`) flag can be
+//! used.  That said, OpenOCD should generally be discouraged; the disposition
+//! is to extend probe-rs to support any parts that must be flashed via
+//! OpenOCD.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
@@ -34,13 +41,18 @@ struct FlashArgs {
     #[clap(long, short = 'F')]
     force: bool,
 
-    /// do not actually flash, but show commands and retain any temporary files
+    /// if using OpenOCD, do not actually flash, but show commands and retain
+    /// any temporary files
     #[clap(long = "dry-run", short = 'n')]
     dryrun: bool,
 
     /// retain any temporary files
     #[clap(long = "retain-temporaries", short = 'R')]
     retain: bool,
+
+    /// force usage of OpenOCD
+    #[clap(long = "force-openocd", short = 'O')]
+    force_openocd: bool,
 }
 
 //
@@ -72,18 +84,160 @@ struct FlashConfig {
     args: Vec<FlashArgument>,
 }
 
+fn force_openocd(
+    hubris: &mut HubrisArchive,
+    args: &Args,
+    subargs: &FlashArgs,
+    config: &FlashConfig,
+    elf: &[u8],
+) -> Result<()> {
+    //
+    // We need to attach to (1) confirm that we're plugged into something
+    // and (2) extract serial information.
+    //
+    let probe = match &args.probe {
+        Some(p) => p,
+        None => "auto",
+    };
+
+    let serial = {
+        let mut c = humility::core::attach(probe, hubris)?;
+        let core = c.as_mut();
+
+        //
+        // We want to actually try validating to determine if this archive
+        // already matches; if it does, this command may well be in error,
+        // and we want to force the user to force their intent.
+        //
+        if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
+            if subargs.force {
+                humility::msg!(
+                    "archive appears to be already flashed; forcing re-flash"
+                );
+            } else {
+                bail!("archive appears to be already flashed on attached device; \
+                    use -F (\"--force\") to force re-flash");
+            }
+        }
+
+        core.info().1
+    };
+
+    let dryrun = |cmd: &std::process::Command| {
+        humility::msg!("would execute: {:?}", cmd);
+    };
+
+    let payload = match &config.program {
+        FlashProgram::OpenOcd(payload) => payload,
+        _ => {
+            bail!(
+                "cannot force OpenOCD for non-OpenOCD \
+                flash configuration: {:?}",
+                config.program
+            );
+        }
+    };
+
+    let mut flash = std::process::Command::new("openocd");
+
+    //
+    // We need to create a temporary file to hold our OpenOCD
+    // configuration file and the SREC file that we're going to
+    // actually program.
+    //
+    let mut conf = tempfile::NamedTempFile::new()?;
+    let srec = tempfile::NamedTempFile::new()?;
+
+    if let Some(serial) = serial {
+        humility::msg!("specifying serial {}", serial);
+
+        //
+        // In OpenOCD 0.11 dev, hla_serial has been deprecated, and
+        // using it results in this warning:
+        //
+        //   DEPRECATED! use 'adapter serial' not 'hla_serial'
+        //
+        // Unfortunately, the newer variant ("adapter serial") does
+        // not exist prior to this interface being deprecated; in
+        // order to allow execution on older OpenOCD variants, we
+        // deliberately use the deprecated interface.  (And yes, it
+        // would probably be convenient if OpenOCD just made the old
+        // thing work instead of shouting about it and then doing it
+        // anyway.)
+        //
+        writeln!(conf, "interface hla\nhla_serial {}", serial)?;
+    }
+
+    if let FlashProgramConfig::Payload(ref payload) = payload {
+        write!(conf, "{}", payload)?;
+    } else {
+        bail!("unexpected OpenOCD payload: {:?}", payload);
+    }
+
+    std::fs::write(&srec, generate_srec_from_elf(elf)?)?;
+
+    //
+    // OpenOCD only deals with slash paths, not native paths
+    // (regardless of platform), so we turn our paths into slash
+    // paths.
+    //
+    let conf_path = conf.path().to_slash_lossy();
+    let srec_path = srec.path().to_slash_lossy();
+
+    if subargs.retain || subargs.dryrun {
+        humility::msg!("retaining OpenOCD config as {:?}", conf.path());
+        humility::msg!("retaining srec as {}", srec_path);
+        conf.keep()?;
+        srec.keep()?;
+    }
+
+    for arg in &config.args {
+        match arg {
+            FlashArgument::Direct(ref val) => {
+                flash.arg(val);
+            }
+            FlashArgument::FormattedPayload(ref pre, ref post) => {
+                flash.arg(format!("{} {} {}", pre, srec_path, post));
+            }
+            FlashArgument::Config => {
+                flash.arg(&conf_path);
+            }
+            _ => {
+                anyhow::bail!("unexpected OpenOCD argument {:?}", arg);
+            }
+        }
+    }
+
+    if subargs.dryrun {
+        dryrun(&flash);
+        return Ok(());
+    }
+
+    let status = nice_status(&mut flash)?;
+
+    if !status.success() {
+        anyhow::bail!("flash command ({:?}) failed; see output", flash);
+    }
+
+    Ok(())
+}
+
 fn flashcmd(
     hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    let flash_config = hubris.load_flash_config()?;
+    let flash = hubris.load_flash_config()?;
     let subargs = FlashArgs::try_parse_from(subargs)?;
 
-    let config: FlashConfig = ron::from_str(&flash_config.metadata)?;
+    let config: FlashConfig = ron::from_str(&flash.metadata)?;
+
+    if subargs.force_openocd {
+        humility::msg!("forcing flashing using OpenOCD");
+        return force_openocd(hubris, args, &subargs, &config, &flash.elf);
+    }
 
     // This is incredibly ugly! It also gives us backwards compatibility!
-
     let chip = match config.program {
         FlashProgram::PyOcd(args) => {
             let s69 = regex::Regex::new(r"lpc55s69").unwrap();
@@ -114,7 +268,7 @@ fn flashcmd(
 
             c.unwrap()
         }
-        FlashProgram::OpenOcd(a) => match a {
+        FlashProgram::OpenOcd(ref a) => match a {
             FlashProgramConfig::Payload(d) => {
                 let h7 = regex::Regex::new(r"find target/stm32h7").unwrap();
                 let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
@@ -143,7 +297,13 @@ fn flashcmd(
                 }
 
                 if c.is_none() {
-                    bail!("Failed to get chip from OpenOCD config");
+                    humility::msg!(
+                        "could not get chip from OpenOCD config; \
+                        flashing using OpenOCD"
+                    );
+                    return force_openocd(
+                        hubris, args, &subargs, &config, &flash.elf,
+                    );
                 }
 
                 c.unwrap()
@@ -152,10 +312,6 @@ fn flashcmd(
         },
     };
 
-    //
-    // We need to attach to (1) confirm that we're plugged into something
-    // and (2) extract serial information.
-    //
     let probe = match &args.probe {
         Some(p) => p,
         None => "auto",
@@ -187,7 +343,7 @@ fn flashcmd(
     }
 
     let ihex = tempfile::NamedTempFile::new()?;
-    std::fs::write(&ihex, flash_config.ihex)?;
+    std::fs::write(&ihex, generate_ihex_from_elf(&flash.elf)?)?;
     let ihex_path = ihex.path();
 
     //

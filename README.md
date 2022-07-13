@@ -507,15 +507,22 @@ to prevent accidental blasts of binary content to the console.)
 ### `humility flash`
 
 Flashes the target with the image that is contained within the specified
-archive (or dump).  This merely executes the underlying flashing
-mechanism (either pyOCD or OpenOCD, depending on the target); if the
-requisite software is not installed (or isn't in the path), this will
-fail.  Temporary files are created as part of this process; if they are to
-be retained, the `-R` (`--retain-temporaries`) flag should be set.
-To see what would be executed without actually executing any commands,
-use the `-n` (`--dry-run`) flag.  As a precautionary measure, if
-the specified archive already appears to be on the target, `humility
-flash` will fail unless the `-F` (`--force`) flag is set.
+archive (or dump).  As a precautionary measure, if the specified archive
+already appears to be on the target, `humility flash` will fail unless the
+`-F` (`--force`) flag is set.
+
+This attempts to natively flash the part within Humility using probe-rs,
+but for some parts or configurations, it may need to use OpenOCD as a
+child process to flash it.  If OpenOCD is required but not installed (or
+isn't in the path), this will fail.  If OpenOCD is used, temporary files
+are created as part of this process; if they are to be retained, the `-R`
+(`--retain-temporaries`) flag should be set.  To see what would be
+executed without actually executing any commands, use the `-n`
+(`--dry-run`) flag.  Should use of OpenOCD need to be forced (that is,
+should probe-rs flashing fail), the `-O` (`--force-openocd`) flag can be
+used.  That said, OpenOCD should generally be discouraged; the disposition
+is to extend probe-rs to support any parts that must be flashed via
+OpenOCD.
 
 
 
