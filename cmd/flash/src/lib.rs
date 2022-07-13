@@ -161,9 +161,11 @@ fn flashcmd(
         None => "auto",
     };
 
-    humility::msg!("Attaching to flash chip {:x?}", chip);
+    humility::msg!("attaching with chip set to {:x?}", chip);
     let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
     let core = c.as_mut();
+
+    core.halt()?;
 
     //
     // We want to actually try validating to determine if this archive
@@ -176,6 +178,7 @@ fn flashcmd(
                 "archive appears to be already flashed; forcing re-flash"
             );
         } else {
+            core.run()?;
             bail!(
                 "archive appears to be already flashed on attached device; \
                     use -F (\"--force\") to force re-flash"
@@ -187,10 +190,16 @@ fn flashcmd(
     std::fs::write(&ihex, flash_config.ihex)?;
     let ihex_path = ihex.path();
 
-    core.load(ihex_path)?;
-
-    humility::msg!("Flash done.");
-    Ok(())
+    //
+    // This will reset the part if it works.
+    //
+    if let Err(err) = core.load(ihex_path) {
+        core.run()?;
+        Err(err)
+    } else {
+        humility::msg!("flashing done");
+        Ok(())
+    }
 }
 
 /// Executes `command` for its exit status, so that stdout/stderr are shared
