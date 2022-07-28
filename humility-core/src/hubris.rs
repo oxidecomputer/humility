@@ -2761,7 +2761,7 @@ impl HubrisArchive {
                 if self.ptrtypes.contains_key(&goff) {
                     Ok(HubrisType::Ptr(goff))
                 } else {
-                    bail!("not a pointer type");
+                    bail!("no entry found for goff: {:x?}", goff);
                 }
             })?;
         Ok(r)
@@ -4755,6 +4755,19 @@ impl<'a> From<&'a HubrisArray> for HubrisType<'a> {
 impl<'a> From<&'a HubrisUnion> for HubrisType<'a> {
     fn from(x: &'a HubrisUnion) -> Self {
         Self::Union(x)
+    }
+}
+
+impl<'a> std::fmt::Display for HubrisType<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            HubrisType::Struct(ty) => write!(f, "struct {}", ty.name),
+            HubrisType::Enum(ty) => write!(f, "enum {}", ty.name),
+            HubrisType::Base(b) => write!(f, "base type {:?}", b.encoding),
+            HubrisType::Array(_) => f.write_str("array"),
+            HubrisType::Ptr(_) => f.write_str("pointer"),
+            HubrisType::Union(ty) => write!(f, "union {}", ty.name),
+        }
     }
 }
 

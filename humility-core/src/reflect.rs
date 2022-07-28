@@ -79,7 +79,7 @@
 use indexmap::IndexMap;
 use std::convert::TryInto;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 
 use crate::core::Core;
 use crate::hubris::{
@@ -694,7 +694,13 @@ pub fn load<'a, T: Load>(
     ty: impl Into<HubrisType<'a>>,
     addr: usize,
 ) -> Result<T> {
-    Load::from_value(&load_value(hubris, buf, ty.into(), addr)?)
+    let val = load_value(hubris, buf, ty.into(), addr)?;
+    Load::from_value(&val).with_context(|| {
+        format!(
+            "loading reflected value of type {}",
+            std::any::type_name::<T>()
+        )
+    })
 }
 
 /// Loads data from memory image `buf` at offset `addr` and represents it as a
@@ -705,7 +711,7 @@ pub fn load_value(
     ty: HubrisType<'_>,
     addr: usize,
 ) -> Result<Value> {
-    match ty {
+    let r = match ty {
         HubrisType::Struct(sty) => load_struct_or_tuple(hubris, buf, sty, addr),
         HubrisType::Enum(ety) => {
             load_enum(hubris, buf, ety, addr).map(Value::Enum)
@@ -716,7 +722,10 @@ pub fn load_value(
         }
         HubrisType::Ptr(t) => load_ptr(buf, t, addr).map(Value::Ptr),
         HubrisType::Union(t) => load_union(hubris, buf, t, addr),
-    }
+    };
+    r.with_context(|| {
+        format!("loading value of type {} at address {:#x}", ty, addr)
+    })
 }
 
 /// Loads a pointer from image `buf` at offset `addr` and interprets it as a

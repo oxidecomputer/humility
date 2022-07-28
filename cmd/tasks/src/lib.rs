@@ -111,7 +111,7 @@
 //! These options can naturally be combined, e.g. `humility tasks -slvr`.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
@@ -181,6 +181,7 @@ fn tasks(
     let subargs = TasksArgs::try_parse_from(subargs)?;
 
     let (base, task_count) = hubris.task_table(core)?;
+    log::debug!("task table: {:#x?}, count: {}", base, task_count);
     let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
 
     let task_t = hubris.lookup_struct_byname("Task")?;
@@ -218,7 +219,9 @@ fn tasks(
             let offs = i as usize * task_t.size;
 
             let task_value: reflect::Value =
-                reflect::load(hubris, &taskblock, task_t, offs)?;
+                reflect::load(hubris, &taskblock, task_t, offs).with_context(
+                    || format!("loading task control block for task {}", i),
+                )?;
             let task: Task = Task::from_value(&task_value)?;
 
             //
