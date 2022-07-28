@@ -25,6 +25,7 @@ use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
 use idol::syntax::Interface;
+use log::{error, warn};
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
@@ -1019,8 +1020,9 @@ impl HubrisArchive {
         let mut linkage_name = None;
         let mut external = None;
         let mut tgoff = None;
+        let mut dwarf_location = None;
 
-        while let Some(attr) = attrs.next()? {
+        'attrloop: while let Some(attr) = attrs.next()? {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -1038,6 +1040,100 @@ impl HubrisArchive {
 
                 gimli::constants::DW_AT_type => {
                     tgoff = self.dwarf_value_goff(unit, &attr.value());
+                }
+                gimli::constants::DW_AT_location => {
+                    if let Some(e) = attr.exprloc_value() {
+                        let mut eval = e.evaluation(unit.encoding());
+                        let mut result = match eval.evaluate() {
+                            Ok(r) => r,
+                            Err(e) => {
+                                warn!("AT_location evaluation failed for entry {:?}: {}", name, e);
+                                continue;
+                            }
+                        };
+                        // Loop to nudge forward the evaluation of the expression,
+                        // if required.
+                        let eval_result = loop {
+                            match result {
+                                gimli::EvaluationResult::Complete => break Some(eval.result()),
+                                gimli::EvaluationResult::RequiresRelocatedAddress(a) => {
+                                    result = match eval.resume_with_relocated_address(a) {
+                                        Ok(r) => r,
+                                        Err(e) => {
+                                            error!("AT_location failed after resume: {}", e);
+                                            break None;
+                                        }
+                                    };
+                                }
+                                x => {
+                                    log::debug!("unsupported evaluation result: {:?}", x);
+                                    break None;
+                                }
+                            }
+                        };
+                        let eval_result = if let Some(e) = eval_result {
+                            e
+                        } else {
+                            // Could not evaluate, abort this attr.
+                            continue;
+                        };
+
+                        // Yay! Now we need to see if the pieces that resulted
+                        // are useful to us. In this case, "variable" means
+                        // static variable, and so we're only interested if it
+                        // consists of a contiguous range of pieces at absolute
+                        // addresses.
+                        if eval_result.iter().any(|piece| {
+                            !matches!(
+                                piece.location,
+                                gimli::read::Location::Address { .. }
+                            )
+                        }) {
+                            // Some portion of this variable is not
+                            // in static memory. Ignore it.
+                            continue;
+                        }
+                        if eval_result
+                            .iter()
+                            .any(|piece| piece.size_in_bits.is_none())
+                        {
+                            // Some portion of this variable does
+                            // not have a fixed size. Ignore it.
+                            continue;
+                        }
+                        // Sort the address/size information from
+                        // the pieces so we can easily determine
+                        // whether they're contiguous.
+                        let mut ranges = eval_result
+                            .into_iter()
+                            .map(|piece| match piece.location {
+                                gimli::read::Location::Address { address } => {
+                                    (address, piece.size_in_bits.unwrap())
+                                }
+                                _ => unreachable!(),
+                            })
+                            .collect::<Vec<_>>();
+                        ranges.sort_by_key(|&(addr, _size)| addr);
+                        let base_addr = if let Some((a, _s)) = ranges.first() {
+                            *a
+                        } else {
+                            // ranges list wound up being empty.
+                            continue;
+                        };
+                        let mut next_addr = base_addr;
+                        for &(a, s) in &ranges {
+                            if a != next_addr {
+                                // Discontiguous.
+                                continue 'attrloop;
+                            }
+                            next_addr = a + s / 8;
+                        }
+
+                        dwarf_location = Some((
+                            base_addr as u32,
+                            (next_addr - base_addr) as u32,
+                        ));
+                    }
                 }
                 _ => {}
             }
@@ -1084,6 +1180,42 @@ impl HubrisArchive {
                             },
                         );
                     }
+                }
+            } else if let Some((addr, size)) = dwarf_location {
+                log::debug!(
+                    "Symbol {} missing from ELF info, using DWARF as fallback.",
+                    linkage
+                );
+                if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr) {
+                    e.insert(HubrisSymbol {
+                        name: String::from(name),
+                        demangled_name: demangle_name(name),
+                        size,
+                        addr,
+                        goff,
+                    });
+                    self.variables.insert(
+                        String::from(name),
+                        HubrisVariable {
+                            goff: tgoff,
+                            addr,
+                            size: size as usize,
+                        },
+                    );
+                    // Note: alternate format (#) removes trailing hash.
+                    // This makes duplicates possible, but, we already
+                    // handle duplicates in unqualified names, and the
+                    // hashes are gross.
+                    let qname =
+                        format!("{:#}", rustc_demangle::demangle(linkage));
+                    self.qualified_variables.insert(
+                        qname,
+                        HubrisVariable {
+                            goff: tgoff,
+                            addr,
+                            size: size as usize,
+                        },
+                    );
                 }
             } else {
                 self.definitions.insert(String::from(name), tgoff);
