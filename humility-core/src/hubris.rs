@@ -966,8 +966,10 @@ impl HubrisArchive {
             }
         }
 
-        if let (Some(name), Some(underlying)) = (name, underlying) {
-            self.ptrtypes.insert(goff, (name.to_string(), underlying));
+        let name = name.unwrap_or("<UNNAMED>").to_string();
+
+        if let Some(underlying) = underlying {
+            self.ptrtypes.insert(goff, (name, underlying));
         }
 
         Ok(())
