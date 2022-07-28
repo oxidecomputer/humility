@@ -36,7 +36,7 @@ const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
-const MAX_HUBRIS_VERSION: u32 = 2;
+const MAX_HUBRIS_VERSION: u32 = 3;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -5008,24 +5008,4 @@ fn demangle_name(name: &str) -> String {
     // Note: "alternate mode" # causes rustc_demangle to leave off the ugly hash
     // values on functions.
     format!("{:#}", rustc_demangle::demangle(name))
-}
-
-#[cfg(test)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-
-    #[test]
-    fn test_check_version() {
-        let f = HubrisArchive::check_version;
-        assert!(f("hubris app archive").is_err());
-        assert!(f("hubris build archive").is_err());
-        assert!(f("hubris build archive v1").is_err());
-        assert!(f("hubris build archive vaaagh").is_err());
-
-        assert!(f("hubris build archive v1.0.0").is_ok());
-        assert!(f("hubris build archive v2").is_ok());
-
-        assert!(f("hubris build archive v3").is_err());
-    }
 }
