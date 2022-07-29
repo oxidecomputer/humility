@@ -7,7 +7,7 @@ description = "query Renesas 8A3400X ClockMatrix parts"
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
+hif = { git = "https://github.com/oxidecomputer/hif", branch = "expand-collect-u32" }
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }

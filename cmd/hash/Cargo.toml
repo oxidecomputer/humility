@@ -7,7 +7,7 @@ description = "Access to the HASH block"
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
+hif = { git = "https://github.com/oxidecomputer/hif", branch = "expand-collect-u32" }
 clap = { version = "3.0.12", features = ["derive", "env"] }
 sha2 = "0.10.1"
 # hex-literal = {}

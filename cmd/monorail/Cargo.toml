@@ -10,12 +10,13 @@ clap = { version = "3.0.12", features = ["derive", "env"] }
 colored = "2.0.0"
 log = {version = "0.4.8", features = ["std"]}
 parse_int = "0.4.0"
+regex = "1.5"
 
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
 humility-cmd-hiffy = { path = "../hiffy" }
 
-hif = { git = "https://github.com/oxidecomputer/hif" }
+hif = { git = "https://github.com/oxidecomputer/hif", branch = "expand-collect-u32" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }

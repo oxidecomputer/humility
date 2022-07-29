@@ -67,7 +67,7 @@ anyhow = "1.0.32"
 
 [dependencies]
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
+hif = { git = "https://github.com/oxidecomputer/hif", branch = "expand-collect-u32" }
 spd = { git = "https://github.com/oxidecomputer/spd" }
 humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }

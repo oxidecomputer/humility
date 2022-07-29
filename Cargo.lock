@@ -829,8 +829,8 @@ dependencies = [
 
 [[package]]
 name = "hif"
-version = "0.3.0"
-source = "git+https://github.com/oxidecomputer/hif#b5abd263f179695624b8b4ecf99256f8c9526bf1"
+version = "0.4.0"
+source = "git+https://github.com/oxidecomputer/hif?branch=expand-collect-u32#5285f19c5933d1fe14bd1440652d9569b12fa11a"
 dependencies = [
  "pkg-version",
  "postcard",
@@ -1247,6 +1247,7 @@ dependencies = [
  "idol",
  "log",
  "parse_int",
+ "regex",
  "vsc7448-info",
  "vsc7448-types",
 ]
