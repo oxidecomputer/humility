@@ -489,9 +489,9 @@ fn monorail_dump(
             ops.push(Op::Call(send.id));
             ops.push(Op::DropN(2)); // Drop payload and return size
             ops.push(Op::Collect32);
-            ops.push(Op::Push(1)); // Increment by one
-            ops.push(Op::Add); // address = address + 1
-            ops.push(Op::Push(end_address as u8)); // Comparison target
+            ops.push(Op::Push(4)); // Increment by four
+            ops.push(Op::Add); // address = address + 4
+            ops.push(Op::Push32(end_address)); // Comparison target
             ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
         }
         ops.push(Op::DropN(4)); // Cleanup
@@ -504,7 +504,17 @@ fn monorail_dump(
             .collect::<Result<Vec<Result<_, _>>>>()?;
         value_results
     };
-    println!("{:?}", results);
+    for (i, v) in results.iter().enumerate() {
+        let value = if let Ok(Value::Base(Base::U32(v))) = v {
+            v
+        } else {
+            bail!("Got bad reflected value: expected U32, got {:?}", v);
+        };
+        let addr = format!("{}", start_address as usize + i * 4);
+        // XXX this is inefficient
+        let reg = parse_reg_or_addr(&addr)?;
+        println!("{}    {:#010x}", reg, value);
+    }
 
     Ok(())
 }
@@ -840,13 +850,14 @@ fn monorail(
                 .map(|(_tgt_index, addr)| *addr)
                 .ok_or_else(|| anyhow!("Could not find index {:?}", index))?;
             let tgt = vsc7448_info::TARGETS.get(tgt_name).unwrap();
-            let end_addr = tgt
+            let tgt_size = tgt
                 .groups
                 .iter()
                 .map(|g| g.1)
                 .map(|g| g.addr.base + g.addr.width * g.addr.count)
                 .max()
                 .unwrap();
+            let end_addr = start_addr + tgt_size * 4;
 
             println!(
                 "Dumping target {} ({:#x} -> {:#x})",
