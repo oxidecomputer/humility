@@ -7,7 +7,7 @@ edition = "2021"
 humility = { path = "../humility-core", package = "humility-core" }
 clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }
-hif = { git = "https://github.com/oxidecomputer/hif", branch = "expand-collect-u32" }
+hif = { git = "https://github.com/oxidecomputer/hif" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 indexmap = { version = "1.7", features = ["serde-1"] }
 postcard = "0.7.0"

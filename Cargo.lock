@@ -829,8 +829,8 @@ dependencies = [
 
 [[package]]
 name = "hif"
-version = "0.4.0"
-source = "git+https://github.com/oxidecomputer/hif?branch=expand-collect-u32#5285f19c5933d1fe14bd1440652d9569b12fa11a"
+version = "0.3.1"
+source = "git+https://github.com/oxidecomputer/hif#34aace65cbf458129dcd8007715a94bc488b2931"
 dependencies = [
  "pkg-version",
  "postcard",
