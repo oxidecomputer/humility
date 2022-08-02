@@ -72,6 +72,8 @@ enum Command {
         #[clap(long, short, use_value_delimiter = true)]
         ports: Vec<u8>,
     },
+    /// Get information about a particular VSC7448 register group
+    Dump { target: String },
     /// Print or reset VSC7448 port counters
     Counters {
         #[clap(long, short)]
@@ -454,6 +456,68 @@ fn monorail_phy_dump(
     Ok(())
 }
 
+fn monorail_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    start_address: u32,
+    end_address: u32,
+) -> Result<()> {
+    let results = {
+        use hif::*;
+        let op_read =
+            IdolOperation::new(hubris, "Monorail", "read_vsc7448_reg", None)?;
+
+        let funcs = context.functions()?;
+        let send = funcs.get("Send", 4)?;
+        let mut ops = vec![];
+
+        let label = Target(0);
+        let ret_size = hubris.typesize(op_read.ok)? as u32;
+        ops.push(Op::Push32(op_read.task.task())); // task id
+        ops.push(Op::Push16(op_read.code)); // opcode
+        ops.push(Op::Push32(start_address)); // Starting register address
+        ops.push(Op::Push32(0)); // Comparison target (dummy)
+        ops.push(Op::Label(label));
+        {
+            ops.push(Op::Drop); // Drop comparison target
+
+            // Expand u32 -> [u8; 4], since that's expected by `send`
+            ops.push(Op::Expand32);
+            ops.push(Op::Push(4)); // Payload size
+            ops.push(Op::Push32(ret_size)); // Return size
+            ops.push(Op::Call(send.id));
+            ops.push(Op::DropN(2)); // Drop payload and return size
+            ops.push(Op::Collect32);
+            ops.push(Op::Push(4)); // Increment by four
+            ops.push(Op::Add); // address = address + 4
+            ops.push(Op::Push32(end_address)); // Comparison target
+            ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
+        }
+        ops.push(Op::DropN(4)); // Cleanup
+        ops.push(Op::Done); // Finish
+
+        let results = context.run(core, ops.as_slice(), None)?;
+        results
+            .into_iter()
+            .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_read, r))
+            .collect::<Result<Vec<Result<_, _>>>>()?
+    };
+    for (i, v) in results.iter().enumerate() {
+        let value = if let Ok(Value::Base(Base::U32(v))) = v {
+            v
+        } else {
+            bail!("Got bad reflected value: expected U32, got {:?}", v);
+        };
+        let addr = format!("{}", start_address as usize + i * 4);
+        // XXX this is inefficient
+        let reg = parse_reg_or_addr(&addr)?;
+        println!("{}    {:#010x}", reg, value);
+    }
+
+    Ok(())
+}
+
 fn monorail_status(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -764,6 +828,41 @@ fn monorail(
 
         Command::Read { reg } => {
             monorail_read(hubris, core, &mut context, reg)?
+        }
+        Command::Dump { target } => {
+            use regex::Regex;
+            let re = Regex::new(r"^([A-Z_0-9]+)(\[([0-9]+)\])?$").unwrap();
+            let cap = re
+                .captures(&target)
+                .ok_or_else(|| anyhow!("Could not parse {}", target))?;
+            let name = &cap[1];
+            let index: Option<u32> =
+                cap.get(3).map(|i| i.as_str().parse().unwrap());
+            let tgt = vsc7448_info::MEMORY_MAP
+                .get(name)
+                .ok_or_else(|| anyhow!("Could not find target {}", name))?;
+            let tgt_name = &tgt.0;
+            let start_addr: u32 = tgt
+                .1
+                .iter()
+                .find(|(tgt_index, _addr)| *tgt_index == index)
+                .map(|(_tgt_index, addr)| *addr)
+                .ok_or_else(|| anyhow!("Could not find index {:?}", index))?;
+            let tgt = vsc7448_info::TARGETS.get(tgt_name).unwrap();
+            let tgt_size = tgt
+                .groups
+                .iter()
+                .map(|g| g.1)
+                .map(|g| g.addr.base + g.addr.width * g.addr.count)
+                .max()
+                .unwrap();
+            let end_addr = start_addr + tgt_size * 4;
+
+            println!(
+                "Dumping target {} ({:#x} -> {:#x})",
+                target, start_addr, end_addr
+            );
+            monorail_dump(hubris, core, &mut context, start_addr, end_addr)?
         }
         Command::Write { reg, value } => {
             monorail_write(hubris, core, &mut context, reg, value)?
