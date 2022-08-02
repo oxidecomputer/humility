@@ -523,8 +523,8 @@ impl<'a> HiffyContext<'a> {
                             hubris.printfmt(&buf, self.failure.goff, fmt)?;
 
                         // If Hiffy reports `Invalid`, this could be due to a
-                        // micro patch mismatch, i.e. Humility trying to use HIF
-                        // operations that the target does not know about.
+                        // patch version mismatch, i.e. Humility trying to use
+                        // HIF operations that the target does not know about.
                         if f == "Some(Invalid)" {
                             let patch = Self::read_word(
                                 hubris,
@@ -532,14 +532,27 @@ impl<'a> HiffyContext<'a> {
                                 "HIFFY_VERSION_PATCH",
                             );
                             match patch {
-                                Ok(patch) => if patch != HIF_VERSION_PATCH {
-                                    bail!("request failed: {0}. HIF version mismatch ({1}.{2}.{3} on host, {1}.{2}.{4} on device)",
-                                        f, HIF_VERSION_MAJOR, HIF_VERSION_MINOR,
-                                        HIF_VERSION_PATCH, patch);
-                                },
-                                Err(e) =>
-                                    bail!("request failed: {}; failed to read HIF patch version: {:?}",
-                                          f, e),
+                                Ok(patch) => {
+                                    if patch != HIF_VERSION_PATCH {
+                                        bail!(
+                                            "request failed: {0}. Perhaps due \
+                                             to HIF version mismatch? \
+                                             ({1}.{2}.{3} on host, \
+                                              {1}.{2}.{4} on device)",
+                                            f,
+                                            HIF_VERSION_MAJOR,
+                                            HIF_VERSION_MINOR,
+                                            HIF_VERSION_PATCH,
+                                            patch
+                                        );
+                                    }
+                                }
+                                Err(e) => bail!(
+                                    "request failed: {}; failed to read HIF \
+                                     patch version: {:?}",
+                                    f,
+                                    e
+                                ),
                             }
                         }
                         bail!("request failed: {}", f);
