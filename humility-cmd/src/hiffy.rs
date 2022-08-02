@@ -533,7 +533,7 @@ impl<'a> HiffyContext<'a> {
                             );
                             match patch {
                                 Ok(patch) =>  if patch != HIF_VERSION_PATCH {
-                                    bail!("request failed: {0}.  HIF version mismatch ({1}.{2}.{3} on host, {1}.{2}.{4}, on device)",
+                                    bail!("request failed: {0}. HIF version mismatch ({1}.{2}.{3} on host, {1}.{2}.{4} on device)",
                                         f, HIF_VERSION_MAJOR, HIF_VERSION_MINOR,
                                         HIF_VERSION_PATCH, patch);
                                 },
