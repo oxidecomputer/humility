@@ -498,11 +498,10 @@ fn monorail_dump(
         ops.push(Op::Done); // Finish
 
         let results = context.run(core, ops.as_slice(), None)?;
-        let value_results = results
+        results
             .into_iter()
             .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_read, r))
-            .collect::<Result<Vec<Result<_, _>>>>()?;
-        value_results
+            .collect::<Result<Vec<Result<_, _>>>>()?
     };
     for (i, v) in results.iter().enumerate() {
         let value = if let Ok(Value::Base(Base::U32(v))) = v {
