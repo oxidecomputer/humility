@@ -1,6 +1,6 @@
 [package]
 name = "humility"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -136,6 +136,7 @@ indexmap = { version = "1.7", features = ["serde-1"] }
 
 [patch.crates-io]
 libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
+hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }
 
 [dev-dependencies]
 trycmd = "0.13.2"
