@@ -819,8 +819,7 @@ dependencies = [
 [[package]]
 name = "hidapi"
 version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b1717343691998deb81766bfcd1dce6df0d5d6c37070b5a3de2bb6d39f7822"
+source = "git+https://github.com/oxidecomputer/hidapi-rs?branch=oxide-stable#91237483222a42f68d16adcdfd42bc8e32adf666"
 dependencies = [
  "cc",
  "libc",
@@ -855,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "bitfield",
