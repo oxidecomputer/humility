@@ -673,7 +673,7 @@ fn monorail_status(
                     let fmt_mode = match mode.as_str() {
                         "SGMII" => mode.cyan(),
                         "QSGMII" => mode.blue(),
-                        "SFI" => mode.magenta(),
+                        "SFI" | "BASEKR" => mode.magenta(),
                         v => v.into(),
                     };
 
