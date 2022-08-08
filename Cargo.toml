@@ -55,6 +55,7 @@ members = [
     "cmd/readmem",
     "cmd/readvar",
     "cmd/registers",
+    "cmd/reset",
     "cmd/rencm",
     "cmd/rendmp",
     "cmd/ringbuf",
@@ -118,6 +119,7 @@ cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
 cmd-readmem = { path = "./cmd/readmem", package = "humility-cmd-readmem" }
 cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
 cmd-registers = { path = "./cmd/registers", package = "humility-cmd-registers" }
+cmd-reset = { path = "./cmd/reset", package = "humility-cmd-reset" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
