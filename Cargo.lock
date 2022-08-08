@@ -897,6 +897,7 @@ dependencies = [
  "humility-cmd-registers",
  "humility-cmd-rencm",
  "humility-cmd-rendmp",
+ "humility-cmd-reset",
  "humility-cmd-ringbuf",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
@@ -1376,6 +1377,18 @@ dependencies = [
  "num-traits",
  "parse_int",
  "pmbus",
+]
+
+[[package]]
+name = "humility-cmd-reset"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cmd",
+ "humility-core",
+ "log",
+ "num-traits",
 ]
 
 [[package]]

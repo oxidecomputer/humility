@@ -233,6 +233,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility registers](#humility-registers): print Hubris registers
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
 - [humility rendmp](#humility-rendmp): Renesas digital muliphase controller operations
+- [humility reset](#humility-reset): Reset the chip using external pins
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
@@ -1519,6 +1520,12 @@ humility: 27 NVM slots remain
 humility: image CRC (0x841f35a5) matches OTP CRC
 ```
 
+
+
+### `humility reset`
+
+`humility reset` will hard reset the system using the debug pin
+or using software reset with the appropriate flag
 
 
 ### `humility ringbuf`
