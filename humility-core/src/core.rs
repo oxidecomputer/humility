@@ -53,6 +53,7 @@ pub trait Core {
     ///
     fn load(&mut self, path: &Path) -> Result<()>;
 
+    /// Reset the chip
     fn reset(&mut self) -> Result<()>;
 
     /// Called before starting a series of operations.  May halt the target if
@@ -66,6 +67,102 @@ pub trait Core {
     /// the target does not allow operations while not halted.  Should not be
     /// intermixed with [`halt`]/[`run`].
     fn op_done(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+pub struct UnattachedCore {
+    pub probe: probe_rs::Probe,
+    pub identifier: String,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub serial_number: Option<String>,
+}
+
+impl UnattachedCore {
+    fn new(
+        probe: probe_rs::Probe,
+        identifier: String,
+        vendor_id: u16,
+        product_id: u16,
+        serial_number: Option<String>,
+    ) -> Self {
+        Self { probe, identifier, vendor_id, product_id, serial_number }
+    }
+}
+
+impl Core for UnattachedCore {
+    fn info(&self) -> (String, Option<String>) {
+        let ident = format!(
+            "{}, VID {:04x}, PID {:04x}",
+            self.identifier, self.vendor_id, self.product_id
+        );
+
+        (ident, self.serial_number.clone())
+    }
+
+    fn read_word_32(&mut self, _addr: u32) -> Result<u32> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn read_8(&mut self, _addr: u32, _data: &mut [u8]) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn read_reg(&mut self, _reg: ARMRegister) -> Result<u32> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn halt(&mut self) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn run(&mut self) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn step(&mut self) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn init_swv(&mut self) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn is_dump(&self) -> bool {
+        false
+    }
+
+    fn load(&mut self, _path: &Path) -> Result<()> {
+        bail!("Unimplemented when unattached!");
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        self.probe.target_reset_assert()?;
+
+        // The closest available documentation on hold time is
+        // a comment giving a timeout
+        // https://open-cmsis-pack.github.io/Open-CMSIS-Pack-Spec/main/html/debug_description.html#resetHardwareDeassert
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+
+        self.probe.target_reset_deassert()?;
+
         Ok(())
     }
 }
@@ -1085,55 +1182,119 @@ impl Core for DumpCore {
     }
 }
 
-#[rustfmt::skip::macros(anyhow, bail)]
-fn attach_to_chip(
-    mut probe: &str,
-    hubris: &HubrisArchive,
-    chip: Option<&str>,
-) -> Result<Box<dyn Core>> {
-    let mut index: Option<usize> = None;
-
+fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
         let str = probe.to_owned();
         let pieces: Vec<&str> = str.split('-').collect();
 
         if pieces[0] == "usb" && pieces.len() == 2 {
             if let Ok(val) = pieces[1].parse::<usize>() {
-                index = Some(val);
-                probe = "usb";
+                ("usb", Some(val))
+            } else {
+                (probe, None)
             }
+        } else {
+            (probe, None)
         }
+    } else {
+        (probe, None)
     }
+}
+
+fn get_usb_probe(index: Option<usize>) -> Result<probe_rs::DebugProbeInfo> {
+    let probes = Probe::list_all();
+
+    if probes.is_empty() {
+        bail!("no debug probe found; is it plugged in?");
+    }
+
+    if let Some(index) = index {
+        if index < probes.len() {
+            Ok(probes[index].clone())
+        } else {
+            bail!(
+                "index ({}) exceeds max probe index ({})",
+                index,
+                probes.len() - 1
+            );
+        }
+    } else if probes.len() == 1 {
+        Ok(probes[0].clone())
+    } else {
+        bail!(
+            "multiple USB probes detected; must \
+                       explicitly append index (e.g., \"-p usb-0\")"
+        );
+    }
+}
+
+#[rustfmt::skip::macros(anyhow, bail)]
+pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
+    let (probe, index) = parse_probe(probe);
 
     match probe {
         "usb" => {
-            let probes = Probe::list_all();
+            let probe_info = get_usb_probe(index)?;
 
-            if probes.is_empty() {
-                bail!("no debug probe found; is it plugged in?");
+            let res = probe_info.open();
+
+            if let Err(probe_rs::DebugProbeError::Usb(Some(ref err))) = res {
+                if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
+                    if *rcode == rusb::Error::Busy {
+                        bail!(
+                            "USB link in use; is OpenOCD or \
+                            another debugger running?"
+                        );
+                    }
+                }
             }
 
-            let (selected, res) = if let Some(index) = index {
-                if index < probes.len() {
-                    (index, probes[index].open())
-                } else {
-                    bail!(
-                        "index ({}) exceeds max probe index ({})",
-                        index, probes.len() - 1
-                    );
-                }
-            } else if probes.len() == 1 {
-                (0, probes[0].open())
-            } else {
-                bail!("multiple USB probes detected; must \
-                       explicitly append index (e.g., \"-p usb-0\")");
-            };
+            let probe = res?;
 
-            //
-            // By far the most common error is to not be able to attach to a
-            // debug probe because something else has already attached to it;
-            // we pull this error out to yield a more actionable suggestion!
-            //
+            crate::msg!("Opened probe {}", probe_info.identifier);
+            Ok(Box::new(UnattachedCore::new(
+                probe,
+                probe_info.identifier.clone(),
+                probe_info.vendor_id,
+                probe_info.product_id,
+                probe_info.serial_number,
+            )))
+        }
+        "ocd" | "ocdgdb" | "jlink" => {
+            bail!("Probe only attachment with {} is not supported", probe)
+        }
+        "auto" => attach_to_probe("usb"),
+        _ => match TryInto::<probe_rs::DebugProbeSelector>::try_into(probe) {
+            Ok(selector) => {
+                let vidpid = probe;
+                let vid = selector.vendor_id;
+                let pid = selector.product_id;
+                let serial = selector.serial_number.clone();
+                let probe = probe_rs::Probe::open(selector)?;
+                let name = probe.get_name();
+
+                crate::msg!("Opened {} via {}", vidpid, name);
+                Ok(Box::new(UnattachedCore::new(probe, name, vid, pid, serial)))
+            }
+            Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
+        },
+    }
+}
+
+#[rustfmt::skip::macros(anyhow, bail)]
+pub fn attach_to_chip(
+    probe: &str,
+    hubris: &HubrisArchive,
+    chip: Option<&str>,
+) -> Result<Box<dyn Core>> {
+    let (probe, index) = parse_probe(probe);
+
+    match probe {
+        "usb" => {
+            let probe_info = get_usb_probe(index)?;
+
+            let res = probe_info.open();
+
             if let Err(probe_rs::DebugProbeError::Usb(Some(ref err))) = res {
                 if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
                     if *rcode == rusb::Error::Busy {
@@ -1166,10 +1327,10 @@ fn attach_to_chip(
 
             Ok(Box::new(ProbeCore::new(
                 session,
-                probes[selected].identifier.clone(),
-                probes[selected].vendor_id,
-                probes[selected].product_id,
-                probes[selected].serial_number.clone(),
+                probe_info.identifier.clone(),
+                probe_info.vendor_id,
+                probe_info.product_id,
+                probe_info.serial_number,
                 hubris.unhalted_reads(),
                 can_flash,
             )))

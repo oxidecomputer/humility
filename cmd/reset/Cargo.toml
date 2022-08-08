@@ -1,0 +1,13 @@
+[package]
+name = "humility-cmd-reset"
+version = "0.1.0"
+edition = "2021"
+description = "Reset the chip using external pins"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cmd = { path = "../../humility-cmd" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+num-traits = "0.2"
+log = "0.4"
