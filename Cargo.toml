@@ -1,6 +1,23 @@
 [package]
 name = "humility"
-version = "0.8.1"
+
+#
+# If you are about to update the Humility version (and well you should!) note
+# that there are a few tests that implicitly depend on it.  Fortunately,
+# trycmd makes it easy to update all of these at once; after changing the
+# version, utter:
+#
+#   TRYCMD_TEST="tests/cmd/*trycmd" TRYCMD=overwrite cargo test
+#
+# That will fail, but the files that result in the test failure should be
+# overwritten with the new result -- and `git diff` should show something
+# reasonable.  A subsequent test run should succeed:
+#
+#   TRYCMD_TEST="tests/cmd/*trycmd" cargo test
+#
+# Be sure to check in and push all of the files that change.  Happy versioning!
+#
+version = "0.8.2"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
