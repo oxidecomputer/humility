@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1093,6 +1093,7 @@ dependencies = [
  "clap",
  "ctrlc",
  "humility-cmd",
+ "humility-cmd-openocd",
  "humility-core",
  "tempfile",
 ]
@@ -1260,6 +1261,7 @@ dependencies = [
  "ctrlc",
  "humility-cmd",
  "humility-core",
+ "regex",
  "tempfile",
 ]
 

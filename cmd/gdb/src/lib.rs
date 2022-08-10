@@ -21,6 +21,7 @@ use std::process::{Command, Stdio};
 
 use humility::hubris::*;
 use humility_cmd::{Archive, Args, Command as HumilityCmd, RunUnattached};
+use humility_cmd_openocd::get_probe_serial;
 
 use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
@@ -52,11 +53,8 @@ fn gdb(
     args: &Args,
     subargs: &[String],
 ) -> Result<()> {
-    if args.probe.is_some() {
-        bail!("Cannot specify --probe with `gdb` subcommand");
-    }
-
     let subargs = GdbArgs::try_parse_from(subargs)?;
+    let serial = get_probe_serial(args, subargs.serial.clone())?;
 
     let work_dir = tempfile::tempdir()?;
     let name = match &hubris.manifest.name {
@@ -121,7 +119,7 @@ fn gdb(
             subargs.openocd.unwrap_or_else(|| "openocd".to_string()),
         );
         cmd.arg("-f").arg("openocd.cfg");
-        if let Some(serial) = subargs.serial {
+        if let Some(serial) = serial {
             cmd.arg("-c")
                 .arg("interface hla")
                 .arg("-c")
