@@ -33,26 +33,29 @@ struct OcdArgs {
     extra_options: Vec<String>,
 }
 
-fn openocd(
-    hubris: &mut HubrisArchive,
+/// Extracts and returns the probe serial name for use in OpenOCD
+///
+/// We can get the serial name from two different places:
+/// - If the global `--probe` argument is of the form `vid:pid:serial`, then we
+///   can extract the serial name.  This is also the case if we're using an
+///   environment file, which populates `args.probe` automatically.
+/// - If the `--serial` argument is given in this command's subarguments,
+///   then we use it directly.
+///
+/// This function checks both sources, returns an error if they conflict, and
+/// returns the (optional) serial name otherwise.
+pub fn get_probe_serial(
     args: &Args,
-    subargs: &[String],
-) -> Result<()> {
-    let subargs = OcdArgs::try_parse_from(subargs)?;
-
-    // We can get the serial name from two different places:
-    // - If the `--probe` argument is of the form `vid:pid:serial`, then we can
-    //   extract the serial name.  This is also the case if we're using an
-    //   environment file, which populates `args.probe` automatically.
-    // - If the `--serial` argument is given, then we use it directly
-    let serial = match &args.probe {
+    subargs_serial: Option<String>,
+) -> Result<Option<String>> {
+    match &args.probe {
         Some(probe) => {
             let re = regex::Regex::new(
                 r"^([[:xdigit:]]+):([[:xdigit:]]+):([[:xdigit:]]+)$",
             )
             .unwrap();
             if let Some(cap) = re.captures(probe) {
-                if subargs.serial.is_some() {
+                if subargs_serial.is_some() {
                     if args.target.is_some() {
                         bail!(
                             "Cannot specify probe serial number with both \
@@ -65,7 +68,7 @@ fn openocd(
                         );
                     }
                 }
-                Some(cap.get(3).unwrap().as_str().to_string())
+                Ok(Some(cap.get(3).unwrap().as_str().to_string()))
             } else {
                 bail!(
                     "Cannot specify `--probe {}` with `openocd` subcommand \
@@ -74,8 +77,18 @@ fn openocd(
                 );
             }
         }
-        None => subargs.serial,
-    };
+        None => Ok(subargs_serial),
+    }
+}
+
+fn openocd(
+    hubris: &mut HubrisArchive,
+    args: &Args,
+    subargs: &[String],
+) -> Result<()> {
+    let subargs = OcdArgs::try_parse_from(subargs)?;
+
+    let serial = get_probe_serial(args, subargs.serial.clone())?;
 
     let work_dir = tempfile::tempdir()?;
     hubris
