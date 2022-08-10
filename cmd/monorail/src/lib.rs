@@ -25,7 +25,7 @@ use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{IdolArgument, IdolOperation};
 use humility_cmd::{Archive, Attach, Run, RunUnattached, Validate};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -74,6 +74,8 @@ enum Command {
     },
     /// Get information about a particular VSC7448 register group
     Dump { target: String },
+    /// Dumps MAC tables in the switch
+    Mac,
     /// Print or reset VSC7448 port counters
     Counters {
         #[clap(long, short)]
@@ -729,6 +731,115 @@ fn monorail_status(
     Ok(())
 }
 
+fn monorail_mac_table(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let op_mac_count =
+        IdolOperation::new(hubris, "Monorail", "read_vsc7448_mac_count", None)
+            .context(
+                "Could not find `read_vsc7448_mac_count`, \
+                  is your Hubris archive new enough?",
+            )?;
+
+    // We need to make two HIF calls:
+    // - Read the number of entries in the MAC table
+    // - Loop over the table that many times, reading entries
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        context,
+        &op_mac_count,
+        &[],
+    )?;
+    let mac_count = match value {
+        Ok(v) => {
+            if let Value::Base(Base::U32(v)) = v {
+                v
+            } else {
+                bail!("Got bad reflected value: expected U32, got {:?}", v);
+            }
+        }
+        Err(e) => {
+            bail!("Got error: {}", e);
+        }
+    };
+
+    println!("Reading {} MAC addresses...", mac_count);
+
+    let op =
+        IdolOperation::new(hubris, "Monorail", "read_vsc7448_next_mac", None)?;
+    let funcs = context.functions()?;
+    let send = funcs.get("Send", 4)?;
+
+    use hif::*;
+    let label = Target(0);
+
+    let ops = vec![
+        Op::Push32(mac_count),
+        Op::Push32(0), // current loop iteration
+        Op::Label(label),
+        // BEGIN LOOP
+        Op::Push32(op.task.task()),
+        Op::Push16(op.code),
+        Op::Push(0), // Payload length
+        Op::Push(8), // Return size
+        Op::Call(send.id),
+        Op::DropN(4), // Drop all arguments
+        // Loop iteration is now at the top of the stack
+        Op::Push(1), // Prepare to increment
+        Op::Add,     // i = i + 1
+        Op::BranchLessThan(label),
+        // END LOOP
+        Op::DropN(2),
+        Op::Done,
+    ];
+
+    let results = context.run(core, ops.as_slice(), None)?;
+    let results = results
+        .into_iter()
+        .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op, r))
+        .collect::<Result<Vec<Result<_, _>>>>()?;
+
+    let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
+    for r in results {
+        if let Ok(r) = r {
+            let s = r.as_struct()?;
+            assert_eq!(s.name(), "MacTableEntry");
+            let port = s["port"].as_base().unwrap().as_u16().unwrap();
+            let mut mac = [0; 6];
+            for (i, m) in s["mac"].as_array().unwrap().iter().enumerate() {
+                mac[i] = m.as_base().unwrap().as_u8().unwrap()
+            }
+            mac_table.entry(port).or_default().push(mac);
+        } else {
+            // Log the error but keep going for other entries in the table
+            println!("Got error result: {:?}", r);
+        }
+    }
+    println!(" Port |        MAC");
+    println!("------|-------------------");
+    for (port, macs) in &mac_table {
+        for (i, mac) in macs.iter().enumerate() {
+            if i == 0 {
+                print!("{:>5} | ", port);
+            } else {
+                print!("      | ");
+            }
+            for (i, m) in mac.iter().enumerate() {
+                if i > 0 {
+                    print!(":");
+                }
+                print!("{:02x}", m);
+            }
+            println!();
+        }
+    }
+
+    Ok(())
+}
+
 fn monorail_reset_counters(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -818,6 +929,7 @@ fn monorail(
         Command::Status { ports } => {
             monorail_status(hubris, core, &mut context, &ports)?
         }
+        Command::Mac => monorail_mac_table(hubris, core, &mut context)?,
         Command::Counters { port, reset } => {
             if reset {
                 monorail_reset_counters(hubris, core, &mut context, port)?
