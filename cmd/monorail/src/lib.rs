@@ -818,7 +818,7 @@ fn monorail_mac_table(
             println!("Got error result: {:?}", r);
         }
     }
-    println!(" Port |        MAC");
+    println!(" {} |        {}", "PORT".bold(), "MAC".bold());
     println!("------|-------------------");
     for (port, macs) in &mac_table {
         for (i, mac) in macs.iter().enumerate() {
