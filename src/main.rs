@@ -79,7 +79,13 @@ fn main() {
 
                 log::warn!("{} overriding archive in environment file", msg);
             } else {
-                args.archive = Some(env.archive.clone());
+                args.archive = match env.archive(&args.archive_name) {
+                    Ok(a) => Some(a),
+                    Err(e) => {
+                        eprintln!("Failed to get archive: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
 
             Some(env)
