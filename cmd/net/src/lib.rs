@@ -19,6 +19,8 @@ use humility_cmd::{Archive, Attach, Command, Run, Validate};
 enum NetCommand {
     /// Dump the KSZ8463's MAC table
     Mac,
+    /// Print the IP and MAC address
+    Ip,
 }
 
 #[derive(Parser, Debug)]
@@ -33,6 +35,57 @@ struct NetArgs {
 
     #[clap(subcommand)]
     cmd: NetCommand,
+}
+
+fn net_ip(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let op = IdolOperation::new(hubris, "Net", "get_mac_address", None)
+        .context(
+            "Could not find `get_mac_address`, \
+                  is your Hubris archive new enough?",
+        )?;
+
+    // We need to make two HIF calls:
+    // - Read the number of entries in the MAC table
+    // - Loop over the table that many times, reading entries
+    let value =
+        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
+    let v = match value {
+        Ok(v) => v,
+        Err(e) => bail!("Got Hiffy error: {}", e),
+    };
+    let v = v.as_tuple()?;
+    assert_eq!(v.name(), "MacAddress");
+    let mut mac = [0; 6];
+    for (i, byte) in v[0].as_array()?.iter().enumerate() {
+        mac[i] = byte.as_base()?.as_u8().unwrap();
+    }
+    print!("{}:  ", "MAC address".bold());
+    for (i, byte) in mac.iter().enumerate() {
+        if i > 0 {
+            print!(":");
+        }
+        print!("{:02x}", byte);
+    }
+    println!();
+
+    // MAC to IPv6 link-local address
+    print!("{}: ", "IPv6 address".bold());
+    print!("fe80::");
+    for (i, byte) in mac.iter().enumerate() {
+        if i == 2 || i == 4 {
+            print!(":");
+        }
+        print!("{:02x}", if i == 0 { *byte ^ (1 << 1) } else { *byte });
+        if i == 2 {
+            print!("ff:fe");
+        }
+    }
+    println!();
+    Ok(())
 }
 
 fn net_mac_table(
@@ -170,6 +223,7 @@ fn net(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
         NetCommand::Mac => net_mac_table(hubris, core, &mut context)?,
+        NetCommand::Ip => net_ip(hubris, core, &mut context)?,
     }
     Ok(())
 }
