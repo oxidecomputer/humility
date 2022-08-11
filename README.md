@@ -172,9 +172,26 @@ command line.  For example:
 }
 ```
 
+Some targets may require multiple archives. These can be specified by
+name. The archive to be used must be specified with the `--archive-name`
+option to humility.
+
+```json
+{
+    "lucky": {
+        "probe": "0483:374e:002A00174741500520383733",
+        "archive": {
+		imagea: "/gimlet/hubris/archives/lucky/build-a-gimlet.zip",
+		imageb: "/gimlet/hubris/archives/lucky/build-b-gimlet.zip"
+	}
+    },
+}
+```
+
 The above definition -- when provided via `--environment` or
 `HUMILITY_ENVIRONMENT` -- would allow one to (say) run `humility --target
-grimey tasks`.  In addition to `probe` and `archive`, one may also specify
+grimey tasks` or `humility --target lucky --image-name imagea tasks`.
+In addition to `probe` and `archive`, one may also specify
 associated commands in a `cmds` object that contains a mapping of names to
 commands to execute.  For example:
 
