@@ -14,6 +14,156 @@
 //!
 //! Use `humility monorail -h` to see help, or `humility monorail status` for
 //! a bird's-eye view of the ports.
+//!
+//! #### `humility monorail read`
+//! The `read` subcommand allows you to read a register from the VSC7448 switch
+//! IC.  Registers can be specified in a few ways, but most of the time, you'll
+//! want to execute a read by register name:
+//!
+//!```console
+//! matt@niles ~ () $ export HUMILITY_TARGET=sidecar
+//! matt@niles ~ (sidecar) $ pfexec humility monorail read DEV1G[0]:DEV_RST_CTRL
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
+//! DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
+//!   bits |    value   | field
+//!  21:20 | 0x1        | SPEED_SEL
+//!     12 | 0x0        | PCS_TX_RST
+//!      8 | 0x0        | PCS_RX_RST
+//!      4 | 0x0        | MAC_TX_RST
+//!      0 | 0x0        | MAC_RX_RST
+//! ```
+//! It's not necessary to use the fully qualified `TARGET:GROUP:REGISTER` form;
+//! any unambiguous subset will work (e.g. in the example above, we used
+//! `DEV1G[0]:DEV_RST_CTRL` instead of the full
+//! `DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL`).  If your register name is not
+//! unambiguous, an error will be printed.
+//!
+//! Register names can be found in the
+//! [`vsc7448-pac` crate](https://github.com/oxidecomputer/vsc7448/tree/master/vsc7448-pac),
+//! which is automatically generated from Microchip's C SDK header files.
+//!
+//! It's also possible to execute reads by raw address:
+//! ```console
+//! matt@niles ~ (sidecar) $ pfexec humility monorail read 0x71040000
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
+//! DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
+//!   bits |    value   | field
+//!  21:20 | 0x1        | SPEED_SEL
+//!     12 | 0x0        | PCS_TX_RST
+//!      8 | 0x0        | PCS_RX_RST
+//!      4 | 0x0        | MAC_TX_RST
+//!      0 | 0x0        | MAC_RX_RST
+//! ```
+//!
+//! #### `humility monorail write`
+//! Modifies a register in the VSC7448 switch.  Note that there is no checking
+//! of read/write vs read-only registers; good luck!
+//!
+//! #### `humility monorail info`
+//! The `info` subcommand looks up info on a register in the VSC7448 switch IC.
+//! This command is offline, meaning it does not require an attached system.
+//!
+//! ```console
+//! matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG
+//! Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
+//! Register address: 0x71460170
+//!   bits |    field
+//!     13 | E_DET_ENA
+//!   11:0 | FLIP_LANES
+//!     14 | SHYST_DIS
+//!     12 | USE_I1_ENA
+//! ```
+//!
+//! If you provide a value as the final argument, it will decode the register
+//! and pretty-print a table:
+//! ```console
+//! matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG 0x2000
+//! Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
+//! Register address: 0x71460170
+//! Register value: 0x2000
+//!   bits |    value   | field
+//!     14 | 0x0        | SHYST_DIS
+//!     13 | 0x1        | E_DET_ENA
+//!     12 | 0x0        | USE_I1_ENA
+//!   11:0 | 0x0        | FLIP_LANES
+//! ```
+//!
+//! #### `humility monorail status`
+//! Prints a table showing the status of every port in the system, along with
+//! their PHY (if present).  The `-p` argument allows you to specify a subset of
+//! ports, e.g.
+//! ```console
+//! matt@niles ~ (sidecar) $ pfexec humility monorail status -p40,41,42,43,44,45
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK
+//! -----|-------------------------------------|-------------------------------
+//!  40  | QSGMII  100M   1G_16   6G_14   up   | VSC8504  down      down
+//!  41  | QSGMII  100M   1G_17   6G_14   up   | VSC8504  down      up
+//!  42  | QSGMII  100M   1G_18   6G_14   up   | VSC8504  down      down
+//!  43  | QSGMII  100M   1G_19   6G_14   up   | VSC8504  down      down
+//!  44  | QSGMII  1G     1G_20   6G_15   up   | VSC8562  up        up
+//!  45  | QSGMII  1G     1G_21   6G_15   up   | VSC8562  up        up
+//!  ```
+//!
+//! #### `humility monorail dump`
+//! Dumps an entire top-level target on the VSC7448, e.g. `DEV1G[0]`
+//! ```console
+//!
+//! matt@niles ~ (sidecar) $ h monorail dump DEV1G[0]
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! Dumping target DEV1G[0] (0x71040000 -> 0x710400a0)
+//! DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL    0x00100000
+//! DEV1G[0]:DEV_CFG_STATUS:DEV_STICKY    0x00004000
+//! DEV1G[0]:DEV_CFG_STATUS:DEV_DBG_CFG    0x00000800
+//! DEV1G[0]:DEV_CFG_STATUS:DEV_PORT_PROTECT    0x00000000
+//! DEV1G[0]:DEV_CFG_STATUS:EEE_CFG    0x0011940a
+//! DEV1G[0]:DEV_CFG_STATUS:PTP_CFG    0x00400000
+//! DEV1G[0]:DEV_CFG_STATUS:PTP_EVENTS    0x00000000
+//! ...etc
+//! ```
+//!
+//! This subcommand is rather fragile; large targets may overflow the HIF return
+//! stack, and it's possible to access invalid registers.
+//!
+//! #### `humility monorail mac`
+//! Prints the MAC table of the VSC7448 switch.  This table shows which MAC
+//! addresses have be learned on each port.
+//! ```console
+//! matt@niles ~ (sidecar) $ pfexec ./humility monorail mac
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! Reading 3 MAC addresses...
+//!  PORT |        MAC
+//! ------|-------------------
+//!    18 | 0e:1d:23:88:1a:3b
+//!    41 | 0e:1d:7f:c3:07:31
+//!    48 | 0e:1d:15:70:3d:bb
+//! ```
+//!
+//! #### `humility monorail counters`
+//! Prints or resets (with `-r`) counters for a port on the VSC7448.
+//! ```console
+//! matt@niles ~ (sidecar) $ pfexec humility monorail counters -p48
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! Packet counters: (port 48)
+//!   Receive:
+//!     Unicast:   0
+//!     Multicast: 1049
+//!     Broadcast:  0
+//!   Transmit:
+//!     Unicast:   0
+//!     Multicast: 2099
+//!     Broadcast:  0
+//! ```
+//!
+//! #### `humility monorail phy`
+//! Subcommand to interact with PHYs on a per-port basis.  Supports `read`,
+//! `write`, `info`, and `dump` sub-subcommands, which behave similarly to the
+//! commands to interact with VSC7448 registers.
+//!
+//! PHY register names are also found in the
+//! [`vsc7448-pac` crate](https://github.com/oxidecomputer/vsc7448/tree/master/vsc7448-pac/src/phy).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
@@ -25,7 +175,7 @@ use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{IdolArgument, IdolOperation};
 use humility_cmd::{Archive, Attach, Run, RunUnattached, Validate};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -74,6 +224,8 @@ enum Command {
     },
     /// Get information about a particular VSC7448 register group
     Dump { target: String },
+    /// Dumps MAC tables in the switch
+    Mac,
     /// Print or reset VSC7448 port counters
     Counters {
         #[clap(long, short)]
@@ -315,11 +467,10 @@ fn monorail_phy_read(
     )?;
     match value {
         Ok(v) => {
-            let value = if let Value::Base(Base::U16(v)) = v {
-                v
-            } else {
-                bail!("Got bad reflected value: expected U16, got {:?}", v);
-            };
+            let value = v
+                .as_base()?
+                .as_u16()
+                .ok_or_else(|| anyhow!("Could not get U16 from {:?}", v))?;
             println!("Got result {:#x}", value);
             pretty_print_fields(value as u32, &reg.fields, 0);
         }
@@ -652,42 +803,40 @@ fn monorail_status(
         }
         print!(" {:<3} | ", port);
         match port_value {
-            Ok(v) => match v {
-                Value::Struct(s) => {
-                    assert_eq!(s.name(), "PortStatus");
-                    let (dev, serdes, mode, speed) = match &s["cfg"] {
-                        Value::Struct(cfg) => {
-                            assert_eq!(cfg.name(), "PortConfig");
-                            let dev = decode_dev(&cfg["dev"]);
-                            let serdes = decode_dev(&cfg["serdes"]);
-                            let (mode, speed) = decode_mode(&cfg["mode"]);
-                            (
-                                dev.replace("DEV", ""),
-                                serdes.replace("SERDES", ""),
-                                mode,
-                                speed,
-                            )
-                        }
-                        v => panic!("Expected Struct, got {:?}", v),
-                    };
-                    let fmt_mode = match mode.as_str() {
-                        "SGMII" => mode.cyan(),
-                        "QSGMII" => mode.blue(),
-                        "SFI" | "BASEKR" => mode.magenta(),
-                        v => v.into(),
-                    };
+            Ok(v) => {
+                let s = v.as_struct()?;
+                assert_eq!(s.name(), "PortStatus");
+                let (dev, serdes, mode, speed) = match &s["cfg"] {
+                    Value::Struct(cfg) => {
+                        assert_eq!(cfg.name(), "PortConfig");
+                        let dev = decode_dev(&cfg["dev"]);
+                        let serdes = decode_dev(&cfg["serdes"]);
+                        let (mode, speed) = decode_mode(&cfg["mode"]);
+                        (
+                            dev.replace("DEV", ""),
+                            serdes.replace("SERDES", ""),
+                            mode,
+                            speed,
+                        )
+                    }
+                    v => panic!("Expected Struct, got {:?}", v),
+                };
+                let fmt_mode = match mode.as_str() {
+                    "SGMII" => mode.cyan(),
+                    "QSGMII" => mode.blue(),
+                    "SFI" | "BASEKR" => mode.magenta(),
+                    v => v.into(),
+                };
 
-                    print!(
-                        "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
-                        fmt_mode,
-                        speed,
-                        dev,
-                        serdes,
-                        fmt_link(&s["link_up"]),
-                    )
-                }
-                v => panic!("Expected Struct, got {:?}", v),
-            },
+                print!(
+                    "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
+                    fmt_mode,
+                    speed,
+                    dev,
+                    serdes,
+                    fmt_link(&s["link_up"]),
+                )
+            }
             Err(e) => {
                 if e == "UnconfiguredPort" {
                     print!(
@@ -701,22 +850,20 @@ fn monorail_status(
         }
         print!(" | ");
         match phy_value {
-            Ok(v) => match v {
-                Value::Struct(s) => {
-                    assert_eq!(s.name(), "PhyStatus");
-                    let phy_ty = match &s["ty"] {
-                        Value::Enum(e) => e.disc().to_uppercase(),
-                        v => panic!("Expected struct, got {:?}", v),
-                    };
-                    println!(
-                        "{:<6}  {:<8}  {:<10}",
-                        phy_ty,
-                        fmt_link(&s["mac_link_up"]),
-                        fmt_link(&s["media_link_up"]),
-                    )
-                }
-                v => panic!("Expected Struct, got {:?}", v),
-            },
+            Ok(v) => {
+                let s = v.as_struct()?;
+                assert_eq!(s.name(), "PhyStatus");
+                let phy_ty = match &s["ty"] {
+                    Value::Enum(e) => e.disc().to_uppercase(),
+                    v => panic!("Expected struct, got {:?}", v),
+                };
+                println!(
+                    "{:<6}  {:<8}  {:<10}",
+                    phy_ty,
+                    fmt_link(&s["mac_link_up"]),
+                    fmt_link(&s["media_link_up"]),
+                )
+            }
             Err(e) => {
                 if e == "UnconfiguredPort" || e == "NoPhy" {
                     println!("{}", "--       --         --".dimmed());
@@ -726,6 +873,119 @@ fn monorail_status(
             }
         }
     }
+    Ok(())
+}
+
+fn monorail_mac_table(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let op_mac_count =
+        IdolOperation::new(hubris, "Monorail", "read_vsc7448_mac_count", None)
+            .context(
+                "Could not find `read_vsc7448_mac_count`, \
+                  is your Hubris archive new enough?",
+            )?;
+
+    // We need to make two HIF calls:
+    // - Read the number of entries in the MAC table
+    // - Loop over the table that many times, reading entries
+    let value = humility_cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        context,
+        &op_mac_count,
+        &[],
+    )?;
+    let mac_count = match value {
+        Ok(v) => {
+            if let Value::Base(Base::U32(v)) = v {
+                v
+            } else {
+                bail!("Got bad reflected value: expected U32, got {:?}", v);
+            }
+        }
+        Err(e) => {
+            bail!("Got error: {}", e);
+        }
+    };
+
+    println!("Reading {} MAC addresses...", mac_count);
+
+    let op =
+        IdolOperation::new(hubris, "Monorail", "read_vsc7448_next_mac", None)?;
+    let funcs = context.functions()?;
+    let send = funcs.get("Send", 4)?;
+
+    use hif::*;
+    let label = Target(0);
+
+    let ops = vec![
+        Op::Push32(mac_count),
+        Op::Push32(0), // current loop iteration
+        Op::Label(label),
+        // BEGIN LOOP
+        Op::Push32(op.task.task()),
+        Op::Push16(op.code),
+        Op::Push(0), // Payload length
+        Op::Push(8), // Return size
+        Op::Call(send.id),
+        Op::DropN(4), // Drop all arguments
+        // Loop iteration is now at the top of the stack
+        Op::Push(1), // Prepare to increment
+        Op::Add,     // i = i + 1
+        Op::BranchLessThan(label),
+        // END LOOP
+        Op::DropN(2),
+        Op::Done,
+    ];
+
+    let results = context.run(core, ops.as_slice(), None)?;
+    let results = results
+        .into_iter()
+        .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op, r))
+        .collect::<Result<Vec<Result<_, _>>>>()?;
+
+    let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
+    for r in results {
+        if let Ok(r) = r {
+            let s = r.as_struct()?;
+            assert_eq!(s.name(), "MacTableEntry");
+            let port = s["port"].as_base().unwrap().as_u16().unwrap();
+            let mut mac = [0; 6];
+            for (i, m) in s["mac"].as_array().unwrap().iter().enumerate() {
+                mac[i] = m.as_base().unwrap().as_u8().unwrap()
+            }
+            if mac == [0; 6] && port == 0xFFFF {
+                println!("Skipping empty MAC address");
+            } else {
+                mac_table.entry(port).or_default().push(mac);
+            }
+        } else {
+            // Log the error but keep going for other entries in the table
+            println!("Got error result: {:?}", r);
+        }
+    }
+    println!(" {} |        {}", "PORT".bold(), "MAC".bold());
+    println!("------|-------------------");
+    for (port, macs) in &mac_table {
+        for (i, mac) in macs.iter().enumerate() {
+            if i == 0 {
+                print!("{:>5} | ", port);
+            } else {
+                print!("      | ");
+            }
+            for (i, m) in mac.iter().enumerate() {
+                if i > 0 {
+                    print!(":");
+                }
+                print!("{:02x}", m);
+            }
+            println!();
+        }
+    }
+
     Ok(())
 }
 
@@ -782,22 +1042,18 @@ fn monorail_counters(
 
     match value {
         Ok(v) => {
-            match v {
-                Value::Struct(s) => {
-                    let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
-                    let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
-                    println!("{} (port {})", "Packet counters:".bold(), port);
-                    println!("  Receive:");
-                    println!("    Unicast:   {}", rx_uc);
-                    println!("    Multicast: {}", rx_mc);
-                    println!("    Broadcast:  {}", rx_bc);
-                    println!("  Transmit:");
-                    println!("    Unicast:   {}", tx_uc);
-                    println!("    Multicast: {}", tx_mc);
-                    println!("    Broadcast:  {}", tx_bc);
-                }
-                s => panic!("Expected struct, got {:?}", s),
-            };
+            let s = v.as_struct()?;
+            let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
+            let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
+            println!("{} (port {})", "Packet counters:".bold(), port);
+            println!("  Receive:");
+            println!("    Unicast:   {}", rx_uc);
+            println!("    Multicast: {}", rx_mc);
+            println!("    Broadcast:  {}", rx_bc);
+            println!("  Transmit:");
+            println!("    Unicast:   {}", tx_uc);
+            println!("    Multicast: {}", tx_mc);
+            println!("    Broadcast:  {}", tx_bc);
         }
         Err(e) => {
             println!("Got error: {}", e);
@@ -818,6 +1074,7 @@ fn monorail(
         Command::Status { ports } => {
             monorail_status(hubris, core, &mut context, &ports)?
         }
+        Command::Mac => monorail_mac_table(hubris, core, &mut context)?,
         Command::Counters { port, reset } => {
             if reset {
                 monorail_reset_counters(hubris, core, &mut context, port)?
