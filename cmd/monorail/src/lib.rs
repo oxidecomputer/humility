@@ -317,11 +317,10 @@ fn monorail_phy_read(
     )?;
     match value {
         Ok(v) => {
-            let value = if let Value::Base(Base::U16(v)) = v {
-                v
-            } else {
-                bail!("Got bad reflected value: expected U16, got {:?}", v);
-            };
+            let value = v
+                .as_base()?
+                .as_u16()
+                .ok_or_else(|| anyhow!("Could not get U16 from {:?}", v))?;
             println!("Got result {:#x}", value);
             pretty_print_fields(value as u32, &reg.fields, 0);
         }
@@ -654,42 +653,40 @@ fn monorail_status(
         }
         print!(" {:<3} | ", port);
         match port_value {
-            Ok(v) => match v {
-                Value::Struct(s) => {
-                    assert_eq!(s.name(), "PortStatus");
-                    let (dev, serdes, mode, speed) = match &s["cfg"] {
-                        Value::Struct(cfg) => {
-                            assert_eq!(cfg.name(), "PortConfig");
-                            let dev = decode_dev(&cfg["dev"]);
-                            let serdes = decode_dev(&cfg["serdes"]);
-                            let (mode, speed) = decode_mode(&cfg["mode"]);
-                            (
-                                dev.replace("DEV", ""),
-                                serdes.replace("SERDES", ""),
-                                mode,
-                                speed,
-                            )
-                        }
-                        v => panic!("Expected Struct, got {:?}", v),
-                    };
-                    let fmt_mode = match mode.as_str() {
-                        "SGMII" => mode.cyan(),
-                        "QSGMII" => mode.blue(),
-                        "SFI" | "BASEKR" => mode.magenta(),
-                        v => v.into(),
-                    };
+            Ok(v) => {
+                let s = v.as_struct()?;
+                assert_eq!(s.name(), "PortStatus");
+                let (dev, serdes, mode, speed) = match &s["cfg"] {
+                    Value::Struct(cfg) => {
+                        assert_eq!(cfg.name(), "PortConfig");
+                        let dev = decode_dev(&cfg["dev"]);
+                        let serdes = decode_dev(&cfg["serdes"]);
+                        let (mode, speed) = decode_mode(&cfg["mode"]);
+                        (
+                            dev.replace("DEV", ""),
+                            serdes.replace("SERDES", ""),
+                            mode,
+                            speed,
+                        )
+                    }
+                    v => panic!("Expected Struct, got {:?}", v),
+                };
+                let fmt_mode = match mode.as_str() {
+                    "SGMII" => mode.cyan(),
+                    "QSGMII" => mode.blue(),
+                    "SFI" | "BASEKR" => mode.magenta(),
+                    v => v.into(),
+                };
 
-                    print!(
-                        "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
-                        fmt_mode,
-                        speed,
-                        dev,
-                        serdes,
-                        fmt_link(&s["link_up"]),
-                    )
-                }
-                v => panic!("Expected Struct, got {:?}", v),
-            },
+                print!(
+                    "{:<6}  {:<5}  {:<6}  {:<6}  {:<4}",
+                    fmt_mode,
+                    speed,
+                    dev,
+                    serdes,
+                    fmt_link(&s["link_up"]),
+                )
+            }
             Err(e) => {
                 if e == "UnconfiguredPort" {
                     print!(
@@ -703,22 +700,20 @@ fn monorail_status(
         }
         print!(" | ");
         match phy_value {
-            Ok(v) => match v {
-                Value::Struct(s) => {
-                    assert_eq!(s.name(), "PhyStatus");
-                    let phy_ty = match &s["ty"] {
-                        Value::Enum(e) => e.disc().to_uppercase(),
-                        v => panic!("Expected struct, got {:?}", v),
-                    };
-                    println!(
-                        "{:<6}  {:<8}  {:<10}",
-                        phy_ty,
-                        fmt_link(&s["mac_link_up"]),
-                        fmt_link(&s["media_link_up"]),
-                    )
-                }
-                v => panic!("Expected Struct, got {:?}", v),
-            },
+            Ok(v) => {
+                let s = v.as_struct()?;
+                assert_eq!(s.name(), "PhyStatus");
+                let phy_ty = match &s["ty"] {
+                    Value::Enum(e) => e.disc().to_uppercase(),
+                    v => panic!("Expected struct, got {:?}", v),
+                };
+                println!(
+                    "{:<6}  {:<8}  {:<10}",
+                    phy_ty,
+                    fmt_link(&s["mac_link_up"]),
+                    fmt_link(&s["media_link_up"]),
+                )
+            }
             Err(e) => {
                 if e == "UnconfiguredPort" || e == "NoPhy" {
                     println!("{}", "--       --         --".dimmed());
@@ -893,22 +888,18 @@ fn monorail_counters(
 
     match value {
         Ok(v) => {
-            match v {
-                Value::Struct(s) => {
-                    let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
-                    let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
-                    println!("{} (port {})", "Packet counters:".bold(), port);
-                    println!("  Receive:");
-                    println!("    Unicast:   {}", rx_uc);
-                    println!("    Multicast: {}", rx_mc);
-                    println!("    Broadcast:  {}", rx_bc);
-                    println!("  Transmit:");
-                    println!("    Unicast:   {}", tx_uc);
-                    println!("    Multicast: {}", tx_mc);
-                    println!("    Broadcast:  {}", tx_bc);
-                }
-                s => panic!("Expected struct, got {:?}", s),
-            };
+            let s = v.as_struct()?;
+            let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
+            let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
+            println!("{} (port {})", "Packet counters:".bold(), port);
+            println!("  Receive:");
+            println!("    Unicast:   {}", rx_uc);
+            println!("    Multicast: {}", rx_mc);
+            println!("    Broadcast:  {}", rx_bc);
+            println!("  Transmit:");
+            println!("    Unicast:   {}", tx_uc);
+            println!("    Multicast: {}", tx_mc);
+            println!("    Broadcast:  {}", tx_bc);
         }
         Err(e) => {
             println!("Got error: {}", e);
