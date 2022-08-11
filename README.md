@@ -1008,6 +1008,156 @@ and can therefore only be run on two images:
 Use `humility monorail -h` to see help, or `humility monorail status` for
 a bird's-eye view of the ports.
 
+##### `humility monorail read`
+The `read` subcommand allows you to read a register from the VSC7448 switch
+IC.  Registers can be specified in a few ways, but most of the time, you'll
+want to execute a read by register name:
+
+```console
+matt@niles ~ () $ export HUMILITY_TARGET=sidecar
+matt@niles ~ (sidecar) $ pfexec humility monorail read DEV1G[0]:DEV_RST_CTRL
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
+DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
+  bits |    value   | field
+ 21:20 | 0x1        | SPEED_SEL
+    12 | 0x0        | PCS_TX_RST
+     8 | 0x0        | PCS_RX_RST
+     4 | 0x0        | MAC_TX_RST
+     0 | 0x0        | MAC_RX_RST
+```
+It's not necessary to use the fully qualified `TARGET:GROUP:REGISTER` form;
+any unambiguous subset will work (e.g. in the example above, we used
+`DEV1G[0]:DEV_RST_CTRL` instead of the full
+`DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL`).  If your register name is not
+unambiguous, an error will be printed.
+
+Register names can be found in the
+[`vsc7448-pac` crate](https://github.com/oxidecomputer/vsc7448/tree/master/vsc7448-pac),
+which is automatically generated from Microchip's C SDK header files.
+
+It's also possible to execute reads by raw address:
+```console
+matt@niles ~ (sidecar) $ pfexec humility monorail read 0x71040000
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
+DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
+  bits |    value   | field
+ 21:20 | 0x1        | SPEED_SEL
+    12 | 0x0        | PCS_TX_RST
+     8 | 0x0        | PCS_RX_RST
+     4 | 0x0        | MAC_TX_RST
+     0 | 0x0        | MAC_RX_RST
+```
+
+##### `humility monorail write`
+Modifies a register in the VSC7448 switch.  Note that there is no checking
+of read/write vs read-only registers; good luck!
+
+##### `humility monorail info`
+The `info` subcommand looks up info on a register in the VSC7448 switch IC.
+This command is offline, meaning it does not require an attached system.
+
+```console
+matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG
+Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
+Register address: 0x71460170
+  bits |    field
+    13 | E_DET_ENA
+  11:0 | FLIP_LANES
+    14 | SHYST_DIS
+    12 | USE_I1_ENA
+```
+
+If you provide a value as the final argument, it will decode the register
+and pretty-print a table:
+```console
+matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG 0x2000
+Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
+Register address: 0x71460170
+Register value: 0x2000
+  bits |    value   | field
+    14 | 0x0        | SHYST_DIS
+    13 | 0x1        | E_DET_ENA
+    12 | 0x0        | USE_I1_ENA
+  11:0 | 0x0        | FLIP_LANES
+```
+
+##### `humility monorail status`
+Prints a table showing the status of every port in the system, along with
+their PHY (if present).  The `-p` argument allows you to specify a subset of
+ports, e.g.
+```console
+matt@niles ~ (sidecar) $ pfexec humility monorail status -p40,41,42,43,44,45
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK
+-----|-------------------------------------|-------------------------------
+ 40  | QSGMII  100M   1G_16   6G_14   up   | VSC8504  down      down
+ 41  | QSGMII  100M   1G_17   6G_14   up   | VSC8504  down      up
+ 42  | QSGMII  100M   1G_18   6G_14   up   | VSC8504  down      down
+ 43  | QSGMII  100M   1G_19   6G_14   up   | VSC8504  down      down
+ 44  | QSGMII  1G     1G_20   6G_15   up   | VSC8562  up        up
+ 45  | QSGMII  1G     1G_21   6G_15   up   | VSC8562  up        up
+ ```
+
+#### `humility monorail dump`
+Dumps an entire top-level target on the VSC7448, e.g. `DEV1G[0]`
+```console
+
+matt@niles ~ (sidecar) $ h monorail dump DEV1G[0]
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+Dumping target DEV1G[0] (0x71040000 -> 0x710400a0)
+DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL    0x00100000
+DEV1G[0]:DEV_CFG_STATUS:DEV_STICKY    0x00004000
+DEV1G[0]:DEV_CFG_STATUS:DEV_DBG_CFG    0x00000800
+DEV1G[0]:DEV_CFG_STATUS:DEV_PORT_PROTECT    0x00000000
+DEV1G[0]:DEV_CFG_STATUS:EEE_CFG    0x0011940a
+DEV1G[0]:DEV_CFG_STATUS:PTP_CFG    0x00400000
+DEV1G[0]:DEV_CFG_STATUS:PTP_EVENTS    0x00000000
+...etc
+```
+
+This subcommand is rather fragile; large targets may overflow the HIF return
+stack, and it's possible to access invalid registers.
+
+##### `humility monorail mac`
+Prints the MAC table of the VSC7448 switch.  This table shows which MAC
+addresses have be learned on each port.
+```console
+matt@niles ~ (sidecar) $ pfexec ./humility monorail mac
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+Reading 3 MAC addresses...
+ PORT |        MAC
+------|-------------------
+   18 | 0e:1d:23:88:1a:3b
+   41 | 0e:1d:7f:c3:07:31
+   48 | 0e:1d:15:70:3d:bb
+```
+
+##### `humility monorail counters`
+Prints or resets (with `-r`) counters for a port on the VSC7448.
+```console
+matt@niles ~ (sidecar) $ pfexec humility monorail counters -p48
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+Packet counters: (port 48)
+  Receive:
+    Unicast:   0
+    Multicast: 1049
+    Broadcast:  0
+  Transmit:
+    Unicast:   0
+    Multicast: 2099
+    Broadcast:  0
+```
+
+##### `humility monorail phy`
+Subcommand to interact with PHYs on a per-port basis.  Supports `read`,
+`write`, `info`, and `dump` sub-subcommands, which behave similarly to the
+commands to interact with VSC7448 registers.
+
+PHY register names are also found in the
+[`vsc7448-pac` crate](https://github.com/oxidecomputer/vsc7448/tree/master/vsc7448-pac/src/phy).
+
 
 ### `humility openocd`
 
