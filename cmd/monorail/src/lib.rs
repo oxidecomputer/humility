@@ -807,7 +807,11 @@ fn monorail_mac_table(
             for (i, m) in s["mac"].as_array().unwrap().iter().enumerate() {
                 mac[i] = m.as_base().unwrap().as_u8().unwrap()
             }
-            mac_table.entry(port).or_default().push(mac);
+            if mac == [0; 6] && port == 0xFFFF {
+                println!("Skipping empty MAC address");
+            } else {
+                mac_table.entry(port).or_default().push(mac);
+            }
         } else {
             // Log the error but keep going for other entries in the table
             println!("Got error result: {:?}", r);
