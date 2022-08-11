@@ -55,6 +55,11 @@ pub struct Args {
         conflicts_with_all = &["dump", "probe"])]
     pub target: Option<String>,
 
+    /// If multiple archives are specified in an environment, name of
+    /// the archive to use
+    #[clap(long, requires = "environment")]
+    pub archive_name: Option<String>,
+
     //
     // probe-rs requires the chip to be specified when creating a session,
     // even though it is only used for flashing (which we don't use probe-rs
