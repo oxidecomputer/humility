@@ -23,6 +23,8 @@ enum NetCommand {
     Ip,
     /// Print the link status
     Status,
+    /// Print the counters
+    Counters,
 }
 
 #[derive(Parser, Debug)]
@@ -288,6 +290,121 @@ fn net_status(
     Ok(())
 }
 
+fn net_counters(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let op = IdolOperation::new(hubris, "Net", "management_counters", None)
+        .context(
+            "Could not find `get_mac_address`, \
+                  is your Hubris archive new enough?",
+        )?;
+
+    let value =
+        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
+    let v = match value {
+        Ok(v) => v,
+        Err(e) => bail!("Got Hiffy error: {}", e),
+    };
+    let s = v.as_struct()?;
+    assert_eq!(s.name(), "ManagementCounters");
+
+    let v_tx = s["vsc85x2_tx"].as_array()?;
+    let v_rx = s["vsc85x2_rx"].as_array()?;
+    let v_mac_valid = s["vsc85x2_mac_valid"].as_base()?.as_bool().unwrap();
+
+    let value = |v: &Struct, s: &str| {
+        let v = v[s].as_base().unwrap().as_u16().unwrap();
+        let out = format!("{:>6}", v);
+        if v > 0 {
+            if s.contains("good") {
+                out.green()
+            } else {
+                out.red()
+            }
+        } else {
+            out.normal()
+        }
+    };
+    println!(" -------------------------------------------------------");
+    println!(
+        " |     {}     |     Transmit    |     Receive     |",
+        "VSC85x2".bold()
+    );
+    println!(" |                 |  Good  |   Bad  |  Good  |   Bad  |");
+    println!(" |-----------------------------------------------------|");
+    for i in 0..2 {
+        let v_tx = v_tx[i].as_struct()?;
+        let v_rx = v_rx[i].as_struct()?;
+        if v_mac_valid {
+            println!(
+                " | Port {} | MAC    | {} | {} | {} | {} |",
+                i,
+                value(v_tx, "mac_good"),
+                value(v_tx, "mac_bad"),
+                value(v_rx, "mac_good"),
+                value(v_rx, "mac_bad"),
+            );
+        } else {
+            println!(
+                " | Port {0} | MAC    | {1:>6} | {1:>6} | {1:>6} | {1:>6} |",
+                i,
+                "--".dimmed(),
+            );
+        }
+        println!(
+            " |        | Media  | {} | {} | {} | {} |",
+            value(v_tx, "media_good"),
+            value(v_tx, "media_bad"),
+            value(v_rx, "media_good"),
+            value(v_rx, "media_bad"),
+        );
+    }
+    println!(" -------------------------------------------------------");
+
+    println!();
+
+    let k_tx = s["ksz8463_tx"].as_array()?;
+    let k_rx = s["ksz8463_rx"].as_array()?;
+    let value = |k: &Struct, s: &str| {
+        let k = k[s].as_base().unwrap().as_u32().unwrap();
+        format!("{:>6}", k)
+    };
+    println!(
+        " -------------------------------------------------------------------"
+    );
+    println!(
+        " |  {}  |         Transmit         |         Receive          |",
+        "KSZ8463".bold(),
+    );
+    println!(
+        " |           |   UC   |   BC   |   MC   |   UC   |   BC   |   MC   |"
+    );
+    println!(
+        " |-----------|--------|--------|--------|--------|--------|--------|"
+    );
+    for i in 0..3 {
+        let k_tx = k_tx[i].as_struct()?;
+        let k_rx = k_rx[i].as_struct()?;
+        println!(
+            " | Port {}    | {} | {} | {} | {} | {} | {} |",
+            i + 1,
+            value(k_tx, "unicast"),
+            value(k_tx, "broadcast"),
+            value(k_tx, "multicast"),
+            value(k_rx, "unicast"),
+            value(k_rx, "broadcast"),
+            value(k_rx, "multicast"),
+        );
+    }
+    println!(
+        " -------------------------------------------------------------------"
+    );
+
+    Ok(())
+}
+
 fn net(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -299,6 +416,7 @@ fn net(
         NetCommand::Mac => net_mac_table(hubris, core, &mut context)?,
         NetCommand::Ip => net_ip(hubris, core, &mut context)?,
         NetCommand::Status => net_status(hubris, core, &mut context)?,
+        NetCommand::Counters => net_counters(hubris, core, &mut context)?,
     }
     Ok(())
 }
