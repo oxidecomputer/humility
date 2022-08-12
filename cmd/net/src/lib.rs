@@ -21,6 +21,8 @@ enum NetCommand {
     Mac,
     /// Print the IP and MAC address
     Ip,
+    /// Print the link status
+    Status,
 }
 
 #[derive(Parser, Debug)]
@@ -48,9 +50,6 @@ fn net_ip(
                   is your Hubris archive new enough?",
         )?;
 
-    // We need to make two HIF calls:
-    // - Read the number of entries in the MAC table
-    // - Loop over the table that many times, reading entries
     let value =
         humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
     let v = match value {
@@ -214,6 +213,81 @@ fn net_mac_table(
     Ok(())
 }
 
+fn net_status(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let op = IdolOperation::new(hubris, "Net", "management_link_status", None)
+        .context(
+            "Could not find `management_link_status`, \
+                  is your Hubris archive new enough?",
+        )?;
+
+    let value =
+        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
+    let v = match value {
+        Ok(v) => v,
+        Err(e) => bail!("Got Hiffy error: {}", e),
+    };
+    let s = v.as_struct()?;
+    assert_eq!(s.name(), "ManagementLinkStatus");
+
+    let to_bool_vec = |name| -> Result<Vec<bool>> {
+        Ok(s[name]
+            .as_array()?
+            .iter()
+            .map(|i| i.as_base().unwrap().as_bool().unwrap())
+            .collect())
+    };
+    let ksz_100base_fx = to_bool_vec("ksz8463_100base_fx_link_up")?;
+    let vsc_100base_fx = to_bool_vec("vsc85x2_100base_fx_link_up")?;
+    let vsc_sgmii = to_bool_vec("vsc85x2_sgmii_link_up")?;
+
+    let up_down = |b| {
+        if b {
+            " UP ".green()
+        } else {
+            "DOWN".red()
+        }
+    };
+
+    // ASCII-art drawing of the network
+    println!(
+        "          {}              {}",
+        "------------------".dimmed(),
+        "---------------------".dimmed(),
+    );
+    println!(
+        "          {}           {} 1 <----------> 0 {}         {} 0 <------>",
+        "|".dimmed(),
+        up_down(ksz_100base_fx[0]),
+        up_down(vsc_100base_fx[0]),
+        up_down(vsc_sgmii[0])
+    );
+    println!(
+        "  {1} <--> 3  {2}       {0}              {0}      {3}      {0}",
+        "|".dimmed(),
+        "SP".bold(),
+        "KSZ8463".bold(),
+        "VSC8552".bold()
+    );
+    println!(
+        "     RMII {}           {} 2 <----------> 1 {}         {} 1 <------>",
+        "|".dimmed(),
+        up_down(ksz_100base_fx[1]),
+        up_down(vsc_100base_fx[1]),
+        up_down(vsc_sgmii[1])
+    );
+    println!(
+        "          {}  100BASE-FX  {}  SGMII",
+        "------------------".dimmed(),
+        "---------------------".dimmed()
+    );
+
+    Ok(())
+}
+
 fn net(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -224,6 +298,7 @@ fn net(
     match subargs.cmd {
         NetCommand::Mac => net_mac_table(hubris, core, &mut context)?,
         NetCommand::Ip => net_ip(hubris, core, &mut context)?,
+        NetCommand::Status => net_status(hubris, core, &mut context)?,
     }
     Ok(())
 }
