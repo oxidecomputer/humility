@@ -314,7 +314,16 @@ fn net_counters(
     let k_rx = s["ksz8463_rx"].as_array()?;
     let value = |k: &Struct, s: &str| {
         let k = k[s].as_base().unwrap().as_u32().unwrap();
-        format!("{:>6}", k)
+        let out = format!("{:>6}", k);
+        if k > 0 {
+            if s.contains("ERR") {
+                out.red()
+            } else {
+                out.green()
+            }
+        } else {
+            out.normal()
+        }
     };
     println!(
         " -------------------------------------------------------------------"
