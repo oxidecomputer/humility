@@ -310,6 +310,45 @@ fn net_counters(
     let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementCounters");
 
+    let k_tx = s["ksz8463_tx"].as_array()?;
+    let k_rx = s["ksz8463_rx"].as_array()?;
+    let value = |k: &Struct, s: &str| {
+        let k = k[s].as_base().unwrap().as_u32().unwrap();
+        format!("{:>6}", k)
+    };
+    println!(
+        " -------------------------------------------------------------------"
+    );
+    println!(
+        " |  {}  |         Transmit         |         Receive          |",
+        "KSZ8463".bold(),
+    );
+    println!(
+        " |           |   UC   |   BC   |   MC   |   UC   |   BC   |   MC   |"
+    );
+    println!(
+        " |-----------|--------|--------|--------|--------|--------|--------|"
+    );
+    for i in 0..3 {
+        let k_tx = k_tx[i].as_struct()?;
+        let k_rx = k_rx[i].as_struct()?;
+        println!(
+            " | Port {}    | {} | {} | {} | {} | {} | {} |",
+            i + 1,
+            value(k_tx, "unicast"),
+            value(k_tx, "broadcast"),
+            value(k_tx, "multicast"),
+            value(k_rx, "unicast"),
+            value(k_rx, "broadcast"),
+            value(k_rx, "multicast"),
+        );
+    }
+    println!(
+        " -------------------------------------------------------------------"
+    );
+
+    println!();
+
     let v_tx = s["vsc85x2_tx"].as_array()?;
     let v_rx = s["vsc85x2_rx"].as_array()?;
     let v_mac_valid = s["vsc85x2_mac_valid"].as_base()?.as_bool().unwrap();
@@ -362,45 +401,6 @@ fn net_counters(
         );
     }
     println!(" -------------------------------------------------------");
-
-    println!();
-
-    let k_tx = s["ksz8463_tx"].as_array()?;
-    let k_rx = s["ksz8463_rx"].as_array()?;
-    let value = |k: &Struct, s: &str| {
-        let k = k[s].as_base().unwrap().as_u32().unwrap();
-        format!("{:>6}", k)
-    };
-    println!(
-        " -------------------------------------------------------------------"
-    );
-    println!(
-        " |  {}  |         Transmit         |         Receive          |",
-        "KSZ8463".bold(),
-    );
-    println!(
-        " |           |   UC   |   BC   |   MC   |   UC   |   BC   |   MC   |"
-    );
-    println!(
-        " |-----------|--------|--------|--------|--------|--------|--------|"
-    );
-    for i in 0..3 {
-        let k_tx = k_tx[i].as_struct()?;
-        let k_rx = k_rx[i].as_struct()?;
-        println!(
-            " | Port {}    | {} | {} | {} | {} | {} | {} |",
-            i + 1,
-            value(k_tx, "unicast"),
-            value(k_tx, "broadcast"),
-            value(k_tx, "multicast"),
-            value(k_rx, "unicast"),
-            value(k_rx, "broadcast"),
-            value(k_rx, "multicast"),
-        );
-    }
-    println!(
-        " -------------------------------------------------------------------"
-    );
 
     Ok(())
 }
