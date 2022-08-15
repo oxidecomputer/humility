@@ -448,6 +448,14 @@ register!(LPC55_SYSCON_DIEID, 0x5000_0ffc,
     pub rev_id, _: 3, 0;
 );
 
+register!(LPC55_ROM_PATCH_VERSION, 0x9fc14,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct LPC55_ROM_PATCH_VERSION(u32);
+    impl Debug;
+    pub patch_version, _: 3, 0;
+);
+
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq, Eq)]
 pub enum ARMCore {
     CortexA5 = 0xc05,
