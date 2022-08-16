@@ -82,6 +82,7 @@ enum FlashArgument {
 struct FlashConfig {
     program: FlashProgram,
     args: Vec<FlashArgument>,
+    chip: Option<String>,
 }
 
 fn force_openocd(
@@ -238,77 +239,80 @@ fn flashcmd(
     }
 
     // This is incredibly ugly! It also gives us backwards compatibility!
-    let chip = match config.program {
-        FlashProgram::PyOcd(args) => {
-            let s69 = regex::Regex::new(r"lpc55s69").unwrap();
-            let s28 = regex::Regex::new(r"lpc55s28").unwrap();
-            let mut c: Option<String> = None;
-            for arg in args {
-                c = match arg {
-                    FlashArgument::Direct(s) => {
-                        if s69.is_match(&s) {
-                            Some("LPC55S69JBD100".to_string())
-                        } else if s28.is_match(&s) {
-                            Some("LPC55S28JBD64".to_string())
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                };
-
-                if c.is_some() {
-                    break;
-                }
-            }
-
-            if c.is_none() {
-                bail!("Failed to find chip from pyOCD config");
-            }
-
-            c.unwrap()
-        }
-        FlashProgram::OpenOcd(ref a) => match a {
-            FlashProgramConfig::Payload(d) => {
-                let h7 = regex::Regex::new(r"find target/stm32h7").unwrap();
-                let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
-                let f4 = regex::Regex::new(r"find target/stm32f4").unwrap();
-                let g0 = regex::Regex::new(r"find target/stm32g0").unwrap();
-
+    let chip = match config.chip {
+        Some(chip) => chip,
+        None => match config.program {
+            FlashProgram::PyOcd(args) => {
+                let s69 = regex::Regex::new(r"lpc55s69").unwrap();
+                let s28 = regex::Regex::new(r"lpc55s28").unwrap();
                 let mut c: Option<String> = None;
+                for arg in args {
+                    c = match arg {
+                        FlashArgument::Direct(s) => {
+                            if s69.is_match(&s) {
+                                Some("LPC55S69JBD100".to_string())
+                            } else if s28.is_match(&s) {
+                                Some("LPC55S28JBD64".to_string())
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
 
-                for s in d.split('\n') {
-                    if h7.is_match(s) {
-                        c = Some("STM32H753ZITx".to_string());
-                        break;
-                    }
-                    if f3.is_match(s) {
-                        c = Some("STM32F301C6Tx".to_string());
-                        break;
-                    }
-                    if f4.is_match(s) {
-                        c = Some("STM32F401CBUx".to_string());
-                        break;
-                    }
-                    if g0.is_match(s) {
-                        c = Some("STM32G030C6Tx".to_string());
+                    if c.is_some() {
                         break;
                     }
                 }
 
                 if c.is_none() {
-                    humility::msg!(
-                        "could not get chip from OpenOCD config; \
-                        flashing using OpenOCD"
-                    );
-                    return force_openocd(
-                        hubris, args, &subargs, &config, &flash.elf,
-                    );
+                    bail!("Failed to find chip from pyOCD config");
                 }
 
                 c.unwrap()
             }
-            _ => bail!("Unexpected config?"),
+            FlashProgram::OpenOcd(ref a) => match a {
+                FlashProgramConfig::Payload(d) => {
+                    let h7 = regex::Regex::new(r"find target/stm32h7").unwrap();
+                    let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
+                    let f4 = regex::Regex::new(r"find target/stm32f4").unwrap();
+                    let g0 = regex::Regex::new(r"find target/stm32g0").unwrap();
+
+                    let mut c: Option<String> = None;
+
+                    for s in d.split('\n') {
+                        if h7.is_match(s) {
+                            c = Some("STM32H753ZITx".to_string());
+                            break;
+                        }
+                        if f3.is_match(s) {
+                            c = Some("STM32F301C6Tx".to_string());
+                            break;
+                        }
+                        if f4.is_match(s) {
+                            c = Some("STM32F401CBUx".to_string());
+                            break;
+                        }
+                        if g0.is_match(s) {
+                            c = Some("STM32G030C6Tx".to_string());
+                            break;
+                        }
+                    }
+
+                    if c.is_none() {
+                        humility::msg!(
+                            "could not get chip from OpenOCD config; \
+                        flashing using OpenOCD"
+                        );
+                        return force_openocd(
+                            hubris, args, &subargs, &config, &flash.elf,
+                        );
+                    }
+
+                    c.unwrap()
+                }
+                _ => bail!("Unexpected config?"),
+            },
         },
     };
 
