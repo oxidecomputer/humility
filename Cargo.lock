@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.6"
+version = "0.8.7"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -888,6 +888,7 @@ dependencies = [
  "humility-cmd-manifest",
  "humility-cmd-map",
  "humility-cmd-monorail",
+ "humility-cmd-net",
  "humility-cmd-openocd",
  "humility-cmd-pmbus",
  "humility-cmd-probe",
@@ -1251,6 +1252,20 @@ dependencies = [
  "regex",
  "vsc7448-info",
  "vsc7448-types",
+]
+
+[[package]]
+name = "humility-cmd-net"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "parse_int",
 ]
 
 [[package]]
