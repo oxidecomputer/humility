@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.8.6"
+version = "0.8.7"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -48,6 +48,7 @@ members = [
     "cmd/manifest",
     "cmd/map",
     "cmd/monorail",
+    "cmd/net",
     "cmd/openocd",
     "cmd/pmbus",
     "cmd/probe",
@@ -112,6 +113,7 @@ cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
+cmd-net = { path = "./cmd/net", package = "humility-cmd-net" }
 cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
 cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
