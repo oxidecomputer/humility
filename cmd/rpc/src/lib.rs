@@ -34,22 +34,17 @@
 //! % humility rpc -c UserLeds.led_toggle -a index=0
 //! UserLeds.led_toggle() = ()
 //! ```
-//!
-//! To view the raw HIF functions provided to programmatic HIF consumers
-//! within Humility, use `-L` (`--list-functions`).
-//!
 
 use std::net::{ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
-use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Result};
 use clap::App;
 use clap::IntoApp;
 use clap::Parser;
 use humility::hubris::*;
 use humility_cmd::idol;
-use humility_cmd::{Archive, Args, Command};
+use humility_cmd::{Archive, Command, RunUnattached};
 
 #[derive(Parser, Debug)]
 #[clap(name = "rpc", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -64,10 +59,6 @@ struct RpcArgs {
     /// verbose
     #[clap(long, short)]
     verbose: bool,
-
-    /// list HIF functions
-    #[clap(long = "list-functions", short = 'L')]
-    listfuncs: bool,
 
     /// list interfaces
     #[clap(long, short, conflicts_with = "listfuncs")]
@@ -88,74 +79,6 @@ struct RpcArgs {
     /// rpc IPv6 address
     #[clap(long, short, env = "HUMILITY_RPC_IP")]
     pub target: String,
-}
-
-fn rpc_list(hubris: &HubrisArchive, subargs: &RpcArgs) -> Result<()> {
-    println!(
-        "{:<15} {:<12} {:<19} {:<15} {:<15}",
-        "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
-    );
-
-    let print_args = |op: &(&String, &Operation), module, margin| {
-        let mut args = op.1.args.iter();
-        let m = margin;
-
-        match args.next() {
-            None => {
-                println!("-");
-            }
-            Some(arg) => {
-                println!("{:<15} {}", arg.0, arg.1.ty.0);
-
-                for arg in args {
-                    println!("{:m$}{:<15} {}", "", arg.0, arg.1.ty.0, m = m);
-                }
-            }
-        }
-
-        if !subargs.verbose {
-            return;
-        }
-
-        match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, e)) => match &op.1.reply {
-                Reply::Result { ok, .. } => {
-                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
-                    println!("{:m$}{:<15} {}", "", "<error>", e.name, m = m);
-                }
-            },
-            Err(e) => {
-                log::warn!("{}", e);
-            }
-        }
-    };
-
-    for i in 0..hubris.ntasks() {
-        let module = hubris.lookup_module(HubrisTask::Task(i as u32))?;
-
-        if let Some(iface) = &module.iface {
-            let mut ops = iface.ops.iter();
-
-            print!("{:15} {:<12} ", module.name, iface.name);
-
-            match ops.next() {
-                None => {
-                    println!("-");
-                }
-                Some(op) => {
-                    print!("{:<20}", op.0);
-                    print_args(&op, module, 49);
-
-                    for op in ops {
-                        print!("{:29}{:<20}", "", op.0);
-                        print_args(&op, module, 49);
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
 }
 
 fn rpc_call(
@@ -210,7 +133,7 @@ fn rpc_call(
     if code == 0 {
         let fmt =
             HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
-        let dumped = hubris.printfmt(&buf[4..], op.ok, &fmt)?;
+        let dumped = hubris.printfmt(&buf[4..], op.ok, fmt)?;
         println!("{}.{}() = {}", op.name.0, op.name.1, dumped);
     } else {
         println!("Err({:x?})", code);
@@ -248,15 +171,11 @@ fn rpc_call(
     Ok(())
 }
 
-fn rpc_run(
-    hubris: &mut HubrisArchive,
-    _args: &Args,
-    subargs: &[String],
-) -> Result<()> {
+fn rpc_run(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
     let subargs = RpcArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        rpc_list(hubris, &subargs)?;
+        humility_cmd_hiffy::hiffy_list(hubris, subargs.verbose)?;
         return Ok(());
     }
 
@@ -302,7 +221,7 @@ pub fn init() -> (Command, App<'static>) {
         Command::Unattached {
             name: "rpc",
             archive: Archive::Required,
-            run: rpc_run,
+            run: RunUnattached::Subargs(rpc_run),
         },
         RpcArgs::into_app(),
     )

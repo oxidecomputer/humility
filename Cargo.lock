@@ -1428,6 +1428,7 @@ dependencies = [
  "clap",
  "hif",
  "humility-cmd",
+ "humility-cmd-hiffy",
  "humility-core",
  "idol",
  "indexmap",

@@ -88,7 +88,7 @@ struct HiffyArgs {
     arguments: Vec<String>,
 }
 
-fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
+pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
     println!(
         "{:<15} {:<12} {:<19} {:<15} {:<15}",
         "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
@@ -111,7 +111,7 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
             }
         }
 
-        if !subargs.verbose {
+        if !verbose {
             return;
         }
 
@@ -274,7 +274,7 @@ fn hiffy(
     let subargs = HiffyArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        hiffy_list(hubris, &subargs)?;
+        hiffy_list(hubris, subargs.verbose)?;
         return Ok(());
     }
 
