@@ -172,26 +172,9 @@ command line.  For example:
 }
 ```
 
-Some targets may require multiple archives. These can be specified by
-name. The archive to be used must be specified with the `--archive-name`
-option to humility.
-
-```json
-{
-    "lucky": {
-        "probe": "0483:374e:002A00174741500520383733",
-        "archive": {
-		imagea: "/gimlet/hubris/archives/lucky/build-a-gimlet.zip",
-		imageb: "/gimlet/hubris/archives/lucky/build-b-gimlet.zip"
-	}
-    },
-}
-```
-
 The above definition -- when provided via `--environment` or
 `HUMILITY_ENVIRONMENT` -- would allow one to (say) run `humility --target
-grimey tasks` or `humility --target lucky --image-name imagea tasks`.
-In addition to `probe` and `archive`, one may also specify
+grimey tasks`.  In addition to `probe` and `archive`, one may also specify
 associated commands in a `cmds` object that contains a mapping of names to
 commands to execute.  For example:
 
@@ -241,6 +224,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
 - [humility monorail](#humility-monorail): Management network control and debugging
+- [humility net](#humility-net): Management network device-side control and debugging
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility probe](#humility-probe): probe for any attached devices
@@ -1174,6 +1158,42 @@ commands to interact with VSC7448 registers.
 
 PHY register names are also found in the
 [`vsc7448-pac` crate](https://github.com/oxidecomputer/vsc7448/tree/master/vsc7448-pac/src/phy).
+
+
+### `humility net`
+`humility net` exposes commands to interact with the management network from
+the client's perspective.
+
+(It is the counterpart to `humility monorail`, which interacts with the
+ management network from the _switch_'s perspective.)
+
+It is fully functional on
+- Gimlet
+- Sidecar
+- PSC
+- `gimletlet-mgmt`
+These PCAs have the KSZ8463 switch + VSC85x2 PHY which is our standard
+management network interface.
+
+#### `humility net ip`
+The `ip` subcommand works on any image with network functionality, and
+prints the MAC and IPv6 address of the board.  Note that on boards with
+multiple ports, this is the lowest MAC / IPv6 address.
+
+#### `humility net mac`
+This subcommand prints the MAC table from the KSZ8463 switch.  It is
+functional on the boards listed above *and* the Gimletlet (when the NIC
+daughterboard is installed)
+
+#### `humility net status`
+This subcommand shows the status of the management network links.  It is
+only functional on the fully supported boards listed above.
+
+#### `humility net counters`
+This subcommand shows the internal counters on the management network links.
+It is only functional on the fully supported boards listed above.  In
+addition, the MAC-side counters are only supported on the VSC8562, not the
+VSC8552; this is indicated with `--` in the relevant table positions.
 
 
 ### `humility openocd`

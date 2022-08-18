@@ -2,6 +2,40 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility net`
+//! `humility net` exposes commands to interact with the management network from
+//! the client's perspective.
+//!
+//! (It is the counterpart to `humility monorail`, which interacts with the
+//!  management network from the _switch_'s perspective.)
+//!
+//! It is fully functional on
+//! - Gimlet
+//! - Sidecar
+//! - PSC
+//! - `gimletlet-mgmt`
+//! These PCAs have the KSZ8463 switch + VSC85x2 PHY which is our standard
+//! management network interface.
+//!
+//! ### `humility net ip`
+//! The `ip` subcommand works on any image with network functionality, and
+//! prints the MAC and IPv6 address of the board.  Note that on boards with
+//! multiple ports, this is the lowest MAC / IPv6 address.
+//!
+//! ### `humility net mac`
+//! This subcommand prints the MAC table from the KSZ8463 switch.  It is
+//! functional on the boards listed above *and* the Gimletlet (when the NIC
+//! daughterboard is installed)
+//!
+//! ### `humility net status`
+//! This subcommand shows the status of the management network links.  It is
+//! only functional on the fully supported boards listed above.
+//!
+//! ### `humility net counters`
+//! This subcommand shows the internal counters on the management network links.
+//! It is only functional on the fully supported boards listed above.  In
+//! addition, the MAC-side counters are only supported on the VSC8562, not the
+//! VSC8552; this is indicated with `--` in the relevant table positions.
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Context, Result};
@@ -272,7 +306,7 @@ fn net_status(
         "|".dimmed(),
         "SP".bold(),
         "KSZ8463".bold(),
-        "VSC8552".bold()
+        "VSC85x2".bold()
     );
     println!(
         "     RMII {}           {} 2 <----------> 1 {}         {} 1 <------>",
@@ -378,7 +412,7 @@ fn net_counters(
     println!(" -------------------------------------------------------");
     println!(
         " |     {}     |     Transmit    |     Receive     |",
-        "VSC85x2".bold()
+        if v_mac_valid { "VSC8562" } else { "VSC8552" }.bold()
     );
     println!(" |                 |  Good  |   Bad  |  Good  |   Bad  |");
     println!(" |-----------------------------------------------------|");
