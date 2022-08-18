@@ -15,5 +15,6 @@ idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = { version = "3.0.12", features = ["derive", "env"] }
 indexmap = "1.7"
+libc = "0.2"
 log = {version = "0.4.8", features = ["std"]}
 parse_int = "0.4.0"

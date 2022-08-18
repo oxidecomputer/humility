@@ -61,11 +61,11 @@ struct RpcArgs {
     verbose: bool,
 
     /// list interfaces
-    #[clap(long, short, conflicts_with = "listfuncs")]
+    #[clap(long, short)]
     list: bool,
 
     /// call a particular function
-    #[clap(long, short, conflicts_with_all = &["list", "listfuncs"])]
+    #[clap(long, short, conflicts_with_all = &["list"], requires = "ip")]
     call: Option<String>,
 
     /// arguments
@@ -76,9 +76,9 @@ struct RpcArgs {
     #[clap(long, short, requires = "call", use_delimiter = true)]
     arguments: Vec<String>,
 
-    /// rpc IPv6 address
+    /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
     #[clap(long, short, env = "HUMILITY_RPC_IP")]
-    pub target: String,
+    ip: Option<String>,
 }
 
 fn rpc_call(
@@ -87,15 +87,35 @@ fn rpc_call(
     args: &[(&str, idol::IdolArgument)],
     rpc_args: &RpcArgs,
 ) -> Result<()> {
-    let dest = rpc_args.target.to_socket_addrs()?.collect::<Vec<_>>();
+    // rpc_args.ip must be Some(...), checked by clap
+    let mut iter = rpc_args.ip.as_ref().unwrap().split('%');
+    let ip = iter.next().unwrap();
+    let iface =
+        iter.next().ok_or_else(|| anyhow!("Missing scope id (e.g. '%en0')"))?;
+
+    // Work around https://github.com/rust-lang/rust/issues/65976 by manually
+    // converting from scopeid to numerical value.  I'm not any happier about
+    // this than you are!
+    let scopeid: u32 = iface.parse().unwrap_or_else(|_| unsafe {
+        let iface_c = std::ffi::CString::new(iface).unwrap();
+        libc::if_nametoindex(iface_c.as_ptr())
+    });
+
+    // Hard-coded socket address, based on Hubris configuration
+    let target = format!("[{}%{}]:998", ip, scopeid);
+    humility::msg!("Connecting to {}", target);
+
+    let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
     let socket = UdpSocket::bind("[::]:0")?;
-    socket.set_read_timeout(Some(Duration::from_millis(
-        rpc_args.timeout as u64,
-    )))?;
+    let timeout = Duration::from_millis(rpc_args.timeout as u64);
+    socket.set_read_timeout(Some(timeout))?;
     socket.connect(&dest[..])?;
 
     let mut packet = vec![];
-    let payload = op.payload(args)?;
+
+    // Assuming we're running on a little-endian machine, convert to big-endian
+    // for transmission over the network (since that's what Hubris expects).
+    packet.extend(hubris.image_id().unwrap().iter().rev());
 
     // This has to match the decoding logic in `task-udprpc`
     if let HubrisTask::Task(id) = op.task {
@@ -105,19 +125,20 @@ fn rpc_call(
     }
     packet.extend((op.code as u16).to_be_bytes());
     packet.extend((hubris.typesize(op.ok)? as u16).to_be_bytes());
-    packet.extend((payload.len() as u16).to_be_bytes());
 
+    let payload = op.payload(args)?;
+    packet.extend((payload.len() as u16).to_be_bytes());
     for b in payload {
         packet.push(b);
     }
 
     socket.send(&packet)?;
-    let timeout = Instant::now() + Duration::from_secs(1);
-    let mut buf = [0u8; 256];
-    let out_bytes = loop {
+    let timeout = Instant::now() + timeout;
+    let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
+    loop {
         match socket.recv(&mut buf) {
             Ok(_n) => {
-                break buf;
+                break;
             }
             Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                 if timeout <= Instant::now() {
@@ -128,45 +149,31 @@ fn rpc_call(
                 panic!("Got error {:?}", e);
             }
         }
-    };
-    let code = u32::from_be_bytes(buf[0..4].try_into().unwrap());
-    if code == 0 {
-        let fmt =
-            HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
-        let dumped = hubris.printfmt(&buf[4..], op.ok, fmt)?;
-        println!("{}.{}() = {}", op.name.0, op.name.1, dumped);
+    }
+    // Handle errors from the RPC task itself, which are reported as a non-zero
+    // first byte in the reply packet.
+    if buf[0] != 0 {
+        let task = hubris.lookup_task("udprpc").ok_or_else(|| {
+            anyhow!(
+                "Could not find `udprpc` task in this image. \
+                 Is it up to date?"
+            )
+        })?;
+        let m = hubris.lookup_module(*task)?;
+        match m
+            .lookup_enum_byname(hubris, "RpcReply")?
+            .lookup_variant(buf[0] as u64)
+        {
+            Some(e) => println!("Got error from `udprpc`: RpcReply::{:?}", e),
+            None => println!("Got unknown error from `udprpc`: {}", buf[0]),
+        }
     } else {
-        println!("Err({:x?})", code);
+        // Check the return code from the Idol call
+        let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+        let val = if code == 0 { Ok(buf[5..].to_vec()) } else { Err(code) };
+        let result = humility_cmd_hiffy::hiffy_decode(hubris, op, val)?;
+        humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
     }
-
-    /*
-    let payload = op.payload(args)?;
-    context.idol_call_ops(&funcs, op, &payload, &mut ops)?;
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-
-    if results.len() != 1 {
-        bail!("unexpected results length: {:?}", results);
-    }
-
-    let result = &results[0];
-    let fmt = HubrisPrintFormat {
-        newline: false,
-        hex: true,
-        ..HubrisPrintFormat::default()
-    };
-
-    match result {
-        Ok(val) => {
-            let dumped = hubris.printfmt(val, op.ok, &fmt)?;
-            println!("{}.{}() = {}", op.name.0, op.name.1, dumped);
-        }
-        Err(e) => {
-            println!("Err({:x?})", e);
-        }
-    }
-    */
 
     Ok(())
 }

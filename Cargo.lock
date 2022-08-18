@@ -1432,6 +1432,7 @@ dependencies = [
  "humility-core",
  "idol",
  "indexmap",
+ "libc",
  "log",
  "parse_int",
 ]
