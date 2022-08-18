@@ -132,7 +132,7 @@ fn net_mac_table(
         (mac_count as u8, false)
     };
 
-    println!("Reading {} MAC addresses...", mac_count);
+    humility::msg!("Reading {} MAC addresses...", mac_count);
 
     let op = IdolOperation::new(hubris, "Net", "read_ksz8463_mac", None)?;
     let funcs = context.functions()?;
@@ -181,13 +181,13 @@ fn net_mac_table(
                 mac[i] = m.as_base().unwrap().as_u8().unwrap()
             }
             if mac == [0; 6] && port == 0xFFFF {
-                println!("Skipping empty MAC address");
+                humility::msg!("Skipping empty MAC address");
             } else {
                 mac_table.entry(port).or_default().push(mac);
             }
         } else {
             // Log the error but keep going for other entries in the table
-            println!("Got error result: {:?}", r);
+            humility::msg!("Got error result: {:?}", r);
         }
     }
     println!(" {} |        {}", "PORT".bold(), "MAC".bold());
