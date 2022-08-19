@@ -35,7 +35,8 @@
 //! UserLeds.led_toggle() = ()
 //! ```
 
-use std::net::{ToSocketAddrs, UdpSocket};
+use std::collections::BTreeSet;
+use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Result};
@@ -70,17 +71,79 @@ struct RpcArgs {
     #[clap(long, short, conflicts_with_all = &["list"], requires = "ip")]
     call: Option<String>,
 
+    /// listen for compatible SPs on the network
+    #[clap(long, conflicts_with_all = &["list", "call"])]
+    listen: bool,
+
     /// arguments
     #[clap(long, short, requires = "call")]
     task: Option<String>,
+
+    /// interface on which to listen, e.g. 'en0' (required on macOS)
+    #[clap(short, requires = "listen")]
+    interface: Option<String>,
 
     /// arguments
     #[clap(long, short, requires = "call", use_delimiter = true)]
     arguments: Vec<String>,
 
     /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
-    #[clap(long, short, env = "HUMILITY_RPC_IP")]
+    #[clap(long, env = "HUMILITY_RPC_IP")]
     ip: Option<String>,
+}
+
+fn rpc_listen(rpc_args: &RpcArgs) -> Result<()> {
+    println!("Making socket");
+    let socket = UdpSocket::bind("[::]:8")?;
+    let timeout = Duration::from_millis(rpc_args.timeout as u64);
+    socket.set_read_timeout(Some(timeout))?;
+
+    // For some reason, macOS requires the interface to be non-zero:
+    // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
+    // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
+    let interface = if cfg!(target_os = "macos") {
+        match &rpc_args.interface {
+            None => bail!("Must specify interface with `-i` on macOS"),
+            Some(iface) => unsafe {
+                let iface_c = std::ffi::CString::new(iface.clone()).unwrap();
+                libc::if_nametoindex(iface_c.as_ptr())
+            },
+        }
+    } else {
+        0
+    };
+    socket.join_multicast_v6(
+        &Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 0, 1),
+        interface,
+    )?;
+
+    let mut seen = BTreeSet::new();
+    humility::msg!("Listening (Ctrl-C to cancel, or timeout in {:?})", timeout);
+    let timeout = Instant::now() + timeout;
+    let mut buf = [0u8; 1024];
+    loop {
+        match socket.recv(&mut buf) {
+            Ok(n) => {
+                let mac = buf[..6].to_vec();
+                if seen.insert(mac) {
+                    println!("{:02x?}", &buf[..6]);
+                    println!("{:02x?}", &buf[6..n]);
+                }
+                if timeout <= Instant::now() {
+                    break;
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                if timeout <= Instant::now() {
+                    panic!("Timeout");
+                }
+            }
+            Err(e) => {
+                panic!("Got error {:?}", e);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn rpc_call(
@@ -185,6 +248,8 @@ fn rpc_run(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
     if subargs.list {
         humility_cmd_hiffy::hiffy_list(hubris, subargs.verbose)?;
         return Ok(());
+    } else if subargs.listen {
+        return rpc_listen(&subargs);
     }
 
     if let Some(call) = &subargs.call {
