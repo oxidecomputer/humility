@@ -178,13 +178,19 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
                     break;
                 }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                if timeout <= Instant::now() {
-                    panic!("Timeout");
-                }
-            }
             Err(e) => {
-                panic!("Got error {:?}", e);
+                // At least on macOS, timeouts are reported as `WouldBlock`,
+                // rather than `TimedOut`.
+                match e.kind() {
+                    std::io::ErrorKind::WouldBlock
+                    | std::io::ErrorKind::TimedOut => {
+                        if !printed_header {
+                            humility::msg!("timed out, exiting");
+                        }
+                        break;
+                    }
+                    e => panic!("Got error {:?}", e),
+                }
             }
         }
     }
