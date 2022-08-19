@@ -34,6 +34,12 @@
 //! % humility rpc -c UserLeds.led_toggle -a index=0
 //! UserLeds.led_toggle() = ()
 //! ```
+//!
+//! You may need to configure an IPv6 network for this to work. On illumos, this
+//! looks like
+//! ```console
+//! % pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
+//! ```
 
 use std::collections::BTreeSet;
 use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
@@ -293,6 +299,10 @@ fn rpc_run(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
     }
 
     if let Some(call) = &subargs.call {
+        if hubris.lookup_task("udprpc").is_none() {
+            bail!("no `udprpc` task in the target image");
+        }
+
         let func: Vec<&str> = call.split('.').collect();
 
         if func.len() != 2 {
@@ -326,7 +336,7 @@ fn rpc_run(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
         return Ok(());
     }
 
-    Ok(())
+    bail!("expected --listen, --list, or --call")
 }
 
 pub fn init() -> (Command, App<'static>) {
