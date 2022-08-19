@@ -1427,9 +1427,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "hif",
  "humility-cmd",
  "humility-cmd-hiffy",
+ "humility-cmd-net",
  "humility-core",
  "idol",
  "indexmap",

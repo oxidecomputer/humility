@@ -43,6 +43,7 @@ use anyhow::{anyhow, bail, Result};
 use clap::App;
 use clap::IntoApp;
 use clap::Parser;
+use colored::Colorize;
 use humility::hubris::*;
 use humility_cmd::doppel::RpcHeader;
 use humility_cmd::idol;
@@ -92,7 +93,7 @@ struct RpcArgs {
     ip: Option<String>,
 }
 
-fn rpc_listen(rpc_args: &RpcArgs) -> Result<()> {
+fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     println!("Making socket");
     let socket = UdpSocket::bind("[::]:8")?;
     let timeout = Duration::from_millis(rpc_args.timeout as u64);
@@ -118,16 +119,43 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<()> {
     )?;
 
     let mut seen = BTreeSet::new();
-    humility::msg!("Listening (Ctrl-C to cancel, or timeout in {:?})", timeout);
+    humility::msg!("Listening (ctrl-C to cancel, or timeout in {:?})", timeout);
     let timeout = Instant::now() + timeout;
     let mut buf = [0u8; 1024];
+    let mut printed_header = false;
     loop {
         match socket.recv(&mut buf) {
             Ok(n) => {
-                let mac = buf[..6].to_vec();
+                let mac: [u8; 6] = buf[..6].try_into().unwrap();
                 if seen.insert(mac) {
-                    println!("{:02x?}", &buf[..6]);
-                    println!("{:02x?}", &buf[6..n]);
+                    if !printed_header {
+                        println!(
+                            "      {}         |              {}         | {}",
+                            "MAC".bold(),
+                            "IPv6".bold(),
+                            "Compatible".bold()
+                        );
+                        println!(
+                            "------------------|\
+                             ---------------------------|\
+                             -----------"
+                        );
+                        printed_header = true;
+                    }
+                    let ip6 = humility_cmd_net::mac_to_ip6(mac);
+                    for (i, byte) in mac.iter().enumerate() {
+                        if i > 0 {
+                            print!(":");
+                        }
+                        print!("{:02x}", byte)
+                    }
+                    print!(" | {} | ", ip6);
+                    let image_id = &buf[6..n];
+                    if image_id == hubris.image_id().unwrap() {
+                        println!("{}", "Yes".green());
+                    } else {
+                        println!("{}", "No".red());
+                    }
                 }
                 if timeout <= Instant::now() {
                     break;
@@ -249,7 +277,7 @@ fn rpc_run(hubris: &mut HubrisArchive, subargs: &[String]) -> Result<()> {
         humility_cmd_hiffy::hiffy_list(hubris, subargs.verbose)?;
         return Ok(());
     } else if subargs.listen {
-        return rpc_listen(&subargs);
+        return rpc_listen(hubris, &subargs);
     }
 
     if let Some(call) = &subargs.call {
