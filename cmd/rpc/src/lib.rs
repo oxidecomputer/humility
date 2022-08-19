@@ -43,8 +43,10 @@ use clap::App;
 use clap::IntoApp;
 use clap::Parser;
 use humility::hubris::*;
+use humility_cmd::doppel::RpcHeader;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Command, RunUnattached};
+use zerocopy::AsBytes;
 
 #[derive(Parser, Debug)]
 #[clap(name = "rpc", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -111,26 +113,19 @@ fn rpc_call(
     socket.set_read_timeout(Some(timeout))?;
     socket.connect(&dest[..])?;
 
-    let mut packet = vec![];
-
-    // Assuming we're running on a little-endian machine, convert to big-endian
-    // for transmission over the network (since that's what Hubris expects).
-    packet.extend(hubris.image_id().unwrap().iter().rev());
-
-    // This has to match the decoding logic in `task-udprpc`
-    if let HubrisTask::Task(id) = op.task {
-        packet.extend((id as u16).to_be_bytes());
-    } else {
-        bail!("interface matches invalid task {:?}", op.task);
-    }
-    packet.extend((op.code as u16).to_be_bytes());
-    packet.extend((hubris.typesize(op.ok)? as u16).to_be_bytes());
-
     let payload = op.payload(args)?;
-    packet.extend((payload.len() as u16).to_be_bytes());
-    for b in payload {
-        packet.push(b);
-    }
+
+    let header = RpcHeader {
+        image_id: u64::from_le_bytes(
+            hubris.image_id().unwrap().try_into().unwrap(),
+        ),
+        task: op.task.task().try_into().unwrap(),
+        op: op.code as u16,
+        nreply: hubris.typesize(op.ok)? as u16,
+        nbytes: payload.len().try_into().unwrap(),
+    };
+    let mut packet = header.as_bytes().to_vec();
+    packet.extend(payload.iter());
 
     socket.send(&packet)?;
     let timeout = Instant::now() + timeout;
@@ -164,13 +159,13 @@ fn rpc_call(
             .lookup_enum_byname(hubris, "RpcReply")?
             .lookup_variant(buf[0] as u64)
         {
-            Some(e) => println!("Got error from `udprpc`: RpcReply::{:?}", e),
+            Some(e) => println!("Got error from `udprpc`: {}", e.name),
             None => println!("Got unknown error from `udprpc`: {}", buf[0]),
         }
     } else {
         // Check the return code from the Idol call
-        let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
-        let val = if code == 0 { Ok(buf[5..].to_vec()) } else { Err(code) };
+        let rc = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+        let val = if rc == 0 { Ok(buf[5..].to_vec()) } else { Err(rc) };
         let result = humility_cmd_hiffy::hiffy_decode(hubris, op, val)?;
         humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
     }
