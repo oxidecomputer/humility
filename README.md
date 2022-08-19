@@ -1787,8 +1787,8 @@ documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/s
 
 ### `humility rpc`
 
-`humility rpc` allows for querying and manipulation of Idol commands over a
-network, rather than through the debugger.
+`humility rpc` allows for execution of Idol commands over a network, rather
+than through a debugger.
 
 It requires the Hubris `udprpc` task to be listening on port 8.  This task
 decodes bytes from a UDP packet, and shoves them directly into `sys_send` to
@@ -1814,8 +1814,8 @@ illumos, it looks like this:
 % pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 ```
 
-To listen for compatible devices on your network, run
-`humility rpc --listen`
+To listen for compatible devices on your network, run `humility rpc
+--listen`
 
 ```console
 % humility rpc --listen
