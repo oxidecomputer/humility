@@ -253,7 +253,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility rendmp](#humility-rendmp): Renesas digital muliphase controller operations
 - [humility reset](#humility-reset): Reset the chip using external pins
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
-- [humility rpc](#humility-rpc): manipulate HIF execution
+- [humility rpc](#humility-rpc): execute Idol calls over a network
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
 - [humility spd](#humility-spd): scan for and read SPD devices

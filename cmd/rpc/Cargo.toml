@@ -2,7 +2,7 @@
 name = "humility-cmd-rpc"
 version = "0.1.0"
 edition = "2021"
-description = "manipulate HIF execution"
+description = "execute Idol calls over a network"
 
 [dependencies]
 humility = { path = "../../humility-core", package = "humility-core" }
