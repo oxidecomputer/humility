@@ -94,7 +94,6 @@ struct RpcArgs {
 }
 
 fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
-    println!("Making socket");
     let socket = UdpSocket::bind("[::]:8")?;
     let timeout = Duration::from_millis(rpc_args.timeout as u64);
     socket.set_read_timeout(Some(timeout))?;
@@ -119,44 +118,56 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     )?;
 
     let mut seen = BTreeSet::new();
-    humility::msg!("Listening (ctrl-C to cancel, or timeout in {:?})", timeout);
+    humility::msg!(
+        "listening... (ctrl-C to stop, or timeout in {:?})",
+        timeout
+    );
     let timeout = Instant::now() + timeout;
     let mut buf = [0u8; 1024];
     let mut printed_header = false;
     loop {
         match socket.recv(&mut buf) {
             Ok(n) => {
-                let mac: [u8; 6] = buf[..6].try_into().unwrap();
-                if seen.insert(mac) {
-                    if !printed_header {
-                        println!(
-                            "      {}         |              {}         | {}",
-                            "MAC".bold(),
-                            "IPv6".bold(),
-                            "Compatible".bold()
+                if n != 14 {
+                    humility::msg!("Skipping unknown packet {:?}", &buf[..n]);
+                    continue;
+                } else {
+                    let mac: [u8; 6] = buf[..6].try_into().unwrap();
+                    if mac[0] != 0x0e || mac[1] != 0x1d {
+                        humility::msg!(
+                            "Skipping packet with non-matching MAC {:?}",
+                            mac
                         );
-                        println!(
-                            "------------------|\
-                             ---------------------------|\
-                             -----------"
-                        );
-                        printed_header = true;
-                    }
-                    let ip6 = humility_cmd_net::mac_to_ip6(mac);
-                    for (i, byte) in mac.iter().enumerate() {
-                        if i > 0 {
-                            print!(":");
+                    } else if seen.insert(mac) {
+                        if !printed_header {
+                            println!(
+                                "       {}         |            {}           | {}",
+                                "MAC".bold(),
+                                "IPv6".bold(),
+                                "Compatible".bold()
+                            );
+                            println!(
+                                "-------------------|\
+                                 ---------------------------|\
+                                 -----------"
+                            );
+                            printed_header = true;
                         }
-                        print!("{:02x}", byte)
-                    }
-                    print!(" | {} | ", ip6);
-                    let image_id = &buf[6..n];
-                    if image_id == hubris.image_id().unwrap() {
-                        println!("{}", "Yes".green());
-                    } else {
-                        println!("{}", "No".red());
+                        let ip6 = humility_cmd_net::mac_to_ip6(mac);
+                        for (i, byte) in mac.iter().enumerate() {
+                            print!("{}", if i == 0 { " " } else { ":" });
+                            print!("{:02x}", byte)
+                        }
+                        print!(" | {} | ", ip6);
+                        let image_id = &buf[6..n];
+                        if image_id == hubris.image_id().unwrap() {
+                            println!("{}", "Yes".green());
+                        } else {
+                            println!("{}", "No".red());
+                        }
                     }
                 }
+
                 if timeout <= Instant::now() {
                     break;
                 }
@@ -183,8 +194,9 @@ fn rpc_call(
     // rpc_args.ip must be Some(...), checked by clap
     let mut iter = rpc_args.ip.as_ref().unwrap().split('%');
     let ip = iter.next().unwrap();
-    let iface =
-        iter.next().ok_or_else(|| anyhow!("Missing scope id (e.g. '%en0')"))?;
+    let iface = iter
+        .next()
+        .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
 
     // Work around https://github.com/rust-lang/rust/issues/65976 by manually
     // converting from scopeid to numerical value.  I'm not any happier about
