@@ -115,10 +115,10 @@ fn rpc_call(
 
     let payload = op.payload(args)?;
 
+    let our_image_id = hubris.image_id().unwrap();
+
     let header = RpcHeader {
-        image_id: u64::from_le_bytes(
-            hubris.image_id().unwrap().try_into().unwrap(),
-        ),
+        image_id: u64::from_le_bytes(our_image_id.try_into().unwrap()),
         task: op.task.task().try_into().unwrap(),
         op: op.code as u16,
         nreply: hubris.typesize(op.ok)? as u16,
@@ -159,7 +159,13 @@ fn rpc_call(
             .lookup_enum_byname(hubris, "RpcReply")?
             .lookup_variant(buf[0] as u64)
         {
-            Some(e) => println!("Got error from `udprpc`: {}", e.name),
+            Some(e) => {
+                println!("Got error from `udprpc`: {}", e.name);
+                if e.name == "BadImageId" {
+                    println!("   {:02x?} (Humility)", our_image_id);
+                    println!("   {:02x?} (Hubris)", &buf[1..9]);
+                }
+            }
             None => println!("Got unknown error from `udprpc`: {}", buf[0]),
         }
     } else {
