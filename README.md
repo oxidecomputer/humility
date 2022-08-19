@@ -253,6 +253,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility rendmp](#humility-rendmp): Renesas digital muliphase controller operations
 - [humility reset](#humility-reset): Reset the chip using external pins
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
+- [humility rpc](#humility-rpc): manipulate HIF execution
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
 - [humility spd](#humility-spd): scan for and read SPD devices
@@ -1782,6 +1783,55 @@ humility: ring buffer ksz8463::__RINGBUF in net:
 
 See the [`ringbuf`
 documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
+
+
+### `humility rpc`
+
+`humility rpc` allows for querying and manipulation of Idol commands over a
+network, rather than through the debugger.
+
+It requires the Hubris `udprpc` task to be listening on port 8.  This task
+decodes bytes from a UDP packet, and shoves them directly into `sys_send` to
+a target task.
+
+An archive is required so that `humility` knows what functions are available
+and how to call them.  The archive ID is checked against the image ID on the
+target; `udprcp` will refuse to execute commands when the ID does not match.
+
+Function calls are handled identically to the `humility hiffy` subcommand,
+except that an `--ip` address is required:
+
+```console
+% rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
+UserLeds.led_on() = ()
+```
+
+Alternatively, you can set the `HUMILITY_RPC_IP` environmental variable.
+
+You may need to configure an IPv6 network for `humility rpc` to work. On
+illumos, it looks like this:
+```console
+% pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
+```
+
+To listen for compatible devices on your network, run
+`humility rpc --listen`
+
+```console
+% humility rpc --listen
+humility: listening... (ctrl-C to stop, or timeout in 5s)
+       MAC         |            IPv6           | Compatible
+-------------------|---------------------------|-----------
+ 0e:1d:27:87:03:bc | fe80::0c1d:27ff:fe87:03bc | Yes
+ 0e:1d:38:73:ce:c3 | fe80::0c1d:38ff:fe73:cec3 | No
+ 0e:1d:8d:3d:da:79 | fe80::0c1d:8dff:fe3d:da79 | No
+```
+
+Under the hood, this listens for packets from the Hubris `udpbroadcast`
+task, which includes MAC address and image ID (checked for compatibility).
+
+(On macOS, it is mandatory to specify the interface, e.g. `humility rpc
+--listen -ien0`)
 
 
 ### `humility sensors`

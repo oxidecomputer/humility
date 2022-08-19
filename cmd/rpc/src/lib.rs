@@ -4,42 +4,51 @@
 
 //! ## `humility rpc`
 //!
-//! `humility rpc` allows for querying and manipulation of Idol commands.
+//! `humility rpc` allows for querying and manipulation of Idol commands over a
+//! network, rather than through the debugger.
 //!
-//! To list all Idol interfaces present in Hubris, use the `-l` (`--list`) option:
+//! It requires the Hubris `udprpc` task to be listening on port 8.  This task
+//! decodes bytes from a UDP packet, and shoves them directly into `sys_send` to
+//! a target task.
 //!
-//! ```console
-//! % humility rpc -l
-//! TASK            INTERFACE    OPERATION           ARG             ARGTYPE
-//! rcc_driver      Rcc          enable_clock_raw    peripheral      u32
-//!                              disable_clock_raw   peripheral      u32
-//!                              enter_reset_raw     peripheral      u32
-//!                              leave_reset_raw     peripheral      u32
-//! spi_driver      Spi          read                device_index    u8
-//!                              write               device_index    u8
-//!                              exchange            device_index    u8
-//!                              lock                device_index    u8
-//!                                                  cs_state        CsState
-//!                              release             -
-//! user_leds       UserLeds     led_on              index           usize
-//!                              led_off             index           usize
-//!                              led_toggle          index           usize
-//! ```
+//! An archive is required so that `humility` knows what functions are available
+//! and how to call them.  The archive ID is checked against the image ID on the
+//! target; `udprcp` will refuse to execute commands when the ID does not match.
 //!
-//! To enlist the `udprpc` task to call a particular interface and operation,
-//! use `-c` (`--call`), using `-a` (`--arguments`) to indicate any arguments,
-//! e.g.:
+//! Function calls are handled identically to the `humility hiffy` subcommand,
+//! except that an `--ip` address is required:
 //!
 //! ```console
-//! % humility rpc -c UserLeds.led_toggle -a index=0
-//! UserLeds.led_toggle() = ()
+//! % rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
+//! UserLeds.led_on() = ()
 //! ```
 //!
-//! You may need to configure an IPv6 network for this to work. On illumos, this
-//! looks like
+//! Alternatively, you can set the `HUMILITY_RPC_IP` environmental variable.
+//!
+//! You may need to configure an IPv6 network for `humility rpc` to work. On
+//! illumos, it looks like this:
 //! ```console
 //! % pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 //! ```
+//!
+//! To listen for compatible devices on your network, run
+//! `humility rpc --listen`
+//!
+//! ```console
+//! % humility rpc --listen
+//! humility: listening... (ctrl-C to stop, or timeout in 5s)
+//!        MAC         |            IPv6           | Compatible
+//! -------------------|---------------------------|-----------
+//!  0e:1d:27:87:03:bc | fe80::0c1d:27ff:fe87:03bc | Yes
+//!  0e:1d:38:73:ce:c3 | fe80::0c1d:38ff:fe73:cec3 | No
+//!  0e:1d:8d:3d:da:79 | fe80::0c1d:8dff:fe3d:da79 | No
+//! ```
+//!
+//! Under the hood, this listens for packets from the Hubris `udpbroadcast`
+//! task, which includes MAC address and image ID (checked for compatibility).
+//!
+//! (On macOS, it is mandatory to specify the interface, e.g. `humility rpc
+//! --listen -ien0`)
 
 use std::collections::BTreeSet;
 use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
