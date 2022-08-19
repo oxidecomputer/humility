@@ -119,10 +119,7 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     let interface = if cfg!(target_os = "macos") {
         match &rpc_args.interface {
             None => bail!("Must specify interface with `-i` on macOS"),
-            Some(iface) => unsafe {
-                let iface_c = std::ffi::CString::new(iface.clone()).unwrap();
-                libc::if_nametoindex(iface_c.as_ptr())
-            },
+            Some(iface) => decode_iface(iface)?,
         }
     } else {
         0
@@ -206,6 +203,20 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     Ok(())
 }
 
+fn decode_iface(iface: &str) -> Result<u32> {
+    // Work around https://github.com/rust-lang/rust/issues/65976 by manually
+    // converting from scopeid to numerical value.  I'm not any happier about
+    // this than you are!
+    let iface_c = std::ffi::CString::new(iface).unwrap();
+    let scopeid: u32 = iface
+        .parse()
+        .unwrap_or_else(|_| unsafe { libc::if_nametoindex(iface_c.as_ptr()) });
+    if scopeid == 0 {
+        bail!("Could not find interface for {}", iface);
+    }
+    Ok(scopeid)
+}
+
 fn rpc_call(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
@@ -219,13 +230,7 @@ fn rpc_call(
         .next()
         .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
 
-    // Work around https://github.com/rust-lang/rust/issues/65976 by manually
-    // converting from scopeid to numerical value.  I'm not any happier about
-    // this than you are!
-    let scopeid: u32 = iface.parse().unwrap_or_else(|_| unsafe {
-        let iface_c = std::ffi::CString::new(iface).unwrap();
-        libc::if_nametoindex(iface_c.as_ptr())
-    });
+    let scopeid = decode_iface(iface)?;
 
     // Hard-coded socket address, based on Hubris configuration
     let target = format!("[{}%{}]:998", ip, scopeid);
