@@ -260,13 +260,17 @@ fn tasks(
         for (i, (addr, task_value, task)) in tasks.iter().enumerate() {
             let i = i as u32;
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
-            let module =
-                hubris.instr_mod(desc.entry_point).unwrap_or("<unknown>");
+            let module = match hubris.instr_mod(desc.entry_point) {
+                Some(m) => m.to_string(),
+                None => {
+                    format!("<0x{:x}?>", desc.entry_point)
+                }
+            };
 
-            let irqs = hubris.manifest.task_irqs.get(module);
+            let irqs = hubris.manifest.task_irqs.get(&module);
 
             if let Some(ref task) = subargs.task {
-                if task != module {
+                if *task != module {
                     continue;
                 }
 
@@ -278,7 +282,7 @@ fn tasks(
             });
 
             {
-                let mut modname = module.to_string();
+                let mut modname = module.clone();
                 if modname.len() > 14 {
                     modname.truncate(14);
                     modname.push('…');

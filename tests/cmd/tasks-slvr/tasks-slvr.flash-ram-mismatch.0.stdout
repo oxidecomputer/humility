@@ -1,0 +1,983 @@
+system time = 2117793075957696
+ID TASK                 GEN PRI STATE    
+ 0 <0x6f697472?>          0   0 recv, notif: bit0 bit1(T-2117793075464596)
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x2001b5a4   R1 = 0x00000004   R2 = 0x00000003   R3 = 0x2001b5dc
+   |       R4 = 0x2001b5a4   R5 = 0x00000004   R6 = 0x00000003   R7 = 0x00000000
+   |       R8 = 0x2001b63c   R9 = 0x2001b5a4  R10 = 0x2001b5c8  R11 = 0x00000001
+   |      R12 = 0x00000002   SP = 0x2001b520   LR = 0x0805c2df   PC = 0x0805d4cc
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001b5a4,
+                        r5: 0x4,
+                        r6: 0x3,
+                        r7: 0x0,
+                        r8: 0x2001b63c,
+                        r9: 0x2001b5a4,
+                        r10: 0x2001b5c8,
+                        r11: 0x1,
+                        psp: 0x2001b4b8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0xffffffff
+                    },
+                    priority: Priority(0x0),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x7862c)),
+                        to_post: NotificationSet(0x2)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001070 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004af0 (&abi::TaskDesc)
+                }
+
+ 1 <0x14?>                0   5 recv, notif: bit0 bit1(T-2117793075464456)
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x4) below range (HubrisRegion { daddr: Some(80051bc), base: 20004000, size: 4000, mapsize: 4000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(1)] }) 
+   |
+   +--->   R0 = 0x200051e0   R1 = 0x00000020   R2 = 0x00000003   R3 = 0x20005080
+   |       R4 = 0x200051e0   R5 = 0x00000020   R6 = 0x00000003   R7 = 0x00000000
+   |       R8 = 0x0000ffff   R9 = 0x20005080  R10 = 0x200051e0  R11 = 0x00000001
+   |      R12 = 0x20005200   SP = 0x200046f0   LR = 0x08026757   PC = 0x0802fc64
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x200051e0,
+                        r5: 0x20,
+                        r6: 0x3,
+                        r7: 0x0,
+                        r8: 0xffff,
+                        r9: 0x20005080,
+                        r10: 0x200051e0,
+                        r11: 0x1,
+                        psp: 0x20004688,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x786b8)),
+                        to_post: NotificationSet(0x2)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001090 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b04 (&abi::TaskDesc)
+                }
+
+ 2 <0x31a?>               0   1 recv
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x2001e358   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x2001e360
+   |       R4 = 0x2001e358   R5 = 0x00000005   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x5802447c   R9 = 0x2001e374  R10 = 0x00000010  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x2001e330   LR = 0x0806809f   PC = 0x080685d6
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001e358,
+                        r5: 0x5,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x5802447c,
+                        r9: 0x2001e374,
+                        r10: 0x10,
+                        r11: 0x1,
+                        psp: 0x2001e2c8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x1),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200010b0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b18 (&abi::TaskDesc)
+                }
+
+ 3 <0x15?>                0   3 recv
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x4) below range (HubrisRegion { daddr: Some(80051f8), base: 2001b800, size: 800, mapsize: 800, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(3)] }) 
+   |
+   +--->   R0 = 0x2001bb02   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x2001bb04
+   |       R4 = 0x2001bb02   R5 = 0x00000002   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x2001bb02   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x08042050   SP = 0x2001bac8   LR = 0x08040693   PC = 0x08041bd0
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001bb02,
+                        r5: 0x2,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x2001bb02,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x2001ba60,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200010d0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b2c (&abi::TaskDesc)
+                }
+
+ 4 <0x2f737973?>          0   3 recv
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x4) below range (HubrisRegion { daddr: Some(8005210), base: 2001c000, size: 800, mapsize: 800, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(4)] }) 
+   |
+   +--->   R0 = 0x2001c302   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x2001c304
+   |       R4 = 0x2001c302   R5 = 0x00000002   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x2001c302   R9 = 0x00000001  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x2001c518   SP = 0x2001c2c0   LR = 0x08044661   PC = 0x08045cf8
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001c302,
+                        r5: 0x2,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x2001c302,
+                        r9: 0x1,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x2001c258,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200010f0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b40 (&abi::TaskDesc)
+                }
+
+ 5 <0x8004b40?>           0   3 recv
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x4) below range (HubrisRegion { daddr: Some(8005228), base: 2001c800, size: 800, mapsize: 800, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(5)] }) 
+   |
+   +--->   R0 = 0x2001cb48   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x2001cb58
+   |       R4 = 0x2001cb48   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x2001cb48   R9 = 0x2001cb80  R10 = 0x08048051  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x2001ca30   LR = 0x0804868d   PC = 0x0804a0e8
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001cb48,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x2001cb48,
+                        r9: 0x2001cb80,
+                        r10: 0x8048051,
+                        r11: 0x1,
+                        psp: 0x2001c9c8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001110 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0xe,
+                    descriptor: 0x8004b54 (&abi::TaskDesc)
+                }
+
+ 6 <0x14?>                0   2 notif: bit0
+   |
+   +--->  0x20010248 0x0804df76 drv_i2c_api::I2cDevice::write
+   |                 @ /hubris/drv/i2c-api/src/lib.rs:453
+   |
+   |
+   +--->   R0 = 0x0804e628   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x2001025c
+   |       R4 = 0x0804e628   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x8000ffff
+   |       R8 = 0x40005400   R9 = 0x00000001  R10 = 0x2001048c  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20010238   LR = 0x0804c6f5   PC = 0x0804df76
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x804e628,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x8000ffff,
+                        r8: 0x40005400,
+                        r9: 0x1,
+                        r10: 0x2001048c,
+                        r11: 0x1,
+                        psp: 0x200101d0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001130 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b68 (&abi::TaskDesc)
+                }
+
+ 7 <0x149?>               0   5 recv, notif: bit0(T-2117793075463689)
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x4) below range (HubrisRegion { daddr: Some(8005258), base: 20002000, size: 2000, mapsize: 2000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(7)] }) 
+   |
+   +--->   R0 = 0x20003000   R1 = 0x00000002   R2 = 0x00000001   R3 = 0x20003080
+   |       R4 = 0x20003000   R5 = 0x00000002   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x0000ffff  R10 = 0x20003080  R11 = 0x00000001
+   |      R12 = 0x00000001   SP = 0x20002598   LR = 0x08050dd5   PC = 0x08052272
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20003000,
+                        r5: 0x2,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0xffff,
+                        r10: 0x20003080,
+                        r11: 0x1,
+                        psp: 0x20002530,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x789b7)),
+                        to_post: NotificationSet(0x1)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001150 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b7c (&abi::TaskDesc)
+                }
+
+ 8 <0x1f?>                0   6 notif: bit31(T-2117793075464383)
+   |
+   +--->  0x200163a8 0x0805625a core::result::Result<T,E>::unwrap
+   |                 @ /rustc/4d6d601c8a83284d6b23c253a3e2a060fd197316/library/core/src/result.rs:1101
+   |
+   |
+   +--->   R0 = 0x08056b1c   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200167d8
+   |       R4 = 0x08056b1c   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x00000000   R9 = 0x08056b1c  R10 = 0x000003fc  R11 = 0x00000001
+   |      R12 = 0x0000001f   SP = 0x200163a8   LR = 0x08054437   PC = 0x0805625a
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x8056b1c,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x0,
+                        r9: 0x8056b1c,
+                        r10: 0x3fc,
+                        r11: 0x1,
+                        psp: 0x20016340,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x78701)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001170 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004b90 (&abi::TaskDesc)
+                }
+
+ 9 <0x8004b40?>           0   5 notif: bit31(T-2117793075464596)
+   stack unwind failed: failed to read cfa 0x80010007, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x80010003) above range (HubrisRegion { daddr: Some(8005288), base: 20008000, size: 8000, mapsize: 8000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(9)] }) 
+   |
+   +--->   R0 = 0x0800cd9c   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x20008240
+   |       R4 = 0x0800cd9c   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x0800cd9c   R9 = 0x8000ffff  R10 = 0x2000ea18  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20008218   LR = 0x0800bc3b   PC = 0x0800bbbe
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x800cd9c,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x800cd9c,
+                        r9: 0x8000ffff,
+                        r10: 0x2000ea18,
+                        r11: 0x1,
+                        psp: 0x200081b0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x7862c)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001190 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004ba4 (&abi::TaskDesc)
+                }
+
+10 <0x14?>                0   4 recv, notif: bit0
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x4) below range (HubrisRegion { daddr: Some(80052a0), base: 20017000, size: 1000, mapsize: 1000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(a)] }) 
+   |
+   +--->   R0 = 0x20017507   R1 = 0x00000001   R2 = 0x00000001   R3 = 0x20017530
+   |       R4 = 0x20017507   R5 = 0x00000001   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x20017510   R9 = 0x00000007  R10 = 0x20017530  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x200174b8   LR = 0x0801096d   PC = 0x08013856
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20017507,
+                        r5: 0x1,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x20017510,
+                        r9: 0x7,
+                        r10: 0x20017530,
+                        r11: 0x1,
+                        psp: 0x20017450,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x4),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200011b0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004bb8 (&abi::TaskDesc)
+                }
+
+11 <0x14c?>               0   2 recv
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x20018540   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200187d4
+   |       R4 = 0x20018540   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x0805f8bc  R10 = 0x200187d4  R11 = 0x00000001
+   |      R12 = 0x2001879c   SP = 0x20018508   LR = 0x0805e34d   PC = 0x0805f582
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x20018540,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x805f8bc,
+                        r10: 0x200187d4,
+                        r11: 0x1,
+                        psp: 0x200184a0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200011d0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004bcc (&abi::TaskDesc)
+                }
+
+12 <0x9?>                 0   3 recv
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x2001d5f8   R1 = 0x00000008   R2 = 0x00000000   R3 = 0x2001d734
+   |       R4 = 0x2001d5f8   R5 = 0x00000008   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000006   R9 = 0x0805a07c  R10 = 0x2001d5f8  R11 = 0x00000001
+   |      R12 = 0x2001d714   SP = 0x2001d590   LR = 0x08058397   PC = 0x08059b2c
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001d5f8,
+                        r5: 0x8,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x6,
+                        r9: 0x805a07c,
+                        r10: 0x2001d5f8,
+                        r11: 0x1,
+                        psp: 0x2001d528,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200011f0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004be0 (&abi::TaskDesc)
+                }
+
+13 <0x72612f68?>          0   4 recv, notif: bit0(T-2117793075463696)
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x2001df68   R1 = 0x00000008   R2 = 0x00000001   R3 = 0x2001dd00
+   |       R4 = 0x2001df68   R5 = 0x00000008   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x2001da90   R9 = 0x2001df74  R10 = 0x0806100c  R11 = 0x00000001
+   |      R12 = 0x00000264   SP = 0x2001da68   LR = 0x080600bb   PC = 0x08060bca
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001df68,
+                        r5: 0x8,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x2001da90,
+                        r9: 0x2001df74,
+                        r10: 0x806100c,
+                        r11: 0x1,
+                        psp: 0x2001da00,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x4),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x789b0)),
+                        to_post: NotificationSet(0x1)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001210 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004bf4 (&abi::TaskDesc)
+                }
+
+14 <0x112?>               0   6 notif: bit0
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x08063c50   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x20014fbc
+   |       R4 = 0x08063c50   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x8000ffff
+   |       R8 = 0x20014e48   R9 = 0x00000001  R10 = 0x20015000  R11 = 0x00000001
+   |      R12 = 0x20014fb8   SP = 0x20014db0   LR = 0x080628a7   PC = 0x080636de
+   |      PSR = 0x21000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x8063c50,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x8000ffff,
+                        r8: 0x20014e48,
+                        r9: 0x1,
+                        r10: 0x20015000,
+                        r11: 0x1,
+                        psp: 0x20014d48,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001230 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004c08 (&abi::TaskDesc)
+                }
+
+15 <0x5?>                 0   6 notif: bit31(T-2117793075464287)
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x080652ac   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200197ac
+   |       R4 = 0x080652ac   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x200197ac   R9 = 0x8000ffff  R10 = 0x080652ac  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20019750   LR = 0x080640fd   PC = 0x08064db2
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x80652ac,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x200197ac,
+                        r9: 0x8000ffff,
+                        r10: 0x80652ac,
+                        r11: 0x1,
+                        psp: 0x200196e8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x78761)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001250 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004c1c (&abi::TaskDesc)
+                }
+
+16 <0x8004be4?>           0   5 recv
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x2001a3b4   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x2001a3b8
+   |       R4 = 0x2001a3b4   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x08067790   R9 = 0x00000000  R10 = 0x2001a3b8  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x2001a378   LR = 0x08066259   PC = 0x0806757e
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2001a3b4,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x8067790,
+                        r9: 0x0,
+                        r10: 0x2001a3b8,
+                        r11: 0x1,
+                        psp: 0x2001a310,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001270 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004c30 (&abi::TaskDesc)
+                }
+
+17 <0x1a?>                0   7 ready
+   stack unwind failed: Do not have unwind info for the given address. 
+   |
+   +--->   R0 = 0x2001e500   R1 = 0x2001e500   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x2001e4f8
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x2001e4f8   LR = 0x0806884f   PC = 0x08068856
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x2001e4f8,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x2001e490,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x7),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20001290 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004c44 (&abi::TaskDesc)
+                }
+

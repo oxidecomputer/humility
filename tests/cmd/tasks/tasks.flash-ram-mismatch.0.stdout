@@ -1,0 +1,20 @@
+system time = 2117793075957696
+ID TASK                 GEN PRI STATE    
+ 0 <0x6f697472?>          0   0 recv, notif: bit0 bit1(T-2117793075464596)
+ 1 <0x14?>                0   5 recv, notif: bit0 bit1(T-2117793075464456)
+ 2 <0x31a?>               0   1 recv
+ 3 <0x15?>                0   3 recv
+ 4 <0x2f737973?>          0   3 recv
+ 5 <0x8004b40?>           0   3 recv
+ 6 <0x14?>                0   2 notif: bit0
+ 7 <0x149?>               0   5 recv, notif: bit0(T-2117793075463689)
+ 8 <0x1f?>                0   6 notif: bit31(T-2117793075464383)
+ 9 <0x8004b40?>           0   5 notif: bit31(T-2117793075464596)
+10 <0x14?>                0   4 recv, notif: bit0
+11 <0x14c?>               0   2 recv
+12 <0x9?>                 0   3 recv
+13 <0x72612f68?>          0   4 recv, notif: bit0(T-2117793075463696)
+14 <0x112?>               0   6 notif: bit0
+15 <0x5?>                 0   6 notif: bit31(T-2117793075464287)
+16 <0x8004be4?>           0   5 recv
+17 <0x1a?>                0   7 ready

@@ -9,6 +9,7 @@ use anyhow::{anyhow, bail, ensure, Result};
 
 use crate::arch::ARMRegister;
 use crate::hubris::*;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -18,6 +19,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
 use std::path::Path;
+use std::rc::Rc;
 use std::str;
 use std::time::Duration;
 use std::time::Instant;
@@ -359,18 +361,96 @@ impl Core for ProbeCore {
     }
 
     fn load(&mut self, path: &Path) -> Result<()> {
+        #[derive(Debug, Default)]
+        struct LoadProgress {
+            /// total bytes that need to be erased
+            total_erase: usize,
+
+            /// bytes that have been erased
+            erased: usize,
+
+            /// total bytes that need to be written
+            total_write: usize,
+
+            /// number of bytes that have been written
+            written: usize,
+        }
+
+        use indicatif::{ProgressBar, ProgressStyle};
+
         if !self.can_flash {
             bail!("cannot flash without explicitly attaching to flash");
         }
 
-        if let Err(e) = flashing::download_file(
+        let progress =
+            Rc::new(RefCell::new(LoadProgress { ..Default::default() }));
+
+        let bar = ProgressBar::new(0);
+
+        let progress = flashing::FlashProgress::new(move |event| match event {
+            flashing::ProgressEvent::Initialized { flash_layout } => {
+                progress.borrow_mut().total_erase = flash_layout
+                    .sectors()
+                    .iter()
+                    .map(|s| s.size() as usize)
+                    .sum();
+
+                progress.borrow_mut().total_write = flash_layout
+                    .pages()
+                    .iter()
+                    .map(|s| s.size() as usize)
+                    .sum();
+
+                bar.set_style(ProgressStyle::default_bar().template(
+                    "humility: erasing [{bar:30}] {bytes}/{total_bytes}",
+                ));
+                bar.set_length(progress.borrow().total_erase as u64);
+            }
+
+            flashing::ProgressEvent::SectorErased { size, .. } => {
+                progress.borrow_mut().erased += size as usize;
+                bar.set_position(progress.borrow().erased as u64);
+            }
+
+            flashing::ProgressEvent::PageProgrammed { size, .. } => {
+                let mut progress = progress.borrow_mut();
+
+                if progress.written == 0 {
+                    progress.erased = progress.total_erase;
+                    bar.set_style(ProgressStyle::default_bar().template(
+                        "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
+                    ));
+                    bar.set_length(progress.total_write as u64);
+                }
+
+                progress.written += size as usize;
+                bar.set_position(progress.written as u64);
+            }
+
+            flashing::ProgressEvent::FinishedProgramming => {
+                bar.finish_and_clear();
+            }
+
+            _ => {}
+        });
+
+        let mut options = flashing::DownloadOptions::default();
+        options.progress = Some(&progress);
+
+        if let Err(e) = flashing::download_file_with_options(
             &mut self.session,
             path,
             flashing::Format::Hex,
+            options,
         ) {
             bail!("Flash loading failed {:?}", e);
         };
 
+        //
+        // Not clear why this delay is required, but without it, we spin
+        // into the ROM on Gimlet-B
+        //
+        std::thread::sleep(std::time::Duration::from_millis(100));
         self.reset()?;
         Ok(())
     }
