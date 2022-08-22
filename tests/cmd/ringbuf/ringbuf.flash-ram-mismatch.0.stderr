@@ -1,0 +1,5 @@
+humility: attached to dump
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_gimlet_seq_server::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<ksz8463::Trace, 16>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_hiffy::stm32h7::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<vsc85xx::Trace, 16>> at address 0x0

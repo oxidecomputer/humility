@@ -53,6 +53,14 @@ struct FlashArgs {
     /// force usage of OpenOCD
     #[clap(long = "force-openocd", short = 'O')]
     force_openocd: bool,
+
+    /// reset delay
+    #[clap(
+        long = "reset-delay", short = 'd',
+        default_value = "100", value_name = "timeout_ms",
+        parse(try_from_str = parse_int::parse)
+    )]
+    reset_delay: u64,
 }
 
 //
@@ -351,12 +359,30 @@ fn flashcmd(
     let ihex_path = ihex.path();
 
     //
-    // This will reset the part if it works.
+    // Load the flash image, and reset the part if that works.
     //
     if let Err(err) = core.load(ihex_path) {
         core.run()?;
         Err(err)
     } else {
+        //
+        // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
+        // it seems to float high enough to bounce the part onto the wrong
+        // image (that is, the BOOT1 image -- which by default is the ST
+        // bootloader).  This seems to only be true when resetting immediately
+        // after flashing the part:  if there is a delay on the order of ~35
+        // milliseconds or more, the BOOT0 pin is seen as low when the part
+        // resets.  Because this delay is (more or less) harmless, we do it on
+        // all platforms, and further make it tunable.
+        //
+        let delay = subargs.reset_delay;
+
+        if delay != 0 {
+            std::thread::sleep(std::time::Duration::from_millis(delay));
+        }
+
+        core.reset()?;
+
         humility::msg!("flashing done");
         Ok(())
     }

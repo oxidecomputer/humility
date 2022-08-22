@@ -7,6 +7,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
+use humility::warn;
 use humility_cmd::attach_live;
 use humility_cmd::{Archive, Args, Command, RunUnattached};
 use humility_cortex::debug::*;
@@ -107,7 +108,7 @@ fn etmcmd_probe(core: &mut dyn Core) -> Result<()> {
     humility::msg!("{:#x?}", etmccr);
 
     if !etmccr.has_etmidr() {
-        log::warn!("ETMv1.3 and earlier not supported");
+        warn!("ETMv1.3 and earlier not supported");
         return Ok(());
     }
 
@@ -128,7 +129,7 @@ fn etmcmd_enable(
     let etmccr = ETMCCR::read(core)?;
 
     if !etmccr.has_etmidr() {
-        log::warn!("ETMv1.3 and earlier not supported");
+        warn!("ETMv1.3 and earlier not supported");
         return Ok(());
     }
 
@@ -139,12 +140,12 @@ fn etmcmd_enable(
     let minor = etmidr.etm_minor();
 
     if (major, minor) != (3, 5) {
-        log::warn!("only ETMv3.5 supported");
+        warn!("only ETMv3.5 supported");
         return Ok(());
     }
 
     if !etmidr.has_branch_encoding() {
-        log::warn!("only alternative branch encoding supported");
+        warn!("only alternative branch encoding supported");
         return Ok(());
     }
 
@@ -427,7 +428,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                         Some(addr + len)
                     }
                     None => {
-                        log::warn!("unknown instruction length at {:x}!", addr);
+                        warn!("unknown instruction length at {:x}!", addr);
                         broken = true;
                         None
                     }
@@ -475,7 +476,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
             match packet.payload {
                 ETM3Payload::ISync { address, .. } => {
                     if broken {
-                        log::warn!("re-railing at offset {}", packet.offset);
+                        warn!("re-railing at offset {}", packet.offset);
                         broken = false;
                         target = (None, None);
                     }
@@ -494,7 +495,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
                         )
                         | (Some(origin), Some(HubrisTarget::Call(expected))) => {
                             if curaddr.unwrap() != expected {
-                                log::warn!(
+                                warn!(
                                     "detected bad branch: at 0x{:x} expected \
                                 branch to 0x{:x}, found 0x{:x}; packet: {:x?}",
                                     origin,
@@ -507,7 +508,7 @@ fn etmcmd_ingest(config: &TraceConfig, filename: &str) -> Result<()> {
 
                         (Some(origin), None) => {
                             if exception.is_none() {
-                                log::warn!(
+                                warn!(
                                     "detected bad branch: did not expect any \
                                 branch from 0x{:x}, but control transferred \
                                 to 0x{:x}; packet: {:x?}",

@@ -1,0 +1,79 @@
+     version => hubris build archive v3
+     git rev => a04ad15af4f135bfdf18a86603a78f96edd2905c-dirty
+    image id => [1c, b2, 85, 7f, 29, d7, 24, 2]
+       board => gimlet-b
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 494K
+ kernel size => 35K
+       tasks => 18
+                ID TASK                SIZE FEATURES
+                 0 hiffy              56.4K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash
+                 1 gimlet_seq         64.1K h753
+                 2 net                150.2K mgmt, h753, gimlet, vlan
+                 3 spi4_driver        16.1K spi4, h753
+                 4 spi2_driver        16.1K spi2, h753
+                 5 i2c_driver         16.3K h753, itm
+                 6 spd                24.1K h753, itm
+                 7 thermal            16.8K itm, gimlet
+                 8 power              16.1K itm, gimlet
+                 9 hash_driver        16.1K h753
+                10 hf                 16.1K h753, hash
+                11 validate           16.1K 
+                12 jefe                8.1K itm
+                13 sensor              8.1K itm
+                14 udpecho             8.1K vlan
+                15 udpbroadcast        8.1K vlan
+                16 sys                 2.0K h753
+                17 idle                0.1K 
+   i2c buses => 4 controllers, 5 buses
+                C PORT MODE NAME          DESCRIPTION
+                1 B    trgt spd           SPD proxy
+                2 B    init m2            M.2 bus
+                2 F    init front         Front bus
+                3 H    init mid           Mid bus
+                4 F    init rear          Rear bus
+ i2c devices => 42 devices
+                C P  MUX ADDR DEVICE        DESCRIPTION
+                2 F  -   0x48 tmp117        Southwest temperature sensor
+                2 F  -   0x49 tmp117        South temperature sensor
+                2 F  -   0x4a tmp117        Southeast temperature sensor
+                2 F  -   0x70 pca9545       U.2 ABCD mux
+                2 F  -   0x71 pca9545       U.2 EFGH mux
+                2 F  -   0x72 pca9545       U.2 IJ/FRUID mux
+                2 B  -   0x73 pca9545       M.2 mux
+                2 B  1:4 0x4c tmp451        T6 temperature sensor
+                3 H  -   0x24 tps546b24a    A2 3.3V rail
+                3 H  -   0x26 tps546b24a    A0 3.3V rail
+                3 H  -   0x27 tps546b24a    A2 5V rail
+                3 H  -   0x29 tps546b24a    A2 1.8V rail
+                3 H  -   0x3a max5970       M.2 hot plug controller
+                3 H  -   0x4c sbtsi         CPU temperature sensor
+                3 H  -   0x58 idt8a34003    Clock generator
+                3 H  -   0x5a raa229618     CPU power controller
+                3 H  -   0x5b raa229618     SoC power controller
+                3 H  -   0x5c isl68224      DIMM/SP3 1.8V A0 power controller
+                4 F  -   0x10 adm1272       Fan hot swap controller
+                4 F  -   0x14 adm1272       Sled hot swap controller
+                4 F  -   0x20 max31790      Fan controller
+                4 F  -   0x25 tps546b24a    T6 power controller
+                4 F  -   0x48 tmp117        Northeast temperature sensor
+                4 F  -   0x49 tmp117        North temperature sensor
+                4 F  -   0x4a tmp117        Northwest temperature sensor
+                4 F  -   0x67 bmr491        Intermediate bus converter
+                3 H  -   0x18 tse2004av     DIMM A0
+                3 H  -   0x19 tse2004av     DIMM A1
+                3 H  -   0x1a tse2004av     DIMM B0
+                3 H  -   0x1b tse2004av     DIMM B1
+                3 H  -   0x1c tse2004av     DIMM C0
+                3 H  -   0x1d tse2004av     DIMM C1
+                3 H  -   0x1e tse2004av     DIMM D0
+                3 H  -   0x1f tse2004av     DIMM D1
+                4 F  -   0x18 tse2004av     DIMM E0
+                4 F  -   0x19 tse2004av     DIMM E1
+                4 F  -   0x1a tse2004av     DIMM F0
+                4 F  -   0x1b tse2004av     DIMM F1
+                4 F  -   0x1c tse2004av     DIMM G0
+                4 F  -   0x1d tse2004av     DIMM G1
+                4 F  -   0x1e tse2004av     DIMM H0
+                4 F  -   0x1f tse2004av     DIMM H1

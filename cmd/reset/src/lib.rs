@@ -48,7 +48,10 @@ fn reset(
     let r = c.reset();
 
     if r.is_err() {
-        humility::msg!("There was an error when resetting. The chip may be in an unknown state!");
+        humility::msg!(
+            "There was an error when resetting. \
+            The chip may be in an unknown state!"
+        );
         humility::msg!("Full error: {:x?}", r);
     }
 
