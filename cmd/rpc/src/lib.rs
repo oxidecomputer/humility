@@ -257,23 +257,8 @@ fn rpc_call(
     packet.extend(payload.iter());
 
     socket.send(&packet)?;
-    let timeout = Instant::now() + timeout;
     let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-    loop {
-        match socket.recv(&mut buf) {
-            Ok(_n) => {
-                break;
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                if timeout <= Instant::now() {
-                    panic!("Timeout");
-                }
-            }
-            Err(e) => {
-                panic!("Got error {:?}", e);
-            }
-        }
-    }
+    socket.recv(&mut buf)?;
     // Handle errors from the RPC task itself, which are reported as a non-zero
     // first byte in the reply packet.
     if buf[0] != 0 {
