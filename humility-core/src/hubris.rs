@@ -19,13 +19,13 @@ use std::path::Path;
 use std::str::{self, FromStr};
 use std::time::Instant;
 
+use crate::{msg, warn};
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
 use idol::syntax::Interface;
-use log::{error, warn};
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
@@ -1049,7 +1049,12 @@ impl HubrisArchive {
                         let mut result = match eval.evaluate() {
                             Ok(r) => r,
                             Err(e) => {
-                                warn!("AT_location evaluation failed for entry {:?}: {}", name, e);
+                                warn!(
+                                    "AT_location evaluation failed \
+                                    for entry {:?}: {}",
+                                    name, e
+                                );
+
                                 continue;
                             }
                         };
@@ -1062,13 +1067,18 @@ impl HubrisArchive {
                                     result = match eval.resume_with_relocated_address(a) {
                                         Ok(r) => r,
                                         Err(e) => {
-                                            error!("AT_location failed after resume: {}", e);
+                                            warn!(
+                                                "AT_location failed \
+                                                after resume: {}", e
+                                            );
                                             break None;
                                         }
                                     };
                                 }
                                 x => {
-                                    log::debug!("unsupported evaluation result: {:?}", x);
+                                    log::debug!(
+                                        "unsupported eval result: {:?}", x
+                                    );
                                     break None;
                                 }
                             }
@@ -3866,7 +3876,7 @@ impl HubrisArchive {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        crate::msg!("dumping to {}", filename);
+        msg!("dumping to {}", filename);
 
         file.iowrite_with(header, ctx)?;
 
@@ -3996,7 +4006,7 @@ impl HubrisArchive {
 
         bar.finish_and_clear();
 
-        crate::msg!(
+        msg!(
             "dumped {} in {}",
             HumanBytes(written as u64),
             HumanDuration(started.elapsed())

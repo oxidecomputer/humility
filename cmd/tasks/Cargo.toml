@@ -11,3 +11,4 @@ clap = { version = "3.0.12", features = ["derive", "env"] }
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 num-traits = "0.2"
 log = "0.4"
+colored = "2.0.0"

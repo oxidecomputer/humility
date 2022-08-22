@@ -191,7 +191,8 @@ fn probecmd(
 
             if let (Ok(dieid), Ok(devid), Ok(patch)) = (dieid, devid, patch) {
                 format!(
-                    "LPC55, ROM revision {}, device revision 0x{:x} ({}), ROM patch 0x{:x}",
+                    "LPC55, ROM revision {}, device revision 0x{:x} ({}), \
+                    ROM patch 0x{:x}",
                     devid.rom_revision(), dieid.rev_id(),
                     match dieid.rev_id() {
                         0x0 => { "0A" },

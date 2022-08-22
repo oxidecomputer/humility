@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use humility::{msg, warn};
 use humility_cmd::{env::Environment, Args, Subcommand};
 
 use clap::CommandFactory;
@@ -51,7 +52,7 @@ fn main() {
             let env = match Environment::from_file(env, target) {
                 Ok(e) => e,
                 Err(err) => {
-                    eprintln!("failed to match environment: {:?}", err);
+                    msg!("failed to match environment: {:?}", err);
                     std::process::exit(1);
                 }
             };
@@ -77,12 +78,12 @@ fn main() {
                     "archive in environment variable"
                 };
 
-                log::warn!("{} overriding archive in environment file", msg);
+                warn!("{} overriding archive in environment file", msg);
             } else {
                 args.archive = match env.archive(&args.archive_name) {
                     Ok(a) => Some(a),
                     Err(e) => {
-                        eprintln!("Failed to get archive: {}", e);
+                        humility::msg!("failed to get archive: {}", e);
                         std::process::exit(1);
                     }
                 }
@@ -96,7 +97,10 @@ fn main() {
                 let targets = match Environment::targets(env) {
                     Ok(targets) => targets,
                     Err(err) => {
-                        eprintln!("failed to parse environment: {:?}", err);
+                        humility::msg!(
+                            "failed to parse environment: {:?}",
+                            err
+                        );
                         std::process::exit(1);
                     }
                 };
@@ -155,12 +159,12 @@ fn main() {
         match (m.occurrences_of("dump") == 1, m.occurrences_of("archive") == 1)
         {
             (true, true) => {
-                log::error!("cannot specify both a dump and an archive");
+                msg!("cannot specify both a dump and an archive");
                 std::process::exit(1);
             }
 
             (false, false) => {
-                log::error!(
+                msg!(
                     "both dump and archive have been set via environment \
                     variables; unset one of them, or use a command-line option \
                     to override"
@@ -169,16 +173,12 @@ fn main() {
             }
 
             (true, false) => {
-                log::warn!(
-                    "dump on command-line overriding archive in environment"
-                );
+                warn!("dump on command-line overriding archive in environment");
                 args.archive = None;
             }
 
             (false, true) => {
-                log::warn!(
-                    "archive on command-line overriding dump in environment"
-                );
+                warn!("archive on command-line overriding dump in environment");
                 args.dump = None;
             }
         }

@@ -244,6 +244,16 @@ fn tasks(
             }
         }
 
+        if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+            if hubris.instr_mod(pc).is_none() {
+                humility::warn!(
+                    "PC 0x{:x} is unknown; \
+                    system may be executing in ROM!",
+                    pc
+                );
+            }
+        }
+
         let keep_halted = subargs.stack || subargs.registers || panicked;
 
         if !keep_halted {

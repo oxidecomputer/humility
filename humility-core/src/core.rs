@@ -446,12 +446,6 @@ impl Core for ProbeCore {
             bail!("Flash loading failed {:?}", e);
         };
 
-        //
-        // Not clear why this delay is required, but without it, we spin
-        // into the ROM on Gimlet-B
-        //
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        self.reset()?;
         Ok(())
     }
 
