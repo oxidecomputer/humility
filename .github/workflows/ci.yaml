@@ -9,10 +9,18 @@ env:
 jobs:
   check-msrv:
     name: Check (MSRV)
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            deps: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+          - os: windows-latest
+            deps: vcpkg install libusb libftdi1
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+      - name: Install dependencies
+        run: '${{ matrix.deps }}'
       - uses: actions/checkout@v2
         with:
           submodules: true
@@ -32,10 +40,18 @@ jobs:
           args: --profile=ci
   check:
     name: Check
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            deps: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+          - os: windows-latest
+            deps: vcpkg install libusb libftdi1
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+      - name: Install dependencies
+        run: '${{ matrix.deps }}'
       - uses: actions/checkout@v2
         with:
           submodules: true
@@ -56,10 +72,18 @@ jobs:
 
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            deps: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+          - os: windows-latest
+            deps: vcpkg install libusb libftdi1
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+      - name: Install dependencies
+        run: '${{ matrix.deps }}'
       - uses: actions/checkout@v2
         with:
           submodules: true
