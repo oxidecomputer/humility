@@ -88,7 +88,7 @@ struct HiffyArgs {
     arguments: Vec<String>,
 }
 
-fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
+pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
     println!(
         "{:<15} {:<12} {:<19} {:<15} {:<15}",
         "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
@@ -111,7 +111,7 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
             }
         }
 
-        if !subargs.verbose {
+        if !verbose {
             return;
         }
 
@@ -240,23 +240,28 @@ fn hiffy_call_print(
     args: &[(&str, idol::IdolArgument)],
 ) -> Result<()> {
     let result = hiffy_call(hubris, core, context, op, args)?;
+    hiffy_print_result(hubris, op, result)?;
+    Ok(())
+}
+
+pub fn hiffy_print_result(
+    hubris: &HubrisArchive,
+    op: &idol::IdolOperation,
+    result: std::result::Result<humility::reflect::Value, String>,
+) -> Result<()> {
     let fmt = HubrisPrintFormat {
         newline: false,
         hex: true,
         ..HubrisPrintFormat::default()
     };
+    print!("{}.{}() => ", op.name.0, op.name.1);
     match result {
         Ok(val) => {
             use humility::reflect::Format;
             let mut dumped = vec![];
             val.format(hubris, fmt, &mut dumped).unwrap();
 
-            println!(
-                "{}.{}() = {}",
-                op.name.0,
-                op.name.1,
-                std::str::from_utf8(&dumped).unwrap()
-            );
+            println!("{}", std::str::from_utf8(&dumped).unwrap());
         }
         Err(e) => {
             println!("Err({})", e);
@@ -274,7 +279,7 @@ fn hiffy(
     let subargs = HiffyArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        hiffy_list(hubris, &subargs)?;
+        hiffy_list(hubris, subargs.verbose)?;
         return Ok(());
     }
 

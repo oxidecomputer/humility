@@ -36,6 +36,7 @@
 use anyhow::{anyhow, bail, Result};
 use humility::reflect::{Load, Ptr, Value};
 use std::convert::TryInto;
+use zerocopy::{AsBytes, LittleEndian, U16, U64};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub struct TaskDesc {
@@ -307,4 +308,15 @@ pub struct StaticCell {
 #[derive(Clone, Debug, Load)]
 pub struct UnsafeCell {
     pub value: Value,
+}
+
+/// Double of the struct from `udprpc`
+#[derive(Copy, Clone, Debug, AsBytes)]
+#[repr(C)]
+pub struct RpcHeader {
+    pub image_id: U64<LittleEndian>,
+    pub task: U16<LittleEndian>,
+    pub op: U16<LittleEndian>,
+    pub nreply: U16<LittleEndian>,
+    pub nbytes: U16<LittleEndian>,
 }

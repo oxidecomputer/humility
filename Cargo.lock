@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.8"
+version = "0.8.9"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -900,6 +900,7 @@ dependencies = [
  "humility-cmd-rendmp",
  "humility-cmd-reset",
  "humility-cmd-ringbuf",
+ "humility-cmd-rpc",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -945,6 +946,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ssmarshal",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1417,6 +1419,26 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+]
+
+[[package]]
+name = "humility-cmd-rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-cmd-net",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "libc",
+ "log",
+ "parse_int",
+ "zerocopy",
 ]
 
 [[package]]

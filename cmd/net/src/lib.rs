@@ -108,19 +108,24 @@ fn net_ip(
     println!();
 
     // MAC to IPv6 link-local address
-    print!("{}: ", "IPv6 address".bold());
-    print!("fe80::");
-    for (i, byte) in mac.iter().enumerate() {
-        if i == 2 || i == 4 {
-            print!(":");
-        }
-        print!("{:02x}", if i == 0 { *byte ^ (1 << 1) } else { *byte });
-        if i == 2 {
-            print!("ff:fe");
-        }
-    }
+    print!("{}: {}", "IPv6 address".bold(), mac_to_ip6(mac));
     println!();
     Ok(())
+}
+
+pub fn mac_to_ip6(mac: [u8; 6]) -> String {
+    let mut out = "fe80::".to_string();
+    for (i, byte) in mac.iter().enumerate() {
+        if i == 2 || i == 4 {
+            out += ":";
+        }
+        out +=
+            &format!("{:02x}", if i == 0 { *byte ^ (1 << 1) } else { *byte });
+        if i == 2 {
+            out += "ff:fe";
+        }
+    }
+    out
 }
 
 fn net_mac_table(
