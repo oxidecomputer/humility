@@ -19,13 +19,13 @@ use std::path::Path;
 use std::str::{self, FromStr};
 use std::time::Instant;
 
+use crate::{msg, warn};
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
 use idol::syntax::Interface;
-use log::{error, warn};
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
@@ -1049,7 +1049,12 @@ impl HubrisArchive {
                         let mut result = match eval.evaluate() {
                             Ok(r) => r,
                             Err(e) => {
-                                warn!("AT_location evaluation failed for entry {:?}: {}", name, e);
+                                warn!(
+                                    "AT_location evaluation failed \
+                                    for entry {:?}: {}",
+                                    name, e
+                                );
+
                                 continue;
                             }
                         };
@@ -1062,13 +1067,18 @@ impl HubrisArchive {
                                     result = match eval.resume_with_relocated_address(a) {
                                         Ok(r) => r,
                                         Err(e) => {
-                                            error!("AT_location failed after resume: {}", e);
+                                            warn!(
+                                                "AT_location failed \
+                                                after resume: {}", e
+                                            );
                                             break None;
                                         }
                                     };
                                 }
                                 x => {
-                                    log::debug!("unsupported evaluation result: {:?}", x);
+                                    log::debug!(
+                                        "unsupported eval result: {:?}", x
+                                    );
                                     break None;
                                 }
                             }
@@ -2965,7 +2975,7 @@ impl HubrisArchive {
             if deltas > 0 || id.len() != imageid.1.len() {
                 bail!(
                     "image ID in archive ({:x?}) does not equal \
-                    ID in RAM at 0x{:x} ({:x?})",
+                    ID at 0x{:x} ({:x?})",
                     imageid.1, imageid.0, id,
                 );
             }
@@ -3101,16 +3111,117 @@ impl HubrisArchive {
         Ok(offset as u32)
     }
 
+    //
+    // Returns a vector of all region descriptor addresses for all tasks.
+    //
+    fn task_region_descs(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Vec<Vec<u32>>> {
+        let mut rval = vec![];
+
+        //
+        // If we have HUBRIS_TASK_DESCS and HUBRIS_REGION_DESCS (that is,
+        // if our kernel post-dates the addition of those variables), we
+        // would much rather get our region descriptors there:  if the
+        // flash and RAM don't match -- e.g., because of a missing reset --
+        // this will at least be self-consistent.  If we don't have these
+        // variables, we will go fishing off the task structures in RAM,
+        // and hope for the best.
+        //
+        match (
+            self.lookup_variable("HUBRIS_TASK_DESCS"),
+            self.lookup_variable("HUBRIS_REGION_DESCS"),
+        ) {
+            (Ok(tdescs), Ok(rdescs)) => {
+                let tdesc = self.lookup_struct_byname("TaskDesc")?;
+                let rdesc = self.lookup_struct_byname("RegionDesc")?;
+                let regions = tdesc.lookup_member("regions")?;
+                let roffs = regions.offset;
+
+                //
+                // We expect this to be an array of indices.
+                //
+                let count = match self.lookup_type(regions.goff)? {
+                    HubrisType::Array(a) => {
+                        if self.lookup_type(a.goff)?.size(self)? != 1 {
+                            bail!("expected array of single-byte indices \
+                                  for TaskDesc.regions");
+                        }
+
+                        a.count
+                    }
+                    _ => {
+                        bail!("expected array for TaskDesc.regions");
+                    }
+                };
+
+                let mut indices: Vec<u8> = vec![];
+                indices.resize_with(count, Default::default);
+
+                for i in 0..self.ntasks() {
+                    let mut r = vec![];
+
+                    let taddr = tdescs.addr + ((i * tdesc.size) + roffs) as u32;
+
+                    if taddr + count as u32 > tdescs.addr + tdescs.size as u32 {
+                        bail!("task {} has bad regions addr 0x{:x}", i, taddr);
+                    }
+
+                    core.read_8(taddr, &mut indices).context(format!(
+                        "failed to read region desriptors for task {} at 0x{:x}",
+                        i, taddr)
+                    )?;
+
+                    for ndx in &indices {
+                        let ndx = *ndx as usize;
+
+                        if ndx == 0 {
+                            continue;
+                        }
+
+                        if ndx * rdesc.size > rdescs.size {
+                            bail!("task {} has bad region index {}", i, ndx);
+                        }
+
+                        r.push(rdescs.addr + (ndx * rdesc.size) as u32);
+                    }
+
+                    rval.push(r);
+                }
+            }
+
+            (_, _) => {
+                let task = self.lookup_struct_byname("Task")?;
+                let (base, _) = self.task_table(core)?;
+                let poffs =
+                    self.member_offset(task, "region_table.data_ptr")?;
+                let loffs = self.member_offset(task, "region_table.length")?;
+
+                for i in 0..self.ntasks() {
+                    let mut r = vec![];
+
+                    let addr = base + i as u32 * task.size as u32;
+                    let ptr = core.read_word_32(addr + poffs)?;
+                    let len = core.read_word_32(addr + loffs)?;
+
+                    for j in 0..len {
+                        r.push(core.read_word_32(ptr + j * 4)?);
+                    }
+
+                    rval.push(r);
+                }
+            }
+        }
+
+        Ok(rval)
+    }
+
     pub fn regions(
         &self,
         core: &mut dyn crate::core::Core,
     ) -> Result<BTreeMap<u32, HubrisRegion>> {
-        let (base, _) = self.task_table(core)?;
-        let task = self.lookup_struct_byname("Task")?;
         let desc = self.lookup_struct_byname("RegionDesc")?;
-
-        let ptr_offs = self.member_offset(task, "region_table.data_ptr")?;
-        let len_offs = self.member_offset(task, "region_table.length")?;
 
         let base_offs = self.member_offset(desc, "base")?;
         let size_offs = self.member_offset(desc, "size")?;
@@ -3203,14 +3314,8 @@ impl HubrisArchive {
         //
         // Iterate over all tasks, reading their region descriptors.
         //
-        for i in 0..self.ntasks() {
-            let addr = base + i as u32 * task.size as u32;
-
-            let ptr = core.read_word_32(addr + ptr_offs)?;
-            let len = core.read_word_32(addr + len_offs)?;
-
-            for j in 0..len {
-                let daddr = core.read_word_32(ptr + j * 4)?;
+        for (i, daddrs) in self.task_region_descs(core)?.iter().enumerate() {
+            for daddr in daddrs {
                 let base = core.read_word_32(daddr + base_offs)?;
                 let size = core.read_word_32(daddr + size_offs)?;
                 let attr = core.read_word_32(daddr + attr_offs)?;
@@ -3220,7 +3325,7 @@ impl HubrisArchive {
                 }
 
                 let region = HubrisRegion {
-                    daddr: Some(daddr),
+                    daddr: Some(*daddr),
                     base,
                     size: if attr & WRITE != 0 {
                         size
@@ -3771,7 +3876,7 @@ impl HubrisArchive {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        crate::msg!("dumping to {}", filename);
+        msg!("dumping to {}", filename);
 
         file.iowrite_with(header, ctx)?;
 
@@ -3901,7 +4006,7 @@ impl HubrisArchive {
 
         bar.finish_and_clear();
 
-        crate::msg!(
+        msg!(
             "dumped {} in {}",
             HumanBytes(written as u64),
             HumanDuration(started.elapsed())

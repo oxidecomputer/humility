@@ -4,7 +4,10 @@
 
 //! ## `humility openocd`
 //!
-//! This command launches OpenOCD based on the config file in a build archive
+//! This command launches OpenOCD based on the config file in a build archive,
+//! which then allows one to connect with either GDB or directly via telnet.
+//! If the intention is to only run GDB, note that `humility gdb --run-openocd`
+//! will both run OpenOCD and run a foreground GDB that is connected to it.
 //!
 
 use std::process::Command;

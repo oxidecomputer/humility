@@ -244,6 +244,16 @@ fn tasks(
             }
         }
 
+        if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+            if hubris.instr_mod(pc).is_none() {
+                humility::warn!(
+                    "PC 0x{:x} is unknown; \
+                    system may be executing in ROM!",
+                    pc
+                );
+            }
+        }
+
         let keep_halted = subargs.stack || subargs.registers || panicked;
 
         if !keep_halted {
@@ -260,13 +270,16 @@ fn tasks(
         for (i, (addr, task_value, task)) in tasks.iter().enumerate() {
             let i = i as u32;
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
-            let module =
-                hubris.instr_mod(desc.entry_point).unwrap_or("<unknown>");
+
+            let module = match hubris.lookup_module(HubrisTask::Task(i)) {
+                Ok(m) => &m.name,
+                _ => "<unknown>",
+            };
 
             let irqs = hubris.manifest.task_irqs.get(module);
 
             if let Some(ref task) = subargs.task {
-                if task != module {
+                if *task != module {
                     continue;
                 }
 

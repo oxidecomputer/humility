@@ -10,16 +10,18 @@ pub mod reflect;
 #[macro_use]
 extern crate num_derive;
 
-/// Give CLI output for the user
+/// Give messages to the user.
 ///
-/// This macro is intended to be used whenever producing secondary output to the
-/// terminal for users to see. It is its own macro for two reasons:
+/// These macros are intended to be used whenever producing secondary output to the
+/// terminal for users to see. They are their own macros for two reasons:
 ///
-/// 1. it will prepend "humility: " to the output
-/// 2. it uses stderr rather than stdout
+/// 1. They will prepend "humility: " to the output
+/// 2. They use stderr rather than stdout
 ///
-/// By using this macro, if we want to change these two things, it's much easier
-/// than changing every single eprintln! in the codebase.
+/// Additionally, [`warn!`] will generate an eye-grabbing warning.  These
+/// macros should be used in lieu of `log::error!`, `log::warn!` or direct
+/// `eprintln!` (`log::debug!` and `log::trace!` can be used for debugging
+/// output that is to be optionally enabled on the command line).
 #[macro_export]
 macro_rules! msg {
     ($fmt:expr) => ({
@@ -27,5 +29,19 @@ macro_rules! msg {
     });
     ($fmt:expr, $($arg:tt)*) => ({
         eprintln!(concat!("humility: ", $fmt), $($arg)*);
+    });
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($fmt:expr) => ({
+        use colored::Colorize;
+        eprint!("humility: {}: ", "WARNING".red());
+        eprintln!($fmt);
+    });
+    ($fmt:expr, $($arg:tt)*) => ({
+        use colored::Colorize;
+        eprint!("humility: {}: ", "WARNING".red());
+        eprintln!($fmt, $($arg)*);
     });
 }

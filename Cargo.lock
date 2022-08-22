@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1035,6 +1035,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "csv",
  "humility-cmd",
  "humility-core",
@@ -1079,6 +1080,7 @@ dependencies = [
  "ihex",
  "log",
  "num-traits",
+ "parse_int",
  "path-slash",
  "regex",
  "ron 0.7.1",
@@ -1133,12 +1135,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "hif",
  "humility-cmd",
  "humility-core",
  "idol",
  "indexmap",
- "log",
  "parse_int",
 ]
 
@@ -1500,6 +1502,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "humility-cmd",
  "humility-core",
  "log",
@@ -1551,6 +1554,7 @@ dependencies = [
  "anyhow",
  "bitfield",
  "capstone",
+ "colored",
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",

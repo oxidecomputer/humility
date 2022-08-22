@@ -48,6 +48,7 @@ use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::warn;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Attach, Command, Run, Validate};
@@ -121,7 +122,7 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
                     println!("{:m$}{:<15} {}", "", "<error>", e.name, m = m);
                 }
                 _ => {
-                    log::warn!("Mismatch between expected reply and operation");
+                    warn!("Mismatch between expected reply and operation");
                 }
             },
             Ok((_, None)) => match &op.1.reply {
@@ -129,11 +130,11 @@ fn hiffy_list(hubris: &HubrisArchive, subargs: &HiffyArgs) -> Result<()> {
                     println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
                 }
                 _ => {
-                    log::warn!("Mismatch between expected reply and operation");
+                    warn!("Mismatch between expected reply and operation");
                 }
             },
             Err(e) => {
-                log::warn!("{}", e);
+                warn!("{}", e);
             }
         }
     };
