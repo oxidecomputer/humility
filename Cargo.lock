@@ -1438,6 +1438,7 @@ dependencies = [
  "libc",
  "log",
  "parse_int",
+ "winapi",
  "zerocopy",
 ]
 
