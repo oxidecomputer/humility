@@ -63,7 +63,7 @@ use humility::hubris::*;
 use humility_cmd::doppel::RpcHeader;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Command, RunUnattached};
-use zerocopy::AsBytes;
+use zerocopy::{AsBytes, U16, U64};
 
 #[derive(Parser, Debug)]
 #[clap(name = "rpc", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -247,11 +247,11 @@ fn rpc_call(
     let our_image_id = hubris.image_id().unwrap();
 
     let header = RpcHeader {
-        image_id: u64::from_le_bytes(our_image_id.try_into().unwrap()),
-        task: op.task.task().try_into().unwrap(),
-        op: op.code as u16,
-        nreply: hubris.typesize(op.ok)? as u16,
-        nbytes: payload.len().try_into().unwrap(),
+        image_id: U64::from_bytes(our_image_id.try_into().unwrap()),
+        task: U16::new(op.task.task().try_into().unwrap()),
+        op: U16::new(op.code as u16),
+        nreply: U16::new(hubris.typesize(op.ok)? as u16),
+        nbytes: U16::new(payload.len().try_into().unwrap()),
     };
     let mut packet = header.as_bytes().to_vec();
     packet.extend(payload.iter());
