@@ -261,18 +261,18 @@ fn rpc_call(
     socket.recv(&mut buf)?;
     // Handle errors from the RPC task itself, which are reported as a non-zero
     // first byte in the reply packet.
-    if buf[0] != 0 {
-        let task = hubris.lookup_task("udprpc").ok_or_else(|| {
-            anyhow!(
-                "Could not find `udprpc` task in this image. \
+    let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
+        anyhow!(
+            "Could not find `udprpc` task in this image. \
                  Is it up to date?"
-            )
-        })?;
-        let m = hubris.lookup_module(*task)?;
-        match m
-            .lookup_enum_byname(hubris, "RpcReply")?
-            .lookup_variant(buf[0] as u64)
-        {
+        )
+    })?;
+    let rpc_reply_type = hubris
+        .lookup_module(*rpc_task)?
+        .lookup_enum_byname(hubris, "RpcReply")?;
+
+    if buf[0] != 0 {
+        match rpc_reply_type.lookup_variant(buf[0] as u64) {
             Some(e) => {
                 println!("Got error from `udprpc`: {}", e.name);
                 if e.name == "BadImageId" {
