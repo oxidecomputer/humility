@@ -220,7 +220,10 @@ fn optional_nbytes<'a>(
                             ))
                         }
                     }
-                    Err(e) => Err(anyhow!("{}", e)),
+                    Err(e) => Err(anyhow!(
+                        "failed to read ID: {}",
+                        qspi_read_id.strerror(*e)
+                    )),
                 },
                 Err(e) => Err(e),
             }
@@ -280,32 +283,49 @@ fn erase(
     core: &mut dyn Core,
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
-    sectors: &[u32],
+    all_sectors: &[u32],
 ) -> Result<()> {
     let f = funcs.get("QspiSectorErase", 1)?;
-    let mut ops = vec![];
 
     humility::msg!(
         "erasing {} bytes...",
-        sectors.len() as u32 * device.sector_size
+        all_sectors.len() as u32 * device.sector_size
     );
 
-    for addr in sectors {
-        if addr % device.sector_size != 0 {
-            bail!("illegal erase address 0x{:x}", addr);
+    //
+    // To unroll our loop, we need to know how many operations we can stuff in
+    // our text.  For this calculation, we'll be a bit pessimal -- we would
+    // actually expect to be able to serialize our per-sector operations in
+    // fewer than 16 bytes -- but we want to give ourselves a bit of slop.
+    //
+    let op_bytes_per_sector = 16;
+    let max_calls = context.text_size() / op_bytes_per_sector;
+
+    for sectors in all_sectors.chunks(max_calls) {
+        let mut ops = vec![];
+
+        for addr in sectors {
+            if addr % device.sector_size != 0 {
+                bail!("illegal erase address 0x{:x}", addr);
+            }
+
+            ops.push(Op::Push32(*addr));
+            ops.push(Op::Call(f.id));
+            ops.push(Op::Drop);
         }
 
-        ops.push(Op::Push32(*addr));
-        ops.push(Op::Call(f.id));
-    }
+        ops.push(Op::Done);
 
-    ops.push(Op::Done);
+        let results = context.run(core, ops.as_slice(), None)?;
 
-    let results = context.run(core, ops.as_slice(), None)?;
-
-    for (i, block_result) in results.iter().enumerate() {
-        if let Err(err) = *block_result {
-            bail!("failed to erase 0x{:x}: {}", sectors[i], f.strerror(err));
+        for (i, block_result) in results.iter().enumerate() {
+            if let Err(err) = *block_result {
+                bail!(
+                    "failed to erase 0x{:x}: {}",
+                    sectors[i],
+                    f.strerror(err)
+                );
+            }
         }
     }
 
@@ -466,7 +486,6 @@ fn qspi(
         ops.push(Op::Call(qspi_page_program.id));
         (Some(arr), qspi_page_program)
     } else if let Some(filename) = subargs.writefile {
-        let qspi_sector_erase = funcs.get("QspiSectorErase", 1)?;
         let qspi_page_program = if subargs.verify {
             funcs.get("QspiVerify", 3)
         } else {
@@ -477,29 +496,13 @@ fn qspi(
 
         if !subargs.verify {
             //
-            // First, we need to erase the sectors
+            // If we're not verifying, we're erasing!
             //
-            ops.push(Op::Push32(filelen));
-            ops.push(Op::Push32(0));
-            ops.push(Op::Label(Target(0)));
-            ops.push(Op::Call(qspi_sector_erase.id));
-            ops.push(Op::Push32(sector_size));
-            ops.push(Op::Add);
-            ops.push(Op::BranchLessThan(Target(0)));
-            ops.push(Op::Done);
+            let sectors = (0..filelen)
+                .step_by(sector_size as usize)
+                .collect::<Vec<u32>>();
 
-            humility::msg!("erasing {} bytes...", filelen);
-
-            let results = context.run(core, ops.as_slice(), None)?;
-            let f = qspi_sector_erase;
-
-            for (i, block_result) in results.iter().enumerate() {
-                if let Err(err) = *block_result {
-                    bail!("failed to erase sector {}: {}", i, f.strerror(err));
-                }
-            }
-
-            humility::msg!("... done");
+            erase(&device, core, &mut context, &funcs, &sectors)?;
         } else {
             humility::msg!("will verify {} bytes...", filelen);
         }
@@ -881,6 +884,10 @@ fn qspi(
         },
     )?;
 
+    if let Err(e) = results[0] {
+        bail!("operation failed: {}", func.strerror(e));
+    }
+
     if subargs.read {
         if let Ok(results) = &results[0] {
             Dumper::new().dump(results, subargs.addr.unwrap_or(0) as u32);
@@ -902,18 +909,14 @@ fn qspi(
             }
         }
     } else if subargs.hash {
-        match &results[0] {
-            Ok(buf) => {
-                print!("{}: ", hash_name);
-                for byte in buf {
-                    print!("{:02x}", byte);
-                }
-                println!();
+        if let Ok(buf) = &results[0] {
+            print!("{}: ", hash_name);
+            for byte in buf {
+                print!("{:02x}", byte);
             }
-            Err(e) => {
-                bail!("hash failed: {}", func.strerror(*e));
-            }
+            println!();
         }
+
         return Ok(());
     }
 
