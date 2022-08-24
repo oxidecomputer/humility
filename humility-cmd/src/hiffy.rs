@@ -265,6 +265,10 @@ impl<'a> HiffyContext<'a> {
         self.data.size
     }
 
+    pub fn text_size(&self) -> usize {
+        self.text.size
+    }
+
     pub fn functions(&mut self) -> Result<HiffyFunctions> {
         let hubris = self.hubris;
 
@@ -433,9 +437,31 @@ impl<'a> HiffyContext<'a> {
         let buf = &mut text.as_mut_slice();
         let mut current = 0;
 
-        for op in ops {
-            let serialized = to_slice(op, &mut buf[current..])?;
-            current += serialized.len();
+        for (n, op) in ops.iter().enumerate() {
+            match to_slice(op, &mut buf[current..]) {
+                Ok(serialized) => {
+                    current += serialized.len();
+                }
+                Err(postcard::Error::SerializeBufferFull) => {
+                    //
+                    // This error that can be induced by HIF programmer error,
+                    // so we want to fail in a way that provides some detail
+                    // as to what is happening.
+                    //
+                    bail!(
+                        "HIF program cannot be serialized: program length \
+                        ({} operations) cannot fit in \
+                        target program text ({} bytes); \
+                        failed after serializing {} operations",
+                        ops.len(),
+                        buf.len(),
+                        n
+                    );
+                }
+                Err(err) => {
+                    bail!("HIF program serialization failed: {}", err);
+                }
+            }
         }
 
         core.write_8(self.text.addr, &buf[0..])?;
