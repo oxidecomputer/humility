@@ -398,6 +398,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53757d12b596c16c78b83458d732a5d1a17ab3f53f2f7412f6fb57cc8a140ab3"
+dependencies = [
+ "crc-catalog",
+]
+
+[[package]]
 name = "crc-any"
 version = "2.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -405,6 +414,12 @@ checksum = "774646b687f63643eb0f4bf13dc263cb581c8c9e57973b6ddf78bda3994d88df"
 dependencies = [
  "debug-helper",
 ]
+
+[[package]]
+name = "crc-catalog"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d0165d2900ae6778e36e80bbc4da3b5eefccee9ba939761f9c2882a5d9af3ff"
 
 [[package]]
 name = "crc32fast"
@@ -911,6 +926,7 @@ dependencies = [
  "humility-cmd-test",
  "humility-cmd-trace",
  "humility-cmd-validate",
+ "humility-cmd-vpd",
  "humility-core",
  "humility-cortex",
  "indexmap",
@@ -1568,6 +1584,24 @@ dependencies = [
  "indexmap",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-vpd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
+ "tlvc",
+ "tlvc-text",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2341,6 +2375,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ron"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "300a51053b1cb55c80b7a9fde4120726ddf25ca241a1cbb926626f62fb136bff"
+dependencies = [
+ "base64",
+ "bitflags",
+ "serde",
+]
+
+[[package]]
 name = "rusb"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2831,6 +2876,27 @@ dependencies = [
  "libc",
  "wasi",
  "winapi",
+]
+
+[[package]]
+name = "tlvc"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/tlvc#7f09138f8ccf994c77ddaf15baa6967889447856"
+dependencies = [
+ "byteorder",
+ "crc",
+ "zerocopy",
+]
+
+[[package]]
+name = "tlvc-text"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/tlvc#7f09138f8ccf994c77ddaf15baa6967889447856"
+dependencies = [
+ "ron 0.8.0",
+ "serde",
+ "tlvc",
+ "zerocopy",
 ]
 
 [[package]]
