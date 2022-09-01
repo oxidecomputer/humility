@@ -178,6 +178,10 @@ pub fn hiffy_call(
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
 ) -> Result<std::result::Result<humility::reflect::Value, String>> {
+    if !op.operation.leases.is_empty() {
+        bail!("Cannot use hiffy_call on an operation that uses leases")
+    }
+
     let funcs = context.functions()?;
     let mut ops = vec![];
 
@@ -192,6 +196,56 @@ pub fn hiffy_call(
     }
 
     hiffy_decode(hubris, op, results.pop().unwrap())
+}
+
+pub fn hiffy_call_read(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    op: &idol::IdolOperation,
+    args: &[(&str, idol::IdolArgument)],
+    read_size: usize,
+) -> Result<std::result::Result<(humility::reflect::Value, Vec<u8>), String>> {
+    if op.operation.leases.len() != 1
+        || !op.operation.leases[0].read
+        || op.operation.leases[0].write
+    {
+        bail!(
+            "hiffy_call_read only accepts functions that take a single, \
+             read-only lease"
+        );
+    }
+
+    let funcs = context.functions()?;
+    let mut ops = vec![];
+
+    let payload = op.payload(args)?;
+    context.idol_call_ops_read(
+        &funcs,
+        op,
+        &payload,
+        &mut ops,
+        read_size.try_into().unwrap(),
+    )?;
+    ops.push(Op::Done);
+
+    let mut results = context.run(core, ops.as_slice(), None)?;
+
+    if results.len() != 1 {
+        bail!("unexpected results length: {:?}", results);
+    }
+    let mut v: Result<Vec<u8>, u32> = results.pop().unwrap();
+
+    // Steal extra data from the returned stack
+    let ok_size = hubris.typesize(op.ok)?;
+    let extra_data = match v.as_mut() {
+        Ok(v) => Some(v.drain(ok_size..).collect::<Vec<u8>>()),
+        Err(_) => None,
+    };
+
+    // Shoehorn that extra data in, assuming decoding worked.
+    let out = hiffy_decode(hubris, op, v)?;
+    Ok(out.map(|v| (v, extra_data.unwrap())))
 }
 
 /// Decodes a value returned from [hiffy_call] or equivalent.
