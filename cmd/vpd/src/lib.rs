@@ -10,6 +10,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
+use humility::reflect;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
@@ -121,8 +122,64 @@ fn pack(piece: &Piece) -> Vec<u8> {
             out[..std::mem::size_of::<tlvc::ChunkHeader>()]
                 .copy_from_slice(header.as_bytes());
             out
+        },
+        Piece::String(s) => s.as_bytes().to_vec(),
+    }
+}
+
+fn dump<R>(mut src: tlvc::TlvcReader<R>) -> Vec<Piece>
+    where R: tlvc::TlvcRead,
+{
+    let mut pieces = vec![];
+    loop {
+        match src.next() {
+            Ok(Some(chunk)) => {
+                let mut tmp = [0; 512];
+                if chunk.check_body_checksum(&mut tmp).is_ok() {
+                    pieces.push(Piece::Chunk(
+                        tlvc_text::Tag::new(chunk.header().tag),
+                        dump(chunk.read_as_chunks()),
+                    ));
+                } else {
+                    let bytes = remaining_bytes(
+                        src,
+                        chunk.header().total_len_in_bytes()
+                    );
+
+                    if let Ok(s) = std::str::from_utf8(&bytes) {
+                        pieces.push(Piece::String(s.to_string()));
+                    } else {
+                        pieces.push(Piece::Bytes(bytes));
+                    }
+
+                    break;
+                }
+            }
+            Ok(None) => break,
+            Err(_) => {
+                let bytes = remaining_bytes(src, 0);
+
+                if let Ok(s) = std::str::from_utf8(&bytes) {
+                    pieces.push(Piece::String(s.to_string()));
+                } else {
+                    pieces.push(Piece::Bytes(bytes));
+                }
+
+                break;
+            },
         }
     }
+    pieces
+}
+
+fn remaining_bytes<R>(src: tlvc::TlvcReader<R>, rewind: usize) -> Vec<u8>
+    where R: tlvc::TlvcRead,
+{
+    let (src, start, end) = src.into_inner();
+    let start = start as usize - rewind;
+    let mut bytes = vec![0; end as usize - start];
+    src.read_exact(start as u64, &mut bytes).unwrap();
+    bytes
 }
 
 fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<usize> {
@@ -242,12 +299,96 @@ fn vpd_write(
     Ok(())
 }
 
+fn vpd_read_at(
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions, 
+    op: &idol::IdolOperation, 
+    target: usize,
+    offset: usize,
+) -> Result<Vec<u8>> {
+    let payload = op.payload(&[
+        ("index", idol::IdolArgument::Scalar(target as u64)),
+        ("offset", idol::IdolArgument::Scalar(offset as u64)),
+    ])?;
+
+    let mut ops = vec![];
+
+    context.idol_call_ops(funcs, &op, &payload, &mut ops)?;
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    let r = context.idol_result(&op, &results[0])?;
+    let contents = r.as_struct()?["value"].as_array()?;
+    let mut rval = vec![];
+
+    for b in contents.iter() {
+        if let reflect::Base::U8(val) = b.as_base()? {
+            rval.push(*val);
+        } else {
+            bail!("expected array of U8; found {:?}", contents);
+        }
+    }
+
+    Ok(rval)
+}
+
 fn vpd_read(
-    _hubris: &HubrisArchive,
-    _core: &mut dyn Core,
-    _subargs: &VpdArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &VpdArgs,
 ) -> Result<()> {
-    todo!();
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let funcs = context.functions()?;
+    let op = idol::IdolOperation::new(hubris, "Vpd", "read", None)
+        .context("is the 'vpd' task present?")?;
+    let target = target(hubris, &subargs)?;
+
+    //
+    // First, read in enough to read just the header.
+    //
+    let mut vpd = vpd_read_at(core, &mut context, &funcs, &op, target, 0)?;
+
+    let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
+        Ok(reader) => reader,
+        Err(err) => {
+            bail!("{:?}", err);
+        }
+    };
+
+    let header = match reader.read_header() {
+        Ok(header) => header,
+        Err(err) => {
+            bail!("bad header: {:x?}", err);
+        }
+    };
+
+    //
+    // And now go back and read everything.
+    //
+    let total = header.total_len_in_bytes();
+
+    while vpd.len() < total {
+        vpd.extend(
+            vpd_read_at(core, &mut context, &funcs, &op, target, vpd.len())?
+        );
+    }
+
+    //
+    // Now we should have the whole thing!
+    //
+    let reader = match tlvc::TlvcReader::begin(&vpd[..total]) {
+        Ok(reader) => reader,
+        Err(err) => {
+            bail!("{:?}", err);
+        }
+    };
+
+    let p = dump(reader);
+    tlvc_text::save(std::io::stdout(), &p)?;
+
+    Ok(())
 }
 
 fn vpd(
@@ -268,93 +409,6 @@ fn vpd(
     }
 
     Ok(())
-
-    /*
-    let ndx = find_target(
-
-    for (offset, b) in bytes.iter().enumerate() {
-        let payload = op.payload(&[
-            ("index", idol::IdolArgument::Scalar(ndx as u64)),
-            ("offset", idol::IdolArgument::Scalar(offset as u64)),
-            ("contents", idol::IdolArgument::Scalar(b)),
-        ]);
-
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
-    }
-
-    println!("{:#x?}", ops);
-    println!("{} ops", ops.len());
-
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-
-    let fmt = HubrisPrintFormat {
-        newline: false,
-        hex: true,
-        ..HubrisPrintFormat::default()
-    };
-
-    println!(
-        "{:2} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
-    );
-
-    let ok = hubris.lookup_enum(op.ok)?;
-
-    for (rndx, (ndx, device)) in devices.iter().enumerate() {
-        let result = match &results[rndx] {
-            Ok(val) => {
-                if let Some(variant) = ok.lookup_variant(val[0].into()) {
-                    match variant.name.as_str() {
-                        "Present" => "present".yellow(),
-                        "Validated" => "validated".green(),
-                        _ => format!("<{}>", variant.name).cyan(),
-                    }
-                } else {
-                    hubris.printfmt(val, op.ok, fmt)?.white()
-                }
-            }
-            Err(e) => match op.error.unwrap().lookup_variant(*e as u64) {
-                Some(variant) => match variant.name.as_str() {
-                    "NotPresent" => {
-                        if device.removable {
-                            "removed".blue()
-                        } else {
-                            "absent".red()
-                        }
-                    }
-                    "BadValidation" => "failed".red(),
-                    "DeviceTimeout" => "timeout".red(),
-                    "DeviceError" => "error".red(),
-                    _ => format!("<{}>", variant.name).red(),
-                },
-                None => format!("Err(0x{:x?})", e).red(),
-            },
-        };
-
-        let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
-            (None, None) => "-".to_string(),
-            (_, _) => "?:?".to_string(),
-        };
-
-        println!(
-            "{:2} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
-            ndx,
-            result,
-            device.controller,
-            device.port.name,
-            mux,
-            device.address,
-            device.device,
-            device.description
-        );
-    }
-
-
-    Ok(())
-    */
 }
 
 pub fn init() -> (Command, ClapCommand<'static>) {

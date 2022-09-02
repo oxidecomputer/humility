@@ -429,6 +429,42 @@ impl<'a> HiffyContext<'a> {
         Ok(())
     }
 
+    /// Convenience routine to pull out the result of an Idol call
+    pub fn idol_result(
+        &mut self,
+        op: &idol::IdolOperation,
+        result: &Result<Vec<u8>, u32>,
+    ) -> Result<humility::reflect::Value> {
+        use humility::reflect::{deserialize_value, load_value};
+
+        match result {
+            Ok(val) => {
+                let ty = self.hubris.lookup_type(op.ok).unwrap();
+                Ok(match op.operation.encoding {
+                    ::idol::syntax::Encoding::Zerocopy => {
+                        load_value(self.hubris, &val, ty, 0)?
+                    }
+                    ::idol::syntax::Encoding::Ssmarshal => {
+                        deserialize_value(self.hubris, &val, ty)?.0
+                    }
+                })
+            }
+            Err(e) => {
+                let variant = if let Some(error) = op.error {
+                    error.lookup_variant(*e as u64)
+                } else {
+                    None
+                };
+
+                if let Some(variant) = variant {
+                    bail!(variant.name.to_string())
+                } else {
+                    bail!(format!("{:x?}", e))
+                }
+            }
+        }
+    }
+
     /// Begins HIF execution.  This is non-blocking with respect to the HIF
     /// program, so you will need to poll [Self::done] to check for completion.
     pub fn start(
@@ -558,41 +594,6 @@ impl<'a> HiffyContext<'a> {
             thread::sleep(Duration::from_millis(100));
         }
         self.results(core)
-    }
-
-    pub fn idol_result(
-        &mut self,
-        op: &idol::IdolOperation,
-        result: &Result<Vec<u8>, u32>,
-    ) -> Result<humility::reflect::Value> {
-        use humility::reflect::{deserialize_value, load_value};
-
-        match result {
-            Ok(val) => {
-                let ty = self.hubris.lookup_type(op.ok).unwrap();
-                Ok(match op.operation.encoding {
-                    ::idol::syntax::Encoding::Zerocopy => {
-                        load_value(self.hubris, &val, ty, 0)?
-                    }
-                    ::idol::syntax::Encoding::Ssmarshal => {
-                        deserialize_value(self.hubris, &val, ty)?.0
-                    }
-                })
-            }
-            Err(e) => {
-                let variant = if let Some(error) = op.error {
-                    error.lookup_variant(*e as u64)
-                } else {
-                    None
-                };
-
-                if let Some(variant) = variant {
-                    bail!(variant.name.to_string())
-                } else {
-                    bail!(format!("{:x?}", e))
-                }
-            }
-        }
     }
 
     pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
