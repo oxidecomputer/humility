@@ -295,6 +295,9 @@ fn flashcmd(
                     let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
                     let f4 = regex::Regex::new(r"find target/stm32f4").unwrap();
                     let g0 = regex::Regex::new(r"find target/stm32g0").unwrap();
+                    let ibex_ss =
+                        regex::Regex::new(r"find target/ibex-super-system")
+                            .unwrap();
 
                     let mut c: Option<String> = None;
 
@@ -313,6 +316,10 @@ fn flashcmd(
                         }
                         if g0.is_match(s) {
                             c = Some("STM32G030C6Tx".to_string());
+                            break;
+                        }
+                        if ibex_ss.is_match(s) {
+                            c = Some("ibex-super-system".to_string());
                             break;
                         }
                     }
