@@ -92,6 +92,10 @@ struct HiffyArgs {
     #[clap(long, short, requires = "call", conflicts_with = "input")]
     output: Option<String>,
 
+    /// print returned data in hex
+    #[clap(short = 'x', requires = "num")]
+    hex: bool,
+
     /// arguments
     #[clap(long, short, requires = "call")]
     task: Option<String>,
@@ -514,6 +518,8 @@ fn hiffy(
                     std::fs::write(out, &data)
                         .context(format!("Could not write to {}", out))?;
                     println!("Wrote {} bytes to '{}'", data.len(), out);
+                } else if subargs.hex {
+                    println!("Data: {:x?}", data);
                 } else {
                     println!("Data: {:?}", data);
                 }
