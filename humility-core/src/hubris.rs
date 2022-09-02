@@ -2,12 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::arch::{presyscall_pushes, ARMRegister};
+use crate::arch::Register;
+use crate::arch_arm::{arm_presyscall_pushes, ARMRegister};
+use crate::arch_rv::{riscv_presyscall_pushes, RVRegister};
 use capstone::prelude::*;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::io::prelude::*;
 
+use num_traits::cast::ToPrimitive;
 use std::borrow::Cow;
 use std::collections::{btree_map, BTreeMap, HashMap, HashSet};
 use std::convert::TryInto;
@@ -257,6 +260,12 @@ pub struct HubrisArchive {
     // constructed manifest
     pub manifest: HubrisManifest,
 
+    // the archives target architecture
+    pub arch: Option<u16>,
+
+    // 32bit v 64bit
+    bus_size: Option<u8>,
+
     // app table
     apptable: Option<(u32, Vec<u8>)>,
 
@@ -270,17 +279,17 @@ pub struct HubrisArchive {
     current: u32,
 
     // Capstone library handle
-    cs: capstone::Capstone,
+    cs: Option<capstone::Capstone>,
 
     // Instructions: address to bytes/target tuple. The target will be None if
     // the instruction did not decode as some kind of jump/branch/call.
     instrs: HashMap<u32, (Vec<u8>, Option<HubrisTarget>)>,
 
     // Manual stack pushes before a syscall
-    syscall_pushes: HashMap<u32, Option<Vec<ARMRegister>>>,
+    syscall_pushes: HashMap<u32, Option<Vec<Register>>>,
 
     // Current registers (if a dump)
-    registers: HashMap<ARMRegister, u32>,
+    registers: HashMap<Register, u32>,
 
     // Modules: text address to module
     modules: BTreeMap<u32, HubrisModule>,
@@ -352,33 +361,15 @@ pub struct HubrisArchive {
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
-        //
-        // Initialize Capstone, being sure to specify not only our
-        // architecture but also that we are disassembling Thumb-2 --
-        // and (importantly) to allow M-profile instructions.
-        //
-        let cs = Capstone::new()
-            .arm()
-            .mode(arch::arm::ArchMode::Thumb)
-            .extra_mode(std::iter::once(arch::arm::ArchExtraMode::MClass))
-            .detail(true)
-            .build();
-
         Ok(Self {
             archive: Vec::new(),
             apptable: None,
+            arch: None,
+            bus_size: None,
             imageid: None,
             manifest: Default::default(),
             loaded: BTreeMap::new(),
-            cs: match cs {
-                Ok(mut cs) => {
-                    cs.set_skipdata(true).expect("failed to set skipdata");
-                    cs
-                }
-                Err(err) => {
-                    bail!("failed to initialize disassembler: {}", err);
-                }
-            },
+            cs: None,
             current: 0,
             instrs: HashMap::new(),
             syscall_pushes: HashMap::new(),
@@ -406,6 +397,91 @@ impl HubrisArchive {
             definitions: MultiMap::new(),
         })
     }
+    pub fn get_sp(&self) -> Register {
+        return match self.arch {
+            Some(goblin::elf::header::EM_ARM) => Register::Arm(ARMRegister::SP),
+            Some(goblin::elf::header::EM_RISCV) => {
+                Register::RiscV(RVRegister::SP)
+            }
+            _ => unimplemented!(),
+        };
+    }
+
+    pub fn get_pc(&self) -> Register {
+        return match self.arch {
+            Some(goblin::elf::header::EM_ARM) => Register::Arm(ARMRegister::PC),
+            Some(goblin::elf::header::EM_RISCV) => {
+                Register::RiscV(RVRegister::PC)
+            }
+            _ => unimplemented!(),
+        };
+    }
+    
+    /// 
+    /// on RISCV platforms the dwarf id does not match the register id on the bus.
+    /// see: https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-dwarf.adoc 
+    /// See table 3.3 in the riscv debug spec.
+    /// (https://raw.githubusercontent.com/riscv/riscv-debug-spec/master/riscv-debug-stable.pdf#table.3.3)
+    ///
+    pub fn register_from_dwarf_id(&self, mut id: u32) -> Option<Register> {
+        return match self.arch {
+            Some(goblin::elf::header::EM_ARM) => {
+                if let Some(arm_reg) = ARMRegister::from_u32(id) {
+                    Some(Register::Arm(arm_reg))
+                } else {
+                    None
+                }
+            }
+            Some(goblin::elf::header::EM_RISCV) => {
+                if id  < 64 {
+                    id += 0x1000;
+                }
+                if let Some(rv_reg) = RVRegister::from_u32(id) {
+                    Some(Register::RiscV(rv_reg))
+                } else {
+                    None
+                }
+            }
+            _ => unimplemented!(),
+        };
+    }
+
+    pub fn register_from_id(&self, id: u32) -> Option<Register> {
+        return match self.arch {
+            Some(goblin::elf::header::EM_ARM) => {
+                if let Some(arm_reg) = ARMRegister::from_u32(id) {
+                    Some(Register::Arm(arm_reg))
+                } else {
+                    None
+                }
+            }
+            Some(goblin::elf::header::EM_RISCV) => {
+                if let Some(rv_reg) = RVRegister::from_u32(id) {
+                    Some(Register::RiscV(rv_reg))
+                } else {
+                    None
+                }
+            }
+            _ => unimplemented!(),
+        };
+    }
+
+    pub fn get_syscall_register(&self, arg_number: u32) -> Option<Register> {
+        if arg_number > 8 {
+            return None;
+        }
+
+        let syscall_arg: u32 = match self.arch {
+            Some(goblin::elf::header::EM_RISCV) => {
+                RVRegister::to_u32(&RVRegister::A0).unwrap()
+            }
+            Some(goblin::elf::header::EM_ARM) => {
+                ARMRegister::to_u32(&ARMRegister::R4).unwrap()
+            }
+            _ => unimplemented!(),
+        };
+        return self.register_from_id(syscall_arg + arg_number);
+    }
 
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
         self.instrs.get(&addr).map(|instr| instr.0.len() as u32)
@@ -418,6 +494,10 @@ impl HubrisArchive {
     /// TODO: this also returns `None` if `addr` is not an instruction boundary,
     /// which is probably wrong but we haven't totally thought it through yet.
     pub fn instr_target(&self, addr: u32) -> Option<HubrisTarget> {
+        // Target is only used for ETM so no plan to port branch targets to riscv
+        if let Some(goblin::elf::header::EM_RISCV) = self.arch {
+            unimplemented!();
+        }
         self.instrs.get(&addr).and_then(|&(_, target)| target)
     }
 
@@ -498,7 +578,13 @@ impl HubrisArchive {
         &self,
         instr: &capstone::Insn,
     ) -> Option<HubrisTarget> {
-        let detail = self.cs.insn_detail(instr).ok()?;
+        // Currently only valid for arm, and the results are only used for ETM
+        // No plan to port this for riscv
+        if let Some(goblin::elf::header::EM_RISCV) = self.arch {
+            return None;
+        }
+
+        let detail = self.cs.as_ref().unwrap().insn_detail(instr).ok()?;
 
         let mut jump = false;
         let mut call = false;
@@ -1793,12 +1879,11 @@ impl HubrisArchive {
 
     fn load_object_frames(
         &mut self,
+        id: &str,
         task: HubrisTask,
         buffer: &[u8],
         elf: &goblin::elf::Elf,
     ) -> Result<()> {
-        let id = gimli::SectionId::DebugFrame.name();
-
         let sh = elf
             .section_headers
             .iter()
@@ -1866,15 +1951,16 @@ impl HubrisArchive {
         addr: u32,
         buffer: &[u8],
     ) -> Result<()> {
-        let instrs = match self.cs.disasm_all(buffer, addr.into()) {
-            Ok(instrs) => instrs,
-            Err(err) => {
-                bail!(
+        let instrs =
+            match self.cs.as_ref().unwrap().disasm_all(buffer, addr.into()) {
+                Ok(instrs) => instrs,
+                Err(err) => {
+                    bail!(
                     "failed to disassemble {} (addr 0x{:08x}, {}): {}",
                     func, addr, buffer.len(), err
                 );
-            }
-        };
+                }
+            };
 
         let mut last: (u32, usize) = (0, 0);
 
@@ -1897,19 +1983,45 @@ impl HubrisArchive {
             let target = self.instr_branch_target(instr);
             self.instrs.insert(addr, (b.to_vec(), target));
 
-            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
-
+            // Use appropriate syscall for the platform
+            let syscall_instr = match self.arch {
+                Some(goblin::elf::header::EM_ARM) => {
+                    Some(arch::arm::ArmInsn::ARM_INS_SVC as u32)
+                }
+                Some(goblin::elf::header::EM_RISCV) => {
+                    Some(arch::riscv::RiscVInsn::RISCV_INS_ECALL as u32)
+                }
+                _ => None,
+            };
+            if let None = syscall_instr {
+                bail!("Using unsupported arch: {}", self.arch.unwrap());
+            }
+            let syscall_instr: u32 = syscall_instr.unwrap();
             //
             // If we encounter a syscall instruction, we need to analyze
             // its containing function to determine the hand-written pushes
             // before any system call in order to be able to successfully
             // unwind the stack.
             //
-            if let InsnId(ARM_INSN_SVC) = instr.id() {
+            if InsnId(syscall_instr) == instr.id() {
                 if task != HubrisTask::Kernel {
                     self.syscall_pushes.insert(
                         addr + b.len() as u32,
-                        Some(presyscall_pushes(&self.cs, &instrs[0..ndx])?),
+                        match self.arch {
+                            Some(goblin::elf::header::EM_ARM) => {
+                                Some(arm_presyscall_pushes(
+                                    &self.cs.as_ref().unwrap(),
+                                    &instrs[0..ndx],
+                                )?)
+                            }
+                            Some(goblin::elf::header::EM_RISCV) => {
+                                Some(riscv_presyscall_pushes(
+                                    &self.cs.as_ref().unwrap(),
+                                    &instrs[0..ndx],
+                                )?)
+                            }
+                            _ => unimplemented!(),
+                        },
                     );
                 }
             }
@@ -1922,9 +2034,9 @@ impl HubrisArchive {
         //
         if last.0 + last.1 as u32 != addr + buffer.len() as u32 {
             bail!(
-                "short disassembly for {}: \
+                "short disassembly for {} in {}: \
                 stopped at 0x{:x}, expected to go to 0x{:x}",
-                object, last.0, addr + buffer.len() as u32
+                func, object, last.0, addr + buffer.len() as u32
             );
         }
 
@@ -1946,11 +2058,76 @@ impl HubrisArchive {
             anyhow!("unrecognized ELF object: {}: {}", object, e)
         })?;
 
-        let arm = elf.header.e_machine == goblin::elf::header::EM_ARM;
+        // Load target architecture from elf, will be used for dissassembly
+        self.arch = Some(elf.header.e_machine);
 
-        if !arm {
-            bail!("{} not an ARM ELF object", object);
+        // Determine 32bit vs 64bit
+        self.bus_size = match elf.header.e_ident[goblin::elf::header::EI_CLASS]
+        {
+            goblin::elf::header::ELFCLASSNONE => None,
+            _ => Some(elf.header.e_ident[goblin::elf::header::EI_CLASS]),
+        };
+
+        if let None = self.arch {
+            bail!("Invalid architecture in elf header");
         }
+        if self.bus_size == Some(goblin::elf::header::ELFCLASS64) {
+            bail!("64bit images are not fully supported");
+        }
+
+        //Instantiate an appropriate capstone for the architecture
+        let cs = match (self.arch, self.bus_size) {
+            (Some(goblin::elf::header::EM_ARM), _) => Some(
+                Capstone::new()
+                    .arm()
+                    .mode(arch::arm::ArchMode::Thumb)
+                    .extra_mode(std::iter::once(
+                        arch::arm::ArchExtraMode::MClass,
+                    ))
+                    .detail(true)
+                    .build()
+                    .unwrap(),
+            ),
+
+            (
+                Some(goblin::elf::header::EM_RISCV),
+                Some(goblin::elf::header::ELFCLASS32),
+            ) => Some(
+                Capstone::new()
+                    .riscv()
+                    .mode(arch::riscv::ArchMode::RiscV32)
+                    .extra_mode(std::iter::once(
+                        arch::riscv::ArchExtraMode::RiscVC,
+                    ))
+                    .detail(true)
+                    .build()
+                    .unwrap(),
+            ),
+
+            (
+                Some(goblin::elf::header::EM_RISCV),
+                Some(goblin::elf::header::ELFCLASS64),
+            ) => Some(
+                Capstone::new()
+                    .riscv()
+                    .mode(arch::riscv::ArchMode::RiscV64)
+                    .extra_mode(std::iter::once(
+                        arch::riscv::ArchExtraMode::RiscVC,
+                    ))
+                    .detail(true)
+                    .build()
+                    .unwrap(),
+            ),
+
+            _ => None,
+        };
+        if let None = cs {
+            bail!("Failed to create capstone disassembler. Most likely used an elf format not supported by humility");
+        }
+        let mut cs: Capstone = cs.unwrap();
+
+        cs.set_skipdata(true).expect("failed to set skipdata");
+        self.cs = Some(cs);
 
         let text = elf.section_headers.iter().find(|sh| {
             if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
@@ -1994,6 +2171,7 @@ impl HubrisArchive {
                     bail!("bad symbol in {}: {}", object, sym.st_name);
                 }
             };
+            //let name = name.split(".").next().unwrap();
 
             //
             // We track from the start of our BSS to the end of our heap
@@ -2035,10 +2213,10 @@ impl HubrisArchive {
             // table, which exists only to indicate a function that contains
             // Thumb instructions (which is of course every function on a
             // microprocessor that executes only Thumb instructions).
-            //
-            assert!(arm);
-
-            let val = if sym.is_function() {
+            // TODO
+            let val = if sym.is_function()
+                && self.arch == Some(goblin::elf::header::EM_ARM)
+            {
                 sym.st_value as u32 & !1
             } else {
                 sym.st_value as u32
@@ -2152,8 +2330,14 @@ impl HubrisArchive {
         self.load_object_dwarf(buffer, &elf)
             .context(format!("{}: failed to load DWARF", object))?;
 
-        self.load_object_frames(task, buffer, &elf)
-            .context(format!("{}: failed to load debug frames", object))?;
+        if let Err(_err) = self.load_object_frames(
+            gimli::SectionId::DebugFrame.name(),
+            task,
+            buffer,
+            &elf,
+        ) {
+            log::trace!("could not load .debug_frame: stack info will be unavaliable");
+        }
 
         let iface = self.load_object_idolatry(buffer, &elf)?;
 
@@ -2650,7 +2834,7 @@ impl HubrisArchive {
             let id = u32::from_le_bytes(id.try_into().unwrap());
             let val = u32::from_le_bytes(val.try_into().unwrap());
 
-            let reg = match ARMRegister::from_u32(id) {
+            let reg = match self.register_from_id(id) {
                 Some(r) => r,
                 None => {
                     // This can totally happen if we encounter a future coredump
@@ -2681,6 +2865,8 @@ impl HubrisArchive {
         let elf = Elf::parse(&contents).map_err(|e| {
             anyhow!("failed to parse {} as an ELF file: {}", dumpfile, e)
         })?;
+
+        self.arch = Some(elf.header.e_machine);
 
         if let Some(notes) = elf.iter_note_headers(&contents) {
             for note in notes {
@@ -3022,7 +3208,7 @@ impl HubrisArchive {
         // give a more certain message.
         //
         if let Some(sym) = self.esyms_byname.get("Reset") {
-            if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+            if let Ok(pc) = core.read_reg(self.get_pc()) {
                 if pc >= sym.0 && pc < sym.0 + sym.1 {
                     bail!("target is not yet booted (currently in Reset)");
                 }
@@ -3354,7 +3540,7 @@ impl HubrisArchive {
         Ok(regions)
     }
 
-    pub fn dump_registers(&self) -> HashMap<ARMRegister, u32> {
+    pub fn dump_registers(&self) -> HashMap<Register, u32> {
         self.registers.clone()
     }
 
@@ -3362,7 +3548,7 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
         t: HubrisTask,
-    ) -> Result<BTreeMap<ARMRegister, u32>> {
+    ) -> Result<BTreeMap<Register, u32>> {
         let (base, _) = self.task_table(core)?;
         let cur =
             core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
@@ -3391,7 +3577,7 @@ impl HubrisArchive {
         // If this is the current task, we want to pull the current PC.
         //
         if offset - save == cur {
-            let pc = core.read_reg(ARMRegister::PC)?;
+            let pc = core.read_reg(self.get_pc())?;
 
             //
             // If the PC falls within the task, then we are at user-level,
@@ -3406,14 +3592,14 @@ impl HubrisArchive {
                 };
 
             if userland {
-                for i in 0..=31 {
-                    let reg = match ARMRegister::from_u16(i) {
+                //arm has 32 registers, but riscv has a 33
+                for i in 0..=32 {
+                    let reg = match self.register_from_id(i) {
                         Some(r) => r,
                         None => {
                             continue;
                         }
                     };
-
                     let val = core.read_reg(reg)?;
                     rval.insert(reg, val);
                 }
@@ -3427,68 +3613,105 @@ impl HubrisArchive {
             Ok(u32::from_le_bytes(regs[o..o + 4].try_into().unwrap()))
         };
 
-        //
-        // R4-R11 are found in the structure.
-        //
-        for r in 4..=11 {
-            let rname = format!("r{}", r);
-            let o = state.lookup_member(&rname)?.offset as usize;
-            let val = u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
+        match self.arch {
+            Some(goblin::elf::header::EM_ARM) => {
+                //
+                // Load all of the syscall regs found in the structure.
+                // Only these are stored in SavedState, the rest are on stack.
+                //
+                for r in 4..=11 {
+                    let rname = format!("r{}", r);
+                    let o = state.lookup_member(&rname)?.offset as usize;
+                    let val =
+                        u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
 
-            rval.insert(ARMRegister::from_usize(r).unwrap(), val);
+                    rval.insert(self.register_from_id(r).unwrap(), val);
+                }
+
+                let sp = readreg("psp")?;
+
+                const NREGS_CORE: usize = 8;
+
+                let mut stack: Vec<u8> = vec![];
+                stack.resize_with(NREGS_CORE * 4, Default::default);
+                core.read_8(sp, stack.as_mut_slice())?;
+
+                //
+                // R0-R3, and then R12, LR and the PSR are found on the stack
+                //
+                for r in 0..NREGS_CORE {
+                    let o = r * 4;
+                    let val =
+                        u32::from_le_bytes(stack[o..o + 4].try_into().unwrap());
+
+                    //Why are these chosen??
+                    let reg = match r {
+                        0 | 1 | 2 | 3 => self
+                            .register_from_id(r.try_into().unwrap())
+                            .unwrap(),
+                        4 => Register::Arm(ARMRegister::R12),
+                        5 => Register::Arm(ARMRegister::LR),
+                        6 => self.get_pc(),
+                        7 => Register::Arm(ARMRegister::PSR),
+                        _ => panic!("bad register value"),
+                    };
+
+                    rval.insert(reg, val);
+                }
+
+                //
+                // Not all architectures have floating point -- and ARMv6 never has
+                // it.  (Note that that the FP contents pushed onto the stack is
+                // always 8-byte aligned; if we have our 17 floating point registers
+                // here, we also have an unstored pad.)
+                //
+                let (nregs_fp, align) =
+                    if self.manifest.target.as_ref().unwrap()
+                        == "thumbv6m-none-eabi"
+                    {
+                        (0, 0)
+                    } else {
+                        (17, 1)
+                    };
+
+                let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
+
+                //
+                // We manually adjust our stack pointer to peel off the entire frame,
+                // plus any needed re-alignment.
+                // exception_stack_realign with only check for ARM registers,
+                // so no need to gate on architecture
+                //
+                let adjust = (nregs_frame as u32) * 4
+                    + crate::arch_arm::exception_stack_realign(&rval);
+
+                rval.insert(self.get_sp(), sp + adjust);
+            }
+            Some(goblin::elf::header::EM_RISCV) => {
+                //
+                // Load all of the saved regs found in the structure.
+                // On riscv, every register gets saved
+                // 0 is the zero register, no need to check
+                //
+                for r in 1..32 {
+                    let reg = RVRegister::ZERO as u32 + r;
+                    log::trace!("reading reg: {}", reg);
+                    let reg = self.register_from_id(reg).unwrap();
+                    let rname = reg.to_string().to_lowercase();
+                    let o = state.lookup_member(&rname)?.offset as usize;
+                    let val =
+                        u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
+
+                    rval.insert(reg, val);
+                }
+                // also need to read PC since it is discontinous
+                let rname = self.get_pc().to_string().to_lowercase();
+                let o = state.lookup_member(&rname)?.offset as usize;
+                let val = u32::from_le_bytes(regs[o..o+4].try_into().unwrap());
+                rval.insert(self.get_pc(), val);
+            }
+            _ => unimplemented!(),
         }
-
-        let sp = readreg("psp")?;
-
-        const NREGS_CORE: usize = 8;
-
-        let mut stack: Vec<u8> = vec![];
-        stack.resize_with(NREGS_CORE * 4, Default::default);
-        core.read_8(sp, stack.as_mut_slice())?;
-
-        //
-        // R0-R3, and then R12, LR and the PSR are found on the stack
-        //
-        for r in 0..NREGS_CORE {
-            let o = r * 4;
-            let val = u32::from_le_bytes(stack[o..o + 4].try_into().unwrap());
-
-            let reg = match r {
-                0 | 1 | 2 | 3 => ARMRegister::from_usize(r).unwrap(),
-                4 => ARMRegister::R12,
-                5 => ARMRegister::LR,
-                6 => ARMRegister::PC,
-                7 => ARMRegister::PSR,
-                _ => panic!("bad register value"),
-            };
-
-            rval.insert(reg, val);
-        }
-
-        //
-        // Not all architectures have floating point -- and ARMv6 never has
-        // it.  (Note that that the FP contents pushed onto the stack is
-        // always 8-byte aligned; if we have our 17 floating point registers
-        // here, we also have an unstored pad.)
-        //
-        let (nregs_fp, align) =
-            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
-                (0, 0)
-            } else {
-                (17, 1)
-            };
-
-        let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
-
-        //
-        // We manually adjust our stack pointer to peel off the entire frame,
-        // plus any needed re-alignment.
-        //
-        let adjust = (nregs_frame as u32) * 4
-            + crate::arch::exception_stack_realign(&rval);
-
-        rval.insert(ARMRegister::SP, sp + adjust);
-
         Ok(rval)
     }
 
@@ -3497,14 +3720,14 @@ impl HubrisArchive {
         core: &mut dyn crate::core::Core,
         task: HubrisTask,
         limit: u32,
-        regs: &BTreeMap<ARMRegister, u32>,
+        regs: &BTreeMap<Register, u32>,
     ) -> Result<Vec<HubrisStackFrame>> {
         let regions = self.regions(core)?;
         let sp = regs
-            .get(&ARMRegister::SP)
+            .get(&self.get_sp())
             .ok_or_else(|| anyhow!("SP missing from regs map"))?;
         let pc = regs
-            .get(&ARMRegister::PC)
+            .get(&self.get_pc())
             .ok_or_else(|| anyhow!("PC missing from regs map"))?;
 
         let mut rval: Vec<HubrisStackFrame> = Vec::new();
@@ -3538,14 +3761,14 @@ impl HubrisArchive {
         //
         // If our PC is in a system call (highly likely), we need to determine
         // what has been pushed on our stack via asm!().
-        //
+        // TODO probably messed up
         if let Some(Some(pushed)) = self.syscall_pushes.get(pc) {
             for (i, &p) in pushed.iter().enumerate() {
                 let val = readval(sp + (i * 4) as u32)?;
                 frameregs.insert(p, val);
             }
 
-            frameregs.insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
+            frameregs.insert(self.get_sp(), sp + (pushed.len() * 4) as u32);
         }
 
         let frames = self
@@ -3559,7 +3782,7 @@ impl HubrisArchive {
         loop {
             let bases = gimli::BaseAddresses::default();
             let mut ctx = gimli::UninitializedUnwindContext::new();
-            let pc = *frameregs.get(&ARMRegister::PC).unwrap();
+            let pc = *frameregs.get(&self.get_pc()).unwrap();
 
             //
             // Now we want to iterate up our frames
@@ -3576,7 +3799,8 @@ impl HubrisArchive {
             //
             let cfa = match unwind_info.cfa() {
                 gimli::CfaRule::RegisterAndOffset { register, offset } => {
-                    if let Some(reg) = ARMRegister::from_u16(register.0) {
+                    if let Some(reg) = self.register_from_dwarf_id(register.0.into())
+                    {
                         *frameregs.get(&reg).unwrap() + *offset as u32
                     } else {
                         // A register we don't model -- that's OK.
@@ -3608,7 +3832,7 @@ impl HubrisArchive {
                     }
                 };
 
-                if let Some(reg) = ARMRegister::from_u16(register.0) {
+                if let Some(reg) = self.register_from_id(register.0.into()) {
                     frameregs.insert(reg, val);
                 } else {
                     // Skip register we don't model.
@@ -3616,7 +3840,7 @@ impl HubrisArchive {
                 }
             }
 
-            frameregs.insert(ARMRegister::SP, cfa);
+            frameregs.insert(self.get_sp(), cfa);
 
             //
             // Lookup the DWARF symbol associated with our PC
@@ -3648,22 +3872,32 @@ impl HubrisArchive {
                 registers: frameregs.clone(),
             });
 
-            let lr = *frameregs.get(&ARMRegister::LR).unwrap();
+            let ret_reg = *frameregs
+                .get(match self.arch {
+                    Some(goblin::elf::header::EM_ARM) => {
+                        &Register::Arm(ARMRegister::LR)
+                    }
+                    Some(goblin::elf::header::EM_RISCV) => {
+                        &Register::RiscV(RVRegister::RA)
+                    }
+                    _ => unimplemented!(),
+                })
+                .unwrap();
 
             //
             // If this is a kernel stack and we have hit an EXC_RETURN, we're
             // done.
             //
-            if task == HubrisTask::Kernel && (lr >> 28 == 0xf) {
+            if task == HubrisTask::Kernel && (ret_reg >> 28 == 0xf) {
                 break;
             }
 
             //
             // Make sure that the low (Thumb) bit is clear
             //
-            let lr = lr & !1;
+            let ret_reg = ret_reg & !1;
 
-            frameregs.insert(ARMRegister::PC, lr);
+            frameregs.insert(self.get_pc(), ret_reg);
 
             if cfa >= limit {
                 break;
@@ -3821,8 +4055,18 @@ impl HubrisArchive {
         let mut notes = vec![];
         let mut regs = vec![];
 
-        for i in 0..31 {
-            if let Some(reg) = ARMRegister::from_u16(i) {
+        let mut reg_ids: Vec<u32> = (0..31).collect();
+
+        match self.arch {
+            Some(goblin::elf::header::EM_RISCV) => {
+                //Add PC to saved regs
+                reg_ids.push(32);
+                //TODO probably want to save csr
+            }
+            _ => (),
+        };
+        for i in reg_ids {
+            if let Some(reg) = self.register_from_id(i) {
                 let val = core.read_reg(reg)?;
                 regs.push((i, val));
             }
@@ -3841,7 +4085,7 @@ impl HubrisArchive {
         });
 
         let mut header = goblin::elf::header::Header::new(ctx);
-        header.e_machine = goblin::elf::header::EM_ARM;
+        header.e_machine = self.arch.unwrap();
         header.e_type = goblin::elf::header::ET_CORE;
         header.e_phoff = header.e_ehsize as u64;
         header.e_phnum = (notes.len() + nsegs) as u16;
@@ -4405,8 +4649,9 @@ impl HubrisArchive {
     }
 
     pub fn unhalted_reads(&self) -> bool {
-        if let Some(ref target) = self.manifest.target {
-            target != "thumbv6m-none-eabi"
+        if let Some(ref _target) = self.manifest.target {
+            //TODO probably should check chip.toml first
+            false //target != "thumbv6m-none-eabi"
         } else {
             false
         }
@@ -4891,7 +5136,7 @@ pub enum HubrisTarget {
 pub struct HubrisStackFrame<'a> {
     pub cfa: u32,
     pub sym: Option<&'a HubrisSymbol>,
-    pub registers: BTreeMap<ARMRegister, u32>,
+    pub registers: BTreeMap<Register, u32>,
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
 
