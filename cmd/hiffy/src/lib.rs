@@ -248,7 +248,7 @@ pub fn hiffy_call_read(
         || !op.operation.leases[0].write
     {
         bail!(
-            "hiffy_call_read only accepts functions that take a single, \
+            "can only call functions that take a single, \
              write-only lease"
         );
     }
@@ -312,14 +312,14 @@ pub fn hiffy_call_write(
         || op.operation.leases[0].write
     {
         bail!(
-            "hiffy_call_write only accepts functions that take a single, \
+            "can only call functions that take a single, \
              read-only lease"
         );
     }
     if let Some(max_len) = op.operation.leases[0].max_len {
         if write_data.len() > max_len.get() as usize {
             bail!(
-                "Lease has a max_len of {}, but we asked to write {}",
+                "lease has a max_len of {}, but we asked to write {}",
                 max_len.get(),
                 write_data.len(),
             );
