@@ -3,6 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub mod arch;
+pub mod arch_arm;
+pub mod arch_rv;
 pub mod core;
 pub mod hubris;
 pub mod reflect;
