@@ -356,8 +356,9 @@ impl<'a> HiffyContext<'a> {
         Ok(HiffyFunctions(rval))
     }
 
-    /// Convenience routine to translate an Idol call into HIF operations
-    pub fn idol_call_ops_inner(
+    /// Convenience routine to translate an Idol call into HIF operations,
+    /// generic across `Send/SendLeaseRead/SendLeaseWrite`
+    fn idol_call_ops_inner(
         &self,
         funcs: &HiffyFunctions,
         op: &idol::IdolOperation,
@@ -416,7 +417,8 @@ impl<'a> HiffyContext<'a> {
         self.idol_call_ops_inner(funcs, op, payload, ops, None, "Send")
     }
 
-    /// Convenience routine to translate an Idol call into HIF operations
+    /// Convenience routine to translate an Idol call (which reads data from the
+    /// device back to the host) into HIF operations
     pub fn idol_call_ops_read(
         &self,
         funcs: &HiffyFunctions,
@@ -435,6 +437,8 @@ impl<'a> HiffyContext<'a> {
         )
     }
 
+    /// Convenience routine to translate an Idol call (which writes data from
+    /// the host to the device) into HIF operations
     pub fn idol_call_ops_write(
         &self,
         funcs: &HiffyFunctions,
