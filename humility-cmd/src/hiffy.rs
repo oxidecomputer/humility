@@ -408,7 +408,14 @@ impl<'a> HiffyContext<'a> {
         ops: &mut Vec<Op>,
         lease_size: u32,
     ) -> Result<()> {
-        self.idol_call_ops_rw(funcs, op, payload, ops, lease_size, "SendRead")
+        self.idol_call_ops_rw(
+            funcs,
+            op,
+            payload,
+            ops,
+            lease_size,
+            "SendLeaseRead",
+        )
     }
 
     pub fn idol_call_ops_write(
@@ -419,7 +426,14 @@ impl<'a> HiffyContext<'a> {
         ops: &mut Vec<Op>,
         lease_size: u32,
     ) -> Result<()> {
-        self.idol_call_ops_rw(funcs, op, payload, ops, lease_size, "SendWrite")
+        self.idol_call_ops_rw(
+            funcs,
+            op,
+            payload,
+            ops,
+            lease_size,
+            "SendLeaseWrite",
+        )
     }
 
     /// Convenience routine to translate an Idol call into HIF operations

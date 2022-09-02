@@ -75,6 +75,10 @@ struct HiffyArgs {
     #[clap(long, short, conflicts_with = "listfuncs")]
     list: bool,
 
+    /// input for an operation that takes a lease
+    #[clap(long, short, conflicts_with = "listfuncs")]
+    input: Option<String>,
+
     /// call a particular function
     #[clap(long, short, conflicts_with_all = &["list", "listfuncs"])]
     call: Option<String>,
@@ -198,6 +202,8 @@ pub fn hiffy_call(
     hiffy_decode(hubris, op, results.pop().unwrap())
 }
 
+/// Calls an Idol function which accepts a write-only lease, returning the data
+/// that it writes into the lease (along with the normal return value)
 pub fn hiffy_call_read(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -212,15 +218,27 @@ pub fn hiffy_call_read(
     {
         bail!(
             "hiffy_call_read only accepts functions that take a single, \
-             read-only lease"
+             write-only lease"
         );
+    }
+    if let Some(max_len) = op.operation.leases[0].max_len {
+        if read_size > max_len.get() as usize {
+            bail!(
+                "Lease has a max_len of {}, but we asked to read {}",
+                max_len.get(),
+                read_size,
+            );
+        }
     }
 
     let funcs = context.functions()?;
     let mut ops = vec![];
 
     let payload = op.payload(args)?;
-    context.idol_call_ops_read(
+    // From our perspective, this is a read operation (since we're pulling data
+    // from the chip); from Idol's perspective, it is a write (since the target
+    // op is writing to a lease)
+    context.idol_call_ops_write(
         &funcs,
         op,
         &payload,
@@ -246,6 +264,59 @@ pub fn hiffy_call_read(
     // Shoehorn that extra data in, assuming decoding worked.
     let out = hiffy_decode(hubris, op, v)?;
     Ok(out.map(|v| (v, extra_data.unwrap())))
+}
+
+/// Calls an Idol function which accepts a read-only lease, passing it the data
+/// provided in `write_data`
+pub fn hiffy_call_write(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    op: &idol::IdolOperation,
+    args: &[(&str, idol::IdolArgument)],
+    write_data: &[u8],
+) -> Result<std::result::Result<humility::reflect::Value, String>> {
+    if op.operation.leases.len() != 1
+        || !op.operation.leases[0].read
+        || op.operation.leases[0].write
+    {
+        bail!(
+            "hiffy_call_write only accepts functions that take a single, \
+             read-only lease"
+        );
+    }
+    if let Some(max_len) = op.operation.leases[0].max_len {
+        if write_data.len() > max_len.get() as usize {
+            bail!(
+                "Lease has a max_len of {}, but we asked to write {}",
+                max_len.get(),
+                write_data.len(),
+            );
+        }
+    }
+
+    let funcs = context.functions()?;
+    let mut ops = vec![];
+
+    let payload = op.payload(args)?;
+    // From our perspective, this is a write operation (since we're pushing data
+    // to the chip); from Idol's perspective, it is a read (since the target op
+    // is reading from a lease)
+    context.idol_call_ops_read(
+        &funcs,
+        op,
+        &payload,
+        &mut ops,
+        write_data.len().try_into().unwrap(),
+    )?;
+    ops.push(Op::Done);
+
+    let mut results = context.run(core, ops.as_slice(), Some(write_data))?;
+
+    if results.len() != 1 {
+        bail!("unexpected results length: {:?}", results);
+    }
+    hiffy_decode(hubris, op, results.pop().unwrap())
 }
 
 /// Decodes a value returned from [hiffy_call] or equivalent.
@@ -368,7 +439,20 @@ fn hiffy(
         };
 
         let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
-        hiffy_call_print(hubris, core, &mut context, &op, &args)?;
+        if let Some(input) = subargs.input {
+            let data = std::fs::read(input)?;
+            let r = hiffy_call_write(
+                hubris,
+                core,
+                &mut context,
+                &op,
+                &args,
+                &data,
+            )?;
+            hiffy_print_result(hubris, &op, r)?;
+        } else {
+            hiffy_call_print(hubris, core, &mut context, &op, &args)?;
+        }
 
         return Ok(());
     }
