@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility::arch::ARMRegister;
 use humility::hubris::*;
 
 #[derive(Debug, Default)]
@@ -30,7 +29,8 @@ impl StackPrinter {
         };
 
         for (ndx, frame) in stack.iter().enumerate() {
-            let pc = frame.registers.get(&ARMRegister::PC).unwrap();
+            let pc = hubris.get_pc();
+            let pc = frame.registers.get(&pc).unwrap();
 
             if let Some(ref inlined) = frame.inlined {
                 for inline in inlined {
