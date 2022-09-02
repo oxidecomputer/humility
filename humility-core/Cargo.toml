@@ -28,6 +28,8 @@ parse_int = "0.4.0"
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 regex = "1.5"
 colored = "2.0.0"
+strum = "0.24.1"
+strum_macros = "0.24.1"
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
