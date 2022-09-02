@@ -357,14 +357,17 @@ impl<'a> HiffyContext<'a> {
     }
 
     /// Convenience routine to translate an Idol call into HIF operations
-    pub fn idol_call_ops(
+    pub fn idol_call_ops_inner(
         &self,
         funcs: &HiffyFunctions,
         op: &idol::IdolOperation,
         payload: &[u8],
         ops: &mut Vec<Op>,
+        lease_size: Option<u32>,
+        func_name: &str,
     ) -> Result<()> {
-        let send = funcs.get("Send", 4)?;
+        let arg_count = if lease_size.is_some() { 5 } else { 4 };
+        let send = funcs.get(func_name, arg_count)?;
 
         let push = |val: u32| {
             if val <= u8::MAX as u32 {
@@ -382,7 +385,7 @@ impl<'a> HiffyContext<'a> {
             bail!("interface matches invalid task {:?}", op.task);
         }
 
-        let size = u8::try_from(4 + payload.len())
+        let size = u8::try_from(arg_count + payload.len())
             .map_err(|_| anyhow!("payload size exceeds maximum size"))?;
 
         ops.push(push(op.code as u32));
@@ -393,10 +396,24 @@ impl<'a> HiffyContext<'a> {
 
         ops.push(push(payload.len() as u32));
         ops.push(push(self.hubris.typesize(op.ok)? as u32));
+        if let Some(lease_size) = lease_size {
+            ops.push(push(lease_size));
+        }
         ops.push(Op::Call(send.id));
         ops.push(Op::DropN(size));
 
         Ok(())
+    }
+
+    /// Convenience routine to translate an Idol call into HIF operations
+    pub fn idol_call_ops(
+        &self,
+        funcs: &HiffyFunctions,
+        op: &idol::IdolOperation,
+        payload: &[u8],
+        ops: &mut Vec<Op>,
+    ) -> Result<()> {
+        self.idol_call_ops_inner(funcs, op, payload, ops, None, "Send")
     }
 
     /// Convenience routine to translate an Idol call into HIF operations
@@ -408,12 +425,12 @@ impl<'a> HiffyContext<'a> {
         ops: &mut Vec<Op>,
         lease_size: u32,
     ) -> Result<()> {
-        self.idol_call_ops_rw(
+        self.idol_call_ops_inner(
             funcs,
             op,
             payload,
             ops,
-            lease_size,
+            Some(lease_size),
             "SendLeaseRead",
         )
     }
@@ -426,60 +443,14 @@ impl<'a> HiffyContext<'a> {
         ops: &mut Vec<Op>,
         lease_size: u32,
     ) -> Result<()> {
-        self.idol_call_ops_rw(
+        self.idol_call_ops_inner(
             funcs,
             op,
             payload,
             ops,
-            lease_size,
+            Some(lease_size),
             "SendLeaseWrite",
         )
-    }
-
-    /// Convenience routine to translate an Idol call into HIF operations
-    pub fn idol_call_ops_rw(
-        &self,
-        funcs: &HiffyFunctions,
-        op: &idol::IdolOperation,
-        payload: &[u8],
-        ops: &mut Vec<Op>,
-        lease_size: u32,
-        func_name: &str,
-    ) -> Result<()> {
-        let send = funcs.get(func_name, 5)?;
-
-        let push = |val: u32| {
-            if val <= u8::MAX as u32 {
-                Op::Push(val as u8)
-            } else if val <= u16::MAX as u32 {
-                Op::Push16(val as u16)
-            } else {
-                Op::Push32(val as u32)
-            }
-        };
-
-        if let HubrisTask::Task(id) = op.task {
-            ops.push(push(id));
-        } else {
-            bail!("interface matches invalid task {:?}", op.task);
-        }
-
-        let size = u8::try_from(5 + payload.len())
-            .map_err(|_| anyhow!("payload size exceeds maximum size"))?;
-
-        ops.push(push(op.code as u32));
-
-        for byte in payload {
-            ops.push(Op::Push(*byte));
-        }
-
-        ops.push(push(payload.len() as u32));
-        ops.push(push(self.hubris.typesize(op.ok)? as u32));
-        ops.push(push(lease_size));
-        ops.push(Op::Call(send.id));
-        ops.push(Op::DropN(size));
-
-        Ok(())
     }
 
     /// Begins HIF execution.  This is non-blocking with respect to the HIF
