@@ -105,6 +105,12 @@ struct HiffyArgs {
     arguments: Vec<String>,
 }
 
+#[derive(Debug)]
+pub enum HiffyLease<'a> {
+    Read(&'a mut [u8]),
+    Write(&'a [u8]),
+}
+
 pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
     println!(
         "{:<15} {:<12} {:<19} {:<15} {:<15}",
@@ -184,6 +190,66 @@ pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
     Ok(())
 }
 
+/// Check that the given operation and provided leases are compatible, bailing
+/// with a user-friendly message if that's not the case.
+fn check_lease(
+    op: &idol::IdolOperation,
+    lease: Option<&HiffyLease>,
+) -> Result<()> {
+    match lease {
+        None => match op.operation.leases.len() {
+            0 => (),
+            1 => match (
+                op.operation.leases[0].read,
+                op.operation.leases[0].write,
+            ) {
+                (true, false) => {
+                    bail!(
+                        "this operation reads from a lease. \
+                         Use `-i` to specify the data source"
+                    );
+                }
+                (false, true) => {
+                    bail!(
+                        "this operation writes to a lease. \
+                         Use `-n` to specify how much data you want back."
+                    );
+                }
+                _ => {
+                    bail!(
+                        "cannot call a hiffy operation that uses a R/W \
+                         (or nR/nW) lease"
+                    )
+                }
+            },
+            _ => bail!("Cannot call a hiffy operation that uses > 1 leases"),
+        },
+        Some(HiffyLease::Read(..)) => {
+            if op.operation.leases.len() != 1
+                || op.operation.leases[0].read
+                || !op.operation.leases[0].write
+            {
+                bail!(
+                    "can only call functions that take a single, \
+                     write-only lease"
+                );
+            }
+        }
+        Some(HiffyLease::Write(..)) => {
+            if op.operation.leases.len() != 1
+                || !op.operation.leases[0].read
+                || op.operation.leases[0].write
+            {
+                bail!(
+                    "can only call functions that take a single, \
+                     read-only lease"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Executes a Hiffy call, printing the output to the terminal
 ///
 /// Returns an outer error if Hiffy communication fails, or an inner error
@@ -194,34 +260,35 @@ pub fn hiffy_call(
     context: &mut HiffyContext,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
+    lease: Option<HiffyLease>,
 ) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    if !op.operation.leases.is_empty() {
-        // Friendly special-case error messages
-        if op.operation.leases.len() == 1 {
-            match (op.operation.leases[0].read, op.operation.leases[0].write) {
-                (true, false) => {
-                    bail!(
-                        "This operation reads from a lease. \
-                         Use `-i` to specify the data source"
-                    );
-                }
-                (false, true) => {
-                    bail!(
-                        "This operation writes to a lease. \
-                         Use `-n` to specify how much data you want back."
-                    );
-                }
-                _ => (),
-            }
-        }
-        bail!("Cannot use hiffy_call on an operation that uses leases")
-    }
+    check_lease(op, lease.as_ref())?;
 
     let funcs = context.functions()?;
     let mut ops = vec![];
 
     let payload = op.payload(args)?;
-    context.idol_call_ops(&funcs, op, &payload, &mut ops)?;
+    match lease.as_ref() {
+        None => context.idol_call_ops(&funcs, op, &payload, &mut ops)?,
+        // Read/Write is flipped when passing through the Idol operation;
+        // HiffyLease::Read/Write is from the perspective of the host, but
+        // idol_call_ops_read/write is from the perspective of the called
+        // function.
+        Some(HiffyLease::Read(n)) => context.idol_call_ops_write(
+            &funcs,
+            op,
+            &payload,
+            &mut ops,
+            n.len().try_into().unwrap(),
+        )?,
+        Some(HiffyLease::Write(d)) => context.idol_call_ops_read(
+            &funcs,
+            op,
+            &payload,
+            &mut ops,
+            d.len().try_into().unwrap(),
+        )?,
+    }
     ops.push(Op::Done);
 
     let mut results = context.run(core, ops.as_slice(), None)?;
@@ -230,124 +297,24 @@ pub fn hiffy_call(
         bail!("unexpected results length: {:?}", results);
     }
 
-    hiffy_decode(hubris, op, results.pop().unwrap())
-}
-
-/// Calls an Idol function which accepts a write-only lease, returning the data
-/// that it writes into the lease (along with the normal return value)
-pub fn hiffy_call_read(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    args: &[(&str, idol::IdolArgument)],
-    read_size: usize,
-) -> Result<std::result::Result<(humility::reflect::Value, Vec<u8>), String>> {
-    if op.operation.leases.len() != 1
-        || op.operation.leases[0].read
-        || !op.operation.leases[0].write
-    {
-        bail!(
-            "can only call functions that take a single, \
-             write-only lease"
-        );
-    }
-    if let Some(max_len) = op.operation.leases[0].max_len {
-        if read_size > max_len.get() as usize {
-            bail!(
-                "Lease has a max_len of {}, but we asked to read {}",
-                max_len.get(),
-                read_size,
-            );
-        }
-    }
-
-    let funcs = context.functions()?;
-    let mut ops = vec![];
-
-    let payload = op.payload(args)?;
-    // From our perspective, this is a read operation (since we're pulling data
-    // from the chip); from Idol's perspective, it is a write (since the target
-    // op is writing to a lease)
-    context.idol_call_ops_write(
-        &funcs,
-        op,
-        &payload,
-        &mut ops,
-        read_size.try_into().unwrap(),
-    )?;
-    ops.push(Op::Done);
-
-    let mut results = context.run(core, ops.as_slice(), None)?;
-
-    if results.len() != 1 {
-        bail!("unexpected results length: {:?}", results);
-    }
     let mut v: Result<Vec<u8>, u32> = results.pop().unwrap();
 
-    // Steal extra data from the returned stack
-    let ok_size = hubris.typesize(op.ok)?;
-    let extra_data = match v.as_mut() {
-        Ok(v) => Some(v.drain(ok_size..).collect::<Vec<u8>>()),
-        Err(_) => None,
-    };
+    // If this is a Read operation, steal extra data from the returned stack
+    // and copy it into the incoming HiffyLease::Read argument
+    let out = match lease {
+        Some(HiffyLease::Read(data)) => {
+            let ok_size = hubris.typesize(op.ok)?;
+            if let Ok(v) = v.as_mut() {
+                let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
+                data.copy_from_slice(&extra_data);
+            }
 
-    // Shoehorn that extra data in, assuming decoding worked.
-    let out = hiffy_decode(hubris, op, v)?;
-    Ok(out.map(|v| (v, extra_data.unwrap())))
-}
-
-/// Calls an Idol function which accepts a read-only lease, passing it the data
-/// provided in `write_data`
-pub fn hiffy_call_write(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    args: &[(&str, idol::IdolArgument)],
-    write_data: &[u8],
-) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    if op.operation.leases.len() != 1
-        || !op.operation.leases[0].read
-        || op.operation.leases[0].write
-    {
-        bail!(
-            "can only call functions that take a single, \
-             read-only lease"
-        );
-    }
-    if let Some(max_len) = op.operation.leases[0].max_len {
-        if write_data.len() > max_len.get() as usize {
-            bail!(
-                "lease has a max_len of {}, but we asked to write {}",
-                max_len.get(),
-                write_data.len(),
-            );
+            // Shoehorn that extra data in, assuming decoding worked.
+            hiffy_decode(hubris, op, v)?
         }
-    }
-
-    let funcs = context.functions()?;
-    let mut ops = vec![];
-
-    let payload = op.payload(args)?;
-    // From our perspective, this is a write operation (since we're pushing data
-    // to the chip); from Idol's perspective, it is a read (since the target op
-    // is reading from a lease)
-    context.idol_call_ops_read(
-        &funcs,
-        op,
-        &payload,
-        &mut ops,
-        write_data.len().try_into().unwrap(),
-    )?;
-    ops.push(Op::Done);
-
-    let mut results = context.run(core, ops.as_slice(), Some(write_data))?;
-
-    if results.len() != 1 {
-        bail!("unexpected results length: {:?}", results);
-    }
-    hiffy_decode(hubris, op, results.pop().unwrap())
+        _ => hiffy_decode(hubris, op, v)?,
+    };
+    Ok(out)
 }
 
 /// Decodes a value returned from [hiffy_call] or equivalent.
@@ -386,18 +353,6 @@ pub fn hiffy_decode(
         }
     };
     Ok(r)
-}
-
-fn hiffy_call_print(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    args: &[(&str, idol::IdolArgument)],
-) -> Result<()> {
-    let result = hiffy_call(hubris, core, context, op, args)?;
-    hiffy_print_result(hubris, op, result)?;
-    Ok(())
 }
 
 pub fn hiffy_print_result(
@@ -488,44 +443,44 @@ fn hiffy(
             None
         };
 
-        if let Some(input) = input {
-            let r = hiffy_call_write(
-                hubris,
-                core,
-                &mut context,
-                &op,
-                &args,
-                &input,
-            )?;
-            hiffy_print_result(hubris, &op, r)?;
+        let (return_code, data) = if let Some(input) = input {
+            (
+                hiffy_call(
+                    hubris,
+                    core,
+                    &mut context,
+                    &op,
+                    &args,
+                    Some(HiffyLease::Write(&input)),
+                )?,
+                None,
+            )
         } else if let Some(read_size) = subargs.num {
-            let r = hiffy_call_read(
+            let mut read = vec![0u8; read_size];
+            let r = hiffy_call(
                 hubris,
                 core,
                 &mut context,
                 &op,
                 &args,
-                read_size,
+                Some(HiffyLease::Read(&mut read)),
             )?;
-            // Split into the return code and the raw data
-            let (return_code, data) = match r {
-                Ok((v, d)) => (Ok(v), Some(d)),
-                Err(e) => (Err(e), None),
-            };
-            hiffy_print_result(hubris, &op, return_code)?;
-            if let Some(data) = data {
-                if let Some(out) = &subargs.output {
-                    std::fs::write(out, &data)
-                        .context(format!("Could not write to {}", out))?;
-                    println!("Wrote {} bytes to '{}'", data.len(), out);
-                } else if subargs.hex {
-                    println!("Data: {:x?}", data);
-                } else {
-                    println!("Data: {:?}", data);
-                }
-            }
+            (r, Some(read))
         } else {
-            hiffy_call_print(hubris, core, &mut context, &op, &args)?;
+            (hiffy_call(hubris, core, &mut context, &op, &args, None)?, None)
+        };
+
+        hiffy_print_result(hubris, &op, return_code)?;
+        if let Some(data) = data {
+            if let Some(out) = &subargs.output {
+                std::fs::write(out, &data)
+                    .context(format!("Could not write to {}", out))?;
+                println!("Wrote {} bytes to '{}'", data.len(), out);
+            } else if subargs.hex {
+                println!("Data: {:x?}", data);
+            } else {
+                println!("Data: {:?}", data);
+            }
         }
 
         return Ok(());
