@@ -222,7 +222,10 @@ fn check_lease(
                     )
                 }
             },
-            _ => bail!("Cannot call a hiffy operation that uses > 1 leases"),
+            _ => bail!(
+                "`humility hiffy` cannot call operations that use \
+                 > 1 leases"
+            ),
         },
         Some(HiffyLease::Read(..)) => {
             if op.operation.leases.len() != 1
@@ -230,8 +233,8 @@ fn check_lease(
                 || !op.operation.leases[0].write
             {
                 bail!(
-                    "can only call functions that take a single, \
-                     write-only lease"
+                    "`humility hiffy --input ...` can only call functions that \
+                     take a single, read-only lease"
                 );
             }
         }
@@ -241,8 +244,8 @@ fn check_lease(
                 || op.operation.leases[0].write
             {
                 bail!(
-                    "can only call functions that take a single, \
-                     read-only lease"
+                    "`humility hiffy --num ...` can only call functions that \
+                     take a single, read-only lease"
                 );
             }
         }
