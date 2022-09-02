@@ -7,7 +7,8 @@ use probe_rs::{flashing, Probe};
 
 use anyhow::{anyhow, bail, ensure, Result};
 
-use crate::arch::ARMRegister;
+use crate::arch::Register;
+use crate::arch_rv::RVRegister;
 use crate::hubris::*;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -29,9 +30,11 @@ use goblin::elf::Elf;
 pub trait Core {
     fn info(&self) -> (String, Option<String>);
     fn read_word_32(&mut self, addr: u32) -> Result<u32>;
+    //TODO should check on first read for unhalted abstract access
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
-    fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()>;
+    //TODO should check on first read for unhalted abstract access
+    fn read_reg(&mut self, reg: Register) -> Result<u32>;
+    fn write_reg(&mut self, reg: Register, value: u32) -> Result<()>;
     fn init_swv(&mut self) -> Result<()>;
     fn read_swv(&mut self) -> Result<Vec<u8>>;
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()>;
@@ -111,11 +114,11 @@ impl Core for UnattachedCore {
         bail!("Unimplemented when unattached!");
     }
 
-    fn read_reg(&mut self, _reg: ARMRegister) -> Result<u32> {
+    fn read_reg(&mut self, _reg: Register) -> Result<u32> {
         bail!("Unimplemented when unattached!");
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
+    fn write_reg(&mut self, _reg: Register, _value: u32) -> Result<()> {
         bail!("Unimplemented when unattached!");
     }
 
@@ -199,7 +202,7 @@ impl ProbeCore {
             serial_number,
             unhalted_reads,
             halted: 0,
-            unhalted_read: crate::arch::unhalted_read_regions(),
+            unhalted_read: crate::arch_arm::unhalted_read_regions(),
             can_flash,
         }
     }
@@ -279,23 +282,35 @@ impl Core for ProbeCore {
         self.halt_and_read(|core| Ok(core.read_8(addr, data)?))
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+    fn read_reg(&mut self, reg: Register) -> Result<u32> {
         let mut core = self.session.core(0)?;
+        let reg_id = Register::to_u16(&reg).unwrap();
+
         use num_traits::ToPrimitive;
 
         Ok(core.read_core_reg(Into::<probe_rs::CoreRegisterAddress>::into(
-            ARMRegister::to_u16(&reg).unwrap(),
+            reg_id,
         ))?)
     }
 
-    fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()> {
+    //TODO
+    fn write_reg(&mut self, reg: Register, value: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
+        let mut reg_id = Register::to_u16(&reg).unwrap();
+
+        //See table 3.3 in the riscv debug spec.
+        //(https://raw.githubusercontent.com/riscv/riscv-debug-spec/master/riscv-debug-stable.pdf#table.3.3)
+        //The pc is read through the DPC register
+        if let Register::RiscV(rv_reg) = reg {
+            reg_id += 0x1000;
+            if rv_reg == RVRegister::PC {
+                reg_id = 0x7b1;
+            }
+        }
         use num_traits::ToPrimitive;
 
         core.write_core_reg(
-            Into::<probe_rs::CoreRegisterAddress>::into(
-                ARMRegister::to_u16(&reg).unwrap(),
-            ),
+            Into::<probe_rs::CoreRegisterAddress>::into(reg_id),
             value,
         )?;
 
@@ -340,8 +355,10 @@ impl Core for ProbeCore {
         core.step()?;
         Ok(())
     }
-
+    //TODO
     fn init_swv(&mut self) -> Result<()> {
+        //TODO ensure core is arm
+
         use probe_rs::architecture::arm::swo::SwoConfig;
 
         let config = SwoConfig::new(0).set_baud(2_000_000);
@@ -480,6 +497,8 @@ pub struct OpenOCDCore {
     stream: TcpStream,
     swv: bool,
     last_swv: Option<Instant>,
+    halted: bool,
+    was_halted: bool,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -526,8 +545,32 @@ impl OpenOCDCore {
             TcpStream::connect_timeout(&addr, timeout).map_err(|_| {
                 anyhow!("can't connect to OpenOCD on port 6666; is it running?")
             })?;
-
-        Ok(Self { stream, swv: false, last_swv: None })
+        let mut core = Self {
+            stream,
+            swv: false,
+            last_swv: None,
+            halted: false,
+            was_halted: false,
+        };
+        // determine if the core is initially halted
+        let _target = core.sendcmd("set targ [target current]")?;
+        core.halted = match core.sendcmd("$targ curstate")?.as_str() {
+            "halted" => {
+                log::trace!("connected to halted core");
+                true
+            }
+            "running" => {
+                log::trace!("connected to running core");
+                false
+            }
+            _ => {
+                crate::msg!("Target in unknown state, humility will leave the core in a running state");
+                false
+            }
+        };
+        // if core was initially halted, we want to leave in a halted state after any operation
+        core.was_halted = core.halted;
+        Ok(core)
     }
 }
 
@@ -538,7 +581,9 @@ impl Core for OpenOCDCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
+        self.op_start()?;
         let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
+        self.op_done()?;
         Ok(result.parse::<u32>()?)
     }
 
@@ -550,6 +595,7 @@ impl Core for OpenOCDCore {
             addr,
             CORE_MAX_READSIZE
         );
+        self.op_start()?;
 
         //
         // To read an array, we put it in a TCL variable called "output"
@@ -610,22 +656,45 @@ impl Core for OpenOCDCore {
         for v in seen.iter().enumerate() {
             ensure!(v.1, "\"{}\": missing index {}", cmd, v.0);
         }
+        self.op_done()?;
 
         Ok(())
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _val: u32) -> Result<()> {
+    fn write_reg(&mut self, _reg: Register, _val: u32) -> Result<()> {
         // This does not work right now, TODO?
+        // TODO openocd does support reading though
         //
         Err(anyhow!(
             "Writing registers is not currently supported with OpenOCD"
         ))
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
-        use num_traits::ToPrimitive;
+    //TODO riscv
+    fn read_reg(&mut self, reg: Register) -> Result<u32> {
+        let mut reg_id = Register::to_u16(&reg).unwrap();
+        if let Register::RiscV(rv_reg) = reg {
+            log::trace!("converting register id for openocd");
+            // The general purpose registers are offset for the debug module, but in openocd they are not
+            // See table 3.3 in the riscv debug spec.
+            // (https://raw.githubusercontent.com/riscv/riscv-debug-spec/master/riscv-debug-stable.pdf#table.3.3)
+            if !reg.is_special() {
+                reg_id -= 0x1000;
+            } else {
+                // OpenOCD offsets all csr by 65
+                // see https://github.com/openocd-org/openocd/blob/53556fcded056aa62ffdc6bf0c97bff87d891dab/src/target/riscv/gdb_regs.h#L80
+                reg_id += 65
+            }
+            // In openocd the register for pc is at a special index
+            if rv_reg == RVRegister::PC {
+                reg_id = 32
+            }
+        }
 
-        let cmd = format!("reg {}", ARMRegister::to_u16(&reg).unwrap());
+        self.op_start()?;
+        use num_traits::ToPrimitive;
+        //TODO convert to name to avoid register id conflicts?
+        let cmd = format!("reg {}", reg_id);
         let rval = self.sendcmd(&cmd)?;
 
         if let Some(line) = rval.lines().next() {
@@ -635,10 +704,12 @@ impl Core for OpenOCDCore {
                 }
             }
         }
+        self.op_done()?;
 
         Err(anyhow!("\"{}\": malformed return value: {:?}", cmd, rval))
     }
 
+    //TODO probably arm specific
     fn init_swv(&mut self) -> Result<()> {
         self.swv = true;
         self.sendcmd("tpiu config disable")?;
@@ -652,6 +723,7 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
+    //TODO
     fn read_swv(&mut self) -> Result<Vec<u8>> {
         if !self.swv {
             self.init_swv()?
@@ -717,7 +789,9 @@ impl Core for OpenOCDCore {
     }
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
+        self.op_start()?;
         self.sendcmd(&format!("mww 0x{:x} 0x{:x}", addr, data))?;
+        self.op_done()?;
         Ok(())
     }
 
@@ -726,18 +800,26 @@ impl Core for OpenOCDCore {
     }
 
     fn halt(&mut self) -> Result<()> {
+        log::trace!("halting core");
         //
         // On OpenOCD, we don't halt. If GDB is connected, it gets really,
         // really confused!  This should probably be configurable at
         // some point...
         //
+        // Well without unhalted read support cant do anything,
+        // so we will pass the onus to the user for now
+        self.sendcmd("halt")?;
+        self.halted = true;
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
+        log::trace!("running core");
         //
         // Well, see above.
         //
+        self.sendcmd("resume")?;
+        self.halted = false;
         Ok(())
     }
 
@@ -745,12 +827,39 @@ impl Core for OpenOCDCore {
         todo!();
     }
 
-    fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("Flash loading is not supported with OpenOCD");
+    fn load(&mut self, path: &Path) -> Result<()> {
+        self.sendcmd("reset init")?;
+        self.sendcmd(&format!("load_image {} 0x0", path.display()))?;
+        self.sendcmd(&format!("verify_image {} 0x0", path.display()))?;
+        self.sendcmd("echo \"Doing reset\"")?;
+        self.sendcmd("reset run")?;
+        Ok(())
     }
 
     fn reset(&mut self) -> Result<()> {
-        bail!("Reset is not supported with OpenOCD");
+        self.sendcmd("reset run")?;
+        Ok(())
+    }
+
+    fn op_start(&mut self) -> Result<()> {
+        /*if !self.halted {
+            self.halt()?;
+            self.halted = true;
+        }
+        Ok(())*/
+        log::trace!("op_start: halting core");
+        self.halt()
+    }
+
+    fn op_done(&mut self) -> Result<()> {
+        log::trace!("was halted: {}", self.was_halted);
+        if !self.was_halted {
+            log::trace!("op_done: resuming core");
+            self.run()?;
+        } else {
+            log::trace!("op_done: leaving core halted");
+        }
+        Ok(())
     }
 }
 
@@ -758,6 +867,7 @@ impl Core for OpenOCDCore {
 enum GDBServer {
     OpenOCD,
     JLink,
+    Qemu,
 }
 
 impl fmt::Display for GDBServer {
@@ -768,6 +878,7 @@ impl fmt::Display for GDBServer {
             match self {
                 GDBServer::OpenOCD => "OpenOCD",
                 GDBServer::JLink => "JLink",
+                GDBServer::Qemu => "QEMU",
             }
         )
     }
@@ -777,6 +888,7 @@ pub struct GDBCore {
     stream: TcpStream,
     server: GDBServer,
     halted: bool,
+    was_halted: bool,
 }
 
 const GDB_PACKET_START: char = '$';
@@ -810,40 +922,43 @@ impl GDBCore {
     }
 
     fn firecmd(&mut self, cmd: &str) -> Result<()> {
-        let mut rbuf = vec![0; 1024];
+        log::trace!("sending: {}", cmd);
         let payload = self.prepcmd(cmd);
-
         self.stream.write_all(&payload)?;
+        log::trace!("sent");
+        Ok(())
+    }
 
-        //
-        // We are expecting no result -- just an ack.
-        //
+    fn recvack(&mut self) -> Result<()> {
+        let mut rbuf = vec![0; 1024];
+
         let rval = self.stream.read(&mut rbuf)?;
-
         if rval != 1 {
-            bail!("cmd {} returned {} bytes: {:?}", cmd, rval,
-                str::from_utf8(&rbuf));
+            /*if &rbuf[..rval] == vec![43, 36, 51, 48, 57, 56, 101, 55, 53, 102, 101, 50, 55, 99, 102, 102, 53, 102, 35, 97, 51] {
+                log::trace!("received halt instead of ack, reading again");
+                return self.recvack();
+            }*/
+            //TODO
+            log::trace!("expected ack, but got: {:?}", rbuf);
         }
-
-        if rbuf[0] != GDB_PACKET_ACK as u8 {
-            bail!("cmd {} incorrectly ack'd: {:?}", cmd, rbuf);
-        }
-
+        log::trace!("received ack");
         Ok(())
     }
 
     fn sendack(&mut self) -> Result<()> {
         self.stream.write_all(&[GDB_PACKET_ACK as u8])?;
+        log::trace!("sending ack");
         Ok(())
     }
 
-    fn recv(&mut self, expectack: bool) -> Result<String> {
+    fn recvdata(&mut self) -> Result<String> {
         let mut rbuf = vec![0; 1024];
         let mut result = String::new();
 
         loop {
+            log::trace!("reading first chunk");
             let rval = self.stream.read(&mut rbuf)?;
-
+            log::trace!("received {} bytes", rval);
             result.push_str(str::from_utf8(&rbuf[0..rval])?);
             log::trace!("response: {}", result);
 
@@ -851,15 +966,17 @@ impl GDBCore {
             // We are done when we have our closing delimter followed by
             // the two byte checksum.
             //
+            let end_yet = result.find(GDB_PACKET_END);
+            // let got_ack = result.find(GDB_PACKET_ACK);
+            if let None = end_yet {
+                log::trace!("reading more data");
+                continue;
+            }
             if result.find(GDB_PACKET_END) == Some(result.len() - 3) {
                 break;
             }
+            log::trace!("reading more data");
         }
-
-        //
-        // We have our response, so ack it back
-        //
-        self.sendack()?;
 
         //
         // In our result, we should have exactly one opening and exactly
@@ -882,70 +999,36 @@ impl GDBCore {
             bail!("start/end inverted: \"{}\"", result);
         }
 
-        match result.find(GDB_PACKET_ACK) {
-            Some(ack) => {
-                if expectack && ack > start {
-                    bail!("found response but no ack: \"{}\"", result);
-                }
-
-                if !expectack && ack < start {
-                    bail!("found spurious ack: \"{}\"", result);
-                }
-            }
-
-            None => {
-                if expectack {
-                    bail!("did not find expected ack: \"{}\"", result);
-                }
-            }
-        }
-
         Ok(result[start + 1..end].to_string())
     }
 
     fn sendcmd(&mut self, cmd: &str) -> Result<String> {
-        let payload = self.prepcmd(cmd);
-        self.stream.write_all(&payload)?;
-        self.recv(true)
+        let just_halted = false;
+        self.firecmd(cmd)?;
+        //self.recvack()?;
+        let mut data = self.recvdata()?;
+        // if core halted
+        if data.contains("T02thread:01;") {
+            self.halted = true;
+            self.sendack()?;
+            log::trace!("halted: trying again");
+            self.firecmd(cmd)?;
+            data = self.recvdata()?;
+        }
+        self.sendack()?;
+        if just_halted {
+            self.firecmd("c")?;
+            self.halted = false;
+        }
+        return Ok(data);
     }
 
-    fn send_32(&mut self, cmd: &str) -> Result<u32> {
-        let rstr = self.sendcmd(cmd)?;
-        let mut buf: Vec<u8> = vec![];
-
-        for i in (0..rstr.len()).step_by(2) {
-            buf.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
-        }
-
-        log::trace!("command {} returned {}", cmd, rstr);
-
-        match rstr.len() {
-            2 => Ok(u8::from_le_bytes(buf[..].try_into().unwrap()) as u32),
-            4 => Ok(u16::from_le_bytes(buf[..].try_into().unwrap()) as u32),
-            8 => Ok(u32::from_le_bytes(buf[..].try_into().unwrap()) as u32),
-            16 => {
-                //
-                // Amazingly, for some 32-bit register values under certain
-                // circumstances the JLink seems to return a 64-bit value
-                // (!). We confirm that this value is
-                // representable and return it.
-                //
-                let val = u64::from_le_bytes(buf[..].try_into().unwrap());
-
-                if val > std::u32::MAX.into() {
-                    Err(anyhow!("bad 64-bit return on cmd {}: {}", cmd, rstr))
-                } else {
-                    Ok(val as u32)
-                }
-            }
-            _ => Err(anyhow!("bad return on cmd {}: {}", cmd, rstr)),
-        }
-    }
-
+    //TODO Should keep track if the target was initially halted or not, and leave in that state
     fn new(server: GDBServer) -> Result<GDBCore> {
         let port = match server {
             GDBServer::OpenOCD => 3333,
             GDBServer::JLink => 2331,
+            GDBServer::Qemu => 3333,
         };
 
         let host = format!("127.0.0.1:{}", port);
@@ -961,18 +1044,39 @@ impl GDBCore {
             )
             })?;
 
+        // set read timout to avoid blocking when waiting for a response that never comes.  This
+        // allows an explicit error
+        stream.set_read_timeout(Some(Duration::from_millis(1000)))?;
+        stream.set_write_timeout(Some(Duration::from_millis(1000)))?;
+
         //
         // Both the OpenOCD and JLink GDB servers stop the target upon
         // connection.  This is helpful in that we know the state that
         // we're in -- but it's also not the state that we want to be
         // in.  We explicitly run the target before returning.
         //
-        let mut core = Self { stream, server, halted: true };
+        let mut core = Self { stream, server, halted: true, was_halted: true };
 
-        let supported = core.sendcmd("qSupported")?;
-        log::trace!("{} supported string: {}", server, supported);
+        // disable ack packets as they are not needed over tcpip
+        // core.firecmd("QStartNoAckMode")?;
+        let data = core.recvdata();
+        match data {
+            Err(_err) => {
+                log::trace!("connected to halted core");
+                core.was_halted = true;
+            }
+            Ok(data) => {
+                if !data.contains("T02thread:01") {
+                    bail!("Target did not halt on connect");
+                }
+                log::trace!("connected to running core");
+                core.was_halted = false;
+                core.run()?;
+            }
+        };
 
-        core.run()?;
+        //let supported = core.sendcmd("qSupported")?;
+        //log::trace!("{} supported string: {}", server, supported);
 
         Ok(core)
     }
@@ -985,13 +1089,16 @@ impl Core for GDBCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        self.send_32(&format!("m{:x},4", addr))
+        let mut data = [0; 4];
+        self.read_8(addr, &mut data)?;
+        Ok(u32::from_le_bytes(data))
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         let cmd = format!("m{:x},{:x}", addr, data.len());
 
-        let rstr = self.sendcmd(&cmd)?;
+        //self.halt()?;
+        let mut rstr = self.sendcmd(&cmd)?;
 
         if rstr.len() > data.len() * 2 {
             bail!("bad read_8 on cmd {} \
@@ -1006,24 +1113,19 @@ impl Core for GDBCore {
         Ok(())
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+    fn read_reg(&mut self, reg: Register) -> Result<u32> {
+        let reg_id = Register::to_u16(&reg).unwrap();
         use num_traits::ToPrimitive;
-        let cmd = &format!("p{:02X}", ARMRegister::to_u16(&reg).unwrap());
 
-        let rval = self.send_32(cmd);
+        //TODO convert register to name to avoid indexing problems
+        let cmd = &format!("p{:02X}", reg_id);
 
-        if self.server == GDBServer::JLink {
-            //
-            // Maddeningly, the JLink stops the target whenever a register
-            // is read.
-            //
-            self.firecmd("c")?;
-        }
+        let rstr = self.sendcmd(cmd)?;
 
-        rval
+        Ok(u32::from_str_radix(&rstr, 16)?)
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
+    fn write_reg(&mut self, _reg: Register, _value: u32) -> Result<()> {
         Err(anyhow!(
             "{} GDB target does not support modifying state", self.server
         ))
@@ -1042,12 +1144,14 @@ impl Core for GDBCore {
     }
 
     fn halt(&mut self) -> Result<()> {
+        /*
+        //target is halted whenever a command is sent
+        log::trace!("halting");
         self.stream.write_all(&[GDB_PACKET_HALT])?;
-
-        let reply = self.recv(false)?;
+        let reply = self.recvdata()?;
         log::trace!("halt reply: {}", reply);
         self.halted = true;
-
+        */
         Ok(())
     }
 
@@ -1060,6 +1164,7 @@ impl Core for GDBCore {
         // it to be halted.
         //
         if self.halted {
+            log::trace!("running core");
             self.firecmd("c")?;
             self.halted = false;
         }
@@ -1091,7 +1196,7 @@ impl Core for GDBCore {
 pub struct DumpCore {
     contents: Vec<u8>,
     regions: BTreeMap<u32, (u32, usize)>,
-    registers: HashMap<ARMRegister, u32>,
+    registers: HashMap<Register, u32>,
 }
 
 impl DumpCore {
@@ -1203,7 +1308,7 @@ impl Core for DumpCore {
         bail!("read of {} bytes from invalid address: 0x{:x}", rsize, addr);
     }
 
-    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+    fn read_reg(&mut self, reg: Register) -> Result<u32> {
         if let Some(val) = self.registers.get(&reg) {
             Ok(*val)
         } else {
@@ -1211,7 +1316,7 @@ impl Core for DumpCore {
         }
     }
 
-    fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
+    fn write_reg(&mut self, _reg: Register, _value: u32) -> Result<()> {
         bail!("cannot write register on a dump");
     }
 
@@ -1394,7 +1499,18 @@ pub fn attach_to_chip(
             //
             let (session, can_flash) = match chip {
                 Some(chip) => (probe.attach(chip)?, true),
-                None => (probe.attach("armv7m")?, false),
+                None => match hubris.arch {
+                    Some(goblin::elf::header::EM_ARM) => {
+                        (probe.attach("armv7m")?, false)
+                    }
+                    Some(goblin::elf::header::EM_RISCV) => {
+                        (probe.attach("riscv")?, false)
+                    }
+                    None => {
+                        bail!("Hubris archive was corrupt, no header found")
+                    }
+                    _ => bail!("Hubris archive for unsupported architecture"),
+                },
             };
 
             crate::msg!("attached via {}", name);
@@ -1431,6 +1547,9 @@ pub fn attach_to_chip(
             if let Ok(probe) = attach_to_chip("jlink", hubris, chip) {
                 return Ok(probe);
             }
+            if let Ok(probe) = attach_to_chip("qemu", hubris, chip) {
+                return Ok(probe);
+            }
 
             attach_to_chip("usb", hubris, chip)
         }
@@ -1445,6 +1564,13 @@ pub fn attach_to_chip(
         "jlink" => {
             let core = GDBCore::new(GDBServer::JLink)?;
             crate::msg!("attached via JLink");
+
+            Ok(Box::new(core))
+        }
+
+        "qemu" => {
+            let core = GDBCore::new(GDBServer::Qemu)?;
+            crate::msg!("attached via QEMU GDB server");
 
             Ok(Box::new(core))
         }
