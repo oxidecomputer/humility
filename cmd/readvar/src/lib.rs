@@ -65,9 +65,9 @@ fn readvar_dump(
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(variable.size, Default::default);
 
-    let _info = core.halt()?;
+    let _info = core.op_start()?;
     core.read_8(variable.addr, buf.as_mut_slice())?;
-    core.run()?;
+    core.op_done()?;
 
     let hex = !subargs.decimal;
 

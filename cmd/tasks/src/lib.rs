@@ -278,7 +278,7 @@ fn tasks(
         let keep_halted = subargs.stack || subargs.registers || panicked;
 
         if !keep_halted {
-            core.run()?;
+            core.start()?;
         }
 
         println!("system time = {}", ticks);
@@ -380,7 +380,7 @@ fn tasks(
         }
 
         if keep_halted {
-            core.run()?;
+            core.op_done()?;
         }
 
         if subargs.task.is_some() && !found {
