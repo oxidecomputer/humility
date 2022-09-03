@@ -1,0 +1,14 @@
+     version => hubris build archive v1.0.0
+     git rev => a03f0f6432d396e71f0841d6c941bb1a3d62709a-dirty
+    image id => [5a, 3c, 1f, 35, e9, 4, dc, 44]
+       board => ibex-super-system
+      target => riscv32imc-unknown-none-elf
+    features => 
+  total size => 34K
+ kernel size => 15K
+       tasks => 4
+                ID TASK                SIZE FEATURES
+                 0 jefe                9.7K log-ringbuf
+                 1 pong                5.1K 
+                 2 ping                4.7K 
+                 3 idle                0.4K 

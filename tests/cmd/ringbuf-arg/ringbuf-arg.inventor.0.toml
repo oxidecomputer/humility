@@ -1,0 +1,11 @@
+
+#
+# This test case has been automatically created, but can be edited and
+# should be checked in.  Should it ever be regenerated, simply delete
+# it and re-run "cargo test"
+#
+fs.base = "../cores"
+bin.name = "humility"
+args = "-d hubris.core.inventor.0 ringbuf i2c"
+
+status.code = 1

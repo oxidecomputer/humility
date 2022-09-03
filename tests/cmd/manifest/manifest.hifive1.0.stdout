@@ -1,0 +1,14 @@
+     version => hubris build archive v3
+     git rev => f1e5b19b36491e36ecd4c35aef68f272d1347866
+    image id => [30, 6c, ef, 54, ee, 5a, dc, 92]
+       board => hifive1-revb
+      target => riscv32imc-unknown-none-elf
+    features => 
+  total size => 35K
+ kernel size => 15K
+       tasks => 4
+                ID TASK                SIZE FEATURES
+                 0 jefe               14.0K log-stringbuf
+                 1 idle                0.1K 
+                 2 pong                0.4K 
+                 3 ping                4.7K 

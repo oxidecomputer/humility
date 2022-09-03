@@ -1,0 +1,5 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x80000800       1536        704        832
+ 1 pong               0x80001260        896        356        540
+ 2 ping               0x80000fe0        512        452         60
+ 3 idle               0x80000ee0        256          4        252

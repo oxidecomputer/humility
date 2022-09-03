@@ -1,0 +1,15 @@
+     version => hubris build archive v1.0.0
+     git rev => a03f0f6432d396e71f0841d6c941bb1a3d62709a-dirty
+    image id => [26, 99, 9e, 8c, 1, a7, ad, 30]
+       board => hifive-inventor
+      target => riscv32imc-unknown-none-elf
+    features => 
+  total size => 44K
+ kernel size => 16K
+       tasks => 5
+                ID TASK                SIZE FEATURES
+                 0 jefe                9.3K semihosting-riscv
+                 1 rtc                 8.6K semihosting-riscv
+                 2 pong                5.1K 
+                 3 ping                4.7K 
+                 4 idle                0.4K 

@@ -1,0 +1,40 @@
+name = "demo-hifive1-revb"
+target = "riscv32imc-unknown-none-elf"
+board = "hifive1-revb"
+chip = "../../chips/fe310-g002"
+stacksize = 896
+
+[kernel]
+name = "demo-hifive1-revb"
+requires = {flash = 16384, ram = 2048}
+features = []
+
+[tasks.jefe]
+name = "task-jefe"
+priority = 0
+max-sizes = {flash = 16384, ram = 4096}
+start = true
+# features = ["semihosting-riscv"]
+features = ["log-stringbuf"]
+stacksize = 1536
+
+[tasks.pong]
+name = "task-pong"
+priority = 3
+max-sizes = {flash = 8192, ram = 2048}
+start = true
+
+[tasks.ping]
+name = "task-ping"
+priority = 4
+max-sizes = {flash = 8192, ram = 2048}
+stacksize = 512
+start = true
+task-slots = [{peer = "pong"}]
+
+[tasks.idle]
+name = "task-idle"
+priority = 5
+max-sizes = {flash = 256, ram = 512}
+stacksize = 256
+start = true

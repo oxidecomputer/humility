@@ -1,0 +1,6 @@
+system time = 225
+ID TASK                 GEN PRI STATE    
+ 0 jefe                   0   0 recv, notif: bit0 bit1(T+75)
+ 1 pong                   0   3 recv, notif: bit0(T+275)
+ 2 ping                  96   4 ready
+ 3 idle                   0   5 ready

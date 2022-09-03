@@ -1,0 +1,13 @@
+DESC       LOW          HIGH          SIZE ATTR  ID TASK
+-          0x20010000 - 0x200132dd   12KiB r-x-- -  kernel
+-          0x200132e0 - 0x2001381f    1KiB r---- -  kernel
+0x2001363c 0x20014000 - 0x2001771f   13KiB r-x-- 0  jefe
+0x20013684 0x20017720 - 0x200177af     144 r-x-- 3  idle
+0x20013654 0x200177b0 - 0x2001797f     464 r-x-- 1  pong
+0x2001366c 0x20017980 - 0x20018bdf    4KiB r-x-- 2  ping
+-          0x80000000 - 0x800003ff    1KiB rw--- -  kernel
+-          0x80000400 - 0x800007b7     952 rw--- -  kernel
+0x20013648 0x80000800 - 0x80000edf    1KiB rw--- 0  jefe
+0x20013690 0x80000ee0 - 0x80000fdf     256 rw--- 3  idle
+0x20013678 0x80000fe0 - 0x8000125f     640 rw--- 2  ping
+0x20013660 0x80001260 - 0x800015df     896 rw--- 1  pong
