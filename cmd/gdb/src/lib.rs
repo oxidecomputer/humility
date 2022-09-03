@@ -48,7 +48,8 @@ struct GdbArgs {
     serial: Option<String>,
 }
 
-fn gdb(
+// make this pub so cmd-qemu can call it
+pub fn gdb(
     hubris: &mut HubrisArchive,
     args: &Args,
     subargs: &[String],
@@ -82,7 +83,12 @@ fn gdb(
 
     let mut gdb_cmd = None;
 
-    const GDB_NAMES: [&str; 2] = ["arm-none-eabi-gdb", "gdb-multiarch"];
+    const GDB_NAMES: [&str; 4] = [
+        "arm-none-eabi-gdb",
+        "riscv32-none-elf-gdb",
+        "riscv32-unknown-elf-gdb",
+        "gdb-multiarch",
+    ];
     for candidate in &GDB_NAMES {
         if Command::new(candidate)
             .arg("--version")
@@ -108,6 +114,7 @@ fn gdb(
             self.0.kill().expect("Could not kill `openocd`")
         }
     }
+    //TODO feel like this should just call to humility openocd
     let _openocd = if subargs.run_openocd {
         hubris
             .extract_file_to(
@@ -153,6 +160,8 @@ fn gdb(
         let image_id = hubris.image_id().unwrap();
         cmd.arg("-q")
             .arg("-x")
+            .arg("script.gdb")
+            .arg("-x")
             .arg("openocd.gdb")
             .arg("-ex")
             .arg(format!(
@@ -163,7 +172,11 @@ fn gdb(
             .arg("-ex")
             .arg("set confirm off")
             .arg("-ex")
-            .arg("quit");
+            // disconnect so we can connect to a halted target without restarting it
+            .arg("disconnect")
+            .arg("-ex")
+            .arg("quit")
+            .arg("final.elf");
         cmd.current_dir(work_dir.path());
         let status = cmd.status()?;
         if !status.success() {
@@ -183,7 +196,12 @@ fn gdb(
     cmd.arg("-q").arg("-x").arg("script.gdb").arg("-x").arg("openocd.gdb");
     if subargs.load {
         // start the process but immediately halt the processor
-        cmd.arg("-ex").arg("load").arg("-ex").arg("stepi");
+        cmd.arg("-ex")
+            .arg("monitor reset init")
+            .arg("-ex")
+            .arg("load")
+            .arg("-ex")
+            .arg("stepi");
     }
     cmd.arg("final.elf");
     cmd.current_dir(work_dir.path());
