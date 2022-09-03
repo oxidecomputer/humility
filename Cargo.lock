@@ -991,8 +991,8 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
- "strum",
- "strum_macros",
+ "strum 0.22.0",
+ "strum_macros 0.22.0",
  "zerocopy",
 ]
 
@@ -1176,8 +1176,8 @@ dependencies = [
  "num-traits",
  "parse_int",
  "serialport",
- "strum",
- "strum_macros",
+ "strum 0.22.0",
+ "strum_macros 0.22.0",
  "zerocopy",
 ]
 
@@ -1356,10 +1356,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "goblin",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+ "log",
  "num-traits",
+ "strum 0.24.1",
 ]
 
 [[package]]
@@ -1525,6 +1528,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "goblin",
  "humility-cmd",
  "humility-core",
  "log",
@@ -1596,6 +1600,8 @@ dependencies = [
  "scroll",
  "serde",
  "ssmarshal",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
  "toml",
  "zip",
 ]
@@ -1773,7 +1779,7 @@ dependencies = [
 [[package]]
 name = "libusb1-sys"
 version = "0.5.0"
-source = "git+https://github.com/oxidecomputer/rusb?branch=probe-rs-0.12-libusb-v1.0.26#b97a32d2b36c3db5c67f58aca015039536416439"
+source = "git+https://github.com/rivosinc/rusb?branch=dev/drew/static_lib_fix#7932c4154ff21daf618a4127b847aaa8a35ddc2a"
 dependencies = [
  "cc",
  "libc",
@@ -2374,6 +2380,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustversion"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97477e48b4cf8603ad5f7aaf897467cf42ab4218a38ef76fb14c2d6773a6d6a8"
+
+[[package]]
 name = "ryu"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2697,6 +2709,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7ac893c7d471c8a21f31cfe213ec4f6d9afeed25537c772e08ef3f005f8729e"
 
 [[package]]
+name = "strum"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
+
+[[package]]
 name = "strum_macros"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2705,6 +2723,19 @@ dependencies = [
  "heck 0.3.3",
  "proc-macro2",
  "quote",
+ "syn",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.24.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e385be0d24f186b4ce2f9982191e7101bb737312ad61c1f2f984f34bcf85d59"
+dependencies = [
+ "heck 0.4.0",
+ "proc-macro2",
+ "quote",
+ "rustversion",
  "syn",
 ]
 
