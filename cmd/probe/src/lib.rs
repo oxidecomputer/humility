@@ -89,7 +89,8 @@
 use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
+use humility::arch::Register;
+use humility::arch_arm::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Run, Validate};
@@ -240,13 +241,13 @@ fn probecmd(
             //
             let rval = core
                 .halt()
-                .and_then(|_| core.read_reg(ARMRegister::PC))
+                .and_then(|_| core.read_reg(Register::Arm(ARMRegister::PC)))
                 .and_then(|val| {
                     core.step()?;
                     Ok(val)
                 })
                 .and_then(|val| {
-                    if core.read_reg(ARMRegister::PC)? == val {
+                    if core.read_reg(Register::Arm(ARMRegister::PC))? == val {
                         Ok("not progressing")
                     } else {
                         Ok("progressing")
@@ -345,7 +346,7 @@ fn probecmd(
             }
         };
 
-        let val = core.read_reg(reg)?;
+        let val = core.read_reg(Register::Arm(reg))?;
 
         humility::msg!(
             "{:>12} => 0x{:8} {}",

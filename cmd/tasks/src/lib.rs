@@ -114,13 +114,12 @@
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
+use humility::arch::Register;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
 use humility_cmd::{Archive, Attach, Command, Run, Validate};
-use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Parser, Debug)]
@@ -150,13 +149,23 @@ struct TasksArgs {
     task: Option<String>,
 }
 
-fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
+fn print_regs(
+    regs: &BTreeMap<Register, u32>,
+    additional: bool,
+    hubris: &HubrisArchive,
+) {
     let bar = if additional { "|" } else { " " };
 
     print!("   |\n   +--->");
 
     for r in 0..=16 {
-        let reg = ARMRegister::from_usize(r).unwrap();
+        if let Some(goblin::elf::header::EM_RISCV) = hubris.arch {
+            // the riscv zero register is not saved
+            if r == 0 {
+                continue;
+            }
+        }
+        let reg = hubris.register_from_id(r).unwrap();
 
         if r != 0 && r % 4 == 0 {
             print!("   {}    ", bar);
@@ -187,7 +196,13 @@ fn tasks(
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
     let state = hubris.lookup_struct_byname("SavedState")?;
-    let r4 = save + state.lookup_member("r4")?.offset;
+
+    // Find offset for first syscall argument in SaveState,
+    // Calling convention depends on architecture, see https://oxidecomputer.github.io/hubris/reference/#_syscall_abi
+    let syscall_arg = hubris.get_syscall_register(0).unwrap();
+    let syscall_arg = syscall_arg.to_string().to_lowercase();
+
+    let syscall_arg = save + state.lookup_member(&syscall_arg)?.offset;
 
     let mut found = false;
 
@@ -228,11 +243,14 @@ fn tasks(
             // Always load R4, R5 and R6, which are in the saved state in our
             // task structure (and are needed to print state).
             //
-            for r in 4..=6 {
-                let o = offs + r4 + (r - 4) * 4;
+            for r in 0..=2 {
+                let reg =
+                    hubris.get_syscall_register(r.try_into().unwrap()).unwrap();
+                let o = offs + syscall_arg + r * 4;
+
                 let v =
                     u32::from_le_bytes(taskblock[o..o + 4].try_into().unwrap());
-                regs.insert((i, ARMRegister::from_usize(r).unwrap()), v);
+                regs.insert((i, reg), v);
             }
 
             tasks.push((addr, task_value, task));
@@ -244,7 +262,7 @@ fn tasks(
             }
         }
 
-        if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+        if let Ok(pc) = core.read_reg(hubris.get_pc()) {
             if hubris.instr_mod(pc).is_none() {
                 humility::warn!(
                     "PC 0x{:x} is unknown; \
@@ -331,7 +349,7 @@ fn tasks(
                 }
 
                 if subargs.registers {
-                    print_regs(&regs, subargs.verbose);
+                    print_regs(&regs, subargs.verbose, hubris);
                 }
             }
 
@@ -379,7 +397,7 @@ fn explain_state(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
-    regs: &HashMap<(u32, ARMRegister), u32>,
+    regs: &HashMap<(u32, Register), u32>,
     ts: TaskState,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
@@ -412,7 +430,7 @@ fn explain_state(
 fn explain_sched_state(
     hubris: &HubrisArchive,
     task_index: u32,
-    regs: &HashMap<(u32, ARMRegister), u32>,
+    regs: &HashMap<(u32, Register), u32>,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
     timer: Option<(i64, u32)>,
@@ -442,7 +460,8 @@ fn explain_sched_state(
             print_task_id(hubris, tid);
         }
         SchedState::InRecv(tid) => {
-            let notmask = *regs.get(&(task_index, ARMRegister::R6)).unwrap();
+            let syscall_2 = hubris.get_syscall_register(2).unwrap();
+            let notmask = *regs.get(&(task_index, syscall_2)).unwrap();
             explain_recv(hubris, tid, notmask, irqs, timer);
         }
     }
@@ -461,7 +480,7 @@ fn explain_fault_info(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
-    regs: &HashMap<(u32, ARMRegister), u32>,
+    regs: &HashMap<(u32, Register), u32>,
     fi: doppel::FaultInfo,
 ) -> Result<()> {
     use doppel::FaultInfo;
@@ -508,8 +527,12 @@ fn explain_fault_info(
             explain_usage_error(ue);
         }
         FaultInfo::Panic => {
-            let msg_base = *regs.get(&(task_index, ARMRegister::R4)).unwrap();
-            let msg_len = *regs.get(&(task_index, ARMRegister::R5)).unwrap();
+            let msg_base = *regs
+                .get(&(task_index, hubris.get_syscall_register(0).unwrap()))
+                .unwrap();
+            let msg_len = *regs
+                .get(&(task_index, hubris.get_syscall_register(1).unwrap()))
+                .unwrap();
             let msg_len = msg_len.min(255) as usize;
             let mut buf = vec![0; msg_len];
             core.read_8(msg_base, &mut buf)?;

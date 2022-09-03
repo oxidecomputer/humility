@@ -30,7 +30,8 @@
 use anyhow::{anyhow, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
+use humility::arch::Register;
+use humility::arch_arm::ARMRegister;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Run, Validate};
@@ -238,12 +239,12 @@ fn stmsecure_setsecureregion(
 
     // void RSS_resetAndInitializeSecureAreas(uint32_t nbAreas,
     // RSS_SecureArea_t* areas);
-    core.write_reg(ARMRegister::R0, 1)?;
-    core.write_reg(ARMRegister::R1, 0x2000_0000)?;
+    core.write_reg(Register::Arm(ARMRegister::R0), 1)?;
+    core.write_reg(Register::Arm(ARMRegister::R1), 0x2000_0000)?;
 
     // STM does not document very well how to call functions but this is the
     // address of the function we want
-    core.write_reg(ARMRegister::PC, 0x1ff08a70)?;
+    core.write_reg(Register::Arm(ARMRegister::PC), 0x1ff08a70)?;
     core.run()?;
 
     Ok(())

@@ -5,6 +5,7 @@ edition = "2021"
 description = "list Hubris tasks"
 
 [dependencies]
+goblin = "0.2.1"
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
 clap = { version = "3.0.12", features = ["derive", "env"] }
