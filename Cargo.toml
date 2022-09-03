@@ -158,7 +158,7 @@ colored = "2.0.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
 
 [patch.crates-io]
-libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
+libusb1-sys = { git = "https://github.com/rivosinc/rusb", branch = "dev/drew/static_lib_fix" }
 hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }
 
 [dev-dependencies]
