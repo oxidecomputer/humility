@@ -13,4 +13,5 @@ anyhow = { version = "1.0.44", features = ["backtrace"] }
 parse_int = "0.4.0"
 indexmap = "1.7"
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+atty = "0.2"
 colored = "2.0.0"

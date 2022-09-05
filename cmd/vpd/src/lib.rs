@@ -10,8 +10,8 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
-use humility::reflect;
 use humility::hubris::*;
+use humility::reflect;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Attach, Command, Run, Validate};
@@ -122,13 +122,14 @@ fn pack(piece: &Piece) -> Vec<u8> {
             out[..std::mem::size_of::<tlvc::ChunkHeader>()]
                 .copy_from_slice(header.as_bytes());
             out
-        },
+        }
         Piece::String(s) => s.as_bytes().to_vec(),
     }
 }
 
 fn dump<R>(mut src: tlvc::TlvcReader<R>) -> Vec<Piece>
-    where R: tlvc::TlvcRead,
+where
+    R: tlvc::TlvcRead,
 {
     let mut pieces = vec![];
     loop {
@@ -143,7 +144,7 @@ fn dump<R>(mut src: tlvc::TlvcReader<R>) -> Vec<Piece>
                 } else {
                     let bytes = remaining_bytes(
                         src,
-                        chunk.header().total_len_in_bytes()
+                        chunk.header().total_len_in_bytes(),
                     );
 
                     if let Ok(s) = std::str::from_utf8(&bytes) {
@@ -166,14 +167,15 @@ fn dump<R>(mut src: tlvc::TlvcReader<R>) -> Vec<Piece>
                 }
 
                 break;
-            },
+            }
         }
     }
     pieces
 }
 
 fn remaining_bytes<R>(src: tlvc::TlvcReader<R>, rewind: usize) -> Vec<u8>
-    where R: tlvc::TlvcRead,
+where
+    R: tlvc::TlvcRead,
 {
     let (src, start, end) = src.into_inner();
     let start = start as usize - rewind;
@@ -302,8 +304,8 @@ fn vpd_write(
 fn vpd_read_at(
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    funcs: &HiffyFunctions, 
-    op: &idol::IdolOperation, 
+    funcs: &HiffyFunctions,
+    op: &idol::IdolOperation,
     target: usize,
     offset: usize,
 ) -> Result<Vec<u8>> {
@@ -370,9 +372,14 @@ fn vpd_read(
     let total = header.total_len_in_bytes();
 
     while vpd.len() < total {
-        vpd.extend(
-            vpd_read_at(core, &mut context, &funcs, &op, target, vpd.len())?
-        );
+        vpd.extend(vpd_read_at(
+            core,
+            &mut context,
+            &funcs,
+            &op,
+            target,
+            vpd.len(),
+        )?);
     }
 
     //

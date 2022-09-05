@@ -1152,6 +1152,7 @@ name = "humility-cmd-hiffy"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "colored",
  "hif",
