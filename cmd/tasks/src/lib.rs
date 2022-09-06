@@ -159,12 +159,15 @@ fn print_regs(
     print!("   |\n   +--->");
 
     for r in 0..=16 {
-        if let Some(goblin::elf::header::EM_RISCV) = hubris.arch {
+        let r = if let Some(goblin::elf::header::EM_RISCV) = hubris.arch {
             // the riscv zero register is not saved
             if r == 0 {
                 continue;
             }
-        }
+            r + 0x1000
+        } else {
+            r
+        };
         let reg = hubris.register_from_id(r).unwrap();
 
         if r != 0 && r % 4 == 0 {
