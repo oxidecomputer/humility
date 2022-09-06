@@ -278,7 +278,7 @@ impl<'a> HiffyContext<'a> {
         let mut total = 0;
 
         for op in ops {
-            match to_slice(op, &mut text.as_mut_slice()) {
+            match to_slice(op, text.as_mut_slice()) {
                 Ok(serialized) => {
                     total += serialized.len();
                 }
@@ -500,10 +500,10 @@ impl<'a> HiffyContext<'a> {
                 let ty = self.hubris.lookup_type(op.ok).unwrap();
                 Ok(match op.operation.encoding {
                     ::idol::syntax::Encoding::Zerocopy => {
-                        load_value(self.hubris, &val, ty, 0)?
+                        load_value(self.hubris, val, ty, 0)?
                     }
                     ::idol::syntax::Encoding::Ssmarshal => {
-                        deserialize_value(self.hubris, &val, ty)?.0
+                        deserialize_value(self.hubris, val, ty)?.0
                     }
                 })
             }

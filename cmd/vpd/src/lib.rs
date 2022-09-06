@@ -229,7 +229,7 @@ fn vpd_write(
     let funcs = context.functions()?;
     let op = idol::IdolOperation::new(hubris, "Vpd", "write", None)
         .context("is the 'vpd' task present?")?;
-    let target = target(hubris, &subargs)?;
+    let target = target(hubris, subargs)?;
 
     let filename = subargs.write.as_ref().unwrap();
     let file = fs::File::open(filename)?;
@@ -260,7 +260,7 @@ fn vpd_write(
 
     let nops = (context.text_size() / context.ops_size(&all_ops[0])?) - 1;
 
-    if nops <= 0 {
+    if nops == 0 {
         bail!("text size is too small for a single write!");
     }
 
@@ -274,8 +274,7 @@ fn vpd_write(
     );
 
     for chunk in all_ops.chunks(nops) {
-        let mut ops =
-            chunk.into_iter().flatten().map(|m| *m).collect::<Vec<Op>>();
+        let mut ops = chunk.iter().flatten().copied().collect::<Vec<Op>>();
         ops.push(Op::Done);
 
         let results = context.run(core, ops.as_slice(), None)?;
@@ -316,12 +315,12 @@ fn vpd_read_at(
 
     let mut ops = vec![];
 
-    context.idol_call_ops(funcs, &op, &payload, &mut ops)?;
+    context.idol_call_ops(funcs, op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let r = context.idol_result(&op, &results[0])?;
+    let r = context.idol_result(op, &results[0])?;
     let contents = r.as_struct()?["value"].as_array()?;
     let mut rval = vec![];
 
@@ -345,7 +344,7 @@ fn vpd_read(
     let funcs = context.functions()?;
     let op = idol::IdolOperation::new(hubris, "Vpd", "read", None)
         .context("is the 'vpd' task present?")?;
-    let target = target(hubris, &subargs)?;
+    let target = target(hubris, subargs)?;
 
     //
     // First, read in enough to read just the header.
