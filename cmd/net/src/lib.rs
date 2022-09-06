@@ -87,7 +87,7 @@ fn net_ip(
         )?;
 
     let value =
-        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
+        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[], None)?;
     let v = match value {
         Ok(v) => v,
         Err(e) => bail!("Got Hiffy error: {}", e),
@@ -149,6 +149,7 @@ fn net_mac_table(
         context,
         &op_mac_count,
         &[],
+        None,
     )?;
     let mac_count = match value {
         Ok(v) => {
@@ -266,7 +267,7 @@ fn net_status(
         )?;
 
     let value =
-        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
+        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[], None)?;
     let v = match value {
         Ok(v) => v,
         Err(e) => bail!("Got Hiffy error: {}", e),
@@ -341,7 +342,7 @@ fn net_counters(
         )?;
 
     let value =
-        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[])?;
+        humility_cmd_hiffy::hiffy_call(hubris, core, context, &op, &[], None)?;
     let v = match value {
         Ok(v) => v,
         Err(e) => bail!("Got Hiffy error: {}", e),
