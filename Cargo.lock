@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.10"
+version = "0.8.11"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1136,6 +1136,7 @@ name = "humility-cmd-hiffy"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "colored",
  "hif",
