@@ -8,6 +8,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
 use humility::hubris::*;
@@ -146,6 +147,12 @@ fn auxflash_read(
         )?;
 
     let mut out = vec![0u8; SLOT_SIZE_BYTES];
+    let bar = ProgressBar::new(0);
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("humility: reading [{bar:30}] {bytes}/{total_bytes}"),
+    );
+    bar.set_length(SLOT_SIZE_BYTES as u64);
     for (i, chunk) in out.chunks_mut(SLOT_CHUNK_SIZE_BYTES).enumerate() {
         let offset = i * SLOT_CHUNK_SIZE_BYTES;
         let value = humility_cmd_hiffy::hiffy_call(
@@ -162,6 +169,7 @@ fn auxflash_read(
         if let Err(e) = value {
             bail!("Got Hubris error: {:?}", e);
         }
+        bar.set_position(offset as u64);
     }
 
     Ok(out)
@@ -188,6 +196,12 @@ fn auxflash_write(
                  is your Hubris archive new enough?",
             )?;
 
+    let bar = ProgressBar::new(0);
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("humility: reading [{bar:30}] {bytes}/{total_bytes}"),
+    );
+    bar.set_length(data.len() as u64);
     for (i, chunk) in data.chunks(SLOT_CHUNK_SIZE_BYTES).enumerate() {
         let offset = i * SLOT_CHUNK_SIZE_BYTES;
         let value = humility_cmd_hiffy::hiffy_call(
@@ -204,6 +218,7 @@ fn auxflash_write(
         if let Err(e) = value {
             bail!("Got Hubris error: {:?}", e);
         }
+        bar.set_position(offset as u64);
     }
     Ok(())
 }

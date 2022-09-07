@@ -988,6 +988,7 @@ dependencies = [
  "humility-cmd-hiffy",
  "humility-core",
  "idol",
+ "indicatif",
  "log",
  "parse_int",
  "regex",
