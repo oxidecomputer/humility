@@ -28,6 +28,7 @@ members = [
     "humility-cmd",
     "humility-arch-cortex",
     "cmd/apptable",
+    "cmd/auxflash",
     "cmd/dashboard",
     "cmd/debugmailbox",
     "cmd/diagnose",
@@ -94,6 +95,7 @@ humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
+cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugmailbox" }

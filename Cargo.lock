@@ -882,6 +882,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-cmd-apptable",
+ "humility-cmd-auxflash",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
@@ -973,6 +974,25 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-auxflash"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "log",
+ "parse_int",
+ "regex",
+ "vsc7448-info",
+ "vsc7448-types",
 ]
 
 [[package]]
