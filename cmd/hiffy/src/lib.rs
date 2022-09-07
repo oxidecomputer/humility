@@ -294,7 +294,14 @@ pub fn hiffy_call(
     }
     ops.push(Op::Done);
 
-    let mut results = context.run(core, ops.as_slice(), None)?;
+    let data = lease.as_ref().and_then(|lease| {
+        if let HiffyLease::Write(d) = *lease {
+            Some(d)
+        } else {
+            None
+        }
+    });
+    let mut results = context.run(core, ops.as_slice(), data)?;
 
     if results.len() != 1 {
         bail!("unexpected results length: {:?}", results);
