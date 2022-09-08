@@ -906,6 +906,7 @@ dependencies = [
  "humility-cmd-net",
  "humility-cmd-openocd",
  "humility-cmd-pmbus",
+ "humility-cmd-power",
  "humility-cmd-probe",
  "humility-cmd-qspi",
  "humility-cmd-readmem",
@@ -1316,6 +1317,21 @@ dependencies = [
  "log",
  "parse_int",
  "pmbus",
+]
+
+[[package]]
+name = "humility-cmd-power"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
