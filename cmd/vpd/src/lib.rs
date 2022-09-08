@@ -4,10 +4,74 @@
 
 //! ## `humility vpd`
 //!
+//! Reads from (or writes to) EEPROMs that contain vital product data (VPD).
+//! To list all eligible devices, use `--list`:
+//!
+//! ```console
+//! % humility vpd --list
+//! humility: attached via ST-Link V3
+//! ID  C P  MUX ADDR DEVICE        DESCRIPTION
+//!  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
+//!  1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD
+//!  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD
+//! ```
+//!
+//! To read from a device, specify it by either id (`--id`) or by some
+//! (case-insensitive) substring of its description (`--device`):
+//!
+//! ```console
+//! % humility vpd --read --id 0
+//! humility: attached via ST-Link V3
+//! [
+//!    ("FRU0", [
+//!        ("BARC", [
+//!            "OXC11R00241",
+//!        ]),
+//!    ]),
+//! ]
+//! ```
+//!
+//! In this example, this could also be phrased as:
+//!
+//! ```console
+//! % humility vpd --read --device sharkfin
+//! humility: attached via ST-Link V3
+//! [
+//!    ("FRU0", [
+//!        ("BARC", [
+//!            "OXC11R00241",
+//!        ]),
+//!    ]),
+//! ]
+//! ```
+//!
+//! Note that this will fail if the description matches more than one
+//! device, e.g.:
+//!
+//! ```console
+//! % humility vpd --read --device fan
+//! humility: attached via ST-Link V3
+//! humility vpd failed: multiple devices match description "fan"
+//! ```
+//!
+//! To write VPD data, pass a filename of a file that contains a RON
+//! description of a valid TLV-C payload, e.g.:
+//!
+//! ```console
+//! % cat vpd.in
+//! [("BARC", [
+//!    ("FOOB", [ [8, 6, 7, 5, 3, 0, 9] ]),
+//!    ("QUUX", []),
+//! ])]
+//! % humility vpd --write ./vpd.in --device sharkfin
+//! humility: attached via ST-Link V3
+//! humility: successfully wrote 56 bytes of VPD
+//! ```
+//!
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Command as ClapCommand;
-use clap::{CommandFactory, Parser};
+use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
@@ -21,7 +85,10 @@ use tlvc_text::Piece;
 use zerocopy::AsBytes;
 
 #[derive(Parser, Debug)]
-#[clap(name = "vpd", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(
+    name = "vpd", about = env!("CARGO_PKG_DESCRIPTION"),
+    group = ArgGroup::new("command").multiple(false).required(true)
+)]
 struct VpdArgs {
     /// sets timeout
     #[clap(
@@ -31,7 +98,7 @@ struct VpdArgs {
     timeout: u32,
 
     /// list all devices that have VPD
-    #[clap(long, short, conflicts_with_all = &["read", "write"])]
+    #[clap(long, short, group = "command")]
     list: bool,
 
     /// specify device by ID
@@ -42,11 +109,17 @@ struct VpdArgs {
     #[clap(long, short, value_name = "device")]
     device: Option<String>,
 
-    #[clap(long, short, value_name = "filename", conflicts_with = "read")]
+    /// write the contents of the specified file into the designated VPD
+    #[clap(long, short, value_name = "filename", group = "command")]
     write: Option<String>,
 
-    #[clap(long, short)]
+    /// read the contents of the designated VPD
+    #[clap(long, short, group = "command")]
     read: bool,
+
+    /// erase the designated VPD
+    #[clap(long, short, group = "command")]
+    erase: bool,
 }
 
 fn vpd_devices(
@@ -231,17 +304,20 @@ fn vpd_write(
         .context("is the 'vpd' task present?")?;
     let target = target(hubris, subargs)?;
 
-    let filename = subargs.write.as_ref().unwrap();
-    let file = fs::File::open(filename)?;
-
-    let p = tlvc_text::load(file).with_context(|| {
-        format!("failed to parse {} as VPD input", filename)
-    })?;
-
     let mut bytes = vec![];
 
-    for piece in p {
-        bytes.extend(pack(&piece));
+    if let Some(ref filename) = subargs.write {
+        let file = fs::File::open(filename)?;
+
+        let p = tlvc_text::load(file).with_context(|| {
+            format!("failed to parse {} as VPD input", filename)
+        })?;
+
+        for piece in p {
+            bytes.extend(pack(&piece));
+        }
+    } else {
+        bytes.resize_with(1024, || 0xffu8);
     }
 
     let mut all_ops = vec![];
@@ -268,10 +344,11 @@ fn vpd_write(
 
     let bar = ProgressBar::new(bytes.len() as u64);
 
-    bar.set_style(
-        ProgressStyle::default_bar()
-            .template("humility: writing VPD [{bar:30}] {bytes}/{total_bytes}"),
-    );
+    bar.set_style(ProgressStyle::default_bar().template(if subargs.erase {
+        "humility: erasing VPD [{bar:30}] {bytes}/{total_bytes}"
+    } else {
+        "humility: writing VPD [{bar:30}] {bytes}/{total_bytes}"
+    }));
 
     for chunk in all_ops.chunks(nops) {
         let mut ops = chunk.iter().flatten().copied().collect::<Vec<Op>>();
@@ -295,7 +372,12 @@ fn vpd_write(
     }
 
     bar.finish_and_clear();
-    humility::msg!("successfully wrote {} bytes of VPD", offset);
+
+    if subargs.erase {
+        humility::msg!("successfully erased VPD");
+    } else {
+        humility::msg!("successfully wrote {} bytes of VPD", offset);
+    }
 
     Ok(())
 }
@@ -353,16 +435,23 @@ fn vpd_read(
 
     let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
         Ok(reader) => reader,
-        Err(err) => {
-            bail!("{:?}", err);
-        }
+        Err(err) => bail!("{:?}", err),
     };
 
+    //
+    // If this isn't a header, see if it's all 0xff -- in which case we
+    // will suggest that the part is unprogrammed.
+    //
     let header = match reader.read_header() {
         Ok(header) => header,
-        Err(err) => {
-            bail!("bad header: {:x?}", err);
-        }
+        Err(err) => match vpd.iter().find(|&b| *b != 0xffu8) {
+            Some(_) => {
+                bail!("bad header: {:x?}", err);
+            }
+            None => {
+                bail!("VPD appears to be unprogrammed");
+            }
+        },
     };
 
     //
@@ -393,6 +482,7 @@ fn vpd_read(
 
     let p = dump(reader);
     tlvc_text::save(std::io::stdout(), &p)?;
+    println!();
 
     Ok(())
 }
@@ -406,12 +496,13 @@ fn vpd(
 
     if subargs.list {
         list(hubris)?;
-    } else if subargs.write.is_some() {
+    } else if subargs.write.is_some() || subargs.erase {
         vpd_write(hubris, core, &subargs)?;
     } else if subargs.read {
         vpd_read(hubris, core, &subargs)?;
     } else {
-        bail!("must specify either write (--write) or read (--read)");
+        // Clap should prevent us from getting here
+        panic!();
     }
 
     Ok(())
