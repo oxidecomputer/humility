@@ -68,10 +68,19 @@ enum AuxFlashCommand {
 pub struct AuxFlashHandler<'a> {
     hubris: &'a HubrisArchive,
     core: &'a mut dyn Core,
-    context: &'a mut HiffyContext<'a>,
+    context: HiffyContext<'a>,
 }
 
 impl<'a> AuxFlashHandler<'a> {
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        core: &'a mut dyn Core,
+        hiffy_timeout: u32,
+    ) -> Result<Self> {
+        let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
+        Ok(Self { hubris, core, context })
+    }
+
     fn get_idol_command(&self, name: &str) -> Result<IdolOperation<'a>> {
         IdolOperation::new(self.hubris, "AuxFlash", name, None).with_context(
             || {
@@ -89,7 +98,7 @@ impl<'a> AuxFlashHandler<'a> {
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
-            self.context,
+            &mut self.context,
             &op,
             &[],
             None,
@@ -108,7 +117,7 @@ impl<'a> AuxFlashHandler<'a> {
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
-            self.context,
+            &mut self.context,
             &op,
             &[],
             None,
@@ -129,7 +138,7 @@ impl<'a> AuxFlashHandler<'a> {
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
-            self.context,
+            &mut self.context,
             &op,
             &[("slot", IdolArgument::Scalar(u64::from(slot)))],
             None,
@@ -140,18 +149,19 @@ impl<'a> AuxFlashHandler<'a> {
         }
     }
 
-    fn slot_status(&mut self, slot: u32) -> Result<[u8; 32]> {
+    pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
         let op = self.get_idol_command("read_slot_chck")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
-            self.context,
+            &mut self.context,
             &op,
             &[("slot", IdolArgument::Scalar(u64::from(slot)))],
             None,
         )?;
         let v = match value {
             Ok(v) => v,
+            Err(e) if e == "MissingChck" => return Ok(None),
             Err(e) => bail!("{}", e),
         };
         let array = v.as_1tuple().unwrap().as_array().unwrap();
@@ -164,7 +174,7 @@ impl<'a> AuxFlashHandler<'a> {
             *o = v;
         }
 
-        Ok(out)
+        Ok(Some(out))
     }
 
     fn auxflash_status(&mut self, verbose: bool) -> Result<()> {
@@ -177,15 +187,10 @@ impl<'a> AuxFlashHandler<'a> {
             match self.slot_status(i) {
                 Err(e) => {
                     let err_str = format!("{:?}", e);
-                    // Special-casing for a known error code
-                    match err_str.as_str() {
-                        "MissingChck" => {
-                            println!("{}", "Missing checksum".yellow())
-                        }
-                        _ => println!("Error: {}", err_str.red()),
-                    }
+                    println!("Error: {}", err_str.red());
                 }
-                Ok(v) => {
+                Ok(None) => println!("{}", "Missing checksum".yellow()),
+                Ok(Some(v)) => {
                     if active_slot == Some(i) {
                         print!("{} (", "Active".green());
                     } else {
@@ -227,7 +232,7 @@ impl<'a> AuxFlashHandler<'a> {
             let value = humility_cmd_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
-                self.context,
+                &mut self.context,
                 &op,
                 &[
                     ("slot", IdolArgument::Scalar(slot as u64)),
@@ -244,7 +249,7 @@ impl<'a> AuxFlashHandler<'a> {
         Ok(out)
     }
 
-    fn auxflash_write(
+    pub fn auxflash_write(
         &mut self,
         slot: u32,
         data: &[u8],
@@ -281,7 +286,7 @@ impl<'a> AuxFlashHandler<'a> {
             }
         }
         if let Some(chck_data) = chck_data {
-            if let Ok(chck_slot) = self.slot_status(slot) {
+            if let Ok(Some(chck_slot)) = self.slot_status(slot) {
                 if chck_data == chck_slot {
                     humility::msg!(
                         "Slot {} is already programmed with our data",
@@ -320,7 +325,7 @@ impl<'a> AuxFlashHandler<'a> {
             let value = humility_cmd_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
-                self.context,
+                &mut self.context,
                 &op,
                 &[
                     ("slot", IdolArgument::Scalar(slot as u64)),
@@ -334,6 +339,10 @@ impl<'a> AuxFlashHandler<'a> {
             bar.set_position(offset as u64);
         }
         Ok(())
+    }
+
+    pub fn reset(&mut self) -> Result<()> {
+        self.core.reset()
     }
 
     pub fn auxflash_write_from_archive(
@@ -360,8 +369,7 @@ fn auxflash(
     subargs: &[String],
 ) -> Result<()> {
     let subargs = AuxFlashArgs::try_parse_from(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let mut worker = AuxFlashHandler { hubris, core, context: &mut context };
+    let mut worker = AuxFlashHandler::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
         AuxFlashCommand::Status { verbose } => {
             worker.auxflash_status(verbose)?;

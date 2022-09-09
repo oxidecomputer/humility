@@ -1116,6 +1116,7 @@ dependencies = [
  "clap",
  "goblin",
  "humility-cmd",
+ "humility-cmd-auxflash",
  "humility-core",
  "humility-cortex",
  "ihex",
