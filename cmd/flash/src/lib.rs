@@ -107,7 +107,7 @@ fn force_openocd(
     // probe-rs, because we use the resulting ProbeCore to program the
     // auxiliary flash (via hiffy)
     if hubris.read_auxflash_data()?.is_some() {
-        bail!("Cannot program an image with auxiliary flash through OpenOCD");
+        bail!("cannot program an image with auxiliary flash through OpenOCD");
     }
 
     //
@@ -399,20 +399,23 @@ fn flashcmd(
     Ok(())
 }
 
-fn try_program_auxflash(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
+fn try_program_auxflash(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<()> {
     match hubris.read_auxflash_data()? {
         Some(auxflash) => match program_auxflash(hubris, core, &auxflash) {
             Ok(_) => {
                 humility::msg!("done with auxiliary flash");
                 Ok(())
-            },
+            }
             Err(e) => bail!(
                 "failed to program auxflash: {:?}; \
                  your system may not be functional!",
                 e
             ),
-        }
-        None => Ok(())
+        },
+        None => Ok(()),
     }
 }
 
@@ -433,7 +436,7 @@ fn program_auxflash(
             humility::msg!(
                 "auxiliary flash data is already loaded in slot {}; \
                  skipping programming",
-                 i
+                i
             );
             return Ok(());
         }

@@ -302,7 +302,7 @@ impl<'a> AuxFlashHandler<'a> {
             }
         }
 
-        humility::msg!("Erasing slot {}", slot);
+        humility::msg!("erasing slot {}", slot);
         self.slot_erase(slot)?;
 
         if data.len() > SLOT_SIZE_BYTES {
@@ -338,6 +338,7 @@ impl<'a> AuxFlashHandler<'a> {
             }
             bar.set_position(offset as u64);
         }
+        humility::msg!("done");
         Ok(())
     }
 
