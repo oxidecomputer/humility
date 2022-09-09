@@ -20,5 +20,6 @@ humility-cmd-hiffy = { path = "../hiffy" }
 
 hif = { git = "https://github.com/oxidecomputer/hif" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+tlvc = {git = "https://github.com/oxidecomputer/tlvc"}
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }

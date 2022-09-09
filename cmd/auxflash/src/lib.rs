@@ -45,20 +45,24 @@ enum AuxFlashCommand {
         #[clap(long, short)]
         verbose: bool,
     },
+    Erase {
+        #[clap(long, short)]
+        slot: u32,
+    },
     Read {
         #[clap(long, short)]
         slot: u32,
-        #[clap(long, short)]
-        output: String,
 
         /// Number of bytes to read (defaults to 1M)
         #[clap(long, short)]
         count: Option<usize>,
+        output: String,
     },
     Write {
         #[clap(long, short)]
         slot: u32,
-        #[clap(long, short)]
+        #[clap(long, short = 'F')]
+        force: bool,
         input: Option<String>,
     },
 }
@@ -242,7 +246,59 @@ impl<'a> AuxFlashHandler<'a> {
         Ok(out)
     }
 
-    fn auxflash_write(&mut self, slot: u32, data: &[u8]) -> Result<()> {
+    fn auxflash_write(
+        &mut self,
+        slot: u32,
+        data: &[u8],
+        force: bool,
+    ) -> Result<()> {
+        // If the input data can be parsed as TLV-C, then check against
+        // the slot checksum currently loaded in auxiliary flash, skipping
+        // flashing if they match.
+        let mut reader = tlvc::TlvcReader::begin(data)
+            .map_err(|e| anyhow!("TlvcReader::begin failed: {:?}", e))?;
+        let mut chck_data = None;
+        loop {
+            match reader.next() {
+                Ok(Some(chunk)) => {
+                    if &chunk.header().tag == b"CHCK" {
+                        assert_eq!(chunk.len(), 32);
+                        let mut out = [0; 32];
+                        chunk.read_exact(0, &mut out).map_err(|e| {
+                            anyhow!("Failed to read chunk: {:?}", e)
+                        })?;
+                        chck_data = Some(out);
+                        break;
+                    }
+                }
+                Ok(None) => break,
+                Err(e) => {
+                    humility::msg!(
+                        "Failed to load data as TLV-C ({:?}); \
+                         skipping reflash check",
+                         e
+                    );
+                    break;
+                }
+            }
+        }
+        if let Some(chck_data) = chck_data {
+            if let Ok(chck_slot) = self.slot_status(slot) {
+                if chck_data == chck_slot {
+                    humility::msg!(
+                        "Slot {} is already programmed with our data",
+                        slot
+                    );
+                    if force {
+                        humility::msg!("Reprogramming it anyways!");
+                    } else {
+                        humility::msg!("Skipping reprogramming.");
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
         humility::msg!("Erasing slot {}", slot);
         self.slot_erase(slot)?;
 
@@ -282,7 +338,11 @@ impl<'a> AuxFlashHandler<'a> {
         Ok(())
     }
 
-    fn auxflash_write_from_archive(&mut self, slot: u32) -> Result<()> {
+    fn auxflash_write_from_archive(
+        &mut self,
+        slot: u32,
+        force: bool,
+    ) -> Result<()> {
         let archive = self.hubris.archive();
         let cursor = Cursor::new(archive);
         let mut archive = zip::ZipArchive::new(cursor)?;
@@ -301,8 +361,8 @@ impl<'a> AuxFlashHandler<'a> {
             }
             Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
         };
-        humility::log!("Flashing auxi.tlvc from the Hubris archive");
-        self.auxflash_write(slot, &data)
+        humility::msg!("Flashing auxi.tlvc from the Hubris archive");
+        self.auxflash_write(slot, &data, force)
     }
 }
 
@@ -320,19 +380,22 @@ fn auxflash(
         AuxFlashCommand::Status { verbose } => {
             worker.auxflash_status(verbose)?;
         }
+        AuxFlashCommand::Erase { slot } => {
+            worker.slot_erase(slot)?;
+        }
         AuxFlashCommand::Read { slot, output, count } => {
             let data = worker.auxflash_read(slot, count)?;
             std::fs::write(&output, &data)?;
         }
-        AuxFlashCommand::Write { slot, input } => match input {
+        AuxFlashCommand::Write { slot, input, force } => match input {
             Some(input) => {
                 let data = std::fs::read(&input)?;
-                worker.auxflash_write(slot, &data)?;
+                worker.auxflash_write(slot, &data, force)?;
             }
             None => {
                 // If the user didn't specify an image to flash on the
                 // command line, then attempt to pull it from the image.
-                worker.auxflash_write_from_archive(slot)?;
+                worker.auxflash_write_from_archive(slot, force)?;
             }
         },
     }
