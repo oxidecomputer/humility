@@ -124,7 +124,7 @@ impl<'a> AuxFlashHandler<'a> {
         )?;
         let v = match value {
             Ok(v) => v,
-            Err(e) if format!("{}", e) == "NoActiveSlot" => {
+            Err(e) if e == "NoActiveSlot" => {
                 return Ok(None);
             }
             Err(e) => bail!("Got Hiffy error: {}", e),
@@ -186,8 +186,7 @@ impl<'a> AuxFlashHandler<'a> {
             print!("  {:>3} | ", i);
             match self.slot_status(i) {
                 Err(e) => {
-                    let err_str = format!("{:?}", e);
-                    println!("Error: {}", err_str.red());
+                    println!("Error: {}", e.to_string().red());
                 }
                 Ok(None) => println!("{}", "Missing checksum".yellow()),
                 Ok(Some(v)) => {
