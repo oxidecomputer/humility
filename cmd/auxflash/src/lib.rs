@@ -296,11 +296,12 @@ impl<'a> AuxFlashHandler<'a> {
             Err(zip::result::ZipError::FileNotFound) => {
                 bail!(
                     "Could not find img/auxi.tlvc in the archive. \
-                                 Does this app include auxiliary blobs?"
+                     Does this Hubris app include auxiliary blobs?"
                 );
             }
             Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
         };
+        humility::log!("Flashing auxi.tlvc from the Hubris archive");
         self.auxflash_write(slot, &data)
     }
 }
