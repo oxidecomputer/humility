@@ -10,8 +10,6 @@ use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 
-use std::io::{Cursor, Read};
-
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::HiffyContext;
@@ -67,7 +65,7 @@ enum AuxFlashCommand {
     },
 }
 
-struct AuxFlashHandler<'a> {
+pub struct AuxFlashHandler<'a> {
     hubris: &'a HubrisArchive,
     core: &'a mut dyn Core,
     context: &'a mut HiffyContext<'a>,
@@ -86,7 +84,7 @@ impl<'a> AuxFlashHandler<'a> {
         )
     }
 
-    fn slot_count(&mut self) -> Result<u32> {
+    pub fn slot_count(&mut self) -> Result<u32> {
         let op = self.get_idol_command("slot_count")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
@@ -105,7 +103,7 @@ impl<'a> AuxFlashHandler<'a> {
     }
 
     /// Returns the active slot, or `None` if there is no active slot
-    fn active_slot(&mut self) -> Result<Option<u32>> {
+    pub fn active_slot(&mut self) -> Result<Option<u32>> {
         let op = self.get_idol_command("scan_and_get_active_slot")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
@@ -276,7 +274,7 @@ impl<'a> AuxFlashHandler<'a> {
                     humility::msg!(
                         "Failed to load data as TLV-C ({:?}); \
                          skipping reflash check",
-                         e
+                        e
                     );
                     break;
                 }
@@ -338,30 +336,18 @@ impl<'a> AuxFlashHandler<'a> {
         Ok(())
     }
 
-    fn auxflash_write_from_archive(
+    pub fn auxflash_write_from_archive(
         &mut self,
         slot: u32,
         force: bool,
     ) -> Result<()> {
-        let archive = self.hubris.archive();
-        let cursor = Cursor::new(archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let file = archive.by_name("img/auxi.tlvc");
-        let data = match file {
-            Ok(mut f) => {
-                let mut buffer = Vec::new();
-                f.read_to_end(&mut buffer)?;
-                buffer
-            }
-            Err(zip::result::ZipError::FileNotFound) => {
-                bail!(
-                    "Could not find img/auxi.tlvc in the archive. \
+        let data = self.hubris.read_auxflash_data()?.ok_or_else(|| {
+            anyhow!(
+                "Could not find auxiliary data in the archive. \
                      Does this Hubris app include auxiliary blobs?"
-                );
-            }
-            Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
-        };
-        humility::msg!("Flashing auxi.tlvc from the Hubris archive");
+            )
+        })?;
+        humility::msg!("Flashing auxiliary data from the Hubris archive");
         self.auxflash_write(slot, &data, force)
     }
 }
