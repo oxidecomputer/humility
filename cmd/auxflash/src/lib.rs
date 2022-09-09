@@ -10,6 +10,8 @@ use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 
+use std::io::{Cursor, Read};
+
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::HiffyContext;
@@ -57,7 +59,7 @@ enum AuxFlashCommand {
         #[clap(long, short)]
         slot: u32,
         #[clap(long, short)]
-        input: String,
+        input: Option<String>,
     },
 }
 
@@ -279,6 +281,28 @@ impl<'a> AuxFlashHandler<'a> {
         }
         Ok(())
     }
+
+    fn auxflash_write_from_archive(&mut self, slot: u32) -> Result<()> {
+        let archive = self.hubris.archive();
+        let cursor = Cursor::new(archive);
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let file = archive.by_name("img/auxi.tlvc");
+        let data = match file {
+            Ok(mut f) => {
+                let mut buffer = Vec::new();
+                f.read_to_end(&mut buffer)?;
+                buffer
+            }
+            Err(zip::result::ZipError::FileNotFound) => {
+                bail!(
+                    "Could not find img/auxi.tlvc in the archive. \
+                                 Does this app include auxiliary blobs?"
+                );
+            }
+            Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
+        };
+        self.auxflash_write(slot, &data)
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -299,10 +323,17 @@ fn auxflash(
             let data = worker.auxflash_read(slot, count)?;
             std::fs::write(&output, &data)?;
         }
-        AuxFlashCommand::Write { slot, input } => {
-            let data = std::fs::read(&input)?;
-            worker.auxflash_write(slot, &data)?;
-        }
+        AuxFlashCommand::Write { slot, input } => match input {
+            Some(input) => {
+                let data = std::fs::read(&input)?;
+                worker.auxflash_write(slot, &data)?;
+            }
+            None => {
+                // If the user didn't specify an image to flash on the
+                // command line, then attempt to pull it from the image.
+                worker.auxflash_write_from_archive(slot)?;
+            }
+        },
     }
     Ok(())
 }

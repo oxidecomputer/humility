@@ -994,6 +994,7 @@ dependencies = [
  "regex",
  "vsc7448-info",
  "vsc7448-types",
+ "zip",
 ]
 
 [[package]]
