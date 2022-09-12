@@ -4411,6 +4411,26 @@ impl HubrisArchive {
             false
         }
     }
+
+    /// Reads the auxiliary flash data from a Hubris archive
+    ///
+    /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
+    /// is missing, or `Err(...)` if a zip file error occurred.
+    pub fn read_auxflash_data(&self) -> Result<Option<Vec<u8>>> {
+        let archive = self.archive();
+        let cursor = Cursor::new(archive);
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let file = archive.by_name("img/auxi.tlvc");
+        match file {
+            Ok(mut f) => {
+                let mut buffer = Vec::new();
+                f.read_to_end(&mut buffer)?;
+                Ok(Some(buffer))
+            }
+            Err(zip::result::ZipError::FileNotFound) => Ok(None),
+            Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
