@@ -24,7 +24,8 @@
 //!
 //! If the specified archive includes auxiliary flash data and the new image
 //! includes a task with the `AuxFlash` API, two slots of auxiliary flash
-//! will be programmed after the image.
+//! will be programmed after the image is written.  See RFD 311 for more
+//! information about auxiliary flash management.
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
@@ -394,6 +395,13 @@ fn flashcmd(
 
     core.reset()?;
 
+    // At this point, we can attempt to program the auxiliary flash.  This has
+    // to happen *after* the image is flashed and the core is reset, because it
+    // uses hiffy calls to the `auxflash` task to actually do the programming;
+    // because we have no knowledge of the archive previously flashed onto the
+    // chip, we couldn't do hiffy calls before flashing.
+    //
+    // This is called out in RFD 311 as a weakness of our approach!
     try_program_auxflash(hubris, core)?;
     humility::msg!("flashing done");
     Ok(())

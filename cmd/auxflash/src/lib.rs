@@ -4,7 +4,11 @@
 
 //! ## `humility auxflash`
 //!
-//! Tools to interact with the auxiliary flash.
+//! Tools to interact with the auxiliary flash, described in RFD 311.
+//!
+//! This subcommand should be rarely used; `humility flash` will automatically
+//! program auxiliary flash when needed.
+
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
