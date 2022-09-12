@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.11"
+version = "0.8.12"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -882,6 +882,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-cmd-apptable",
+ "humility-cmd-auxflash",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
@@ -973,6 +974,28 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-auxflash"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "indicatif",
+ "log",
+ "parse_int",
+ "regex",
+ "tlvc 0.1.0 (git+https://github.com/oxidecomputer/tlvc)",
+ "vsc7448-info",
+ "vsc7448-types",
+ "zip",
 ]
 
 [[package]]
@@ -1093,6 +1116,7 @@ dependencies = [
  "clap",
  "goblin",
  "humility-cmd",
+ "humility-cmd-auxflash",
  "humility-core",
  "humility-cortex",
  "ihex",
@@ -1602,7 +1626,7 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
- "tlvc",
+ "tlvc 0.1.0 (git+https://github.com/oxidecomputer/tlvc?branch=string-pieces)",
  "tlvc-text",
  "zerocopy",
 ]
@@ -2892,13 +2916,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tlvc"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/tlvc#4287f4b7cecb42617342f913dbd8ced40eb79646"
+dependencies = [
+ "byteorder",
+ "crc",
+ "zerocopy",
+]
+
+[[package]]
 name = "tlvc-text"
 version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/tlvc?branch=string-pieces#0eb87b67bd7621de0900b624d55b71281ea289cf"
 dependencies = [
  "ron 0.8.0",
  "serde",
- "tlvc",
+ "tlvc 0.1.0 (git+https://github.com/oxidecomputer/tlvc?branch=string-pieces)",
  "zerocopy",
 ]
 

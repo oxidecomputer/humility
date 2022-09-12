@@ -22,11 +22,15 @@
 //! is to extend probe-rs to support any parts that must be flashed via
 //! OpenOCD.
 //!
+//! If the specified archive includes auxiliary flash data and the new image
+//! includes a task with the `AuxFlash` API, two slots of auxiliary flash
+//! will be programmed after the image is written.  See RFD 311 for more
+//! information about auxiliary flash management.
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::hubris::*;
+use humility::{core::Core, hubris::*};
 use humility_cmd::{Archive, Args, Command, RunUnattached};
 use path_slash::PathExt;
 use std::io::Write;
@@ -100,6 +104,13 @@ fn force_openocd(
     config: &FlashConfig,
     elf: &[u8],
 ) -> Result<()> {
+    // Images that include auxiliary flash data *must* be programmed through
+    // probe-rs, because we use the resulting ProbeCore to program the
+    // auxiliary flash (via hiffy)
+    if hubris.read_auxflash_data()?.is_some() {
+        bail!("cannot program an image with auxiliary flash through OpenOCD");
+    }
+
     //
     // We need to attach to (1) confirm that we're plugged into something
     // and (2) extract serial information.
@@ -363,28 +374,115 @@ fn flashcmd(
     //
     if let Err(err) = core.load(ihex_path) {
         core.run()?;
-        Err(err)
-    } else {
-        //
-        // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
-        // it seems to float high enough to bounce the part onto the wrong
-        // image (that is, the BOOT1 image -- which by default is the ST
-        // bootloader).  This seems to only be true when resetting immediately
-        // after flashing the part:  if there is a delay on the order of ~35
-        // milliseconds or more, the BOOT0 pin is seen as low when the part
-        // resets.  Because this delay is (more or less) harmless, we do it on
-        // all platforms, and further make it tunable.
-        //
-        let delay = subargs.reset_delay;
+        return Err(err);
+    }
 
-        if delay != 0 {
-            std::thread::sleep(std::time::Duration::from_millis(delay));
+    //
+    // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
+    // it seems to float high enough to bounce the part onto the wrong
+    // image (that is, the BOOT1 image -- which by default is the ST
+    // bootloader).  This seems to only be true when resetting immediately
+    // after flashing the part:  if there is a delay on the order of ~35
+    // milliseconds or more, the BOOT0 pin is seen as low when the part
+    // resets.  Because this delay is (more or less) harmless, we do it on
+    // all platforms, and further make it tunable.
+    //
+    let delay = subargs.reset_delay;
+
+    if delay != 0 {
+        std::thread::sleep(std::time::Duration::from_millis(delay));
+    }
+
+    core.reset()?;
+
+    // At this point, we can attempt to program the auxiliary flash.  This has
+    // to happen *after* the image is flashed and the core is reset, because it
+    // uses hiffy calls to the `auxflash` task to actually do the programming;
+    // because we have no knowledge of the archive previously flashed onto the
+    // chip, we couldn't do hiffy calls before flashing.
+    //
+    // This is called out in RFD 311 as a weakness of our approach!
+    try_program_auxflash(hubris, core)?;
+    humility::msg!("flashing done");
+    Ok(())
+}
+
+fn try_program_auxflash(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+) -> Result<()> {
+    match hubris.read_auxflash_data()? {
+        Some(auxflash) => match program_auxflash(hubris, core, &auxflash) {
+            Ok(_) => {
+                humility::msg!("done with auxiliary flash");
+                Ok(())
+            }
+            Err(e) => bail!(
+                "failed to program auxflash: {:?}; \
+                 your system may not be functional!",
+                e
+            ),
+        },
+        None => Ok(()),
+    }
+}
+
+fn program_auxflash(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    data: &[u8],
+) -> Result<()> {
+    let mut worker =
+        humility_cmd_auxflash::AuxFlashHandler::new(hubris, core, 5000)?;
+
+    // At this point, we've already rebooted into the new image.
+    //
+    // If the Hubris auxflash task has picked up an active slot, then we're all
+    // set: our target image was already loaded (or was unchanged).
+    match worker.active_slot() {
+        Ok(Some(i)) => {
+            humility::msg!(
+                "auxiliary flash data is already loaded in slot {}; \
+                 skipping programming",
+                i
+            );
+            return Ok(());
         }
+        Ok(None) => (),
+        Err(e) => {
+            humility::msg!("Got error while checking active slot: {:?}", e);
+        }
+    };
 
-        core.reset()?;
+    // Otherwise, we need to pick a slot.  This is tricky, because we don't
+    // actually know whether there's an image on the B partition that's using
+    // auxiliary data.  We'll prioritize picking an empty (even) slot, and will
+    // otherwise pick slot 0 arbitrarily.
+    let slot_count = worker.slot_count()?;
+    let mut target_slot = 0;
+    for i in 0..slot_count {
+        if i % 2 == 0 && matches!(worker.slot_status(i), Ok(None)) {
+            target_slot = i;
+            break;
+        }
+    }
 
-        humility::msg!("flashing done");
-        Ok(())
+    worker.auxflash_write(target_slot, data, false)?;
+
+    // After a reset, two things will happen:
+    // - The SP `auxflash` task will automatically mirror from the even slot to
+    //   the odd slot, since the even slot will have valid data and the odd slot
+    //   will not.
+    // - The SP will recognize the programmed slot as valid and choose it as the
+    //   active slot.
+    worker.reset()?;
+
+    match worker.active_slot() {
+        Ok(Some(..)) => Ok(()),
+        Ok(None) => bail!("No active auxflash slot, even after programming"),
+        Err(e) => {
+            bail!("Could not check auxflash slot after programming: {:?}", e)
+        }
     }
 }
 
