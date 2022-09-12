@@ -469,8 +469,14 @@ fn program_auxflash(
 
     worker.auxflash_write(target_slot, data, false)?;
 
-    // After a reset, the application should accept the new slot
+    // After a reset, two things will happen:
+    // - The SP `auxflash` task will automatically mirror from the even slot to
+    //   the odd slot, since the even slot will have valid data and the odd slot
+    //   will not.
+    // - The SP will recognize the programmed slot as valid and choose it as the
+    //   active slot.
     worker.reset()?;
+
     match worker.active_slot() {
         Ok(Some(..)) => Ok(()),
         Ok(None) => bail!("No active auxflash slot, even after programming"),
