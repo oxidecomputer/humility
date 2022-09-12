@@ -264,6 +264,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility trace](#humility-trace): trace Hubris operations
 - [humility validate](#humility-validate): validate presence and operation of devices
+- [humility vpd](#humility-vpd): read or write vital product data (VPD)
 ### `humility apptable`
 
 This is a deprecated command that allows for the display of the app table
@@ -1216,7 +1217,10 @@ VSC8552; this is indicated with `--` in the relevant table positions.
 
 ### `humility openocd`
 
-This command launches OpenOCD based on the config file in a build archive
+This command launches OpenOCD based on the config file in a build archive,
+which then allows one to connect with either GDB or directly via telnet.
+If the intention is to only run GDB, note that `humility gdb --run-openocd`
+will both run OpenOCD and run a foreground GDB that is connected to it.
 
 
 
@@ -2238,6 +2242,74 @@ ID VALIDATION   C P  MUX ADDR DEVICE        DESCRIPTION
 23 removed      4 F  -   0x49 tmp117        North temperature sensor
 24 validated    4 F  -   0x4a tmp117        Northwest temperature sensor
 25 validated    4 F  -   0x67 bmr491        Intermediate bus converter
+```
+
+
+
+### `humility vpd`
+
+Reads from (or writes to) EEPROMs that contain vital product data (VPD).
+To list all eligible devices, use `--list`:
+
+```console
+% humility vpd --list
+humility: attached via ST-Link V3
+ID  C P  MUX ADDR DEVICE        DESCRIPTION
+ 0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
+ 1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD
+ 2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD
+```
+
+To read from a device, specify it by either id (`--id`) or by some
+(case-insensitive) substring of its description (`--device`):
+
+```console
+% humility vpd --read --id 0
+humility: attached via ST-Link V3
+[
+   ("FRU0", [
+       ("BARC", [
+           "OXC11R00241",
+       ]),
+   ]),
+]
+```
+
+In this example, this could also be phrased as:
+
+```console
+% humility vpd --read --device sharkfin
+humility: attached via ST-Link V3
+[
+   ("FRU0", [
+       ("BARC", [
+           "OXC11R00241",
+       ]),
+   ]),
+]
+```
+
+Note that this will fail if the description matches more than one
+device, e.g.:
+
+```console
+% humility vpd --read --device fan
+humility: attached via ST-Link V3
+humility vpd failed: multiple devices match description "fan"
+```
+
+To write VPD data, pass a filename of a file that contains a RON
+description of a valid TLV-C payload, e.g.:
+
+```console
+% cat vpd.in
+[("BARC", [
+   ("FOOB", [ [8, 6, 7, 5, 3, 0, 9] ]),
+   ("QUUX", []),
+])]
+% humility vpd --write ./vpd.in --device sharkfin
+humility: attached via ST-Link V3
+humility: successfully wrote 56 bytes of VPD
 ```
 
 

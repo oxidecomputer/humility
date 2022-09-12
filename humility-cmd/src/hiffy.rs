@@ -269,6 +269,36 @@ impl<'a> HiffyContext<'a> {
         self.text.size
     }
 
+    ///
+    /// Convenience routine to indicate the size of a HIF snippet
+    ///
+    pub fn ops_size(&self, ops: &[Op]) -> Result<usize> {
+        let mut text: Vec<u8> = vec![];
+        text.resize_with(self.text.size, Default::default);
+        let mut total = 0;
+
+        for op in ops {
+            match to_slice(op, text.as_mut_slice()) {
+                Ok(serialized) => {
+                    total += serialized.len();
+                }
+                Err(postcard::Error::SerializeBufferFull) => {
+                    bail!(
+                        "HIF snippet ({} ops) cannot fit in \
+                        target program text ({} bytes)",
+                        ops.len(),
+                        text.len(),
+                    );
+                }
+                Err(err) => {
+                    bail!("HIF snippet serialization failed: {}", err);
+                }
+            }
+        }
+
+        Ok(total)
+    }
+
     pub fn functions(&mut self) -> Result<HiffyFunctions> {
         let hubris = self.hubris;
 
@@ -457,6 +487,42 @@ impl<'a> HiffyContext<'a> {
         )
     }
 
+    /// Convenience routine to pull out the result of an Idol call
+    pub fn idol_result(
+        &mut self,
+        op: &idol::IdolOperation,
+        result: &Result<Vec<u8>, u32>,
+    ) -> Result<humility::reflect::Value> {
+        use humility::reflect::{deserialize_value, load_value};
+
+        match result {
+            Ok(val) => {
+                let ty = self.hubris.lookup_type(op.ok).unwrap();
+                Ok(match op.operation.encoding {
+                    ::idol::syntax::Encoding::Zerocopy => {
+                        load_value(self.hubris, val, ty, 0)?
+                    }
+                    ::idol::syntax::Encoding::Ssmarshal => {
+                        deserialize_value(self.hubris, val, ty)?.0
+                    }
+                })
+            }
+            Err(e) => {
+                let variant = if let Some(error) = op.error {
+                    error.lookup_variant(*e as u64)
+                } else {
+                    None
+                };
+
+                if let Some(variant) = variant {
+                    bail!(variant.name.to_string())
+                } else {
+                    bail!(format!("{:x?}", e))
+                }
+            }
+        }
+    }
+
     /// Begins HIF execution.  This is non-blocking with respect to the HIF
     /// program, so you will need to poll [Self::done] to check for completion.
     pub fn start(
@@ -487,8 +553,38 @@ impl<'a> HiffyContext<'a> {
 
         core.op_start()?;
 
-        if core.read_word_32(self.ready.addr)? != 1 {
+        //
+        // We now want to loop until we know that the HIF facility is
+        // available.  Generally, if we see that HIFFY_READY is 0, it is
+        // because our in situ cohort either never ran, or has not checked
+        // back in (i.e., it is wedged on an earlier call).  But it's also
+        // conceivable that we have caught it in the very small window when it
+        // is awake, but only to check if it has been kicked; to differentiate
+        // these cases, we back off for a linearly increasing number of
+        // milliseconds until we conclude that the facility is alive, or that
+        // we have tried too many times.
+        //
+        let mut lap = 0;
+        const MAX_LAPS: u64 = 10;
+
+        let ready = loop {
+            if core.read_word_32(self.ready.addr)? == 1 {
+                break true;
+            }
+
             core.op_done()?;
+
+            lap += 1;
+
+            if lap >= MAX_LAPS {
+                break false;
+            }
+
+            thread::sleep(Duration::from_millis(lap));
+            core.op_start()?;
+        };
+
+        if !ready {
             bail!("HIF execution facility unavailable");
         }
 
