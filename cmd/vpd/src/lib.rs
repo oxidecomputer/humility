@@ -214,9 +214,7 @@ fn vpd_write(
 
         tlvc_text::pack(&p)
     } else {
-        let mut bytes = vec![];
-        bytes.resize_with(1024, || 0xffu8);
-        bytes
+        vec![0xffu8; 1024]
     };
 
     let mut all_ops = vec![];
