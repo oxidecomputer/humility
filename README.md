@@ -220,6 +220,7 @@ a specified target.  (In the above example, one could execute `humility
 ## Commands
 
 - [humility apptable](#humility-apptable): print Hubris apptable
+- [humility auxflash](#humility-auxflash): manipulate auxiliary flash
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
@@ -271,6 +272,14 @@ This is a deprecated command that allows for the display of the app table
 found in old Hubris archives; see `humility manifest` to understand
 the contents of an archive.
 
+
+
+### `humility auxflash`
+
+Tools to interact with the auxiliary flash, described in RFD 311.
+
+This subcommand should be rarely used; `humility flash` will automatically
+program auxiliary flash when needed.
 
 
 ### `humility dashboard`
@@ -545,6 +554,10 @@ used.  That said, OpenOCD should generally be discouraged; the disposition
 is to extend probe-rs to support any parts that must be flashed via
 OpenOCD.
 
+If the specified archive includes auxiliary flash data and the new image
+includes a task with the `AuxFlash` API, two slots of auxiliary flash
+will be programmed after the image is written.  See RFD 311 for more
+information about auxiliary flash management.
 
 
 ### `humility gdb`
