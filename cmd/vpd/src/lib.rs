@@ -81,8 +81,6 @@ use humility_cmd::idol;
 use humility_cmd::{Archive, Attach, Command, Run, Validate};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
-use tlvc_text::Piece;
-use zerocopy::AsBytes;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -160,103 +158,6 @@ fn list(hubris: &HubrisArchive) -> Result<()> {
     Ok(())
 }
 
-fn pack(piece: &Piece) -> Vec<u8> {
-    match piece {
-        Piece::Bytes(b) => b.to_vec(),
-        Piece::Chunk(tag, body) => {
-            let mut out = vec![];
-
-            let mut header = tlvc::ChunkHeader {
-                tag: (*tag).into(),
-                len: 0.into(),
-                header_checksum: 0.into(),
-            };
-
-            out.extend(header.as_bytes());
-
-            let c = tlvc::begin_body_crc();
-            let mut c = c.digest();
-            for p in body {
-                let segment = pack(p);
-                c.update(&segment);
-                out.extend(segment);
-            }
-            let body_len = out.len() - std::mem::size_of::<tlvc::ChunkHeader>();
-            let body_len = u32::try_from(body_len).unwrap();
-            while out.len() & 0b11 != 0 {
-                out.push(0);
-            }
-            out.extend(c.finalize().to_le_bytes());
-
-            // Update the header.
-            header.len.set(body_len);
-            header.header_checksum.set(header.compute_checksum());
-
-            out[..std::mem::size_of::<tlvc::ChunkHeader>()]
-                .copy_from_slice(header.as_bytes());
-            out
-        }
-        Piece::String(s) => s.as_bytes().to_vec(),
-    }
-}
-
-fn dump<R>(mut src: tlvc::TlvcReader<R>) -> Vec<Piece>
-where
-    R: tlvc::TlvcRead,
-{
-    let mut pieces = vec![];
-    loop {
-        match src.next() {
-            Ok(Some(chunk)) => {
-                let mut tmp = [0; 512];
-                if chunk.check_body_checksum(&mut tmp).is_ok() {
-                    pieces.push(Piece::Chunk(
-                        tlvc_text::Tag::new(chunk.header().tag),
-                        dump(chunk.read_as_chunks()),
-                    ));
-                } else {
-                    let bytes = remaining_bytes(
-                        src,
-                        chunk.header().total_len_in_bytes(),
-                    );
-
-                    if let Ok(s) = std::str::from_utf8(&bytes) {
-                        pieces.push(Piece::String(s.to_string()));
-                    } else {
-                        pieces.push(Piece::Bytes(bytes));
-                    }
-
-                    break;
-                }
-            }
-            Ok(None) => break,
-            Err(_) => {
-                let bytes = remaining_bytes(src, 0);
-
-                if let Ok(s) = std::str::from_utf8(&bytes) {
-                    pieces.push(Piece::String(s.to_string()));
-                } else {
-                    pieces.push(Piece::Bytes(bytes));
-                }
-
-                break;
-            }
-        }
-    }
-    pieces
-}
-
-fn remaining_bytes<R>(src: tlvc::TlvcReader<R>, rewind: usize) -> Vec<u8>
-where
-    R: tlvc::TlvcRead,
-{
-    let (src, start, end) = src.into_inner();
-    let start = start as usize - rewind;
-    let mut bytes = vec![0; end as usize - start];
-    src.read_exact(start as u64, &mut bytes).unwrap();
-    bytes
-}
-
 fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<usize> {
     let mut rval = None;
 
@@ -304,21 +205,17 @@ fn vpd_write(
         .context("is the 'vpd' task present?")?;
     let target = target(hubris, subargs)?;
 
-    let mut bytes = vec![];
-
-    if let Some(ref filename) = subargs.write {
+    let bytes = if let Some(ref filename) = subargs.write {
         let file = fs::File::open(filename)?;
 
         let p = tlvc_text::load(file).with_context(|| {
             format!("failed to parse {} as VPD input", filename)
         })?;
 
-        for piece in p {
-            bytes.extend(pack(&piece));
-        }
+        tlvc_text::pack(&p)
     } else {
-        bytes.resize_with(1024, || 0xffu8);
-    }
+        vec![0xffu8; 1024]
+    };
 
     let mut all_ops = vec![];
 
@@ -480,7 +377,7 @@ fn vpd_read(
         }
     };
 
-    let p = dump(reader);
+    let p = tlvc_text::dump(reader);
     tlvc_text::save(std::io::stdout(), &p)?;
     println!();
 
