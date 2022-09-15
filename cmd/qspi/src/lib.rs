@@ -287,21 +287,33 @@ fn erase(
 ) -> Result<()> {
     let f = funcs.get("QspiSectorErase", 1)?;
 
-    humility::msg!(
-        "erasing {} bytes...",
-        all_sectors.len() as u32 * device.sector_size
+    let started = Instant::now();
+    let len = all_sectors.len() as u32 * device.sector_size;
+
+    let bar = ProgressBar::new(len.into());
+
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("humility: erasing [{bar:30}] {bytes}/{total_bytes}"),
     );
+
+    bar.set_position(0);
 
     //
     // To unroll our loop, we need to know how many operations we can stuff in
     // our text.  For this calculation, we'll be a bit pessimal -- we would
     // actually expect to be able to serialize our per-sector operations in
     // fewer than 16 bytes -- but we want to give ourselves a bit of slop.
+    // Finally, we clamp our maximum at 512K of erasing at a go to allow us to
+    // show progress at a reasonable granularity.
     //
     let op_bytes_per_sector = 16;
-    let max_calls = context.text_size() / op_bytes_per_sector;
+    let max_calls = std::cmp::min(
+        context.text_size() / op_bytes_per_sector,
+        (512 * 1024) / device.sector_size as usize,
+    );
 
-    for sectors in all_sectors.chunks(max_calls) {
+    for (n, sectors) in all_sectors.chunks(max_calls).enumerate() {
         let mut ops = vec![];
 
         for addr in sectors {
@@ -327,9 +339,19 @@ fn erase(
                 );
             }
         }
+
+        bar.set_position(
+            ((n * sectors.len()) as u32 * device.sector_size).into(),
+        );
     }
 
-    humility::msg!("... done");
+    bar.finish_and_clear();
+
+    humility::msg!(
+        "erased {} in {}",
+        HumanBytes(len.into()),
+        HumanDuration(started.elapsed())
+    );
 
     Ok(())
 }
