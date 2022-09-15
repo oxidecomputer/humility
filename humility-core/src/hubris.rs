@@ -2742,7 +2742,11 @@ impl HubrisArchive {
     /// having their names duplicated in modules, we may need to support
     /// proper namespacing -- or kludgey namespacing...
     pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
-        match self.structs_byname.get_vec(name) {
+        match self
+            .structs_byname
+            .get_vec(name)
+            .map(|v| dedup_structs_hacky(self, v.iter().copied()))
+        {
             Some(v) if v.len() > 1 => {
                 Err(anyhow!("{} matches more than one structure", name))
             }
@@ -4433,6 +4437,37 @@ impl HubrisArchive {
     }
 }
 
+// It's possible for one struct to end up in the debug data multiple times
+// (e.g. if it's included in both a client and server). We do a deep-ish
+// comparison here and only return one copy as for each struct with unique
+// size and members.
+fn dedup_structs_hacky(
+    hubris: &HubrisArchive,
+    goffs: impl Iterator<Item = HubrisGoff>,
+) -> Vec<HubrisGoff> {
+    //let goffs = self.structs_byname.get_vec(name)?;
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+
+    for goff in goffs {
+        let struct_def = hubris.structs.get(&goff).unwrap();
+        let members_hacky_hacky = struct_def
+            .members
+            .iter()
+            // HACK HACK HACK: We completely discard the `HubrisGoff`
+            // defining the struct member, and consider them equal if they
+            // have the same offset and name. This is WRONG and FRAGILE.
+            .map(|m| (m.offset, &m.name))
+            .collect::<Vec<_>>();
+        if !seen.insert((struct_def.size, members_hacky_hacky)) {
+            continue;
+        }
+        out.push(goff);
+    }
+
+    out
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum HubrisTask {
     Kernel,
@@ -4962,30 +4997,17 @@ impl HubrisModule {
     ) -> Result<&'a HubrisStruct> {
         match hubris.structs_byname.get_vec(name) {
             Some(v) => {
-                let m = v
-                    .iter()
-                    .filter(|g| g.object == self.object)
-                    .collect::<Vec<&HubrisGoff>>();
+                let m = dedup_structs_hacky(
+                    hubris,
+                    v.iter().copied().filter(|g| g.object == self.object),
+                );
 
                 if m.len() > 1 {
-                    // It's possible for one struct to end up in the debug data
-                    // multiple times (e.g. if it's included in both a client
-                    // and server). We do a deep-ish comparison here to avoid
-                    // false failures.
-                    let struct_a = hubris.structs.get(m[0]).unwrap();
-                    for i in m[1..].iter() {
-                        let struct_b = hubris.structs.get(i).unwrap();
-                        if struct_a.size != struct_b.size
-                            || struct_a.members != struct_b.members
-                        {
-                            bail!("{} matches more than one structure", name)
-                        }
-                    }
-                    Ok(struct_a)
+                    Err(anyhow!("{} matches more than one structure", name))
                 } else if m.is_empty() {
                     Err(anyhow!("no {} in {}", name, self.name))
                 } else {
-                    Ok(hubris.structs.get(m[0]).unwrap())
+                    Ok(hubris.structs.get(&m[0]).unwrap())
                 }
             }
             _ => self.lookup_struct_byname(
