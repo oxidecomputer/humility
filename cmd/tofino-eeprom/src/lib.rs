@@ -7,8 +7,9 @@
 //! Tools to interact with the Tofino EEPROM
 
 use anyhow::{bail, Result};
-use clap::{Command as ClapCommand, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
+use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use cmd_hiffy as humility_cmd_hiffy;
@@ -168,15 +169,15 @@ fn eeprom(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "tofino-eeprom",
+pub fn init() -> Command {
+    Command {
+        app: EepromArgs::command(),
+        name: "tofino-eeprom",
+        run: eeprom,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: eeprom,
         },
-        EepromArgs::command(),
-    )
+    }
 }

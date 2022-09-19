@@ -130,10 +130,9 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
-use humility_cmd::Command;
+use humility_cmd::{Command, CommandKind};
 use std::fs::File;
 use std::io::Cursor;
 use std::io::{self, Read, Write};
@@ -234,6 +233,11 @@ fn extract(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (Command::Raw { name: "extract", run: extract }, ExtractArgs::command())
+pub fn init() -> Command {
+    Command {
+        app: ExtractArgs::command(),
+        name: "extract",
+        run: extract,
+        kind: CommandKind::Raw,
+    }
 }

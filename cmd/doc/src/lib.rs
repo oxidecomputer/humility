@@ -11,10 +11,9 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{IntoApp, Parser};
 use humility::cli::Subcommand;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashMap;
 use termimad::*;
 
@@ -61,13 +60,11 @@ fn doc(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "doc",
-            archive: Archive::Ignored,
-            run: doc,
-        },
-        DocArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: DocArgs::command(),
+        name: "doc",
+        run: doc,
+        kind: CommandKind::Unattached { archive: Archive::Ignored },
+    }
 }

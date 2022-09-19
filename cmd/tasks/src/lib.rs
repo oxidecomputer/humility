@@ -112,7 +112,6 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
@@ -120,7 +119,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 
@@ -634,15 +633,15 @@ fn explain_recv(
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "tasks",
+pub fn init() -> Command {
+    Command {
+        app: TasksArgs::command(),
+        name: "tasks",
+        run: tasks,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: tasks,
         },
-        TasksArgs::command(),
-    )
+    }
 }

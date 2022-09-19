@@ -28,12 +28,11 @@
 //! ```
 
 use anyhow::{anyhow, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::core::Core;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -315,15 +314,15 @@ fn stmsecure(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "stmsecure",
+pub fn init() -> Command {
+    Command {
+        app: StmSecureArgs::command(),
+        name: "stmsecure",
+        run: stmsecure,
+        kind: CommandKind::Attached {
             archive: Archive::Optional,
             attach: Attach::Any,
             validate: Validate::None,
-            run: stmsecure,
         },
-        StmSecureArgs::command(),
-    )
+    }
 }

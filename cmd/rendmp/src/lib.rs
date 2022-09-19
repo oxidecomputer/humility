@@ -64,12 +64,11 @@
 
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
@@ -1316,15 +1315,15 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "rendmp",
+pub fn init() -> Command {
+    Command {
+        app: RendmpArgs::command(),
+        name: "rendmp",
+        run: rendmp,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: rendmp,
         },
-        RendmpArgs::command(),
-    )
+    }
 }

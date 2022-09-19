@@ -101,11 +101,10 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
-use humility_cmd::hiffy::*;
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 
 use std::collections::HashMap;
@@ -759,15 +758,15 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "i2c",
+pub fn init() -> Command {
+    Command {
+        app: I2cArgs::command(),
+        name: "i2c",
+        run: i2c,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: i2c,
         },
-        I2cArgs::command(),
-    )
+    }
 }

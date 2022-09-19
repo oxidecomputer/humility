@@ -22,10 +22,9 @@
 //! ```
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
     architecture::arm::{ApAddress, ArmProbeInterface, DpAddress},
     Probe,
@@ -282,13 +281,11 @@ struct DebugMailboxArgs {
     cmd: DebugMailboxCmd,
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "debugmailbox",
-            archive: Archive::Ignored,
-            run: debugmailboxcmd,
-        },
-        DebugMailboxArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: DebugMailboxArgs::command(),
+        name: "debugmailbox",
+        run: debugmailboxcmd,
+        kind: CommandKind::Unattached { archive: Archive::Ignored },
+    }
 }
