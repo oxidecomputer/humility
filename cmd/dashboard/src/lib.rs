@@ -13,7 +13,6 @@
 //!
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use crossterm::{
     event::{
@@ -30,8 +29,8 @@ use hif::*;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::fs::File;
 use std::io;
@@ -756,17 +755,17 @@ fn dashboard(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "dashboard",
+pub fn init() -> Command {
+    Command {
+        app: DashboardArgs::command(),
+        name: "dashboard",
+        run: dashboard,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: dashboard,
         },
-        DashboardArgs::command(),
-    )
+    }
 }
 
 fn sensor_ops(

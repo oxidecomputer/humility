@@ -9,13 +9,12 @@
 //! temperature (if measured).
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::collections::BTreeMap;
 
@@ -175,15 +174,15 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "power",
+pub fn init() -> Command {
+    Command {
+        app: PowerArgs::command(),
+        name: "power",
+        run: power,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: power,
         },
-        PowerArgs::command(),
-    )
+    }
 }

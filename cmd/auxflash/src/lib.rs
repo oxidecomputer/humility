@@ -10,9 +10,10 @@
 //! program auxiliary flash when needed.
 
 use anyhow::{anyhow, bail, Result};
-use clap::{Command as ClapCommand, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
+use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use cmd_hiffy as humility_cmd_hiffy;
@@ -407,15 +408,15 @@ fn auxflash(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "auxflash",
+pub fn init() -> Command {
+    Command {
+        app: AuxFlashArgs::command(),
+        name: "auxflash",
+        run: auxflash,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: auxflash,
         },
-        AuxFlashArgs::command(),
-    )
+    }
 }

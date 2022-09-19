@@ -39,7 +39,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
-use clap::{Command as ClapCommand, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
 use cmd_hiffy as humility_cmd_hiffy;
@@ -48,7 +48,7 @@ use humility::cli::Subcommand;
 use humility::reflect::*;
 use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::HubrisIdol;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 enum NetCommand {
@@ -485,15 +485,15 @@ fn net(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "net",
+pub fn init() -> Command {
+    Command {
+        app: NetArgs::command(),
+        name: "net",
+        run: net,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: net,
         },
-        NetArgs::command(),
-    )
+    }
 }

@@ -22,11 +22,10 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::ExecutionContext;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -146,13 +145,11 @@ fn exec(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "exec",
-            archive: Archive::Ignored,
-            run: exec,
-        },
-        ExecArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: ExecArgs::command(),
+        name: "exec",
+        run: exec,
+        kind: CommandKind::Unattached { archive: Archive::Ignored },
+    }
 }

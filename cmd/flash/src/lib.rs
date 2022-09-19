@@ -33,11 +33,10 @@
 //! information about auxiliary flash management.
 
 use anyhow::{bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::{Cli, Subcommand};
 use humility::{core::Core, hubris::*};
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 use path_slash::PathExt;
 use std::io::Write;
 use std::process::ExitStatus;
@@ -465,15 +464,13 @@ fn nice_status(command: &mut std::process::Command) -> Result<ExitStatus> {
     })
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "flash",
-            archive: Archive::Required,
-            run: flashcmd,
-        },
-        FlashArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: FlashArgs::command(),
+        name: "flash",
+        run: flashcmd,
+        kind: CommandKind::Unattached { archive: Archive::Required },
+    }
 }
 
 /// While it may sound like the impetus for an OSHA investigation at the North

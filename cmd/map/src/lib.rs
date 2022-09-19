@@ -62,9 +62,8 @@
 //! we can see from the `map` output has been sized to only 256 bytes.)
 
 use anyhow::Result;
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -130,15 +129,15 @@ fn mapcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 }
 
 /// This is some init right here
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "map",
+pub fn init() -> Command {
+    Command {
+        app: MapArgs::command(),
+        name: "map",
+        run: mapcmd,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: mapcmd,
         },
-        MapArgs::command(),
-    )
+    }
 }

@@ -3,12 +3,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{anyhow, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_cortex::itm::*;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -245,15 +244,15 @@ fn tracecmd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "trace",
+pub fn init() -> Command {
+    Command {
+        app: TraceArgs::command(),
+        name: "trace",
+        run: tracecmd,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Match,
-            run: tracecmd,
         },
-        TraceArgs::command(),
-    )
+    }
 }

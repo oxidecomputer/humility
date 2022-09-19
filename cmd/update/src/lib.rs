@@ -21,13 +21,13 @@ use cmd_hiffy as humility_cmd_hiffy;
 use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{HubrisIdol, IdolArgument};
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cmd_hiffy::HiffyLease;
 
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -143,15 +143,15 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "update",
+pub fn init() -> Command {
+    Command {
+        app: UpdateArgs::command(),
+        name: "update",
+        run: update,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: update,
         },
-        UpdateArgs::command(),
-    )
+    }
 }
