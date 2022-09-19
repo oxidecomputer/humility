@@ -33,12 +33,11 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::attach_live;
+use humility_cmd::{attach_live, CommandKind};
 use humility_cmd::{Archive, Command};
 use humility_cortex::debug::*;
 use humility_cortex::dwt::*;
@@ -350,13 +349,11 @@ fn itmcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     rval
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "itm",
-            archive: Archive::Optional,
-            run: itmcmd,
-        },
-        ItmArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: ItmArgs::command(),
+        name: "itm",
+        run: itmcmd,
+        kind: CommandKind::Unattached { archive: Archive::Optional },
+    }
 }

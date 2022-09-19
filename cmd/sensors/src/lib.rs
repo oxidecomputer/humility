@@ -24,14 +24,13 @@
 //! counts are also displayed.
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use itertools::izip;
 use std::collections::HashSet;
@@ -459,15 +458,15 @@ fn sensors(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "sensors",
+pub fn init() -> Command {
+    Command {
+        app: SensorsArgs::command(),
+        name: "sensors",
+        run: sensors,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: sensors,
         },
-        SensorsArgs::command(),
-    )
+    }
 }

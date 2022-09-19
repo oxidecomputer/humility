@@ -49,7 +49,6 @@
 //!
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use core::mem::size_of;
 use hif::*;
@@ -59,7 +58,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humpty::{
     DumpAreaHeader, DumpRegister, DumpSegmentData, DumpSegmentHeader,
 };
@@ -908,15 +907,15 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "dump",
+pub fn init() -> Command {
+    Command {
+        app: DumpArgs::command(),
+        name: "dump",
+        run: dumpcmd,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Match,
-            run: dumpcmd,
         },
-        DumpArgs::command(),
-    )
+    }
 }

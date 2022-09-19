@@ -15,30 +15,29 @@
 //! at the OS level, like faults.
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
 use humility_cmd::doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
-use humility_cmd::jefe;
+use humility_cmd::{jefe, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::num::NonZeroU32;
 use std::time::Duration;
 
 /// Command registration.
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "diagnose",
+pub fn init() -> Command {
+    Command {
+        app: DiagnoseArgs::command(),
+        name: "diagnose",
+        run: diagnose,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: diagnose,
         },
-        DiagnoseArgs::command(),
-    )
+    }
 }
 
 #[derive(Parser, Debug)]

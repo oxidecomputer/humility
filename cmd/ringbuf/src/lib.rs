@@ -54,14 +54,13 @@
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cmd::doppel::{Ringbuf, StaticCell};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -223,15 +222,15 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "ringbuf",
+pub fn init() -> Command {
+    Command {
+        app: RingbufArgs::command(),
+        name: "ringbuf",
+        run: ringbuf,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Match,
-            run: ringbuf,
         },
-        RingbufArgs::command(),
-    )
+    }
 }

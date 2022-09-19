@@ -94,11 +94,10 @@
 
 use humility::cli::Subcommand;
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use std::str;
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 
@@ -329,15 +328,15 @@ fn gpio(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "gpio",
+pub fn init() -> Command {
+    Command {
+        app: GpioArgs::command(),
+        name: "gpio",
+        run: gpio,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: gpio,
         },
-        GpioArgs::command(),
-    )
+    }
 }

@@ -21,7 +21,6 @@
 use cmd_hiffy as humility_cmd_hiffy;
 
 use anyhow::{anyhow, Context, Result};
-use clap::App;
 use clap::IntoApp;
 use clap::Parser;
 use hif::*;
@@ -30,6 +29,7 @@ use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
@@ -223,15 +223,15 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, App<'static>) {
-    (
-        Command::Attached {
-            name: "powershelf",
+pub fn init() -> Command {
+    Command {
+        app: PowershelfArgs::command(),
+        name: "powershelf",
+        run: powershelf_run,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: powershelf_run,
         },
-        PowershelfArgs::into_app(),
-    )
+    }
 }

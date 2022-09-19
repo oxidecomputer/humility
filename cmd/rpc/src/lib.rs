@@ -60,13 +60,13 @@ use std::time::{Duration, Instant};
 use cmd_hiffy as humility_cmd_hiffy;
 
 use anyhow::{anyhow, bail, Result};
-use clap::{App, ArgGroup, IntoApp, Parser};
+use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
 use humility::net::decode_iface;
 use humility::{hubris::*, reflect};
 use humility_cmd::doppel::RpcHeader;
-use humility_cmd::idol;
+use humility_cmd::{idol, CommandKind};
 use humility_cmd::{Archive, Command};
 use zerocopy::{AsBytes, U16, U64};
 
@@ -463,13 +463,11 @@ fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
     bail!("expected --listen, --list, or --call")
 }
 
-pub fn init() -> (Command, App<'static>) {
-    (
-        Command::Detached {
-            name: "rpc",
-            archive: Archive::Required,
-            run: rpc_run,
-        },
-        RpcArgs::into_app(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: RpcArgs::command(),
+        name: "rpc",
+        run: rpc_run,
+        kind: CommandKind::Detached { archive: Archive::Required },
+    }
 }

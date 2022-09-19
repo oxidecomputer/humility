@@ -8,9 +8,9 @@
 
 use std::path::PathBuf;
 
-use clap::{Command as ClapCommand, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[cfg(not(windows))]
 mod posix;
@@ -108,15 +108,15 @@ enum UartConsoleCommand {
     Client,
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "console-proxy",
+pub fn init() -> Command {
+    Command {
+        app: UartConsoleArgs::command(),
+        name: "console-proxy",
+        run: console_proxy,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: console_proxy,
         },
-        UartConsoleArgs::command(),
-    )
+    }
 }

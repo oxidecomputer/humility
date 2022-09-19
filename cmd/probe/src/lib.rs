@@ -87,10 +87,10 @@
 //! ```
 
 use anyhow::Result;
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::hubris::HubrisValidate;
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::debug::*;
 use humility_cortex::itm::*;
@@ -429,15 +429,15 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "probe",
+pub fn init() -> Command {
+    Command {
+        app: ProbeArgs::command(),
+        name: "probe",
+        run: probecmd,
+        kind: CommandKind::Attached {
             archive: Archive::Optional,
             attach: Attach::LiveOnly,
             validate: Validate::None,
-            run: probecmd,
         },
-        ProbeArgs::command(),
-    )
+    }
 }

@@ -11,14 +11,13 @@
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{attach, Archive, Attach, Command, Dumper, Validate};
+use humility_cmd::{hiffy::*, CommandKind};
 
 use itertools::Itertools;
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use idt8a3xxxx::*;
@@ -814,13 +813,11 @@ fn rencm(context: &mut humility::ExecutionContext) -> Result<()> {
     })
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "rencm",
-            archive: Archive::Optional,
-            run: rencm,
-        },
-        RencmArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: RencmArgs::command(),
+        name: "rencm",
+        run: rencm,
+        kind: CommandKind::Unattached { archive: Archive::Optional },
+    }
 }
