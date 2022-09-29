@@ -319,23 +319,27 @@ fn call_arg(
 
             let dest = &mut buf[member.offset..member.offset + base.size];
 
-            let err_i = |err| anyhow!("illegal value for {}: {}", arg, err);
-            let err_f = |err| anyhow!("illegal value for {}: {}", arg, err);
+            let err = |err: &dyn std::fmt::Display| {
+                anyhow!("illegal value for {}: {}", arg, err)
+            };
 
             match (base.encoding, base.size) {
                 (HubrisEncoding::Unsigned, 4) => {
-                    let v: u32 = parse_int::parse(value).map_err(err_i)?;
+                    let v: u32 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
                     dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (HubrisEncoding::Unsigned, 2) => {
-                    let v: u16 = parse_int::parse(value).map_err(err_i)?;
+                    let v: u16 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
                     dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (HubrisEncoding::Unsigned, 1) => {
-                    dest[0] = parse_int::parse(value).map_err(err_i)?;
+                    dest[0] = parse_int::parse(value).map_err(|e| err(&e))?;
                 }
                 (HubrisEncoding::Float, 4) => {
-                    let v: f32 = parse_int::parse(value).map_err(err_f)?;
+                    let v: f32 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
                     dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (_, _) => {
