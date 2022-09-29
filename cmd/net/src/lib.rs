@@ -62,7 +62,7 @@ enum NetCommand {
 }
 
 #[derive(Parser, Debug)]
-#[clap(name = "monorail", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(name = "net", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct NetArgs {
     /// sets timeout
     #[clap(
