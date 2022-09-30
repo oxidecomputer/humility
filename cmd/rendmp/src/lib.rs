@@ -1067,6 +1067,11 @@ fn rendmp(
 
         let nbytes = hex.data.iter().fold(0, |n, v| n + v.len());
 
+        if subargs.dryrun {
+            humility::msg!("would flash {} bytes", nbytes);
+            return Ok(());
+        }
+
         humility::msg!("flashing {} bytes", nbytes);
 
         let started = Instant::now();
@@ -1078,18 +1083,8 @@ fn rendmp(
             ),
         );
 
-        let (max, mut start) = if subargs.dryrun {
-            //
-            // For a dry-run, we want to stop short of the final command that
-            // burns the OTP -- but we also want to start after the command
-            // that initiates it, lest we not be able to program it after the
-            // dry run.
-            //
-            (hex.data.len() - 1, 1)
-        } else {
-            (hex.data.len(), 0)
-        };
-
+        let mut start = 0;
+        let max = hex.data.len();
         let mut nwritten = 0usize;
         let nwrites = 32;
 
