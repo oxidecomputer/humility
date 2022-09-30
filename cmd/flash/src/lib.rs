@@ -433,7 +433,7 @@ fn program_auxflash(
     data: &[u8],
 ) -> Result<()> {
     let mut worker =
-        humility_cmd_auxflash::AuxFlashHandler::new(hubris, core, 5000)?;
+        humility_cmd_auxflash::AuxFlashHandler::new(hubris, core, 15_000)?;
 
     // At this point, we've already rebooted into the new image.
     //
