@@ -271,8 +271,6 @@ fn call_arg(
     let t = hubris.lookup_type(member.goff)?;
     let arg = &member.name;
 
-    let err = |err| anyhow!("illegal value for {}: {}", arg, err);
-
     if let IdolArgument::Scalar(value) = value {
         let base = match t {
             HubrisType::Base(base) => base,
@@ -321,17 +319,28 @@ fn call_arg(
 
             let dest = &mut buf[member.offset..member.offset + base.size];
 
+            let err = |err: &dyn std::fmt::Display| {
+                anyhow!("illegal value for {}: {}", arg, err)
+            };
+
             match (base.encoding, base.size) {
                 (HubrisEncoding::Unsigned, 4) => {
-                    let v = parse_int::parse::<u32>(value).map_err(err)?;
+                    let v: u32 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
                     dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (HubrisEncoding::Unsigned, 2) => {
-                    let v = parse_int::parse::<u16>(value).map_err(err)?;
+                    let v: u16 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
                     dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (HubrisEncoding::Unsigned, 1) => {
-                    dest[0] = parse_int::parse::<u8>(value).map_err(err)?;
+                    dest[0] = parse_int::parse(value).map_err(|e| err(&e))?;
+                }
+                (HubrisEncoding::Float, 4) => {
+                    let v: f32 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
+                    dest.copy_from_slice(v.to_le_bytes().as_slice());
                 }
                 (_, _) => {
                     bail!(
