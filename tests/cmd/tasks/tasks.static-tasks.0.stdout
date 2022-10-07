@@ -1,17 +1,17 @@
 system time = 0
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 wait: send to jefe/gen0
- 1 sys                    0   1 FAULT: illegal instruction (was: ready)
- 2 i2c_driver             0   2 FAULT: illegal instruction (was: ready)
- 3 spi_driver             0   2 FAULT: illegal instruction (was: ready)
- 4 user_leds              0   2 FAULT: illegal instruction (was: ready)
- 5 pong                   0   3 FAULT: illegal instruction (was: ready)
- 6 uartecho               0   3 RUNNING
- 7 hiffy                  0   4 ready
- 8 hf                     0   3 ready
- 9 net                    0   3 ready
-10 udpecho                0   4 ready
-11 validate               0   3 ready
-12 idle                   0   5 ready
-13 rng_driver             0   3 ready
-14 update_server          0   3 ready
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 wait: send to jefe/gen0
+ 1 sys                          0   1 FAULT: illegal instruction (was: ready)
+ 2 i2c_driver                   0   2 FAULT: illegal instruction (was: ready)
+ 3 spi_driver                   0   2 FAULT: illegal instruction (was: ready)
+ 4 user_leds                    0   2 FAULT: illegal instruction (was: ready)
+ 5 pong                         0   3 FAULT: illegal instruction (was: ready)
+ 6 uartecho                     0   3 RUNNING
+ 7 hiffy                        0   4 ready
+ 8 hf                           0   3 ready
+ 9 net                          0   3 ready
+10 udpecho                      0   4 ready
+11 validate                     0   3 ready
+12 idle                         0   5 ready
+13 rng_driver                   0   3 ready
+14 update_server                0   3 ready

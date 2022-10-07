@@ -1,16 +1,16 @@
 system time = 166727
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+73)
- 1 rcc_driver             0   1 recv
- 2 gpio_driver            0   2 recv
- 3 spi4_driver            0   2 recv
- 4 spi2_driver            0   2 RUNNING
- 5 i2c_driver             0   2 recv
- 6 spd                    0   2 notif: bit0(irq31/irq32)
- 7 thermal                0   3 recv, notif: bit0(T+284)
- 8 power                 32   3 wait: send to gimlet_seq/gen41
- 9 hiffy                  0   3 notif: bit31(T+23)
-10 gimlet_seq            41   3 wait: reply from spi2_driver/gen0
-11 hf                     0   3 recv
-12 sensor                 0   3 recv, notif: bit0(T+273)
-13 idle                   0   5 ready
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+73)
+ 1 rcc_driver                   0   1 recv
+ 2 gpio_driver                  0   2 recv
+ 3 spi4_driver                  0   2 recv
+ 4 spi2_driver                  0   2 RUNNING
+ 5 i2c_driver                   0   2 recv
+ 6 spd                          0   2 notif: bit0(irq31/irq32)
+ 7 thermal                      0   3 recv, notif: bit0(T+284)
+ 8 power                       32   3 wait: send to gimlet_seq/gen41
+ 9 hiffy                        0   3 notif: bit31(T+23)
+10 gimlet_seq                  41   3 wait: reply from spi2_driver/gen0
+11 hf                           0   3 recv
+12 sensor                       0   3 recv, notif: bit0(T+273)
+13 idle                         0   5 ready

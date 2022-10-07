@@ -1,13 +1,13 @@
 system time = 263349
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
- 1 rcc_driver             0   1 recv
- 2 gpio_driver            0   2 recv
- 3 usart_driver           0   2 recv, notif: bit0(irq39)
- 4 i2c_driver             0   2 recv
- 5 i2c_target             0   2 RUNNING
- 6 user_leds              0   2 recv
- 7 pong                   0   3 ready
- 8 i2c_debug              0   3 ready
- 9 adt7420                0   3 ready
-10 idle                   0   5 ready
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
+ 1 rcc_driver                   0   1 recv
+ 2 gpio_driver                  0   2 recv
+ 3 usart_driver                 0   2 recv, notif: bit0(irq39)
+ 4 i2c_driver                   0   2 recv
+ 5 i2c_target                   0   2 RUNNING
+ 6 user_leds                    0   2 recv
+ 7 pong                         0   3 ready
+ 8 i2c_debug                    0   3 ready
+ 9 adt7420                      0   3 ready
+10 idle                         0   5 ready

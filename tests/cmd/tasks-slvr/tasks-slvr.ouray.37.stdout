@@ -1,6 +1,6 @@
 system time = 335837028
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
    |
    +--->  0x20001360 0x00011b56 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -62,7 +62,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4d8c (&abi::TaskDesc)
                 }
 
- 1 idle                   0   5 ready
+ 1 idle                         0   5 ready
    |
    +--->  0x20002100 0x00018001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -118,7 +118,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4da4 (&abi::TaskDesc)
                 }
 
- 2 syscon_driver          0   2 recv
+ 2 syscon_driver                0   2 recv
    |
    +--->  0x200027d8 0x0001cdb2 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -182,7 +182,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4dbc (&abi::TaskDesc)
                 }
 
- 3 gpio_driver            0   2 ready
+ 3 gpio_driver                  0   2 ready
    |
    +--->  0x20002bc0 0x0002115e userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -248,7 +248,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4dd4 (&abi::TaskDesc)
                 }
 
- 4 user_leds              7   2 wait: reply from gpio_driver/gen0
+ 4 user_leds                    7   2 wait: reply from gpio_driver/gen0
    |
    +--->  0x20002f88 0x0002520a userlib::sys_send_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
@@ -310,7 +310,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4dec (&abi::TaskDesc)
                 }
 
- 5 usart_driver           0   2 ready
+ 5 usart_driver                 0   2 ready
    |
    +--->  0x20003400 0x00028001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -366,7 +366,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4e04 (&abi::TaskDesc)
                 }
 
- 6 i2c_driver             0   2 ready
+ 6 i2c_driver                   0   2 ready
    |
    +--->  0x20003800 0x0002c001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -422,7 +422,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4e1c (&abi::TaskDesc)
                 }
 
- 7 rng_driver             0   2 ready
+ 7 rng_driver                   0   2 ready
    |
    +--->  0x20003c00 0x00030001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -478,7 +478,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4e34 (&abi::TaskDesc)
                 }
 
- 8 spi_driver             0   2 ready
+ 8 spi_driver                   0   2 ready
    |
    +--->  0x20004000 0x00034001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -534,7 +534,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4e4c (&abi::TaskDesc)
                 }
 
- 9 ping                   0   4 ready
+ 9 ping                         0   4 ready
    |
    +--->  0x20004400 0x00038001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -590,7 +590,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4e64 (&abi::TaskDesc)
                 }
 
-10 pong                   0   3 ready
+10 pong                         0   3 ready
    |
    +--->  0x20004800 0x0003a001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
@@ -646,7 +646,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x4e7c (&abi::TaskDesc)
                 }
 
-11 spam                   0   3 not started
+11 spam                         0   3 not started
    |
    +--->  0x20004be8 0x0003c001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807

@@ -1,6 +1,6 @@
 system time = 12356272
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
    |
    +--->  0x20001300 0x08009cda userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -62,7 +62,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004fc4 (&abi::TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x200017d8 0x0800cf0a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -126,7 +126,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004fdc (&abi::TaskDesc)
                 }
 
- 2 gpio_driver            0   2 recv
+ 2 gpio_driver                  0   2 recv
    |
    +--->  0x20001bc8 0x0800f0ba userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -192,7 +192,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004ff4 (&abi::TaskDesc)
                 }
 
- 3 usart_driver           0   2 recv, notif: bit0(irq39)
+ 3 usart_driver                 0   2 recv, notif: bit0(irq39)
    |
    +--->  0x20001fc0 0x080111c2 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -256,7 +256,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800500c (&abi::TaskDesc)
                 }
 
- 4 i2c_driver             0   2 notif: bit3(irq95/irq96)
+ 4 i2c_driver                   0   2 notif: bit3(irq95/irq96)
    |
    +--->  0x200022c0 0x08016552 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -322,7 +322,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005024 (&abi::TaskDesc)
                 }
 
- 5 spd                    0   2 notif: bit1(irq33/irq34)
+ 5 spd                          0   2 notif: bit1(irq33/irq34)
    |
    +--->  0x20002b50 0x0801998a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
@@ -384,4 +384,4 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800503c (&abi::TaskDesc)
                 }
 
- 6 spi_driver             0   2 RUNNING
+ 6 spi_driver                   0   2 RUNNING

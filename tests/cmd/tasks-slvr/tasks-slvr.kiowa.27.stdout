@@ -1,6 +1,6 @@
 system time = 25464
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+36)
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+36)
    |
    +--->  0x20005538 0x0001953c userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -62,7 +62,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xcdf0 (&TaskDesc)
                 }
 
- 1 hiffy                  0   3 notif: bit31(T+39)
+ 1 hiffy                        0   3 notif: bit31(T+39)
    |
    +--->  0x20008540 0x00012132 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -130,7 +130,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce08 (&TaskDesc)
                 }
 
- 2 idle                   0   5 RUNNING
+ 2 idle                         0   5 RUNNING
    |
    +--->  0x2000dd00 0x00029056 main
    |                 @ /hubris//task/idle/src/main.rs:13
@@ -186,7 +186,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce20 (&TaskDesc)
                 }
 
- 3 syscon_driver          0   2 recv
+ 3 syscon_driver                0   2 recv
    |
    +--->  0x20005bc0 0x00028bb6 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -250,7 +250,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce38 (&TaskDesc)
                 }
 
- 4 gpio_driver            0   2 recv
+ 4 gpio_driver                  0   2 recv
    |
    +--->  0x200063a8 0x0001b6ea userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -316,7 +316,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce50 (&TaskDesc)
                 }
 
- 5 user_leds              0   2 recv
+ 5 user_leds                    0   2 recv
    |
    +--->  0x20006bb0 0x0001c44c userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -378,7 +378,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce68 (&TaskDesc)
                 }
 
- 6 usart_driver           0   2 recv, notif: bit0(irq14)
+ 6 usart_driver                 0   2 recv, notif: bit0(irq14)
    |
    +--->  0x200073b0 0x0001ef62 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -440,7 +440,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce80 (&TaskDesc)
                 }
 
- 7 i2c_driver             0   2 recv
+ 7 i2c_driver                   0   2 recv
    |
    +--->  0x20007bb8 0x00021180 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -506,7 +506,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xce98 (&TaskDesc)
                 }
 
- 8 rng_driver             0   2 recv
+ 8 rng_driver                   0   2 recv
    |
    +--->  0x2000c3b8 0x00022d6a userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -566,7 +566,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xceb0 (&TaskDesc)
                 }
 
- 9 spi0_driver            0   2 notif: bit0(irq59)
+ 9 spi0_driver                  0   2 notif: bit0(irq59)
    |
    +--->  0x2000cb70 0x0001511e userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -628,7 +628,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xcec8 (&TaskDesc)
                 }
 
-10 ping                  62   4 wait: reply from usart_driver/gen0
+10 ping                        62   4 wait: reply from usart_driver/gen0
    |
    +--->  0x2000d9b0 0x00024da0 userlib::sys_send_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:153
@@ -688,7 +688,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xcee0 (&TaskDesc)
                 }
 
-11 pong                   0   3 recv, notif: bit0(T+36)
+11 pong                         0   3 recv, notif: bit0(T+36)
    |
    +--->  0x2000d3a0 0x00026198 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331

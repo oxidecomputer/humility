@@ -1,6 +1,6 @@
 system time = 17
-ID TASK                 GEN PRI STATE    
- 0 runner                 0   0 ready
+ID TASK                       GEN PRI STATE    
+ 0 runner                       0   0 ready
    |
    +--->  0x20001598 0x0800a48e userlib::sys_send_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
@@ -62,7 +62,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004cd4 (&abi::TaskDesc)
                 }
 
- 1 suite                 18   2 ready
+ 1 suite                       18   2 ready
    |
    +--->  0x20002510 0x080155a6 userlib::sys_send_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
@@ -132,7 +132,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004cec (&abi::TaskDesc)
                 }
 
- 2 assist                18   1 RUNNING
+ 2 assist                      18   1 RUNNING
    |
    +--->  0x20003558 0x08019d46 userlib::sys_send_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
@@ -200,7 +200,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004d04 (&abi::TaskDesc)
                 }
 
- 3 idle                   0   3 ready
+ 3 idle                         0   3 ready
    |
    +--->  0x20004100 0x0801c001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:807

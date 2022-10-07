@@ -1,16 +1,16 @@
 system time = 256549
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
- 1 rcc_driver             0   1 recv
- 2 gpio_driver            0   2 recv
- 3 spi4_driver            0   2 recv
- 4 spi2_driver            0   2 recv
- 5 i2c_driver             0   2 recv
- 6 spd                    0   2 notif: bit0(irq31/irq32)
- 7 thermal                0   3 recv, notif: bit0(T+462)
- 8 power                  0   3 notif: bit31(T+577)
- 9 hiffy                  0   3 FAULT: stack overflow; sp=0x20007ff8 (was: ready)
-10 gimlet_seq             0   3 recv
-11 hf                     0   3 recv
-12 sensor                 0   3 recv, notif: bit0(T+451)
-13 idle                   0   5 RUNNING
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
+ 1 rcc_driver                   0   1 recv
+ 2 gpio_driver                  0   2 recv
+ 3 spi4_driver                  0   2 recv
+ 4 spi2_driver                  0   2 recv
+ 5 i2c_driver                   0   2 recv
+ 6 spd                          0   2 notif: bit0(irq31/irq32)
+ 7 thermal                      0   3 recv, notif: bit0(T+462)
+ 8 power                        0   3 notif: bit31(T+577)
+ 9 hiffy                        0   3 FAULT: stack overflow; sp=0x20007ff8 (was: ready)
+10 gimlet_seq                   0   3 recv
+11 hf                           0   3 recv
+12 sensor                       0   3 recv, notif: bit0(T+451)
+13 idle                         0   5 RUNNING

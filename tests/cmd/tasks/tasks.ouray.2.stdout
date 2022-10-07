@@ -1,10 +1,10 @@
 system time = 65738550
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
- 1 rcc_driver             0   1 recv
- 2 usart_driver           0   2 recv, notif: bit0(irq38)
- 3 user_leds              0   2 recv
- 4 ping                  25   4 wait: reply from pong/gen0
- 5 log                    0   3 RUNNING
- 6 pong                   0   3 wait: reply from log/gen0
- 7 idle                   0   5 ready
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
+ 1 rcc_driver                   0   1 recv
+ 2 usart_driver                 0   2 recv, notif: bit0(irq38)
+ 3 user_leds                    0   2 recv
+ 4 ping                        25   4 wait: reply from pong/gen0
+ 5 log                          0   3 RUNNING
+ 6 pong                         0   3 wait: reply from log/gen0
+ 7 idle                         0   5 ready

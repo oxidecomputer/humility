@@ -1,6 +1,6 @@
 system time = 120445
-ID TASK                 GEN PRI STATE    
- 0 runner                 0   0 RUNNING
- 1 suite                 51   2 recv
- 2 assist                 2   1 recv
- 3 idle                   0   3 ready
+ID TASK                       GEN PRI STATE    
+ 0 runner                       0   0 RUNNING
+ 1 suite                       51   2 recv
+ 2 assist                       2   1 recv
+ 3 idle                         0   3 ready
