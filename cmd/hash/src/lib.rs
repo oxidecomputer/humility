@@ -6,10 +6,9 @@ use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 
-use humility::core::Core;
-use humility::hubris::*;
+use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;
@@ -101,13 +100,13 @@ struct HashArgs {
     long: bool,
 }
 
-fn hash(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+
     let subargs = HashArgs::try_parse_from(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let archive = context.archive.as_ref().unwrap();
+    let mut context = HiffyContext::new(archive, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let scratch_size = context.scratch_size();
     let mut ops = vec![];
@@ -482,7 +481,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(hash),
+            run: hash,
         },
         HashArgs::command(),
     )

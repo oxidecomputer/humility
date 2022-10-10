@@ -62,11 +62,11 @@
 //! ```
 //!
 
-use humility::core::Core;
+use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{Archive, Attach, Command, Run, Validate};
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
@@ -772,11 +772,12 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
-fn rendmp(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_mut().unwrap();
+
+    let core = &mut **context.core.as_mut().unwrap();
+
     let subargs = RendmpArgs::try_parse_from(subargs)?;
 
     if subargs.ingest.is_some() {
@@ -1067,6 +1068,11 @@ fn rendmp(
 
         let nbytes = hex.data.iter().fold(0, |n, v| n + v.len());
 
+        if subargs.dryrun {
+            humility::msg!("would flash {} bytes", nbytes);
+            return Ok(());
+        }
+
         humility::msg!("flashing {} bytes", nbytes);
 
         let started = Instant::now();
@@ -1078,18 +1084,8 @@ fn rendmp(
             ),
         );
 
-        let (max, mut start) = if subargs.dryrun {
-            //
-            // For a dry-run, we want to stop short of the final command that
-            // burns the OTP -- but we also want to start after the command
-            // that initiates it, lest we not be able to program it after the
-            // dry run.
-            //
-            (hex.data.len() - 1, 1)
-        } else {
-            (hex.data.len(), 0)
-        };
-
+        let mut start = 0;
+        let max = hex.data.len();
         let mut nwritten = 0usize;
         let nwrites = 32;
 
@@ -1327,7 +1323,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(rendmp),
+            run: rendmp,
         },
         RendmpArgs::command(),
     )

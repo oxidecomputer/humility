@@ -4,9 +4,9 @@
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
+use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::Args;
-use humility_cmd::{Archive, Command, Environment, Run, RunUnattached};
+use humility_cmd::{Archive, Command};
 use std::collections::HashMap;
 
 //
@@ -16,13 +16,17 @@ use std::collections::HashMap;
 //
 include!(concat!(env!("OUT_DIR"), "/cmds.rs"));
 
+use crate::cmd_repl;
+
 pub fn init(
-    app: ClapCommand<'static>,
+    command: ClapCommand<'static>,
 ) -> (HashMap<&'static str, Command>, ClapCommand<'static>) {
     let mut cmds = HashMap::new();
-    let mut rval = app;
+    let mut rval = command;
 
-    for dcmd in dcmds() {
+    let dcmds = dcmds();
+
+    for dcmd in dcmds {
         let (cmd, subcmd) = (dcmd.init)();
         let name = match cmd {
             Command::Attached { name, .. } => name,
@@ -39,86 +43,60 @@ pub fn init(
 }
 
 pub fn subcommand(
+    context: &mut humility::ExecutionContext,
     commands: &HashMap<&'static str, Command>,
-    args: &Args,
-    subargs: &[String],
-    env: Option<&Environment>,
 ) -> Result<()> {
-    if let Some(command) = commands.get(&subargs[0].as_str()) {
-        let mut hubris =
-            HubrisArchive::new().context("failed to initialize")?;
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let cmd = subargs[0].as_str();
 
-        let (archive, doneness) = match command {
-            Command::Attached { archive, .. } => {
-                (*archive, HubrisArchiveDoneness::Cook)
-            }
-            Command::Unattached { archive, .. } => {
-                (*archive, HubrisArchiveDoneness::Cook)
-            }
-            Command::Raw { .. } => {
-                (Archive::Required, HubrisArchiveDoneness::Raw)
-            }
-        };
+    let command = commands
+        .get(cmd)
+        .with_context(|| format!("command {} not found", cmd))?;
 
-        if archive != Archive::Ignored {
-            if let Some(archive) = &args.archive {
-                hubris.load(archive, doneness).with_context(|| {
-                    format!("failed to load archive \"{}\"", archive)
-                })?;
-            } else if let Some(dump) = &args.dump {
-                hubris.load_dump(dump, doneness).with_context(|| {
-                    format!("failed to load dump \"{}\"", dump)
-                })?;
-            }
+    let mut hubris = HubrisArchive::new().context("failed to initialize")?;
+
+    let (archive, doneness) = match command {
+        Command::Attached { archive, .. } => {
+            (*archive, HubrisArchiveDoneness::Cook)
+        }
+        Command::Unattached { archive, .. } => {
+            (*archive, HubrisArchiveDoneness::Cook)
+        }
+        Command::Raw { .. } => (Archive::Required, HubrisArchiveDoneness::Raw),
+    };
+
+    if archive != Archive::Ignored {
+        if let Some(archive) = &context.cli.archive {
+            hubris.load(archive, doneness).with_context(|| {
+                format!("failed to load archive \"{}\"", archive)
+            })?;
+        } else if let Some(dump) = &context.cli.dump {
+            hubris
+                .load_dump(dump, doneness)
+                .with_context(|| format!("failed to load dump \"{}\"", dump))?;
+        }
+    }
+
+    if archive == Archive::Required
+        && doneness == HubrisArchiveDoneness::Cook
+        && !hubris.loaded()
+    {
+        if context.cli.environment.is_some() {
+            bail!("must provide a Hubris archive, dump, or name");
         }
 
-        if archive == Archive::Required
-            && doneness == HubrisArchiveDoneness::Cook
-            && !hubris.loaded()
-        {
-            if args.environment.is_some() {
-                bail!("must provide a Hubris archive, dump, or name");
-            }
+        bail!("must provide a Hubris archive or dump");
+    }
 
-            bail!("must provide a Hubris archive or dump");
-        }
+    context.archive = Some(hubris);
 
-        match command {
-            Command::Attached { run, attach, validate, .. } => {
-                humility_cmd::attach(
-                    &hubris,
-                    args,
-                    *attach,
-                    *validate,
-                    |h, core| match run {
-                        Run::Subargs(ref run) => (run)(h, core, subargs),
-                        Run::Args(ref run) => (run)(h, core, args, subargs),
-                        Run::Environment(ref run) => {
-                            (run)(h, core, args, subargs, env)
-                        }
-                    },
-                )
-            }
-            Command::Unattached { run, .. } => match run {
-                RunUnattached::Subargs(ref run) => (run)(&mut hubris, subargs),
-                RunUnattached::Args(ref run) => {
-                    (run)(&mut hubris, args, subargs)
-                }
-                RunUnattached::Environment(ref run) => {
-                    (run)(&mut hubris, args, subargs, env)
-                }
-            },
-            Command::Raw { run, .. } => match run {
-                RunUnattached::Subargs(ref run) => (run)(&mut hubris, subargs),
-                RunUnattached::Args(ref run) => {
-                    (run)(&mut hubris, args, subargs)
-                }
-                RunUnattached::Environment(ref run) => {
-                    (run)(&mut hubris, args, subargs, env)
-                }
-            },
+    match command {
+        Command::Attached { run, attach, validate, .. } => {
+            humility_cmd::attach(context, *attach, *validate, |context| {
+                (run)(context)
+            })
         }
-    } else {
-        bail!("command {} not found", subargs[0]);
+        Command::Unattached { run, .. } => (run)(context),
+        Command::Raw { run, .. } => (run)(context),
     }
 }

@@ -110,7 +110,7 @@ fn make_readme() -> Result<()> {
                     "documentation for {} is malformed: \
                     must begin with '{}'",
                     cmd,
-                    &header[1..]
+                    header
                 );
             }
 

@@ -168,12 +168,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
+use humility::cli::Subcommand;
 use humility::core::Core;
-use humility::hubris::*;
 use humility::reflect::*;
+use humility::{hubris::*, ExecutionContext};
 use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{IdolArgument, IdolOperation};
-use humility_cmd::{Archive, Attach, Run, RunUnattached, Validate};
+use humility_cmd::{Archive, Attach, Validate};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Command as ClapCommand;
@@ -1069,11 +1070,10 @@ fn monorail_counters(
     Ok(())
 }
 
-fn monorail(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &[String],
-) -> Result<()> {
+fn monorail(context: &mut ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_mut().unwrap();
     let subargs = MonorailArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
@@ -1153,10 +1153,9 @@ fn monorail(
     Ok(())
 }
 
-fn monorail_get_info(
-    hubris: &mut HubrisArchive,
-    subargs: &[String],
-) -> Result<()> {
+fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_ref().unwrap();
     assert!(!hubris.loaded());
     let subargs = MonorailArgs::try_parse_from(subargs)?;
     match subargs.cmd {
@@ -1200,7 +1199,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: Run::Subargs(monorail),
+            run: monorail,
         },
         MonorailArgs::command(),
     );
@@ -1208,7 +1207,7 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
         humility_cmd::Command::Unattached {
             name: "monorail",
             archive: Archive::Ignored,
-            run: RunUnattached::Subargs(monorail_get_info),
+            run: monorail_get_info,
         },
         MonorailArgs::command(),
     );
