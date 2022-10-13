@@ -50,6 +50,10 @@ struct SensorsArgs {
     #[clap(long, short, conflicts_with = "list")]
     sleep: bool,
 
+    /// print results as a table
+    #[clap(long, conflicts_with = "list")]
+    tabular: bool,
+
     /// restrict sensors by type of sensor
     #[clap(
         long,
@@ -136,7 +140,7 @@ fn print(
     devices: &Option<HashSet<&String>>,
     named: &Option<HashSet<&String>>,
 ) -> Result<()> {
-    let mut ops = vec![];
+    let mut all_ops = vec![];
     let funcs = context.functions()?;
     let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)
         .context("is the 'sensor' task present?")?;
@@ -155,7 +159,7 @@ fn print(
         bail!("no sensors found");
     }
 
-    let mut rvals = vec![];
+    let mut sensors = vec![];
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {
         if let Some(types) = types {
@@ -178,49 +182,72 @@ fn print(
             }
         }
 
-        rvals.push(s);
-
-        let payload =
-            op.payload(&[("id", idol::IdolArgument::Scalar(i as u64))])?;
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        sensors.push((i, s));
     }
 
-    ops.push(Op::Done);
+    for s in sensors.chunks(100) {
+        let mut ops = vec![];
 
-    for r in &rvals {
-        print!(" {:>12}", r.name.to_uppercase());
-    }
-
-    println!();
-
-    for r in &rvals {
-        print!(" {:>12}", r.kind.to_string().to_uppercase());
-    }
-
-    println!();
-
-    loop {
-        let results = context.run(core, ops.as_slice(), None)?;
-
-        let mut rval = vec![];
-
-        for r in results {
-            if let Ok(val) = r {
-                rval.push(Some(f32::from_le_bytes(val[0..4].try_into()?)));
-            } else {
-                rval.push(None);
-            }
+        for (i, _) in s {
+            let payload =
+                op.payload(&[("id", idol::IdolArgument::Scalar(*i as u64))])?;
+            context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
         }
 
-        for val in rval {
-            if let Some(val) = val {
-                print!(" {:>12.2}", val);
-            } else {
-                print!(" {:>12}", "-");
-            }
+        ops.push(Op::Done);
+        all_ops.push(ops);
+    }
+
+    if subargs.tabular {
+        for (_, s) in &sensors {
+            print!(" {:>12}", s.name.to_uppercase());
         }
 
         println!();
+
+        for (_, s) in &sensors {
+            print!(" {:>12}", s.kind.to_string().to_uppercase());
+        }
+
+        println!();
+    }
+
+    loop {
+        let mut rval = vec![];
+
+        for ops in &all_ops {
+            let results = context.run(core, ops.as_slice(), None)?;
+
+            for r in results {
+                if let Ok(val) = r {
+                    rval.push(Some(f32::from_le_bytes(val[0..4].try_into()?)));
+                } else {
+                    rval.push(None);
+                }
+            }
+        }
+
+        if subargs.tabular {
+            for val in rval {
+                if let Some(val) = val {
+                    print!(" {:>12.2}", val);
+                } else {
+                    print!(" {:>12}", "-");
+                }
+            }
+
+            println!();
+        } else {
+            for ((_, s), val) in sensors.iter().zip(rval.iter()) {
+                print!("{:20} {:12} ", s.name, s.kind.to_string());
+
+                if let Some(val) = val {
+                    println!(" {:12.2}", val);
+                } else {
+                    println!(" {:>12}", "-");
+                }
+            }
+        }
 
         if !subargs.sleep {
             break;

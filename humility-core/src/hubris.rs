@@ -2359,15 +2359,13 @@ impl HubrisArchive {
                                         rails: match &power.rails {
                                             Some(rails) => rails.to_vec(),
                                             None => vec![],
-                                        }
+                                        },
                                     }
                                 } else {
                                     HubrisI2cDeviceClass::Unspecified
                                 }
-                            },
-                            None => {
-                                HubrisI2cDeviceClass::Unspecified
                             }
+                            None => HubrisI2cDeviceClass::Unspecified,
                         },
                     },
                     removable: device.removable.unwrap_or(false),

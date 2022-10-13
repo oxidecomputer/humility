@@ -10,14 +10,11 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
-use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::collections::BTreeMap;
-use std::thread;
-use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[clap(name = "power", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -31,7 +28,6 @@ struct PowerArgs {
 }
 
 struct Device<'a> {
-    index: usize,
     name: &'a str,
     voltage: Option<usize>,
     current: Option<usize>,
@@ -72,13 +68,15 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
     //
     for s in hubris.manifest.sensors.iter() {
         if s.kind == HubrisSensorKind::Voltage {
-            devices.insert((&s.name, s.device), Device {
-                index: s.device,
-                name: &s.name,
-                voltage: None,
-                current: None,
-                temperature: None,
-            });
+            devices.insert(
+                (&s.name, s.device),
+                Device {
+                    name: &s.name,
+                    voltage: None,
+                    current: None,
+                    temperature: None,
+                },
+            );
         }
     }
 

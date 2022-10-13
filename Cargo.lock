@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.15"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1472,7 +1472,7 @@ name = "humility-cmd-power"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
+ "clap 3.2.21",
  "hif",
  "humility-cmd",
  "humility-core",
