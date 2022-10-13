@@ -1,16 +1,16 @@
 system time = 10001
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+99)
- 1 sys                    0   1 recv
- 2 i2c_driver             0   2 recv
- 3 spi_driver             0   2 recv
- 4 net                    0   2 recv, notif: bit0(irq61) bit1
- 5 user_leds              0   2 recv
- 6 ping               10301   4 wait: reply from pong/gen0
- 7 pong                   0   3 RUNNING
- 8 udpecho                0   3 notif: bit0
- 9 hiffy                  0   5 ready
-10 hf                     0   4 notif: bit31(T+22)
-11 hash_driver            0   3 recv
-12 idle                   0   6 ready
-13 rng_driver             0   3 recv
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+99)
+ 1 sys                          0   1 recv
+ 2 i2c_driver                   0   2 recv
+ 3 spi_driver                   0   2 recv
+ 4 net                          0   2 recv, notif: bit0(irq61) bit1
+ 5 user_leds                    0   2 recv
+ 6 ping                     10301   4 wait: reply from pong/gen0
+ 7 pong                         0   3 RUNNING
+ 8 udpecho                      0   3 notif: bit0
+ 9 hiffy                        0   5 ready
+10 hf                           0   4 notif: bit31(T+22)
+11 hash_driver                  0   3 recv
+12 idle                         0   6 ready
+13 rng_driver                   0   3 recv

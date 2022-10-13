@@ -1,6 +1,6 @@
 system time = 17
-ID TASK                 GEN PRI STATE    
- 0 runner                 0   0 ready
- 1 suite                 18   2 ready
- 2 assist                18   1 RUNNING
- 3 idle                   0   3 ready
+ID TASK                       GEN PRI STATE    
+ 0 runner                       0   0 ready
+ 1 suite                       18   2 ready
+ 2 assist                      18   1 RUNNING
+ 3 idle                         0   3 ready

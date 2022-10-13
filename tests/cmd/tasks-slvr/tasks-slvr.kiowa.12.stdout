@@ -1,6 +1,6 @@
 system time = 505162
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+38)
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+38)
    |
    +--->  0x20013540 0x0803147c userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -62,7 +62,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800771c (&TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x20014bd8 0x08048d72 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -124,7 +124,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8007734 (&TaskDesc)
                 }
 
- 2 gpio_driver            0   2 recv
+ 2 gpio_driver                  0   2 recv
    |
    +--->  0x20014fc8 0x0804af8e userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -190,7 +190,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800774c (&TaskDesc)
                 }
 
- 3 spi4_driver            0   2 recv
+ 3 spi4_driver                  0   2 recv
    |
    +--->  0x20001368 0x080359c4 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -252,7 +252,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8007764 (&TaskDesc)
                 }
 
- 4 spi2_driver            0   2 RUNNING
+ 4 spi2_driver                  0   2 RUNNING
    |
    +--->  0x200122d8 0x080381c4 ringbuf::Ringbuf<T,_>::entry
    |                 @ /home/bmc/hubris/lib/ringbuf/src/lib.rs:249
@@ -316,7 +316,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800777c (&TaskDesc)
                 }
 
- 5 i2c_driver             0   2 recv
+ 5 i2c_driver                   0   2 recv
    |
    +--->  0x20013ad8 0x0803e154 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -382,7 +382,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8007794 (&TaskDesc)
                 }
 
- 6 spd                    0   2 notif: bit0(irq31/irq32)
+ 6 spd                          0   2 notif: bit0(irq31/irq32)
    |
    +--->  0x200042d0 0x08041fa2 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -444,7 +444,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80077ac (&TaskDesc)
                 }
 
- 7 thermal                0   3 notif: bit31(T+444)
+ 7 thermal                      0   3 notif: bit31(T+444)
    |
    +--->  0x20002720 0x08013c92 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -508,7 +508,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80077c4 (&TaskDesc)
                 }
 
- 8 hiffy                  0   3 wait: reply from gimlet_seq/gen0
+ 8 hiffy                        0   3 wait: reply from gimlet_seq/gen0
    |
    +--->  0x20008110 0x0800b696 userlib::sys_send_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:153
@@ -572,7 +572,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80077dc (&TaskDesc)
                 }
 
- 9 gimlet_seq             0   3 wait: reply from spi2_driver/gen0
+ 9 gimlet_seq                   0   3 wait: reply from spi2_driver/gen0
    |
    +--->  0x20010220 0x08023636 userlib::sys_send_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:153
@@ -644,7 +644,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80077f4 (&TaskDesc)
                 }
 
-10 hf                     0   3 recv
+10 hf                           0   3 recv
    |
    +--->  0x20014698 0x080456fc userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
@@ -706,7 +706,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x800780c (&TaskDesc)
                 }
 
-11 idle                   0   5 ready
+11 idle                         0   5 ready
    |
    +--->  0x20015100 0x0804c056 main
    |                 @ /home/bmc/hubris/task/idle/src/main.rs:13

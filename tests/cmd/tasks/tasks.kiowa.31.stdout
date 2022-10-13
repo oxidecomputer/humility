@@ -1,8 +1,8 @@
 system time = 31738
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+62)
- 1 sys                    0   1 recv
- 2 pong                   0   4 recv, notif: bit0(T+262)
- 3 user_leds              0   3 recv
- 4 hiffy                  0   4 notif: bit31(T+13)
- 5 idle                   0   5 RUNNING
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+62)
+ 1 sys                          0   1 recv
+ 2 pong                         0   4 recv, notif: bit0(T+262)
+ 3 user_leds                    0   3 recv
+ 4 hiffy                        0   4 notif: bit31(T+13)
+ 5 idle                         0   5 RUNNING
