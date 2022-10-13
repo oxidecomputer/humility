@@ -1,16 +1,16 @@
 system time = 134568
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
- 1 rcc_driver             0   1 recv
- 2 gpio_driver            0   2 recv
- 3 usart_driver           0   2 recv, notif: bit0(irq39)
- 4 i2c_driver             0   2 recv
- 5 spd                    2   2 FAULT: panicked at 'attempt to add with overflow', task-spd/src/main.rs:312:17 (was: ready)
- 6 spi2_driver            0   2 recv
- 7 spi4_driver            0   2 recv
- 8 user_leds              0   2 recv
- 9 pong                   0   3 recv, notif: bit0(T+432)
-10 thermal                0   3 notif: bit31(T+661)
-11 power                  0   3 notif: bit31(T+660)
-12 hiffy                  0   3 notif: bit31(T+42)
-13 idle                   0   5 RUNNING
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
+ 1 rcc_driver                   0   1 recv
+ 2 gpio_driver                  0   2 recv
+ 3 usart_driver                 0   2 recv, notif: bit0(irq39)
+ 4 i2c_driver                   0   2 recv
+ 5 spd                          2   2 FAULT: panicked at 'attempt to add with overflow', task-spd/src/main.rs:312:17 (was: ready)
+ 6 spi2_driver                  0   2 recv
+ 7 spi4_driver                  0   2 recv
+ 8 user_leds                    0   2 recv
+ 9 pong                         0   3 recv, notif: bit0(T+432)
+10 thermal                      0   3 notif: bit31(T+661)
+11 power                        0   3 notif: bit31(T+660)
+12 hiffy                        0   3 notif: bit31(T+42)
+13 idle                         0   5 RUNNING

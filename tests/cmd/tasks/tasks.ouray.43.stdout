@@ -1,14 +1,14 @@
 system time = 27649
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 RUNNING
- 1 idle                   0   5 ready
- 2 syscon_driver          0   2 recv
- 3 gpio_driver            0   2 recv
- 4 user_leds             24   2 ready
- 5 usart_driver           0   2 ready
- 6 i2c_driver             0   2 ready
- 7 rng_driver             0   2 ready
- 8 spi_driver             0   2 ready
- 9 ping                   0   4 ready
-10 pong                   0   3 ready
-11 spam                   0   3 not started
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 RUNNING
+ 1 idle                         0   5 ready
+ 2 syscon_driver                0   2 recv
+ 3 gpio_driver                  0   2 recv
+ 4 user_leds                   24   2 ready
+ 5 usart_driver                 0   2 ready
+ 6 i2c_driver                   0   2 ready
+ 7 rng_driver                   0   2 ready
+ 8 spi_driver                   0   2 ready
+ 9 ping                         0   4 ready
+10 pong                         0   3 ready
+11 spam                         0   3 not started

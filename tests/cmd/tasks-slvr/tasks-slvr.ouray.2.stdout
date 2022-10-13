@@ -1,6 +1,6 @@
 system time = 65738550
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
    |
    +--->  0x20001318 0x08011cf2 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:263
@@ -46,7 +46,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004800 (&abi::TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x200017d8 0x08018e3a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:263
@@ -94,7 +94,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004818 (&abi::TaskDesc)
                 }
 
- 2 usart_driver           0   2 recv, notif: bit0(irq38)
+ 2 usart_driver                 0   2 recv, notif: bit0(irq38)
    |
    +--->  0x20001bb0 0x0801d1e2 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:263
@@ -142,7 +142,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004830 (&abi::TaskDesc)
                 }
 
- 3 user_leds              0   2 recv
+ 3 user_leds                    0   2 recv
    |
    +--->  0x20001fb8 0x08020fde userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:263
@@ -190,7 +190,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004848 (&abi::TaskDesc)
                 }
 
- 4 ping                  25   4 wait: reply from pong/gen0
+ 4 ping                        25   4 wait: reply from pong/gen0
    |
    +--->  0x20002fa0 0x080250fc userlib::sys_send_stub
    |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:127
@@ -234,4 +234,4 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004860 (&abi::TaskDesc)
                 }
 
- 5 log                    0   3 RUNNING
+ 5 log                          0   3 RUNNING
