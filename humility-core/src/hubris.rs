@@ -112,6 +112,19 @@ struct HubrisConfigI2cPmbus {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cPower {
+    rails: Option<Vec<String>>,
+    #[serde(default = "HubrisConfigI2cPower::default_pmbus")]
+    pmbus: bool,
+}
+
+impl HubrisConfigI2cPower {
+    fn default_pmbus() -> bool {
+        true
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigI2cSensors {
     #[serde(default)]
     temperature: usize,
@@ -143,6 +156,7 @@ struct HubrisConfigI2cDevice {
     segment: Option<u8>,
     description: String,
     pmbus: Option<HubrisConfigI2cPmbus>,
+    power: Option<HubrisConfigI2cPower>,
     sensors: Option<HubrisConfigI2cSensors>,
     removable: Option<bool>,
 }
@@ -2216,6 +2230,16 @@ impl HubrisArchive {
                 }
             }
 
+            if let Some(power) = &d.power {
+                if let Some(rails) = &power.rails {
+                    if idx < rails.len() {
+                        return Ok(rails[idx].clone());
+                    } else {
+                        bail!("sensor count exceeds rails for {:?}", d);
+                    }
+                }
+            }
+
             if let Some(names) = &d.sensors.as_ref().unwrap().names {
                 if idx >= names.len() {
                     bail!(
@@ -2328,7 +2352,21 @@ impl HubrisArchive {
                                 None => vec![],
                             },
                         },
-                        None => HubrisI2cDeviceClass::Unspecified,
+                        None => match &device.power {
+                            Some(power) => {
+                                if power.pmbus {
+                                    HubrisI2cDeviceClass::Pmbus {
+                                        rails: match &power.rails {
+                                            Some(rails) => rails.to_vec(),
+                                            None => vec![],
+                                        },
+                                    }
+                                } else {
+                                    HubrisI2cDeviceClass::Unspecified
+                                }
+                            }
+                            None => HubrisI2cDeviceClass::Unspecified,
+                        },
                     },
                     removable: device.removable.unwrap_or(false),
                 });
