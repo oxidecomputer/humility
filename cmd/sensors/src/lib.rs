@@ -8,15 +8,18 @@
 //! `Sensor` Idol interface to get sensor data.  If there is no `sensor` task
 //! or if there are no sensors defined in the in Hubris application
 //! description, this command will not provide any meaningful output. To list
-//! all available sensors, use `-l` (`--list`); to summarize sensor values,
-//! use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
-//! (`--types`) option; to constrain sensors by device, use the `-d`
-//! (`--devices`) option; to constrain sensors by name, use the `-n`
+//! all available sensors, use `-l` (`--list`).  To constrain sensors by type,
+//! use the `-t` (`--types`) option; to constrain sensors by device, use the
+//! `-d` (`--devices`) option; to constrain sensors by name, use the `-n`
 //! (`--named`) option.  Within each option, multiple specifications serve as
 //! a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 //! either device), but if multiple kinds of specifications are present, they
 //! serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
 //! all thermal sensors from either device).
+//!
+//! By default, `humility sensors` displays the value of each specified sensor
+//! and exits; to read values once per second, use the `-s` (`--sleep`)
+//! option. To print values as a table, use `--tabular`.
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;

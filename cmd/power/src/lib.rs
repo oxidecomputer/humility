@@ -4,6 +4,9 @@
 
 //! ## `humility power`
 //!
+//! `humility power` displays the values associated with devices that
+//! can measure voltage, displaying voltage, current (if measured) and
+//! temperature (if measured).
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
