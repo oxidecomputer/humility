@@ -1,6 +1,6 @@
 system time = 2117793075957696
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T-2117793075464596)
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T-2117793075464596)
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x2001b5a4   R1 = 0x00000004   R2 = 0x00000003   R3 = 0x2001b5dc
@@ -53,7 +53,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8004af0 (&abi::TaskDesc)
                 }
 
- 1 net                    0   5 recv, notif: bit0(irq61) bit1(T-2117793075464456)
+ 1 net                          0   5 recv, notif: bit0(irq61) bit1(T-2117793075464456)
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -109,7 +109,7 @@ Caused by:
                     descriptor: 0x8004b04 (&abi::TaskDesc)
                 }
 
- 2 sys                    0   1 recv
+ 2 sys                          0   1 recv
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x2001e358   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x2001e360
@@ -162,7 +162,7 @@ Caused by:
                     descriptor: 0x8004b18 (&abi::TaskDesc)
                 }
 
- 3 spi4_driver            0   3 recv
+ 3 spi4_driver                  0   3 recv
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -218,7 +218,7 @@ Caused by:
                     descriptor: 0x8004b2c (&abi::TaskDesc)
                 }
 
- 4 spi2_driver            0   3 recv
+ 4 spi2_driver                  0   3 recv
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -274,7 +274,7 @@ Caused by:
                     descriptor: 0x8004b40 (&abi::TaskDesc)
                 }
 
- 5 i2c_driver             0   3 recv
+ 5 i2c_driver                   0   3 recv
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -330,7 +330,7 @@ Caused by:
                     descriptor: 0x8004b54 (&abi::TaskDesc)
                 }
 
- 6 spd                    0   2 notif: bit0(irq31/irq32)
+ 6 spd                          0   2 notif: bit0(irq31/irq32)
    |
    +--->  0x20010248 0x0804df76 drv_i2c_api::I2cDevice::write
    |                 @ /hubris/drv/i2c-api/src/lib.rs:453
@@ -386,7 +386,7 @@ Caused by:
                     descriptor: 0x8004b68 (&abi::TaskDesc)
                 }
 
- 7 thermal                0   5 recv, notif: bit0(T-2117793075463689)
+ 7 thermal                      0   5 recv, notif: bit0(T-2117793075463689)
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -442,7 +442,7 @@ Caused by:
                     descriptor: 0x8004b7c (&abi::TaskDesc)
                 }
 
- 8 power                  0   6 notif: bit31(T-2117793075464383)
+ 8 power                        0   6 notif: bit31(T-2117793075464383)
    |
    +--->  0x200163a8 0x0805625a core::result::Result<T,E>::unwrap
    |                 @ /rustc/4d6d601c8a83284d6b23c253a3e2a060fd197316/library/core/src/result.rs:1101
@@ -498,7 +498,7 @@ Caused by:
                     descriptor: 0x8004b90 (&abi::TaskDesc)
                 }
 
- 9 hiffy                  0   5 notif: bit31(T-2117793075464596)
+ 9 hiffy                        0   5 notif: bit31(T-2117793075464596)
    stack unwind failed: failed to read cfa 0x80010007, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -554,7 +554,7 @@ Caused by:
                     descriptor: 0x8004ba4 (&abi::TaskDesc)
                 }
 
-10 gimlet_seq             0   4 recv, notif: bit0
+10 gimlet_seq                   0   4 recv, notif: bit0
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: []
 
 Caused by:
@@ -610,7 +610,7 @@ Caused by:
                     descriptor: 0x8004bb8 (&abi::TaskDesc)
                 }
 
-11 hash_driver            0   2 recv
+11 hash_driver                  0   2 recv
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x20018540   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200187d4
@@ -663,7 +663,7 @@ Caused by:
                     descriptor: 0x8004bcc (&abi::TaskDesc)
                 }
 
-12 hf                     0   3 recv
+12 hf                           0   3 recv
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x2001d5f8   R1 = 0x00000008   R2 = 0x00000000   R3 = 0x2001d734
@@ -716,7 +716,7 @@ Caused by:
                     descriptor: 0x8004be0 (&abi::TaskDesc)
                 }
 
-13 sensor                 0   4 recv, notif: bit0(T-2117793075463696)
+13 sensor                       0   4 recv, notif: bit0(T-2117793075463696)
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x2001df68   R1 = 0x00000008   R2 = 0x00000001   R3 = 0x2001dd00
@@ -769,7 +769,7 @@ Caused by:
                     descriptor: 0x8004bf4 (&abi::TaskDesc)
                 }
 
-14 udpecho                0   6 notif: bit0
+14 udpecho                      0   6 notif: bit0
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x08063c50   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x20014fbc
@@ -822,7 +822,7 @@ Caused by:
                     descriptor: 0x8004c08 (&abi::TaskDesc)
                 }
 
-15 udpbroadcast           0   6 notif: bit31(T-2117793075464287)
+15 udpbroadcast                 0   6 notif: bit31(T-2117793075464287)
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x080652ac   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200197ac
@@ -875,7 +875,7 @@ Caused by:
                     descriptor: 0x8004c1c (&abi::TaskDesc)
                 }
 
-16 validate               0   5 recv
+16 validate                     0   5 recv
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x2001a3b4   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x2001a3b8
@@ -928,7 +928,7 @@ Caused by:
                     descriptor: 0x8004c30 (&abi::TaskDesc)
                 }
 
-17 idle                   0   7 ready
+17 idle                         0   7 ready
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x2001e500   R1 = 0x2001e500   R2 = 0x00000000   R3 = 0x00000000

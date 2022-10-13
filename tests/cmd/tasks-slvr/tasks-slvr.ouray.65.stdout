@@ -1,6 +1,6 @@
 system time = 134568
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
    |
    +--->  0x200015c0 0x08009daa userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -64,7 +64,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005308 (&abi::TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x20001bd8 0x0800ce66 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -128,7 +128,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005320 (&abi::TaskDesc)
                 }
 
- 2 gpio_driver            0   2 recv
+ 2 gpio_driver                  0   2 recv
    |
    +--->  0x20001fc0 0x0800f012 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -194,7 +194,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005338 (&abi::TaskDesc)
                 }
 
- 3 usart_driver           0   2 recv, notif: bit0(irq39)
+ 3 usart_driver                 0   2 recv, notif: bit0(irq39)
    |
    +--->  0x200023c0 0x08010fe6 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -258,7 +258,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005350 (&abi::TaskDesc)
                 }
 
- 4 i2c_driver             0   2 recv
+ 4 i2c_driver                   0   2 recv
    |
    +--->  0x20002b20 0x0801624a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -324,7 +324,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005368 (&abi::TaskDesc)
                 }
 
- 5 spd                    2   2 FAULT: panicked at 'attempt to add with overflow', task-spd/src/main.rs:312:17 (was: ready)
+ 5 spd                          2   2 FAULT: panicked at 'attempt to add with overflow', task-spd/src/main.rs:312:17 (was: ready)
    |
    +--->  0x20004230 0x08019d00 userlib::sys_panic_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:654
@@ -395,7 +395,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005380 (&abi::TaskDesc)
                 }
 
- 6 spi2_driver            0   2 recv
+ 6 spi2_driver                  0   2 recv
    |
    +--->  0x20008390 0x0801d3ae userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -461,7 +461,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005398 (&abi::TaskDesc)
                 }
 
- 7 spi4_driver            0   2 recv
+ 7 spi4_driver                  0   2 recv
    |
    +--->  0x20009390 0x080213ae userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -527,7 +527,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053b0 (&abi::TaskDesc)
                 }
 
- 8 user_leds              0   2 recv
+ 8 user_leds                    0   2 recv
    |
    +--->  0x2000a3c8 0x08024e9a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -593,7 +593,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053c8 (&abi::TaskDesc)
                 }
 
- 9 pong                   0   3 recv, notif: bit0(T+432)
+ 9 pong                         0   3 recv, notif: bit0(T+432)
    |
    +--->  0x2000a7b0 0x08026cde userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -653,7 +653,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053e0 (&abi::TaskDesc)
                 }
 
-10 thermal                0   3 notif: bit31(T+661)
+10 thermal                      0   3 notif: bit31(T+661)
    |
    +--->  0x2000c670 0x08033fde userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -717,7 +717,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053f8 (&abi::TaskDesc)
                 }
 
-11 power                  0   3 notif: bit31(T+660)
+11 power                        0   3 notif: bit31(T+660)
    |
    +--->  0x2000e760 0x08043686 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -781,7 +781,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005410 (&abi::TaskDesc)
                 }
 
-12 hiffy                  0   3 notif: bit31(T+42)
+12 hiffy                        0   3 notif: bit31(T+42)
    |
    +--->  0x20010580 0x08052d06 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:264
@@ -845,7 +845,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005428 (&abi::TaskDesc)
                 }
 
-13 idle                   0   5 RUNNING
+13 idle                         0   5 RUNNING
    |
    +--->  0x20014100 0x08058056 main
    |                 @ /home/bmc/hubris/task-idle/src/main.rs:9

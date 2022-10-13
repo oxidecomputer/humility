@@ -1,6 +1,6 @@
 system time = 1342206
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 RUNNING
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 RUNNING
    |
    +--->  0x200015c0 0x080081fa <core::result::Result<T,E> as core::ops::try::Try>::into_result
    |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1635
@@ -78,7 +78,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005318 (&abi::TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x20001bd8 0x0800ce66 userlib::sys_recv_stub
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
@@ -142,7 +142,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005330 (&abi::TaskDesc)
                 }
 
- 2 gpio_driver            0   2 recv
+ 2 gpio_driver                  0   2 recv
    |
    +--->  0x20001fc0 0x0800f012 userlib::sys_recv_stub
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
@@ -208,7 +208,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005348 (&abi::TaskDesc)
                 }
 
- 3 usart_driver           0   2 recv, notif: bit0(irq39)
+ 3 usart_driver                 0   2 recv, notif: bit0(irq39)
    |
    +--->  0x200023c0 0x08010fe6 userlib::sys_recv_stub
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
@@ -272,7 +272,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005360 (&abi::TaskDesc)
                 }
 
- 4 i2c_driver             0   2 recv
+ 4 i2c_driver                   0   2 recv
    |
    +--->  0x20002b20 0x0801622a userlib::sys_recv_stub
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
@@ -338,7 +338,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005378 (&abi::TaskDesc)
                 }
 
- 5 spd                   14   2 FAULT: panicked at 'called `Result::unwrap()` on an `Err` value: BadArg', drv/stm32h7-rcc-api/src/lib.rs:56:50 (was: ready)
+ 5 spd                         14   2 FAULT: panicked at 'called `Result::unwrap()` on an `Err` value: BadArg', drv/stm32h7-rcc-api/src/lib.rs:56:50 (was: ready)
    |
    +--->  0x20003268 0x080198e6 userlib::sys_panic_stub
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:655
@@ -419,7 +419,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005390 (&abi::TaskDesc)
                 }
 
- 6 spi2_driver            0   2 ready
+ 6 spi2_driver                  0   2 ready
    |
    +--->  0x200043e8 0x0801c001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -475,7 +475,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053a8 (&abi::TaskDesc)
                 }
 
- 7 spi4_driver            0   2 ready
+ 7 spi4_driver                  0   2 ready
    |
    +--->  0x200053e8 0x08020001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -531,7 +531,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053c0 (&abi::TaskDesc)
                 }
 
- 8 user_leds              0   2 ready
+ 8 user_leds                    0   2 ready
    |
    +--->  0x20006400 0x08024001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -587,7 +587,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053d8 (&abi::TaskDesc)
                 }
 
- 9 pong                   0   3 ready
+ 9 pong                         0   3 ready
    |
    +--->  0x20006800 0x08026001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -643,7 +643,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80053f0 (&abi::TaskDesc)
                 }
 
-10 thermal                0   3 ready
+10 thermal                      0   3 ready
    |
    +--->  0x20008800 0x08030001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -699,7 +699,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005408 (&abi::TaskDesc)
                 }
 
-11 power                  0   3 ready
+11 power                        0   3 ready
    |
    +--->  0x2000a800 0x08040001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -755,7 +755,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005420 (&abi::TaskDesc)
                 }
 
-12 hiffy                  0   3 ready
+12 hiffy                        0   3 ready
    |
    +--->  0x2000c800 0x08050001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
@@ -811,7 +811,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8005438 (&abi::TaskDesc)
                 }
 
-13 idle                   0   5 ready
+13 idle                         0   5 ready
    |
    +--->  0x20010100 0x08058001 _start
    |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766

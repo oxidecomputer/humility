@@ -1,16 +1,16 @@
 system time = 1342206
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 RUNNING
- 1 rcc_driver             0   1 recv
- 2 gpio_driver            0   2 recv
- 3 usart_driver           0   2 recv, notif: bit0(irq39)
- 4 i2c_driver             0   2 recv
- 5 spd                   14   2 FAULT: panicked at 'called `Result::unwrap()` on an `Err` value: BadArg', drv/stm32h7-rcc-api/src/lib.rs:56:50 (was: ready)
- 6 spi2_driver            0   2 ready
- 7 spi4_driver            0   2 ready
- 8 user_leds              0   2 ready
- 9 pong                   0   3 ready
-10 thermal                0   3 ready
-11 power                  0   3 ready
-12 hiffy                  0   3 ready
-13 idle                   0   5 ready
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 RUNNING
+ 1 rcc_driver                   0   1 recv
+ 2 gpio_driver                  0   2 recv
+ 3 usart_driver                 0   2 recv, notif: bit0(irq39)
+ 4 i2c_driver                   0   2 recv
+ 5 spd                         14   2 FAULT: panicked at 'called `Result::unwrap()` on an `Err` value: BadArg', drv/stm32h7-rcc-api/src/lib.rs:56:50 (was: ready)
+ 6 spi2_driver                  0   2 ready
+ 7 spi4_driver                  0   2 ready
+ 8 user_leds                    0   2 ready
+ 9 pong                         0   3 ready
+10 thermal                      0   3 ready
+11 power                        0   3 ready
+12 hiffy                        0   3 ready
+13 idle                         0   5 ready

@@ -1,6 +1,6 @@
 system time = 31738
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+62)
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+62)
    |
    +--->  0x20000ae0 0x0800697c userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -46,7 +46,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002bb0 (&TaskDesc)
                 }
 
- 1 sys                    0   1 recv
+ 1 sys                          0   1 recv
    |
    +--->  0x200009c8 0x08003d6a userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -92,7 +92,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002bc8 (&TaskDesc)
                 }
 
- 2 pong                   0   4 recv, notif: bit0(T+262)
+ 2 pong                         0   4 recv, notif: bit0(T+262)
    |
    +--->  0x20000cb0 0x0800319c userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -138,7 +138,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002be0 (&TaskDesc)
                 }
 
- 3 user_leds              0   3 recv
+ 3 user_leds                    0   3 recv
    |
    +--->  0x20000db0 0x08007642 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -184,7 +184,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002bf8 (&TaskDesc)
                 }
 
- 4 hiffy                  0   4 notif: bit31(T+13)
+ 4 hiffy                        0   4 notif: bit31(T+13)
    |
    +--->  0x200010d0 0x080050ac userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -240,7 +240,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002c10 (&TaskDesc)
                 }
 
- 5 idle                   0   5 RUNNING
+ 5 idle                         0   5 RUNNING
    |
    +--->  0x20000840 0x08002f44 cortex_m::asm::inline::__wfi
    |                 @ /crates.io/cortex-m-0.7.3/src/../asm/inline.rs:181
