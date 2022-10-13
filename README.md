@@ -245,6 +245,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility net](#humility-net): Management network device-side control and debugging
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
+- [humility power](#humility-power): show power-related information
 - [humility probe](#humility-probe): probe for any attached devices
 - [humility qspi](#humility-qspi): QSPI status, reading and writing
 - [humility readmem](#humility-readmem): read and display memory region
@@ -1242,6 +1243,13 @@ will both run OpenOCD and run a foreground GDB that is connected to it.
 
 No documentation yet for `humility pmbus`; pull requests welcome!
 
+### `humility power`
+
+`humility power` displays the values associated with devices that
+can measure voltage, displaying voltage, current (if measured) and
+temperature (if measured).
+
+
 ### `humility probe`
 
 `humility probe` attempts to infer as much about the hardware state as it
@@ -1911,15 +1919,18 @@ task, which includes MAC address and image ID (checked for compatibility).
 `Sensor` Idol interface to get sensor data.  If there is no `sensor` task
 or if there are no sensors defined in the in Hubris application
 description, this command will not provide any meaningful output. To list
-all available sensors, use `-l` (`--list`); to summarize sensor values,
-use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
-(`--types`) option; to constrain sensors by device, use the `-d`
-(`--devices`) option; to constrain sensors by name, use the `-n`
+all available sensors, use `-l` (`--list`).  To constrain sensors by type,
+use the `-t` (`--types`) option; to constrain sensors by device, use the
+`-d` (`--devices`) option; to constrain sensors by name, use the `-n`
 (`--named`) option.  Within each option, multiple specifications serve as
 a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 either device), but if multiple kinds of specifications are present, they
 serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
 all thermal sensors from either device).
+
+By default, `humility sensors` displays the value of each specified sensor
+and exits; to read values once per second, use the `-s` (`--sleep`)
+option. To print values as a table, use `--tabular`.
 
 
 ### `humility spctrl`
