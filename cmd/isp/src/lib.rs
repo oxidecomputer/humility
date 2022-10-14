@@ -55,7 +55,15 @@ enum IspCmd {
         #[clap(parse(from_os_str))]
         file: PathBuf,
     },
+    /// Write a file to the CFPA region
+    WriteCFPA {
+        #[clap(parse(from_os_str))]
+        file: PathBuf,
+    },
+    /// Read the CMPA region
     ReadCMPA,
+    /// Read the CFPA regions (scratch, ping, pong)
+    ReadCFPA,
     /// Erase the CMPA region (use to boot non-secure binaries again)
     EraseCMPA,
     /// Put a minimalist program on to allow attaching via SWD
@@ -74,9 +82,7 @@ enum IspCmd {
     /// Erase existing keystore
     EraseKeyStore,
     /// Get Bootloader property
-    GetProperty {
-        prop: BootloaderProperty,
-    },
+    GetProperty { prop: BootloaderProperty },
     /// Get information about why the chip put itself in ISP mode
     LastError,
 }
@@ -276,6 +282,34 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
             println!("Write to CMPA done!");
         }
+        IspCmd::WriteCFPA { file } => {
+            let mut infile =
+                std::fs::OpenOptions::new().read(true).open(&file)?;
+
+            let mut bytes = Vec::new();
+
+            infile.read_to_end(&mut bytes)?;
+
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
+            println!("Write to CFPA done!");
+        }
+        IspCmd::ReadCFPA => {
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9de00, 512)?;
+
+            let mut dumper = Dumper::new();
+            dumper.size = 4;
+            println!("=====Scratch Page=====");
+            dumper.dump(&m, 0x9de00);
+
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+
+            println!("=====Ping Page=====");
+            dumper.dump(&m, 0x9e000);
+
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+            println!("=====Pong Page=====");
+            dumper.dump(&m, 0x9e200);
+        }
         IspCmd::EraseCMPA => {
             // Write 512 bytes of zero
             let bytes = vec![0; 512];
@@ -288,7 +322,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
 
             let mut dumper = Dumper::new();
-            dumper.size = 512;
+            dumper.size = 4;
             dumper.dump(&m, 0x9e400);
         }
         IspCmd::Restore => {
