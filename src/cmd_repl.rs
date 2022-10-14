@@ -111,7 +111,7 @@ fn eval(
         None => return Ok(String::new()),
     };
 
-    if let Some(s) = version(&cli)? {
+    if let Some(s) = version(&cli) {
         return Ok(s);
     }
 

@@ -4,7 +4,7 @@
 
 use clap::{AppSettings, Parser};
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[clap(name = "humility", max_term_width = 80)]
 #[clap(global_setting(AppSettings::NoAutoVersion))]
 pub struct Cli {
@@ -70,7 +70,7 @@ pub struct Cli {
     pub cmd: Option<Subcommand>,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub enum Subcommand {
     #[clap(external_subcommand)]
     Other(Vec<String>),

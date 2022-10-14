@@ -5,7 +5,6 @@
 use std::collections::HashMap;
 use std::ffi::OsString;
 
-use anyhow::bail;
 use clap::ArgMatches;
 use humility::cli::Cli;
 use humility::cli::Subcommand;
@@ -25,10 +24,12 @@ fn main() -> Result<()> {
         None => std::process::exit(0),
     };
 
-    if let Some(s) = version(&args)? {
+    if let Some(s) = version(&args) {
         println!("{}", s);
         std::process::exit(0);
     };
+
+    let mut context = humility::ExecutionContext::new(args.clone(), &m)?;
 
     let log_level = if args.verbose { "trace" } else { "warn" };
 
@@ -41,8 +42,6 @@ fn main() -> Result<()> {
         Subcommand::Other(v) => v[0].clone(),
     };
 
-    let mut context = humility::ExecutionContext::new(args, &m)?;
-
     if let Err(err) = cmd::subcommand(&mut context, &commands) {
         eprintln!("humility {} failed: {:?}", subcmd, err);
         std::process::exit(1);
@@ -51,22 +50,16 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn version(cli: &Cli) -> Result<Option<String>> {
-    //
-    // The only condition under which we don't require a command is if
-    // --version has been specified.
-    //
+pub(crate) fn version(cli: &Cli) -> Option<String> {
     if cli.version {
-        return Ok(Some(format!(
+        Some(format!(
             "{} {}",
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_VERSION")
-        )));
-    } else if cli.cmd.is_none() {
-        bail!("humility failed: subcommand expected (--help to list)");
+        ))
+    } else {
+        None
     }
-
-    Ok(None)
 }
 
 pub(crate) fn parse_args<I, T>(
