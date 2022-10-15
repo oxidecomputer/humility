@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "anyhow",
  "bitfield",

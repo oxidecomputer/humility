@@ -1,0 +1,4 @@
+fs.base = "."
+
+bin.name = "humility"
+args = "--list-targets --environment=env.json"
