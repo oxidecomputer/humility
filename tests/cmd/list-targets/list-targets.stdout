@@ -1,0 +1,6 @@
+TARGET          DESCRIPTION
+sn4             Gimlet Rev B, serial number 4
+sn4-rot         Gimlet Rev B, serial number 4 (RoT)
+sn9             Gimlet Rev B, serial number 9
+sn14            Gimlet Rev B, serial number 14
+meanwell        Gimletlet connected to Meanwell for remote power control
