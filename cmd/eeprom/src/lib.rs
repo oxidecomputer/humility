@@ -19,9 +19,11 @@ use humility_cmd::idol::IdolOperation;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cmd_hiffy::HiffyLease;
 
-const READ_CHUNK_SIZE: usize = 256; // limited by HIFFY_SCRATCH_SIZE
-const WRITE_CHUNK_SIZE: usize = 2048; // limited by HIFFY_DATA_SIZE
-const EEPROM_SIZE_BYTES: usize = 2048;
+// Limited to 128 bytes due to the write buffer in the EEPROM
+const READ_CHUNK_SIZE: usize = 128;
+const WRITE_CHUNK_SIZE: usize = 128;
+
+const EEPROM_SIZE_BYTES: usize = 65536;
 
 #[derive(Parser, Debug)]
 #[clap(name = "eeprom", about = env!("CARGO_PKG_DESCRIPTION"))]
