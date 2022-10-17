@@ -1011,6 +1011,7 @@ dependencies = [
  "humility-cmd-diagnose",
  "humility-cmd-doc",
  "humility-cmd-dump",
+ "humility-cmd-eeprom",
  "humility-cmd-etm",
  "humility-cmd-exec",
  "humility-cmd-extract",
@@ -1118,8 +1119,6 @@ dependencies = [
  "parse_int",
  "regex",
  "tlvc",
- "vsc7448-info",
- "vsc7448-types",
  "zip",
 ]
 
@@ -1193,6 +1192,24 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "log",
+]
+
+[[package]]
+name = "humility-cmd-eeprom"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.21",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "indicatif",
+ "log",
+ "parse_int",
+ "regex",
+ "zip",
 ]
 
 [[package]]

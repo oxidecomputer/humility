@@ -1,13 +1,12 @@
 [package]
-name = "humility-cmd-auxflash"
+name = "humility-cmd-eeprom"
 version = "0.1.0"
 edition = "2021"
-description = "manipulate auxiliary flash"
+description = "manipulate Tofino SPI eeprom"
 
 [dependencies]
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 clap = { version = "3.0.12", features = ["derive", "env"] }
-colored = "2.0.0"
 indicatif = "0.15"
 log = {version = "0.4.8", features = ["std"]}
 parse_int = "0.4.0"
@@ -20,4 +19,3 @@ humility-cmd-hiffy = { path = "../hiffy" }
 
 hif = { git = "https://github.com/oxidecomputer/hif" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
-tlvc = {git = "https://github.com/oxidecomputer/tlvc"}
