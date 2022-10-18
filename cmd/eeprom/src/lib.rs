@@ -177,7 +177,7 @@ fn eeprom(context: &mut humility::ExecutionContext) -> Result<()> {
 pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
-            name: "auxflash",
+            name: "eeprom",
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
