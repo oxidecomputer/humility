@@ -84,7 +84,7 @@ impl<'a> EepromHandler<'a> {
     }
 
     fn eeprom_read(&mut self, count: Option<usize>) -> Result<Vec<u8>> {
-        let op = self.get_idol_command("read_with_offset")?;
+        let op = self.get_idol_command("read_spi_eeprom_bytes")?;
 
         let mut out = vec![0u8; count.unwrap_or(EEPROM_SIZE_BYTES)];
         let bar = ProgressBar::new(0);
@@ -120,7 +120,7 @@ impl<'a> EepromHandler<'a> {
                 EEPROM_SIZE_BYTES
             );
         }
-        let op = self.get_idol_command("write_with_offset")?;
+        let op = self.get_idol_command("write_spi_eeprom_bytes")?;
 
         let bar = ProgressBar::new(0);
         bar.set_style(
