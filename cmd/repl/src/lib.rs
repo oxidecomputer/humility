@@ -12,7 +12,7 @@
 //! `humility repl` takes the same top level arguments as any other subcommand, and will remember them
 //! inside of the prompt. For example:
 //!
-//! ```
+//! ```console
 //! $ humility -a ../path/to/hubris/archive.zip repl
 //! humility: attached via ST-Link V2-1
 //! Welcome to the humility REPL! Try out some subcommands, or 'quit' to quit!
@@ -53,6 +53,3 @@
 //! command, which will show you recent commands you've put into the prompt.
 //!
 //! The repl is still very early days! We'll be adding more features in the future.
-
-// we don't actually use this for the repl due to coherence issues.
-fn main() {}
