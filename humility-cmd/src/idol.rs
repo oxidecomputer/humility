@@ -324,6 +324,11 @@ fn call_arg(
             };
 
             match (base.encoding, base.size) {
+                (HubrisEncoding::Unsigned, 8) => {
+                    let v: u64 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
+                    dest.copy_from_slice(v.to_le_bytes().as_slice());
+                }
                 (HubrisEncoding::Unsigned, 4) => {
                     let v: u32 =
                         parse_int::parse(value).map_err(|e| err(&e))?;
