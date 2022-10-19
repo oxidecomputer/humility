@@ -13,6 +13,9 @@ fn main() -> Result<()> {
     use cargo_metadata::MetadataCommand;
     let mut cmds = BTreeSet::new();
 
+    // MetadataCommand doesn't emit this, so we should
+    println!("cargo:rerun-if-changed=Cargo.toml");
+
     let metadata =
         MetadataCommand::new().manifest_path("./Cargo.toml").exec().unwrap();
 
@@ -59,8 +62,6 @@ fn dcmds() -> Vec<CommandDescription> {{
     }
 
     write!(output, "    ]\n}}")?;
-
-    println!("cargo:rerun-if-changed=Cargo.toml");
 
     Ok(())
 }
