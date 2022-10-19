@@ -43,7 +43,7 @@ fn dcmds() -> Vec<CommandDescription> {{
             metadata.packages.iter().find(|p| &p.id == id).unwrap().clone();
 
         if let Some(cmd) = package.name.strip_prefix("humility-cmd-") {
-            cmds.insert(cmd.to_string());
+            cmds.insert(cmd.to_string().replace('-', "_"));
         }
     }
 

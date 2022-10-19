@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1049,6 +1049,7 @@ dependencies = [
  "humility-cmd-stmsecure",
  "humility-cmd-tasks",
  "humility-cmd-test",
+ "humility-cmd-tofino-eeprom",
  "humility-cmd-trace",
  "humility-cmd-validate",
  "humility-cmd-vpd",
@@ -1116,11 +1117,7 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
- "regex",
  "tlvc",
- "vsc7448-info",
- "vsc7448-types",
- "zip",
 ]
 
 [[package]]
@@ -1726,6 +1723,22 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+]
+
+[[package]]
+name = "humility-cmd-tofino-eeprom"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.21",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "indicatif",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
