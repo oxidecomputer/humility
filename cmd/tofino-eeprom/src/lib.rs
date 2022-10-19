@@ -41,6 +41,7 @@ struct EepromArgs {
 
 #[derive(Parser, Debug)]
 enum EepromCommand {
+    /// Reads from the EEPROM, saving data to a file
     Read {
         /// Number of bytes to read (defaults to EEPROM size)
         #[clap(long, short)]
@@ -49,6 +50,7 @@ enum EepromCommand {
         /// Filename of output
         output: String,
     },
+    /// Writes a file to the EEPROM
     Write {
         /// Filename of output
         input: String,

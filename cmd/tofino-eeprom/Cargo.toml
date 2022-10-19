@@ -2,7 +2,7 @@
 name = "humility-cmd-tofino-eeprom"
 version = "0.1.0"
 edition = "2021"
-description = "manipulate Tofino SPI eeprom"
+description = "read and write to the Tofino SPI EEPROM"
 
 [dependencies]
 anyhow = { version = "1.0.44", features = ["backtrace"] }
