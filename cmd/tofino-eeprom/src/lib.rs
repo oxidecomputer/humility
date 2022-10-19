@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! ## `humility eeprom`
+//! ## `humility tofino-eeprom`
 //!
 //! Tools to interact with the Tofino EEPROM
 
@@ -26,7 +26,7 @@ const WRITE_CHUNK_SIZE: usize = 128;
 const EEPROM_SIZE_BYTES: usize = 65536;
 
 #[derive(Parser, Debug)]
-#[clap(name = "eeprom", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(name = "tofino-eeprom", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct EepromArgs {
     /// sets timeout
     #[clap(
@@ -143,6 +143,7 @@ impl<'a> EepromHandler<'a> {
             }
             bar.set_position(offset as u64);
         }
+        bar.set_position(data.len() as u64);
         humility::msg!("done");
         Ok(())
     }
@@ -177,7 +178,7 @@ fn eeprom(context: &mut humility::ExecutionContext) -> Result<()> {
 pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Attached {
-            name: "eeprom",
+            name: "tofino-eeprom",
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,

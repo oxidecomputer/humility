@@ -11,8 +11,6 @@ colored = "2.0.0"
 indicatif = "0.15"
 log = {version = "0.4.8", features = ["std"]}
 parse_int = "0.4.0"
-regex = "1.5"
-zip = "0.5"
 
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }

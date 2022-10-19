@@ -1,5 +1,5 @@
 [package]
-name = "humility-cmd-eeprom"
+name = "humility-cmd-tofino-eeprom"
 version = "0.1.0"
 edition = "2021"
 description = "manipulate Tofino SPI eeprom"
@@ -10,8 +10,6 @@ clap = { version = "3.0.12", features = ["derive", "env"] }
 indicatif = "0.15"
 log = {version = "0.4.8", features = ["std"]}
 parse_int = "0.4.0"
-regex = "1.5"
-zip = "0.5"
 
 humility = { path = "../../humility-core", package = "humility-core" }
 humility-cmd = { path = "../../humility-cmd" }
