@@ -767,11 +767,9 @@ fn summarize(
         "#FLT".bold()
     );
 
-    let mut total_width = 3 + 4 + 1;
     for (_, header) in commands.iter() {
         if let Some(header) = header {
             print!(" {:>width$}", header.bold(), width = width);
-            total_width += 1 + width;
         }
     }
 
@@ -789,10 +787,10 @@ fn summarize(
             width,
         ) {
             println!(
-                " -- {} {:>width$} -- ",
-                "error:".red(),
+                " {0}  {1} {2}  {0} ",
+                "--".dimmed(),
+                "error:".yellow(),
                 e,
-                width = total_width
             );
         }
 
