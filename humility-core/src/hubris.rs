@@ -116,6 +116,14 @@ struct HubrisConfigI2cPower {
     rails: Option<Vec<String>>,
     #[serde(default = "HubrisConfigI2cPower::default_pmbus")]
     pmbus: bool,
+
+    /// Lists which sensor types have a one-to-one association with power rails
+    ///
+    /// When `None`, we assume that all sensor types are mapped one-to-one with
+    /// rails.  Otherwise, *only* the listed sensor types are associated with
+    /// rails (which is the case in systems with independent temperature sensor
+    /// and power rails).
+    sensors: Option<Vec<HubrisSensorKind>>,
 }
 
 impl HubrisConfigI2cPower {
@@ -208,7 +216,8 @@ pub struct HubrisI2cDevice {
     pub removable: bool,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
 pub enum HubrisSensorKind {
     Temperature,
     Power,
@@ -2218,7 +2227,8 @@ impl HubrisArchive {
         }
 
         let sensor_name = |d: &HubrisConfigI2cDevice,
-                           idx: usize|
+                           idx: usize,
+                           kind: HubrisSensorKind|
          -> Result<String> {
             if let Some(pmbus) = &d.pmbus {
                 if let Some(rails) = &pmbus.rails {
@@ -2228,10 +2238,15 @@ impl HubrisArchive {
                         bail!("sensor count exceeds rails for {:?}", d);
                     }
                 }
-            }
-
-            if let Some(power) = &d.power {
-                if let Some(rails) = &power.rails {
+            } else if d.power.is_some()
+                && d.power
+                    .as_ref()
+                    .unwrap()
+                    .sensors
+                    .as_ref()
+                    .map_or(true, |s| s.contains(&kind))
+            {
+                if let Some(rails) = &d.power.as_ref().unwrap().rails {
                     if idx < rails.len() {
                         return Ok(rails[idx].clone());
                     } else {
@@ -2261,6 +2276,14 @@ impl HubrisArchive {
             } else {
                 Ok(format!("{}#{}", d.device, idx))
             }
+        };
+        let get_sensor = |d: &HubrisConfigI2cDevice,
+                          i: usize,
+                          ndx: usize,
+                          kind: HubrisSensorKind|
+         -> Result<HubrisSensor> {
+            let name = sensor_name(d, i, kind)?;
+            Ok(HubrisSensor { name, kind, device: ndx })
         };
 
         if let Some(ref devices) = i2c.devices {
@@ -2298,41 +2321,46 @@ impl HubrisArchive {
                     let ndx = self.manifest.i2c_devices.len();
 
                     for i in 0..sensors.temperature {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Temperature,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Temperature,
+                        )?);
                     }
 
                     for i in 0..sensors.power {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Power,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Power,
+                        )?);
                     }
                     for i in 0..sensors.current {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Current,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Current,
+                        )?);
                     }
                     for i in 0..sensors.voltage {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Voltage,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Voltage,
+                        )?);
                     }
 
                     for i in 0..sensors.speed {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Speed,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Speed,
+                        )?);
                     }
                 }
 
