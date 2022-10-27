@@ -759,18 +759,24 @@ fn summarize(
     let results = context.run(core, ops.as_slice(), None)?;
     let mut base = 0;
 
-    print!("{:13} {:16} {:3} {:4}", "DEVICE", "RAIL", "PG?", "#FLT");
+    print!(
+        "{:13} {:16} {:3} {:4}",
+        "DEVICE".bold(),
+        "RAIL".bold(),
+        "PG?".bold(),
+        "#FLT".bold()
+    );
 
     for (_, header) in commands.iter() {
         if let Some(header) = header {
-            print!(" {:>width$}", header, width = width);
+            print!(" {:>width$}", header.bold(), width = width);
         }
     }
 
     println!();
 
     for (device, driver, rail, calls) in &work {
-        summarize_rail(
+        if let Err(e) = summarize_rail(
             subargs,
             device,
             driver,
@@ -779,7 +785,14 @@ fn summarize(
             &results[base..base + calls.len()],
             func,
             width,
-        )?;
+        ) {
+            println!(
+                " {0}  {1} {2}  {0} ",
+                "--".dimmed(),
+                "error:".yellow(),
+                e,
+            );
+        }
 
         base += calls.len();
     }
