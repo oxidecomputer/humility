@@ -36,7 +36,7 @@ const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
-const MAX_HUBRIS_VERSION: u32 = 3;
+const MAX_HUBRIS_VERSION: u32 = 4;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
