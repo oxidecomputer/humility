@@ -282,7 +282,7 @@ fn print(
         }
 
         if let Some(output) = &mut output {
-            write!(output, "{}", (now - start).as_secs())?;
+            write!(output, "{}", (now - start).as_secs_f32())?;
             for val in rval {
                 if let Some(val) = val {
                     write!(output, "{}", val)?;
