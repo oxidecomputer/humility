@@ -19,7 +19,8 @@
 //!
 //! By default, `humility sensors` displays the value of each specified sensor
 //! and exits; to read values once per second, use the `-s` (`--sleep`)
-//! option. To print values as a table, use `--tabular`.
+//! option. To print values as a table, use `--tabular`; to log to an output
+//! file, specify `--output`.
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
@@ -32,6 +33,7 @@ use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::collections::HashSet;
+use std::io::Write;
 use std::thread;
 use std::time::Duration;
 
@@ -78,6 +80,13 @@ struct SensorsArgs {
         use_value_delimiter = true
     )]
     named: Option<Vec<String>>,
+
+    /// CSV output file
+    #[clap(long, short)]
+    output: Option<String>,
+
+    #[clap(long, short, default_value = "1000", requires = "sleep")]
+    interval: u64,
 }
 
 fn list(
@@ -215,8 +224,28 @@ fn print(
         println!();
     }
 
+    let mut output = if let Some(output) = &subargs.output {
+        let mut f = std::fs::File::create(output)?;
+        let names = sensors
+            .iter()
+            .map(|(_i, s)| {
+                format!(
+                    "{}_{}",
+                    s.name.to_uppercase(),
+                    s.kind.to_string().to_uppercase()
+                )
+            })
+            .collect::<Vec<String>>();
+        writeln!(&mut f, "TIME,{}", names.join(","))?;
+        Some(f)
+    } else {
+        None
+    };
+
+    let start = std::time::Instant::now();
     loop {
         let mut rval = vec![];
+        let now = std::time::Instant::now();
 
         for ops in &all_ops {
             let results = context.run(core, ops.as_slice(), None)?;
@@ -231,7 +260,7 @@ fn print(
         }
 
         if subargs.tabular {
-            for val in rval {
+            for val in &rval {
                 if let Some(val) = val {
                     print!(" {:>12.2}", val);
                 } else {
@@ -252,11 +281,22 @@ fn print(
             }
         }
 
+        if let Some(output) = &mut output {
+            write!(output, "{}", (now - start).as_secs())?;
+            for val in rval {
+                if let Some(val) = val {
+                    write!(output, "{}", val)?;
+                }
+                write!(output, ",")?;
+            }
+            writeln!(output)?;
+        }
+
         if !subargs.sleep {
             break;
         }
 
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(subargs.interval));
     }
 
     Ok(())
