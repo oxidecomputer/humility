@@ -275,11 +275,42 @@ impl HubrisSensorKind {
 }
 
 //
+// This is the Hubris definition
+//
+#[derive(Debug, Deserialize)]
+pub enum FlashProgram {
+    PyOcd(Vec<FlashArgument>),
+    OpenOcd(FlashProgramConfig),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum FlashProgramConfig {
+    Path(Vec<String>),
+    Payload(String),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum FlashArgument {
+    Direct(String),
+    Payload,
+    FormattedPayload(String, String),
+    Config,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HubrisFlashMeta {
+    pub program: FlashProgram,
+    pub args: Vec<FlashArgument>,
+    pub chip: Option<String>,
+}
+
+//
 // Flash information pulled from the archive
 //
 pub struct HubrisFlashConfig {
-    pub metadata: String,
+    pub metadata: HubrisFlashMeta,
     pub elf: Vec<u8>,
+    pub chip: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -2720,7 +2751,90 @@ impl HubrisArchive {
             })?
             .read_to_string(&mut flash)?;
 
-        Ok(HubrisFlashConfig { metadata: flash, elf: slurp!("img/final.elf") })
+        let config: HubrisFlashMeta = ron::from_str(&flash)?;
+
+        // This is incredibly ugly! It also gives us backwards compatibility!
+        let chip: Option<String> = match config.chip {
+            Some(ref chip) => Some(chip.to_string()),
+            None => match &config.program {
+                FlashProgram::PyOcd(args) => {
+                    let s69 = regex::Regex::new(r"lpc55s69").unwrap();
+                    let s28 = regex::Regex::new(r"lpc55s28").unwrap();
+                    let mut c: Option<String> = None;
+                    for arg in args {
+                        c = match arg {
+                            FlashArgument::Direct(s) => {
+                                if s69.is_match(s) {
+                                    Some("LPC55S69JBD100".to_string())
+                                } else if s28.is_match(s) {
+                                    Some("LPC55S28JBD64".to_string())
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        };
+                        if c.is_some() {
+                            break;
+                        }
+                    }
+                    c
+                }
+                FlashProgram::OpenOcd(ref a) => match a {
+                    FlashProgramConfig::Payload(d) => {
+                        let h7 =
+                            regex::Regex::new(r"find target/stm32h7").unwrap();
+                        let f3 =
+                            regex::Regex::new(r"find target/stm32f3").unwrap();
+                        let f4 =
+                            regex::Regex::new(r"find target/stm32f4").unwrap();
+                        let g0 =
+                            regex::Regex::new(r"find target/stm32g0").unwrap();
+
+                        let mut c: Option<String> = None;
+
+                        for s in d.split('\n') {
+                            if h7.is_match(s) {
+                                c = Some("STM32H753ZITx".to_string());
+                                break;
+                            }
+                            if f3.is_match(s) {
+                                c = Some("STM32F301C6Tx".to_string());
+                                break;
+                            }
+                            if f4.is_match(s) {
+                                c = Some("STM32F401CBUx".to_string());
+                                break;
+                            }
+                            if g0.is_match(s) {
+                                c = Some("STM32G030C6Tx".to_string());
+                                break;
+                            }
+                        }
+                        c
+                    }
+                    _ => bail!("Unexpected config?"),
+                },
+            },
+        };
+
+        Ok(HubrisFlashConfig {
+            metadata: config,
+            elf: slurp!("img/final.elf"),
+            chip,
+        })
+    }
+
+    pub fn chip(&self) -> Option<String> {
+        // It turns out the easiest way right now to get the chip is via the
+        // flash config. Long term we may want to fix this
+        //
+
+        let flash = match self.load_flash_config() {
+            Ok(f) => f,
+            Err(_) => return None,
+        };
+        flash.chip
     }
 
     fn load_registers(&mut self, r: &[u8]) -> Result<()> {
