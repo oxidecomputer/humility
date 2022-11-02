@@ -37,8 +37,6 @@ use path_slash::PathExt;
 use std::io::Write;
 use std::process::ExitStatus;
 
-use serde::Deserialize;
-
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct FlashArgs {
@@ -68,41 +66,11 @@ struct FlashArgs {
     reset_delay: u64,
 }
 
-//
-// This is the Hubris definition
-//
-#[derive(Debug, Deserialize)]
-enum FlashProgram {
-    PyOcd(Vec<FlashArgument>),
-    OpenOcd(FlashProgramConfig),
-}
-
-#[derive(Debug, Deserialize)]
-enum FlashProgramConfig {
-    Path(Vec<String>),
-    Payload(String),
-}
-
-#[derive(Debug, Deserialize)]
-enum FlashArgument {
-    Direct(String),
-    Payload,
-    FormattedPayload(String, String),
-    Config,
-}
-
-#[derive(Debug, Deserialize)]
-struct FlashConfig {
-    program: FlashProgram,
-    args: Vec<FlashArgument>,
-    chip: Option<String>,
-}
-
 fn force_openocd(
     hubris: &mut HubrisArchive,
     args: &Cli,
     subargs: &FlashArgs,
-    config: &FlashConfig,
+    config: &HubrisFlashMeta,
     elf: &[u8],
 ) -> Result<()> {
     // Images that include auxiliary flash data *must* be programmed through
@@ -246,10 +214,9 @@ fn force_openocd(
 fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
-    let flash = hubris.load_flash_config()?;
     let subargs = FlashArgs::try_parse_from(subargs)?;
 
-    let config: FlashConfig = ron::from_str(&flash.metadata)?;
+    let config = hubris.load_flash_config()?;
 
     if subargs.force_openocd {
         humility::msg!("forcing flashing using OpenOCD");
@@ -257,106 +224,27 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             hubris,
             &context.cli,
             &subargs,
-            &config,
-            &flash.elf,
+            &config.metadata,
+            &config.elf,
         );
     }
-
-    // This is incredibly ugly! It also gives us backwards compatibility!
-    let chip = match config.chip {
-        Some(chip) => chip,
-        None => match &config.program {
-            FlashProgram::PyOcd(args) => {
-                let s69 = regex::Regex::new(r"lpc55s69").unwrap();
-                let s28 = regex::Regex::new(r"lpc55s28").unwrap();
-                let mut c: Option<String> = None;
-                for arg in args {
-                    c = match arg {
-                        FlashArgument::Direct(s) => {
-                            if s69.is_match(s) {
-                                Some("LPC55S69JBD100".to_string())
-                            } else if s28.is_match(s) {
-                                Some("LPC55S28JBD64".to_string())
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    };
-
-                    if c.is_some() {
-                        break;
-                    }
-                }
-
-                if c.is_none() {
-                    humility::msg!(
-                        "could not get chip from OpenOCD config; \
-                        flashing using OpenOCD"
-                    );
-                    return force_openocd(
-                        hubris,
-                        &context.cli,
-                        &subargs,
-                        &config,
-                        &flash.elf,
-                    );
-                }
-
-                c.unwrap()
-            }
-            FlashProgram::OpenOcd(ref a) => match a {
-                FlashProgramConfig::Payload(d) => {
-                    let h7 = regex::Regex::new(r"find target/stm32h7").unwrap();
-                    let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
-                    let f4 = regex::Regex::new(r"find target/stm32f4").unwrap();
-                    let g0 = regex::Regex::new(r"find target/stm32g0").unwrap();
-
-                    let mut c: Option<String> = None;
-
-                    for s in d.split('\n') {
-                        if h7.is_match(s) {
-                            c = Some("STM32H753ZITx".to_string());
-                            break;
-                        }
-                        if f3.is_match(s) {
-                            c = Some("STM32F301C6Tx".to_string());
-                            break;
-                        }
-                        if f4.is_match(s) {
-                            c = Some("STM32F401CBUx".to_string());
-                            break;
-                        }
-                        if g0.is_match(s) {
-                            c = Some("STM32G030C6Tx".to_string());
-                            break;
-                        }
-                    }
-
-                    if c.is_none() {
-                        humility::msg!(
-                            "could not get chip from OpenOCD config; \
-                        flashing using OpenOCD"
-                        );
-                        return force_openocd(
-                            hubris,
-                            &context.cli,
-                            &subargs,
-                            &config,
-                            &flash.elf,
-                        );
-                    }
-
-                    c.unwrap()
-                }
-                _ => bail!("Unexpected config?"),
-            },
-        },
-    };
 
     let probe = match &context.cli.probe {
         Some(p) => p,
         None => "auto",
+    };
+
+    let chip = match config.chip {
+        Some(c) => c,
+        None => {
+            return force_openocd(
+                hubris,
+                &context.cli,
+                &subargs,
+                &config.metadata,
+                &config.elf,
+            )
+        }
     };
 
     humility::msg!("attaching with chip set to {:x?}", chip);
@@ -385,7 +273,7 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     let ihex = tempfile::NamedTempFile::new()?;
-    std::fs::write(&ihex, generate_ihex_from_elf(&flash.elf)?)?;
+    std::fs::write(&ihex, generate_ihex_from_elf(&config.elf)?)?;
     let ihex_path = ihex.path();
 
     //

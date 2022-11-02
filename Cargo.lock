@@ -1827,6 +1827,7 @@ dependencies = [
  "parse_int",
  "probe-rs",
  "regex",
+ "ron 0.7.1",
  "rusb",
  "rustc-demangle",
  "scroll",
