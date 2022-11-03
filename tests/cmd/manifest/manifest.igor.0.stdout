@@ -1,0 +1,118 @@
+     version => hubris build archive v4
+     git rev => a7b464d72693127b22060bb996e4030ec9a2ad02-dirty
+    image id => [84, f8, f6, 98, f0, d9, f0, 64]
+       board => gimlet-b
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 682K
+ kernel size => 35K
+       tasks => 23
+                ID TASK                SIZE FEATURES
+                 0 thermal            33.6K itm, gimlet
+                 1 gimlet_seq         64.1K h753
+                 2 net                162.8K mgmt, h753, gimlet, vlan
+                 3 control_plane_agent 70.1K gimlet, usart1, vlan, baud_rate_3M, hardware_flow_control
+                 4 power              33.9K itm, gimlet
+                 5 hiffy              56.4K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash
+                 6 spi4_driver        16.1K spi4, h753
+                 7 spi2_driver        16.1K spi2, h753
+                 8 i2c_driver         16.1K h753, itm
+                 9 spd                24.1K h753, itm
+                10 hash_driver        16.1K h753
+                11 hf                 16.1K h753, hash
+                12 update_server      16.1K 
+                13 host_sp_comms      29.6K stm32h753, uart7, baud_rate_3M, hardware_flow_control
+                14 udprpc             16.1K vlan
+                15 validate           16.1K 
+                16 jefe                8.1K itm
+                17 sensor              8.1K itm
+                18 udpecho             8.1K vlan
+                19 udpbroadcast        8.1K vlan
+                20 vpd                 8.1K 
+                21 sys                 2.0K h753
+                22 idle                0.1K 
+   i2c buses => 4 controllers, 5 buses
+                C PORT MODE NAME          DESCRIPTION
+                1 B    trgt spd           SPD proxy
+                2 B    init m2            M.2 bus
+                2 F    init front         Front bus
+                3 H    init mid           Mid bus
+                4 F    init rear          Rear bus
+ i2c devices => 76 devices
+                C P  MUX ADDR DEVICE        DESCRIPTION
+                2 F  -   0x48 tmp117        Southwest temperature sensor
+                2 F  -   0x49 tmp117        South temperature sensor
+                2 F  -   0x4a tmp117        Southeast temperature sensor
+                2 F  -   0x70 pca9545       U.2 ABCD mux
+                2 F  -   0x71 pca9545       U.2 EFGH mux
+                2 F  -   0x72 pca9545       U.2 IJ/FRUID mux
+                2 F  1:1 0x50 at24csw080    U.2 Sharkfin A VPD
+                2 F  1:1 0x38 max5970       U.2 Sharkfin A hot swap controller
+                2 F  1:1 0x6a nvme_bmc      U.2 A NVMe Basic Management Command
+                2 F  1:2 0x50 at24csw080    U.2 Sharkfin B VPD
+                2 F  1:2 0x38 max5970       U.2 Sharkfin B hot swap controller
+                2 F  1:2 0x6a nvme_bmc      U.2 B NVMe Basic Management Control
+                2 F  1:3 0x50 at24csw080    U.2 Sharkfin C VPD
+                2 F  1:3 0x38 max5970       U.2 Sharkfin C hot swap controller
+                2 F  1:3 0x6a nvme_bmc      U.2 C NVMe Basic Management Control
+                2 F  1:4 0x50 at24csw080    U.2 Sharkfin D VPD
+                2 F  1:4 0x38 max5970       U.2 Sharkfin D hot swap controller
+                2 F  1:4 0x6a nvme_bmc      U.2 D NVMe Basic Management Control
+                2 F  2:1 0x50 at24csw080    U.2 Sharkfin E VPD
+                2 F  2:1 0x38 max5970       U.2 Sharkfin E hot swap controller
+                2 F  2:1 0x6a nvme_bmc      U.2 E NVMe Basic Management Control
+                2 F  2:2 0x50 at24csw080    U.2 Sharkfin F VPD
+                2 F  2:2 0x38 max5970       U.2 Sharkfin F hot swap controller
+                2 F  2:2 0x6a nvme_bmc      U.2 F NVMe Basic Management Control
+                2 F  2:3 0x50 at24csw080    U.2 Sharkfin G VPD
+                2 F  2:3 0x38 max5970       U.2 Sharkfin G hot swap controller
+                2 F  2:3 0x6a nvme_bmc      U.2 G NVMe Basic Management Control
+                2 F  2:4 0x50 at24csw080    U.2 Sharkfin H VPD
+                2 F  2:4 0x38 max5970       U.2 Sharkfin H hot swap controller
+                2 F  2:4 0x6a nvme_bmc      U.2 H NVMe Basic Management Control
+                2 F  3:1 0x50 at24csw080    U.2 Sharkfin I VPD
+                2 F  3:1 0x38 max5970       U.2 Sharkfin I hot swap controller
+                2 F  3:1 0x6a nvme_bmc      U.2 I NVMe Basic Management Control
+                2 F  3:2 0x50 at24csw080    U.2 Sharkfin J VPD
+                2 F  3:2 0x38 max5970       U.2 Sharkfin J hot swap controller
+                2 F  3:2 0x6a nvme_bmc      U.2 J NVMe Basic Management Control
+                2 F  3:4 0x50 at24csw080    Gimlet VPD
+                2 B  -   0x73 pca9545       M.2 mux
+                2 B  1:1 0x6a m2_hp_only    M.2 A NVMe Basic Management Command
+                2 B  1:2 0x6a m2_hp_only    M.2 B NVMe Basic Management Command
+                2 B  1:3 0x50 at24csw080    Fan VPD
+                2 B  1:4 0x4c tmp451        T6 temperature sensor
+                3 H  -   0x24 tps546b24a    A2 3.3V rail
+                3 H  -   0x26 tps546b24a    A0 3.3V rail
+                3 H  -   0x27 tps546b24a    A2 5V rail
+                3 H  -   0x29 tps546b24a    A2 1.8V rail
+                3 H  -   0x3a max5970       M.2 hot plug controller
+                3 H  -   0x4c sbtsi         CPU temperature sensor
+                3 H  -   0x58 idt8a34003    Clock generator
+                3 H  -   0x5a raa229618     CPU power controller
+                3 H  -   0x5b raa229618     SoC power controller
+                3 H  -   0x5c isl68224      DIMM/SP3 1.8V A0 power controller
+                4 F  -   0x10 adm1272       Fan hot swap controller
+                4 F  -   0x14 adm1272       Sled hot swap controller
+                4 F  -   0x20 max31790      Fan controller
+                4 F  -   0x25 tps546b24a    T6 power controller
+                4 F  -   0x48 tmp117        Northeast temperature sensor
+                4 F  -   0x49 tmp117        North temperature sensor
+                4 F  -   0x4a tmp117        Northwest temperature sensor
+                4 F  -   0x67 bmr491        Intermediate bus converter
+                3 H  -   0x18 tse2004av     DIMM A0
+                3 H  -   0x19 tse2004av     DIMM A1
+                3 H  -   0x1a tse2004av     DIMM B0
+                3 H  -   0x1b tse2004av     DIMM B1
+                3 H  -   0x1c tse2004av     DIMM C0
+                3 H  -   0x1d tse2004av     DIMM C1
+                3 H  -   0x1e tse2004av     DIMM D0
+                3 H  -   0x1f tse2004av     DIMM D1
+                4 F  -   0x18 tse2004av     DIMM E0
+                4 F  -   0x19 tse2004av     DIMM E1
+                4 F  -   0x1a tse2004av     DIMM F0
+                4 F  -   0x1b tse2004av     DIMM F1
+                4 F  -   0x1c tse2004av     DIMM G0
+                4 F  -   0x1d tse2004av     DIMM G1
+                4 F  -   0x1e tse2004av     DIMM H0
+                4 F  -   0x1f tse2004av     DIMM H1
