@@ -152,16 +152,32 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
     let mut ringbufs = vec![];
 
     for v in hubris.qualified_variables() {
-        if let Some(ref name) = subargs.name {
-            if v.0.eq(name)
-                || (v.0.ends_with("RINGBUF")
-                    && (v.0.contains(name)
-                        || taskname(hubris, v.1)?.contains(name)))
-            {
-                ringbufs.push(v);
+        let def = match hubris.lookup_struct(v.1.goff) {
+            Ok(s) => {
+                // Skip variables whose type does not indicate they contain a
+                // ringbuf; this check is imprecise but probably good enough
+                if s.name.contains("Ringbuf") {
+                    Some(s)
+                } else {
+                    continue;
+                }
             }
-        } else if v.0.ends_with("RINGBUF") {
-            ringbufs.push(v);
+            Err(_) => {
+                // Type lookup failed, so fall back to the variable name
+                if v.0.ends_with("RINGBUF") {
+                    None
+                } else {
+                    continue;
+                }
+            }
+        };
+
+        if let Some(ref name) = subargs.name {
+            if v.0.contains(name) || taskname(hubris, v.1)?.contains(name) {
+                ringbufs.push((v, def));
+            }
+        } else {
+            ringbufs.push((v, def));
         }
     }
 
@@ -173,12 +189,12 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
         }
     }
 
-    ringbufs.sort();
+    ringbufs.sort_by_key(|&(v, _def)| v);
 
     if subargs.list {
         println!("{:18} {:<30} {:<10} {}", "MODULE", "BUFFER", "ADDR", "SIZE");
 
-        for v in ringbufs {
+        for (v, _def) in ringbufs {
             let t = taskname(hubris, v.1)?;
 
             println!("{:18} {:<30} 0x{:08x} {:<}", t, v.0, v.1.addr, v.1.size);
@@ -187,7 +203,7 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    for v in ringbufs {
+    for (v, def) in ringbufs {
         // Try not to use `?` here, because it causes one bad ringbuf to make
         // them all unavailable.
         println!(
@@ -195,7 +211,7 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
             v.0,
             taskname(hubris, v.1).unwrap_or("???")
         );
-        if let Ok(def) = hubris.lookup_struct(v.1.goff) {
+        if let Some(def) = def {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
                 humility::msg!("ringbuf dump failed: {}", e);
             }
