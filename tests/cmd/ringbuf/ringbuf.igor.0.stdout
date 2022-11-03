@@ -1,0 +1,448 @@
+humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
+ NDX LINE      GEN    COUNT PAYLOAD
+  39  366     2249        1 Status(0x0, 0x0, 0xff)
+  40  394     2249        1 NICPowerEnableLow(false)
+  41  366     2249        1 Status(0x0, 0x0, 0xff)
+  42  394     2249        1 NICPowerEnableLow(false)
+  43  366     2249        1 Status(0x0, 0x0, 0xff)
+  44  394     2249        1 NICPowerEnableLow(false)
+  45  366     2249        1 Status(0x0, 0x0, 0xff)
+  46  394     2249        1 NICPowerEnableLow(false)
+  47  366     2249        1 Status(0x0, 0x0, 0xff)
+  48  394     2249        1 NICPowerEnableLow(false)
+  49  366     2249        1 Status(0x0, 0x0, 0xff)
+  50  394     2249        1 NICPowerEnableLow(false)
+  51  366     2249        1 Status(0x0, 0x0, 0xff)
+  52  394     2249        1 NICPowerEnableLow(false)
+  53  366     2249        1 Status(0x0, 0x0, 0xff)
+  54  394     2249        1 NICPowerEnableLow(false)
+  55  366     2249        1 Status(0x0, 0x0, 0xff)
+  56  394     2249        1 NICPowerEnableLow(false)
+  57  366     2249        1 Status(0x0, 0x0, 0xff)
+  58  394     2249        1 NICPowerEnableLow(false)
+  59  366     2249        1 Status(0x0, 0x0, 0xff)
+  60  394     2249        1 NICPowerEnableLow(false)
+  61  366     2249        1 Status(0x0, 0x0, 0xff)
+  62  394     2249        1 NICPowerEnableLow(false)
+  63  366     2249        1 Status(0x0, 0x0, 0xff)
+   0  394     2250        1 NICPowerEnableLow(false)
+   1  366     2250        1 Status(0x0, 0x0, 0xff)
+   2  394     2250        1 NICPowerEnableLow(false)
+   3  366     2250        1 Status(0x0, 0x0, 0xff)
+   4  394     2250        1 NICPowerEnableLow(false)
+   5  366     2250        1 Status(0x0, 0x0, 0xff)
+   6  394     2250        1 NICPowerEnableLow(false)
+   7  366     2250        1 Status(0x0, 0x0, 0xff)
+   8  394     2250        1 NICPowerEnableLow(false)
+   9  366     2250        1 Status(0x0, 0x0, 0xff)
+  10  394     2250        1 NICPowerEnableLow(false)
+  11  366     2250        1 Status(0x0, 0x0, 0xff)
+  12  394     2250        1 NICPowerEnableLow(false)
+  13  366     2250        1 Status(0x0, 0x0, 0xff)
+  14  394     2250        1 NICPowerEnableLow(false)
+  15  366     2250        1 Status(0x0, 0x0, 0xff)
+  16  394     2250        1 NICPowerEnableLow(false)
+  17  366     2250        1 Status(0x0, 0x0, 0xff)
+  18  394     2250        1 NICPowerEnableLow(false)
+  19  366     2250        1 Status(0x0, 0x0, 0xff)
+  20  394     2250        1 NICPowerEnableLow(false)
+  21  366     2250        1 Status(0x0, 0x0, 0xff)
+  22  394     2250        1 NICPowerEnableLow(false)
+  23  366     2250        1 Status(0x0, 0x0, 0xff)
+  24  394     2250        1 NICPowerEnableLow(false)
+  25  366     2250        1 Status(0x0, 0x0, 0xff)
+  26  394     2250        1 NICPowerEnableLow(false)
+  27  366     2250        1 Status(0x0, 0x0, 0xff)
+  28  394     2250        1 NICPowerEnableLow(false)
+  29  366     2250        1 Status(0x0, 0x0, 0xff)
+  30  394     2250        1 NICPowerEnableLow(false)
+  31  366     2250        1 Status(0x0, 0x0, 0xff)
+  32  394     2250        1 NICPowerEnableLow(false)
+  33  366     2250        1 Status(0x0, 0x0, 0xff)
+  34  394     2250        1 NICPowerEnableLow(false)
+  35  366     2250        1 Status(0x0, 0x0, 0xff)
+  36  394     2250        1 NICPowerEnableLow(false)
+  37  366     2250        1 Status(0x0, 0x0, 0xff)
+  38  394     2250        1 NICPowerEnableLow(false)
+humility: ring buffer drv_i2c_devices::adm1272::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   94        1        1 Config(CommandData(0x3f3f))
+   1  147        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   2  165        1        1 Coefficients(Coefficients { m: 0x297, b: 0x5000, R: 0xff })
+   3  193        1        1 Coefficients(Coefficients { m: 0x2927, b: 0x0, R: 0xfd })
+   4   94        1        1 Config(CommandData(0x3f3f))
+   5  147        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   6  165        1        1 Coefficients(Coefficients { m: 0x52e, b: 0x5000, R: 0xff })
+   7  193        1        1 Coefficients(Coefficients { m: 0x524e, b: 0x0, R: 0xfd })
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi4_driver:
+humility: ring buffer drv_stm32h7_spi_server::__RINGBUF in spi2_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  18  438    57903        1 Rx(0xf)
+  19  404    57903        1 Tx(0x0)
+  20  468    57903        1 WaitISR(0x90002)
+  21  438    57903        1 Rx(0xff)
+  22  404    57903        1 Tx(0x0)
+  23  468    57903        1 WaitISR(0x80012)
+  24  438    57903        1 Rx(0x0)
+  25  468    57903        1 WaitISR(0x70012)
+  26  438    57903        1 Rx(0x7f)
+  27  468    57903        1 WaitISR(0x60012)
+  28  438    57903        1 Rx(0x2)
+  29  468    57903        1 WaitISR(0x50012)
+  30  438    57903        1 Rx(0x0)
+  31  468    57903        1 WaitISR(0x40012)
+  32  438    57903        1 Rx(0x0)
+  33  468    57903        1 WaitISR(0x30012)
+  34  438    57903        1 Rx(0x0)
+  35  468    57903        1 WaitISR(0x20012)
+  36  438    57903        1 Rx(0x0)
+  37  468    57903        1 WaitISR(0x10012)
+  38  438    57903        1 Rx(0x0)
+  39  286    57903        1 Start(exchange, (0x10, 0x10))
+  40  404    57903        1 Tx(0x1)
+  41  404    57903        1 Tx(0x0)
+  42  404    57903        1 Tx(0xf)
+  43  404    57903        5 Tx(0x0)
+  44  468    57903        1 WaitISR(0x100002)
+  45  438    57903        1 Rx(0x0)
+  46  404    57903        1 Tx(0x0)
+  47  468    57903        1 WaitISR(0xf0002)
+  48  438    57903        1 Rx(0x0)
+  49  404    57903        1 Tx(0x0)
+  50  438    57903        1 Rx(0x0)
+  51  404    57903        1 Tx(0x0)
+  52  468    57903        1 WaitISR(0xd0002)
+  53  438    57903        1 Rx(0x0)
+  54  404    57903        1 Tx(0x0)
+  55  468    57903        1 WaitISR(0xc0002)
+  56  438    57903        1 Rx(0x0)
+  57  404    57903        1 Tx(0x0)
+  58  468    57903        1 WaitISR(0xb0002)
+  59  438    57903        1 Rx(0xf)
+  60  404    57903        1 Tx(0x0)
+  61  438    57903        1 Rx(0x6)
+  62  404    57903        1 Tx(0x0)
+  63  468    57903        1 WaitISR(0x90002)
+   0  438    57904        1 Rx(0x3)
+   1  404    57904        1 Tx(0x0)
+   2  468    57904        1 WaitISR(0x80012)
+   3  438    57904        1 Rx(0x0)
+   4  468    57904        1 WaitISR(0x70012)
+   5  438    57904        1 Rx(0x5)
+   6  468    57904        1 WaitISR(0x60012)
+   7  438    57904        1 Rx(0xc)
+   8  468    57904        1 WaitISR(0x50012)
+   9  438    57904        1 Rx(0x5)
+  10  468    57904        1 WaitISR(0x40012)
+  11  438    57904        1 Rx(0x1)
+  12  468    57904        1 WaitISR(0x30012)
+  13  438    57904        1 Rx(0x0)
+  14  468    57904        1 WaitISR(0x20012)
+  15  438    57904        1 Rx(0xf)
+  16  468    57904        1 WaitISR(0x10012)
+  17  438    57904        1 Rx(0x0)
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  25  546    44829        3 WriteWaitISR(0x8021)
+  26  546    44829        1 WriteWaitISR(0x8061)
+  27  608    44829        2 ReadISR(0x8021)
+  28  608    44829        1 ReadISR(0x8025)
+  29  608    44829        2 ReadISR(0x8021)
+  30  608    44829        1 ReadISR(0x8025)
+  31  643    44829        2 ReadWaitISR(0x8021)
+  32  643    44829        1 ReadWaitISR(0x8061)
+  33  426    44829        1 WaitISR(0x21)
+  34  516    44829        1 WriteISR(0x21)
+  35  516    44829        2 WriteISR(0x8021)
+  36  516    44829        1 WriteISR(0x8023)
+  37  546    44829        3 WriteWaitISR(0x8021)
+  38  546    44829        1 WriteWaitISR(0x8061)
+  39  608    44829        2 ReadISR(0x8021)
+  40  608    44829        1 ReadISR(0x8025)
+  41  608    44829        2 ReadISR(0x8021)
+  42  608    44829        1 ReadISR(0x8025)
+  43  643    44829        2 ReadWaitISR(0x8021)
+  44  643    44829        1 ReadWaitISR(0x8061)
+  45  426    44829        1 WaitISR(0x21)
+  46  516    44829        1 WriteISR(0x21)
+  47  516    44829        2 WriteISR(0x8021)
+   0  516    44830        1 WriteISR(0x8023)
+   1  546    44830        1 WriteWaitISR(0x8020)
+   2  546    44830        2 WriteWaitISR(0x8021)
+   3  546    44830        1 WriteWaitISR(0x8061)
+   4  608    44830        2 ReadISR(0x8021)
+   5  608    44830        1 ReadISR(0x8025)
+   6  608    44830        2 ReadISR(0x8021)
+   7  608    44830        1 ReadISR(0x8025)
+   8  643    44830        2 ReadWaitISR(0x8021)
+   9  643    44830        1 ReadWaitISR(0x8061)
+  10  426    44830        1 WaitISR(0x21)
+  11  516    44830        1 WriteISR(0x21)
+  12  516    44830        2 WriteISR(0x8021)
+  13  516    44830        1 WriteISR(0x8023)
+  14  546    44830        3 WriteWaitISR(0x8021)
+  15  546    44830        1 WriteWaitISR(0x8061)
+  16  608    44830        2 ReadISR(0x8021)
+  17  608    44830        1 ReadISR(0x8025)
+  18  608    44830        2 ReadISR(0x8021)
+  19  608    44830        1 ReadISR(0x8025)
+  20  643    44830        1 ReadWaitISR(0x8021)
+  21  643    44830        1 ReadWaitISR(0x1061)
+  22  426    44830        1 WaitISR(0x1021)
+  23  516    44830        1 WriteISR(0x21)
+  24  516    44830        2 WriteISR(0x8021)
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+  20  938     1649        1 WaitRx
+  21  859     1649        1 RxISR(0x368001)
+  22  938     1649        1 WaitRx
+  23  859     1649        1 RxISR(0x368005)
+  24  886     1649        1 RxNack(0x1b, 0x0)
+  25  859     1649        1 RxISR(0x368001)
+  26  938     1649        1 WaitRx
+  27  859     1649        1 RxISR(0x368001)
+  28  938     1649        1 WaitRx
+  29  859     1649        1 RxISR(0x368005)
+  30  886     1649        1 RxNack(0x1b, 0xa0)
+  31  859     1649        1 RxISR(0x368001)
+  32  938     1649        1 WaitRx
+  33  859     1649        1 RxISR(0x360021)
+  34  898     1649        1 Stop
+  35  796     1649        1 AddrISR(0x360001)
+  36  819     1649        1 WaitAddr
+  37  796     1649        1 AddrISR(0x360001)
+  38  819     1649        1 WaitAddr
+  39  796     1649        1 AddrISR(0x368009)
+  40  811     1649        1 AddrMatch
+  41  844     1649        1 AddrNack(0x1b)
+  42  859     1649        1 RxISR(0x368001)
+  43  938     1649        1 WaitRx
+  44  859     1649        1 RxISR(0x368001)
+  45  938     1649        1 WaitRx
+  46  859     1649        1 RxISR(0x368005)
+  47  886     1649        1 RxNack(0x1b, 0x1)
+   0  859     1650        1 RxISR(0x368001)
+   1  938     1650        1 WaitRx
+   2  859     1650        1 RxISR(0x368001)
+   3  938     1650        1 WaitRx
+   4  859     1650        1 RxISR(0x368005)
+   5  886     1650        1 RxNack(0x1b, 0x4)
+   6  859     1650        1 RxISR(0x368001)
+   7  938     1650        1 WaitRx
+   8  859     1650        1 RxISR(0x368001)
+   9  938     1650        1 WaitRx
+  10  859     1650        1 RxISR(0x368005)
+  11  886     1650        1 RxNack(0x1b, 0x8)
+  12  859     1650        1 RxISR(0x368001)
+  13  938     1650        1 WaitRx
+  14  859     1650        1 RxISR(0x360021)
+  15  898     1650        1 Stop
+  16  796     1650        1 AddrISR(0x360001)
+  17  819     1650        1 WaitAddr
+  18  796     1650        1 AddrISR(0x360001)
+  19  819     1650        1 WaitAddr
+humility: ring buffer drv_stm32xx_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   6  173        4        1 Reset(I2C4, PortIndex(0x0))
+   7  308        4      149 Error
+   0  173        5        1 Reset(I2C2, PortIndex(0x1))
+   1  183        5        1 ResetMux(M2)
+   2  308        5        1 Error
+   3  173        5        1 Reset(I2C2, PortIndex(0x1))
+   4  183        5        1 ResetMux(M2)
+   5  308        5     1134 Error
+humility: ring buffer ksz8463::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   7  148        4        1 Write(IACR, 0x40f)
+   8  148        4        1 Write(P1VIDCR, 0x301)
+   9  148        4        1 Write(P2VIDCR, 0x302)
+  10  148        4        1 Write(P3VIDCR, 0x3ff)
+  11  134        4        1 Read(P1CR1, 0x0)
+  12  148        4        1 Write(P1CR1, 0x202)
+  13  134        4        1 Read(P2CR1, 0x0)
+  14  148        4        1 Write(P2CR1, 0x202)
+  15  134        4        1 Read(P3CR1, 0x0)
+   0  148        5        1 Write(P3CR1, 0x4)
+   1  148        5        1 Write(SGCR9, 0xa)
+   2  134        5        1 Read(P3CR2, 0x607)
+   3  148        5        1 Write(P3CR2, 0x4607)
+   4  134        5        1 Read(SGCR2, 0xf0)
+   5  148        5        1 Write(SGCR2, 0x80f0)
+   6  148        5        1 Write(CIDER, 0x1)
+humility: ring buffer stm32h7_update_server::__RINGBUF in update_server:
+humility: ring buffer task_control_plane_agent::__RINGBUF in control_plane_agent:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  123        1        1 Wake(0x2)
+   1  658        1        1 UsartRx { num_bytes: 0x1 }
+   2  123        1        1 Wake(0x2)
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
+ NDX LINE      GEN    COUNT PAYLOAD
+  44  613      100        1 Execute((0x6ac, Call(TargetFunction(0x1))))
+  45  613      100        1 Execute((0x6ae, DropN(0x8)))
+  46  613      100        1 Execute((0x6b0, Push(0xe)))
+  47  613      100        1 Execute((0x6b2, Push(0x1)))
+  48  613      100        1 Execute((0x6b4, Push(0x5a)))
+  49  613      100        1 Execute((0x6b6, Push(0x0)))
+  50  613      100        1 Execute((0x6b8, Push(0x0)))
+  51  613      100        1 Execute((0x6ba, Push(0x0)))
+  52  613      100        1 Execute((0x6bc, Push(0x4)))
+  53  613      100        1 Execute((0x6be, Push(0x4)))
+  54  613      100        1 Execute((0x6c0, Call(TargetFunction(0x1))))
+  55  613      100        1 Execute((0x6c2, DropN(0x8)))
+  56  613      100        1 Execute((0x6c4, Push(0xe)))
+  57  613      100        1 Execute((0x6c6, Push(0x1)))
+  58  613      100        1 Execute((0x6c8, Push(0x5b)))
+  59  613      100        1 Execute((0x6ca, Push(0x0)))
+  60  613      100        1 Execute((0x6cc, Push(0x0)))
+  61  613      100        1 Execute((0x6ce, Push(0x0)))
+  62  613      100        1 Execute((0x6d0, Push(0x4)))
+  63  613      100        1 Execute((0x6d2, Push(0x4)))
+   0  613      101        1 Execute((0x6d4, Call(TargetFunction(0x1))))
+   1  613      101        1 Execute((0x6d6, DropN(0x8)))
+   2  613      101        1 Execute((0x6d8, Push(0xe)))
+   3  613      101        1 Execute((0x6da, Push(0x1)))
+   4  613      101        1 Execute((0x6dc, Push(0x60)))
+   5  613      101        1 Execute((0x6de, Push(0x0)))
+   6  613      101        1 Execute((0x6e0, Push(0x0)))
+   7  613      101        1 Execute((0x6e2, Push(0x0)))
+   8  613      101        1 Execute((0x6e4, Push(0x4)))
+   9  613      101        1 Execute((0x6e6, Push(0x4)))
+  10  613      101        1 Execute((0x6e8, Call(TargetFunction(0x1))))
+  11  613      101        1 Execute((0x6ea, DropN(0x8)))
+  12  613      101        1 Execute((0x6ec, Push(0xe)))
+  13  613      101        1 Execute((0x6ee, Push(0x1)))
+  14  613      101        1 Execute((0x6f0, Push(0x63)))
+  15  613      101        1 Execute((0x6f2, Push(0x0)))
+  16  613      101        1 Execute((0x6f4, Push(0x0)))
+  17  613      101        1 Execute((0x6f6, Push(0x0)))
+  18  613      101        1 Execute((0x6f8, Push(0x4)))
+  19  613      101        1 Execute((0x6fa, Push(0x4)))
+  20  613      101        1 Execute((0x6fc, Call(TargetFunction(0x1))))
+  21  613      101        1 Execute((0x6fe, DropN(0x8)))
+  22  613      101        1 Execute((0x700, Push(0xe)))
+  23  613      101        1 Execute((0x702, Push(0x1)))
+  24  613      101        1 Execute((0x704, Push(0x6c)))
+  25  613      101        1 Execute((0x706, Push(0x0)))
+  26  613      101        1 Execute((0x708, Push(0x0)))
+  27  613      101        1 Execute((0x70a, Push(0x0)))
+  28  613      101        1 Execute((0x70c, Push(0x4)))
+  29  613      101        1 Execute((0x70e, Push(0x4)))
+  30  613      101        1 Execute((0x710, Call(TargetFunction(0x1))))
+  31  613      101        1 Execute((0x712, DropN(0x8)))
+  32  613      101        1 Execute((0x714, Push(0xe)))
+  33  613      101        1 Execute((0x716, Push(0x1)))
+  34  613      101        1 Execute((0x718, Push(0x73)))
+  35  613      101        1 Execute((0x71a, Push(0x0)))
+  36  613      101        1 Execute((0x71c, Push(0x0)))
+  37  613      101        1 Execute((0x71e, Push(0x0)))
+  38  613      101        1 Execute((0x720, Push(0x4)))
+  39  613      101        1 Execute((0x722, Push(0x4)))
+  40  613      101        1 Execute((0x724, Call(TargetFunction(0x1))))
+  41  613      101        1 Execute((0x726, DropN(0x8)))
+  42  613      101        1 Execute((0x728, Done))
+  43  617      101        1 Success
+humility: ring buffer task_host_sp_comms::__RINGBUF in host_sp_comms:
+ NDX LINE      GEN    COUNT PAYLOAD
+  48  618       78        1 Notification { bits: 0x4 }
+  49  762       78        1 UartTx(0x0)
+  50  618       78        1 Notification { bits: 0x4 }
+  51  762       78        1 UartTx(0x0)
+  52  618       78        1 Notification { bits: 0x4 }
+  53  762       78        1 UartTx(0x0)
+  54  618       78        1 Notification { bits: 0x4 }
+  55  762       78        1 UartTx(0x0)
+  56  618       78        1 Notification { bits: 0x4 }
+  57  762       78        1 UartTx(0x0)
+  58  618       78        1 Notification { bits: 0x4 }
+  59  762       78        1 UartTx(0x0)
+  60  618       78        1 Notification { bits: 0x4 }
+  61  762       78        1 UartTx(0x0)
+  62  618       78        1 Notification { bits: 0x4 }
+  63  762       78        1 UartTx(0x0)
+   0  618       79        1 Notification { bits: 0x4 }
+   1  762       79        1 UartTx(0x0)
+   2  618       79        1 Notification { bits: 0x4 }
+   3  762       79        1 UartTx(0x0)
+   4  618       79        1 Notification { bits: 0x4 }
+   5  762       79        1 UartTx(0x0)
+   6  618       79        1 Notification { bits: 0x4 }
+   7  762       79        1 UartTx(0x0)
+   8  618       79        1 Notification { bits: 0x4 }
+   9  762       79        1 UartTx(0x0)
+  10  618       79        1 Notification { bits: 0x4 }
+  11  762       79        1 UartTx(0x0)
+  12  618       79        1 Notification { bits: 0x4 }
+  13  762       79        1 UartTx(0x0)
+  14  618       79        1 Notification { bits: 0x4 }
+  15  762       79        1 UartTx(0x0)
+  16  618       79        1 Notification { bits: 0x4 }
+  17  762       79        1 UartTx(0x0)
+  18  618       79        1 Notification { bits: 0x4 }
+  19  762       79        1 UartTx(0x0)
+  20  618       79        1 Notification { bits: 0x4 }
+  21  762       79        1 UartTx(0x0)
+  22  618       79        1 Notification { bits: 0x4 }
+  23  762       79        1 UartTx(0x0)
+  24  618       79        1 Notification { bits: 0x4 }
+  25  762       79        1 UartTx(0x0)
+  26  618       79        1 Notification { bits: 0x4 }
+  27  762       79        1 UartTx(0x0)
+  28  618       79        1 Notification { bits: 0x4 }
+  29  762       79        1 UartTx(0x0)
+  30  618       79        1 Notification { bits: 0x4 }
+  31  762       79        1 UartTx(0x0)
+  32  618       79        1 Notification { bits: 0x4 }
+  33  762       79        1 UartTx(0x0)
+  34  618       79        1 Notification { bits: 0x4 }
+  35  762       79        1 UartTx(0x0)
+  36  618       79        1 Notification { bits: 0x4 }
+  37  762       79        1 UartTx(0x0)
+  38  618       79        1 Notification { bits: 0x4 }
+  39  762       79        1 UartTx(0x0)
+  40  618       79        1 Notification { bits: 0x4 }
+  41  762       79        1 UartTx(0x0)
+  42  618       79        1 Notification { bits: 0x4 }
+  43  762       79        1 UartTx(0x0)
+  44  618       79        1 Notification { bits: 0x4 }
+  45  764       79        1 UartTxFull
+  46  618       79        1 Notification { bits: 0x2 }
+  47  263       79        1 JefeNotification { now: 0x8db47, state: A0PlusHP }
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  119        1        1 Request(Hold, TaskIndex(0x7))
+   1  129        1        1 Disposition(TaskIndex(0x7), Hold)
+humility: ring buffer task_net::mgmt::__RINGBUF in net:
+humility: ring buffer task_spd::__RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   2  351      798        1 MuxState(Idle, AwaitingSegment)
+   3  329      798        1 Rx(0x4a, 0x40)
+   4  351      798        1 MuxState(AwaitingSegment, Done)
+   5  324      798        4 Initiate(0x1d, false)
+   6  324      798        1 Initiate(0x4a, true)
+   7  329      798        1 Rx(0x4a, 0x3)
+   8  351      798        1 MuxState(Idle, AwaitingSegment)
+   9  329      798        1 Rx(0x4a, 0x40)
+  10  351      798        1 MuxState(AwaitingSegment, Done)
+  11  324      798        4 Initiate(0x19, false)
+  12  324      798        1 Initiate(0x4a, true)
+  13  329      798        1 Rx(0x4a, 0x3)
+  14  351      798        1 MuxState(Idle, AwaitingSegment)
+  15  329      798        1 Rx(0x4a, 0x40)
+   0  351      799        1 MuxState(AwaitingSegment, Done)
+   1  324      799        4 Initiate(0x1b, false)
+humility: ring buffer task_thermal::BLACKBOX_RINGBUF in thermal:
+humility: ring buffer task_thermal::__RINGBUF in thermal:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  281        1        1 Start
+   1  113        1        1 ThermalMode(Auto)
+   2  521        1        1 AutoState(Boot)
+   3  574        1        1 PowerModeChanged(PowerBitmask { bits: 0xe })
+   4  521        1        1 AutoState(Boot)
+   5  684        1        1 AutoState(Running)
+   6  804        1     2406 ControlPwm(0x0)
+humility: ring buffer task_validate::__RINGBUF in validate:
+humility: ring buffer vsc85xx::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   26        1        1 Vsc8562InitSgmii(0x1e)
+   1   23        1        1 ViperPatch(0x1e)
+   2  133        1        1 GotCrc(0xfb48)
