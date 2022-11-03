@@ -1,0 +1,3 @@
+fs.base = "../cores"
+bin.name = "humility"
+args = "-d hubris.core.igor.0 tasks -sl"

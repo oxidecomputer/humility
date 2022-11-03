@@ -3206,16 +3206,17 @@ impl HubrisArchive {
                 let roffs = regions.offset;
 
                 //
-                // We expect this to be an array of indices.
+                // We expect this to be an array of either indices or references
+                // into the RegionDesc table
                 //
-                let count = match self.lookup_type(regions.goff)? {
+                let (count, size) = match self.lookup_type(regions.goff)? {
                     HubrisType::Array(a) => {
-                        if self.lookup_type(a.goff)?.size(self)? != 1 {
+                        let size = self.lookup_type(a.goff)?.size(self)?;
+                        if size != 1 && size != 4 {
                             bail!("expected array of single-byte indices \
-                                  for TaskDesc.regions");
+                                   or references for TaskDesc.regions");
                         }
-
-                        a.count
+                        (a.count, size)
                     }
                     _ => {
                         bail!("expected array for TaskDesc.regions");
@@ -3223,7 +3224,7 @@ impl HubrisArchive {
                 };
 
                 let mut indices: Vec<u8> = vec![];
-                indices.resize_with(count, Default::default);
+                indices.resize_with(count * size, Default::default);
 
                 for i in 0..self.ntasks() {
                     let mut r = vec![];
@@ -3239,18 +3240,36 @@ impl HubrisArchive {
                         i, taddr)
                     )?;
 
-                    for ndx in &indices {
-                        let ndx = *ndx as usize;
+                    if size == 1 {
+                        for ndx in &indices {
+                            let ndx = *ndx as usize;
 
-                        if ndx == 0 {
-                            continue;
+                            if ndx == 0 {
+                                continue;
+                            }
+
+                            if ndx * rdesc.size > rdescs.size {
+                                bail!("task {i} has bad region index {ndx}");
+                            }
+
+                            r.push(rdescs.addr + (ndx * rdesc.size) as u32);
                         }
+                    } else if size == 4 {
+                        for ndx in indices.chunks(4) {
+                            let ndx =
+                                u32::from_le_bytes(ndx.try_into().unwrap());
 
-                        if ndx * rdesc.size > rdescs.size {
-                            bail!("task {} has bad region index {}", i, ndx);
+                            // Check that the reference is properly aligned for
+                            // the RegionDesc type.
+                            let offset = ndx - rdescs.addr;
+                            if offset as usize % rdesc.size != 0 {
+                                bail!("task {i} has misaligned reference at \
+                                      {ndx:#x}");
+                            }
+                            r.push(ndx);
                         }
-
-                        r.push(rdescs.addr + (ndx * rdesc.size) as u32);
+                    } else {
+                        panic!("Invalid size: {size}");
                     }
 
                     rval.push(r);

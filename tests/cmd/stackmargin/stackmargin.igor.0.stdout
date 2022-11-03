@@ -1,0 +1,24 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x2402b000       1536        576        960
+ 1 net                0x24008000       4640       4544         96
+ 2 sys                0x2402d800        896        216        680
+ 3 spi4_driver        0x2402b800        872        288        584
+ 4 spi2_driver        0x2402c000        872        520        352
+ 5 i2c_driver         0x2402c800        896        576        320
+ 6 spd                0x24004000        896        560        336
+ 7 thermal            0x24002000       4504       3800        704
+ 8 power              0x24024000       1000        368        632
+ 9 hiffy              0x24010000       1024        688        336
+10 gimlet_seq         0x24025000       1600        712        888
+11 hash_driver        0x24026000       2048       1000       1048
+12 hf                 0x2402d000       1920        680       1240
+13 update_server      0x24027000       2048       1232        816
+14 sensor             0x24028000       3800       2304       1496
+15 host_sp_comms      0x24018000       2048        552       1496
+16 udpecho            0x24020000       4096        648       3448
+17 udpbroadcast       0x24029000       2048        304       1744
+18 udprpc             0x24022000       4096       2648       1448
+19 control_plane_agent 0x2401c000       2048       1224        824
+20 validate           0x2402a000       1000        192        808
+21 vpd                0x2402dc00        800        416        384
+22 idle               0x2402e000        256        104        152
