@@ -75,6 +75,9 @@ pub trait Core {
     fn op_done(&mut self) -> Result<()> {
         Ok(())
     }
+
+    /// Wait `duration` seconds for the targe to halt.
+    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
 }
 
 pub struct UnattachedCore {
@@ -174,6 +177,10 @@ impl Core for UnattachedCore {
 
     fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
         bail!("Can't reset and halt for an unattached chip");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Waiting and halting on an unattched chip isn't available!");
     }
 }
 
@@ -484,6 +491,16 @@ impl Core for ProbeCore {
 
         Ok(())
     }
+
+    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
+        if self.halted == 0 {
+            let mut core = self.session.core(0)?;
+            core.wait_for_core_halted(dur)?;
+        }
+
+        self.halted += 1;
+        Ok(())
+    }
 }
 
 const OPENOCD_COMMAND_DELIMITER: u8 = 0x1a;
@@ -769,6 +786,10 @@ impl Core for OpenOCDCore {
 
     fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
         bail!("Reset is not supported with OpenOCD");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Wait for halt is not supported with OpenOCD");
     }
 }
 
@@ -1108,6 +1129,10 @@ impl Core for GDBCore {
     fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
         bail!("Reset is not supported with OpenOCD");
     }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Wait for halt is not supported with GDB");
+    }
 }
 
 pub struct DumpCore {
@@ -1279,6 +1304,10 @@ impl Core for DumpCore {
 
     fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
         bail!("Reset is not supported on a dump");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Wait for halt is not supported on a dump");
     }
 }
 
