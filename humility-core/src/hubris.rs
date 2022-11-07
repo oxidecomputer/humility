@@ -4284,6 +4284,32 @@ impl HubrisArchive {
             }
         }
 
+        if let Some(auxflash) = self.manifest.auxflash.as_ref() {
+            const ONE_MIB: usize = 1024 * 1024;
+            if auxflash.memory_size % ONE_MIB == 0 {
+                println!(
+                    " auxiliary flash => {} bytes ({} MiB), {} slots",
+                    auxflash.memory_size,
+                    auxflash.memory_size / ONE_MIB,
+                    auxflash.slot_count
+                );
+            } else {
+                println!(
+                    " auxiliary flash => {} bytes, {} slots",
+                    auxflash.memory_size, auxflash.slot_count
+                );
+            }
+            let bytes_per_slot = auxflash.memory_size / auxflash.slot_count;
+            if bytes_per_slot % ONE_MIB == 0 {
+                println!(
+                    "                    ({} MiB/slot)",
+                    bytes_per_slot / ONE_MIB
+                );
+            } else {
+                println!("                    ({} bytes/slot)", bytes_per_slot);
+            }
+        }
+
         Ok(())
     }
 
