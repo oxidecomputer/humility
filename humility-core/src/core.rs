@@ -71,6 +71,12 @@ pub trait Core {
     fn op_done(&mut self) -> Result<()> {
         Ok(())
     }
+
+    fn set_breakpoint(&mut self, addr: u32) -> Result<()>;
+
+    fn clear_breakpoint(&mut self, addr: u32) -> Result<()>;
+
+    fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>>;
 }
 
 pub struct UnattachedCore {
@@ -166,6 +172,18 @@ impl Core for UnattachedCore {
         self.probe.target_reset_deassert()?;
 
         Ok(())
+    }
+
+    fn set_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't set breakpoint on an unattached target!");
+    }
+
+    fn clear_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't clear breakpoint on an unattached target!");
+    }
+
+    fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>> {
+        bail!("not implemented");
     }
 }
 
@@ -325,13 +343,19 @@ impl Core for ProbeCore {
     }
 
     fn run(&mut self) -> Result<()> {
-        self.halted -= 1;
-
-        if self.halted == 0 {
-            let mut core = self.session.core(0)?;
-            core.run()?;
+        // The core may have hit a breakpoint which would throw off the counter
+        match self.halted.checked_sub(1) {
+            None | Some(0) => {
+                let mut core = self.session.core(0)?;
+                // Single step once in case we hit a breakpoint
+                core.step()?;
+                core.run()?;
+                self.halted = 0;
+            }
+            Some(n) => {
+                self.halted = n;
+            }
         }
-
         Ok(())
     }
 
@@ -469,6 +493,46 @@ impl Core for ProbeCore {
         }
 
         Ok(())
+    }
+
+    fn set_breakpoint(&mut self, address: u32) -> Result<()> {
+        let mut core = self.session.core(0)?;
+
+        core.halt(std::time::Duration::from_millis(1000))?;
+        core.set_hw_breakpoint(address)?;
+        core.run()?;
+        Ok(())
+    }
+
+    fn clear_breakpoint(&mut self, address: u32) -> Result<()> {
+        let mut core = self.session.core(0)?;
+
+        core.halt(std::time::Duration::from_millis(1000))?;
+        core.clear_hw_breakpoint(address)?;
+        core.run()?;
+        Ok(())
+    }
+
+    // Sure would be nice if probe-rs would just make this public...
+    fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>> {
+        let mut core = self.session.core(0)?;
+
+        const FP_COMP: u32 = 0xE000_2008;
+
+        let break_cnt = core.get_available_breakpoint_units()? as usize;
+        let mut bp = Vec::new();
+
+        for i in 0..break_cnt {
+            let val = core.read_word_32(FP_COMP + ((i * 4) as u32))?;
+
+            if (val & 1) == 1 {
+                bp.push(Some(val & !1));
+            } else {
+                bp.push(None);
+            }
+        }
+
+        Ok(bp)
     }
 }
 
@@ -751,6 +815,18 @@ impl Core for OpenOCDCore {
 
     fn reset(&mut self) -> Result<()> {
         bail!("Reset is not supported with OpenOCD");
+    }
+
+    fn set_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't set breakpoint on an unattached target!");
+    }
+
+    fn clear_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't clear breakpoint on an unattached target!");
+    }
+
+    fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>> {
+        bail!("not implemented");
     }
 }
 
@@ -1086,6 +1162,18 @@ impl Core for GDBCore {
     fn reset(&mut self) -> Result<()> {
         bail!("Reset is not supported with GDB");
     }
+
+    fn set_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't set breakpoint on gdb");
+    }
+
+    fn clear_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't clear breakpoint on gdb");
+    }
+
+    fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>> {
+        bail!("not implemented");
+    }
 }
 
 pub struct DumpCore {
@@ -1253,6 +1341,18 @@ impl Core for DumpCore {
 
     fn reset(&mut self) -> Result<()> {
         bail!("Reset is not supported on a dump");
+    }
+
+    fn set_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't set breakpoint on an unattached target!");
+    }
+
+    fn clear_breakpoint(&mut self, _addr: u32) -> Result<()> {
+        bail!("Can't clear breakpoint on an unattached target!");
+    }
+
+    fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>> {
+        bail!("not implemented");
     }
 }
 

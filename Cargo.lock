@@ -1006,6 +1006,7 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
+ "humility-cmd-break",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
@@ -1119,6 +1120,26 @@ dependencies = [
  "log",
  "parse_int",
  "tlvc",
+]
+
+[[package]]
+name = "humility-cmd-break"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clap 3.2.21",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "log",
+ "num-derive",
+ "num-traits",
+ "parse_int",
+ "probe-rs",
+ "strum 0.22.0",
+ "strum_macros 0.22.0",
+ "zerocopy",
 ]
 
 [[package]]

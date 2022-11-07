@@ -291,6 +291,12 @@ pub enum HubrisArchiveDoneness {
 }
 
 #[derive(Debug)]
+struct HubrisLineInfo {
+    address: u64,
+    line: u64,
+}
+
+#[derive(Debug)]
 pub struct HubrisArchive {
     // the entire archive
     archive: Vec<u8>,
@@ -388,6 +394,9 @@ pub struct HubrisArchive {
 
     // Definitions: name to goff
     definitions: MultiMap<String, HubrisGoff>,
+
+    // files to line/addr
+    lines: MultiMap<String, Vec<HubrisLineInfo>>,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -445,6 +454,7 @@ impl HubrisArchive {
             qualified_variables: MultiMap::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
+            lines: MultiMap::new(),
         })
     }
 
@@ -677,6 +687,47 @@ impl HubrisArchive {
         Some(HubrisGoff { object: self.current, goff })
     }
 
+    fn dwarf_fileinfo<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<R>,
+        unit: &gimli::Unit<R>,
+        file_index: u64,
+    ) -> Result<Option<(String, Option<String>, Option<String>)>> {
+        let header = match &unit.line_program {
+            Some(program) => program.header(),
+            None => return Ok(None),
+        };
+
+        let file = match header.file(file_index) {
+            Some(header) => header,
+            None => {
+                bail!("no header found at {}", file_index);
+            }
+        };
+
+        let mut comp = None;
+        let directory;
+        if let Some(dir) = file.directory(header) {
+            let dir = dwarf.attr_string(unit, dir)?;
+            let dir = dir.to_string_lossy()?;
+
+            if !dir.starts_with('/') {
+                if let Some(comp_dir) = &unit.comp_dir {
+                    comp = Some(comp_dir.to_string_lossy()?.into_owned());
+                }
+            }
+
+            directory = Some(dir.into_owned())
+        } else {
+            directory = None
+        }
+
+        let s = dwarf.attr_string(unit, file.path_name())?;
+        let file = s.to_string_lossy()?.into_owned();
+
+        Ok(Some((file, directory, comp)))
+    }
+
     fn dwarf_fileline<R: gimli::Reader<Offset = usize>>(
         &mut self,
         dwarf: &gimli::Dwarf<R>,
@@ -711,42 +762,15 @@ impl HubrisArchive {
         }
 
         if let (Some(file), Some(line)) = (file, line) {
-            let header = match &unit.line_program {
-                Some(program) => program.header(),
-                None => return Ok(()),
-            };
-
-            let file = match header.file(file) {
-                Some(header) => header,
-                None => {
-                    bail!("no header at {}", goff);
-                }
-            };
-
-            let mut comp = None;
-            let directory;
-            if let Some(dir) = file.directory(header) {
-                let dir = dwarf.attr_string(unit, dir)?;
-                let dir = dir.to_string_lossy()?;
-
-                if !dir.starts_with('/') {
-                    if let Some(comp_dir) = &unit.comp_dir {
-                        comp = Some(comp_dir.to_string_lossy()?.into_owned());
-                    }
-                }
-
-                directory = Some(dir.into_owned())
-            } else {
-                directory = None
+            //println!("sample {:?} {:?} {} {}", comp, directory, file, line);
+            if let Some((file, directory, comp)) =
+                self.dwarf_fileinfo(dwarf, unit, file)?
+            {
+                self.src.insert(
+                    goff,
+                    HubrisSrc { file, directory, comp_directory: comp, line },
+                );
             }
-
-            let s = dwarf.attr_string(unit, file.path_name())?;
-            let file = s.to_string_lossy()?.into_owned();
-
-            self.src.insert(
-                goff,
-                HubrisSrc { file, directory, comp_directory: comp, line },
-            );
         }
 
         Ok(())
@@ -769,6 +793,8 @@ impl HubrisArchive {
         let mut low: Option<u64> = None;
         let mut high: Option<u64> = None;
         let mut origin: Option<HubrisGoff> = None;
+        let mut file: Option<u64> = None;
+        let mut line: Option<u64> = None;
 
         let goff = self.dwarf_goff(unit, entry);
 
@@ -789,6 +815,19 @@ impl HubrisArchive {
                 (gimli::constants::DW_AT_abstract_origin, _) => {
                     origin = self.dwarf_value_goff(unit, &attr.value());
                 }
+                (
+                    gimli::constants::DW_AT_call_file,
+                    gimli::AttributeValue::FileIndex(data),
+                ) => {
+                    file = Some(data);
+                }
+                (
+                    gimli::constants::DW_AT_call_line,
+                    gimli::AttributeValue::Udata(data),
+                ) => {
+                    line = Some(data);
+                }
+
                 _ => {}
             }
         }
@@ -799,6 +838,14 @@ impl HubrisArchive {
                 // and terminate here.
                 self.inlined
                     .insert((addr as u32, depth), (len as u32, goff, origin));
+
+                if let (Some(f), Some(l)) = (file, line) {
+                    if let Some((file, Some(directory), Some(comp))) =
+                        self.dwarf_fileinfo(dwarf, unit, f)?
+                    {
+                        self.add_to_line_table(file, directory, comp, l, addr)?;
+                    }
+                }
 
                 return Ok(());
             }
@@ -829,6 +876,19 @@ impl HubrisArchive {
                     {
                         let begin = begin as u32;
                         let end = end as u32;
+                        if let (Some(f), Some(l)) = (file, line) {
+                            if let Some((file, Some(directory), Some(comp))) =
+                                self.dwarf_fileinfo(dwarf, unit, f)?
+                            {
+                                self.add_to_line_table(
+                                    file,
+                                    directory,
+                                    comp,
+                                    l,
+                                    begin as u64,
+                                )?;
+                            }
+                        }
 
                         self.inlined.insert(
                             (begin, depth),
@@ -1656,6 +1716,82 @@ impl HubrisArchive {
         Ok(())
     }
 
+    fn add_to_line_table(
+        &mut self,
+        file: String,
+        directory: String,
+        comp: String,
+        line: u64,
+        address: u64,
+    ) -> Result<()> {
+        if address == 0 || line == 0 {
+            return Ok(());
+        }
+
+        // Limit setting line/addr to Hubris at the moment
+        if comp != "/hubris" {
+            return Ok(());
+        }
+
+        let mut s = String::new();
+
+        write!(s, "{}/{}", directory, file)?;
+
+        match self.lines.get_mut(&s) {
+            Some(v) => v.push(HubrisLineInfo { address, line }),
+            None => {
+                self.lines.insert(s, vec![HubrisLineInfo { address, line }])
+            }
+        }
+
+        Ok(())
+    }
+
+    // Fully described in section 6.2 of v5 of the DWARF specifiation
+    fn create_line_table<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<R>,
+        unit: &gimli::Unit<R>,
+    ) -> Result<()> {
+        if let Some(ref linep) = &unit.line_program {
+            let (program, sequences) = linep.clone().sequences()?;
+            for s in &sequences {
+                let mut sm = program.resume_from(s);
+                while let Some((_h, r)) = sm.next_row()? {
+                    // From the DWARF spec re `is_stmt`
+                    //
+                    // A boolean indicating that the current instruction
+                    // is a recommended breakpoint location. A
+                    // recommended breakpoint location is intended
+                    // to “represent” a line, a statement and/or a
+                    // semantically distinct subpart of a statement.
+                    //
+                    // This covers almost all cases we would want with
+                    // Hubris. If we're at the point of wanting to set
+                    // something within a statemnt we're probably looking
+                    // at an object dump anyway.
+                    if r.is_stmt() {
+                        if let Some(line) = r.line() {
+                            let address = r.address();
+                            if let Some((file, Some(directory), Some(comp))) =
+                                self.dwarf_fileinfo(
+                                    dwarf,
+                                    unit,
+                                    r.file_index(),
+                                )?
+                            {
+                                self.add_to_line_table(
+                                    file, directory, comp, line, address,
+                                )?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn load_object_dwarf(
         &mut self,
         buffer: &[u8],
@@ -1696,6 +1832,8 @@ impl HubrisArchive {
         let mut iter = dwarf.units();
         while let Some(header) = iter.next()? {
             let unit = dwarf.unit(header)?;
+
+            self.create_line_table(&dwarf, &unit)?;
             let mut entries = unit.entries();
             let mut depth = 0;
             let mut stack: Vec<HubrisGoff> = vec![];
@@ -1817,7 +1955,6 @@ impl HubrisArchive {
                     gimli::constants::DW_TAG_union_type => {
                         self.dwarf_union(&dwarf, &unit, entry)?;
                     }
-
                     _ => {}
                 }
             }
@@ -1826,10 +1963,42 @@ impl HubrisArchive {
                 bail!("missing subrange for array {}", array);
             }
         }
-
         self.current += 1;
 
         Ok(())
+    }
+
+    pub fn get_addr_from_line(
+        &self,
+        task: &HubrisModule,
+        file: &str,
+        line: u64,
+    ) -> Result<(u64, bool)> {
+        let lines = match self.lines.get(file) {
+            Some(l) => l,
+            None => return Err(anyhow!("Couldn't find file name {}", file)),
+        };
+
+        let mut result: Vec<&HubrisLineInfo> = lines
+            .iter()
+            .filter(|line| {
+                (line.address as u32) >= task.textbase
+                    && (line.address as u32) < (task.textbase + task.textsize)
+            })
+            .collect();
+
+        if result.is_empty() {
+            return Err(anyhow!("Couldn't find a match for {} in task {}", file, task.name));
+        }
+
+        result.sort_by(|a, b| b.line.cmp(&a.line));
+
+        let f = result.iter().find(|a| a.line <= line);
+
+        match f {
+            None => Err(anyhow!("Couldn't find a match for line {} in file {} in task {}", line, file, task.name)),
+            Some(f) => Ok((f.address, f.line == line)),
+        }
     }
 
     fn load_object_frames(
@@ -2821,6 +2990,23 @@ impl HubrisArchive {
         !self.modules.is_empty()
     }
 
+    pub fn lookup_function_addr(
+        &self,
+
+        task: &HubrisModule,
+        name: &str,
+    ) -> Result<u32> {
+        for (a, s) in
+            self.dsyms.range(task.textbase..task.textbase + task.textsize)
+        {
+            if name == s.demangled_name {
+                return Ok(*a);
+            }
+        }
+
+        Err(anyhow!("Couldn't find symbol {}", name))
+    }
+
     ///
     /// Looks up the specfied structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be
@@ -2955,6 +3141,24 @@ impl HubrisArchive {
                     .collect::<Vec<(&str, &HubrisVariable)>>()
             })
             .flatten()
+    }
+
+    pub fn lookup_module_by_name(&self, name: &str) -> Result<&HubrisModule> {
+        if name == "kernel" {
+            self.lookup_module(HubrisTask::Kernel)
+        } else {
+            for i in 0..self.ntasks() {
+                match self.lookup_module(HubrisTask::Task(i as u32)) {
+                    Ok(m) => {
+                        if m.name == name {
+                            return Ok(m);
+                        }
+                    }
+                    Err(_) => (),
+                }
+            }
+            return Err(anyhow!("no such task with name {}", name));
+        }
     }
 
     pub fn lookup_module(&self, task: HubrisTask) -> Result<&HubrisModule> {
