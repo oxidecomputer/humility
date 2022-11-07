@@ -23,7 +23,7 @@ use humility_cmd::idol::IdolOperation;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cmd_hiffy::HiffyLease;
 
-const SLOT_SIZE_BYTES: usize = 1024 * 1024;
+const DEFAULT_SLOT_SIZE_BYTES: usize = 2 * 1024 * 1024;
 const READ_CHUNK_SIZE: usize = 256; // limited by HIFFY_SCRATCH_SIZE
 const WRITE_CHUNK_SIZE: usize = 2048; // limited by HIFFY_DATA_SIZE
 
@@ -84,6 +84,15 @@ impl<'a> AuxFlashHandler<'a> {
     ) -> Result<Self> {
         let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
         Ok(Self { hubris, core, context })
+    }
+
+    pub fn slot_size_bytes(&self) -> Result<usize> {
+        self.hubris
+            .manifest
+            .auxflash
+            .as_ref()
+            .map(|i| i.slot_size_bytes())
+            .unwrap_or(Ok(DEFAULT_SLOT_SIZE_BYTES))
     }
 
     fn get_idol_command(&self, name: &str) -> Result<IdolOperation<'a>> {
@@ -223,8 +232,9 @@ impl<'a> AuxFlashHandler<'a> {
         count: Option<usize>,
     ) -> Result<Vec<u8>> {
         let op = self.get_idol_command("read_slot_with_offset")?;
+        let slot_size = self.slot_size_bytes()?;
 
-        let mut out = vec![0u8; count.unwrap_or(SLOT_SIZE_BYTES)];
+        let mut out = vec![0u8; count.unwrap_or(slot_size)];
         let bar = ProgressBar::new(0);
         bar.set_style(
             ProgressStyle::default_bar()
@@ -310,11 +320,12 @@ impl<'a> AuxFlashHandler<'a> {
         humility::msg!("erasing slot {}", slot);
         self.slot_erase(slot)?;
 
-        if data.len() > SLOT_SIZE_BYTES {
+        let slot_size = self.slot_size_bytes()?;
+        if data.len() > slot_size {
             bail!(
                 "Data is too large ({} bytes, slot size is {} bytes)",
                 data.len(),
-                SLOT_SIZE_BYTES
+                slot_size
             );
         }
         let op = self.get_idol_command("write_slot_with_offset")?;
