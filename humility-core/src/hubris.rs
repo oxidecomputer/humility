@@ -53,6 +53,7 @@ pub struct HubrisManifest {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
+    pub auxflash: Option<HubrisConfigAuxflash>,
 }
 
 //
@@ -176,8 +177,25 @@ struct HubrisConfigI2c {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct HubrisConfigAuxflash {
+    pub memory_size: usize,
+    pub slot_count: usize,
+}
+
+impl HubrisConfigAuxflash {
+    pub fn slot_size_bytes(&self) -> Result<usize> {
+        if self.memory_size % self.slot_count != 0 {
+            bail!("Cannot evenly divide auxflash into slots");
+        }
+        Ok(self.memory_size / self.slot_count)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigConfig {
     i2c: Option<HubrisConfigI2c>,
+    auxflash: Option<HubrisConfigAuxflash>,
 }
 
 #[derive(Clone, Debug)]
@@ -2413,6 +2431,8 @@ impl HubrisArchive {
         self.manifest.name = Some(config.name.clone());
         self.manifest.target = Some(config.target.clone());
         self.manifest.features = config.kernel.features.clone();
+        self.manifest.auxflash =
+            config.config.as_ref().and_then(|c| c.auxflash.clone());
 
         let mut named_interrupts = HashMap::new();
 
@@ -4261,6 +4281,32 @@ impl HubrisArchive {
                     device.device,
                     device.description
                 );
+            }
+        }
+
+        if let Some(auxflash) = self.manifest.auxflash.as_ref() {
+            const ONE_MIB: usize = 1024 * 1024;
+            if auxflash.memory_size % ONE_MIB == 0 {
+                println!(
+                    " auxiliary flash => {} bytes ({} MiB), {} slots",
+                    auxflash.memory_size,
+                    auxflash.memory_size / ONE_MIB,
+                    auxflash.slot_count
+                );
+            } else {
+                println!(
+                    " auxiliary flash => {} bytes, {} slots",
+                    auxflash.memory_size, auxflash.slot_count
+                );
+            }
+            let bytes_per_slot = auxflash.memory_size / auxflash.slot_count;
+            if bytes_per_slot % ONE_MIB == 0 {
+                println!(
+                    "                    ({} MiB/slot)",
+                    bytes_per_slot / ONE_MIB
+                );
+            } else {
+                println!("                    ({} bytes/slot)", bytes_per_slot);
             }
         }
 

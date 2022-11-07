@@ -2,7 +2,7 @@ Long version flag:
 
 ```
 $ humility --version
-humility 0.9.4
+humility 0.9.5
 
 ```
 
@@ -10,6 +10,6 @@ Short version flag:
 
 ```
 $ humility -V
-humility 0.9.4
+humility 0.9.5
 
 ```
