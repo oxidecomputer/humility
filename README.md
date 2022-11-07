@@ -238,6 +238,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility isp](#humility-isp): run ISP commands on the LPC55
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
+- [humility lpc55-pfr](#humility-lpc55-pfr): Modify the protected flash region on the LPC55 (without ISP)
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
@@ -927,6 +928,28 @@ change its disposition back to restart.
 
 Finally, to start a task that is not started by default, use the `-s` flag.
 
+
+
+### `humility lpc55-pfr`
+
+Allows for modification of the LPC55 protected flash region (PFR) via
+SWD. Also includes commands for displaying the values of the protected
+flash region.
+
+```code
+
+$ humility lpc55-pfr read-cfpa
+humility: attached via CMSIS-DAP
+Last scratch version: 33
+PONG version 33 is active
+Debug settings pin fd0002ff dflt ff3000cf
+Active RKTH revoke: 5
+Active image revoke: 0
+
+$ humility lpc55-pfr write-cfpa CFPA_enabled.bin
+humility: attached via CMSIS-DAP
+Wrote CFPA! Resetting chip now
+```
 
 
 ### `humility lpc55gpio`

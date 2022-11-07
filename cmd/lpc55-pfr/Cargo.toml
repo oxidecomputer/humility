@@ -1,0 +1,24 @@
+[package]
+name = "humility-cmd-lpc55-pfr"
+version = "0.1.0"
+edition = "2021"
+description = "Modify the protected flash region on the LPC55 (without ISP)"
+
+[dependencies]
+humility = { path = "../../humility-core", package = "humility-core" }
+humility-cortex = { path = "../../humility-arch-cortex" }
+humility-cmd = { path = "../../humility-cmd" }
+clap = { version = "3.0.12", features = ["derive", "env"] }
+anyhow = { version = "1.0.44", features = ["backtrace"] }
+log = {version = "0.4.8", features = ["std"]}
+num-traits = "0.2"
+num-derive = { version = "0.3.0", features = [ "full-syntax" ] }
+strum = "0.22"
+strum_macros = "0.22"
+parse_int = "0.4.0"
+byteorder = "1.3.4"
+zerocopy = "0.6.1"
+[dependencies.lpc55_areas]
+git = "https://github.com/oxidecomputer/lpc55_support"
+rev = "a07e8d39caf27dd83c314e121755d481a3f52263"
+
