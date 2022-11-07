@@ -164,6 +164,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 
 [[package]]
+name = "bitfield"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -448,7 +454,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70858629a458fdfd39f9675c4dc309411f2a3f83bede76988d81bf1a0ecee9e0"
 dependencies = [
  "bare-metal 0.2.5",
- "bitfield",
+ "bitfield 0.13.2",
  "embedded-hal",
  "volatile-register",
 ]
@@ -955,6 +961,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hidapi"
 version = "1.4.1"
 source = "git+https://github.com/oxidecomputer/hidapi-rs?branch=oxide-stable#91237483222a42f68d16adcdfd42bc8e32adf666"
@@ -995,7 +1007,7 @@ name = "humility"
 version = "0.9.5"
 dependencies = [
  "anyhow",
- "bitfield",
+ "bitfield 0.13.2",
  "cargo_metadata",
  "clap 3.2.21",
  "colored",
@@ -1023,6 +1035,7 @@ dependencies = [
  "humility-cmd-isp",
  "humility-cmd-itm",
  "humility-cmd-jefe",
+ "humility-cmd-lpc55-pfr",
  "humility-cmd-lpc55gpio",
  "humility-cmd-manifest",
  "humility-cmd-map",
@@ -1369,6 +1382,26 @@ dependencies = [
  "humility-core",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-lpc55-pfr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clap 3.2.21",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "log",
+ "lpc55_areas",
+ "num-derive",
+ "num-traits",
+ "parse_int",
+ "strum 0.22.0",
+ "strum_macros 0.22.0",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1809,7 +1842,7 @@ name = "humility-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitfield",
+ "bitfield 0.13.2",
  "capstone",
  "clap 3.2.21",
  "colored",
@@ -1844,7 +1877,7 @@ name = "humility-cortex"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitfield",
+ "bitfield 0.13.2",
  "humility-core",
  "jep106",
  "log",
@@ -2078,6 +2111,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "lpc55_areas"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/lpc55_support?rev=a07e8d39caf27dd83c314e121755d481a3f52263#a07e8d39caf27dd83c314e121755d481a3f52263"
+dependencies = [
+ "anyhow",
+ "bitfield 0.14.0",
+ "byteorder",
+ "hex",
+ "num-derive",
+ "num-traits",
+ "packed_struct",
+ "packed_struct_codegen",
+ "parse_int",
+ "serde",
 ]
 
 [[package]]
@@ -2330,6 +2380,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
+name = "packed_struct"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c48e482b9a59ad6c2cdb06f7725e7bd33fe3525baaf4699fde7bfea6a5b77b1"
+dependencies = [
+ "bitvec",
+ "packed_struct_codegen",
+ "serde",
+]
+
+[[package]]
+name = "packed_struct_codegen"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56e3692b867ec1d48ccb441e951637a2cc3130d0912c0059e48319e1c83e44bc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2492,7 +2564,7 @@ dependencies = [
  "anyhow",
  "base64",
  "bincode",
- "bitfield",
+ "bitfield 0.13.2",
  "bitvec",
  "enum-primitive-derive",
  "gimli 0.26.2",

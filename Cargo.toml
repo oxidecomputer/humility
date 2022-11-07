@@ -48,6 +48,7 @@ members = [
     "cmd/itm",
     "cmd/jefe",
     "cmd/lpc55gpio",
+    "cmd/lpc55-pfr",
     "cmd/manifest",
     "cmd/map",
     "cmd/monorail",
@@ -119,6 +120,7 @@ cmd-isp = { path = "./cmd/isp", package = "humility-cmd-isp" }
 cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
+cmd-lpc55-pfr = { path = "./cmd/lpc55-pfr", package = "humility-cmd-lpc55-pfr" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
