@@ -21,7 +21,7 @@ mod cmd_repl;
 fn main() -> Result<()> {
     let (commands, m, args) = match parse_args(&mut std::env::args_os()) {
         Some(s) => s,
-        None => std::process::exit(0),
+        None => std::process::exit(1),
     };
 
     if let Some(s) = version(&args) {
@@ -83,13 +83,10 @@ where
 
     let m = match command.try_get_matches_from(input.into_iter()) {
         Ok(m) => m,
-        Err(e) => match e.kind() {
-            clap::ErrorKind::DisplayHelp => {
-                e.print().unwrap();
-                return None;
-            }
-            _ => e.exit(),
-        },
+        Err(e) => {
+            e.print().unwrap();
+            return None;
+        }
     };
 
     let _args = Cli::from_arg_matches(&m);
