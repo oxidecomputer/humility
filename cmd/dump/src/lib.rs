@@ -58,6 +58,8 @@ use humility_cmd::{Archive, Attach, Command, Validate};
 #[clap(name = "dump", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DumpArgs {
     dumpfile: Option<String>,
+    #[clap(long)]
+    wait: bool,
 }
 
 fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
@@ -67,7 +69,11 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = DumpArgs::try_parse_from(subargs)?;
 
-    let _info = core.halt()?;
+    if subargs.wait {
+        let _ = core.wait_for_halt()?;
+    } else {
+        let _info = core.halt()?;
+    }
     humility::msg!("core halted");
 
     let rval = hubris.dump(core, subargs.dumpfile.as_deref());

@@ -77,6 +77,10 @@ pub trait Core {
     fn clear_breakpoint(&mut self, addr: u32) -> Result<()>;
 
     fn list_breakpoints(&mut self) -> Result<Vec<Option<u32>>>;
+
+    fn wait_for_halt(&mut self) -> Result<()> {
+        todo!()
+    }
 }
 
 pub struct UnattachedCore {
@@ -533,6 +537,12 @@ impl Core for ProbeCore {
         }
 
         Ok(bp)
+    }
+
+    fn wait_for_halt(&mut self) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.wait_for_core_halted(std::time::Duration::MAX)?;
+        Ok(())
     }
 }
 
