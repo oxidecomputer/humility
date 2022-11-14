@@ -230,6 +230,7 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
                     "BadValidation" => "failed".red(),
                     "DeviceTimeout" => "timeout".red(),
                     "DeviceError" => "error".red(),
+                    "Unavailable" => "unavailable".yellow(),
                     _ => format!("<{}>", variant.name).red(),
                 },
                 None => format!("Err(0x{:x?})", e).red(),
