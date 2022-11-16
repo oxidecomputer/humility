@@ -20,6 +20,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility_cmd::{Archive, Command, Dumper};
+use lpc55_areas::{CFPAPage, CMPAPage};
 use serialport::{DataBits, FlowControl, Parity, StopBits};
 use std::io::Read;
 use std::path::PathBuf;
@@ -65,7 +66,10 @@ enum IspCmd {
     /// Read the CFPA regions (scratch, ping, pong)
     ReadCFPA,
     /// Erase the CMPA region (use to boot non-secure binaries again)
-    EraseCMPA,
+    EraseCMPA {
+        #[clap(long)]
+        full: bool,
+    },
     /// Put a minimalist program on to allow attaching via SWD
     Restore,
     /// Set up key store this involves
@@ -278,17 +282,57 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             let mut bytes = Vec::new();
 
             infile.read_to_end(&mut bytes)?;
+            let mut cmpa_bytes = [0u8; 512];
+            cmpa_bytes.clone_from_slice(&bytes);
+            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
+
+            let m1 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+            let m2 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+            let mut ping_bytes = [0u8; 512];
+            let mut pong_bytes = [0u8; 512];
+
+            ping_bytes.clone_from_slice(&m1);
+            pong_bytes.clone_from_slice(&m2);
+            let ping = CFPAPage::from_bytes(&ping_bytes)?;
+            let pong = CFPAPage::from_bytes(&pong_bytes)?;
+
+            let (pin, dflt) = if ping.version > pong.version {
+                (ping.dcfg_cc_socu_ns_pin, ping.dcfg_cc_socu_ns_dflt)
+            } else {
+                (pong.dcfg_cc_socu_ns_pin, pong.dcfg_cc_socu_ns_dflt)
+            };
+
+            if (pin != 0 || dflt != 0)
+                && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
+            {
+                anyhow::bail!("CFPA has non-zero debug settings but CMPA has zero settings! This would brick the chip!");
+            }
 
             crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
             println!("Write to CMPA done!");
         }
         IspCmd::WriteCFPA { file } => {
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+            let mut cmpa_bytes = [0u8; 512];
+            cmpa_bytes.clone_from_slice(&m);
+
+            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
+
             let mut infile =
                 std::fs::OpenOptions::new().read(true).open(&file)?;
 
             let mut bytes = Vec::new();
-
+            let mut cfpa_bytes = [0u8; 512];
             infile.read_to_end(&mut bytes)?;
+            cfpa_bytes.clone_from_slice(&bytes);
+
+            let cfpa = CFPAPage::from_bytes(&cfpa_bytes)?;
+
+            if (cfpa.dcfg_cc_socu_ns_pin != 0 || cfpa.dcfg_cc_socu_ns_dflt != 0)
+                && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
+            {
+                anyhow::bail!("It looks like the CMPA debug settings aren't set but the CFPA settings are! This will brick the chip!");
+            }
 
             crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
             println!("Write to CFPA done!");
@@ -310,11 +354,42 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             println!("=====Pong Page=====");
             dumper.dump(&m, 0x9e200);
         }
-        IspCmd::EraseCMPA => {
-            // Write 512 bytes of zero
-            let bytes = vec![0; 512];
+        IspCmd::EraseCMPA { full } => {
+            let b = if full {
+                let m1 =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+                let m2 =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+                let mut ping_bytes = [0u8; 512];
+                let mut pong_bytes = [0u8; 512];
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
+                ping_bytes.clone_from_slice(&m1);
+                pong_bytes.clone_from_slice(&m2);
+                let ping = CFPAPage::from_bytes(&ping_bytes)?;
+                let pong = CFPAPage::from_bytes(&pong_bytes)?;
+
+                let (pin, dflt) = if ping.version > pong.version {
+                    (ping.dcfg_cc_socu_ns_pin, ping.dcfg_cc_socu_ns_dflt)
+                } else {
+                    (pong.dcfg_cc_socu_ns_pin, pong.dcfg_cc_socu_ns_dflt)
+                };
+                if pin != 0 || dflt != 0 {
+                    anyhow::bail!("The CFPA has non-zero settings! Erasing the CMPA would brick the chip!");
+                }
+
+                vec![0; 512]
+            } else {
+                let m =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+                let mut bytes = [0u8; 512];
+                bytes.clone_from_slice(&m);
+
+                let mut cmpa = CMPAPage::from_bytes(&bytes)?;
+
+                cmpa.secure_boot_cfg = 0;
+                cmpa.to_vec()?
+            };
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, b)?;
             println!("CMPA region erased!");
             println!("You can now boot unsigned images");
         }
