@@ -20,3 +20,7 @@ strum_macros = "0.22"
 parse_int = "0.4.0"
 byteorder = "1.3.4"
 zerocopy = "0.6.1"
+
+[dependencies.lpc55_areas]
+git = "https://github.com/oxidecomputer/lpc55_support"
+rev = "a07e8d39caf27dd83c314e121755d481a3f52263"
