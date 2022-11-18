@@ -35,7 +35,7 @@ struct EtmArgs {
     /// sets ETM trace identifier
     #[clap(
         long, short, value_name = "identifier",
-        default_value = "0x54", parse(try_from_str = parse_int::parse),
+        default_value_t = 0x54, parse(try_from_str = parse_int::parse),
     )]
     traceid: u8,
     /// ingest ETM data as CSV
