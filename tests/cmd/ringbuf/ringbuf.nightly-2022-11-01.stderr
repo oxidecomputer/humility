@@ -1,0 +1,2 @@
+humility: attached to dump
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_control_plane_agent::Log, 16>> at address 0x0
