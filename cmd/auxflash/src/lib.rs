@@ -25,7 +25,6 @@ use humility_cmd_hiffy::HiffyLease;
 
 const DEFAULT_SLOT_SIZE_BYTES: usize = 2 * 1024 * 1024;
 const READ_CHUNK_SIZE: usize = 256; // limited by HIFFY_SCRATCH_SIZE
-const WRITE_CHUNK_SIZE: usize = 2048; // limited by HIFFY_DATA_SIZE
 
 #[derive(Parser, Debug)]
 #[clap(name = "auxflash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -336,8 +335,8 @@ impl<'a> AuxFlashHandler<'a> {
                 .template("humility: writing [{bar:30}] {bytes}/{total_bytes}"),
         );
         bar.set_length(data.len() as u64);
-        for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {
-            let offset = i * WRITE_CHUNK_SIZE;
+        for (i, chunk) in data.chunks(self.context.data_size()).enumerate() {
+            let offset = i * self.context.data_size();
             let value = humility_cmd_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
