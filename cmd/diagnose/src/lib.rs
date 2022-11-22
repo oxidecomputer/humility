@@ -46,13 +46,13 @@ pub fn init() -> (Command, ClapCommand<'static>) {
 struct DiagnoseArgs {
     /// timeout to wait for interactions with the supervisor task to complete
     #[clap(
-        long, short, default_value = "5000", value_name = "timeout_ms",
+        long, short, default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
 
     /// number of milliseconds to sleep trying to catch crashes
-    #[clap(long, short, default_value = "15", value_name = "ms")]
+    #[clap(long, short, default_value_t = 15, value_name = "ms")]
     sleep_ms: u64,
 
     /// suppresses automatic coredump generation

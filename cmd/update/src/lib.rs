@@ -38,7 +38,7 @@ extern crate log;
 struct UpdateArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "50000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 50000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
