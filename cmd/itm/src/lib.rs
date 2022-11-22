@@ -70,7 +70,7 @@ struct ItmArgs {
 
     /// sets ITM trace identifier
     #[clap(
-        long, short, default_value = "0x3a", value_name = "identifier",
+        long, short, default_value_t = 0x3a, value_name = "identifier",
         parse(try_from_str = parse_int::parse)
     )]
     traceid: u8,
