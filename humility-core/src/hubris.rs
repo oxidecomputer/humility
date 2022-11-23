@@ -134,6 +134,7 @@ impl HubrisConfigI2cPower {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 struct HubrisConfigI2cSensors {
     #[serde(default)]
     temperature: usize,
@@ -146,6 +147,12 @@ struct HubrisConfigI2cSensors {
 
     #[serde(default)]
     voltage: usize,
+
+    #[serde(default)]
+    current_in: usize,
+
+    #[serde(default)]
+    voltage_in: usize,
 
     #[serde(default)]
     speed: usize,
@@ -235,12 +242,14 @@ pub struct HubrisI2cDevice {
 }
 
 #[derive(Copy, Clone, Deserialize, Debug, PartialEq, Eq, Hash)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum HubrisSensorKind {
     Temperature,
     Power,
     Current,
     Voltage,
+    CurrentIn,
+    VoltageIn,
     Speed,
 }
 
@@ -258,6 +267,8 @@ impl HubrisSensorKind {
             HubrisSensorKind::Power => "power",
             HubrisSensorKind::Current => "current",
             HubrisSensorKind::Voltage => "voltage",
+            HubrisSensorKind::CurrentIn => "current-in",
+            HubrisSensorKind::VoltageIn => "voltage-in",
             HubrisSensorKind::Speed => "speed",
         }
     }
@@ -268,6 +279,8 @@ impl HubrisSensorKind {
             "power" => Some(HubrisSensorKind::Power),
             "current" => Some(HubrisSensorKind::Current),
             "voltage" => Some(HubrisSensorKind::Voltage),
+            "current-in" => Some(HubrisSensorKind::CurrentIn),
+            "voltage-in" => Some(HubrisSensorKind::VoltageIn),
             "speed" => Some(HubrisSensorKind::Speed),
             _ => None,
         }
@@ -2400,6 +2413,22 @@ impl HubrisArchive {
                             i,
                             ndx,
                             HubrisSensorKind::Voltage,
+                        )?);
+                    }
+                    for i in 0..sensors.current_in {
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::CurrentIn,
+                        )?);
+                    }
+                    for i in 0..sensors.voltage_in {
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::VoltageIn,
                         )?);
                     }
 
