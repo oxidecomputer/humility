@@ -2,6 +2,7 @@
      git rev => 77adb8cfe691c8d9e861907f7f953469a853fba7-dirty
     image id => <none>
        board => stm32g0b1
+        name => demo-stm32g0b1-nucleo
       target => thumbv6m-none-eabi
     features => g0b1, log-none
   total size => 80K

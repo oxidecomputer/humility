@@ -2,6 +2,7 @@
      git rev => 22227c7f4c10396ad26ac3fc41ad5ced1d0e7b9a
     image id => <none>
        board => nucleo-h743zi2
+        name => demo-stm32h743-nucleo
       target => thumbv7em-none-eabihf
     features => h743, itm
   total size => 129K
