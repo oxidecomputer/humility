@@ -76,6 +76,13 @@ struct HubrisConfig {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HubrisConfigPatches {
+    name: String,
+    features: IndexMap<String, Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigKernel {
     features: Vec<String>,
 }
@@ -2556,7 +2563,26 @@ impl HubrisArchive {
         let mut app = String::new();
         byname!("app.toml")?.read_to_string(&mut app)?;
 
-        let config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+        let mut config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+
+        // Apply TOML patches, if `patches.toml` is present in the archive.
+        if let Ok(mut patches) = byname!("patches.toml") {
+            let mut patch_str = String::new();
+            patches.read_to_string(&mut patch_str)?;
+            let patches: HubrisConfigPatches =
+                toml::from_slice(patch_str.as_bytes())?;
+            config.name = patches.name;
+            for (task, features) in patches.features {
+                config
+                    .tasks
+                    .get_mut(&task)
+                    .unwrap()
+                    .features
+                    .get_or_insert_with(Default::default)
+                    .extend(features.into_iter());
+            }
+        }
+        let config = config; // remove mutability
 
         //
         // Before we load our config, we need to find where our peripherals
