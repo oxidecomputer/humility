@@ -4315,6 +4315,14 @@ impl HubrisArchive {
         );
 
         print(
+            "name",
+            match &self.manifest.name {
+                Some(s) => s,
+                None => "<unknown>",
+            },
+        );
+
+        print(
             "target",
             match &self.manifest.target {
                 Some(s) => s,
