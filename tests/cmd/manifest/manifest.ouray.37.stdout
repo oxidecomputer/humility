@@ -2,6 +2,7 @@
      git rev => e42ba918eaf02b60fe4e5f2bfa8cceaa39951100-dirty
     image id => <none>
        board => lpcxpresso55s69
+        name => lpc55
       target => thumbv8m.main-none-eabihf
     features => itm
   total size => 85K

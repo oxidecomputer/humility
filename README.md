@@ -969,6 +969,7 @@ the archive, e.g.:
      version => hubris build archive v1.0.0
      git rev => 753a57169eba699e73ee59e0cf5345eb1d6e1ae2-dirty
        board => nucleo-h743zi2
+        name => demo-stm32h753-nucleo
       target => thumbv7em-none-eabihf
     features => h743, itm
   total size => 140K
