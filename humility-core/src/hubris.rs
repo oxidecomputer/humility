@@ -149,10 +149,10 @@ struct HubrisConfigI2cSensors {
     voltage: usize,
 
     #[serde(default)]
-    current_in: usize,
+    input_current: usize,
 
     #[serde(default)]
-    voltage_in: usize,
+    input_voltage: usize,
 
     #[serde(default)]
     speed: usize,
@@ -248,8 +248,8 @@ pub enum HubrisSensorKind {
     Power,
     Current,
     Voltage,
-    CurrentIn,
-    VoltageIn,
+    InputCurrent,
+    InputVoltage,
     Speed,
 }
 
@@ -267,8 +267,8 @@ impl HubrisSensorKind {
             HubrisSensorKind::Power => "power",
             HubrisSensorKind::Current => "current",
             HubrisSensorKind::Voltage => "voltage",
-            HubrisSensorKind::CurrentIn => "current-in",
-            HubrisSensorKind::VoltageIn => "voltage-in",
+            HubrisSensorKind::InputCurrent => "input-current",
+            HubrisSensorKind::InputVoltage => "input-voltage",
             HubrisSensorKind::Speed => "speed",
         }
     }
@@ -279,8 +279,8 @@ impl HubrisSensorKind {
             "power" => Some(HubrisSensorKind::Power),
             "current" => Some(HubrisSensorKind::Current),
             "voltage" => Some(HubrisSensorKind::Voltage),
-            "current-in" => Some(HubrisSensorKind::CurrentIn),
-            "voltage-in" => Some(HubrisSensorKind::VoltageIn),
+            "input-current" => Some(HubrisSensorKind::InputCurrent),
+            "input-voltage" => Some(HubrisSensorKind::InputVoltage),
             "speed" => Some(HubrisSensorKind::Speed),
             _ => None,
         }
@@ -2415,20 +2415,20 @@ impl HubrisArchive {
                             HubrisSensorKind::Voltage,
                         )?);
                     }
-                    for i in 0..sensors.current_in {
+                    for i in 0..sensors.input_current {
                         self.manifest.sensors.push(get_sensor(
                             device,
                             i,
                             ndx,
-                            HubrisSensorKind::CurrentIn,
+                            HubrisSensorKind::InputCurrent,
                         )?);
                     }
-                    for i in 0..sensors.voltage_in {
+                    for i in 0..sensors.input_voltage {
                         self.manifest.sensors.push(get_sensor(
                             device,
                             i,
                             ndx,
-                            HubrisSensorKind::VoltageIn,
+                            HubrisSensorKind::InputVoltage,
                         )?);
                     }
 
