@@ -34,6 +34,8 @@ struct Device<'a> {
     name: &'a str,
     voltage: Option<usize>,
     current: Option<usize>,
+    input_voltage: Option<usize>,
+    input_current: Option<usize>,
     temperature: Option<usize>,
 }
 
@@ -77,6 +79,8 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
                     name: &s.name,
                     voltage: None,
                     current: None,
+                    input_voltage: None,
+                    input_current: None,
                     temperature: None,
                 },
             );
@@ -93,6 +97,12 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
                 }
                 HubrisSensorKind::Voltage => {
                     device.voltage = Some(ndx);
+                }
+                HubrisSensorKind::InputCurrent => {
+                    device.input_current = Some(ndx);
+                }
+                HubrisSensorKind::InputVoltage => {
+                    device.input_voltage = Some(ndx);
                 }
                 HubrisSensorKind::Temperature => {
                     device.temperature = Some(ndx);
@@ -123,7 +133,10 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
         }
     }
 
-    println!("{:25} {:>8} {:>8} {:>8}", "RAIL", "VOUT", "IOUT", "TEMP");
+    println!(
+        "{:25} {:>8} {:>8} {:>8} {:>8} {:>8}",
+        "RAIL", "VOUT", "IOUT", "VIN", "IIN", "TEMP"
+    );
 
     let p = |what| {
         print!(" ");
@@ -147,6 +160,8 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
 
         p(d.voltage);
         p(d.current);
+        p(d.input_voltage);
+        p(d.input_current);
         p(d.temperature);
 
         println!();
