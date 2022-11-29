@@ -2,6 +2,7 @@
      git rev => a2e01755592189aea0c6cabf36fc5cc9257190b2-dirty
     image id => <none>
        board => stm32f4-discovery
+        name => demo
       target => thumbv7em-none-eabihf
     features => itm, stm32f4
   total size => 70K

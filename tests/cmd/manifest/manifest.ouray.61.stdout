@@ -2,6 +2,7 @@
      git rev => eee1bb8e4fba0b7ac2bfecd0d8b4c4709c5cc67d-dirty
     image id => <none>
        board => gemini-bu-1
+        name => gemini-bu
       target => thumbv7em-none-eabihf
     features => itm
   total size => 160K

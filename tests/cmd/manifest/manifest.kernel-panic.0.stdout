@@ -2,6 +2,7 @@
      git rev => afde6cb06575dd37eef474df646917db34ec9ac1-dirty
     image id => [cf, eb, 61, 2b, a0, 4e, bb, be]
        board => nucleo-h753zi
+        name => demo-stm32h753-nucleo
       target => thumbv7em-none-eabihf
     features => h753, itm
   total size => 342K
