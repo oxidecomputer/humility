@@ -1,0 +1,13 @@
+     version => hubris build archive v4
+     git rev => 39fe3a9420820bcd3d1cb33cd484511bc8df8084-dirty
+    image id => [c2, e5, f4, 60, 74, 31, bd, 3c]
+       board => stm32g070
+        name => app-g070-is-renamed
+      target => thumbv6m-none-eabi
+    features => g070, panic-halt
+  total size => 16K
+ kernel size => 11K
+       tasks => 2
+                ID TASK                SIZE FEATURES
+                 0 idle                0.1K 
+                 1 jefe                4.1K log-null
