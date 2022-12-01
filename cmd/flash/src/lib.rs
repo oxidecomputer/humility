@@ -66,7 +66,7 @@ struct FlashArgs {
     reset_delay: u64,
 
     /// if archive appears to already be flashed, verify contents
-    #[clap(long, short = 'V')]
+    #[clap(long, short = 'V', conflicts_with = "force")]
     verify: bool,
 }
 
@@ -285,7 +285,8 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             core.run()?;
             bail!(
                 "archive appears to be already flashed on attached device; \
-                    use -F (\"--force\") to force re-flash"
+                    use -F (\"--force\") to force re-flash or \
+                    -V (\"--verify\") to verify contents"
             );
         }
     }
