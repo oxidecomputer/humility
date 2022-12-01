@@ -135,30 +135,259 @@ register!(CPUID, 0xe000_ed00,
     pub revision, _: 3, 0;
 );
 
+register!(SFSR, 0xe000_ede4,
+    #[derive(Copy, Clone)]
+    pub struct SFSR(u32);
+    pub lserr, _: 7;
+    pub sfarvalid, _: 6;
+    pub lsperr, _: 5;
+    pub invtran, _: 4;
+    pub auviol, _: 3;
+    pub inver, _: 2;
+    pub invis, _: 1;
+    pub invep, _: 0;
+);
+
+impl std::fmt::Debug for SFSR {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.lserr() {
+            write!(f, "Lazy state error, ")?;
+        }
+        if self.lsperr() {
+            write!(f, "Error preserving floting point state, ")?;
+        }
+        if self.invtran() {
+            write!(f, "Invalid transition from S -> NS world, ")?;
+        }
+        if self.auviol() {
+            write!(f, "SAU Access violation,  ")?;
+        }
+        if self.inver() {
+            write!(f, "Invalid exception return (check your stack), ")?;
+        }
+        if self.invis() {
+            write!(f, "Invalid integrity signature, ")?;
+        }
+        if self.invep() {
+            write!(f, "Invalid transition from NS -> S world")?;
+        }
+        Ok(())
+    }
+}
+
+impl SFSR {
+    pub fn has_fault(&self) -> bool {
+        self.0 != 0
+    }
+}
+
+register!(MMFAR, 0xe000_ed34,
+    #[derive(Copy, Clone)]
+    pub struct MMFAR(u32);
+    impl Debug;
+    pub address, _: 31, 0;
+);
+
+register!(BFAR, 0xe000_ed38,
+    #[derive(Copy, Clone)]
+    pub struct BFAR(u32);
+    impl Debug;
+    pub address, _: 31, 0;
+);
+
+register!(SFAR, 0xe000_ede8,
+    #[derive(Copy, Clone)]
+    pub struct SFAR(u32);
+    impl Debug;
+    pub address, _: 31, 0;
+);
+
 register!(CFSR, 0xe000_ed28,
     #[derive(Copy, Clone)]
     pub struct CFSR(u32);
     impl Debug;
-    pub usage_divide_by_zero, _: 16 + 9;
-    pub usage_unaligned, _: 16 + 8;
-    pub usage_no_coprocessor, _: 16 + 3;
-    pub usage_invalid_pc, _: 16 + 2;
-    pub usage_invalid_state, _: 16 + 1;
-    pub usage_undefined_instr, _: 16;
-    pub bus_addr_valid, _: 8 + 7;
-    pub bus_lazy_fp, _: 8 + 5;
-    pub bus_exception_entry, _: 8 + 4;
-    pub bus_exception_return, _: 8 + 3;
-    pub bus_imprecise_data, _: 8 + 2;
-    pub bus_precise_data, _: 8 + 1;
-    pub bus_instr_prefetch, _: 8;
-    pub mem_addr_valid, _: 7;
-    pub mem_lazy_fp, _: 5;
-    pub mem_exception_entry, _: 4;
-    pub mem_exception_return, _: 3;
-    pub mem_data_access, _: 1;
-    pub mem_instr_access, _: 0;
+    pub ufsr, _: 31, 16;
+    pub bfsr, _: 15, 8;
+    pub mmfsr, _: 7, 0;
 );
+
+impl CFSR {
+    pub fn has_fault(&self) -> bool {
+        self.0 != 0
+    }
+
+    pub fn get_ufsr(&self) -> Option<UFSR> {
+        let ufsr = UFSR::from(self.ufsr() as u16);
+        if ufsr.has_fault() {
+            Some(ufsr)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_bfsr(&self) -> Option<BFSR> {
+        let bfsr = BFSR::from(self.bfsr() as u8);
+        if bfsr.has_fault() {
+            Some(bfsr)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mmfsr(&self) -> Option<MMFSR> {
+        let mmfsr = MMFSR::from(self.mmfsr() as u8);
+        if mmfsr.has_fault() {
+            Some(mmfsr)
+        } else {
+            None
+        }
+    }
+}
+
+bitfield! {
+    #[derive(Copy, Clone)]
+    pub struct UFSR(u16);
+    divbyzero, _: 9;
+    unaligned, _: 8;
+    stkof, _: 4;
+    nocp, _: 3;
+    invpc, _: 2;
+    invstate, _: 1;
+    undefinstr, _: 0;
+}
+
+impl std::fmt::Debug for UFSR {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.divbyzero() {
+            write!(f, "Division by Zero, ")?;
+        }
+        if self.unaligned() {
+            write!(f, "Unaligned access, ")?;
+        }
+        if self.stkof() {
+            write!(f, "Stack overflow, ")?;
+        }
+        if self.nocp() {
+            write!(f, "No coprocessor (disabled or not present) ")?;
+        }
+        if self.invpc() {
+            write!(f, "Invalid PC, ")?;
+        }
+        if self.invstate() {
+            write!(f, "Invalid state (check the THUMB bit), ")?;
+        }
+        if self.undefinstr() {
+            write!(f, "Undefined instruction")?;
+        }
+        Ok(())
+    }
+}
+
+impl From<u16> for UFSR {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
+impl UFSR {
+    pub fn has_fault(&self) -> bool {
+        self.0 != 0
+    }
+}
+
+bitfield! {
+    pub struct BFSR(u8);
+    pub ibuserr, _: 0;
+    pub preciserr, _: 1;
+    pub impreciserr, _: 2;
+    pub unstkerr, _: 3;
+    pub stkerr, _: 4;
+    pub lsperr, _: 5;
+    pub bfarvalid, _: 7;
+}
+
+impl std::fmt::Debug for BFSR {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.ibuserr() {
+            write!(f, "Bus Error on Instruction, ")?;
+        }
+        if self.preciserr() {
+            write!(f, "Precise data access error, ")?;
+        }
+        if self.impreciserr() {
+            write!(f, "Imprecise data access error, ")?;
+        }
+        if self.unstkerr() {
+            write!(f, "Bus Error during exception return unstacking (check your  stack usage), ")?;
+        }
+        if self.stkerr() {
+            write!(f, "Bus Error during exception entry stacking (check your stack usage), ")?;
+        }
+        if self.lsperr() {
+            write!(f, "Bus Error during FP lazy state preservation")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl From<u8> for BFSR {
+    fn from(value: u8) -> Self {
+        Self(value)
+    }
+}
+
+impl BFSR {
+    pub fn has_fault(&self) -> bool {
+        self.0 != 0
+    }
+}
+
+bitfield! {
+    pub struct MMFSR(u8);
+    pub mmfarvalid, _: 7;
+    pub mlsperr, _: 5;
+    pub mstkerr, _: 4;
+    pub munstkerr, _: 3;
+    pub daccviol, _: 1;
+    pub iaccviol, _: 0;
+}
+
+impl std::fmt::Debug for MMFSR {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.mlsperr() {
+            write!(f, "MM Fault during FP state preservation, ")?;
+        }
+        if self.mstkerr() {
+            write!(f, "MM Fault during exception entry stacking (check your stack usage), ")?;
+        }
+        if self.munstkerr() {
+            write!(
+                f,
+                "MM fault during exception return (check your stack usage), "
+            )?;
+        }
+        if self.daccviol() {
+            write!(f, "MM Fault from data access, ")?;
+        }
+        if self.iaccviol() {
+            write!(f, "MM fault from instruction access")?;
+        }
+        Ok(())
+    }
+}
+
+impl From<u8> for MMFSR {
+    fn from(value: u8) -> Self {
+        Self(value)
+    }
+}
+
+impl MMFSR {
+    pub fn has_fault(&self) -> bool {
+        self.0 != 0
+    }
+}
 
 register!(HFSR, 0xe000_ed2c,
     #[derive(Copy, Clone)]
@@ -486,6 +715,12 @@ pub enum ARMCore {
     CortexA73 = 0xd09,
     CortexA75 = 0xd0a,
     CortexR52 = 0xd13,
+}
+
+impl ARMCore {
+    pub fn has_tz(&self) -> bool {
+        matches!(*self, ARMCore::CortexM33)
+    }
 }
 
 pub fn corename(partno: ARMCore) -> String {
