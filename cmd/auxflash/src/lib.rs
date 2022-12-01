@@ -393,6 +393,7 @@ fn auxflash(context: &mut humility::ExecutionContext) -> Result<()> {
         }
         AuxFlashCommand::Erase { slot } => {
             worker.slot_erase(slot)?;
+            humility::msg!("done erasing slot {}", slot);
         }
         AuxFlashCommand::Read { slot, output, count } => {
             let data = worker.auxflash_read(slot, count)?;
