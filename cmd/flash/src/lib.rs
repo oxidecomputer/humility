@@ -64,6 +64,10 @@ struct FlashArgs {
         parse(try_from_str = parse_int::parse)
     )]
     reset_delay: u64,
+
+    /// if archive appears to already be flashed, verify contents
+    #[clap(long, short = 'V')]
+    verify: bool,
 }
 
 fn force_openocd(
@@ -263,6 +267,20 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             humility::msg!(
                 "archive appears to be already flashed; forcing re-flash"
             );
+        } else if subargs.verify {
+            if let Err(err) = hubris.verify(core) {
+                humility::msg!(
+                    "archive has matching image ID to attached device, contents \
+                    differ: {}; reflashing",
+                    err
+                );
+            } else {
+                core.run()?;
+                bail!(
+                    "archive is already flashed on attached device; \
+                        use -F (\"--force\") to force re-flash"
+                );
+            }
         } else {
             core.run()?;
             bail!(

@@ -2247,6 +2247,7 @@ impl HubrisArchive {
                 heapbss,
                 task,
                 iface,
+                buffer: buffer.to_vec(),
             },
         );
 
@@ -3262,6 +3263,106 @@ impl HubrisArchive {
         );
     }
 
+    pub fn verify(&self, core: &mut dyn crate::core::Core) -> Result<()> {
+        use indicatif::{HumanBytes, HumanDuration};
+        use indicatif::{ProgressBar, ProgressStyle};
+
+        let mut incore = HashMap::new();
+
+        for (_, m) in &self.modules {
+            let elf = Elf::parse(&m.buffer).map_err(|e| {
+                anyhow!("busted in-core ELF object {}: {}", m.name, e)
+            })?;
+
+            elf.program_headers
+                .iter()
+                .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
+                .filter(|h| h.p_flags & goblin::elf::program_header::PF_W == 0)
+                .map(|h| (h.p_vaddr, h.p_offset as usize))
+                .for_each(|h| {
+                    incore.insert(h.0, (m, h.1));
+                });
+        }
+
+        let regions = self.regions(core)?;
+        let mut total = 0;
+
+        for region in regions.values() {
+            if region.attr.device {
+                continue;
+            }
+
+            if incore.get(&(region.base as u64)).is_some() {
+                total += region.size;
+            }
+        }
+
+        let mut written = 0;
+        let mut bytes = vec![0; 1024];
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(total as u64);
+        bar.set_style(
+            ProgressStyle::default_bar().template(
+                "humility: verifying [{bar:30}] {bytes}/{total_bytes}",
+            ),
+        );
+
+        for region in regions.values() {
+            if region.attr.device {
+                continue;
+            }
+
+            if let Some((m, offset)) = incore.get(&(region.base as u64)) {
+                //
+                // We want to read this bit from flash and compare.
+                //
+                let mut remain = region.size as usize;
+                let mut addr = region.base;
+                let mut o = 0;
+
+                while remain > 0 {
+                    let nbytes =
+                        if remain > bytes.len() { bytes.len() } else { remain };
+
+                    core.read_8(addr, &mut bytes[0..nbytes])?;
+
+                    for i in 0..nbytes {
+                        if m.buffer[offset + o + i] != bytes[i] {
+                            bar.finish_and_clear();
+
+                            bail!(
+                                "differs at addr 0x{:x} (\"{}\", \
+                                offset {}): found 0x{:x}, expected 0x{:x}",
+                                addr + i as u32,
+                                m.name,
+                                offset + o + i,
+                                bytes[i],
+                                m.buffer[offset + o + i]
+                            );
+                        }
+                    }
+
+                    remain -= nbytes;
+                    addr += nbytes as u32;
+                    written += nbytes;
+                    o += nbytes;
+                    bar.set_position(written as u64);
+                }
+            }
+        }
+
+        bar.finish_and_clear();
+
+        msg!(
+            "verified {} in {}",
+            HumanBytes(written as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        Ok(())
+    }
+
     pub fn image_id_addr(&self) -> Option<u32> {
         self.imageid.as_ref().map(|i| i.0)
     }
@@ -4170,6 +4271,7 @@ impl HubrisArchive {
             offset += region.size + pad!(region.size);
             total += region.size;
         }
+
         for note in &notes {
             //
             // Now write our note section, starting with our note header...
@@ -5231,6 +5333,7 @@ pub struct HubrisModule {
     pub memsize: u32,
     pub heapbss: (Option<u32>, Option<u32>),
     pub iface: Option<Interface>,
+    buffer: Vec<u8>,
 }
 
 impl HubrisModule {
