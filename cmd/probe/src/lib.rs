@@ -358,6 +358,50 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
             }
         );
     }
+    let cfsr = CFSR::read(core)?;
+    if cfsr.has_fault() {
+        humility::msg!("Fault detected! Raw CFSR: 0x{:x}", cfsr.0);
+        if let Some(bfsr) = cfsr.get_bfsr() {
+            humility::msg!(
+                "Bus Fault accessing address {} : {:x?}",
+                if bfsr.bfarvalid() {
+                    format!("{:x}", BFAR::read(core)?.address())
+                } else {
+                    "unknown".to_string()
+                },
+                bfsr,
+            );
+        }
+        if let Some(ufsr) = cfsr.get_ufsr() {
+            humility::msg!("Usage Fault : {:x?}", ufsr);
+        }
+        if let Some(mmfsr) = cfsr.get_mmfsr() {
+            humility::msg!(
+                "MM Fault accessing address {} : {:x?}",
+                if mmfsr.mmfarvalid() {
+                    format!("{:x}", MMFAR::read(core)?.address())
+                } else {
+                    "unknown".to_string()
+                },
+                mmfsr
+            );
+        }
+    }
+    if part.has_tz() {
+        let sfsr = SFSR::read(core)?;
+        if sfsr.has_fault() {
+            humility::msg!(
+                "Secure Fault accessing address {} : (raw SFSR 0x{:x}) {:x?}",
+                if sfsr.sfarvalid() {
+                    format!("{:x}", SFAR::read(core)?.address())
+                } else {
+                    "unknown".to_string()
+                },
+                sfsr.0,
+                sfsr
+            )
+        }
+    }
 
     if !dhcsr.halted() {
         core.run()?;
