@@ -3298,7 +3298,7 @@ impl HubrisArchive {
 
         let mut incore = HashMap::new();
 
-        for (_, m) in &self.modules {
+        for m in self.modules.values() {
             let elf = Elf::parse(&m.buffer).map_err(|e| {
                 anyhow!("busted in-core ELF object {}: {}", m.name, e)
             })?;
@@ -3358,6 +3358,7 @@ impl HubrisArchive {
 
                     core.read_8(addr, &mut bytes[0..nbytes])?;
 
+                    #[allow(clippy::needless_range_loop)]
                     for i in 0..nbytes {
                         if m.buffer[offset + o + i] != bytes[i] {
                             bar.finish_and_clear();

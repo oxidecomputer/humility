@@ -106,7 +106,7 @@ fn force_openocd(
         let mut c = humility::core::attach(probe, hubris)?;
         let core = c.as_mut();
 
-        validate(hubris, core, &subargs)?;
+        validate(hubris, core, subargs)?;
 
         if subargs.check {
             return Ok(());
