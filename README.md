@@ -544,7 +544,12 @@ to prevent accidental blasts of binary content to the console.)
 Flashes the target with the image that is contained within the specified
 archive (or dump).  As a precautionary measure, if the specified archive
 already appears to be on the target, `humility flash` will fail unless the
-`-F` (`--force`) flag is set.
+`-F` (`--force`) flag is set.  Because this will only check the image
+ID (and not the entire image), `humility flash` can be optionally told
+to verify that all of the program text in the image is on the device
+by specifying `-V` (`--verify`).  Similarly, if one wishes to *only*
+check the image against the archive (and not flash at all), specify
+`-C` (`--check`).
 
 This attempts to natively flash the part within Humility using probe-rs,
 but for some parts or configurations, it may need to use OpenOCD as a
