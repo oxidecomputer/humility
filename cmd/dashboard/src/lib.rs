@@ -12,7 +12,7 @@
 //! graphed by the dashboard.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use crossterm::{
@@ -794,7 +794,22 @@ fn sequencer_state_ops<'a>(
     ops: &mut Vec<Op>,
 ) -> Result<idol::IdolOperation<'a>> {
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sequencer", "get_state", None)?;
+    let op = idol::IdolOperation::new(hubris, "Sequencer", "get_state", None)
+        .or_else(|_| {
+            idol::IdolOperation::new(
+                hubris,
+                "Sequencer",
+                "tofino_seq_state",
+                None,
+            )
+        })
+        .map_err(|_| {
+            anyhow!(
+                "Could not find Sequencer.get_state or \
+                 Sequencer.tofino_seq_state"
+            )
+        })?;
+
     context.idol_call_ops(&funcs, &op, &[], ops)?;
     Ok(op)
 }
@@ -806,10 +821,28 @@ fn power_ops(
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sequencer", "set_state", None)?;
 
-    let payload =
-        op.payload(&[("state", idol::IdolArgument::String(state))])?;
+    let (payload, op) = if let Ok(op) =
+        idol::IdolOperation::new(hubris, "Sequencer", "set_state", None)
+    {
+        (op.payload(&[("state", idol::IdolArgument::String(state))])?, op)
+    } else if let Ok(op) = idol::IdolOperation::new(
+        hubris,
+        "Sequencer",
+        "set_tofino_seq_policy",
+        None,
+    ) {
+        // Translate from Gimlet-style power states to Tofino-style policies
+        let policy = match state {
+            "A0" => "LatchOffOnFault",
+            "A2" => "Disabled",
+            state => bail!("Unknown state {state}"),
+        };
+        (op.payload(&[("policy", idol::IdolArgument::String(policy))])?, op)
+    } else {
+        bail!("Could not find Sequencer.set_state or Sequencer.set_tofino_seq_policy");
+    };
+
     context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
