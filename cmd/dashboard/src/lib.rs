@@ -819,28 +819,43 @@ fn power_ops(
     let mut ops = vec![];
     let funcs = context.functions()?;
 
-    let (payload, op) = if let Ok(op) =
-        idol::IdolOperation::new(hubris, "Sequencer", "set_state", None)
-    {
-        (op.payload(&[("state", idol::IdolArgument::String(state))])?, op)
-    } else if let Ok(op) = idol::IdolOperation::new(
-        hubris,
-        "Sequencer",
-        "set_tofino_seq_policy",
-        None,
-    ) {
+    // Helper function to look up an IdolOperation by name
+    let get_op =
+        |name| idol::IdolOperation::new(hubris, "Sequencer", name, None);
+
+    if let Ok(op) = get_op("set_tofino_seq_policy") {
         // Translate from Gimlet-style power states to Tofino-style policies
         let policy = match state {
-            "A0" => "LatchOffOnFault",
+            "A0" => {
+                // If we're trying to go to A0, then _also_ clear Tofino faults
+                // before changing the power policy.
+                let op = get_op("clear_tofino_seq_error")?;
+                let payload = op.payload(&[])?;
+                context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+
+                // Then, return the policy which will get us to power up
+                "LatchOffOnFault"
+            }
             "A2" => "Disabled",
             state => bail!("Unknown state {state}"),
         };
-        (op.payload(&[("policy", idol::IdolArgument::String(policy))])?, op)
+
+        context.idol_call_ops(
+            &funcs,
+            &op,
+            &op.payload(&[("policy", idol::IdolArgument::String(policy))])?,
+            &mut ops,
+        )?;
+    } else if let Ok(op) = get_op("set_state") {
+        context.idol_call_ops(
+            &funcs,
+            &op,
+            &op.payload(&[("state", idol::IdolArgument::String(state))])?,
+            &mut ops,
+        )?;
     } else {
         bail!("Could not find Sequencer.set_state or Sequencer.set_tofino_seq_policy");
     };
-
-    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     Ok(ops)
