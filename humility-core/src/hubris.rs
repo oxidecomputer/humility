@@ -3307,6 +3307,8 @@ impl HubrisArchive {
                 .iter()
                 .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
                 .filter(|h| h.p_flags & goblin::elf::program_header::PF_W == 0)
+                .filter(|h| h.p_flags & goblin::elf::program_header::PF_R != 0)
+                .filter(|h| h.p_flags & goblin::elf::program_header::PF_X != 0)
                 .map(|h| (h.p_vaddr, h.p_offset as usize))
                 .for_each(|h| {
                     incore.insert(h.0, (m, h.1));
