@@ -794,16 +794,13 @@ fn sequencer_state_ops<'a>(
     ops: &mut Vec<Op>,
 ) -> Result<idol::IdolOperation<'a>> {
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sequencer", "get_state", None)
-        .or_else(|_| {
-            idol::IdolOperation::new(
-                hubris,
-                "Sequencer",
-                "tofino_seq_state",
-                None,
-            )
-        })
-        .map_err(|_| {
+
+    // Sidecar and Gimlet have different names for this operation!
+    let op = ["tofino_seq_state", "get_state"]
+        .iter()
+        .map(|name| idol::IdolOperation::new(hubris, "Sequencer", name, None))
+        .find_map(Result::ok)
+        .ok_or_else(|| {
             anyhow!(
                 "Could not find Sequencer.get_state or \
                  Sequencer.tofino_seq_state"
