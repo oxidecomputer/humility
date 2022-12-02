@@ -7,7 +7,12 @@
 //! Flashes the target with the image that is contained within the specified
 //! archive (or dump).  As a precautionary measure, if the specified archive
 //! already appears to be on the target, `humility flash` will fail unless the
-//! `-F` (`--force`) flag is set.
+//! `-F` (`--force`) flag is set.  Because this will only check the image
+//! ID (and not the entire image), `humility flash` can be optionally told
+//! to verify that all of the program text in the image is on the device
+//! by specifying `-V` (`--verify`).  Similarly, if one wishes to *only*
+//! check the image against the archive (and not flash at all), specify
+//! `-C` (`--check`).
 //!
 //! This attempts to natively flash the part within Humility using probe-rs,
 //! but for some parts or configurations, it may need to use OpenOCD as a
@@ -64,6 +69,14 @@ struct FlashArgs {
         parse(try_from_str = parse_int::parse)
     )]
     reset_delay: u64,
+
+    /// if archive appears to already be flashed, verify contents
+    #[clap(long, short = 'V', conflicts_with = "force")]
+    verify: bool,
+
+    /// do not flash, just check if archive has been flashed
+    #[clap(long, short = 'C', conflicts_with_all = &["force", "verify"])]
+    check: bool,
 }
 
 fn force_openocd(
@@ -93,22 +106,13 @@ fn force_openocd(
         let mut c = humility::core::attach(probe, hubris)?;
         let core = c.as_mut();
 
-        //
-        // We want to actually try validating to determine if this archive
-        // already matches; if it does, this command may well be in error,
-        // and we want to force the user to force their intent.
-        //
-        if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
-            if subargs.force {
-                humility::msg!(
-                    "archive appears to be already flashed; forcing re-flash"
-                );
-            } else {
-                bail!("archive appears to be already flashed on attached device; \
-                    use -F (\"--force\") to force re-flash");
-            }
+        validate(hubris, core, subargs)?;
+
+        if subargs.check {
+            return Ok(());
         }
 
+        core.run()?;
         core.info().1
     };
 
@@ -211,6 +215,73 @@ fn force_openocd(
     Ok(())
 }
 
+fn validate(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    subargs: &FlashArgs,
+) -> Result<()> {
+    core.halt()?;
+
+    //
+    // We want to actually try validating to determine if this archive
+    // already matches; if it does, this command may well be in error,
+    // and we want to force the user to force their intent.
+    //
+    match hubris.validate(core, HubrisValidate::ArchiveMatch) {
+        Ok(_) => {
+            if subargs.force {
+                humility::msg!(
+                    "archive appears to be already flashed; forcing re-flash"
+                );
+            } else if subargs.verify || subargs.check {
+                if let Err(err) = hubris.verify(core) {
+                    if subargs.check {
+                        core.run()?;
+                        bail!(
+                            "image IDs match, but flash contents do not match \
+                            archive contents: {}",
+                            err
+                        );
+                    }
+
+                    humility::msg!(
+                        "image IDs match, but flash contents do not match \
+                        archive contents: {}; reflashing",
+                        err
+                    );
+                } else {
+                    core.run()?;
+
+                    if subargs.check {
+                        humility::msg!("archive matches flash contents");
+                        return Ok(());
+                    }
+
+                    bail!(
+                        "archive is already flashed on attached device; \
+                        use -F (\"--force\") to force re-flash"
+                    );
+                }
+            } else {
+                core.run()?;
+                bail!(
+                    "archive appears to be already flashed on attached \
+                    device; use -F (\"--force\") to force re-flash or \
+                    -V (\"--verify\") to verify contents"
+                );
+            }
+        }
+        Err(err) => {
+            if subargs.check {
+                core.run()?;
+                bail!("flash/archive mismatch: {}", err);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
@@ -251,25 +322,10 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
     let core = c.as_mut();
 
-    core.halt()?;
+    validate(hubris, core, &subargs)?;
 
-    //
-    // We want to actually try validating to determine if this archive
-    // already matches; if it does, this command may well be in error,
-    // and we want to force the user to force their intent.
-    //
-    if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
-        if subargs.force {
-            humility::msg!(
-                "archive appears to be already flashed; forcing re-flash"
-            );
-        } else {
-            core.run()?;
-            bail!(
-                "archive appears to be already flashed on attached device; \
-                    use -F (\"--force\") to force re-flash"
-            );
-        }
+    if subargs.check {
+        return Ok(());
     }
 
     let ihex = tempfile::NamedTempFile::new()?;
