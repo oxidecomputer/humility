@@ -440,6 +440,10 @@ fn program_auxflash(
     //   active slot.
     worker.reset()?;
 
+    // Give the SP plenty of time to do its mirroring operation
+    humility::msg!("resetting the SP, please wait...");
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
     match worker.active_slot() {
         Ok(Some(..)) => Ok(()),
         Ok(None) => bail!("No active auxflash slot, even after programming"),
