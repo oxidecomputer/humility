@@ -1,0 +1,29 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x2403a000       1536        640        896
+ 1 sys                0x24001c00        896        192        704
+ 2 spi1_driver        0x2403a800        880        504        376
+ 3 spi2_driver        0x2403b000        880        504        376
+ 4 spi3_driver        0x24032000       1000        504        496
+ 5 spi4_driver        0x2403b800        872        320        552
+ 6 spi5_driver        0x2403c000        880        464        416
+ 7 update_server      0x24033000       2048       1232        816
+ 8 auxflash           0x24034000       3504       2792        712
+ 9 net                0x24010000       6040       4736       1304
+10 control_plane_agent 0x24002000       2560       1440       1120
+11 sprot              0x24008000      16384       2512      13872
+12 udpecho            0x24004000       4096        584       3512
+13 udpbroadcast       0x24006000       4096        312       3784
+14 udprpc             0x24028000       4096       2592       1504
+15 monorail           0x2402a000       4096       1952       2144
+16 i2c_driver         0x2403c800        896        608        288
+17 hiffy              0x24020000       1024        648        376
+18 sensor             0x2403d000       1920       1184        736
+19 ecp5_mainboard     0x24035000       2048       1112        936
+20 ecp5_front_io      0x24036000       2048       1168        880
+21 transceivers       0x2402c000       2048       1016       1032
+22 sequencer          0x2402e000       4096       2160       1936
+23 thermal            0x24030000       4504        920       3584
+24 power              0x24037000       2048        360       1688
+25 validate           0x24038000       1000        192        808
+26 ignition           0x24039000       2048       1008       1040
+27 idle               0x24001900        256        104        152

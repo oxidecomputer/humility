@@ -173,6 +173,10 @@ humility: ring buffer ksz8463::__RINGBUF in net:
    6  148        5        1 Write(CIDER, 0x1)
 humility: ring buffer stm32h7_update_server::__RINGBUF in update_server:
 humility: ring buffer task_control_plane_agent::__RINGBUF in control_plane_agent:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  161        1        1 Wake(0x2)
+   1  819        1        1 UsartRx { num_bytes: 0x1 }
+   2  161        1        1 Wake(0x2)
 humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
 humility: ring buffer task_host_sp_comms::__RINGBUF in host_sp_comms:
  NDX LINE      GEN    COUNT PAYLOAD
