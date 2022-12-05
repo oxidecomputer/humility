@@ -5065,18 +5065,14 @@ pub struct HubrisEnum {
 
 impl HubrisEnum {
     pub fn lookup_variant(&self, tag: u64) -> Option<&HubrisEnumVariant> {
-        for variant in &self.variants {
-            match variant.tag {
-                Some(t) if t == tag => {
-                    return Some(variant);
-                }
-                Some(_t) => {}
-                None => {
-                    return Some(variant);
-                }
-            }
+        // We prioritize picking a variant with the matching tag
+        if let Some(t) = self.variants.iter().find(|v| v.tag == Some(tag)) {
+            Some(t)
+        } else {
+            // Otherwise, we pick a variant with the None tag, for the case of a
+            // single-element enum.
+            self.variants.iter().find(|v| v.tag.is_none())
         }
-        None
     }
 
     pub fn lookup_variant_byname(

@@ -1,0 +1,30 @@
+system time = 897421
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+79)
+ 1 sys                          0   1 recv
+ 2 spi1_driver                  0   2 recv
+ 3 spi2_driver                  0   2 recv
+ 4 spi3_driver                  0   2 recv
+ 5 spi4_driver                  0   3 recv
+ 6 spi5_driver                  0   2 recv
+ 7 update_server                0   3 recv
+ 8 auxflash                     0   3 recv
+ 9 net                          0   5 recv, notif: bit0(irq61) bit2(T+84)
+10 control_plane_agent          0   7 recv, notif: bit0 bit1 bit2
+11 sprot                        0   4 recv
+12 udpecho                      0   6 notif: bit0
+13 udpbroadcast                 0   6 notif: bit31(T+349)
+14 udprpc                       0   6 notif: bit0
+15 monorail                     2   6 recv, notif: bit0(T+9)
+16 i2c_driver                   0   2 recv
+17 hiffy                        0   5 notif: bit31(T+239)
+18 sensor                       0   4 recv, notif: bit0(T+580)
+19 ecp5_mainboard               0   3 recv
+20 ecp5_front_io                0   3 recv
+21 transceivers                 0   6 recv, notif: bit0 bit1(T+131)
+22 sequencer                    0   4 recv, notif: bit0(T+225)
+23 thermal                      0   5 recv, notif: bit0(T+228)
+24 power                        0   6 notif: bit31(T+274)
+25 validate                     0   5 recv
+26 ignition                     0   5 recv, notif: bit0(T+226)
+27 idle                         0   8 RUNNING
