@@ -85,8 +85,8 @@ members = [
 debug = true
 
 [profile.ci]
-inherits = "dev"
-debug = false # default true
+inherits = "release"
+debug = false
 
 [build-dependencies]
 cargo_metadata = "0.12.0"
