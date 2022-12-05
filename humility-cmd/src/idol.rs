@@ -119,7 +119,7 @@ impl<'a> IdolOperation<'a> {
         member: &HubrisStructMember,
         arg: (&String, &AttributedTy),
         val: &IdolArgument,
-        payload: &mut Vec<u8>,
+        payload: &mut [u8],
     ) -> Result<()> {
         // Now, we have to decide how to pack the argument into the payload
         //
