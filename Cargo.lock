@@ -1609,7 +1609,6 @@ dependencies = [
  "parse_int",
  "serde",
  "serde-xml-rs",
- "serde_derive",
 ]
 
 [[package]]

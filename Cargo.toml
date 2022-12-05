@@ -81,24 +81,37 @@ members = [
     "xtask",
 ]
 
-[profile.release]
-debug = true
-
-[profile.ci]
-inherits = "release"
-debug = false
-
-[build-dependencies]
-cargo_metadata = "0.12.0"
-anyhow = "1.0.32"
-
-[dependencies]
-pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
+[workspace.dependencies]
+# `git`-based deps
 hif = { git = "https://github.com/oxidecomputer/hif" }
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
+lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
+pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
 spd = { git = "https://github.com/oxidecomputer/spd" }
+serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
+tlvc = { git = "https://github.com/oxidecomputer/tlvc" }
+tlvc-text = {git = "https://github.com/oxidecomputer/tlvc"}
+vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
+vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
+
+#
+# We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
+# that we can float necessary patches on probe-rs.
+#
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.12.0" }
+
+#
+# We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,
+# which upstream seems uninterested in fixing.
+#
+capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
+
+# Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
+humility_load_derive = { path = "./load_derive" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
@@ -151,29 +164,158 @@ cmd-update = { path = "./cmd/update", package = "humility-cmd-update" }
 cmd-validate = { path = "./cmd/validate", package = "humility-cmd-validate" }
 cmd-vpd = { path = "./cmd/vpd", package = "humility-cmd-vpd" }
 
-fallible-iterator = "0.2.0"
-log = {version = "0.4.8", features = ["std"]}
-env_logger = "0.9.0"
-bitfield = "0.13.2"
-clap = "3.0.12"
-csv = "1.1.3"
-serde = "1.0.126"
-parse_int = "0.4.0"
-multimap = "0.8.1"
-num-traits = "0.2"
-num-derive = "0.3"
-jep106 = "0.2"
-toml = "0.5"
+# crates.io deps
 anyhow = { version = "1.0.44", features = ["backtrace"] }
-scroll = "0.10"
-indicatif = "0.15"
+atty = "0.2"
+bitfield = "0.13.2"
+byteorder = "1.3.4"
+cargo_metadata = "0.12.0"
+clap = { version = "3.0.12", features = ["derive", "env"] }
 colored = "2.0.0"
+crc-any = "2.3.5"
+crossterm = "0.20.0"
+csv = "1.1.3"
+ctrlc = "3.1.5"
+env_logger = "0.9.0"
+fallible-iterator = "0.2.0"
+gimli = "0.22.0"
+goblin = "0.2"
+ihex = "3.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
+indicatif = "0.15"
+itertools = "0.10.1"
+jep106 = "0.2"
+lazy_static = "1.4.0"
+libc = "0.2"
+log = {version = "0.4.8", features = ["std"]}
+multimap = "0.8.1"
+num-derive = "0.3"
+num-traits = "0.2"
+parse_int = "0.4.0"
+paste = "0.1"
+path-slash = "0.1.4"
+postcard = "0.7.0"
+proc-macro2 = "1.0"
+quote = "1.0"
 reedline = "0.3.0"
+regex = "1.5.5"
+ron = "0.7"
+rusb = "0.8.1"
+rustc-demangle = "0.1.21"
+scroll = "0.10"
+serde = { version = "1.0.126", features = ["derive"] }
+serde_json = "1.0"
+serde-xml-rs = "0.5.1"
+sha2 = "0.10.1"
+splitty = "0.1.0"
+srec = "0.2"
+ssmarshal = {version = "1"}
+structopt = "0.3"
+strum = "0.22"
+strum_macros = "0.22"
+syn = "1.0"
+tempfile = "3.3"
+termimad = "0.14"
+toml = "0.5"
+trycmd = "0.13.2"
+tui = { version = "0.16", default-features = false }
+winapi = "0.3.9"
+zerocopy = "0.6.1"
+zip = "0.5"
+
+[profile.release]
+debug = true
+
+[profile.ci]
+inherits = "release"
+debug = false
+
+[build-dependencies]
+cargo_metadata = { workspace = true }
+anyhow = { workspace = true }
+
+[dependencies]
+pmbus = { workspace = true }
+hif = { workspace = true }
+spd = { workspace = true }
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+cmd-apptable = { workspace = true }
+cmd-auxflash = { workspace = true }
+cmd-dashboard = { workspace = true }
+cmd-diagnose = { workspace = true }
+cmd-debugmailbox = { workspace = true }
+cmd-doc = { workspace = true }
+cmd-dump = { workspace = true }
+cmd-tofino-eeprom = { workspace = true }
+cmd-etm = { workspace = true }
+cmd-exec = { workspace = true }
+cmd-extract = { workspace = true }
+cmd-flash = { workspace = true }
+cmd-gdb = { workspace = true }
+cmd-gpio = { workspace = true }
+cmd-hash = { workspace = true }
+cmd-hiffy = { workspace = true }
+cmd-i2c = { workspace = true }
+cmd-isp = { workspace = true }
+cmd-itm = { workspace = true }
+cmd-jefe = { workspace = true }
+cmd-lpc55gpio = { workspace = true }
+cmd-lpc55-pfr = { workspace = true }
+cmd-manifest = { workspace = true }
+cmd-map = { workspace = true }
+cmd-monorail = { workspace = true }
+cmd-net = { workspace = true }
+cmd-openocd = { workspace = true }
+cmd-pmbus = { workspace = true }
+cmd-power = { workspace = true }
+cmd-probe = { workspace = true }
+cmd-qspi = { workspace = true }
+cmd-readmem = { workspace = true }
+cmd-readvar = { workspace = true }
+cmd-registers = { workspace = true }
+cmd-reset = { workspace = true }
+cmd-rencm = { workspace = true }
+cmd-rendmp = { workspace = true }
+cmd-ringbuf = { workspace = true }
+cmd-rpc = { workspace = true }
+cmd-sensors = { workspace = true }
+cmd-spctrl = { workspace = true }
+cmd-spd = { workspace = true }
+cmd-spi = { workspace = true }
+cmd-stackmargin = { workspace = true }
+cmd-stmsecure = { workspace = true }
+cmd-tasks = { workspace = true }
+cmd-test = { workspace = true }
+cmd-trace = { workspace = true }
+cmd-update = { workspace = true }
+cmd-validate = { workspace = true }
+cmd-vpd = { workspace = true }
+
+fallible-iterator = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+bitfield = { workspace = true }
+clap = { workspace = true }
+csv = { workspace = true }
+serde = { workspace = true }
+parse_int = { workspace = true }
+multimap = { workspace = true }
+num-traits = { workspace = true }
+num-derive = { workspace = true }
+jep106 = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+scroll = { workspace = true }
+indicatif = { workspace = true }
+colored = { workspace = true }
+indexmap = { workspace = true }
+reedline = { workspace = true }
 
 [patch.crates-io]
 libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
 hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }
 
 [dev-dependencies]
-trycmd = "0.13.2"
+trycmd = { workspace = true }
