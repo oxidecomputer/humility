@@ -350,7 +350,7 @@ pub fn hiffy_decode(
         }
         Err(e) => {
             let variant = if let Some(error) = op.error {
-                error.lookup_variant(e as u64)
+                error.lookup_variant_by_tag(e as u64)
             } else {
                 None
             };

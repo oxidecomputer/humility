@@ -1122,7 +1122,7 @@ fn deserialize_enum<'a>(
     let out = ssmarshal::deserialize::<u8>(buf)?;
     buf = &buf[out.1..];
     let var = ty
-        .lookup_variant(u64::from(out.0))
+        .lookup_variant_by_index(usize::from(out.0))
         .ok_or_else(|| anyhow!("unknown variant: {:#x}", out.0))?;
     let val = if let Some(goff) = var.goff {
         let out = deserialize_value(hubris, buf, hubris.lookup_type(goff)?)?;

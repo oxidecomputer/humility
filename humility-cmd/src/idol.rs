@@ -424,6 +424,7 @@ fn serialize_arg_enum(
             bail!("invalid value for arg {} {:?}", arg, value);
         }
     };
+    // TODO FIXME
     for variant in &e.variants {
         if value == variant.name {
             if let Some(tag) = variant.tag {
