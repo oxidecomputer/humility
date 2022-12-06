@@ -11,14 +11,14 @@ use std::fs::OpenOptions;
 use std::io::BufWriter;
 use std::io::Write;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TestSource {
     KernelLog,
     UserLog,
     Suite,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum TestToken {
     Meta,
     Expect,

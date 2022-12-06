@@ -5,12 +5,12 @@ edition = "2021"
 description = "scan for and read SPD devices"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
-spd = { git = "https://github.com/oxidecomputer/spd" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-jep106 = "0.2"
-parse_int = "0.4.0"
-log = {version = "0.4.8", features = ["std"]}
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+hif = { workspace = true }
+spd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+jep106 = { workspace = true }
+parse_int = { workspace = true }
+log = { workspace = true }

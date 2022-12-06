@@ -5,15 +5,15 @@ edition = "2021"
 description = "read and write to the Tofino SPI EEPROM"
 
 [dependencies]
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-indicatif = "0.15"
-log = {version = "0.4.8", features = ["std"]}
-parse_int = "0.4.0"
+anyhow = { workspace = true }
+clap = { workspace = true }
+indicatif = { workspace = true }
+log = { workspace = true }
+parse_int = { workspace = true }
 
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-humility-cmd-hiffy = { path = "../hiffy" }
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+cmd-hiffy = { workspace = true }
 
-hif = { git = "https://github.com/oxidecomputer/hif" }
-idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+hif = { workspace = true }
+idol = { workspace = true }

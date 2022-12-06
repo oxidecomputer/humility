@@ -168,6 +168,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
+use cmd_hiffy as humility_cmd_hiffy;
+
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::reflect::*;

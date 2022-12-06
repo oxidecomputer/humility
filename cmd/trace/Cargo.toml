@@ -5,8 +5,8 @@ edition = "2021"
 description = "trace Hubris operations"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cortex = { path = "../../humility-arch-cortex" }
-humility-cmd = { path = "../../humility-cmd" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }

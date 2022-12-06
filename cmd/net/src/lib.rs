@@ -42,6 +42,8 @@ use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
 
+use cmd_hiffy as humility_cmd_hiffy;
+
 use humility::cli::Subcommand;
 use humility::reflect::*;
 use humility_cmd::hiffy::HiffyContext;

@@ -122,7 +122,7 @@ pub enum ITMPayload {
     },
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ITMHeader {
     Sync,
     Overflow,
@@ -191,7 +191,7 @@ fn encode(hdr: ITMHeader) -> u8 {
     }
 }
 
-fn set(table: &mut Vec<Option<ITMHeader>>, hdr: ITMHeader) {
+fn set(table: &mut [Option<ITMHeader>], hdr: ITMHeader) {
     let val = encode(hdr) as usize;
 
     match table[val] {

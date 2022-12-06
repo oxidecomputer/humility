@@ -54,6 +54,9 @@ use std::collections::BTreeSet;
 use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
+use cmd_hiffy as humility_cmd_hiffy;
+use cmd_net as humility_cmd_net;
+
 use anyhow::{anyhow, bail, Result};
 use clap::App;
 use clap::IntoApp;

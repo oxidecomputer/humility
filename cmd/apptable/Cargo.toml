@@ -5,7 +5,7 @@ edition = "2021"
 description = "print Hubris apptable"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-clap = { version = "3.0.12", features = ["derive", "env"] }
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }

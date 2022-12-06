@@ -16,6 +16,8 @@
 //! ```
 //!
 
+use cmd_hiffy as humility_cmd_hiffy;
+
 use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::IdolArgument;

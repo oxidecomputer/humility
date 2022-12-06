@@ -5,10 +5,10 @@ edition = "2021"
 description = "Run OpenOCD for the given archive"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-ctrlc = "3.1.5"
-regex = "1.5"
-tempfile = "3.3"
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+ctrlc = { workspace = true }
+regex = { workspace = true }
+tempfile = { workspace = true }

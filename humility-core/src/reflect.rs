@@ -479,7 +479,7 @@ impl std::ops::Index<&str> for Struct {
     type Output = Value;
 
     fn index(&self, name: &str) -> &Self::Output {
-        &*self.members[name]
+        &self.members[name]
     }
 }
 

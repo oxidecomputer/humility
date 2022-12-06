@@ -67,7 +67,7 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = DumpArgs::try_parse_from(subargs)?;
 
-    let _info = core.halt()?;
+    core.halt()?;
     humility::msg!("core halted");
 
     let rval = hubris.dump(core, subargs.dumpfile.as_deref());
