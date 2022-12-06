@@ -1005,6 +1005,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hubpack"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70e0e5e2a94d97b34fa215ea1311937ab0880f86ee575ca4acd2ff66fa22b88c"
+dependencies = [
+ "hubpack_derive",
+ "serde",
+]
+
+[[package]]
+name = "hubpack_derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35bd74819b334bf50982a40ec2a44cdf4e197ebbc74c02624897ecb66dbf828c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1112,6 +1133,7 @@ dependencies = [
  "clap 3.2.21",
  "colored",
  "hif",
+ "hubpack",
  "humility-core",
  "idol",
  "indexmap",
@@ -1120,7 +1142,6 @@ dependencies = [
  "postcard",
  "serde",
  "serde_json",
- "ssmarshal",
  "zerocopy",
 ]
 
@@ -1867,6 +1888,7 @@ dependencies = [
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
+ "hubpack",
  "humility_load_derive",
  "idol",
  "indexmap",
@@ -1884,7 +1906,6 @@ dependencies = [
  "scroll",
  "serde",
  "serde_json",
- "ssmarshal",
  "structopt",
  "toml",
  "zip",
@@ -1936,8 +1957,8 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idol"
-version = "0.2.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#7350b8acf81e56fec8994326f64b2b544c4cb9e3"
+version = "0.2.1"
+source = "git+https://github.com/oxidecomputer/idolatry.git#b2f4c9e48fdba85ce3306e4d9dca7a18f4660759"
 dependencies = [
  "indexmap",
  "quote",
@@ -3155,16 +3176,6 @@ name = "srec"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17c3a0538ec242e3cd333cdcdc8b720faa2fa0a9d7f444cf1ff63e7d3303adfb"
-
-[[package]]
-name = "ssmarshal"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3e6ad23b128192ed337dfa4f1b8099ced0c2bf30d61e551b65fda5916dbb850"
-dependencies = [
- "encode_unicode",
- "serde",
-]
 
 [[package]]
 name = "stable_deref_trait"

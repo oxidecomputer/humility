@@ -343,7 +343,8 @@ pub fn hiffy_decode(
                 ::idol::syntax::Encoding::Zerocopy => {
                     humility::reflect::load_value(hubris, &val, ty, 0)?
                 }
-                ::idol::syntax::Encoding::Ssmarshal => {
+                ::idol::syntax::Encoding::Ssmarshal
+                | ::idol::syntax::Encoding::Hubpack => {
                     humility::reflect::deserialize_value(hubris, &val, ty)?.0
                 }
             })

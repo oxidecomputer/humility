@@ -494,7 +494,8 @@ impl<'a> HiffyContext<'a> {
                     ::idol::syntax::Encoding::Zerocopy => {
                         load_value(self.hubris, val, ty, 0)?
                     }
-                    ::idol::syntax::Encoding::Ssmarshal => {
+                    ::idol::syntax::Encoding::Ssmarshal
+                    | ::idol::syntax::Encoding::Hubpack => {
                         deserialize_value(self.hubris, val, ty)?.0
                     }
                 })

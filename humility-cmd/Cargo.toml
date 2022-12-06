@@ -8,11 +8,11 @@ humility = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 hif = { workspace = true }
+hubpack = { workspace = true }
 idol = { workspace = true }
 indexmap = { workspace = true }
 postcard = { workspace = true }
 parse_int = { workspace = true }
-ssmarshal = { workspace = true }
 colored = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
