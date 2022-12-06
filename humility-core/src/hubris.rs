@@ -333,7 +333,7 @@ pub struct HubrisFlashConfig {
     pub chip: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisArchiveDoneness {
     /// Fully load archive
     Cook,
@@ -526,14 +526,12 @@ impl HubrisArchive {
     }
 
     pub fn instr_sym(&self, addr: u32) -> Option<(&str, u32)> {
-        let sym: Option<(&str, u32)>;
-
         //
         // First, check our DWARF symbols.
         //
-        sym = match self.dsyms.range(..=addr).next_back() {
+        let sym = match self.dsyms.range(..=addr).next_back() {
             Some((_, sym)) if addr < sym.addr + sym.size => {
-                Some((&sym.name, sym.addr))
+                Some((sym.name.as_str(), sym.addr))
             }
             _ => None,
         };
@@ -706,24 +704,20 @@ impl HubrisArchive {
             usize,
         >,
     ) -> Option<HubrisGoff> {
-        let goff;
-
-        match value {
+        let goff = match value {
             gimli::AttributeValue::UnitRef(offs) => {
-                goff = match offs.to_unit_section_offset(unit) {
+                match offs.to_unit_section_offset(unit) {
                     gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
                     gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
-                };
+                }
             }
 
-            gimli::AttributeValue::DebugInfoRef(offs) => {
-                goff = offs.0;
-            }
+            gimli::AttributeValue::DebugInfoRef(offs) => offs.0,
 
             _ => {
                 return None;
             }
-        }
+        };
 
         Some(HubrisGoff { object: self.current, goff })
     }
@@ -3117,14 +3111,11 @@ impl HubrisArchive {
     pub fn qualified_variables(
         &self,
     ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
-        self.qualified_variables
-            .iter_all()
-            .map(|(n, v)| {
-                v.iter()
-                    .map(|e| (n.as_str(), e))
-                    .collect::<Vec<(&str, &HubrisVariable)>>()
-            })
-            .flatten()
+        self.qualified_variables.iter_all().flat_map(|(n, v)| {
+            v.iter()
+                .map(|e| (n.as_str(), e))
+                .collect::<Vec<(&str, &HubrisVariable)>>()
+        })
     }
 
     pub fn lookup_module(&self, task: HubrisTask) -> Result<&HubrisModule> {
@@ -4169,9 +4160,7 @@ impl HubrisArchive {
         use std::io::Write;
 
         let regions = self.regions(core)?;
-        let nsegs = regions
-            .values()
-            .fold(0, |ttl, r| ttl + if !r.attr.device { 1 } else { 0 });
+        let nsegs = regions.values().filter(|r| !r.attr.device).count();
 
         macro_rules! pad {
             ($size:expr) => {
@@ -4618,7 +4607,7 @@ impl HubrisArchive {
         let archive = zip::ZipArchive::new(cursor)?;
         Self::for_each_task(archive, |path, buffer| {
             let file_name = p.join(path.file_name().unwrap());
-            std::fs::write(file_name, &buffer)?;
+            std::fs::write(file_name, buffer)?;
             Ok(())
         })?;
         Ok(())
@@ -5044,7 +5033,7 @@ pub struct HubrisEnumVariant {
     pub tag: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisDiscriminant {
     Expected(HubrisGoff),
     Value(HubrisGoff, usize),
@@ -5467,7 +5456,7 @@ impl HubrisPrintFormat {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisValidate {
     ArchiveMatch,
     Booted,
@@ -5485,7 +5474,7 @@ fn try_scoped<'a>(
     kind: &'static str,
     map: &'a MultiMap<String, HubrisGoff>,
 ) -> Result<&'a str> {
-    let search = name.replace("<", "<.*::");
+    let search = name.replace('<', "<.*::");
 
     if search == name {
         Err(anyhow!("expected {} not found", kind))

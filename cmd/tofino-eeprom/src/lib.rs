@@ -11,6 +11,8 @@ use clap::{Command as ClapCommand, CommandFactory, Parser};
 use humility::cli::Subcommand;
 use indicatif::{ProgressBar, ProgressStyle};
 
+use cmd_hiffy as humility_cmd_hiffy;
+
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::HiffyContext;

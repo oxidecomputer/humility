@@ -5,13 +5,13 @@ edition = "2021"
 description = "scan for and read PMBus devices"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
-pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-colored = "2.0.0"
-indexmap = { version = "1.7", features = ["serde-1"] }
-log = {version = "0.4.8", features = ["std"]}
-parse_int = "0.4.0"
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+hif = { workspace = true }
+pmbus = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+indexmap = { workspace = true }
+log = { workspace = true }
+parse_int = { workspace = true }

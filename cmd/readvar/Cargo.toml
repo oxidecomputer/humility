@@ -5,7 +5,7 @@ edition = "2021"
 description = "read and display a specified Hubris variable"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }

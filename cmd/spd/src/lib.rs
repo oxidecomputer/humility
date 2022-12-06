@@ -179,7 +179,7 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
         let nspd = spd_data.size / SPD_SIZE;
         let mut bytes = vec![0u8; spd_data.size];
 
-        let _info = core.halt()?;
+        core.halt()?;
         let rval = core.read_8(spd_data.addr, &mut bytes);
         core.run()?;
 

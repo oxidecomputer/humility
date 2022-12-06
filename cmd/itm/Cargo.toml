@@ -5,11 +5,11 @@ edition = "2021"
 description = "commands for ARM's Instrumentation Trace Macrocell (ITM)"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cortex = { path = "../../humility-arch-cortex" }
-humility-cmd = { path = "../../humility-cmd" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-csv = "1.1.3"
-parse_int = "0.4.0"
-log = {version = "0.4.8", features = ["std"]}
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+csv = { workspace = true }
+parse_int = { workspace = true }
+log = { workspace = true }

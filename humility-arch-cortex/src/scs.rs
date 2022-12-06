@@ -71,7 +71,7 @@ register_offs!(SWTF_CTRL, 0x0,
     pub es0, set_es0: 0;
 );
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CoreSightClass {
     ROM,
     Component,
@@ -390,7 +390,7 @@ register!(CPUID, 0xe000_ed00,
 // therefore are willing to hard-code special case handling for, to some
 // extent.
 //
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Vendor {
     ST,
     NXP,

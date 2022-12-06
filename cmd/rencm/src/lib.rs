@@ -26,7 +26,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
 
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use serde_xml_rs::from_str;
 
 #[derive(Parser, Debug)]

@@ -7,13 +7,13 @@ description = "Management network device-side control and debugging"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-parse_int = "0.4.0"
-colored = "2.0.0"
+anyhow = { workspace = true }
+clap = { workspace = true }
+parse_int = { workspace = true }
+colored = { workspace = true }
 
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-humility-cmd-hiffy = { path = "../hiffy" }
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+cmd-hiffy = { workspace = true }
 
-hif = { git = "https://github.com/oxidecomputer/hif" }
+hif = { workspace = true }

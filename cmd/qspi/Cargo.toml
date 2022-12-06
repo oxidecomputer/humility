@@ -5,12 +5,12 @@ edition = "2021"
 description = "QSPI status, reading and writing"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-parse_int = "0.4.0"
-indicatif = "0.15"
-log = {version = "0.4.8", features = ["std"]}
-sha2 = "0.10.1"
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+hif = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+parse_int = { workspace = true }
+indicatif = { workspace = true }
+log = { workspace = true }
+sha2 = { workspace = true }
