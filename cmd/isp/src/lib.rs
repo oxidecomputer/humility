@@ -52,15 +52,9 @@ enum IspCmd {
     /// Erases all non-secure flash. This MUST be done before writing!
     FlashEraseAll,
     /// Write a file to the CMPA region
-    WriteCMPA {
-        #[clap(parse(from_os_str))]
-        file: PathBuf,
-    },
+    WriteCMPA,
     /// Write a file to the CFPA region
-    WriteCFPA {
-        #[clap(parse(from_os_str))]
-        file: PathBuf,
-    },
+    WriteCFPA,
     /// Read the CMPA region
     ReadCMPA,
     /// Read the CFPA regions (scratch, ping, pong)
@@ -275,13 +269,15 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
             println!("Flash erased!");
         }
-        IspCmd::WriteCMPA { file } => {
-            let mut infile =
-                std::fs::OpenOptions::new().read(true).open(&file)?;
+        IspCmd::WriteCMPA => {
+            let bytes = match &context.archive {
+                None => anyhow::bail!("Missing required archive"),
+                Some(archive) => match archive.read_cmpa()? {
+                    None => anyhow::bail!("CMPA not found in archive"),
+                    Some(cmpa) => cmpa,
+                },
+            };
 
-            let mut bytes = Vec::new();
-
-            infile.read_to_end(&mut bytes)?;
             let mut cmpa_bytes = [0u8; 512];
             cmpa_bytes.clone_from_slice(&bytes);
             let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
@@ -311,19 +307,22 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
             println!("Write to CMPA done!");
         }
-        IspCmd::WriteCFPA { file } => {
+        IspCmd::WriteCFPA => {
+            let bytes = match &context.archive {
+                None => anyhow::bail!("Missing required archive"),
+                Some(archive) => match archive.read_cfpa()? {
+                    None => anyhow::bail!("CMPA not found in archive"),
+                    Some(cmpa) => cmpa,
+                },
+            };
+
             let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
             let mut cmpa_bytes = [0u8; 512];
             cmpa_bytes.clone_from_slice(&m);
 
             let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
 
-            let mut infile =
-                std::fs::OpenOptions::new().read(true).open(&file)?;
-
-            let mut bytes = Vec::new();
             let mut cfpa_bytes = [0u8; 512];
-            infile.read_to_end(&mut bytes)?;
             cfpa_bytes.clone_from_slice(&bytes);
 
             let cfpa = CFPAPage::from_bytes(&cfpa_bytes)?;
@@ -493,7 +492,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "isp",
-            archive: Archive::Ignored,
+            archive: Archive::Optional,
             run: ispcmd,
         },
         IspArgs::command(),
