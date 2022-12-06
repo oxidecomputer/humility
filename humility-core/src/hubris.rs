@@ -4818,11 +4818,11 @@ impl HubrisArchive {
     ///
     /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
     /// is missing, or `Err(...)` if a zip file error occurred.
-    pub fn read_auxflash_data(&self) -> Result<Option<Vec<u8>>> {
+    pub fn read_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
         let archive = self.archive();
         let cursor = Cursor::new(archive);
         let mut archive = zip::ZipArchive::new(cursor)?;
-        let file = archive.by_name("img/auxi.tlvc");
+        let file = archive.by_name(name);
         match file {
             Ok(mut f) => {
                 let mut buffer = Vec::new();
@@ -4830,8 +4830,25 @@ impl HubrisArchive {
                 Ok(Some(buffer))
             }
             Err(zip::result::ZipError::FileNotFound) => Ok(None),
-            Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
+            Err(e) => bail!("Failed to extract {}: {}", name, e),
         }
+    }
+
+    /// Reads the auxiliary flash data from a Hubris archive
+    pub fn read_auxflash_data(&self) -> Result<Option<Vec<u8>>> {
+        self.read_file("img/auxi.tlvc")
+    }
+
+    /// Read the NXP Customer Field Programmable Area (CFPA) image from a
+    /// Hubris archive
+    pub fn read_cfpa(&self) -> Result<Option<Vec<u8>>> {
+        self.read_file("img/CFPA.bin")
+    }
+
+    /// Read the NXP Customer Manufacturing Programmable Area (CMPA) image
+    /// from a Hubris archive
+    pub fn read_cmpa(&self) -> Result<Option<Vec<u8>>> {
+        self.read_file("img/CMPA.bin")
     }
 }
 
