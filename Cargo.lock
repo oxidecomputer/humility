@@ -454,6 +454,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e1f025f441cdfb75831bec89b9d6a6ed02e5e763f78fc5e1ff30d4870fefaec"
 
 [[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -729,6 +735,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f578e8e2c440e7297e008bb5486a3a8a194775224bbc23729b0dbdfaeebf162e"
 
 [[package]]
+name = "derive-idol-err"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/hubris?branch=ignition#0007e49db08bd029cca6e418e549148e724fca64"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
+dependencies = [
+ "convert_case 0.4.0",
+ "proc-macro2",
+ "quote",
+ "rustc_version 0.4.0",
+ "syn",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -736,6 +764,20 @@ checksum = "f2fb860ca6fafa5552fb6d0e816a69c8e49f0908bf524e30a90d97c85892d506"
 dependencies = [
  "block-buffer",
  "crypto-common",
+]
+
+[[package]]
+name = "drv-ignition-api"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/hubris?branch=ignition#0007e49db08bd029cca6e418e549148e724fca64"
+dependencies = [
+ "bitfield",
+ "cfg-if",
+ "derive-idol-err",
+ "derive_more",
+ "num-derive",
+ "num-traits",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1050,6 +1092,7 @@ dependencies = [
  "humility-cmd-hash",
  "humility-cmd-hiffy",
  "humility-cmd-i2c",
+ "humility-cmd-ignition",
  "humility-cmd-isp",
  "humility-cmd-itm",
  "humility-cmd-jefe",
@@ -1351,6 +1394,23 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "indicatif",
+ "log",
+ "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-ignition"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.21",
+ "colored",
+ "drv-ignition-api",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
  "log",
  "parse_int",
 ]
@@ -1937,7 +1997,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 [[package]]
 name = "idol"
 version = "0.2.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#7350b8acf81e56fec8994326f64b2b544c4cb9e3"
+source = "git+https://github.com/oxidecomputer/idolatry.git#4f326545f20b020869c3deaed28070b853e44a64"
 dependencies = [
  "indexmap",
  "quote",
@@ -2548,7 +2608,7 @@ version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/pmbus#5ede5b7d35ece31a5e05fef9de1840f29a1435ba"
 dependencies = [
  "anyhow",
- "convert_case",
+ "convert_case 0.3.2",
  "libm",
  "num-derive",
  "num-traits",
