@@ -180,7 +180,7 @@ env_logger = "0.9.0"
 fallible-iterator = "0.2.0"
 gimli = "0.22.0"
 goblin = "0.2"
-hubpack = "0.1.0"
+hubpack = "0.1.1"
 ihex = "3.0"
 indexmap = { version = "1.7", features = ["serde-1"] }
 indicatif = "0.15"
