@@ -5091,7 +5091,8 @@ impl HubrisEnum {
         // We assume `index` is based on the DWARF ordering. In practice our
         // caller is probably expecting `index` to be "source code order" (e.g.,
         // for deserializing hubpack-encoded enums), which we assume is the
-        // same!
+        // same! This should be true based on section 5.7.10 of [the DWARF
+        // spec](https://dwarfstd.org/Dwarf5Std.php).
         self.variants.get(index)
     }
 

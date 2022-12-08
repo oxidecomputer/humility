@@ -1017,6 +1017,10 @@ impl<T: Load> Load for Vec<T> {
 
 /// Deserializes hubpack- or ssmarshal-encoded data from `buf` and represents it
 /// as a `Value`.
+///
+/// Warning: This assumes `ty`'s `serde::Deserialize` implementation was
+/// derived! If it was not, our assumptions about how hubpack or ssmarshal
+/// encoded the data are likely incorrect.
 pub fn deserialize_value<'a>(
     hubris: &'a HubrisArchive,
     buf: &'a [u8],

@@ -164,6 +164,9 @@ impl<'a> IdolOperation<'a> {
         Ok(())
     }
 
+    // WARNING: This method assumes the argument type (`arg.1`) derived its
+    // `serde::Serialize` implementation! If it has a custom implementation, our
+    // assumptions about how ssmarshal/hubpack encode data may be wrong.
     fn payload_arg_serialized(
         &self,
         hubris: &HubrisArchive,
@@ -437,7 +440,8 @@ fn serialize_arg_enum(
     // same, as long as the enum used `#[repr(C)]`, which is required by
     // ssmarshal's documentation but not enforced at compile time.) We assume
     // here that the ordering of `e.variants` (from the DWARF) matches the
-    // source code ordering!
+    // source code ordering! This should be true based on section 5.7.10 of [the
+    // DWARF spec](https://dwarfstd.org/Dwarf5Std.php).
     for (index, variant) in e.variants.iter().enumerate() {
         if value == variant.name {
             let v = u8::try_from(index)
