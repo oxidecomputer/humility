@@ -343,14 +343,15 @@ pub fn hiffy_decode(
                 ::idol::syntax::Encoding::Zerocopy => {
                     humility::reflect::load_value(hubris, &val, ty, 0)?
                 }
-                ::idol::syntax::Encoding::Ssmarshal => {
+                ::idol::syntax::Encoding::Ssmarshal
+                | ::idol::syntax::Encoding::Hubpack => {
                     humility::reflect::deserialize_value(hubris, &val, ty)?.0
                 }
             })
         }
         Err(e) => {
             let variant = if let Some(error) = op.error {
-                error.lookup_variant(e as u64)
+                error.lookup_variant_by_tag(e as u64)
             } else {
                 None
             };

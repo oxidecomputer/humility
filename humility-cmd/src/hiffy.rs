@@ -494,14 +494,15 @@ impl<'a> HiffyContext<'a> {
                     ::idol::syntax::Encoding::Zerocopy => {
                         load_value(self.hubris, val, ty, 0)?
                     }
-                    ::idol::syntax::Encoding::Ssmarshal => {
+                    ::idol::syntax::Encoding::Ssmarshal
+                    | ::idol::syntax::Encoding::Hubpack => {
                         deserialize_value(self.hubris, val, ty)?.0
                     }
                 })
             }
             Err(e) => {
                 let variant = if let Some(error) = op.error {
-                    error.lookup_variant(*e as u64)
+                    error.lookup_variant_by_tag(*e as u64)
                 } else {
                     None
                 };

@@ -493,7 +493,8 @@ impl<'a> Dashboard<'a> {
             ::idol::syntax::Encoding::Zerocopy => {
                 humility::reflect::load_value(self.hubris, val, ty, 0)?
             }
-            ::idol::syntax::Encoding::Ssmarshal => {
+            ::idol::syntax::Encoding::Ssmarshal
+            | ::idol::syntax::Encoding::Hubpack => {
                 humility::reflect::deserialize_value(self.hubris, val, ty)?.0
             }
         };
