@@ -5476,6 +5476,7 @@ pub struct HubrisPrintFormat {
     pub newline: bool,
     pub hex: bool,
     pub no_name: bool,
+    pub interpret_as_c_string: bool,
 }
 
 impl HubrisPrintFormat {
