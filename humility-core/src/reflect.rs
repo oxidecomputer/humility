@@ -599,6 +599,23 @@ impl std::ops::Deref for Array {
     }
 }
 
+impl Array {
+    fn format_as_c_string(&self, out: &mut dyn std::io::Write) -> Result<()> {
+        let mut bytes = Vec::new();
+        for v in &self.0 {
+            let b = v.as_base().ok().and_then(Base::as_u8).context(
+                "cannot interpret array of non-u8 values as a C string",
+            )?;
+            if b == 0 {
+                break;
+            }
+            bytes.push(b);
+        }
+        write!(out, "{:?}", String::from_utf8_lossy(&bytes))?;
+        Ok(())
+    }
+}
+
 impl Format for Array {
     fn format(
         &self,
@@ -606,6 +623,9 @@ impl Format for Array {
         mut fmt: HubrisPrintFormat,
         out: &mut dyn std::io::Write,
     ) -> Result<()> {
+        if fmt.interpret_as_c_string {
+            return self.format_as_c_string(out);
+        }
         fmt.indent += 4;
         fmt.no_name = false;
 
