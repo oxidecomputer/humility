@@ -5070,7 +5070,10 @@ pub struct HubrisEnum {
 }
 
 impl HubrisEnum {
-    pub fn lookup_variant(&self, tag: u64) -> Option<&HubrisEnumVariant> {
+    pub fn lookup_variant_by_tag(
+        &self,
+        tag: u64,
+    ) -> Option<&HubrisEnumVariant> {
         // We prioritize picking a variant with the matching tag
         if let Some(t) = self.variants.iter().find(|v| v.tag == Some(tag)) {
             Some(t)
@@ -5079,6 +5082,18 @@ impl HubrisEnum {
             // single-element enum.
             self.variants.iter().find(|v| v.tag.is_none())
         }
+    }
+
+    pub fn lookup_variant_by_index(
+        &self,
+        index: usize,
+    ) -> Option<&HubrisEnumVariant> {
+        // We assume `index` is based on the DWARF ordering. In practice our
+        // caller is probably expecting `index` to be "source code order" (e.g.,
+        // for deserializing hubpack-encoded enums), which we assume is the
+        // same! This should be true based on section 5.7.10 of [the DWARF
+        // spec](https://dwarfstd.org/Dwarf5Std.php).
+        self.variants.get(index)
     }
 
     pub fn lookup_variant_byname(
@@ -5121,7 +5136,7 @@ impl HubrisEnum {
 
             let val = readval(buf, offs, size)?;
 
-            match self.lookup_variant(val) {
+            match self.lookup_variant_by_tag(val) {
                 None => {
                     bail!("unknown variant: 0x{:x}", val);
                 }

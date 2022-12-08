@@ -281,7 +281,7 @@ fn rpc_call(
         .lookup_enum_byname(hubris, "RpcReply")?;
 
     if buf[0] != 0 {
-        match rpc_reply_type.lookup_variant(buf[0] as u64) {
+        match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
             Some(e) => {
                 println!("Got error from `udprpc`: {}", e.name);
                 if e.name == "BadImageId" {

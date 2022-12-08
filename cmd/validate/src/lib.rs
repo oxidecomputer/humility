@@ -208,7 +208,7 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
     for (rndx, (ndx, device)) in devices.iter().enumerate() {
         let result = match &results[rndx] {
             Ok(val) => {
-                if let Some(variant) = ok.lookup_variant(val[0].into()) {
+                if let Some(variant) = ok.lookup_variant_by_tag(val[0].into()) {
                     match variant.name.as_str() {
                         "Present" => "present".yellow(),
                         "Validated" => "validated".green(),
@@ -218,23 +218,25 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
                     hubris.printfmt(val, op.ok, fmt)?.white()
                 }
             }
-            Err(e) => match op.error.unwrap().lookup_variant(*e as u64) {
-                Some(variant) => match variant.name.as_str() {
-                    "NotPresent" => {
-                        if device.removable {
-                            "removed".blue()
-                        } else {
-                            "absent".red()
+            Err(e) => {
+                match op.error.unwrap().lookup_variant_by_tag(*e as u64) {
+                    Some(variant) => match variant.name.as_str() {
+                        "NotPresent" => {
+                            if device.removable {
+                                "removed".blue()
+                            } else {
+                                "absent".red()
+                            }
                         }
-                    }
-                    "BadValidation" => "failed".red(),
-                    "DeviceTimeout" => "timeout".red(),
-                    "DeviceError" => "error".red(),
-                    "Unavailable" => "unavailable".yellow(),
-                    _ => format!("<{}>", variant.name).red(),
-                },
-                None => format!("Err(0x{:x?})", e).red(),
-            },
+                        "BadValidation" => "failed".red(),
+                        "DeviceTimeout" => "timeout".red(),
+                        "DeviceError" => "error".red(),
+                        "Unavailable" => "unavailable".yellow(),
+                        _ => format!("<{}>", variant.name).red(),
+                    },
+                    None => format!("Err(0x{:x?})", e).red(),
+                }
+            }
         };
 
         let mux = match (device.mux, device.segment) {
