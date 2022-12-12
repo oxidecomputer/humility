@@ -29,7 +29,7 @@ fn main() -> Result<()> {
         std::process::exit(0);
     };
 
-    let mut context = humility::ExecutionContext::new(args.clone(), &m)?;
+    let mut context = humility::ExecutionContext::new(args.clone(), &m, false)?;
 
     let log_level = if args.verbose { "trace" } else { "warn" };
 

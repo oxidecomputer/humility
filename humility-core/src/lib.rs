@@ -60,10 +60,15 @@ pub struct ExecutionContext {
     pub archive: Option<HubrisArchive>,
     pub environment: Option<Environment>,
     pub cli: Cli,
+    pub is_interactive: bool,
 }
 
 impl ExecutionContext {
-    pub fn new(mut cli: Cli, m: &ArgMatches) -> Result<ExecutionContext> {
+    pub fn new(
+        mut cli: Cli,
+        m: &ArgMatches,
+        is_interactive: bool,
+    ) -> Result<ExecutionContext> {
         let environment = match (&cli.environment, &cli.target) {
             (Some(ref env), Some(ref target)) => {
                 let env = match Environment::from_file(env, target) {
@@ -210,6 +215,7 @@ impl ExecutionContext {
             archive: None,
             environment,
             cli,
+            is_interactive,
         })
     }
 }
