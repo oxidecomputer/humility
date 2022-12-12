@@ -90,6 +90,7 @@ use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
+use humility::hubris::HubrisValidate;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::debug::*;
 use humility_cortex::itm::*;
@@ -328,11 +329,29 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
         core.halt()?;
     }
 
-    //
-    // We want to eat any errors here: if we can't ascertain our memory
-    // regions, it will just mean that we can't annotate register values.
-    //
-    let regions = hubris.regions(core).unwrap_or_default();
+    let regions = match hubris.validate(core, HubrisValidate::ArchiveMatch) {
+        Ok(_) => {
+            //
+            // We want to eat any error here: if we fail to load regions on
+            // a validated archive, it's because we weren't in fact provided
+            // an archive at all. (Unlike for many commands, the archive is
+            // optional for "humility probe".)
+            //
+            hubris.regions(core).unwrap_or_default()
+        }
+        Err(err) => {
+            //
+            // If the archive doesn't match, we'll drive on -- but we will
+            // indicate that we can't interpret registers correctly.
+            //
+            humility::warn!(
+                "archive mismatch: {}; register contents will \
+                not be displayed symbolically",
+                err
+            );
+            Default::default()
+        }
+    };
 
     for i in 0..31 {
         let reg = match ARMRegister::from_u16(i) {
