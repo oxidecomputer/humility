@@ -58,6 +58,8 @@ impl reedline::Prompt for Prompt {
 }
 
 fn repl(context: &mut humility::ExecutionContext) -> Result<()> {
+    context.is_interactive = true;
+
     // hardcoding to 100 entries for now. Even though this is called
     // FileBackedHistory, this constructor only uses one in-memory.
     let history = Box::new(FileBackedHistory::new(100));
