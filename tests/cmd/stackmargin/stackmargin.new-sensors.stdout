@@ -1,0 +1,3 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x24002000       1536        360       1176
+ 1 idle               0x24002800        256        104        152
