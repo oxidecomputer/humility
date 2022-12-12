@@ -209,7 +209,20 @@ impl HubrisConfigAuxflash {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigConfig {
     i2c: Option<HubrisConfigI2c>,
+    sensor: Option<HubrisConfigSensor>,
     auxflash: Option<HubrisConfigAuxflash>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct HubrisConfigSensor {
+    devices: Vec<HubrisConfigSensorSensor>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct HubrisConfigSensorSensor {
+    name: String,
+    device: String,
+    sensors: BTreeMap<String, usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -260,11 +273,17 @@ pub enum HubrisSensorKind {
     Speed,
 }
 
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
+pub enum HubrisSensorDevice {
+    I2c(usize),
+    Other(String),
+}
+
 #[derive(Clone, Debug)]
 pub struct HubrisSensor {
     pub name: String,
     pub kind: HubrisSensorKind,
-    pub device: usize,
+    pub device: HubrisSensorDevice,
 }
 
 impl HubrisSensorKind {
@@ -282,7 +301,7 @@ impl HubrisSensorKind {
 
     pub fn from_string(kind: &str) -> Option<Self> {
         match kind {
-            "temp" => Some(HubrisSensorKind::Temperature),
+            "temp" | "temperature" => Some(HubrisSensorKind::Temperature),
             "power" => Some(HubrisSensorKind::Power),
             "current" => Some(HubrisSensorKind::Current),
             "voltage" => Some(HubrisSensorKind::Voltage),
@@ -2263,6 +2282,28 @@ impl HubrisArchive {
         Ok(())
     }
 
+    fn load_sensor_config(
+        &mut self,
+        sensor: &HubrisConfigSensor,
+    ) -> Result<()> {
+        for device in &sensor.devices {
+            for (kind, &count) in &device.sensors {
+                for _ in 0..count {
+                    self.manifest.sensors.push(HubrisSensor {
+                        name: device.name.clone(),
+                        kind: HubrisSensorKind::from_string(kind).ok_or_else(
+                            || anyhow!("Unknown sensor kind {kind}"),
+                        )?,
+                        device: HubrisSensorDevice::Other(
+                            device.device.clone(),
+                        ),
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn load_i2c_config(&mut self, i2c: &HubrisConfigI2c) -> Result<()> {
         let mut buses = HashMap::new();
 
@@ -2347,7 +2388,11 @@ impl HubrisArchive {
                           kind: HubrisSensorKind|
          -> Result<HubrisSensor> {
             let name = sensor_name(d, i, kind)?;
-            Ok(HubrisSensor { name, kind, device: ndx })
+            Ok(HubrisSensor {
+                name,
+                kind,
+                device: HubrisSensorDevice::I2c(ndx),
+            })
         };
 
         if let Some(ref devices) = i2c.devices {
@@ -2552,8 +2597,11 @@ impl HubrisArchive {
         }
 
         if let Some(ref config) = config.config {
-            if let Some(ref i2c) = config.i2c {
+            if let Some(i2c) = config.i2c.as_ref() {
                 self.load_i2c_config(i2c)?;
+            }
+            if let Some(sensor) = config.sensor.as_ref() {
+                self.load_sensor_config(sensor)?;
             }
         }
 
