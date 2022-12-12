@@ -10,7 +10,6 @@ clap = { workspace = true }
 crossbeam-channel = { workspace = true }
 log = { workspace = true }
 parse_int = { workspace = true }
-termios = { workspace = true }
 
 humility = { workspace = true }
 humility-cmd = { workspace = true }
@@ -18,3 +17,6 @@ cmd-hiffy = { workspace = true }
 
 hif = { workspace = true }
 idol = { workspace = true }
+
+[target.'cfg(not(windows))'.dependencies]
+termios = "0.3"
