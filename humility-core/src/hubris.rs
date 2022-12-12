@@ -4629,6 +4629,36 @@ impl HubrisArchive {
             }
         }
 
+        let sensors = self
+            .manifest
+            .sensors
+            .iter()
+            .filter(|s| match &s.device {
+                HubrisSensorDevice::I2c(..) => false, // printed above
+                HubrisSensorDevice::Other(..) => true,
+            })
+            .collect::<Vec<_>>();
+        if !sensors.is_empty() {
+            println!(
+                "     sensors => {} additional device{}",
+                sensors.len(),
+                if sensors.len() > 1 { "s" } else { "" }
+            );
+            println!("                NAME      DEVICE    KIND");
+            for s in &sensors {
+                let device = match &s.device {
+                    HubrisSensorDevice::I2c(..) => unreachable!(),
+                    HubrisSensorDevice::Other(dev) => dev,
+                };
+                println!(
+                    "                {:9} {:9} {}",
+                    s.name,
+                    device,
+                    s.kind.to_string()
+                );
+            }
+        }
+
         Ok(())
     }
 
