@@ -131,7 +131,7 @@ fn list(
                     s.name,
                 );
             }
-            HubrisSensorDevice::Other(device) => {
+            HubrisSensorDevice::Other(device, _) => {
                 println!(
                     "{:2} {:7} {:2} {:2} {:3}   {:02} {:13} {:<1}",
                     ndx,

@@ -276,7 +276,7 @@ pub enum HubrisSensorKind {
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
 pub enum HubrisSensorDevice {
     I2c(usize),
-    Other(String),
+    Other(String, usize),
 }
 
 #[derive(Clone, Debug)]
@@ -2288,7 +2288,7 @@ impl HubrisArchive {
     ) -> Result<()> {
         for device in &sensor.devices {
             for (kind, &count) in &device.sensors {
-                for _ in 0..count {
+                for i in 0..count {
                     self.manifest.sensors.push(HubrisSensor {
                         name: device.name.clone(),
                         kind: HubrisSensorKind::from_string(kind).ok_or_else(
@@ -2296,6 +2296,7 @@ impl HubrisArchive {
                         )?,
                         device: HubrisSensorDevice::Other(
                             device.device.clone(),
+                            i,
                         ),
                     });
                 }
@@ -4648,7 +4649,7 @@ impl HubrisArchive {
             for s in &sensors {
                 let device = match &s.device {
                     HubrisSensorDevice::I2c(..) => unreachable!(),
-                    HubrisSensorDevice::Other(dev) => dev,
+                    HubrisSensorDevice::Other(dev, _) => dev,
                 };
                 println!(
                     "                {:9} {:9} {}",
