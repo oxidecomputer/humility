@@ -1,0 +1,45 @@
+name = "gimletlet"
+target = "thumbv7em-none-eabihf"
+board = "gimletlet-2"
+chip = "../../chips/stm32h7"
+memory = "memory-large.toml"
+stacksize = 896
+epoch = 0
+version = 0
+
+[kernel]
+name = "gimletlet"
+requires = {flash = 32768, ram = 8192}
+#
+# For the kernel (and for any task that logs), we are required to enable
+# either "itm" (denoting logging/panicking via ARM's Instrumentation Trace
+# Macrocell) or "semihosting" (denoting logging/panicking via ARM
+# semihosting).  We are biased to ITM because semihosting is excruciatingly
+# slow (it is breakpoint based) and has an undesirable failure mode if logging
+# output is generated and debugger is not attached (namely, the target stops).
+# If one does choose to change this to semihosting for purposes of
+# development, be sure to also change it in every task of interest.
+#
+features = ["itm"]
+
+[tasks.jefe]
+name = "task-jefe"
+priority = 0
+max-sizes = {flash = 8192, ram = 2048}
+start = true
+features = ["itm"]
+stacksize = 1536
+
+[tasks.idle]
+name = "task-idle"
+priority = 9
+max-sizes = {flash = 128, ram = 256}
+stacksize = 256
+start = true
+
+[[config.sensor.devices]]
+name = "xcvr30"
+device = "qsfp"
+description = "QSFP transceiver 30"
+sensors.temperature = 3
+sensors.speed = 2
