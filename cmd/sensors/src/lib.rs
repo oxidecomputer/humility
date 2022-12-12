@@ -98,37 +98,53 @@ fn list(
             }
         }
 
-        let device = &hubris.manifest.i2c_devices[s.device];
+        match &s.device {
+            HubrisSensorDevice::I2c(device) => {
+                let device = &hubris.manifest.i2c_devices[*device];
+                if let Some(devices) = devices {
+                    if devices.get(&device.device).is_none() {
+                        continue;
+                    }
+                }
 
-        if let Some(devices) = devices {
-            if devices.get(&device.device).is_none() {
-                continue;
+                if let Some(named) = named {
+                    if named.get(&s.name).is_none() {
+                        continue;
+                    }
+                }
+
+                let mux = match (device.mux, device.segment) {
+                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (None, None) => "-".to_string(),
+                    (_, _) => "?:?".to_string(),
+                };
+
+                println!(
+                    "{:2} {:7} {:2} {:2} {:3} 0x{:02x} {:13} {:<1}",
+                    ndx,
+                    s.kind.to_string(),
+                    device.controller,
+                    device.port.name,
+                    mux,
+                    device.address,
+                    device.device,
+                    s.name,
+                );
+            }
+            HubrisSensorDevice::Other(device, _) => {
+                println!(
+                    "{:2} {:7} {:2} {:2} {:3}   {:02} {:13} {:<1}",
+                    ndx,
+                    s.kind.to_string(),
+                    "--",
+                    "--",
+                    "--",
+                    "--",
+                    device,
+                    s.name,
+                );
             }
         }
-
-        if let Some(named) = named {
-            if named.get(&s.name).is_none() {
-                continue;
-            }
-        }
-
-        let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
-            (None, None) => "-".to_string(),
-            (_, _) => "?:?".to_string(),
-        };
-
-        println!(
-            "{:2} {:7} {:2} {:2} {:3} 0x{:02x} {:13} {:<1}",
-            ndx,
-            s.kind.to_string(),
-            device.controller,
-            device.port.name,
-            mux,
-            device.address,
-            device.device,
-            s.name,
-        );
     }
 
     Ok(())
@@ -172,10 +188,12 @@ fn print(
         }
 
         if let Some(devices) = devices {
-            let d = &hubris.manifest.i2c_devices[s.device];
+            if let HubrisSensorDevice::I2c(i) = &s.device {
+                let d = &hubris.manifest.i2c_devices[*i];
 
-            if devices.get(&d.device).is_none() {
-                continue;
+                if devices.get(&d.device).is_none() {
+                    continue;
+                }
             }
         }
 
