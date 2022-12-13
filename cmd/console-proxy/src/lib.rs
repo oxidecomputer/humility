@@ -444,6 +444,10 @@ fn console_proxy(context: &mut humility::ExecutionContext) -> Result<()> {
 
     match subargs.cmd {
         UartConsoleCommand::Attach { raw, imap, omap, log } => {
+            if context.is_interactive {
+                bail!("`console-proxy attach` cannot be used from the REPL");
+            }
+
             let imap = match imap {
                 Some(s) => s.parse().context("invalid imap rules")?,
                 None => RemapRules::default(),
