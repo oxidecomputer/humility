@@ -159,10 +159,10 @@ impl<'a> UartConsoleHandler<'a> {
                     .context("error writing to stdout")?;
             }
 
-            // If our read returned the max buffer size, don't wait for
-            // `poll_interval` to try again, just wait 1ms to give the other
-            // channels a chance to sneak something in.
-            let timeout = if nread == HIFFY_BUF_SIZE {
+            // If our read returned the max buffer size or we still have data to
+            // send, don't wait for `poll_interval` to try again, just wait 1ms
+            // to give the stdin channel a chance to sneak something in.
+            let timeout = if nread == HIFFY_BUF_SIZE && !tx_buf.is_empty() {
                 Duration::from_millis(1)
             } else {
                 self.poll_interval
