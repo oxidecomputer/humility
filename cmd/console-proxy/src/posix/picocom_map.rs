@@ -8,57 +8,81 @@ use std::{collections::VecDeque, str::FromStr};
 
 use anyhow::{bail, ensure, Error, Result};
 
-#[derive(Debug, Default, Clone, Copy)]
+mod raw {
+    pub(super) const CR: u8 = b'\r';
+    pub(super) const LF: u8 = b'\n';
+    pub(super) const BS: u8 = 0x08;
+    pub(super) const DEL: u8 = 0x7f;
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct RemapRules {
-    cr: Option<&'static [u8]>,
-    lf: Option<&'static [u8]>,
+    // For simplicity in our remapping iterator below, we always define mapping
+    // rules for CR and LF. If the user didn't request any, we remap them to
+    // themselves.
+    cr: &'static [u8],
+    lf: &'static [u8],
     bsdel: bool,
     delbs: bool,
+}
+
+impl Default for RemapRules {
+    fn default() -> Self {
+        Self { cr: &[raw::CR], lf: &[raw::LF], bsdel: false, delbs: false }
+    }
 }
 
 impl FromStr for RemapRules {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut rules = Self::default();
+        let mut cr: Option<&'static [u8]> = None;
+        let mut lf: Option<&'static [u8]> = None;
+        let mut bsdel = false;
+        let mut delbs = false;
 
         for rule in s.split(',') {
             match rule {
                 "crlf" => {
-                    ensure!(rules.cr.is_none(), "multiple rules remapping cr");
-                    rules.cr = Some(&[raw::LF]);
+                    ensure!(cr.is_none(), "multiple rules remapping cr");
+                    cr = Some(&[raw::LF]);
                 }
                 "crcrlf" => {
-                    ensure!(rules.cr.is_none(), "multiple rules remapping cr");
-                    rules.cr = Some(&[raw::CR, raw::LF]);
+                    ensure!(cr.is_none(), "multiple rules remapping cr");
+                    cr = Some(&[raw::CR, raw::LF]);
                 }
                 "igncr" => {
-                    ensure!(rules.cr.is_none(), "multiple rules remapping cr");
-                    rules.cr = Some(&[]);
+                    ensure!(cr.is_none(), "multiple rules remapping cr");
+                    cr = Some(&[]);
                 }
                 "lfcr" => {
-                    ensure!(rules.lf.is_none(), "multiple rules remapping lf");
-                    rules.lf = Some(&[raw::CR]);
+                    ensure!(lf.is_none(), "multiple rules remapping lf");
+                    lf = Some(&[raw::CR]);
                 }
                 "lfcrlf" => {
-                    ensure!(rules.lf.is_none(), "multiple rules remapping lf");
-                    rules.lf = Some(&[raw::CR, raw::LF]);
+                    ensure!(lf.is_none(), "multiple rules remapping lf");
+                    lf = Some(&[raw::CR, raw::LF]);
                 }
                 "ignlf" => {
-                    ensure!(rules.lf.is_none(), "multiple rules remapping lf");
-                    rules.lf = Some(&[]);
+                    ensure!(lf.is_none(), "multiple rules remapping lf");
+                    lf = Some(&[]);
                 }
                 "bsdel" => {
-                    rules.bsdel = true;
+                    bsdel = true;
                 }
                 "delbs" => {
-                    rules.delbs = true;
+                    delbs = true;
                 }
                 _ => bail!("unknown or unsupported remap rule: {rule:?}"),
             }
         }
 
-        Ok(rules)
+        Ok(Self {
+            cr: cr.unwrap_or(&[raw::CR]),
+            lf: lf.unwrap_or(&[raw::LF]),
+            bsdel,
+            delbs,
+        })
     }
 }
 
@@ -88,43 +112,17 @@ where
     type Item = u8;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            // Do we have any leftover bytes from a previous input byte
-            // (possibly from a previous iteration of this loop)?
-            if let Some(b) = self.prev.pop_front() {
-                return Some(b);
-            }
-
+        while self.prev.is_empty() {
             match self.inner.next()? {
-                raw::CR => {
-                    if let Some(repl) = self.rules.cr {
-                        self.prev.extend(repl);
-                        continue;
-                    } else {
-                        return Some(raw::CR);
-                    }
-                }
-                raw::LF => {
-                    if let Some(repl) = self.rules.lf {
-                        self.prev.extend(repl);
-                        continue;
-                    } else {
-                        return Some(raw::LF);
-                    }
-                }
-                raw::BS if self.rules.bsdel => return Some(raw::DEL),
-                raw::DEL if self.rules.delbs => return Some(raw::BS),
-                b => return Some(b),
+                raw::CR => self.prev.extend(self.rules.cr),
+                raw::LF => self.prev.extend(self.rules.lf),
+                raw::BS if self.rules.bsdel => self.prev.push_back(raw::DEL),
+                raw::DEL if self.rules.delbs => self.prev.push_back(raw::BS),
+                b => self.prev.push_back(b),
             }
         }
+        self.prev.pop_front()
     }
-}
-
-mod raw {
-    pub(super) const CR: u8 = b'\r';
-    pub(super) const LF: u8 = b'\n';
-    pub(super) const BS: u8 = 0x08;
-    pub(super) const DEL: u8 = 0x7f;
 }
 
 #[cfg(test)]
