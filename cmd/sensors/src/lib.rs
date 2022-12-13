@@ -90,7 +90,7 @@ fn list(
     named: &Option<HashSet<&String>>,
 ) -> Result<()> {
     println!(
-        "{:3} {:5} {:<7} {:2} {:2} {:3} {:4} {:13} {:4}",
+        "{:3} {:5} {:<7} {:>2} {:>2} {:3} {:4} {:13} {:4}",
         "ID", "HEXID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
     );
 
@@ -123,7 +123,7 @@ fn list(
                 };
 
                 println!(
-                    "{:3} 0x{:03x} {:7} {:2} {:2} {:3} 0x{:02x} {:13} {:<1}",
+                    "{:3} {:#5x} {:7} {:>2} {:>2} {:>3} {:#04x} {:13} {:<1}",
                     ndx,
                     ndx,
                     s.kind.to_string(),
@@ -137,7 +137,7 @@ fn list(
             }
             HubrisSensorDevice::Other(device, _) => {
                 println!(
-                    "{:3} 0x{:03x} {:7} {:2} {:2} {:3} {:02} {:13} {:<1}",
+                    "{:3} {:#5x} {:7} {:>2} {:>2} {:>3} {:>4} {:13} {:<1}",
                     ndx,
                     ndx,
                     s.kind.to_string(),
