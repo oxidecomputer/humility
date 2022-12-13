@@ -36,7 +36,7 @@ use humility_cmd::{Archive, Attach, Command, Validate};
 use itertools::izip;
 use std::collections::HashSet;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -101,38 +101,55 @@ fn list(
             }
         }
 
-        let device = &hubris.manifest.i2c_devices[s.device];
+        match &s.device {
+            HubrisSensorDevice::I2c(device) => {
+                let device = &hubris.manifest.i2c_devices[*device];
+                if let Some(devices) = devices {
+                    if devices.get(&device.device).is_none() {
+                        continue;
+                    }
+                }
 
-        if let Some(devices) = devices {
-            if devices.get(&device.device).is_none() {
-                continue;
+                if let Some(named) = named {
+                    if named.get(&s.name).is_none() {
+                        continue;
+                    }
+                }
+
+                let mux = match (device.mux, device.segment) {
+                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (None, None) => "-".to_string(),
+                    (_, _) => "?:?".to_string(),
+                };
+
+                println!(
+                    "{:3} 0x{:03x} {:7} {:2} {:2} {:3} 0x{:02x} {:13} {:<1}",
+                    ndx,
+                    ndx,
+                    s.kind.to_string(),
+                    device.controller,
+                    device.port.name,
+                    mux,
+                    device.address,
+                    device.device,
+                    s.name,
+                );
+            }
+            HubrisSensorDevice::Other(device, _) => {
+                println!(
+                    "{:3} 0x{:03x} {:7} {:2} {:2} {:3} {:02} {:13} {:<1}",
+                    ndx,
+                    ndx,
+                    s.kind.to_string(),
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    device,
+                    s.name,
+                );
             }
         }
-
-        if let Some(named) = named {
-            if named.get(&s.name).is_none() {
-                continue;
-            }
-        }
-
-        let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
-            (None, None) => "-".to_string(),
-            (_, _) => "?:?".to_string(),
-        };
-
-        println!(
-            "{:3} 0x{:03x} {:7} {:2} {:2} {:3} 0x{:02x} {:13} {:<1}",
-            ndx,
-            ndx,
-            s.kind.to_string(),
-            device.controller,
-            device.port.name,
-            mux,
-            device.address,
-            device.device,
-            s.name,
-        );
     }
 
     Ok(())
@@ -178,10 +195,12 @@ fn print(
         }
 
         if let Some(devices) = devices {
-            let d = &hubris.manifest.i2c_devices[s.device];
+            if let HubrisSensorDevice::I2c(i) = &s.device {
+                let d = &hubris.manifest.i2c_devices[*i];
 
-            if devices.get(&d.device).is_none() {
-                continue;
+                if devices.get(&d.device).is_none() {
+                    continue;
+                }
             }
         }
 
@@ -251,6 +270,7 @@ fn print(
     }
 
     loop {
+        let start = Instant::now();
         let mut rval = vec![];
         let mut errs = vec![];
 
@@ -346,7 +366,11 @@ fn print(
             break;
         }
 
-        thread::sleep(Duration::from_millis(1000));
+        let elapsed = start.elapsed().as_millis() as u64;
+
+        if elapsed < 1000 {
+            thread::sleep(Duration::from_millis(1000 - elapsed));
+        }
     }
 
     Ok(())

@@ -73,24 +73,30 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
     //
     for s in hubris.manifest.sensors.iter() {
         if s.kind == HubrisSensorKind::Voltage {
-            devices.insert(
-                (&s.name, s.device),
-                Device {
-                    name: &s.name,
-                    voltage: None,
-                    current: None,
-                    input_voltage: None,
-                    input_current: None,
-                    temperature: None,
-                },
-            );
+            let key = (&s.name, s.device.clone());
+            if devices
+                .insert(
+                    key,
+                    Device {
+                        name: &s.name,
+                        voltage: None,
+                        current: None,
+                        input_voltage: None,
+                        input_current: None,
+                        temperature: None,
+                    },
+                )
+                .is_some()
+            {
+                bail!("Duplicate voltage sensor: {s:?}");
+            }
         }
     }
 
     let mut ndx = 0;
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {
-        if let Some(device) = devices.get_mut(&(&s.name, s.device)) {
+        if let Some(device) = devices.get_mut(&(&s.name, s.device.clone())) {
             match s.kind {
                 HubrisSensorKind::Current => {
                     device.current = Some(ndx);

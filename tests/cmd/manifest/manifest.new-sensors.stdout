@@ -1,0 +1,20 @@
+     version => hubris build archive v5
+     git rev => fa75497516827d643a094059f7f7000ecae55432-dirty
+    image id => [84, 5, c5, 58, e, 47, 3f, 9]
+       board => gimletlet-2
+        name => gimletlet
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 40K
+ kernel size => 32K
+       tasks => 2
+                ID TASK                SIZE FEATURES
+                 0 jefe                8.1K itm
+                 1 idle                0.1K 
+     sensors => 5 additional devices
+                NAME      DEVICE    KIND
+                xcvr30    qsfp      speed
+                xcvr30    qsfp      speed
+                xcvr30    qsfp      temp
+                xcvr30    qsfp      temp
+                xcvr30    qsfp      temp
