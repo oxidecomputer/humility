@@ -91,8 +91,8 @@ where
 
     let _args = Cli::from_arg_matches(&m);
 
-    // If we're here, we know that our arguments pass muster from the
-    // Structopt/ Clap perspective.
+    // If we're here, we know that our arguments pass muster from the Clap
+    // perspective.
     Some((commands, m, Cli::parse_from(input2.into_iter())))
 }
 
