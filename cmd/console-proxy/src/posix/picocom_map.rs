@@ -73,6 +73,10 @@ impl FromStr for RemapRules {
                 "delbs" => {
                     delbs = true;
                 }
+                // str::split() always returns at least one element, even if
+                // called on the empty string; ignore empty rules instead of
+                // bailing.
+                "" => (),
                 _ => bail!("unknown or unsupported remap rule: {rule:?}"),
             }
         }

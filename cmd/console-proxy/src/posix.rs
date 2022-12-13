@@ -355,14 +355,9 @@ pub(super) fn console_proxy(
                 bail!("`console-proxy attach` cannot be used from the REPL");
             }
 
-            let imap = match imap {
-                Some(s) => s.parse().context("invalid imap rules")?,
-                None => RemapRules::default(),
-            };
-            let omap = match omap {
-                Some(s) => s.parse().context("invalid omap rules")?,
-                None => RemapRules::default(),
-            };
+            let imap = imap.parse().context("invalid imap rules")?;
+            let omap = omap.parse().context("invalid omap rules")?;
+
             let log = match log {
                 Some(path) => {
                     let f = File::options()

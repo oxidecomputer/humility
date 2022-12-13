@@ -75,15 +75,17 @@ enum UartConsoleCommand {
 
         #[clap(
             long,
-            help = "Specifies the input character map (i.e., special characters to be replaced when reading from the serial port). See picocom's manpage."
+            help = "Specifies the input character map (i.e., special characters to be replaced when reading from the serial port). See picocom's manpage.",
+            default_value = "lfcrlf"
         )]
-        imap: Option<String>,
+        imap: String,
 
         #[clap(
             long,
-            help = "Specifies the output character map (i.e., special characters to be replaced when writing to the serial port). See picocom's manpage."
+            help = "Specifies the output character map (i.e., special characters to be replaced when writing to the serial port). See picocom's manpage.",
+            default_value = "crlf,delbs"
         )]
-        omap: Option<String>,
+        omap: String,
 
         #[clap(
             long,
