@@ -102,7 +102,7 @@ enum UartConsoleCommand {
     /// control is used to apply backpressure to the host.
     Detach,
 
-    /// Print the current console client (Humility or Mgs).
+    /// Print the current console client (Humility or MGS).
     Client,
 }
 
