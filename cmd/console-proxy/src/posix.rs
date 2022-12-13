@@ -134,7 +134,7 @@ impl<'a> UartConsoleHandler<'a> {
 
         let mut rx_buf = vec![0; HIFFY_BUF_SIZE];
         let mut tx_buf = Vec::new();
-        loop {
+        'outer: loop {
             if !tx_buf.is_empty() {
                 let nwritten = self.write(&tx_buf)?;
                 tx_buf.drain(0..nwritten);
@@ -155,23 +155,18 @@ impl<'a> UartConsoleHandler<'a> {
             };
             let timeout = crossbeam_channel::after(timeout);
 
-            let mut done = false;
             loop {
                 select! {
                     recv(stdin_rx) -> data => {
                         if let Ok(mut data) = data {
                             tx_buf.append(&mut data);
                         } else {
-                            done = true;
-                            break;
+                            // `stdin_tx` is closed; we're done.
+                            break 'outer;
                         }
                     },
                     recv(timeout) -> _ => break,
                 }
-            }
-
-            if done {
-                break;
             }
         }
 
