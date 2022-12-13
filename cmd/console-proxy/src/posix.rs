@@ -358,19 +358,17 @@ pub(super) fn console_proxy(
             let imap = imap.parse().context("invalid imap rules")?;
             let omap = omap.parse().context("invalid omap rules")?;
 
-            let log = match log {
-                Some(path) => {
-                    let f = File::options()
+            let log = log
+                .map(|path| {
+                    File::options()
                         .append(true)
                         .create(true)
                         .open(&path)
                         .with_context(|| {
                             format!("failed to open {}", path.display())
-                        })?;
-                    Some(f)
-                }
-                None => None,
-            };
+                        })
+                })
+                .transpose()?;
             worker.attach(raw, imap, omap, log)?;
         }
         UartConsoleCommand::Detach => {
