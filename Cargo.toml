@@ -218,7 +218,6 @@ strum_macros = "0.22"
 syn = "1.0"
 tempfile = "3.3"
 termimad = "0.14"
-termios = "0.3"
 toml = "0.5"
 trycmd = "0.13.2"
 tui = { version = "0.16", default-features = false }
