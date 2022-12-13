@@ -53,7 +53,7 @@ impl<'a> UartConsoleHandler<'a> {
         })
     }
 
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let op = IdolOperation::new(
             self.hubris,
             "ControlPlaneAgent",
@@ -82,7 +82,7 @@ impl<'a> UartConsoleHandler<'a> {
         Ok(v as usize)
     }
 
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    fn uart_write(&mut self, buf: &[u8]) -> Result<usize> {
         let op = IdolOperation::new(
             self.hubris,
             "ControlPlaneAgent",
@@ -135,11 +135,11 @@ impl<'a> UartConsoleHandler<'a> {
         let mut stdout = io::stdout().lock();
         'outer: loop {
             if !tx_buf.is_empty() {
-                let nwritten = self.write(&tx_buf)?;
+                let nwritten = self.uart_write(&tx_buf)?;
                 tx_buf.drain(0..nwritten);
             }
 
-            let nread = self.read(&mut rx_buf)?;
+            let nread = self.uart_read(&mut rx_buf)?;
             if nread > 0 {
                 let data = &rx_buf[..nread];
 
