@@ -12,7 +12,7 @@ use std::{io, thread};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
-use crossbeam_channel::{select, Receiver, Sender};
+use crossbeam_channel::{select, Sender};
 use picocom_map::RemapRules;
 use termios::Termios;
 
@@ -118,7 +118,7 @@ impl<'a> UartConsoleHandler<'a> {
         raw: bool,
         imap: RemapRules,
         omap: RemapRules,
-        log: Option<File>,
+        mut log: Option<File>,
     ) -> Result<()> {
         // Put terminal in raw mode, if requested, with a guard to restore it.
         let _guard = if raw {
@@ -128,12 +128,11 @@ impl<'a> UartConsoleHandler<'a> {
         };
 
         let (stdin_tx, stdin_rx) = crossbeam_channel::unbounded();
-        let (stdout_tx, stdout_rx) = crossbeam_channel::unbounded();
         thread::spawn(move || stdin_reader(raw, stdin_tx, omap));
-        thread::spawn(move || stdout_writer(stdout_rx, imap, log));
 
         let mut rx_buf = vec![0; HIFFY_BUF_SIZE];
         let mut tx_buf = Vec::new();
+        let mut stdout = io::stdout().lock();
         'outer: loop {
             if !tx_buf.is_empty() {
                 let nwritten = self.write(&tx_buf)?;
@@ -142,7 +141,22 @@ impl<'a> UartConsoleHandler<'a> {
 
             let nread = self.read(&mut rx_buf)?;
             if nread > 0 {
-                stdout_tx.send(rx_buf[..nread].to_owned()).unwrap();
+                let data = &rx_buf[..nread];
+
+                // Record data read to our logfile, if we have one, before
+                // performing remapping.
+                if let Some(log) = log.as_mut() {
+                    log.write_all(data)
+                        .and_then(|()| log.flush())
+                        .context("error writing to logfile")?;
+                }
+
+                // Apply `imap` and write to stdout.
+                let data = imap.apply(data.iter().copied()).collect::<Vec<_>>();
+                stdout
+                    .write_all(&data)
+                    .and_then(|()| stdout.flush())
+                    .context("error writing to stdout")?;
             }
 
             // If our read returned the max buffer size, don't wait for
@@ -230,26 +244,6 @@ impl<'a> UartConsoleHandler<'a> {
 
         println!("Current console client: {}", value.disc());
         Ok(())
-    }
-}
-
-fn stdout_writer(
-    rx: Receiver<Vec<u8>>,
-    remap: RemapRules,
-    mut log: Option<File>,
-) {
-    let mut stdout = io::stdout().lock();
-    for data in rx {
-        if let Some(log) = log.as_mut() {
-            if let Err(err) = log.write_all(&data).and_then(|()| log.flush()) {
-                panic!("error writing to logfile: {err}");
-            }
-        }
-        let data = remap.apply(data).collect::<Vec<_>>();
-        if let Err(err) = stdout.write_all(&data).and_then(|()| stdout.flush())
-        {
-            panic!("error writing to stdout: {err}");
-        }
     }
 }
 
