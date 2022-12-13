@@ -19,4 +19,4 @@ hif = { workspace = true }
 idol = { workspace = true }
 
 [target.'cfg(not(windows))'.dependencies]
-termios = "0.3"
+termios = { workspace = true }
