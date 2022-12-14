@@ -593,3 +593,27 @@ pub fn lookup_reply<'a>(
         Reply::Simple(ok) => Ok((lookup_ok(&ok.ty.0)?, None)),
     }
 }
+
+/// Extention trait to add `get_idol_command` to a `HubrisArchive`
+pub trait HubrisIdol {
+    fn get_idol_command(&self, name: &str) -> Result<IdolOperation>;
+}
+
+impl HubrisIdol for HubrisArchive {
+    fn get_idol_command(&self, name: &str) -> Result<IdolOperation> {
+        let mut iter = name.split('.');
+        let interface = iter
+            .next()
+            .ok_or_else(|| anyhow!("Interface name cannot be empty"))?;
+        let op = iter
+            .next()
+            .ok_or_else(|| anyhow!("Operation name cannot be empty"))?;
+        IdolOperation::new(self, interface, op, None).with_context(|| {
+            format!(
+                "Could not find `{interface}.{op}`; \
+                 the task may be missing or your Hubris archive \
+                 may be out of date",
+            )
+        })
+    }
+}

@@ -6,7 +6,7 @@
 //!
 //! Tools to interact with the Tofino EEPROM
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use humility::cli::Subcommand;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -16,8 +16,7 @@ use cmd_hiffy as humility_cmd_hiffy;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::IdolArgument;
-use humility_cmd::idol::IdolOperation;
+use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cmd_hiffy::HiffyLease;
 
@@ -75,20 +74,9 @@ impl<'a> EepromHandler<'a> {
         Ok(Self { hubris, core, context })
     }
 
-    fn get_idol_command(&self, name: &str) -> Result<IdolOperation<'a>> {
-        IdolOperation::new(self.hubris, "Sequencer", name, None).with_context(
-            || {
-                format!(
-                    "Could not find `Sequencer.{}`, \
-                     is your Hubris archive new enough?",
-                    name
-                )
-            },
-        )
-    }
-
     fn eeprom_read(&mut self, count: Option<usize>) -> Result<Vec<u8>> {
-        let op = self.get_idol_command("read_spi_eeprom_bytes")?;
+        let op =
+            self.hubris.get_idol_command("Sequencer.read_spi_eeprom_bytes")?;
 
         let mut out = vec![0u8; count.unwrap_or(EEPROM_SIZE_BYTES)];
         let bar = ProgressBar::new(0);
@@ -124,7 +112,8 @@ impl<'a> EepromHandler<'a> {
                 EEPROM_SIZE_BYTES
             );
         }
-        let op = self.get_idol_command("write_spi_eeprom_bytes")?;
+        let op =
+            self.hubris.get_idol_command("Sequencer.write_spi_eeprom_bytes")?;
 
         let bar = ProgressBar::new(0);
         bar.set_style(

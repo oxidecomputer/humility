@@ -28,7 +28,7 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::idol;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::fs::File;
 use std::io;
@@ -763,7 +763,7 @@ fn sensor_ops(
 ) -> Result<Vec<String>> {
     let mut sensors = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)?;
+    let op = hubris.get_idol_command("Sensor.get")?;
 
     let ok = hubris.lookup_basetype(op.ok)?;
 
@@ -799,7 +799,7 @@ fn sequencer_state_ops<'a>(
     // Sidecar and Gimlet have different names for this operation!
     let op = ["tofino_seq_state", "get_state"]
         .iter()
-        .map(|name| idol::IdolOperation::new(hubris, "Sequencer", name, None))
+        .map(|name| hubris.get_idol_command(&format!("Sequencer.{name}")))
         .find_map(Result::ok)
         .ok_or_else(|| {
             anyhow!(
@@ -820,17 +820,14 @@ fn power_ops(
     let mut ops = vec![];
     let funcs = context.functions()?;
 
-    // Helper function to look up an IdolOperation by name
-    let get_op =
-        |name| idol::IdolOperation::new(hubris, "Sequencer", name, None);
-
-    if let Ok(op) = get_op("set_tofino_seq_policy") {
+    if let Ok(op) = hubris.get_idol_command("Sequencer.set_tofino_seq_policy") {
         // Translate from Gimlet-style power states to Tofino-style policies
         let policy = match state {
             "A0" => {
                 // If we're trying to go to A0, then _also_ clear Tofino faults
                 // before changing the power policy.
-                let op = get_op("clear_tofino_seq_error")?;
+                let op = hubris
+                    .get_idol_command("Sequencer.clear_tofino_seq_error")?;
                 let payload = op.payload(&[])?;
                 context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
 
@@ -847,7 +844,7 @@ fn power_ops(
             &op.payload(&[("policy", idol::IdolArgument::String(policy))])?,
             &mut ops,
         )?;
-    } else if let Ok(op) = get_op("set_state") {
+    } else if let Ok(op) = hubris.get_idol_command("Sequencer.set_state") {
         context.idol_call_ops(
             &funcs,
             &op,
@@ -869,12 +866,11 @@ fn fan_ops(
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(
-        hubris,
-        "Sequencer",
-        if on { "fans_on" } else { "fans_off" },
-        None,
-    )?;
+    let op = hubris.get_idol_command(if on {
+        "Sequencer.fans_on"
+    } else {
+        "Sequencer.fans_off"
+    })?;
 
     let payload = vec![];
     context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
@@ -891,7 +887,7 @@ fn pwm_ops(
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Thermal", "set_fan_pwm", None)?;
+    let op = hubris.get_idol_command("Thermal.set_fan_pwm")?;
 
     let payload = op.payload(&[
         ("index", idol::IdolArgument::Scalar(index as u64)),

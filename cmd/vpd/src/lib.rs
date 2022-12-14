@@ -78,7 +78,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
 use humility_cmd::hiffy::*;
-use humility_cmd::idol;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -202,7 +202,8 @@ fn vpd_write(
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Vpd", "write", None)
+    let op = hubris
+        .get_idol_command("Vpd.write")
         .context("is the 'vpd' task present?")?;
     let target = target(hubris, subargs)?;
 
@@ -322,8 +323,7 @@ fn vpd_read(
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Vpd", "read", None)
-        .context("is the 'vpd' task present?")?;
+    let op = hubris.get_idol_command("Vpd.read")?;
     let target = target(hubris, subargs)?;
 
     //
