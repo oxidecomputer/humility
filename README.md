@@ -809,6 +809,15 @@ humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0x4 = 0x1f
 ```
 
+To determine the last mux and segment to be enabled on a particular
+controller/port, use `--lastmux` (`-l`):
+
+```console
+% humility i2c -b front --lastmux
+humility: attached via ST-Link V3
+last selected mux/segment for I2C2, port F: mux 3, segment 2
+```
+
 
 
 ### `humility isp`
@@ -1961,7 +1970,9 @@ all thermal sensors from either device).
 
 By default, `humility sensors` displays the value of each specified sensor
 and exits; to read values once per second, use the `-s` (`--sleep`)
-option. To print values as a table, use `--tabular`.
+option.  To print values as a table with individual sensors as columns,
+`--tabular`.  In its default output (with one sensor per row), error
+counts are also displayed.
 
 
 ### `humility spctrl`

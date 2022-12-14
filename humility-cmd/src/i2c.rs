@@ -6,6 +6,7 @@ use anyhow::{bail, Context, Result};
 use humility::hubris::*;
 use std::fmt;
 
+#[derive(Debug)]
 pub struct I2cArgs<'a> {
     pub controller: u8,
     pub port: &'a HubrisI2cPort,
