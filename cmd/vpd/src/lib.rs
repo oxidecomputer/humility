@@ -202,9 +202,7 @@ fn vpd_write(
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
-    let op = hubris
-        .get_idol_command("Vpd.write")
-        .context("is the 'vpd' task present?")?;
+    let op = hubris.get_idol_command("Vpd.write")?;
     let target = target(hubris, subargs)?;
 
     let bytes = if let Some(ref filename) = subargs.write {
