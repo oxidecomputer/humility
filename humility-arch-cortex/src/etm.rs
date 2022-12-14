@@ -384,7 +384,7 @@ fn encode(hdr: ETM3Header) -> u8 {
     }
 }
 
-fn set(table: &mut Vec<Option<ETM3Header>>, hdr: ETM3Header) {
+fn set(table: &mut [Option<ETM3Header>], hdr: ETM3Header) {
     let val = encode(hdr) as usize;
 
     match table[val] {
@@ -782,15 +782,12 @@ pub fn etm_ingest(
             ETM3PacketState::Complete => {}
         }
 
-        match (state, hdr) {
-            (IngestState::ISyncSearching, ETM3Header::ISync) => {
-                //
-                // We have our ISync packet -- we can now ingest everything
-                // (starting with this packet).
-                //
-                state = IngestState::Ingesting;
-            }
-            (_, _) => {}
+        if let (IngestState::ISyncSearching, ETM3Header::ISync) = (state, hdr) {
+            //
+            // We have our ISync packet -- we can now ingest everything
+            // (starting with this packet).
+            //
+            state = IngestState::Ingesting;
         }
 
         if state == IngestState::Ingesting {

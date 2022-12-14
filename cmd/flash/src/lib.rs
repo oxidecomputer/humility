@@ -7,7 +7,12 @@
 //! Flashes the target with the image that is contained within the specified
 //! archive (or dump).  As a precautionary measure, if the specified archive
 //! already appears to be on the target, `humility flash` will fail unless the
-//! `-F` (`--force`) flag is set.
+//! `-F` (`--force`) flag is set.  Because this will only check the image
+//! ID (and not the entire image), `humility flash` can be optionally told
+//! to verify that all of the program text in the image is on the device
+//! by specifying `-V` (`--verify`).  Similarly, if one wishes to *only*
+//! check the image against the archive (and not flash at all), specify
+//! `-C` (`--check`).
 //!
 //! This attempts to natively flash the part within Humility using probe-rs,
 //! but for some parts or configurations, it may need to use OpenOCD as a
@@ -37,8 +42,6 @@ use path_slash::PathExt;
 use std::io::Write;
 use std::process::ExitStatus;
 
-use serde::Deserialize;
-
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct FlashArgs {
@@ -62,47 +65,25 @@ struct FlashArgs {
     /// reset delay
     #[clap(
         long = "reset-delay", short = 'd',
-        default_value = "100", value_name = "timeout_ms",
+        default_value_t = 100, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     reset_delay: u64,
-}
 
-//
-// This is the Hubris definition
-//
-#[derive(Debug, Deserialize)]
-enum FlashProgram {
-    PyOcd(Vec<FlashArgument>),
-    OpenOcd(FlashProgramConfig),
-}
+    /// if archive appears to already be flashed, verify contents
+    #[clap(long, short = 'V', conflicts_with = "force")]
+    verify: bool,
 
-#[derive(Debug, Deserialize)]
-enum FlashProgramConfig {
-    Path(Vec<String>),
-    Payload(String),
-}
-
-#[derive(Debug, Deserialize)]
-enum FlashArgument {
-    Direct(String),
-    Payload,
-    FormattedPayload(String, String),
-    Config,
-}
-
-#[derive(Debug, Deserialize)]
-struct FlashConfig {
-    program: FlashProgram,
-    args: Vec<FlashArgument>,
-    chip: Option<String>,
+    /// do not flash, just check if archive has been flashed
+    #[clap(long, short = 'C', conflicts_with_all = &["force", "verify"])]
+    check: bool,
 }
 
 fn force_openocd(
     hubris: &mut HubrisArchive,
     args: &Cli,
     subargs: &FlashArgs,
-    config: &FlashConfig,
+    config: &HubrisFlashMeta,
     elf: &[u8],
 ) -> Result<()> {
     // Images that include auxiliary flash data *must* be programmed through
@@ -125,22 +106,13 @@ fn force_openocd(
         let mut c = humility::core::attach(probe, hubris)?;
         let core = c.as_mut();
 
-        //
-        // We want to actually try validating to determine if this archive
-        // already matches; if it does, this command may well be in error,
-        // and we want to force the user to force their intent.
-        //
-        if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
-            if subargs.force {
-                humility::msg!(
-                    "archive appears to be already flashed; forcing re-flash"
-                );
-            } else {
-                bail!("archive appears to be already flashed on attached device; \
-                    use -F (\"--force\") to force re-flash");
-            }
+        validate(hubris, core, subargs)?;
+
+        if subargs.check {
+            return Ok(());
         }
 
+        core.run()?;
         core.info().1
     };
 
@@ -243,126 +215,11 @@ fn force_openocd(
     Ok(())
 }
 
-fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let hubris = context.archive.as_mut().unwrap();
-    let flash = hubris.load_flash_config()?;
-    let subargs = FlashArgs::try_parse_from(subargs)?;
-
-    let config: FlashConfig = ron::from_str(&flash.metadata)?;
-
-    if subargs.force_openocd {
-        humility::msg!("forcing flashing using OpenOCD");
-        return force_openocd(
-            hubris,
-            &context.cli,
-            &subargs,
-            &config,
-            &flash.elf,
-        );
-    }
-
-    // This is incredibly ugly! It also gives us backwards compatibility!
-    let chip = match config.chip {
-        Some(chip) => chip,
-        None => match &config.program {
-            FlashProgram::PyOcd(args) => {
-                let s69 = regex::Regex::new(r"lpc55s69").unwrap();
-                let s28 = regex::Regex::new(r"lpc55s28").unwrap();
-                let mut c: Option<String> = None;
-                for arg in args {
-                    c = match arg {
-                        FlashArgument::Direct(s) => {
-                            if s69.is_match(s) {
-                                Some("LPC55S69JBD100".to_string())
-                            } else if s28.is_match(s) {
-                                Some("LPC55S28JBD64".to_string())
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    };
-
-                    if c.is_some() {
-                        break;
-                    }
-                }
-
-                if c.is_none() {
-                    humility::msg!(
-                        "could not get chip from OpenOCD config; \
-                        flashing using OpenOCD"
-                    );
-                    return force_openocd(
-                        hubris,
-                        &context.cli,
-                        &subargs,
-                        &config,
-                        &flash.elf,
-                    );
-                }
-
-                c.unwrap()
-            }
-            FlashProgram::OpenOcd(ref a) => match a {
-                FlashProgramConfig::Payload(d) => {
-                    let h7 = regex::Regex::new(r"find target/stm32h7").unwrap();
-                    let f3 = regex::Regex::new(r"find target/stm32f3").unwrap();
-                    let f4 = regex::Regex::new(r"find target/stm32f4").unwrap();
-                    let g0 = regex::Regex::new(r"find target/stm32g0").unwrap();
-
-                    let mut c: Option<String> = None;
-
-                    for s in d.split('\n') {
-                        if h7.is_match(s) {
-                            c = Some("STM32H753ZITx".to_string());
-                            break;
-                        }
-                        if f3.is_match(s) {
-                            c = Some("STM32F301C6Tx".to_string());
-                            break;
-                        }
-                        if f4.is_match(s) {
-                            c = Some("STM32F401CBUx".to_string());
-                            break;
-                        }
-                        if g0.is_match(s) {
-                            c = Some("STM32G030C6Tx".to_string());
-                            break;
-                        }
-                    }
-
-                    if c.is_none() {
-                        humility::msg!(
-                            "could not get chip from OpenOCD config; \
-                        flashing using OpenOCD"
-                        );
-                        return force_openocd(
-                            hubris,
-                            &context.cli,
-                            &subargs,
-                            &config,
-                            &flash.elf,
-                        );
-                    }
-
-                    c.unwrap()
-                }
-                _ => bail!("Unexpected config?"),
-            },
-        },
-    };
-
-    let probe = match &context.cli.probe {
-        Some(p) => p,
-        None => "auto",
-    };
-
-    humility::msg!("attaching with chip set to {:x?}", chip);
-    let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
-    let core = c.as_mut();
-
+fn validate(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    subargs: &FlashArgs,
+) -> Result<()> {
     core.halt()?;
 
     //
@@ -370,22 +227,109 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     // already matches; if it does, this command may well be in error,
     // and we want to force the user to force their intent.
     //
-    if hubris.validate(core, HubrisValidate::ArchiveMatch).is_ok() {
-        if subargs.force {
-            humility::msg!(
-                "archive appears to be already flashed; forcing re-flash"
-            );
-        } else {
-            core.run()?;
-            bail!(
-                "archive appears to be already flashed on attached device; \
-                    use -F (\"--force\") to force re-flash"
-            );
+    match hubris.validate(core, HubrisValidate::ArchiveMatch) {
+        Ok(_) => {
+            if subargs.force {
+                humility::msg!(
+                    "archive appears to be already flashed; forcing re-flash"
+                );
+            } else if subargs.verify || subargs.check {
+                if let Err(err) = hubris.verify(core) {
+                    if subargs.check {
+                        core.run()?;
+                        bail!(
+                            "image IDs match, but flash contents do not match \
+                            archive contents: {}",
+                            err
+                        );
+                    }
+
+                    humility::msg!(
+                        "image IDs match, but flash contents do not match \
+                        archive contents: {}; reflashing",
+                        err
+                    );
+                } else {
+                    core.run()?;
+
+                    if subargs.check {
+                        humility::msg!("archive matches flash contents");
+                        return Ok(());
+                    }
+
+                    bail!(
+                        "archive is already flashed on attached device; \
+                        use -F (\"--force\") to force re-flash"
+                    );
+                }
+            } else {
+                core.run()?;
+                bail!(
+                    "archive appears to be already flashed on attached \
+                    device; use -F (\"--force\") to force re-flash or \
+                    -V (\"--verify\") to verify contents"
+                );
+            }
+        }
+        Err(err) => {
+            if subargs.check {
+                core.run()?;
+                bail!("flash/archive mismatch: {}", err);
+            }
         }
     }
 
+    Ok(())
+}
+
+fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let hubris = context.archive.as_mut().unwrap();
+    let subargs = FlashArgs::try_parse_from(subargs)?;
+
+    let config = hubris.load_flash_config()?;
+
+    if subargs.force_openocd {
+        humility::msg!("forcing flashing using OpenOCD");
+        return force_openocd(
+            hubris,
+            &context.cli,
+            &subargs,
+            &config.metadata,
+            &config.elf,
+        );
+    }
+
+    let probe = match &context.cli.probe {
+        Some(p) => p,
+        None => "auto",
+    };
+
+    let chip = match config.chip {
+        Some(c) => c,
+        None => {
+            return force_openocd(
+                hubris,
+                &context.cli,
+                &subargs,
+                &config.metadata,
+                &config.elf,
+            )
+        }
+    };
+
+    humility::msg!("attaching with chip set to {:x?}", chip);
+    let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
+    let core = c.as_mut();
+
+    validate(hubris, core, &subargs)?;
+
+    if subargs.check {
+        return Ok(());
+    }
+
     let ihex = tempfile::NamedTempFile::new()?;
-    std::fs::write(&ihex, generate_ihex_from_elf(&flash.elf)?)?;
+    std::fs::write(&ihex, generate_ihex_from_elf(&config.elf)?)?;
     let ihex_path = ihex.path();
 
     //
@@ -451,8 +395,7 @@ fn program_auxflash(
     core: &mut dyn Core,
     data: &[u8],
 ) -> Result<()> {
-    let mut worker =
-        humility_cmd_auxflash::AuxFlashHandler::new(hubris, core, 15_000)?;
+    let mut worker = cmd_auxflash::AuxFlashHandler::new(hubris, core, 15_000)?;
 
     // At this point, we've already rebooted into the new image.
     //
@@ -495,6 +438,10 @@ fn program_auxflash(
     // - The SP will recognize the programmed slot as valid and choose it as the
     //   active slot.
     worker.reset()?;
+
+    // Give the SP plenty of time to do its mirroring operation
+    humility::msg!("resetting the SP, please wait...");
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     match worker.active_slot() {
         Ok(Some(..)) => Ok(()),

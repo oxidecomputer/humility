@@ -18,7 +18,7 @@ use hif::*;
 struct SpdArgs {
     /// sets timeout
     #[clap(
-        long, short, default_value = "5000", value_name = "timeout_ms",
+        long, short, default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -179,7 +179,7 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
         let nspd = spd_data.size / SPD_SIZE;
         let mut bytes = vec![0u8; spd_data.size];
 
-        let _info = core.halt()?;
+        core.halt()?;
         let rval = core.read_8(spd_data.addr, &mut bytes);
         core.run()?;
 

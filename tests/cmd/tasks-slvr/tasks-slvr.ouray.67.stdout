@@ -1,6 +1,6 @@
 system time = 46973
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+27)
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+27)
    |
    +--->  0x20005538 0x00011efe userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -62,7 +62,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf63c (&abi::TaskDesc)
                 }
 
- 1 hiffy                  0   3 notif: bit31(T+31)
+ 1 hiffy                        0   3 notif: bit31(T+31)
    |
    +--->  0x20008580 0x0001a13a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -126,7 +126,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf654 (&abi::TaskDesc)
                 }
 
- 2 idle                   0   5 RUNNING
+ 2 idle                         0   5 RUNNING
    |
    +--->  0x2000c900 0x00042056 main
    |                 @ /home/bmc/hubris/task-idle/src/main.rs:9
@@ -182,7 +182,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf66c (&abi::TaskDesc)
                 }
 
- 3 syscon_driver          0   2 recv
+ 3 syscon_driver                0   2 recv
    |
    +--->  0x200063c0 0x00020d2a userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -246,7 +246,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf684 (&abi::TaskDesc)
                 }
 
- 4 gpio_driver            0   2 recv
+ 4 gpio_driver                  0   2 recv
    |
    +--->  0x200067a8 0x000258da userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -312,7 +312,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf69c (&abi::TaskDesc)
                 }
 
- 5 user_leds              0   2 recv
+ 5 user_leds                    0   2 recv
    |
    +--->  0x20006bb0 0x00028f7e userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -378,7 +378,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf6b4 (&abi::TaskDesc)
                 }
 
- 6 usart_driver           0   2 recv, notif: bit0(irq14)
+ 6 usart_driver                 0   2 recv, notif: bit0(irq14)
    |
    +--->  0x20006fb0 0x0002d15e userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -440,7 +440,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf6cc (&abi::TaskDesc)
                 }
 
- 7 i2c_driver             0   2 recv
+ 7 i2c_driver                   0   2 recv
    |
    +--->  0x200073b8 0x0003133c userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -506,7 +506,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf6e4 (&abi::TaskDesc)
                 }
 
- 8 rng_driver             0   2 recv
+ 8 rng_driver                   0   2 recv
    |
    +--->  0x200077b8 0x00034f1e userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -566,7 +566,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf6fc (&abi::TaskDesc)
                 }
 
- 9 spi_driver             0   2 recv, notif: bit0(irq59)
+ 9 spi_driver                   0   2 recv, notif: bit0(irq59)
    |
    +--->  0x20007b68 0x00039594 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -630,7 +630,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf714 (&abi::TaskDesc)
                 }
 
-10 ping                  50   4 wait: reply from usart_driver/gen0
+10 ping                        50   4 wait: reply from usart_driver/gen0
    |
    +--->  0x20007f98 0x0003cfa0 userlib::sys_send_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:129
@@ -690,7 +690,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf72c (&abi::TaskDesc)
                 }
 
-11 pong                   0   3 recv, notif: bit0(T+27)
+11 pong                         0   3 recv, notif: bit0(T+27)
    |
    +--->  0x2000c398 0x0003ed02 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
@@ -750,7 +750,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0xf744 (&abi::TaskDesc)
                 }
 
-12 spam                   0   3 not started
+12 spam                         0   3 not started
    |
    +--->  0x2000c7e8 0x00040001 _start
    |                 @ /home/bmc/hubris/userlib/src/lib.rs:766

@@ -3,7 +3,7 @@ on: [push, pull_request]
 name: Continuous integration
 
 env:
-  MSRV: 1.58.0
+  MSRV: 1.65.0
   CARGO_INCREMENTAL: 0 # set here rather than on CI profile so that the tests get it too
 
 jobs:

@@ -50,6 +50,10 @@ struct ReadvarArgs {
     /// values in decimal instead of hex
     #[clap(long, short)]
     decimal: bool,
+    /// interpret array contents as a C string (ignored if variable is not an
+    /// array)
+    #[clap(long)]
+    as_c_string: bool,
     /// list variables
     #[clap(long, short)]
     list: bool,
@@ -66,7 +70,7 @@ fn readvar_dump(
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(variable.size, Default::default);
 
-    let _info = core.halt()?;
+    core.halt()?;
     core.read_8(variable.addr, buf.as_mut_slice())?;
     core.run()?;
 
@@ -75,6 +79,7 @@ fn readvar_dump(
     let fmt = HubrisPrintFormat {
         newline: true,
         hex,
+        interpret_as_c_string: subargs.as_c_string,
         ..HubrisPrintFormat::default()
     };
     let name = subargs.variable.as_ref().unwrap();

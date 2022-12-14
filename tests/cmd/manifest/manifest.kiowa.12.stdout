@@ -2,6 +2,7 @@
      git rev => 2ac3fa2a8113365a1fe62646a7ec8a3044edc507-dirty
     image id => <none>
        board => gimlet-1
+        name => gimlet
       target => thumbv7em-none-eabihf
     features => itm
   total size => 220K

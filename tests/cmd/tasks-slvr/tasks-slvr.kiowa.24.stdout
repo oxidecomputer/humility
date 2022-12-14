@@ -1,6 +1,6 @@
 system time = 1786487
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+13)
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+13)
    |
    +--->  0x20004480 0x0800c980 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -64,7 +64,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002d70 (&TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x20001340 0x08012254 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -128,7 +128,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002d88 (&TaskDesc)
                 }
 
- 2 gpio_driver            0   2 recv
+ 2 gpio_driver                  0   2 recv
    |
    +--->  0x20001710 0x0801091e userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -196,7 +196,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002da0 (&TaskDesc)
                 }
 
- 3 usart_driver           0   2 RUNNING
+ 3 usart_driver                 0   2 RUNNING
    |
    +--->  0x20001b18 0x08011496 userlib::sys_irq_control_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:920
@@ -262,7 +262,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002db8 (&TaskDesc)
                 }
 
- 4 user_leds              0   2 recv
+ 4 user_leds                    0   2 recv
    |
    +--->  0x20001f20 0x08011b26 userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -326,7 +326,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002dd0 (&TaskDesc)
                 }
 
- 5 pong                   0   3 recv, notif: bit0(T+13)
+ 5 pong                         0   3 recv, notif: bit0(T+13)
    |
    +--->  0x20004318 0x0801259c userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -390,7 +390,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002de8 (&TaskDesc)
                 }
 
- 6 ping                8028   4 wait: reply from usart_driver/gen0
+ 6 ping                      8028   4 wait: reply from usart_driver/gen0
    |
    +--->  0x20004770 0x0800ed54 userlib::sys_send_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:153
@@ -452,7 +452,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002e00 (&TaskDesc)
                 }
 
- 7 hiffy                  0   3 notif: bit31(T+48)
+ 7 hiffy                        0   3 notif: bit31(T+48)
    |
    +--->  0x200020a8 0x080098ca userlib::sys_recv_stub
    |                 @ /hubris//sys/userlib/src/lib.rs:331
@@ -526,7 +526,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x8002e18 (&TaskDesc)
                 }
 
- 8 idle                   0   5 ready
+ 8 idle                         0   5 ready
    stack unwind failed: Do not have unwind info for the given address. 
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000

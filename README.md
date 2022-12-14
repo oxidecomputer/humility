@@ -238,6 +238,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility isp](#humility-isp): run ISP commands on the LPC55
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
+- [humility lpc55-pfr](#humility-lpc55-pfr): Modify the protected flash region on the LPC55 (without ISP)
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
@@ -245,6 +246,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility net](#humility-net): Management network device-side control and debugging
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
+- [humility power](#humility-power): show power-related information
 - [humility probe](#humility-probe): probe for any attached devices
 - [humility qspi](#humility-qspi): QSPI status, reading and writing
 - [humility readmem](#humility-readmem): read and display memory region
@@ -264,7 +266,9 @@ a specified target.  (In the above example, one could execute `humility
 - [humility stmsecure](#humility-stmsecure): change secure region settings on the stm32h7
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
+- [humility tofino-eeprom](#humility-tofino-eeprom): read and write to the Tofino SPI EEPROM
 - [humility trace](#humility-trace): trace Hubris operations
+- [humility update](#humility-update): apply an update
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
 ### `humility apptable`
@@ -540,7 +544,12 @@ to prevent accidental blasts of binary content to the console.)
 Flashes the target with the image that is contained within the specified
 archive (or dump).  As a precautionary measure, if the specified archive
 already appears to be on the target, `humility flash` will fail unless the
-`-F` (`--force`) flag is set.
+`-F` (`--force`) flag is set.  Because this will only check the image
+ID (and not the entire image), `humility flash` can be optionally told
+to verify that all of the program text in the image is on the device
+by specifying `-V` (`--verify`).  Similarly, if one wishes to *only*
+check the image against the archive (and not flash at all), specify
+`-C` (`--check`).
 
 This attempts to natively flash the part within Humility using probe-rs,
 but for some parts or configurations, it may need to use OpenOCD as a
@@ -800,6 +809,15 @@ humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0x4 = 0x1f
 ```
 
+To determine the last mux and segment to be enabled on a particular
+controller/port, use `--lastmux` (`-l`):
+
+```console
+% humility i2c -b front --lastmux
+humility: attached via ST-Link V3
+last selected mux/segment for I2C2, port F: mux 3, segment 2
+```
+
 
 
 ### `humility isp`
@@ -926,6 +944,28 @@ Finally, to start a task that is not started by default, use the `-s` flag.
 
 
 
+### `humility lpc55-pfr`
+
+Allows for modification of the LPC55 protected flash region (PFR) via
+SWD. Also includes commands for displaying the values of the protected
+flash region.
+
+```code
+
+$ humility lpc55-pfr read-cfpa
+humility: attached via CMSIS-DAP
+Last scratch version: 33
+PONG version 33 is active
+Debug settings pin fd0002ff dflt ff3000cf
+Active RKTH revoke: 5
+Active image revoke: 0
+
+$ humility lpc55-pfr write-cfpa CFPA_enabled.bin
+humility: attached via CMSIS-DAP
+Wrote CFPA! Resetting chip now
+```
+
+
 ### `humility lpc55gpio`
 
 No documentation yet for `humility lpc55gpio`; pull requests welcome!
@@ -943,6 +983,7 @@ the archive, e.g.:
      version => hubris build archive v1.0.0
      git rev => 753a57169eba699e73ee59e0cf5345eb1d6e1ae2-dirty
        board => nucleo-h743zi2
+        name => demo-stm32h753-nucleo
       target => thumbv7em-none-eabihf
     features => h743, itm
   total size => 140K
@@ -1241,6 +1282,13 @@ will both run OpenOCD and run a foreground GDB that is connected to it.
 ### `humility pmbus`
 
 No documentation yet for `humility pmbus`; pull requests welcome!
+
+### `humility power`
+
+`humility power` displays the values associated with devices that
+can measure voltage, displaying voltage, current (if measured) and
+temperature (if measured).
+
 
 ### `humility probe`
 
@@ -1755,7 +1803,7 @@ over and over again.
 `humility repl` takes the same top level arguments as any other subcommand, and will remember them
 inside of the prompt. For example:
 
-```rust
+```console
 $ humility -a ../path/to/hubris/archive.zip repl
 humility: attached via ST-Link V2-1
 Welcome to the humility REPL! Try out some subcommands, or 'quit' to quit!
@@ -1911,15 +1959,20 @@ task, which includes MAC address and image ID (checked for compatibility).
 `Sensor` Idol interface to get sensor data.  If there is no `sensor` task
 or if there are no sensors defined in the in Hubris application
 description, this command will not provide any meaningful output. To list
-all available sensors, use `-l` (`--list`); to summarize sensor values,
-use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
-(`--types`) option; to constrain sensors by device, use the `-d`
-(`--devices`) option; to constrain sensors by name, use the `-n`
+all available sensors, use `-l` (`--list`).  To constrain sensors by type,
+use the `-t` (`--types`) option; to constrain sensors by device, use the
+`-d` (`--devices`) option; to constrain sensors by name, use the `-n`
 (`--named`) option.  Within each option, multiple specifications serve as
 a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 either device), but if multiple kinds of specifications are present, they
 serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
 all thermal sensors from either device).
+
+By default, `humility sensors` displays the value of each specified sensor
+and exits; to read values once per second, use the `-s` (`--sleep`)
+option.  To print values as a table with individual sensors as columns,
+`--tabular`.  In its default output (with one sensor per row), error
+counts are also displayed.
 
 
 ### `humility spctrl`
@@ -2268,9 +2321,29 @@ allowing these transient failures to be differentiated from deeper issues.
 
 
 
+### `humility tofino-eeprom`
+
+Tools to interact with the Tofino EEPROM
+
+
 ### `humility trace`
 
 No documentation yet for `humility trace`; pull requests welcome!
+
+### `humility update`
+
+Writes a binary to the specified update target as defined in Hubris
+
+```console
+$ humility update --target ImageB update.bin
+humility: attached via CMSIS-DAP
+humility: Starting update using an update block size of 512
+humility: (Erase may take a moment)
+humility: Comitting update
+humility: Update done.
+```
+
+
 
 ### `humility validate`
 

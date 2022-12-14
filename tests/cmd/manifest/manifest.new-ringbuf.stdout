@@ -1,0 +1,90 @@
+     version => hubris build archive v4
+     git rev => d9d369907370359892db88134e987b8deead3644-dirty
+    image id => [b6, 6d, 98, 7c, 94, fe, 22, 39]
+       board => sidecar-a
+        name => sidecar-a
+      target => thumbv7em-none-eabihf
+    features => itm
+  total size => 911K
+ kernel size => 26K
+       tasks => 28
+                ID TASK                SIZE FEATURES
+                 0 idle                0.1K 
+                 1 sys                 2.0K h753
+                 2 jefe                8.1K itm
+                 3 udpecho             8.1K vlan
+                 4 spi1_driver        16.1K h753, spi1
+                 5 control_plane_agent 67.1K sidecar, vlan, auxflash
+                 6 net                171.1K mgmt, h753, sidecar, vlan, vpd-mac
+                 7 monorail           128.7K mgmt, sidecar, vlan
+                 8 sequencer          64.9K 
+                 9 auxflash           32.1K h753
+                10 sprot              33.1K sink_test
+                11 hiffy              56.6K h753, spi, stm32h7, itm, i2c, gpio
+                12 ecp5_mainboard     33.4K mainboard
+                13 ecp5_front_io      33.4K front_io
+                14 transceivers       34.5K vlan
+                15 spi2_driver        16.1K h753, spi2
+                16 spi3_driver        16.1K h753, spi3
+                17 spi4_driver        16.1K spi4, h753
+                18 spi5_driver        16.1K h753, spi5
+                19 update_server      16.1K 
+                20 udprpc             16.1K vlan
+                21 i2c_driver         16.1K h753, itm
+                22 thermal            16.8K itm, sidecar
+                23 power              16.8K itm, sidecar
+                24 validate           16.1K 
+                25 ignition           16.5K sequencer
+                26 udpbroadcast        8.1K vlan
+                27 sensor              8.1K itm
+   i2c buses => 4 controllers, 9 buses
+                C PORT MODE NAME          DESCRIPTION
+                1 B1   init northeast0    Northeast Corridor 0
+                1 B2   init northeast1    Northeast Corridor 1
+                2 F    init front_io      Front I/O Board
+                2 H    init frontgps      Front I/O GPS
+                3 C    init northwest0    Northwest Corridor 0
+                3 H    init northwest1    Northwest Corridor 1
+                4 D    init south2        South Bend 2
+                4 F    init south0        South Bend 0
+                4 H    init south1        South Bend 1
+ i2c devices => 36 devices
+                C P  MUX ADDR DEVICE        DESCRIPTION
+                1 B1 -   0x10 adm1272       Fan 1 hot swap controller
+                1 B1 -   0x23 max31790      Fan 0/1 controller
+                1 B1 -   0x49 tmp117        North-northeast temperature sensor
+                1 B1 -   0x63 raa229618     TF2 VDD rail
+                1 B1 -   0x70 pca9545       Northeast fan mux
+                1 B2 -   0x13 adm1272       Fan 0 hot swap controller
+                1 B2 -   0x1a tps546b24a    V3P3_SYS rail
+                1 B2 -   0x48 tmp117        Northeast temperature sensor
+                3 C  -   0x16 adm1272       54V hot swap controller
+                3 C  -   0x19 tps546b24a    V5P0_SYS rail
+                3 C  -   0x48 tmp117        North-northwest temperature sensor
+                3 C  -   0x4c tmp451        TF2 temperature sensor
+                3 C  -   0x60 raa229618     TF2 VDDA rail
+                3 C  -   0x67 bmr491        Intermediate bus converter
+                3 H  -   0x13 adm1272       Fan 2 hot swap controller
+                3 H  -   0x10 adm1272       Fan 3 hot swap controller
+                3 H  -   0x49 tmp117        Northwest temperature sensor
+                3 H  -   0x20 max31790      Fan 2/3 controller
+                3 H  -   0x70 pca9545       Northwest fan mux
+                4 F  -   0x62 isl68224      VDD[A]18 rail
+                4 F  -   0x58 idt8a34001    Clock generator
+                4 F  -   0x4a tmp117        South temperature sensor
+                4 F  -   0x48 tmp117        Southeast temperature sensor
+                4 F  -   0x49 tmp117        Southwest temperature sensor
+                4 H  -   0x1b tps546b24a    V1P0_SYS rail
+                4 H  -   0x1c tps546b24a    V1P8_SYS rail
+                4 H  -   0x4c tmp451        VSC7448 temperature sensor
+                4 D  -   0x50 at24csw080    Mainboard FRUID
+                1 B1 1:2 0x50 at24csw080    Fan 0 FRUID
+                1 B1 1:1 0x50 at24csw080    Fan 1 FRUID
+                3 H  1:2 0x50 at24csw080    Fan 2 FRUID
+                3 H  1:1 0x50 at24csw080    Fan 3 FRUID
+                2 F  -   0x50 at24csw080    Front IO board FRUID
+                2 F  -   0x73 pca9538       Front IO GPIO expander
+                2 F  -   0x0a pca9956b      Front IO LED driver (left)
+                2 F  -   0x0b pca9956b      Front IO LED driver (right)
+ auxiliary flash => 16777216 bytes (16 MiB), 8 slots
+                    (2 MiB/slot)

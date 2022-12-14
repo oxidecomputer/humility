@@ -59,32 +59,43 @@ struct ItmArgs {
         long, short, conflicts_with_all = &["enable", "disable", "ingest"]
     )]
     probe: bool,
+
     /// enable ITM on attached device
     #[clap(long, short, conflicts_with_all = &["disable", "ingest"])]
     enable: bool,
+
     /// disable ITM on attached device
     #[clap(long, short)]
     disable: bool,
+
     /// sets ITM trace identifier
     #[clap(
-        long, short, default_value = "0x3a", value_name = "identifier",
+        long, short, default_value_t = 0x3a, value_name = "identifier",
         parse(try_from_str = parse_int::parse)
     )]
     traceid: u8,
+
     /// ingest ITM data as CSV
     #[clap(long, short, value_name = "filename")]
     ingest: Option<String>,
+
     /// ingest directly from attached device
     #[clap(long, short, conflicts_with_all = &["disable", "ingest"])]
     attach: bool,
+
     /// assume bypassed TPIU in ingested file
     #[clap(long, short, requires = "ingest")]
     bypass: bool,
+
     /// sets the value of SWOSCALER
     #[clap(long, short, value_name = "scaler", requires = "enable",
         parse(try_from_str = parse_int::parse),
     )]
     clockscaler: Option<u16>,
+
+    /// reset target
+    #[clap(long, short, requires = "attach")]
+    reset: bool,
 }
 
 fn itmcmd_probe(core: &mut dyn Core, coreinfo: &CoreInfo) -> Result<()> {
@@ -319,6 +330,11 @@ fn itmcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     core.run()?;
     humility::msg!("core resumed");
+
+    if subargs.reset {
+        core.reset()?;
+        humility::msg!("core reset");
+    }
 
     if rval.is_ok() && subargs.attach {
         match itmcmd_ingest_attached(core, &coreinfo, subargs) {

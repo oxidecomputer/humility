@@ -263,7 +263,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
         println!("system time = {}", ticks);
 
-        println!("{:2} {:15} {:>8} {:3} {:9}",
+        println!("{:2} {:21} {:>8} {:3} {:9}",
             "ID", "TASK", "GEN", "PRI", "STATE");
 
         let mut any_names_truncated = false;
@@ -293,13 +293,13 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
             {
                 let mut modname = module.to_string();
-                if modname.len() > 14 {
-                    modname.truncate(14);
+                if modname.len() > 20 {
+                    modname.truncate(20);
                     modname.push('…');
                     any_names_truncated = true;
                 }
                 print!(
-                    "{:2} {:15} {:>8} {:3} ",
+                    "{:2} {:21} {:>8} {:3} ",
                     i,
                     modname,
                     u32::from(task.generation),

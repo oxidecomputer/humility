@@ -5,7 +5,6 @@
 use std::collections::HashMap;
 use std::ffi::OsString;
 
-use anyhow::bail;
 use clap::ArgMatches;
 use humility::cli::Cli;
 use humility::cli::Subcommand;
@@ -22,13 +21,15 @@ mod cmd_repl;
 fn main() -> Result<()> {
     let (commands, m, args) = match parse_args(&mut std::env::args_os()) {
         Some(s) => s,
-        None => std::process::exit(0),
+        None => std::process::exit(1),
     };
 
-    if let Some(s) = version(&args)? {
+    if let Some(s) = version(&args) {
         println!("{}", s);
         std::process::exit(0);
     };
+
+    let mut context = humility::ExecutionContext::new(args.clone(), &m)?;
 
     let log_level = if args.verbose { "trace" } else { "warn" };
 
@@ -41,8 +42,6 @@ fn main() -> Result<()> {
         Subcommand::Other(v) => v[0].clone(),
     };
 
-    let mut context = humility::ExecutionContext::new(args, &m)?;
-
     if let Err(err) = cmd::subcommand(&mut context, &commands) {
         eprintln!("humility {} failed: {:?}", subcmd, err);
         std::process::exit(1);
@@ -51,22 +50,16 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn version(cli: &Cli) -> Result<Option<String>> {
-    //
-    // The only condition under which we don't require a command is if
-    // --version has been specified.
-    //
+pub(crate) fn version(cli: &Cli) -> Option<String> {
     if cli.version {
-        return Ok(Some(format!(
+        Some(format!(
             "{} {}",
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_VERSION")
-        )));
-    } else if cli.cmd.is_none() {
-        bail!("humility failed: subcommand expected (--help to list)");
+        ))
+    } else {
+        None
     }
-
-    Ok(None)
 }
 
 pub(crate) fn parse_args<I, T>(
@@ -90,19 +83,16 @@ where
 
     let m = match command.try_get_matches_from(input.into_iter()) {
         Ok(m) => m,
-        Err(e) => match e.kind() {
-            clap::ErrorKind::DisplayHelp => {
-                e.print().unwrap();
-                return None;
-            }
-            _ => e.exit(),
-        },
+        Err(e) => {
+            e.print().unwrap();
+            return None;
+        }
     };
 
     let _args = Cli::from_arg_matches(&m);
 
-    // If we're here, we know that our arguments pass muster from the
-    // Structopt/ Clap perspective.
+    // If we're here, we know that our arguments pass muster from the Clap
+    // perspective.
     Some((commands, m, Cli::parse_from(input2.into_iter())))
 }
 

@@ -2,6 +2,7 @@
      git rev => ded11f6ece2f0dd721df1bad2b77c58435025fa1-dirty
     image id => [eb, 22, 68, 55, 1c, 94, 3f, b4]
        board => stm32g031
+        name => demo-stm32g031-nucleo
       target => thumbv6m-none-eabi
     features => g031, panic-halt
   total size => 25K

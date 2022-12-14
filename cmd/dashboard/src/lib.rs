@@ -12,7 +12,7 @@
 //! graphed by the dashboard.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use crossterm::{
@@ -52,7 +52,7 @@ use tui::{
 struct DashboardArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -493,7 +493,8 @@ impl<'a> Dashboard<'a> {
             ::idol::syntax::Encoding::Zerocopy => {
                 humility::reflect::load_value(self.hubris, val, ty, 0)?
             }
-            ::idol::syntax::Encoding::Ssmarshal => {
+            ::idol::syntax::Encoding::Ssmarshal
+            | ::idol::syntax::Encoding::Hubpack => {
                 humility::reflect::deserialize_value(self.hubris, val, ty)?.0
             }
         };
@@ -794,7 +795,19 @@ fn sequencer_state_ops<'a>(
     ops: &mut Vec<Op>,
 ) -> Result<idol::IdolOperation<'a>> {
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sequencer", "get_state", None)?;
+
+    // Sidecar and Gimlet have different names for this operation!
+    let op = ["tofino_seq_state", "get_state"]
+        .iter()
+        .map(|name| idol::IdolOperation::new(hubris, "Sequencer", name, None))
+        .find_map(Result::ok)
+        .ok_or_else(|| {
+            anyhow!(
+                "Could not find Sequencer.get_state or \
+                 Sequencer.tofino_seq_state"
+            )
+        })?;
+
     context.idol_call_ops(&funcs, &op, &[], ops)?;
     Ok(op)
 }
@@ -806,11 +819,44 @@ fn power_ops(
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sequencer", "set_state", None)?;
 
-    let payload =
-        op.payload(&[("state", idol::IdolArgument::String(state))])?;
-    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    // Helper function to look up an IdolOperation by name
+    let get_op =
+        |name| idol::IdolOperation::new(hubris, "Sequencer", name, None);
+
+    if let Ok(op) = get_op("set_tofino_seq_policy") {
+        // Translate from Gimlet-style power states to Tofino-style policies
+        let policy = match state {
+            "A0" => {
+                // If we're trying to go to A0, then _also_ clear Tofino faults
+                // before changing the power policy.
+                let op = get_op("clear_tofino_seq_error")?;
+                let payload = op.payload(&[])?;
+                context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+
+                // Then, return the policy which will get us to power up
+                "LatchOffOnFault"
+            }
+            "A2" => "Disabled",
+            state => bail!("Unknown state {state}"),
+        };
+
+        context.idol_call_ops(
+            &funcs,
+            &op,
+            &op.payload(&[("policy", idol::IdolArgument::String(policy))])?,
+            &mut ops,
+        )?;
+    } else if let Ok(op) = get_op("set_state") {
+        context.idol_call_ops(
+            &funcs,
+            &op,
+            &op.payload(&[("state", idol::IdolArgument::String(state))])?,
+            &mut ops,
+        )?;
+    } else {
+        bail!("Could not find Sequencer.set_state or Sequencer.set_tofino_seq_policy");
+    };
     ops.push(Op::Done);
 
     Ok(ops)

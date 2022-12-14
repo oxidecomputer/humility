@@ -54,6 +54,9 @@ use std::collections::BTreeSet;
 use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
+use cmd_hiffy as humility_cmd_hiffy;
+use cmd_net as humility_cmd_net;
+
 use anyhow::{anyhow, bail, Result};
 use clap::App;
 use clap::IntoApp;
@@ -71,7 +74,7 @@ use zerocopy::{AsBytes, U16, U64};
 struct RpcArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -278,7 +281,7 @@ fn rpc_call(
         .lookup_enum_byname(hubris, "RpcReply")?;
 
     if buf[0] != 0 {
-        match rpc_reply_type.lookup_variant(buf[0] as u64) {
+        match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
             Some(e) => {
                 println!("Got error from `udprpc`: {}", e.name);
                 if e.name == "BadImageId" {

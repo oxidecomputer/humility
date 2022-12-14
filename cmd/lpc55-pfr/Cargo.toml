@@ -1,0 +1,21 @@
+[package]
+name = "humility-cmd-lpc55-pfr"
+version = "0.1.0"
+edition = "2021"
+description = "Modify the protected flash region on the LPC55 (without ISP)"
+
+[dependencies]
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+num-traits = { workspace = true }
+num-derive = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+parse_int = { workspace = true }
+byteorder = { workspace = true }
+zerocopy = { workspace = true }
+lpc55_areas = {workspace = true }

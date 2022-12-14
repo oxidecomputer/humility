@@ -5,10 +5,11 @@ edition = "2021"
 description = "probe for any attached devices"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cortex = { path = "../../humility-arch-cortex" }
-humility-cmd = { path = "../../humility-cmd" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-log = {version = "0.4.8", features = ["std"]}
-num-traits = "0.2"
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+num-traits = { workspace = true }
+colored = { workspace = true }

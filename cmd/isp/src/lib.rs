@@ -20,6 +20,7 @@ use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility_cmd::{Archive, Command, Dumper};
+use lpc55_areas::{CFPAPage, CMPAPage};
 use serialport::{DataBits, FlowControl, Parity, StopBits};
 use std::io::Read;
 use std::path::PathBuf;
@@ -51,13 +52,18 @@ enum IspCmd {
     /// Erases all non-secure flash. This MUST be done before writing!
     FlashEraseAll,
     /// Write a file to the CMPA region
-    WriteCMPA {
-        #[clap(parse(from_os_str))]
-        file: PathBuf,
-    },
+    WriteCMPA,
+    /// Write a file to the CFPA region
+    WriteCFPA,
+    /// Read the CMPA region
     ReadCMPA,
+    /// Read the CFPA regions (scratch, ping, pong)
+    ReadCFPA,
     /// Erase the CMPA region (use to boot non-secure binaries again)
-    EraseCMPA,
+    EraseCMPA {
+        #[clap(long)]
+        full: bool,
+    },
     /// Put a minimalist program on to allow attaching via SWD
     Restore,
     /// Set up key store this involves
@@ -74,9 +80,7 @@ enum IspCmd {
     /// Erase existing keystore
     EraseKeyStore,
     /// Get Bootloader property
-    GetProperty {
-        prop: BootloaderProperty,
-    },
+    GetProperty { prop: BootloaderProperty },
     /// Get information about why the chip put itself in ISP mode
     LastError,
 }
@@ -86,7 +90,7 @@ enum IspCmd {
 struct IspArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -95,7 +99,7 @@ struct IspArgs {
     #[clap(long, value_name = "port")]
     port: PathBuf,
 
-    #[clap(short = 'b', default_value = "57600")]
+    #[clap(short = 'b', default_value_t = 57600)]
     baud_rate: u32,
 
     #[clap(subcommand)]
@@ -265,22 +269,126 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
             println!("Flash erased!");
         }
-        IspCmd::WriteCMPA { file } => {
-            let mut infile =
-                std::fs::OpenOptions::new().read(true).open(&file)?;
+        IspCmd::WriteCMPA => {
+            let bytes = match &context.archive {
+                None => anyhow::bail!("Missing required archive"),
+                Some(archive) => match archive.read_cmpa()? {
+                    None => anyhow::bail!("CMPA not found in archive"),
+                    Some(cmpa) => cmpa,
+                },
+            };
 
-            let mut bytes = Vec::new();
+            let mut cmpa_bytes = [0u8; 512];
+            cmpa_bytes.clone_from_slice(&bytes);
+            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
 
-            infile.read_to_end(&mut bytes)?;
+            let m1 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+            let m2 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+            let mut ping_bytes = [0u8; 512];
+            let mut pong_bytes = [0u8; 512];
+
+            ping_bytes.clone_from_slice(&m1);
+            pong_bytes.clone_from_slice(&m2);
+            let ping = CFPAPage::from_bytes(&ping_bytes)?;
+            let pong = CFPAPage::from_bytes(&pong_bytes)?;
+
+            let (pin, dflt) = if ping.version > pong.version {
+                (ping.dcfg_cc_socu_ns_pin, ping.dcfg_cc_socu_ns_dflt)
+            } else {
+                (pong.dcfg_cc_socu_ns_pin, pong.dcfg_cc_socu_ns_dflt)
+            };
+
+            if (pin != 0 || dflt != 0)
+                && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
+            {
+                anyhow::bail!("CFPA has non-zero debug settings but CMPA has zero settings! This would brick the chip!");
+            }
 
             crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
             println!("Write to CMPA done!");
         }
-        IspCmd::EraseCMPA => {
-            // Write 512 bytes of zero
-            let bytes = vec![0; 512];
+        IspCmd::WriteCFPA => {
+            let bytes = match &context.archive {
+                None => anyhow::bail!("Missing required archive"),
+                Some(archive) => match archive.read_cfpa()? {
+                    None => anyhow::bail!("CMPA not found in archive"),
+                    Some(cmpa) => cmpa,
+                },
+            };
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+            let mut cmpa_bytes = [0u8; 512];
+            cmpa_bytes.clone_from_slice(&m);
+
+            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
+
+            let mut cfpa_bytes = [0u8; 512];
+            cfpa_bytes.clone_from_slice(&bytes);
+
+            let cfpa = CFPAPage::from_bytes(&cfpa_bytes)?;
+
+            if (cfpa.dcfg_cc_socu_ns_pin != 0 || cfpa.dcfg_cc_socu_ns_dflt != 0)
+                && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
+            {
+                anyhow::bail!("It looks like the CMPA debug settings aren't set but the CFPA settings are! This will brick the chip!");
+            }
+
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
+            println!("Write to CFPA done!");
+        }
+        IspCmd::ReadCFPA => {
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9de00, 512)?;
+
+            let mut dumper = Dumper::new();
+            dumper.size = 4;
+            println!("=====Scratch Page=====");
+            dumper.dump(&m, 0x9de00);
+
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+
+            println!("=====Ping Page=====");
+            dumper.dump(&m, 0x9e000);
+
+            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+            println!("=====Pong Page=====");
+            dumper.dump(&m, 0x9e200);
+        }
+        IspCmd::EraseCMPA { full } => {
+            let b = if full {
+                let m1 =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+                let m2 =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+                let mut ping_bytes = [0u8; 512];
+                let mut pong_bytes = [0u8; 512];
+
+                ping_bytes.clone_from_slice(&m1);
+                pong_bytes.clone_from_slice(&m2);
+                let ping = CFPAPage::from_bytes(&ping_bytes)?;
+                let pong = CFPAPage::from_bytes(&pong_bytes)?;
+
+                let (pin, dflt) = if ping.version > pong.version {
+                    (ping.dcfg_cc_socu_ns_pin, ping.dcfg_cc_socu_ns_dflt)
+                } else {
+                    (pong.dcfg_cc_socu_ns_pin, pong.dcfg_cc_socu_ns_dflt)
+                };
+                if pin != 0 || dflt != 0 {
+                    anyhow::bail!("The CFPA has non-zero settings! Erasing the CMPA would brick the chip!");
+                }
+
+                vec![0; 512]
+            } else {
+                let m =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+                let mut bytes = [0u8; 512];
+                bytes.clone_from_slice(&m);
+
+                let mut cmpa = CMPAPage::from_bytes(&bytes)?;
+
+                cmpa.secure_boot_cfg = 0;
+                cmpa.to_vec()?
+            };
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, b)?;
             println!("CMPA region erased!");
             println!("You can now boot unsigned images");
         }
@@ -288,7 +396,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
 
             let mut dumper = Dumper::new();
-            dumper.size = 512;
+            dumper.size = 4;
             dumper.dump(&m, 0x9e400);
         }
         IspCmd::Restore => {
@@ -384,7 +492,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "isp",
-            archive: Archive::Ignored,
+            archive: Archive::Optional,
             run: ispcmd,
         },
         IspArgs::command(),

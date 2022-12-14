@@ -2,6 +2,7 @@
      git rev => b161eb6525ab14d5db215a0ea83f052004c606cd
     image id => <none>
        board => stm32h7b3i-dk
+        name => tests-stm32h7b3
       target => thumbv7em-none-eabihf
     features => itm, h7b3
   total size => 69K

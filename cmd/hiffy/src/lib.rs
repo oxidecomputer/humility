@@ -59,7 +59,7 @@ use std::io::Read;
 struct HiffyArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -343,14 +343,15 @@ pub fn hiffy_decode(
                 ::idol::syntax::Encoding::Zerocopy => {
                     humility::reflect::load_value(hubris, &val, ty, 0)?
                 }
-                ::idol::syntax::Encoding::Ssmarshal => {
+                ::idol::syntax::Encoding::Ssmarshal
+                | ::idol::syntax::Encoding::Hubpack => {
                     humility::reflect::deserialize_value(hubris, &val, ty)?.0
                 }
             })
         }
         Err(e) => {
             let variant = if let Some(error) = op.error {
-                error.lookup_variant(e as u64)
+                error.lookup_variant_by_tag(e as u64)
             } else {
                 None
             };

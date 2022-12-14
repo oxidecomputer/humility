@@ -313,25 +313,17 @@ impl<'a> HiffyContext<'a> {
         let functions = hubris.lookup_enum(goff)?;
         let mut rval = HashMap::new();
 
-        for f in &functions.variants {
-            //
-            // We expect every function to have a tag (unless there is only
-            // one function present in which case we know that the index is 0).
-            //
-            let tag = match f.tag {
-                Some(tag) => tag,
-                None if functions.variants.len() == 1 => 0,
-                _ => {
-                    bail!("function {} in {}: missing tag", f.name, goff);
-                }
-            };
-
+        //
+        // Iterate over our functions.  Note that we very much expect these to
+        // be encoded in the DWARF in program order!
+        //
+        for (id, f) in functions.variants.iter().enumerate() {
             let goff = f.goff.ok_or_else(|| {
                 anyhow!("function {} in {}: missing a type", f.name, goff)
             })?;
 
             let mut func = HiffyFunction {
-                id: TargetFunction(u8::try_from(tag)?),
+                id: TargetFunction(u8::try_from(id)?),
                 name: f.name.to_string(),
                 args: Vec::new(),
                 errmap: HashMap::new(),
@@ -502,14 +494,15 @@ impl<'a> HiffyContext<'a> {
                     ::idol::syntax::Encoding::Zerocopy => {
                         load_value(self.hubris, val, ty, 0)?
                     }
-                    ::idol::syntax::Encoding::Ssmarshal => {
+                    ::idol::syntax::Encoding::Ssmarshal
+                    | ::idol::syntax::Encoding::Hubpack => {
                         deserialize_value(self.hubris, val, ty)?.0
                     }
                 })
             }
             Err(e) => {
                 let variant = if let Some(error) = op.error {
-                    error.lookup_variant(*e as u64)
+                    error.lookup_variant_by_tag(*e as u64)
                 } else {
                     None
                 };

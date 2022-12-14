@@ -1,0 +1,4 @@
+system time = 105186
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+14)
+ 1 idle                         0   5 RUNNING

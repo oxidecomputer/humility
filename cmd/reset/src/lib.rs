@@ -17,34 +17,40 @@ use humility_cmd::{Archive, Command};
 #[clap(name = "reset", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ResetArgs {
     /// Use a software reset instead of pin reset
-    #[clap(long)]
+    #[clap(long, conflicts_with_all = &["halt"])]
     soft_reset: bool,
+    /// Reset and halt instead of continuing
+    #[clap(long, conflicts_with_all = &["soft-reset"])]
+    halt: bool,
 }
 
 fn reset(context: &mut humility::ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ResetArgs::try_parse_from(subargs)?;
 
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = context.archive.as_mut().unwrap();
 
     let probe = match &context.cli.probe {
         Some(p) => p,
         None => "auto",
     };
 
-    let mut c = if subargs.soft_reset {
-        // The LPC55 based chips have a special reset sequence. Using this
-        // requires attaching with the specific chip name. Right now there
-        // isn't an easy way to get the chip name from the Hubris archive
-        // so we attach to a generic chip. The result is that a soft reset
-        // on LPC55 targets will work but it will produce some error messages.
-        humility::msg!("Some errors may be expected when doing a soft reset");
-        humility::core::attach(probe, hubris)?
+    let mut c = if subargs.soft_reset || subargs.halt {
+        let chip = hubris.chip().ok_or_else(|| {
+            anyhow::anyhow!(
+                "Need a chip to do a soft reset or halt after reset"
+            )
+        })?;
+        humility::core::attach_to_chip(probe, hubris, Some(&chip))?
     } else {
         humility::core::attach_to_probe(probe)?
     };
 
-    let r = c.reset();
+    let r = if subargs.halt {
+        c.reset_and_halt(std::time::Duration::from_secs(2))
+    } else {
+        c.reset()
+    };
 
     if r.is_err() {
         humility::msg!(
@@ -61,7 +67,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
     (
         Command::Unattached {
             name: "reset",
-            archive: Archive::Ignored,
+            archive: Archive::Optional,
             run: reset,
         },
         ResetArgs::command(),

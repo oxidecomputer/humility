@@ -5,17 +5,17 @@ edition = "2021"
 description = "interact with the debug mailbox on the LPC55"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cortex = { path = "../../humility-arch-cortex" }
-humility-cmd = { path = "../../humility-cmd" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-log = {version = "0.4.8", features = ["std"]}
-num-traits = "0.2"
-num-derive = { version = "0.3.0", features = [ "full-syntax" ] }
-strum = "0.22"
-strum_macros = "0.22"
-parse_int = "0.4.0"
-byteorder = "1.3.4"
-zerocopy = "0.6.1"
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.12.0" }
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+num-traits = { workspace = true }
+num-derive = { workspace = true, features = [ "full-syntax" ] }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+parse_int = { workspace = true }
+byteorder = { workspace = true }
+zerocopy = { workspace = true }
+probe-rs = { workspace = true }

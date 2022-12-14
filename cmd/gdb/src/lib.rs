@@ -19,9 +19,10 @@
 
 use std::process::{Command, Stdio};
 
+use cmd_openocd::get_probe_serial;
+
 use humility::cli::Subcommand;
 use humility_cmd::{Archive, Command as HumilityCmd};
-use humility_cmd_openocd::get_probe_serial;
 
 use anyhow::{bail, Context, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};

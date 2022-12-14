@@ -35,7 +35,7 @@ struct EtmArgs {
     /// sets ETM trace identifier
     #[clap(
         long, short, value_name = "identifier",
-        default_value = "0x54", parse(try_from_str = parse_int::parse),
+        default_value_t = 0x54, parse(try_from_str = parse_int::parse),
     )]
     traceid: u8,
     /// ingest ETM data as CSV
@@ -589,7 +589,7 @@ fn etmcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     // For all of the other commands, we need to actually attach to the chip.
     //
     let mut core = attach_live(&context.cli, hubris)?;
-    let _info = core.halt()?;
+    core.halt()?;
 
     humility::msg!("core halted");
 

@@ -109,7 +109,7 @@ use std::convert::TryInto;
 struct GpioArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -278,10 +278,7 @@ fn gpio(context: &mut humility::ExecutionContext) -> Result<()> {
                             Ok(ref val) => {
                                 let arr: &[u8; 2] = val[0..2].try_into()?;
                                 let v = u16::from_le_bytes(*arr);
-                                format!(
-                                    "{}",
-                                    if v & (1 << pin) != 0 { 1 } else { 0 }
-                                )
+                                format!("{}", (v >> pin) & 1)
                             }
                         }
                     );
@@ -317,10 +314,7 @@ fn gpio(context: &mut humility::ExecutionContext) -> Result<()> {
                             let v = u16::from_le_bytes(*arr);
 
                             for i in 0..16 {
-                                print!(
-                                    "{:4}",
-                                    if v & (1 << i) != 0 { 1 } else { 0 }
-                                )
+                                print!("{:4}", (v >> i) & 1)
                             }
                             println!();
                         }

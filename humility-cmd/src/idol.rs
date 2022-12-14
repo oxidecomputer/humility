@@ -89,8 +89,9 @@ impl<'a> IdolOperation<'a> {
                         val,
                         &mut payload,
                     )?,
-                ::idol::syntax::Encoding::Ssmarshal => {
-                    offset += self.payload_arg_ssmarshal(
+                ::idol::syntax::Encoding::Ssmarshal
+                | ::idol::syntax::Encoding::Hubpack => {
+                    offset += self.payload_arg_serialized(
                         hubris,
                         module,
                         member,
@@ -119,7 +120,7 @@ impl<'a> IdolOperation<'a> {
         member: &HubrisStructMember,
         arg: (&String, &AttributedTy),
         val: &IdolArgument,
-        payload: &mut Vec<u8>,
+        payload: &mut [u8],
     ) -> Result<()> {
         // Now, we have to decide how to pack the argument into the payload
         //
@@ -163,7 +164,10 @@ impl<'a> IdolOperation<'a> {
         Ok(())
     }
 
-    fn payload_arg_ssmarshal(
+    // WARNING: This method assumes the argument type (`arg.1`) derived its
+    // `serde::Serialize` implementation! If it has a custom implementation, our
+    // assumptions about how ssmarshal/hubpack encode data may be wrong.
+    fn payload_arg_serialized(
         &self,
         hubris: &HubrisArchive,
         module: &HubrisModule,
@@ -173,7 +177,8 @@ impl<'a> IdolOperation<'a> {
         buf: &mut [u8],
     ) -> Result<usize> {
         // This is identical to payload_arg_zerocopy, but builds the struct
-        // using ssmarshal serialization instead of from the raw data
+        // using ssmarshal/hubpack-compatible serialization instead of from the
+        // raw data
         let ty = &arg.1.ty.0;
         if matches!(arg.1.recv, RecvStrategy::FromBytes) {
             if ty != "bool" {
@@ -324,6 +329,11 @@ fn call_arg(
             };
 
             match (base.encoding, base.size) {
+                (HubrisEncoding::Unsigned, 8) => {
+                    let v: u64 =
+                        parse_int::parse(value).map_err(|e| err(&e))?;
+                    dest.copy_from_slice(v.to_le_bytes().as_slice());
+                }
                 (HubrisEncoding::Unsigned, 4) => {
                     let v: u32 =
                         parse_int::parse(value).map_err(|e| err(&e))?;
@@ -380,17 +390,21 @@ fn serialize_arg(
             };
 
             match (base.encoding, base.size) {
+                (HubrisEncoding::Unsigned, 8) => {
+                    let v = parse_int::parse::<u64>(&value).map_err(err)?;
+                    Ok(hubpack::serialize(buf, &v)?)
+                }
                 (HubrisEncoding::Unsigned, 4) => {
                     let v = parse_int::parse::<u32>(&value).map_err(err)?;
-                    Ok(ssmarshal::serialize(buf, &v)?)
+                    Ok(hubpack::serialize(buf, &v)?)
                 }
                 (HubrisEncoding::Unsigned, 2) => {
                     let v = parse_int::parse::<u16>(&value).map_err(err)?;
-                    Ok(ssmarshal::serialize(buf, &v)?)
+                    Ok(hubpack::serialize(buf, &v)?)
                 }
                 (HubrisEncoding::Unsigned, 1) => {
                     let v = parse_int::parse::<u8>(&value).map_err(err)?;
-                    Ok(ssmarshal::serialize(buf, &v)?)
+                    Ok(hubpack::serialize(buf, &v)?)
                 }
                 (_, _) => {
                     bail!(
@@ -419,16 +433,20 @@ fn serialize_arg_enum(
             bail!("invalid value for arg {} {:?}", arg, value);
         }
     };
-    for variant in &e.variants {
+
+    // We need to encode the variant by its index, not its tag: hubpack assigns
+    // indices based on the source code order of variants, which may not match
+    // the tag assigned by rustc. (With ssmarshal those are guaranteed to be the
+    // same, as long as the enum used `#[repr(C)]`, which is required by
+    // ssmarshal's documentation but not enforced at compile time.) We assume
+    // here that the ordering of `e.variants` (from the DWARF) matches the
+    // source code ordering! This should be true based on section 5.7.10 of [the
+    // DWARF spec](https://dwarfstd.org/Dwarf5Std.php).
+    for (index, variant) in e.variants.iter().enumerate() {
         if value == variant.name {
-            if let Some(tag) = variant.tag {
-                let v: u8 = tag
-                    .try_into()
-                    .context("Could not pack enum variant into u8")?;
-                return Ok(ssmarshal::serialize(buf, &v)?);
-            } else {
-                bail!("untagged enum: {:?}", e);
-            }
+            let v = u8::try_from(index)
+                .context("Could not pack enum variant into u8")?;
+            return Ok(hubpack::serialize(buf, &v)?);
         }
     }
 

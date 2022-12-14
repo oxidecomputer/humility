@@ -57,15 +57,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ansi_term"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2"
-dependencies = [
- "winapi",
-]
-
-[[package]]
 name = "anyhow"
 version = "1.0.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -164,6 +155,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 
 [[package]]
+name = "bitfield"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -175,10 +172,22 @@ version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5237f00a8c86130a0cc317830e558b966dd7850d48a953d998c813f01a41b527"
 dependencies = [
- "funty",
- "radium",
+ "funty 1.2.0",
+ "radium 0.6.2",
  "tap",
- "wyz",
+ "wyz 0.4.0",
+]
+
+[[package]]
+name = "bitvec"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
+dependencies = [
+ "funty 2.0.0",
+ "radium 0.7.0",
+ "tap",
+ "wyz 0.5.1",
 ]
 
 [[package]]
@@ -316,21 +325,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "2.34.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0610544180c38b88101fecf2dd634b174a62eef6946f84dfc6a7127512b381c"
-dependencies = [
- "ansi_term",
- "atty",
- "bitflags",
- "strsim 0.8.0",
- "textwrap 0.11.0",
- "unicode-width",
- "vec_map",
-]
-
-[[package]]
-name = "clap"
 version = "3.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ed5341b2301a26ab80be5cbdced622e80ed808483c52e45e3310a877d3b37d7"
@@ -341,9 +335,9 @@ dependencies = [
  "clap_lex",
  "indexmap",
  "once_cell",
- "strsim 0.10.0",
+ "strsim",
  "termcolor",
- "textwrap 0.15.0",
+ "textwrap",
 ]
 
 [[package]]
@@ -448,7 +442,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70858629a458fdfd39f9675c4dc309411f2a3f83bede76988d81bf1a0ecee9e0"
 dependencies = [
  "bare-metal 0.2.5",
- "bitfield",
+ "bitfield 0.13.2",
  "embedded-hal",
  "volatile-register",
 ]
@@ -689,7 +683,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim 0.10.0",
+ "strsim",
  "syn",
 ]
 
@@ -854,6 +848,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1847abb9cb65d566acd5942e94aea9c8f547ad02c98e1649326fc0e8910b8b1e"
 
 [[package]]
+name = "funty"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -955,6 +955,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hidapi"
 version = "1.4.1"
 source = "git+https://github.com/oxidecomputer/hidapi-rs?branch=oxide-stable#91237483222a42f68d16adcdfd42bc8e32adf666"
@@ -975,6 +981,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hubpack"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf8f3c0e51b49dd73e277f8d157f7248e91b3597e3487884181b259682b715d3"
+dependencies = [
+ "hubpack_derive",
+ "serde",
+]
+
+[[package]]
+name = "hubpack_derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f928320aff16ee8818ef7309180f8b5897057fd79d9dcb8de3ed1ba6dcc125a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -992,12 +1019,12 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.8.15"
+version = "0.9.14"
 dependencies = [
  "anyhow",
- "bitfield",
+ "bitfield 0.13.2",
  "cargo_metadata",
- "clap 3.2.21",
+ "clap",
  "colored",
  "csv",
  "env_logger",
@@ -1023,6 +1050,7 @@ dependencies = [
  "humility-cmd-isp",
  "humility-cmd-itm",
  "humility-cmd-jefe",
+ "humility-cmd-lpc55-pfr",
  "humility-cmd-lpc55gpio",
  "humility-cmd-manifest",
  "humility-cmd-map",
@@ -1030,6 +1058,7 @@ dependencies = [
  "humility-cmd-net",
  "humility-cmd-openocd",
  "humility-cmd-pmbus",
+ "humility-cmd-power",
  "humility-cmd-probe",
  "humility-cmd-qspi",
  "humility-cmd-readmem",
@@ -1048,7 +1077,9 @@ dependencies = [
  "humility-cmd-stmsecure",
  "humility-cmd-tasks",
  "humility-cmd-test",
+ "humility-cmd-tofino-eeprom",
  "humility-cmd-trace",
+ "humility-cmd-update",
  "humility-cmd-validate",
  "humility-cmd-vpd",
  "humility-core",
@@ -1075,9 +1106,10 @@ name = "humility-cmd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
+ "hubpack",
  "humility-core",
  "idol",
  "indexmap",
@@ -1086,7 +1118,6 @@ dependencies = [
  "postcard",
  "serde",
  "serde_json",
- "ssmarshal",
  "zerocopy",
 ]
 
@@ -1095,7 +1126,7 @@ name = "humility-cmd-apptable"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
 ]
@@ -1105,7 +1136,7 @@ name = "humility-cmd-auxflash"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1115,11 +1146,7 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
- "regex",
  "tlvc",
- "vsc7448-info",
- "vsc7448-types",
- "zip",
 ]
 
 [[package]]
@@ -1127,7 +1154,7 @@ name = "humility-cmd-dashboard"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "crossterm 0.20.0",
  "hif",
  "humility-cmd",
@@ -1145,7 +1172,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1164,7 +1191,7 @@ name = "humility-cmd-diagnose"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "parse_int",
@@ -1176,7 +1203,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "lazy_static",
@@ -1188,7 +1215,7 @@ name = "humility-cmd-dump"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "log",
@@ -1199,7 +1226,7 @@ name = "humility-cmd-etm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "csv",
  "humility-cmd",
@@ -1214,7 +1241,7 @@ name = "humility-cmd-exec"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "serde_json",
@@ -1226,7 +1253,7 @@ name = "humility-cmd-extract"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "zip",
@@ -1237,7 +1264,7 @@ name = "humility-cmd-flash"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "goblin",
  "humility-cmd",
  "humility-cmd-auxflash",
@@ -1260,7 +1287,7 @@ name = "humility-cmd-gdb"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "ctrlc",
  "humility-cmd",
  "humility-cmd-openocd",
@@ -1273,7 +1300,7 @@ name = "humility-cmd-gpio"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1285,7 +1312,7 @@ name = "humility-cmd-hash"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1301,7 +1328,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "atty",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1316,7 +1343,7 @@ name = "humility-cmd-i2c"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1331,12 +1358,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "clap 3.2.21",
+ "clap",
  "crc-any",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
  "log",
+ "lpc55_areas",
  "num-derive",
  "num-traits",
  "parse_int",
@@ -1351,7 +1379,7 @@ name = "humility-cmd-itm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "csv",
  "humility-cmd",
  "humility-core",
@@ -1365,7 +1393,7 @@ name = "humility-cmd-jefe"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "log",
@@ -1373,11 +1401,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cmd-lpc55-pfr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clap",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "log",
+ "lpc55_areas",
+ "num-derive",
+ "num-traits",
+ "parse_int",
+ "strum 0.22.0",
+ "strum_macros 0.22.0",
+ "zerocopy",
+]
+
+[[package]]
 name = "humility-cmd-lpc55gpio"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1389,7 +1437,7 @@ name = "humility-cmd-manifest"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
 ]
@@ -1399,7 +1447,7 @@ name = "humility-cmd-map"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
 ]
@@ -1409,7 +1457,7 @@ name = "humility-cmd-monorail"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1428,7 +1476,7 @@ name = "humility-cmd-net"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1442,7 +1490,7 @@ name = "humility-cmd-openocd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "ctrlc",
  "humility-cmd",
  "humility-core",
@@ -1455,7 +1503,7 @@ name = "humility-cmd-pmbus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1467,11 +1515,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cmd-power"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "log",
+ "parse_int",
+]
+
+[[package]]
 name = "humility-cmd-probe"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
+ "colored",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1484,7 +1548,7 @@ name = "humility-cmd-qspi"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1499,7 +1563,7 @@ name = "humility-cmd-readmem"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "parse_int",
@@ -1510,7 +1574,7 @@ name = "humility-cmd-readvar"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
 ]
@@ -1520,7 +1584,7 @@ name = "humility-cmd-registers"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1532,7 +1596,7 @@ name = "humility-cmd-rencm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "csv",
  "hif",
  "humility-cmd",
@@ -1543,7 +1607,6 @@ dependencies = [
  "parse_int",
  "serde",
  "serde-xml-rs",
- "serde_derive",
 ]
 
 [[package]]
@@ -1551,7 +1614,7 @@ name = "humility-cmd-rendmp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1572,7 +1635,7 @@ name = "humility-cmd-reset"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "log",
@@ -1584,7 +1647,7 @@ name = "humility-cmd-ringbuf"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "log",
@@ -1595,7 +1658,7 @@ name = "humility-cmd-rpc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1616,12 +1679,13 @@ name = "humility-cmd-sensors"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
  "idol",
  "indexmap",
+ "itertools",
  "log",
  "parse_int",
 ]
@@ -1631,7 +1695,7 @@ name = "humility-cmd-spctrl"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1644,7 +1708,7 @@ name = "humility-cmd-spd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1659,7 +1723,7 @@ name = "humility-cmd-spi"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1672,7 +1736,7 @@ name = "humility-cmd-stackmargin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
 ]
@@ -1682,7 +1746,7 @@ name = "humility-cmd-stmsecure"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "parse_int",
@@ -1693,7 +1757,7 @@ name = "humility-cmd-tasks"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "humility-cmd",
  "humility-core",
@@ -1706,10 +1770,26 @@ name = "humility-cmd-test"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+]
+
+[[package]]
+name = "humility-cmd-tofino-eeprom"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "indicatif",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
@@ -1717,10 +1797,25 @@ name = "humility-cmd-trace"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+]
+
+[[package]]
+name = "humility-cmd-update"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "indicatif",
+ "log",
+ "parse_int",
 ]
 
 [[package]]
@@ -1728,7 +1823,7 @@ name = "humility-cmd-validate"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1744,7 +1839,7 @@ name = "humility-cmd-vpd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 3.2.21",
+ "clap",
  "colored",
  "hif",
  "humility-cmd",
@@ -1764,13 +1859,14 @@ name = "humility-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitfield",
+ "bitfield 0.13.2",
  "capstone",
- "clap 3.2.21",
+ "clap",
  "colored",
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
+ "hubpack",
  "humility_load_derive",
  "idol",
  "indexmap",
@@ -1782,13 +1878,12 @@ dependencies = [
  "parse_int",
  "probe-rs",
  "regex",
+ "ron 0.7.1",
  "rusb",
  "rustc-demangle",
  "scroll",
  "serde",
  "serde_json",
- "ssmarshal",
- "structopt",
  "toml",
  "zip",
 ]
@@ -1798,7 +1893,7 @@ name = "humility-cortex"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitfield",
+ "bitfield 0.13.2",
  "humility-core",
  "jep106",
  "log",
@@ -1839,8 +1934,8 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idol"
-version = "0.2.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#7350b8acf81e56fec8994326f64b2b544c4cb9e3"
+version = "0.2.1"
+source = "git+https://github.com/oxidecomputer/idolatry.git#b2f4c9e48fdba85ce3306e4d9dca7a18f4660759"
 dependencies = [
  "indexmap",
  "quote",
@@ -2032,6 +2127,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "lpc55_areas"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/lpc55_support?rev=a07e8d39caf27dd83c314e121755d481a3f52263#a07e8d39caf27dd83c314e121755d481a3f52263"
+dependencies = [
+ "anyhow",
+ "bitfield 0.14.0",
+ "byteorder",
+ "hex",
+ "num-derive",
+ "num-traits",
+ "packed_struct",
+ "packed_struct_codegen",
+ "parse_int",
+ "serde",
 ]
 
 [[package]]
@@ -2284,6 +2396,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
+name = "packed_struct"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36b29691432cc9eff8b282278473b63df73bea49bc3ec5e67f31a3ae9c3ec190"
+dependencies = [
+ "bitvec 1.0.1",
+ "packed_struct_codegen",
+ "serde",
+]
+
+[[package]]
+name = "packed_struct_codegen"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cd6706dfe50d53e0f6aa09e12c034c44faacd23e966ae5a209e8bdb8f179f98"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2441,13 +2575,13 @@ checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 [[package]]
 name = "probe-rs"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#6ff8fae61fb1e74c87d2ba160071b1989ca64bba"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#0df80f19094b74ef6e2569fa0f1e1dade7d83f24"
 dependencies = [
  "anyhow",
  "base64",
  "bincode",
- "bitfield",
- "bitvec",
+ "bitfield 0.13.2",
+ "bitvec 0.22.3",
  "enum-primitive-derive",
  "gimli 0.26.2",
  "hidapi",
@@ -2472,7 +2606,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#6ff8fae61fb1e74c87d2ba160071b1989ca64bba"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#0df80f19094b74ef6e2569fa0f1e1dade7d83f24"
 dependencies = [
  "base64",
  "jep106",
@@ -2532,6 +2666,12 @@ name = "radium"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
+
+[[package]]
+name = "radium"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rayon"
@@ -3015,16 +3155,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17c3a0538ec242e3cd333cdcdc8b720faa2fa0a9d7f444cf1ff63e7d3303adfb"
 
 [[package]]
-name = "ssmarshal"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3e6ad23b128192ed337dfa4f1b8099ced0c2bf30d61e551b65fda5916dbb850"
-dependencies = [
- "encode_unicode",
- "serde",
-]
-
-[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3047,39 +3177,9 @@ dependencies = [
 
 [[package]]
 name = "strsim"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
-
-[[package]]
-name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
-
-[[package]]
-name = "structopt"
-version = "0.3.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c6b5c64445ba8094a6ab0c3cd2ad323e07171012d9c98b0b15651daf1787a10"
-dependencies = [
- "clap 2.34.0",
- "lazy_static",
- "structopt-derive",
-]
-
-[[package]]
-name = "structopt-derive"
-version = "0.4.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcb5ae327f9cc13b68763b5749770cb9e048a99bd9dfdfa58d0cf05d5f64afe0"
-dependencies = [
- "heck 0.3.3",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "strum"
@@ -3197,15 +3297,6 @@ checksum = "633c1a546cee861a1a6d0dc69ebeca693bf4296661ba7852b9d21d159e0506df"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "textwrap"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
-dependencies = [
- "unicode-width",
 ]
 
 [[package]]
@@ -3375,12 +3466,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "vec_map"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "version_check"
@@ -3615,6 +3700,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wyz"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
+dependencies = [
+ "tap",
+]
+
+[[package]]
 name = "xml-rs"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3626,7 +3720,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
- "clap 3.2.21",
+ "clap",
 ]
 
 [[package]]

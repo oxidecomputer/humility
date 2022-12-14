@@ -1,0 +1,12 @@
+TICKS (0x20000364) = [
+    AtomicU32 {
+        v: UnsafeCell<u32> {
+            value: 0x19ae2
+        }
+    },
+    AtomicU32 {
+        v: UnsafeCell<u32> {
+            value: 0x0
+        }
+    }
+]

@@ -8,15 +8,20 @@
 //! `Sensor` Idol interface to get sensor data.  If there is no `sensor` task
 //! or if there are no sensors defined in the in Hubris application
 //! description, this command will not provide any meaningful output. To list
-//! all available sensors, use `-l` (`--list`); to summarize sensor values,
-//! use `-s` (`--summarize`).  To constrain sensors by type, use the `-t`
-//! (`--types`) option; to constrain sensors by device, use the `-d`
-//! (`--devices`) option; to constrain sensors by name, use the `-n`
+//! all available sensors, use `-l` (`--list`).  To constrain sensors by type,
+//! use the `-t` (`--types`) option; to constrain sensors by device, use the
+//! `-d` (`--devices`) option; to constrain sensors by name, use the `-n`
 //! (`--named`) option.  Within each option, multiple specifications serve as
 //! a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 //! either device), but if multiple kinds of specifications are present, they
 //! serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
 //! all thermal sensors from either device).
+//!
+//! By default, `humility sensors` displays the value of each specified sensor
+//! and exits; to read values once per second, use the `-s` (`--sleep`)
+//! option.  To print values as a table with individual sensors as columns,
+//! `--tabular`.  In its default output (with one sensor per row), error
+//! counts are also displayed.
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
@@ -28,16 +33,17 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Attach, Command, Validate};
+use itertools::izip;
 use std::collections::HashSet;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct SensorsArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "5000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -49,6 +55,10 @@ struct SensorsArgs {
     /// print sensors every second
     #[clap(long, short, conflicts_with = "list")]
     sleep: bool,
+
+    /// print results as a table
+    #[clap(long, conflicts_with = "list")]
+    tabular: bool,
 
     /// restrict sensors by type of sensor
     #[clap(
@@ -80,8 +90,8 @@ fn list(
     named: &Option<HashSet<&String>>,
 ) -> Result<()> {
     println!(
-        "{:2} {:<7} {:2} {:2} {:3} {:4} {:13} {:4}",
-        "ID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
+        "{:3} {:5} {:<7} {:>2} {:>2} {:3} {:4} {:13} {:4}",
+        "ID", "HEXID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
     );
 
     for (ndx, s) in hubris.manifest.sensors.iter().enumerate() {
@@ -91,37 +101,55 @@ fn list(
             }
         }
 
-        let device = &hubris.manifest.i2c_devices[s.device];
+        match &s.device {
+            HubrisSensorDevice::I2c(device) => {
+                let device = &hubris.manifest.i2c_devices[*device];
+                if let Some(devices) = devices {
+                    if devices.get(&device.device).is_none() {
+                        continue;
+                    }
+                }
 
-        if let Some(devices) = devices {
-            if devices.get(&device.device).is_none() {
-                continue;
+                if let Some(named) = named {
+                    if named.get(&s.name).is_none() {
+                        continue;
+                    }
+                }
+
+                let mux = match (device.mux, device.segment) {
+                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (None, None) => "-".to_string(),
+                    (_, _) => "?:?".to_string(),
+                };
+
+                println!(
+                    "{:3} {:#5x} {:7} {:>2} {:>2} {:>3} {:#04x} {:13} {:<1}",
+                    ndx,
+                    ndx,
+                    s.kind.to_string(),
+                    device.controller,
+                    device.port.name,
+                    mux,
+                    device.address,
+                    device.device,
+                    s.name,
+                );
+            }
+            HubrisSensorDevice::Other(device, _) => {
+                println!(
+                    "{:3} {:#5x} {:7} {:>2} {:>2} {:>3} {:>4} {:13} {:<1}",
+                    ndx,
+                    ndx,
+                    s.kind.to_string(),
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    device,
+                    s.name,
+                );
             }
         }
-
-        if let Some(named) = named {
-            if named.get(&s.name).is_none() {
-                continue;
-            }
-        }
-
-        let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
-            (None, None) => "-".to_string(),
-            (_, _) => "?:?".to_string(),
-        };
-
-        println!(
-            "{:2} {:7} {:2} {:2} {:3} 0x{:02x} {:13} {:<1}",
-            ndx,
-            s.kind.to_string(),
-            device.controller,
-            device.port.name,
-            mux,
-            device.address,
-            device.device,
-            s.name,
-        );
     }
 
     Ok(())
@@ -136,8 +164,10 @@ fn print(
     devices: &Option<HashSet<&String>>,
     named: &Option<HashSet<&String>>,
 ) -> Result<()> {
-    let mut ops = vec![];
+    let mut all_ops = vec![];
+    let mut err_ops = vec![];
     let funcs = context.functions()?;
+    let nerrbits = 32;
     let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)
         .context("is the 'sensor' task present?")?;
 
@@ -155,7 +185,7 @@ fn print(
         bail!("no sensors found");
     }
 
-    let mut rvals = vec![];
+    let mut sensors = vec![];
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {
         if let Some(types) = types {
@@ -165,10 +195,12 @@ fn print(
         }
 
         if let Some(devices) = devices {
-            let d = &hubris.manifest.i2c_devices[s.device];
+            if let HubrisSensorDevice::I2c(i) = &s.device {
+                let d = &hubris.manifest.i2c_devices[*i];
 
-            if devices.get(&d.device).is_none() {
-                continue;
+                if devices.get(&d.device).is_none() {
+                    continue;
+                }
             }
         }
 
@@ -178,55 +210,167 @@ fn print(
             }
         }
 
-        rvals.push(s);
-
-        let payload =
-            op.payload(&[("id", idol::IdolArgument::Scalar(i as u64))])?;
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        sensors.push((i, s));
     }
 
-    ops.push(Op::Done);
+    for s in sensors.chunks(100) {
+        let mut ops = vec![];
 
-    for r in &rvals {
-        print!(" {:>12}", r.name.to_uppercase());
-    }
-
-    println!();
-
-    for r in &rvals {
-        print!(" {:>12}", r.kind.to_string().to_uppercase());
-    }
-
-    println!();
-
-    loop {
-        let results = context.run(core, ops.as_slice(), None)?;
-
-        let mut rval = vec![];
-
-        for r in results {
-            if let Ok(val) = r {
-                rval.push(Some(f32::from_le_bytes(val[0..4].try_into()?)));
-            } else {
-                rval.push(None);
-            }
+        for (i, _) in s {
+            let payload =
+                op.payload(&[("id", idol::IdolArgument::Scalar(*i as u64))])?;
+            context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
         }
 
-        for val in rval {
-            if let Some(val) = val {
-                print!(" {:>12.2}", val);
-            } else {
-                print!(" {:>12}", "-");
+        ops.push(Op::Done);
+        all_ops.push(ops);
+    }
+
+    if let Ok(errop) =
+        idol::IdolOperation::new(hubris, "Sensor", "get_nerrors", None)
+    {
+        let ok = hubris.lookup_basetype(errop.ok)?;
+
+        if ok.encoding != HubrisEncoding::Unsigned {
+            bail!("expected return value of nerrors() to be unsigned");
+        }
+
+        if ok.size != nerrbits / 8 {
+            bail!("expected return value of nerrors() to be a u32");
+        }
+
+        for s in sensors.chunks(100) {
+            let mut ops = vec![];
+
+            for (i, _) in s {
+                let payload = errop.payload(&[(
+                    "id",
+                    idol::IdolArgument::Scalar(*i as u64),
+                )])?;
+                context.idol_call_ops(&funcs, &errop, &payload, &mut ops)?;
             }
+
+            ops.push(Op::Done);
+            err_ops.push(ops);
+        }
+    }
+
+    if subargs.tabular {
+        for (_, s) in &sensors {
+            print!(" {:>12}", s.name.to_uppercase());
         }
 
         println!();
+
+        for (_, s) in &sensors {
+            print!(" {:>12}", s.kind.to_string().to_uppercase());
+        }
+
+        println!();
+    }
+
+    loop {
+        let start = Instant::now();
+        let mut rval = vec![];
+        let mut errs = vec![];
+
+        for ops in &all_ops {
+            let results = context.run(core, ops.as_slice(), None)?;
+
+            for r in results {
+                if let Ok(val) = r {
+                    rval.push(Some(f32::from_le_bytes(val[0..4].try_into()?)));
+                } else {
+                    rval.push(None);
+                }
+            }
+        }
+
+        for ops in &err_ops {
+            let results = context.run(core, ops.as_slice(), None)?;
+
+            for r in results {
+                if let Ok(val) = r {
+                    errs.push(Some(u32::from_le_bytes(val[0..4].try_into()?)));
+                } else {
+                    errs.push(None);
+                }
+            }
+        }
+
+        if errs.is_empty() {
+            errs = vec![None; rval.len()];
+        }
+
+        if subargs.tabular {
+            for val in rval {
+                if let Some(val) = val {
+                    print!(" {:>12.2}", val);
+                } else {
+                    print!(" {:>12}", "-");
+                }
+            }
+
+            println!();
+        } else {
+            let etypes = ["UNPWR", "ERR", "MSSNG", "UNAVL", "TMOUT"];
+
+            print!("{:20} {:12} {:>13}", "NAME", "KIND", "VALUE");
+
+            for e in etypes {
+                print!(" {:>5}", e);
+            }
+
+            println!();
+
+            for ((_, s), val, err) in izip!(&sensors, &rval, &errs) {
+                print!("{:20} {:12} ", s.name, s.kind.to_string());
+
+                if let Some(val) = val {
+                    print!(" {:12.2}", val);
+                } else {
+                    print!(" {:>12}", "-");
+                }
+
+                let nfields = etypes.len();
+
+                if let Some(err) = err {
+                    //
+                    // Okay, this is quick-and-dirty (perhaps with emphasis on
+                    // the latter): we are encoding the kinds of `NoData` --
+                    // along with the knowledge that all counters are encoded
+                    // in the number of bits for error counts.
+                    //
+                    let nbits = nerrbits / etypes.len();
+                    let mask = (1 << nbits) - 1;
+
+                    for i in 0..nfields {
+                        let v = (err >> (i * nbits)) & mask;
+                        if v < mask {
+                            print!(" {:>5}", v);
+                        } else {
+                            print!(" {:>4}+", mask);
+                        }
+                    }
+                } else {
+                    for _ in 0..nfields {
+                        print!(" {:>5}", "-");
+                    }
+                }
+
+                println!();
+            }
+        }
 
         if !subargs.sleep {
             break;
         }
 
-        thread::sleep(Duration::from_millis(1000));
+        let elapsed = start.elapsed().as_millis() as u64;
+
+        if elapsed < 1000 {
+            thread::sleep(Duration::from_millis(1000 - elapsed));
+        }
     }
 
     Ok(())

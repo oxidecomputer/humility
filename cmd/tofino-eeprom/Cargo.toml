@@ -1,0 +1,19 @@
+[package]
+name = "humility-cmd-tofino-eeprom"
+version = "0.1.0"
+edition = "2021"
+description = "read and write to the Tofino SPI EEPROM"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+indicatif = { workspace = true }
+log = { workspace = true }
+parse_int = { workspace = true }
+
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+cmd-hiffy = { workspace = true }
+
+hif = { workspace = true }
+idol = { workspace = true }

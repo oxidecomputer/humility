@@ -4,17 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-humility = { path = "../humility-core", package = "humility-core" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-hif = { git = "https://github.com/oxidecomputer/hif" }
-idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
-indexmap = { version = "1.7", features = ["serde-1"] }
-postcard = "0.7.0"
-parse_int = "0.4.0"
-ssmarshal = {version = "1"}
-colored = "2.0.0"
-log = {version = "0.4.8", features = ["std"]}
-serde = { version = "1.0.126", features = ["derive"] }
-serde_json = "1.0"
-zerocopy = "0.6.1"
+humility = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+hif = { workspace = true }
+hubpack = { workspace = true }
+idol = { workspace = true }
+indexmap = { workspace = true }
+postcard = { workspace = true }
+parse_int = { workspace = true }
+colored = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zerocopy = { workspace = true }

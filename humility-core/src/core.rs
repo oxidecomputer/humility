@@ -58,6 +58,10 @@ pub trait Core {
     /// Reset the chip
     fn reset(&mut self) -> Result<()>;
 
+    /// Reset the chip and halt afterwards. Requires a timeout to wait for
+    /// halt
+    fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()>;
+
     /// Called before starting a series of operations.  May halt the target if
     /// the target does not allow operations while not halted.  Should not be
     /// intermixed with [`halt`]/[`run`].
@@ -71,6 +75,9 @@ pub trait Core {
     fn op_done(&mut self) -> Result<()> {
         Ok(())
     }
+
+    /// Wait `duration` seconds for the targe to halt.
+    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
 }
 
 pub struct UnattachedCore {
@@ -166,6 +173,14 @@ impl Core for UnattachedCore {
         self.probe.target_reset_deassert()?;
 
         Ok(())
+    }
+
+    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Can't reset and halt for an unattached chip");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Waiting and halting on an unattched chip isn't available!");
     }
 }
 
@@ -455,6 +470,12 @@ impl Core for ProbeCore {
         Ok(())
     }
 
+    fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
+        let mut core = self.session.core(0)?;
+        core.reset_and_halt(dur)?;
+        Ok(())
+    }
+
     fn op_start(&mut self) -> Result<()> {
         if !self.unhalted_reads {
             self.halt()?;
@@ -468,6 +489,16 @@ impl Core for ProbeCore {
             self.run()?;
         }
 
+        Ok(())
+    }
+
+    fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
+        if self.halted == 0 {
+            let mut core = self.session.core(0)?;
+            core.wait_for_core_halted(dur)?;
+        }
+
+        self.halted += 1;
         Ok(())
     }
 }
@@ -751,6 +782,14 @@ impl Core for OpenOCDCore {
 
     fn reset(&mut self) -> Result<()> {
         bail!("Reset is not supported with OpenOCD");
+    }
+
+    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Reset is not supported with OpenOCD");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Wait for halt is not supported with OpenOCD");
     }
 }
 
@@ -1086,6 +1125,14 @@ impl Core for GDBCore {
     fn reset(&mut self) -> Result<()> {
         bail!("Reset is not supported with GDB");
     }
+
+    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Reset is not supported with OpenOCD");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Wait for halt is not supported with GDB");
+    }
 }
 
 pub struct DumpCore {
@@ -1253,6 +1300,14 @@ impl Core for DumpCore {
 
     fn reset(&mut self) -> Result<()> {
         bail!("Reset is not supported on a dump");
+    }
+
+    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Reset is not supported on a dump");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("Wait for halt is not supported on a dump");
     }
 }
 
@@ -1495,7 +1550,10 @@ pub fn attach_for_flashing(
 }
 
 pub fn attach(probe: &str, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
-    attach_to_chip(probe, hubris, None)
+    match hubris.chip() {
+        Some(s) => attach_to_chip(probe, hubris, Some(&s)),
+        None => attach_to_chip(probe, hubris, None),
+    }
 }
 
 pub fn attach_dump(

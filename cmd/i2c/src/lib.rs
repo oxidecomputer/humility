@@ -90,6 +90,15 @@
 //! Controller I2C3, device 0x48, register 0x4 = 0x1f
 //! ```
 //!
+//! To determine the last mux and segment to be enabled on a particular
+//! controller/port, use `--lastmux` (`-l`):
+//!
+//! ```console
+//! % humility i2c -b front --lastmux
+//! humility: attached via ST-Link V3
+//! last selected mux/segment for I2C2, port F: mux 3, segment 2
+//! ```
+//!
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
@@ -113,7 +122,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 pub struct I2cArgs {
     /// sets timeout
     #[clap(
-        long, short, default_value = "5000", value_name = "timeout_ms",
+        long, short, default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -197,6 +206,15 @@ pub struct I2cArgs {
         requires = "device",
     )]
     flash: Option<String>,
+
+    /// indicate last selected mux/segment
+    #[clap(long, short,
+        conflicts_with_all = &[
+            "write", "raw", "nbytes", "register", "scan",
+            "writeraw", "flash", "mux", "device",
+        ],
+    )]
+    lastmux: bool,
 }
 
 fn i2c_done(
@@ -433,10 +451,11 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
         && subargs.register.is_none()
         && !subargs.raw
         && subargs.flash.is_none()
+        && !subargs.lastmux
     {
         bail!(
             "must indicate a scan (-s/-S), specify a register (-r), \
-            indicate raw (-R) or flash (-f)"
+            indicate raw (-R), flash (-f), or last selected mux/segment (-l)"
         );
     }
 
@@ -444,6 +463,8 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let (fname, args) = if subargs.flash.is_some() {
         ("I2cBulkWrite", 8)
+    } else if subargs.lastmux {
+        ("I2cSelectedMuxSegment", 2)
     } else {
         match (subargs.write.is_some(), subargs.writeraw) {
             (true, _) | (false, true) => ("I2cWrite", 8),
@@ -466,6 +487,34 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
     let mut ops = vec![Op::Push(hargs.controller)];
 
     ops.push(Op::Push(hargs.port.index));
+
+    if subargs.lastmux {
+        ops.push(Op::Call(func.id));
+        ops.push(Op::Done);
+
+        let results = context.run(core, ops.as_slice(), None)?;
+
+        print!("last selected mux/segment for {}: ", hargs);
+
+        match &results[0] {
+            Ok(val) => {
+                if val.is_empty() {
+                    println!("none");
+                } else {
+                    if val.len() != 2 {
+                        bail!("unexpected mux/segment: {:?}", val);
+                    }
+
+                    println!("mux {}, segment {}", val[0], val[1]);
+                }
+            }
+            Err(err) => {
+                println!("Err({})", func.errmap.get(err).unwrap());
+            }
+        }
+
+        return Ok(());
+    }
 
     if let Some(mux) = hargs.mux {
         ops.push(Op::Push(mux.0));

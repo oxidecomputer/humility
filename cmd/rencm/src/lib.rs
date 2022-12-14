@@ -26,7 +26,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
 
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use serde_xml_rs::from_str;
 
 #[derive(Parser, Debug)]
@@ -34,7 +34,7 @@ use serde_xml_rs::from_str;
 struct RencmArgs {
     /// sets timeout
     #[clap(
-        long, short, default_value = "5000", value_name = "timeout_ms",
+        long, short, default_value_t = 5000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,

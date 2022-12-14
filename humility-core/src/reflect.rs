@@ -479,7 +479,7 @@ impl std::ops::Index<&str> for Struct {
     type Output = Value;
 
     fn index(&self, name: &str) -> &Self::Output {
-        &*self.members[name]
+        &self.members[name]
     }
 }
 
@@ -599,6 +599,23 @@ impl std::ops::Deref for Array {
     }
 }
 
+impl Array {
+    fn format_as_c_string(&self, out: &mut dyn std::io::Write) -> Result<()> {
+        let mut bytes = Vec::new();
+        for v in &self.0 {
+            let b = v.as_base().ok().and_then(Base::as_u8).context(
+                "cannot interpret array of non-u8 values as a C string",
+            )?;
+            if b == 0 {
+                break;
+            }
+            bytes.push(b);
+        }
+        write!(out, "{:?}", String::from_utf8_lossy(&bytes))?;
+        Ok(())
+    }
+}
+
 impl Format for Array {
     fn format(
         &self,
@@ -606,6 +623,9 @@ impl Format for Array {
         mut fmt: HubrisPrintFormat,
         out: &mut dyn std::io::Write,
     ) -> Result<()> {
+        if fmt.interpret_as_c_string {
+            return self.format_as_c_string(out);
+        }
         fmt.indent += 4;
         fmt.no_name = false;
 
@@ -1015,8 +1035,12 @@ impl<T: Load> Load for Vec<T> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Deserializes ssmarshal-encoded data from `buf` and represents it as a
-/// `Value`. This is intended for values which are encoded using `ssmarshal`
+/// Deserializes hubpack- or ssmarshal-encoded data from `buf` and represents it
+/// as a `Value`.
+///
+/// Warning: This assumes `ty`'s `serde::Deserialize` implementation was
+/// derived! If it was not, our assumptions about how hubpack or ssmarshal
+/// encoded the data are likely incorrect.
 pub fn deserialize_value<'a>(
     hubris: &'a HubrisArchive,
     buf: &'a [u8],
@@ -1044,8 +1068,8 @@ pub fn deserialize_value<'a>(
 /// Deserializes a pointer from `buf` and interprets it as a pointer to the
 /// type designated by `ty`.
 fn deserialize_ptr(buf: &[u8], ty: HubrisGoff) -> Result<(Ptr, &[u8])> {
-    let (dest, cnt) = ssmarshal::deserialize(buf).unwrap();
-    Ok((Ptr(ty, dest), &buf[cnt..]))
+    let (dest, buf) = hubpack::deserialize(buf).unwrap();
+    Ok((Ptr(ty, dest), buf))
 }
 
 /// Deserializes an `Array` from `buf`
@@ -1115,15 +1139,22 @@ fn deserialize_struct<'a>(
 /// Deserializes an enum from `buf`
 fn deserialize_enum<'a>(
     hubris: &'a HubrisArchive,
-    mut buf: &'a [u8],
+    buf: &'a [u8],
     ty: &'a HubrisEnum,
 ) -> Result<(Enum, &'a [u8])> {
-    // ssmarshal packs enums as a single byte followed by data (if present)
-    let out = ssmarshal::deserialize::<u8>(buf)?;
-    buf = &buf[out.1..];
+    // hubpack and ssmarshal pack enums as a single byte followed by data (if
+    // present)
+    let (var_index, mut buf) = hubpack::deserialize::<u8>(buf)?;
+
+    // We must look up the variant by index, not by tag: hubpack assigns indices
+    // based on the source code order of variants, which may not match the tag
+    // assigned by rustc. (With ssmarshal those are guaranteed to be the same,
+    // as long as the enum used `#[repr(C)]`, which is required by ssmarshal's
+    // documentation but not enforced at compile time.)
     let var = ty
-        .lookup_variant(u64::from(out.0))
-        .ok_or_else(|| anyhow!("unknown variant: {:#x}", out.0))?;
+        .lookup_variant_by_index(usize::from(var_index))
+        .ok_or_else(|| anyhow!("unknown variant: {:#x}", var_index))?;
+
     let val = if let Some(goff) = var.goff {
         let out = deserialize_value(hubris, buf, hubris.lookup_type(goff)?)?;
         buf = out.1;
@@ -1143,60 +1174,60 @@ fn deserialize_base<'a>(
     use crate::hubris::HubrisEncoding::*;
     let (v, buf) = match (ty.encoding, ty.size) {
         (Signed, 1) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::I8(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::I8(v), buf)
         }
         (Signed, 2) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::I16(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::I16(v), buf)
         }
         (Signed, 4) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::I32(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::I32(v), buf)
         }
         (Signed, 8) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::I64(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::I64(v), buf)
         }
         (Signed, 16) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::I128(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::I128(v), buf)
         }
 
         (Unsigned, 0) => (Base::U0, buf),
         (Unsigned, 1) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::U8(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::U8(v), buf)
         }
         (Unsigned, 2) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::U16(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::U16(v), buf)
         }
         (Unsigned, 4) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::U32(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::U32(v), buf)
         }
         (Unsigned, 8) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::U64(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::U64(v), buf)
         }
         (Unsigned, 16) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::U128(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::U128(v), buf)
         }
 
         (Bool, 1) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::Bool(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::Bool(v), buf)
         }
 
         (Float, 4) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::F32(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::F32(v), buf)
         }
         (Float, 8) => {
-            let (v, cnt) = ssmarshal::deserialize(buf)?;
-            (Base::F64(v), &buf[cnt..])
+            let (v, buf) = hubpack::deserialize(buf)?;
+            (Base::F64(v), buf)
         }
 
         _ => panic!("unexpected basetype: {:?}", ty),

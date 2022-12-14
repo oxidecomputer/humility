@@ -1,6 +1,6 @@
 system time = 48664
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0
    |
    +--->  0x20001318 0x08011cda userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
@@ -46,7 +46,7 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80047dc (&abi::TaskDesc)
                 }
 
- 1 rcc_driver             0   1 recv
+ 1 rcc_driver                   0   1 recv
    |
    +--->  0x200017d8 0x08018e22 userlib::sys_recv_stub
    |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
@@ -94,4 +94,4 @@ ID TASK                 GEN PRI STATE
                     descriptor: 0x80047f4 (&abi::TaskDesc)
                 }
 
- 2 usart_driver           0   2 RUNNING
+ 2 usart_driver                 0   2 RUNNING

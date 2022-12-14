@@ -105,7 +105,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 struct QspiArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value = "30000", value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 30000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -240,7 +240,7 @@ fn deltas(
     compare: &[(u32, Vec<u8>)],
     mut diff: impl FnMut(u32, &[u8]) -> Result<()>,
 ) -> Result<()> {
-    let filelen = fs::metadata(filename.to_string())?.len() as u32;
+    let filelen = fs::metadata(filename)?.len() as u32;
     let mut file = File::open(filename)?;
 
     let mut offset = 0;
@@ -464,7 +464,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         let qspi_hash = funcs.get("QspiHash", 2)?;
         let qspi_read_id = funcs.get("QspiReadId", 0)?;
         // Address is optional and defaults to zero.
-        let addr = subargs.addr.or(Some(0)).unwrap() as u32;
+        let addr = subargs.addr.unwrap_or(0) as u32;
         // nbytes is optional and defaults to the size of the entire flash.
         let nbytes =
             optional_nbytes(core, &mut context, qspi_read_id, subargs.nbytes)?;
@@ -654,7 +654,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         // Address is optional and defaults to zero.
         // The default can/should be done in `#[clap(...` for "address"
         // if that works for the other users of the -a flag.
-        let mut address = subargs.addr.or(Some(0)).unwrap() as u32;
+        let mut address = subargs.addr.unwrap_or(0) as u32;
         println!("addr={:?}", address);
 
         let nbytes =
@@ -729,7 +729,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             updates += 1;
 
             for (i, block_result) in results.iter().enumerate() {
-                match &*block_result {
+                match block_result {
                     Err(err) => bail!(
                         "failed to read block {} at offset {}: {}",
                         i,
@@ -966,12 +966,10 @@ impl DeviceIdData {
     pub fn size(&self) -> Result<usize> {
         match self.memory_capacity {
             // This is currently limited to the codes returned from Micron MT25Q parts.
-            0 => {
-                return Err(anyhow!(
-                    "unknown size code=0x{:02x?}",
-                    self.memory_capacity
-                ))
-            }
+            0 => Err(anyhow!(
+                "unknown size code=0x{:02x?}",
+                self.memory_capacity
+            )),
             _ => Ok(1usize << (self.memory_capacity)),
         }
     }

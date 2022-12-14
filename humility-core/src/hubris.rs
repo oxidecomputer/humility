@@ -36,7 +36,7 @@ const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
-const MAX_HUBRIS_VERSION: u32 = 3;
+const MAX_HUBRIS_VERSION: u32 = 5;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -53,6 +53,7 @@ pub struct HubrisManifest {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
+    pub auxflash: Option<HubrisConfigAuxflash>,
 }
 
 //
@@ -72,6 +73,13 @@ struct HubrisConfig {
     peripherals: Option<IndexMap<String, HubrisConfigPeripheral>>,
     chip: Option<String>,
     config: Option<HubrisConfigConfig>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HubrisConfigPatches {
+    name: String,
+    features: IndexMap<String, Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -112,6 +120,28 @@ struct HubrisConfigI2cPmbus {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigI2cPower {
+    rails: Option<Vec<String>>,
+    #[serde(default = "HubrisConfigI2cPower::default_pmbus")]
+    pmbus: bool,
+
+    /// Lists which sensor types have a one-to-one association with power rails
+    ///
+    /// When `None`, we assume that all sensor types are mapped one-to-one with
+    /// rails.  Otherwise, *only* the listed sensor types are associated with
+    /// rails (which is the case in systems with independent temperature sensor
+    /// and power rails).
+    sensors: Option<Vec<HubrisSensorKind>>,
+}
+
+impl HubrisConfigI2cPower {
+    fn default_pmbus() -> bool {
+        true
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 struct HubrisConfigI2cSensors {
     #[serde(default)]
     temperature: usize,
@@ -124,6 +154,12 @@ struct HubrisConfigI2cSensors {
 
     #[serde(default)]
     voltage: usize,
+
+    #[serde(default)]
+    input_current: usize,
+
+    #[serde(default)]
+    input_voltage: usize,
 
     #[serde(default)]
     speed: usize,
@@ -143,6 +179,7 @@ struct HubrisConfigI2cDevice {
     segment: Option<u8>,
     description: String,
     pmbus: Option<HubrisConfigI2cPmbus>,
+    power: Option<HubrisConfigI2cPower>,
     sensors: Option<HubrisConfigI2cSensors>,
     removable: Option<bool>,
 }
@@ -154,8 +191,38 @@ struct HubrisConfigI2c {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct HubrisConfigAuxflash {
+    pub memory_size: usize,
+    pub slot_count: usize,
+}
+
+impl HubrisConfigAuxflash {
+    pub fn slot_size_bytes(&self) -> Result<usize> {
+        if self.memory_size % self.slot_count != 0 {
+            bail!("Cannot evenly divide auxflash into slots");
+        }
+        Ok(self.memory_size / self.slot_count)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigConfig {
     i2c: Option<HubrisConfigI2c>,
+    sensor: Option<HubrisConfigSensor>,
+    auxflash: Option<HubrisConfigAuxflash>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct HubrisConfigSensor {
+    devices: Vec<HubrisConfigSensorSensor>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct HubrisConfigSensorSensor {
+    name: String,
+    device: String,
+    sensors: BTreeMap<String, usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -194,20 +261,29 @@ pub struct HubrisI2cDevice {
     pub removable: bool,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "kebab-case")]
 pub enum HubrisSensorKind {
     Temperature,
     Power,
     Current,
     Voltage,
+    InputCurrent,
+    InputVoltage,
     Speed,
+}
+
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
+pub enum HubrisSensorDevice {
+    I2c(usize),
+    Other(String, usize),
 }
 
 #[derive(Clone, Debug)]
 pub struct HubrisSensor {
     pub name: String,
     pub kind: HubrisSensorKind,
-    pub device: usize,
+    pub device: HubrisSensorDevice,
 }
 
 impl HubrisSensorKind {
@@ -217,16 +293,20 @@ impl HubrisSensorKind {
             HubrisSensorKind::Power => "power",
             HubrisSensorKind::Current => "current",
             HubrisSensorKind::Voltage => "voltage",
+            HubrisSensorKind::InputCurrent => "input-current",
+            HubrisSensorKind::InputVoltage => "input-voltage",
             HubrisSensorKind::Speed => "speed",
         }
     }
 
     pub fn from_string(kind: &str) -> Option<Self> {
         match kind {
-            "temp" => Some(HubrisSensorKind::Temperature),
+            "temp" | "temperature" => Some(HubrisSensorKind::Temperature),
             "power" => Some(HubrisSensorKind::Power),
             "current" => Some(HubrisSensorKind::Current),
             "voltage" => Some(HubrisSensorKind::Voltage),
+            "input-current" => Some(HubrisSensorKind::InputCurrent),
+            "input-voltage" => Some(HubrisSensorKind::InputVoltage),
             "speed" => Some(HubrisSensorKind::Speed),
             _ => None,
         }
@@ -234,14 +314,45 @@ impl HubrisSensorKind {
 }
 
 //
+// This is the Hubris definition
+//
+#[derive(Debug, Deserialize)]
+pub enum FlashProgram {
+    PyOcd(Vec<FlashArgument>),
+    OpenOcd(FlashProgramConfig),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum FlashProgramConfig {
+    Path(Vec<String>),
+    Payload(String),
+}
+
+#[derive(Debug, Deserialize)]
+pub enum FlashArgument {
+    Direct(String),
+    Payload,
+    FormattedPayload(String, String),
+    Config,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HubrisFlashMeta {
+    pub program: FlashProgram,
+    pub args: Vec<FlashArgument>,
+    pub chip: Option<String>,
+}
+
+//
 // Flash information pulled from the archive
 //
 pub struct HubrisFlashConfig {
-    pub metadata: String,
+    pub metadata: HubrisFlashMeta,
     pub elf: Vec<u8>,
+    pub chip: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisArchiveDoneness {
     /// Fully load archive
     Cook,
@@ -434,14 +545,12 @@ impl HubrisArchive {
     }
 
     pub fn instr_sym(&self, addr: u32) -> Option<(&str, u32)> {
-        let sym: Option<(&str, u32)>;
-
         //
         // First, check our DWARF symbols.
         //
-        sym = match self.dsyms.range(..=addr).next_back() {
+        let sym = match self.dsyms.range(..=addr).next_back() {
             Some((_, sym)) if addr < sym.addr + sym.size => {
-                Some((&sym.name, sym.addr))
+                Some((sym.name.as_str(), sym.addr))
             }
             _ => None,
         };
@@ -614,24 +723,20 @@ impl HubrisArchive {
             usize,
         >,
     ) -> Option<HubrisGoff> {
-        let goff;
-
-        match value {
+        let goff = match value {
             gimli::AttributeValue::UnitRef(offs) => {
-                goff = match offs.to_unit_section_offset(unit) {
+                match offs.to_unit_section_offset(unit) {
                     gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
                     gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
-                };
+                }
             }
 
-            gimli::AttributeValue::DebugInfoRef(offs) => {
-                goff = offs.0;
-            }
+            gimli::AttributeValue::DebugInfoRef(offs) => offs.0,
 
             _ => {
                 return None;
             }
-        }
+        };
 
         Some(HubrisGoff { object: self.current, goff })
     }
@@ -2168,11 +2273,35 @@ impl HubrisArchive {
                 heapbss,
                 task,
                 iface,
+                buffer: buffer.to_vec(),
             },
         );
 
         self.tasks.insert(object.to_string(), task);
 
+        Ok(())
+    }
+
+    fn load_sensor_config(
+        &mut self,
+        sensor: &HubrisConfigSensor,
+    ) -> Result<()> {
+        for device in &sensor.devices {
+            for (kind, &count) in &device.sensors {
+                for i in 0..count {
+                    self.manifest.sensors.push(HubrisSensor {
+                        name: device.name.clone(),
+                        kind: HubrisSensorKind::from_string(kind).ok_or_else(
+                            || anyhow!("Unknown sensor kind {kind}"),
+                        )?,
+                        device: HubrisSensorDevice::Other(
+                            device.device.clone(),
+                            i,
+                        ),
+                    });
+                }
+            }
+        }
         Ok(())
     }
 
@@ -2204,10 +2333,26 @@ impl HubrisArchive {
         }
 
         let sensor_name = |d: &HubrisConfigI2cDevice,
-                           idx: usize|
+                           idx: usize,
+                           kind: HubrisSensorKind|
          -> Result<String> {
             if let Some(pmbus) = &d.pmbus {
                 if let Some(rails) = &pmbus.rails {
+                    if idx < rails.len() {
+                        return Ok(rails[idx].clone());
+                    } else {
+                        bail!("sensor count exceeds rails for {:?}", d);
+                    }
+                }
+            } else if d.power.is_some()
+                && d.power
+                    .as_ref()
+                    .unwrap()
+                    .sensors
+                    .as_ref()
+                    .map_or(true, |s| s.contains(&kind))
+            {
+                if let Some(rails) = &d.power.as_ref().unwrap().rails {
                     if idx < rails.len() {
                         return Ok(rails[idx].clone());
                     } else {
@@ -2237,6 +2382,18 @@ impl HubrisArchive {
             } else {
                 Ok(format!("{}#{}", d.device, idx))
             }
+        };
+        let get_sensor = |d: &HubrisConfigI2cDevice,
+                          i: usize,
+                          ndx: usize,
+                          kind: HubrisSensorKind|
+         -> Result<HubrisSensor> {
+            let name = sensor_name(d, i, kind)?;
+            Ok(HubrisSensor {
+                name,
+                kind,
+                device: HubrisSensorDevice::I2c(ndx),
+            })
         };
 
         if let Some(ref devices) = i2c.devices {
@@ -2274,41 +2431,62 @@ impl HubrisArchive {
                     let ndx = self.manifest.i2c_devices.len();
 
                     for i in 0..sensors.temperature {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Temperature,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Temperature,
+                        )?);
                     }
 
                     for i in 0..sensors.power {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Power,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Power,
+                        )?);
                     }
                     for i in 0..sensors.current {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Current,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Current,
+                        )?);
                     }
                     for i in 0..sensors.voltage {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Voltage,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Voltage,
+                        )?);
+                    }
+                    for i in 0..sensors.input_current {
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::InputCurrent,
+                        )?);
+                    }
+                    for i in 0..sensors.input_voltage {
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::InputVoltage,
+                        )?);
                     }
 
                     for i in 0..sensors.speed {
-                        self.manifest.sensors.push(HubrisSensor {
-                            name: sensor_name(device, i)?,
-                            kind: HubrisSensorKind::Speed,
-                            device: ndx,
-                        });
+                        self.manifest.sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Speed,
+                        )?);
                     }
                 }
 
@@ -2328,7 +2506,21 @@ impl HubrisArchive {
                                 None => vec![],
                             },
                         },
-                        None => HubrisI2cDeviceClass::Unspecified,
+                        None => match &device.power {
+                            Some(power) => {
+                                if power.pmbus {
+                                    HubrisI2cDeviceClass::Pmbus {
+                                        rails: match &power.rails {
+                                            Some(rails) => rails.to_vec(),
+                                            None => vec![],
+                                        },
+                                    }
+                                } else {
+                                    HubrisI2cDeviceClass::Unspecified
+                                }
+                            }
+                            None => HubrisI2cDeviceClass::Unspecified,
+                        },
                     },
                     removable: device.removable.unwrap_or(false),
                 });
@@ -2347,6 +2539,8 @@ impl HubrisArchive {
         self.manifest.name = Some(config.name.clone());
         self.manifest.target = Some(config.target.clone());
         self.manifest.features = config.kernel.features.clone();
+        self.manifest.auxflash =
+            config.config.as_ref().and_then(|c| c.auxflash.clone());
 
         let mut named_interrupts = HashMap::new();
 
@@ -2404,8 +2598,11 @@ impl HubrisArchive {
         }
 
         if let Some(ref config) = config.config {
-            if let Some(ref i2c) = config.i2c {
+            if let Some(i2c) = config.i2c.as_ref() {
                 self.load_i2c_config(i2c)?;
+            }
+            if let Some(sensor) = config.sensor.as_ref() {
+                self.load_sensor_config(sensor)?;
             }
         }
 
@@ -2439,7 +2636,26 @@ impl HubrisArchive {
         let mut app = String::new();
         byname!("app.toml")?.read_to_string(&mut app)?;
 
-        let config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+        let mut config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+
+        // Apply TOML patches, if `patches.toml` is present in the archive.
+        if let Ok(mut patches) = byname!("patches.toml") {
+            let mut patch_str = String::new();
+            patches.read_to_string(&mut patch_str)?;
+            let patches: HubrisConfigPatches =
+                toml::from_slice(patch_str.as_bytes())?;
+            config.name = patches.name;
+            for (task, features) in patches.features {
+                config
+                    .tasks
+                    .get_mut(&task)
+                    .unwrap()
+                    .features
+                    .get_or_insert_with(Default::default)
+                    .extend(features.into_iter());
+            }
+        }
+        let config = config; // remove mutability
 
         //
         // Before we load our config, we need to find where our peripherals
@@ -2634,7 +2850,90 @@ impl HubrisArchive {
             })?
             .read_to_string(&mut flash)?;
 
-        Ok(HubrisFlashConfig { metadata: flash, elf: slurp!("img/final.elf") })
+        let config: HubrisFlashMeta = ron::from_str(&flash)?;
+
+        // This is incredibly ugly! It also gives us backwards compatibility!
+        let chip: Option<String> = match config.chip {
+            Some(ref chip) => Some(chip.to_string()),
+            None => match &config.program {
+                FlashProgram::PyOcd(args) => {
+                    let s69 = regex::Regex::new(r"lpc55s69").unwrap();
+                    let s28 = regex::Regex::new(r"lpc55s28").unwrap();
+                    let mut c: Option<String> = None;
+                    for arg in args {
+                        c = match arg {
+                            FlashArgument::Direct(s) => {
+                                if s69.is_match(s) {
+                                    Some("LPC55S69JBD100".to_string())
+                                } else if s28.is_match(s) {
+                                    Some("LPC55S28JBD64".to_string())
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        };
+                        if c.is_some() {
+                            break;
+                        }
+                    }
+                    c
+                }
+                FlashProgram::OpenOcd(ref a) => match a {
+                    FlashProgramConfig::Payload(d) => {
+                        let h7 =
+                            regex::Regex::new(r"find target/stm32h7").unwrap();
+                        let f3 =
+                            regex::Regex::new(r"find target/stm32f3").unwrap();
+                        let f4 =
+                            regex::Regex::new(r"find target/stm32f4").unwrap();
+                        let g0 =
+                            regex::Regex::new(r"find target/stm32g0").unwrap();
+
+                        let mut c: Option<String> = None;
+
+                        for s in d.split('\n') {
+                            if h7.is_match(s) {
+                                c = Some("STM32H753ZITx".to_string());
+                                break;
+                            }
+                            if f3.is_match(s) {
+                                c = Some("STM32F301C6Tx".to_string());
+                                break;
+                            }
+                            if f4.is_match(s) {
+                                c = Some("STM32F401CBUx".to_string());
+                                break;
+                            }
+                            if g0.is_match(s) {
+                                c = Some("STM32G030C6Tx".to_string());
+                                break;
+                            }
+                        }
+                        c
+                    }
+                    _ => bail!("Unexpected config?"),
+                },
+            },
+        };
+
+        Ok(HubrisFlashConfig {
+            metadata: config,
+            elf: slurp!("img/final.elf"),
+            chip,
+        })
+    }
+
+    pub fn chip(&self) -> Option<String> {
+        // It turns out the easiest way right now to get the chip is via the
+        // flash config. Long term we may want to fix this
+        //
+
+        let flash = match self.load_flash_config() {
+            Ok(f) => f,
+            Err(_) => return None,
+        };
+        flash.chip
     }
 
     fn load_registers(&mut self, r: &[u8]) -> Result<()> {
@@ -2865,14 +3164,11 @@ impl HubrisArchive {
     pub fn qualified_variables(
         &self,
     ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
-        self.qualified_variables
-            .iter_all()
-            .map(|(n, v)| {
-                v.iter()
-                    .map(|e| (n.as_str(), e))
-                    .collect::<Vec<(&str, &HubrisVariable)>>()
-            })
-            .flatten()
+        self.qualified_variables.iter_all().flat_map(|(n, v)| {
+            v.iter()
+                .map(|e| (n.as_str(), e))
+                .collect::<Vec<(&str, &HubrisVariable)>>()
+        })
     }
 
     pub fn lookup_module(&self, task: HubrisTask) -> Result<&HubrisModule> {
@@ -3040,6 +3336,109 @@ impl HubrisArchive {
         );
     }
 
+    pub fn verify(&self, core: &mut dyn crate::core::Core) -> Result<()> {
+        use indicatif::{HumanBytes, HumanDuration};
+        use indicatif::{ProgressBar, ProgressStyle};
+
+        let mut incore = HashMap::new();
+
+        for m in self.modules.values() {
+            let elf = Elf::parse(&m.buffer).map_err(|e| {
+                anyhow!("busted in-core ELF object {}: {}", m.name, e)
+            })?;
+
+            elf.program_headers
+                .iter()
+                .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
+                .filter(|h| h.p_flags & goblin::elf::program_header::PF_W == 0)
+                .filter(|h| h.p_flags & goblin::elf::program_header::PF_R != 0)
+                .filter(|h| h.p_flags & goblin::elf::program_header::PF_X != 0)
+                .map(|h| (h.p_vaddr, h.p_offset as usize))
+                .for_each(|h| {
+                    incore.insert(h.0, (m, h.1));
+                });
+        }
+
+        let regions = self.regions(core)?;
+        let mut total = 0;
+
+        for region in regions.values() {
+            if region.attr.device {
+                continue;
+            }
+
+            if incore.get(&(region.base as u64)).is_some() {
+                total += region.size;
+            }
+        }
+
+        let mut written = 0;
+        let mut bytes = vec![0; 1024];
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(total as u64);
+        bar.set_style(
+            ProgressStyle::default_bar().template(
+                "humility: verifying [{bar:30}] {bytes}/{total_bytes}",
+            ),
+        );
+
+        for region in regions.values() {
+            if region.attr.device {
+                continue;
+            }
+
+            if let Some((m, offset)) = incore.get(&(region.base as u64)) {
+                //
+                // We want to read this bit from flash and compare.
+                //
+                let mut remain = region.size as usize;
+                let mut addr = region.base;
+                let mut o = 0;
+
+                while remain > 0 {
+                    let nbytes =
+                        if remain > bytes.len() { bytes.len() } else { remain };
+
+                    core.read_8(addr, &mut bytes[0..nbytes])?;
+
+                    #[allow(clippy::needless_range_loop)]
+                    for i in 0..nbytes {
+                        if m.buffer[offset + o + i] != bytes[i] {
+                            bar.finish_and_clear();
+
+                            bail!(
+                                "differs at addr 0x{:x} (\"{}\", \
+                                offset {}): found 0x{:x}, expected 0x{:x}",
+                                addr + i as u32,
+                                m.name,
+                                offset + o + i,
+                                bytes[i],
+                                m.buffer[offset + o + i]
+                            );
+                        }
+                    }
+
+                    remain -= nbytes;
+                    addr += nbytes as u32;
+                    written += nbytes;
+                    o += nbytes;
+                    bar.set_position(written as u64);
+                }
+            }
+        }
+
+        bar.finish_and_clear();
+
+        msg!(
+            "verified {} in {}",
+            HumanBytes(written as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        Ok(())
+    }
+
     pub fn image_id_addr(&self) -> Option<u32> {
         self.imageid.as_ref().map(|i| i.0)
     }
@@ -3144,16 +3543,17 @@ impl HubrisArchive {
                 let roffs = regions.offset;
 
                 //
-                // We expect this to be an array of indices.
+                // We expect this to be an array of either indices or references
+                // into the RegionDesc table
                 //
-                let count = match self.lookup_type(regions.goff)? {
+                let (count, size) = match self.lookup_type(regions.goff)? {
                     HubrisType::Array(a) => {
-                        if self.lookup_type(a.goff)?.size(self)? != 1 {
+                        let size = self.lookup_type(a.goff)?.size(self)?;
+                        if size != 1 && size != 4 {
                             bail!("expected array of single-byte indices \
-                                  for TaskDesc.regions");
+                                   or references for TaskDesc.regions");
                         }
-
-                        a.count
+                        (a.count, size)
                     }
                     _ => {
                         bail!("expected array for TaskDesc.regions");
@@ -3161,7 +3561,7 @@ impl HubrisArchive {
                 };
 
                 let mut indices: Vec<u8> = vec![];
-                indices.resize_with(count, Default::default);
+                indices.resize_with(count * size, Default::default);
 
                 for i in 0..self.ntasks() {
                     let mut r = vec![];
@@ -3177,18 +3577,36 @@ impl HubrisArchive {
                         i, taddr)
                     )?;
 
-                    for ndx in &indices {
-                        let ndx = *ndx as usize;
+                    if size == 1 {
+                        for ndx in &indices {
+                            let ndx = *ndx as usize;
 
-                        if ndx == 0 {
-                            continue;
+                            if ndx == 0 {
+                                continue;
+                            }
+
+                            if ndx * rdesc.size > rdescs.size {
+                                bail!("task {i} has bad region index {ndx}");
+                            }
+
+                            r.push(rdescs.addr + (ndx * rdesc.size) as u32);
                         }
+                    } else if size == 4 {
+                        for ndx in indices.chunks(4) {
+                            let ndx =
+                                u32::from_le_bytes(ndx.try_into().unwrap());
 
-                        if ndx * rdesc.size > rdescs.size {
-                            bail!("task {} has bad region index {}", i, ndx);
+                            // Check that the reference is properly aligned for
+                            // the RegionDesc type.
+                            let offset = ndx - rdescs.addr;
+                            if offset as usize % rdesc.size != 0 {
+                                bail!("task {i} has misaligned reference at \
+                                      {ndx:#x}");
+                            }
+                            r.push(ndx);
                         }
-
-                        r.push(rdescs.addr + (ndx * rdesc.size) as u32);
+                    } else {
+                        panic!("Invalid size: {size}");
                     }
 
                     rval.push(r);
@@ -3795,9 +4213,7 @@ impl HubrisArchive {
         use std::io::Write;
 
         let regions = self.regions(core)?;
-        let nsegs = regions
-            .values()
-            .fold(0, |ttl, r| ttl + if !r.attr.device { 1 } else { 0 });
+        let nsegs = regions.values().filter(|r| !r.attr.device).count();
 
         macro_rules! pad {
             ($size:expr) => {
@@ -3929,6 +4345,7 @@ impl HubrisArchive {
             offset += region.size + pad!(region.size);
             total += region.size;
         }
+
         for note in &notes {
             //
             // Now write our note section, starting with our note header...
@@ -4074,6 +4491,14 @@ impl HubrisArchive {
         );
 
         print(
+            "name",
+            match &self.manifest.name {
+                Some(s) => s,
+                None => "<unknown>",
+            },
+        );
+
+        print(
             "target",
             match &self.manifest.target {
                 Some(s) => s,
@@ -4183,6 +4608,62 @@ impl HubrisArchive {
             }
         }
 
+        if let Some(auxflash) = self.manifest.auxflash.as_ref() {
+            const ONE_MIB: usize = 1024 * 1024;
+            if auxflash.memory_size % ONE_MIB == 0 {
+                println!(
+                    " auxiliary flash => {} bytes ({} MiB), {} slots",
+                    auxflash.memory_size,
+                    auxflash.memory_size / ONE_MIB,
+                    auxflash.slot_count
+                );
+            } else {
+                println!(
+                    " auxiliary flash => {} bytes, {} slots",
+                    auxflash.memory_size, auxflash.slot_count
+                );
+            }
+            let bytes_per_slot = auxflash.memory_size / auxflash.slot_count;
+            if bytes_per_slot % ONE_MIB == 0 {
+                println!(
+                    "                    ({} MiB/slot)",
+                    bytes_per_slot / ONE_MIB
+                );
+            } else {
+                println!("                    ({} bytes/slot)", bytes_per_slot);
+            }
+        }
+
+        let sensors = self
+            .manifest
+            .sensors
+            .iter()
+            .filter(|s| match &s.device {
+                HubrisSensorDevice::I2c(..) => false, // printed above
+                HubrisSensorDevice::Other(..) => true,
+            })
+            .collect::<Vec<_>>();
+        if !sensors.is_empty() {
+            println!(
+                "     sensors => {} additional device{}",
+                sensors.len(),
+                if sensors.len() > 1 { "s" } else { "" }
+            );
+            println!("                NAME      DEVICE    KIND");
+            for s in &sensors {
+                let device = match &s.device {
+                    HubrisSensorDevice::I2c(..) => unreachable!(),
+                    HubrisSensorDevice::Other(dev, _) => dev,
+                };
+                println!(
+                    "                {:9} {:9} {}",
+                    s.name,
+                    device,
+                    s.kind.to_string()
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -4209,7 +4690,7 @@ impl HubrisArchive {
         let archive = zip::ZipArchive::new(cursor)?;
         Self::for_each_task(archive, |path, buffer| {
             let file_name = p.join(path.file_name().unwrap());
-            std::fs::write(file_name, &buffer)?;
+            std::fs::write(file_name, buffer)?;
             Ok(())
         })?;
         Ok(())
@@ -4420,11 +4901,11 @@ impl HubrisArchive {
     ///
     /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
     /// is missing, or `Err(...)` if a zip file error occurred.
-    pub fn read_auxflash_data(&self) -> Result<Option<Vec<u8>>> {
+    pub fn read_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
         let archive = self.archive();
         let cursor = Cursor::new(archive);
         let mut archive = zip::ZipArchive::new(cursor)?;
-        let file = archive.by_name("img/auxi.tlvc");
+        let file = archive.by_name(name);
         match file {
             Ok(mut f) => {
                 let mut buffer = Vec::new();
@@ -4432,8 +4913,25 @@ impl HubrisArchive {
                 Ok(Some(buffer))
             }
             Err(zip::result::ZipError::FileNotFound) => Ok(None),
-            Err(e) => bail!("Failed to extract auxi.tlvc: {}", e),
+            Err(e) => bail!("Failed to extract {}: {}", name, e),
         }
+    }
+
+    /// Reads the auxiliary flash data from a Hubris archive
+    pub fn read_auxflash_data(&self) -> Result<Option<Vec<u8>>> {
+        self.read_file("img/auxi.tlvc")
+    }
+
+    /// Read the NXP Customer Field Programmable Area (CFPA) image from a
+    /// Hubris archive
+    pub fn read_cfpa(&self) -> Result<Option<Vec<u8>>> {
+        self.read_file("img/CFPA.bin")
+    }
+
+    /// Read the NXP Customer Manufacturing Programmable Area (CMPA) image
+    /// from a Hubris archive
+    pub fn read_cmpa(&self) -> Result<Option<Vec<u8>>> {
+        self.read_file("img/CMPA.bin")
     }
 }
 
@@ -4666,7 +5164,7 @@ pub struct HubrisEnumVariant {
     pub tag: Option<u64>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisDiscriminant {
     Expected(HubrisGoff),
     Value(HubrisGoff, usize),
@@ -4686,19 +5184,30 @@ pub struct HubrisEnum {
 }
 
 impl HubrisEnum {
-    pub fn lookup_variant(&self, tag: u64) -> Option<&HubrisEnumVariant> {
-        for variant in &self.variants {
-            match variant.tag {
-                Some(t) if t == tag => {
-                    return Some(variant);
-                }
-                Some(_t) => {}
-                None => {
-                    return Some(variant);
-                }
-            }
+    pub fn lookup_variant_by_tag(
+        &self,
+        tag: u64,
+    ) -> Option<&HubrisEnumVariant> {
+        // We prioritize picking a variant with the matching tag
+        if let Some(t) = self.variants.iter().find(|v| v.tag == Some(tag)) {
+            Some(t)
+        } else {
+            // Otherwise, we pick a variant with the None tag, for the case of a
+            // single-element enum.
+            self.variants.iter().find(|v| v.tag.is_none())
         }
-        None
+    }
+
+    pub fn lookup_variant_by_index(
+        &self,
+        index: usize,
+    ) -> Option<&HubrisEnumVariant> {
+        // We assume `index` is based on the DWARF ordering. In practice our
+        // caller is probably expecting `index` to be "source code order" (e.g.,
+        // for deserializing hubpack-encoded enums), which we assume is the
+        // same! This should be true based on section 5.7.10 of [the DWARF
+        // spec](https://dwarfstd.org/Dwarf5Std.php).
+        self.variants.get(index)
     }
 
     pub fn lookup_variant_byname(
@@ -4741,7 +5250,7 @@ impl HubrisEnum {
 
             let val = readval(buf, offs, size)?;
 
-            match self.lookup_variant(val) {
+            match self.lookup_variant_by_tag(val) {
                 None => {
                     bail!("unknown variant: 0x{:x}", val);
                 }
@@ -4987,6 +5496,7 @@ pub struct HubrisModule {
     pub memsize: u32,
     pub heapbss: (Option<u32>, Option<u32>),
     pub iface: Option<Interface>,
+    buffer: Vec<u8>,
 }
 
 impl HubrisModule {
@@ -5067,6 +5577,7 @@ pub struct HubrisPrintFormat {
     pub newline: bool,
     pub hex: bool,
     pub no_name: bool,
+    pub interpret_as_c_string: bool,
 }
 
 impl HubrisPrintFormat {
@@ -5079,7 +5590,7 @@ impl HubrisPrintFormat {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisValidate {
     ArchiveMatch,
     Booted,
@@ -5097,7 +5608,7 @@ fn try_scoped<'a>(
     kind: &'static str,
     map: &'a MultiMap<String, HubrisGoff>,
 ) -> Result<&'a str> {
-    let search = name.replace("<", "<.*::");
+    let search = name.replace('<', "<.*::");
 
     if search == name {
         Err(anyhow!("expected {} not found", kind))

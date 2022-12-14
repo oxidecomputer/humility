@@ -1,14 +1,14 @@
 system time = 1100533
-ID TASK                 GEN PRI STATE    
- 0 jefe                   0   0 recv, notif: bit0 bit1(T+67)
- 1 sys                    0   1 recv
- 2 usart_driver           0   2 recv, notif: bit0(irq39)
- 3 i2c_driver             0   2 recv
- 4 spi_driver             0   2 recv
- 5 net                    0   2 recv, notif: bit0(irq61)
- 6 user_leds              0   2 recv
- 7 ping                9057   4 wait: reply from usart_driver/gen0
- 8 pong                   0   3 recv, notif: bit0(T+467)
- 9 udpecho                0   3 notif: bit0
-10 hiffy                  0   3 notif: bit31(T+237)
-11 idle                   0   5 RUNNING
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+67)
+ 1 sys                          0   1 recv
+ 2 usart_driver                 0   2 recv, notif: bit0(irq39)
+ 3 i2c_driver                   0   2 recv
+ 4 spi_driver                   0   2 recv
+ 5 net                          0   2 recv, notif: bit0(irq61)
+ 6 user_leds                    0   2 recv
+ 7 ping                      9057   4 wait: reply from usart_driver/gen0
+ 8 pong                         0   3 recv, notif: bit0(T+467)
+ 9 udpecho                      0   3 notif: bit0
+10 hiffy                        0   3 notif: bit31(T+237)
+11 idle                         0   5 RUNNING

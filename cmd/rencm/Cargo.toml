@@ -5,16 +5,15 @@ edition = "2021"
 description = "query Renesas 8A3400X ClockMatrix parts"
 
 [dependencies]
-humility = { path = "../../humility-core", package = "humility-core" }
-humility-cmd = { path = "../../humility-cmd" }
-hif = { git = "https://github.com/oxidecomputer/hif" }
-idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
-clap = { version = "3.0.12", features = ["derive", "env"] }
-anyhow = { version = "1.0.44", features = ["backtrace"] }
-itertools = "0.10.1"
-parse_int = "0.4.0"
-log = {version = "0.4.8", features = ["std"]}
-serde-xml-rs = "0.5.1"
-serde = { version = "1.0.126", features = ["derive"] }
-serde_derive = "1.0.133"
-csv = "1.1.3"
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+hif = { workspace = true }
+idt8a3xxxx = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+itertools = { workspace = true }
+parse_int = { workspace = true }
+log = { workspace = true }
+serde-xml-rs = { workspace = true }
+serde = { workspace = true }
+csv = { workspace = true }
