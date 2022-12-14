@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.14"
+version = "0.9.15"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1033,6 +1033,7 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
+ "humility-cmd-console-proxy",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
@@ -1147,6 +1148,23 @@ dependencies = [
  "log",
  "parse_int",
  "tlvc",
+]
+
+[[package]]
+name = "humility-cmd-console-proxy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossbeam-channel",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "log",
+ "parse_int",
+ "termios",
 ]
 
 [[package]]
@@ -3297,6 +3315,15 @@ checksum = "633c1a546cee861a1a6d0dc69ebeca693bf4296661ba7852b9d21d159e0506df"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "termios"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "411c5bf740737c7918b8b1fe232dca4dc9f8e754b8ad5e20966814001ed0ac6b"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
