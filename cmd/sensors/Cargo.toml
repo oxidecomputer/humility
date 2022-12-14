@@ -14,3 +14,4 @@ parse_int = { workspace = true }
 indexmap = { workspace = true }
 idol = { workspace = true }
 log = { workspace = true }
+itertools = { workspace = true }
