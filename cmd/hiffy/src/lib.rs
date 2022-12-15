@@ -105,7 +105,7 @@ struct HiffyArgs {
     arguments: Vec<String>,
 
     /// filter for list output
-    #[clap(use_value_delimiter = true, requires = "list")]
+    #[clap(use_value_delimiter = true)]
     filter: Vec<String>,
 }
 
@@ -131,18 +131,19 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, Some(e))) => {
-                match &op.1.reply {
-                    Reply::Result { ok, .. } => {
-                        println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
-                        println!("{}{:<27} {}", margin, "<error>", e.name);
-                    }
-                    _ => {
-                        warn!("mismatch on reply: expected Reply::Result, found {:?}",
-                    op);
-                    }
+            Ok((_, Some(e))) => match &op.1.reply {
+                Reply::Result { ok, .. } => {
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
-            }
+                _ => {
+                    warn!(
+                        "mismatch on reply: expected Reply::Result, \
+                            found {:?}",
+                        op
+                    );
+                }
+            },
             Ok((_, None)) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     //
@@ -160,6 +161,8 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         }
     };
 
+    let mut matches = false;
+
     for i in 0..hubris.ntasks() {
         let module = hubris.lookup_module(HubrisTask::Task(i as u32))?;
 
@@ -172,6 +175,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
 
             let mut ops = iface.ops.iter().peekable();
 
+            matches = true;
             println!("{:<28} TASK", "INTERFACE");
             println!("{:<28} {}", iface.name, module.name);
             println!("  |");
@@ -187,6 +191,14 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
                 println!("  {}", c);
             }
         }
+    }
+
+    if !filter.is_empty() && !matches {
+        bail!(
+            "filter \"{}\" did not match any task or interface; \
+            use --list without an argument to list all interfaces",
+            filter.join(",")
+        );
     }
 
     Ok(())
