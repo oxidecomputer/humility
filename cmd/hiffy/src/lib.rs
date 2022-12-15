@@ -6,25 +6,29 @@
 //!
 //! `humility hiffy` allows for querying and manipulation of `hiffy`, the
 //! HIF agent present in Hubris.  To list all Idol interfaces present in
-//! Hubris, use the `-l` (`--list`) option:
+//! Hubris, use the `-l` (`--list`) option, optionally specifying a filter
+//! for tasks or interface names if so desired:
 //!
 //! ```console
-//! % humility hiffy -l
+//! % humility hiffy -l user_leds
 //! humility: attached via ST-Link
-//! TASK            INTERFACE    OPERATION           ARG             ARGTYPE
-//! rcc_driver      Rcc          enable_clock_raw    peripheral      u32
-//!                              disable_clock_raw   peripheral      u32
-//!                              enter_reset_raw     peripheral      u32
-//!                              leave_reset_raw     peripheral      u32
-//! spi_driver      Spi          read                device_index    u8
-//!                              write               device_index    u8
-//!                              exchange            device_index    u8
-//!                              lock                device_index    u8
-//!                                                  cs_state        CsState
-//!                              release             -
-//! user_leds       UserLeds     led_on              index           usize
-//!                              led_off             index           usize
-//!                              led_toggle          index           usize
+//! INTERFACE                    TASK
+//! UserLeds                     user_leds
+//!   |
+//!   +--> UserLeds.led_on
+//!   |       index                       usize
+//!   |       <ok>                        ()
+//!   |       <error>                     LedError
+//!   |
+//!   +--> UserLeds.led_off
+//!   |       index                       usize
+//!   |       <ok>                        ()
+//!   |       <error>                     LedError
+//!   |
+//!   +--> UserLeds.led_toggle
+//!           index                       usize
+//!           <ok>                        ()
+//!           <error>                     LedError
 //! ```
 //!
 //! To enlist the Hubris agent to call a particular interface and operation,
@@ -64,10 +68,6 @@ struct HiffyArgs {
     )]
     timeout: u32,
 
-    /// verbose
-    #[clap(long, short)]
-    verbose: bool,
-
     /// list HIF functions
     #[clap(long = "list-functions", short = 'L')]
     listfuncs: bool,
@@ -101,8 +101,12 @@ struct HiffyArgs {
     task: Option<String>,
 
     /// arguments
-    #[clap(long, short, requires = "call", use_value_delimiter = true)]
+    #[clap(long, short, use_value_delimiter = true, requires = "call")]
     arguments: Vec<String>,
+
+    /// filter for list output
+    #[clap(use_value_delimiter = true)]
+    filter: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -111,49 +115,44 @@ pub enum HiffyLease<'a> {
     Write(&'a [u8]),
 }
 
-pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
-    println!(
-        "{:<15} {:<12} {:<19} {:<15} {:<15}",
-        "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
-    );
-
+pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
     let print_args = |op: &(&String, &Operation), module, margin| {
         let mut args = op.1.args.iter();
-        let m = margin;
 
         match args.next() {
-            None => {
-                println!("-");
-            }
+            None => {}
             Some(arg) => {
-                println!("{:<15} {}", arg.0, arg.1.ty.0);
+                println!("{}{:<27} {}", margin, arg.0, arg.1.ty.0);
 
                 for arg in args {
-                    println!("{:m$}{:<15} {}", "", arg.0, arg.1.ty.0, m = m);
+                    println!("{}{:<27} {}", margin, arg.0, arg.1.ty.0);
                 }
             }
-        }
-
-        if !verbose {
-            return;
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
             Ok((_, Some(e))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
-                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
-                    println!("{:m$}{:<15} {}", "", "<error>", e.name, m = m);
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
                 _ => {
-                    warn!("Mismatch between expected reply and operation");
+                    warn!(
+                        "mismatch on reply: expected Reply::Result, \
+                            found {:?}",
+                        op
+                    );
                 }
             },
             Ok((_, None)) => match &op.1.reply {
-                Reply::Simple(ok) => {
-                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
+                Reply::Result { ok, .. } => {
+                    //
+                    // This is possible if the only error is ServerDeath
+                    //
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
                 }
-                _ => {
-                    warn!("Mismatch between expected reply and operation");
+                Reply::Simple(ok) => {
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
                 }
             },
             Err(e) => {
@@ -162,29 +161,44 @@ pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
         }
     };
 
+    let mut matches = false;
+
     for i in 0..hubris.ntasks() {
         let module = hubris.lookup_module(HubrisTask::Task(i as u32))?;
 
         if let Some(iface) = &module.iface {
-            let mut ops = iface.ops.iter();
+            if !filter.is_empty()
+                && !filter.iter().any(|f| iface.name == *f || module.name == *f)
+            {
+                continue;
+            }
 
-            print!("{:15} {:<12} ", module.name, iface.name);
+            let mut ops = iface.ops.iter().peekable();
 
-            match ops.next() {
-                None => {
-                    println!("-");
-                }
-                Some(op) => {
-                    print!("{:<20}", op.0);
-                    print_args(&op, module, 49);
+            matches = true;
+            println!("{:<28} TASK", "INTERFACE");
+            println!("{:<28} {}", iface.name, module.name);
+            println!("  |");
 
-                    for op in ops {
-                        print!("{:29}{:<20}", "", op.0);
-                        print_args(&op, module, 49);
-                    }
-                }
+            while let Some(op) = ops.next() {
+                println!("  +--> {}.{}", iface.name, op.0);
+
+                let last = ops.peek().is_none();
+                let c = if last { "" } else { "|" };
+                let margin = format!("  {:<8}", c);
+
+                print_args(&op, module, margin);
+                println!("  {}", c);
             }
         }
+    }
+
+    if !filter.is_empty() && !matches {
+        bail!(
+            "filter \"{}\" did not match any task or interface; \
+            use --list without an argument to list all interfaces",
+            filter.join(",")
+        );
     }
 
     Ok(())
@@ -401,8 +415,23 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = HiffyArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        hiffy_list(hubris, subargs.verbose)?;
+        hiffy_list(hubris, subargs.filter)?;
         return Ok(());
+    } else if !subargs.filter.is_empty() {
+        bail!("filters can only be provided with --list");
+    }
+
+    //
+    // Before we create our HiffyContext, check to see if this is a call and
+    // we're on a dump; running call on a dump always fails (obviously?), but
+    // in the event that we have a HIF mismatch (or any other failure to
+    // create the HiffyContext) *and* we're running call on a dump, we would
+    // rather fail with the dump message rather than with the HiffyContext
+    // creation failure.  (Note that -L will still create the HiffyContext,
+    // even if run on a dump.)
+    //
+    if subargs.call.is_some() && core.is_dump() {
+        bail!("can't make HIF calls on a dump");
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
@@ -538,7 +567,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Attached {
             name: "hiffy",
             archive: Archive::Required,
-            attach: Attach::LiveOnly,
+            attach: Attach::Any,
             validate: Validate::Booted,
             run: hiffy,
         },

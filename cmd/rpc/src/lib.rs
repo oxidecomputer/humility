@@ -79,10 +79,6 @@ struct RpcArgs {
     )]
     timeout: u32,
 
-    /// verbose
-    #[clap(long, short)]
-    verbose: bool,
-
     /// list interfaces
     #[clap(long, short)]
     list: bool,
@@ -308,7 +304,7 @@ fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {
-        humility_cmd_hiffy::hiffy_list(hubris, subargs.verbose)?;
+        humility_cmd_hiffy::hiffy_list(hubris, vec![])?;
         return Ok(());
     } else if subargs.listen {
         return rpc_listen(hubris, &subargs);
