@@ -221,6 +221,7 @@ a specified target.  (In the above example, one could execute `humility
 
 - [humility apptable](#humility-apptable): print Hubris apptable
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
+- [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
@@ -285,6 +286,11 @@ Tools to interact with the auxiliary flash, described in RFD 311.
 
 This subcommand should be rarely used; `humility flash` will automatically
 program auxiliary flash when needed.
+
+
+### `humility console-proxy`
+
+Act as a proxy for the host serial console when it is jumpered to the SP.
 
 
 ### `humility dashboard`
@@ -685,25 +691,29 @@ No documentation yet for `humility hash`; pull requests welcome!
 
 `humility hiffy` allows for querying and manipulation of `hiffy`, the
 HIF agent present in Hubris.  To list all Idol interfaces present in
-Hubris, use the `-l` (`--list`) option:
+Hubris, use the `-l` (`--list`) option, optionally specifying a filter
+for tasks or interface names if so desired:
 
 ```console
-% humility hiffy -l
+% humility hiffy -l user_leds
 humility: attached via ST-Link
-TASK            INTERFACE    OPERATION           ARG             ARGTYPE
-rcc_driver      Rcc          enable_clock_raw    peripheral      u32
-                             disable_clock_raw   peripheral      u32
-                             enter_reset_raw     peripheral      u32
-                             leave_reset_raw     peripheral      u32
-spi_driver      Spi          read                device_index    u8
-                             write               device_index    u8
-                             exchange            device_index    u8
-                             lock                device_index    u8
-                                                 cs_state        CsState
-                             release             -
-user_leds       UserLeds     led_on              index           usize
-                             led_off             index           usize
-                             led_toggle          index           usize
+INTERFACE                    TASK
+UserLeds                     user_leds
+  |
+  +--> UserLeds.led_on
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_off
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_toggle
+          index                       usize
+          <ok>                        ()
+          <error>                     LedError
 ```
 
 To enlist the Hubris agent to call a particular interface and operation,
