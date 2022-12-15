@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.9.14"
+version = "0.9.15"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -29,6 +29,7 @@ members = [
     "humility-arch-cortex",
     "cmd/apptable",
     "cmd/auxflash",
+    "cmd/console-proxy",
     "cmd/dashboard",
     "cmd/debugmailbox",
     "cmd/diagnose",
@@ -114,6 +115,7 @@ humility-cmd = { path = "./humility-cmd" }
 humility_load_derive = { path = "./load_derive" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
+cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugmailbox" }
@@ -173,6 +175,7 @@ cargo_metadata = "0.12.0"
 clap = { version = "3.0.12", features = ["derive", "env"] }
 colored = "2.0.0"
 crc-any = "2.3.5"
+crossbeam-channel = "0.5.6"
 crossterm = "0.20.0"
 csv = "1.1.3"
 ctrlc = "3.1.5"
@@ -215,6 +218,7 @@ strum_macros = "0.22"
 syn = "1.0"
 tempfile = "3.3"
 termimad = "0.14"
+termios = "0.3" # not usable on windows!
 toml = "0.5"
 trycmd = "0.13.2"
 tui = { version = "0.16", default-features = false }
@@ -242,6 +246,7 @@ humility-cortex = { workspace = true }
 humility-cmd = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
+cmd-console-proxy = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
 cmd-debugmailbox = { workspace = true }
