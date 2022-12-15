@@ -1,0 +1,4 @@
+tests/cmd/cores/hubris.core.* linguist-generated=true
+tests/**/*.toml linguist-generated=true
+tests/**/*.stderr linguist-generated=true
+tests/**/*.stdout linguist-generated=true

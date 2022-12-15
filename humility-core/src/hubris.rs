@@ -3035,6 +3035,36 @@ impl HubrisArchive {
     }
 
     ///
+    /// Takes a list of potentially similar types and deduplicates the list.
+    ///
+    fn dedup<'a, I: Iterator<Item = &'a HubrisGoff>>(
+        &self,
+        goffs: I,
+    ) -> Result<Vec<HubrisGoff>> {
+        let mut cmp = Vec::new();
+        let mut out = Vec::new();
+
+        for &goff in goffs {
+            cmp.push(goff);
+        }
+
+        for (i, lhs) in cmp.iter().enumerate() {
+            let mut dup = false;
+            for rhs in &cmp[i + 1..] {
+                if !self.differ(*lhs, *rhs)? {
+                    dup = true;
+                    break;
+                }
+            }
+            if !dup {
+                out.push(*lhs);
+            }
+        }
+
+        Ok(out)
+    }
+
+    ///
     /// Looks up the specfied structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be
     /// present, and be present exactly once.  If needed structures begin
@@ -3042,13 +3072,15 @@ impl HubrisArchive {
     /// proper namespacing -- or kludgey namespacing...
     pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
         match self.structs_byname.get_vec(name) {
-            Some(v) if v.len() > 1 => {
-                Err(anyhow!("{} matches more than one structure", name))
+            Some(v) => {
+                let m = self.dedup(v.iter())?;
+
+                if m.len() > 1 {
+                    Err(anyhow!("{} matches more than one structure", name))
+                } else {
+                    Ok(self.structs.get(&m[0]).unwrap())
+                }
             }
-            Some(v) if !v.is_empty() => Ok(self
-                .structs
-                .get(&v[0])
-                .expect("structs-structs_byname inconsistency")),
             _ => Err(anyhow!("expected structure {} not found", name)),
         }
     }
@@ -4929,6 +4961,32 @@ impl HubrisArchive {
     pub fn read_cmpa(&self) -> Result<Option<Vec<u8>>> {
         self.read_file("img/CMPA.bin")
     }
+
+    /// Determine if two types conclusively differ from one another, performing
+    /// a deep comparison.
+    pub fn differ(&self, lhs: HubrisGoff, rhs: HubrisGoff) -> Result<bool> {
+        let lhs = self.lookup_type(lhs)?;
+        let rhs = self.lookup_type(rhs)?;
+        match (lhs, rhs) {
+            (HubrisType::Base(lt), HubrisType::Base(rt)) => {
+                Ok(lt.encoding != rt.encoding || lt.size != rt.size)
+            }
+            (HubrisType::Struct(lt), HubrisType::Struct(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Enum(lt), HubrisType::Enum(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Array(lt), HubrisType::Array(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Union(lt), HubrisType::Union(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Ptr(l), HubrisType::Ptr(r)) => self.differ(l, r),
+            _ => Ok(true),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -5076,6 +5134,23 @@ impl HubrisStruct {
         }
         true
     }
+
+    pub fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
+        if self.size != rhs.size || self.members.len() != rhs.members.len() {
+            Ok(true)
+        } else {
+            for (lm, rm) in self.members.iter().zip(&rhs.members) {
+                if lm.offset != rm.offset || lm.name != rm.name {
+                    return Ok(true);
+                }
+
+                if hubris.differ(lm.goff, rm.goff)? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -5089,6 +5164,16 @@ pub struct HubrisVariable {
 pub struct HubrisArray {
     pub goff: HubrisGoff,
     pub count: usize,
+}
+
+impl HubrisArray {
+    pub fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
+        if self.count != rhs.count {
+            Ok(true)
+        } else {
+            hubris.differ(self.goff, rhs.goff)
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -5235,25 +5320,34 @@ impl HubrisEnum {
         }
     }
 
-    //
-    // This is a little... loose.  It compares one enum to another and
-    // determines if they have the same variant names, offsets, tags, etc.
-    // This can still be fooled, but it would have to be by enums that
-    // appear pretty similar to one another.  If it becomes time to make this
-    // correct, it will probably be a good occasion to rethink how we store
-    // type information.
-    //
-    pub fn approximately_same(&self, rhs: &HubrisEnum) -> bool {
-        for (l, r) in self.variants.iter().zip(rhs.variants.iter()) {
-            if l.name != r.name || l.offset != r.offset || l.tag != r.tag {
-                return false;
-            }
-        }
+    fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
+        if self.size != rhs.size
+            || self.discriminant != rhs.discriminant
+            || self.variants.len() != rhs.variants.len()
+        {
+            Ok(true)
+        } else {
+            for (lm, rm) in self.variants.iter().zip(&rhs.variants) {
+                if lm.offset != rm.offset
+                    || lm.name != rm.name
+                    || lm.tag != rm.tag
+                {
+                    return Ok(true);
+                }
 
-        self.name == rhs.name
-            && self.size == rhs.size
-            && self.discriminant == rhs.discriminant
-            && self.variants.len() == rhs.variants.len()
+                match (lm.goff, rm.goff) {
+                    (Some(lg), Some(rg)) => {
+                        if hubris.differ(lg, rg)? {
+                            return Ok(true);
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return Ok(true),
+                }
+            }
+
+            Ok(false)
+        }
     }
 }
 
@@ -5288,6 +5382,33 @@ impl HubrisUnion {
         }
 
         self.variants[1].goff
+    }
+
+    fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
+        if self.size != rhs.size || self.variants.len() != rhs.variants.len() {
+            Ok(true)
+        } else {
+            for (lm, rm) in self.variants.iter().zip(&rhs.variants) {
+                if lm.offset != rm.offset
+                    || lm.name != rm.name
+                    || lm.tag != rm.tag
+                {
+                    return Ok(true);
+                }
+
+                match (lm.goff, rm.goff) {
+                    (Some(lg), Some(rg)) => {
+                        if hubris.differ(lg, rg)? {
+                            return Ok(true);
+                        }
+                    }
+                    (None, None) => {}
+                    _ => return Ok(true),
+                }
+            }
+
+            Ok(false)
+        }
     }
 }
 
@@ -5472,30 +5593,15 @@ impl HubrisModule {
     ) -> Result<&'a HubrisStruct> {
         match hubris.structs_byname.get_vec(name) {
             Some(v) => {
-                let m = v
-                    .iter()
-                    .filter(|g| g.object == self.object)
-                    .collect::<Vec<&HubrisGoff>>();
+                let m = hubris
+                    .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
-                    // It's possible for one struct to end up in the debug data
-                    // multiple times (e.g. if it's included in both a client
-                    // and server). We do a deep-ish comparison here to avoid
-                    // false failures.
-                    let struct_a = hubris.structs.get(m[0]).unwrap();
-                    for i in m[1..].iter() {
-                        let struct_b = hubris.structs.get(i).unwrap();
-                        if struct_a.size != struct_b.size
-                            || struct_a.members != struct_b.members
-                        {
-                            bail!("{} matches more than one structure", name)
-                        }
-                    }
-                    Ok(struct_a)
+                    Err(anyhow!("{} matches more than one structure", name))
                 } else if m.is_empty() {
                     Err(anyhow!("no {} in {}", name, self.name))
                 } else {
-                    Ok(hubris.structs.get(m[0]).unwrap())
+                    Ok(hubris.structs.get(&m[0]).unwrap())
                 }
             }
             _ => self.lookup_struct_byname(
@@ -5512,33 +5618,15 @@ impl HubrisModule {
     ) -> Result<&'a HubrisEnum> {
         match hubris.enums_byname.get_vec(name) {
             Some(v) => {
-                let m = v
-                    .iter()
-                    .filter(|g| g.object == self.object)
-                    .collect::<Vec<&HubrisGoff>>();
+                let m = hubris
+                    .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
-                    let e = hubris.enums.get(m[0]).unwrap();
-                    let mut same = true;
-
-                    for r in m.iter().skip(1) {
-                        let rhs = hubris.enums.get(r).unwrap();
-
-                        if !e.approximately_same(rhs) {
-                            same = false;
-                            break;
-                        }
-                    }
-
-                    if same {
-                        Ok(e)
-                    } else {
-                        Err(anyhow!("{} matches more than one enum", name))
-                    }
+                    Err(anyhow!("{} matches more than one enum", name))
                 } else if m.is_empty() {
                     Err(anyhow!("no {} in {}", name, self.name))
                 } else {
-                    Ok(hubris.enums.get(m[0]).unwrap())
+                    Ok(hubris.enums.get(&m[0]).unwrap())
                 }
             }
             _ => self.lookup_enum_byname(

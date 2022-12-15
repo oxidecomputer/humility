@@ -1,0 +1,121 @@
+INTERFACE                    TASK
+Sys                          sys
+  |
+  +--> Sys.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.leave_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.gpio_configure_raw
+  |       port                        Port
+  |       pins                        u16
+  |       packed_attributes           u16
+  |       <ok>                        ()
+  |       <error>                     GpioError
+  |
+  +--> Sys.gpio_set_reset
+  |       port                        Port
+  |       set_pins                    u16
+  |       reset_pins                  u16
+  |       <ok>                        ()
+  |       <error>                     GpioError
+  |
+  +--> Sys.gpio_read_input
+  |       port                        Port
+  |       <ok>                        u16
+  |       <error>                     GpioError
+  |
+  +--> Sys.gpio_toggle
+          port                        Port
+          pins                        u16
+          <ok>                        ()
+          <error>                     GpioError
+  
+INTERFACE                    TASK
+Spi                          spi_driver
+  |
+  +--> Spi.read
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.write
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.exchange
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.lock
+  |       device_index                u8
+  |       cs_state                    CsState
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.release
+          <ok>                        ()
+          <error>                     SpiError
+  
+INTERFACE                    TASK
+Net                          net
+  |
+  +--> Net.recv_packet
+  |       socket_index                u32
+  |       <ok>                        UdpMetadata
+  |       <error>                     NetError
+  |
+  +--> Net.send_packet
+  |       socket_index                u32
+  |       metadata                    UdpMetadata
+  |       <ok>                        ()
+  |       <error>                     NetError
+  |
+  +--> Net.smi_read
+  |       phy                         u8
+  |       register                    u8
+  |       <ok>                        u16
+  |       <error>                     NetError
+  |
+  +--> Net.smi_write
+          phy                         u8
+          register                    u8
+          value                       u16
+          <ok>                        ()
+          <error>                     NetError
+  
+INTERFACE                    TASK
+UserLeds                     user_leds
+  |
+  +--> UserLeds.led_on
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_off
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_toggle
+          index                       usize
+          <ok>                        ()
+          <error>                     LedError
+  

@@ -1,0 +1,236 @@
+INTERFACE                    TASK
+Net                          net
+  |
+  +--> Net.recv_packet
+  |       socket                      SocketName
+  |       <ok>                        UdpMetadata
+  |       <error>                     NetError
+  |
+  +--> Net.send_packet
+  |       socket                      SocketName
+  |       metadata                    UdpMetadata
+  |       <ok>                        ()
+  |       <error>                     NetError
+  |
+  +--> Net.smi_read
+  |       phy                         u8
+  |       register                    u8
+  |       <ok>                        u16
+  |       <error>                     NetError
+  |
+  +--> Net.smi_write
+          phy                         u8
+          register                    u8
+          value                       u16
+          <ok>                        ()
+          <error>                     NetError
+  
+INTERFACE                    TASK
+Sys                          sys
+  |
+  +--> Sys.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.leave_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.gpio_configure_raw
+  |       port                        Port
+  |       pins                        u16
+  |       packed_attributes           u16
+  |       <ok>                        ()
+  |       <error>                     GpioError
+  |
+  +--> Sys.gpio_set_reset
+  |       port                        Port
+  |       set_pins                    u16
+  |       reset_pins                  u16
+  |       <ok>                        ()
+  |       <error>                     GpioError
+  |
+  +--> Sys.gpio_read_input
+  |       port                        Port
+  |       <ok>                        u16
+  |       <error>                     GpioError
+  |
+  +--> Sys.gpio_toggle
+          port                        Port
+          pins                        u16
+          <ok>                        ()
+          <error>                     GpioError
+  
+INTERFACE                    TASK
+Spi                          spi4_driver
+  |
+  +--> Spi.read
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.write
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.exchange
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.lock
+  |       device_index                u8
+  |       cs_state                    CsState
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.release
+          <ok>                        ()
+          <error>                     SpiError
+  
+INTERFACE                    TASK
+Spi                          spi2_driver
+  |
+  +--> Spi.read
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.write
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.exchange
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.lock
+  |       device_index                u8
+  |       cs_state                    CsState
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.release
+          <ok>                        ()
+          <error>                     SpiError
+  
+INTERFACE                    TASK
+Thermal                      thermal
+  |
+  +--> Thermal.set_fan_pwm
+          index                       u8
+          pwm                         u8
+          <ok>                        ()
+          <error>                     ThermalError
+  
+INTERFACE                    TASK
+Sequencer                    gimlet_seq
+  |
+  +--> Sequencer.get_state
+  |       <ok>                        PowerState
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_state
+  |       state                       PowerState
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.fans_on
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.fans_off
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.is_clock_config_loaded
+          <ok>                        u8
+          <error>                     SeqError
+  
+INTERFACE                    TASK
+HostFlash                    hf
+  |
+  +--> HostFlash.read_id
+  |       <ok>                        [u8; 20]
+  |       <error>                     HfError
+  |
+  +--> HostFlash.read_status
+  |       <ok>                        u8
+  |       <error>                     HfError
+  |
+  +--> HostFlash.bulk_erase
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.page_program
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.read
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.sector_erase
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.get_mux
+  |       <ok>                        HfMuxState
+  |       <error>                     HfError
+  |
+  +--> HostFlash.set_mux
+  |       state                       HfMuxState
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.get_dev
+  |       <ok>                        HfDevSelect
+  |       <error>                     HfError
+  |
+  +--> HostFlash.set_dev
+  |       dev                         HfDevSelect
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.hash
+          address                     u32
+          len                         u32
+  
+INTERFACE                    TASK
+Sensor                       sensor
+  |
+  +--> Sensor.get
+  |       id                          SensorId
+  |       <ok>                        f32
+  |       <error>                     SensorError
+  |
+  +--> Sensor.post
+  |       id                          SensorId
+  |       value                       f32
+  |       <ok>                        ()
+  |       <error>                     SensorError
+  |
+  +--> Sensor.nodata
+          id                          SensorId
+          nodata                      NoData
+          <ok>                        ()
+          <error>                     SensorError
+  

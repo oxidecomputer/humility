@@ -1,0 +1,130 @@
+INTERFACE                    TASK
+Rcc                          rcc_driver
+  |
+  +--> Rcc.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Rcc.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Rcc.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Rcc.leave_reset_raw
+          peripheral                  u32
+          <ok>                        ()
+          <error>                     RccError
+  
+INTERFACE                    TASK
+Spi                          spi4_driver
+  |
+  +--> Spi.read
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.write
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.exchange
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.lock
+  |       device_index                u8
+  |       cs_state                    CsState
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.release
+          <ok>                        ()
+          <error>                     SpiError
+  
+INTERFACE                    TASK
+Spi                          spi2_driver
+  |
+  +--> Spi.read
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.write
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.exchange
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.lock
+  |       device_index                u8
+  |       cs_state                    CsState
+  |       <ok>                        ()
+  |       <error>                     SpiError
+  |
+  +--> Spi.release
+          <ok>                        ()
+          <error>                     SpiError
+  
+INTERFACE                    TASK
+Sequencer                    gimlet_seq
+  |
+  +--> Sequencer.get_state
+  |       <ok>                        PowerState
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_state
+          state                       PowerState
+          <ok>                        ()
+          <error>                     SeqError
+  
+INTERFACE                    TASK
+HostFlash                    hf
+  |
+  +--> HostFlash.read_id
+  |       <ok>                        [u8; 20]
+  |       <error>                     HfError
+  |
+  +--> HostFlash.read_status
+  |       <ok>                        u8
+  |       <error>                     HfError
+  |
+  +--> HostFlash.bulk_erase
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.page_program
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.read
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.sector_erase
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.get_mux
+  |       <ok>                        HfMuxState
+  |       <error>                     HfError
+  |
+  +--> HostFlash.set_mux
+          state                       HfMuxState
+          <ok>                        ()
+          <error>                     HfError
+  

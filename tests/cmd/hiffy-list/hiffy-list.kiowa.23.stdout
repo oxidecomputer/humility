@@ -1,0 +1,41 @@
+INTERFACE                    TASK
+Rcc                          rcc_driver
+  |
+  +--> Rcc.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Rcc.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Rcc.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Rcc.leave_reset_raw
+          peripheral                  u32
+          <ok>                        ()
+          <error>                     RccError
+  
+INTERFACE                    TASK
+UserLeds                     user_leds
+  |
+  +--> UserLeds.led_on
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_off
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_toggle
+          index                       usize
+          <ok>                        ()
+          <error>                     LedError
+  

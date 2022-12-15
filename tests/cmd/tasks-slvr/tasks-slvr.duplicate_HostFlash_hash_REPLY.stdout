@@ -1,0 +1,1376 @@
+system time = 4861153
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+47)
+   |
+   +--->  0x24026528 0x0807d620 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24026600 0x0807c2dc userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24026600 0x0807c2dc idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:261
+   |      0x24026600 0x0807c2ea main
+   |                 @ /hubris/task/jefe/src/main.rs:120
+   |
+   |
+   +--->   R0 = 0x24026598   R1 = 0x00000008   R2 = 0x00000003   R3 = 0x240265dc
+   |       R4 = 0x24026598   R5 = 0x00000008   R6 = 0x00000003   R7 = 0x00000000
+   |       R8 = 0x24026598   R9 = 0x00000002  R10 = 0x2402663c  R11 = 0x00000001
+   |      R12 = 0x24026594   SP = 0x24026508   LR = 0x0807c2eb   PC = 0x0807d620
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24026598,
+                        r5: 0x8,
+                        r6: 0x3,
+                        r7: 0x0,
+                        r8: 0x24026598,
+                        r9: 0x2,
+                        r10: 0x2402663c,
+                        r11: 0x1,
+                        psp: 0x240264a0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0xffffffff
+                    },
+                    priority: Priority(0x0),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a2d10)),
+                        to_post: NotificationSet(0x2)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001330 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004fb0 (&abi::TaskDesc)
+                }
+
+ 1 net                          0   5 recv, notif: bit0(irq61) bit1(T+93)
+   |
+   +--->  0x24008788 0x0803095e userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24009220 0x08026070 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24009220 0x0802605e idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:261
+   |      0x24009220 0x08026074 main
+   |                 @ /hubris/task/net/src/main.rs:104
+   |
+   |
+   +--->   R0 = 0x24008f90   R1 = 0x00000020   R2 = 0x00000003   R3 = 0x24008d88
+   |       R4 = 0x24008f90   R5 = 0x00000020   R6 = 0x00000003   R7 = 0x00000000
+   |       R8 = 0x2400ee28   R9 = 0x24008a40  R10 = 0x00000302  R11 = 0x00000001
+   |      R12 = 0x24008fb0   SP = 0x24008768   LR = 0x08026075   PC = 0x0803095e
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24008f90,
+                        r5: 0x20,
+                        r6: 0x3,
+                        r7: 0x0,
+                        r8: 0x2400ee28,
+                        r9: 0x24008a40,
+                        r10: 0x302,
+                        r11: 0x1,
+                        psp: 0x24008700,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a2d3e)),
+                        to_post: NotificationSet(0x2)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001350 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004fc4 (&abi::TaskDesc)
+                }
+
+ 2 sys                          0   1 recv
+   |
+   +--->  0x24029330 0x080866dc userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24029380 0x080861a2 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24029380 0x080861a2 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24029380 0x080861b0 main
+   |                 @ /hubris/drv/stm32xx-sys/src/main.rs:80
+   |
+   |
+   +--->   R0 = 0x24029368   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x24029340
+   |       R4 = 0x24029368   R5 = 0x00000005   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x5802447c   R9 = 0x24029377  R10 = 0x00000010  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x24029310   LR = 0x080861b1   PC = 0x080866dc
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24029368,
+                        r5: 0x5,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x5802447c,
+                        r9: 0x24029377,
+                        r10: 0x10,
+                        r11: 0x1,
+                        psp: 0x240292a8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x1),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001370 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004fd8 (&abi::TaskDesc)
+                }
+
+ 3 spi4_driver                  0   3 recv
+   |
+   +--->  0x24026b08 0x08051ffa userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24026b68 0x080505c4 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24026b68 0x080505c4 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24026b68 0x080505de main
+   |                 @ /hubris/drv/stm32h7-spi-server/src/main.rs:59
+   |
+   |
+   +--->   R0 = 0x24026b1a   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x24026b1c
+   |       R4 = 0x24026b1a   R5 = 0x00000002   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x24026b1a   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x08052560   SP = 0x24026ae8   LR = 0x080505df   PC = 0x08051ffa
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24026b1a,
+                        r5: 0x2,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x24026b1a,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x24026a80,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001390 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004fec (&abi::TaskDesc)
+                }
+
+ 4 spi2_driver                  0   3 recv
+   |
+   +--->  0x24027300 0x0805612e userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24027368 0x08054590 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24027368 0x08054590 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24027368 0x080545aa main
+   |                 @ /hubris/drv/stm32h7-spi-server/src/main.rs:59
+   |
+   |
+   +--->   R0 = 0x2402731a   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x2402731c
+   |       R4 = 0x2402731a   R5 = 0x00000002   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x2402731a   R9 = 0x00000001  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x24027290   SP = 0x240272e0   LR = 0x080545ab   PC = 0x0805612e
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x2402731a,
+                        r5: 0x2,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x2402731a,
+                        r9: 0x1,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x24027278,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240013b0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005000 (&abi::TaskDesc)
+                }
+
+ 5 i2c_driver                   0   3 recv
+   |
+   +--->  0x24027a50 0x0805a79e userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24027b80 0x080587ec userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24027b80 0x080587ec userlib::sys_recv_open
+   |                 @ /hubris/sys/userlib/src/lib.rs:238
+   |      0x24027b80 0x080587ec userlib::hl::recv
+   |                 @ /hubris/sys/userlib/src/hl.rs:83
+   |      0x24027b80 0x080587ec userlib::hl::recv_without_notification
+   |                 @ /hubris/sys/userlib/src/hl.rs:119
+   |      0x24027b80 0x080587fc main
+   |                 @ /hubris/drv/stm32xx-i2c-server/src/main.rs:200
+   |
+   |
+   +--->   R0 = 0x24027b44   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x24027b58
+   |       R4 = 0x24027b44   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00008061   R9 = 0x00000004  R10 = 0x0805ae18  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x24027a30   LR = 0x080587fd   PC = 0x0805a79e
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24027b44,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x8061,
+                        r9: 0x4,
+                        r10: 0x805ae18,
+                        r11: 0x1,
+                        psp: 0x240279c8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240013d0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0xe,
+                    descriptor: 0x8005014 (&abi::TaskDesc)
+                }
+
+ 6 spd                          0   2 notif: bit0(irq31/irq32)
+   |
+   +--->  0x24004258 0x0805e614 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24004278 0x0805c81c core::ops::function::FnOnce::call_once
+   |                 @ /rustc/4d6d601c8a83284d6b23c253a3e2a060fd197316/library/core/src/ops/function.rs:248
+   |      0x240042a8 0x0805c112 core::ptr::read_volatile
+   |                 @ /rustc/4d6d601c8a83284d6b23c253a3e2a060fd197316/library/core/src/ptr/mod.rs:1468
+   |      0x240042a8 0x0805c112 vcell::VolatileCell<T>::get
+   |                 @ /crates.io/vcell-0.1.3/src/lib.rs:30
+   |      0x240042a8 0x0805c112 stm32h7::generic::Reg<REG>::modify
+   |                 @ /crates.io/stm32h7-0.14.0/src/generic.rs:159
+   |      0x240042a8 0x0805c112 drv_stm32xx_i2c::I2cController::operate_as_target
+   |                 @ /hubris/drv/stm32xx-i2c/src/lib.rs:774
+   |      0x24004380 0x0805d03e main
+   |                 @ /hubris/task/spd/src/main.rs:194
+   |
+   |
+   +--->   R0 = 0x0805eda8   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x2400425c
+   |       R4 = 0x0805eda8   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x8000ffff
+   |       R8 = 0x00000000   R9 = 0x0805c801  R10 = 0x0805c809  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x24004238   LR = 0x0805c81d   PC = 0x0805e614
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x805eda8,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x8000ffff,
+                        r8: 0x0,
+                        r9: 0x805c801,
+                        r10: 0x805c809,
+                        r11: 0x1,
+                        psp: 0x240041d0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240013f0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005028 (&abi::TaskDesc)
+                }
+
+ 7 thermal                      0   5 recv, notif: bit0(T+290)
+   |
+   +--->  0x240025b8 0x080627a0 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24003198 0x08060dd8 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24003198 0x08060dd8 idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:261
+   |      0x24003198 0x08060de6 main
+   |                 @ /hubris/task/thermal/src/main.rs:221
+   |
+   |
+   +--->   R0 = 0x24003000   R1 = 0x00000002   R2 = 0x00000001   R3 = 0x24003080
+   |       R4 = 0x24003000   R5 = 0x00000002   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x0000ffff  R10 = 0x0000ffff  R11 = 0x00000001
+   |      R12 = 0x00000002   SP = 0x24002598   LR = 0x08060de7   PC = 0x080627a0
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24003000,
+                        r5: 0x2,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0xffff,
+                        r10: 0xffff,
+                        r11: 0x1,
+                        psp: 0x24002530,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a2e03)),
+                        to_post: NotificationSet(0x1)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001410 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x800503c (&abi::TaskDesc)
+                }
+
+ 8 power                        0   6 notif: bit31(T+254)
+   |
+   +--->  0x240203c0 0x0806688c userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24020800 0x080643fa userlib::sys_get_timer
+   |                 @ /hubris/sys/userlib/src/lib.rs:1057
+   |      0x24020800 0x080643d4 userlib::hl::sleep_until
+   |                 @ /hubris/sys/userlib/src/hl.rs:600
+   |      0x24020800 0x080643a8 userlib::hl::sleep_for
+   |                 @ /hubris/sys/userlib/src/hl.rs:625
+   |      0x24020800 0x080643fa main
+   |                 @ /hubris/task/power/src/main.rs:305
+   |
+   |
+   +--->   R0 = 0x080671f8   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x240207d8
+   |       R4 = 0x080671f8   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x240207d0   R9 = 0x240203d2  R10 = 0x004a2ddf  R11 = 0x00000001
+   |      R12 = 0x00000007   SP = 0x240203a0   LR = 0x080643fb   PC = 0x0806688c
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x80671f8,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x240207d0,
+                        r9: 0x240203d2,
+                        r10: 0x4a2ddf,
+                        r11: 0x1,
+                        psp: 0x24020338,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a2ddf)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001430 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005050 (&abi::TaskDesc)
+                }
+
+ 9 hiffy                        0   5 notif: bit31(T+109)
+   |
+   +--->  0x24010200 0x0800c3d8 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24010240 0x0800c452 userlib::sys_get_timer
+   |                 @ /hubris/sys/userlib/src/lib.rs:1057
+   |      0x24010240 0x0800c42c userlib::hl::sleep_until
+   |                 @ /hubris/sys/userlib/src/hl.rs:600
+   |      0x24010240 0x0800c452 userlib::hl::sleep_for
+   |                 @ /hubris/sys/userlib/src/hl.rs:625
+   |      0x24010400 0x08009846 core::sync::atomic::atomic_sub
+   |                 @ /rustc/4d6d601c8a83284d6b23c253a3e2a060fd197316/library/core/src/sync/atomic.rs:3049
+   |      0x24010400 0x08009846 core::sync::atomic::AtomicU32::fetch_sub
+   |                 @ /rustc/4d6d601c8a83284d6b23c253a3e2a060fd197316/library/core/src/sync/atomic.rs:2397
+   |      0x24010400 0x08009846 main
+   |                 @ /hubris/task/hiffy/src/main.rs:122
+   |
+   |
+   +--->   R0 = 0x0800d5e0   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x24010208
+   |       R4 = 0x0800d5e0   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x0800d5e0   R9 = 0x8000ffff  R10 = 0x24016a1c  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x240101e0   LR = 0x0800c453   PC = 0x0800c3d8
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x800d5e0,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x800d5e0,
+                        r9: 0x8000ffff,
+                        r10: 0x24016a1c,
+                        r11: 0x1,
+                        psp: 0x24010178,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a2d4e)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001450 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005064 (&abi::TaskDesc)
+                }
+
+10 gimlet_seq                   0   4 recv, notif: bit0
+   |
+   +--->  0x240214d8 0x08013de0 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24021640 0x08010a88 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24021640 0x08010a88 idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:261
+   |      0x24021640 0x08010a98 main
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:64
+   |
+   |
+   +--->   R0 = 0x24021507   R1 = 0x00000001   R2 = 0x00000001   R3 = 0x24021520
+   |       R4 = 0x24021507   R5 = 0x00000001   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x24021520   R9 = 0x24021510  R10 = 0x00000001  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x240214b8   LR = 0x08010a99   PC = 0x08013de0
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24021507,
+                        r5: 0x1,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x24021520,
+                        r9: 0x24021510,
+                        r10: 0x1,
+                        r11: 0x1,
+                        psp: 0x24021450,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x4),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001470 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005078 (&abi::TaskDesc)
+                }
+
+11 hash_driver                  0   2 recv
+   |
+   +--->  0x24022530 0x0806999c userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24022800 0x08068250 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24022800 0x08068250 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24022800 0x08068260 main
+   |                 @ /hubris/drv/stm32h7-hash-server/src/main.rs:40
+   |
+   |
+   +--->   R0 = 0x24022550   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x240227d4
+   |       R4 = 0x24022550   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x0000fe02   R9 = 0x240227d4  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x240227ac   SP = 0x24022510   LR = 0x08068261   PC = 0x0806999c
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24022550,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0xfe02,
+                        r9: 0x240227d4,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x240224a8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001490 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x800508c (&abi::TaskDesc)
+                }
+
+12 hf                           0   3 recv
+   |
+   +--->  0x240285c8 0x0806e0ae userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24028780 0x0806c378 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24028780 0x0806c378 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24028780 0x0806c386 main
+   |                 @ /hubris/drv/gimlet-hf-server/src/main.rs:70
+   |
+   |
+   +--->   R0 = 0x24028610   R1 = 0x00000008   R2 = 0x00000000   R3 = 0x24028730
+   |       R4 = 0x24028610   R5 = 0x00000008   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000001   R9 = 0x00000000  R10 = 0x00000012  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x240285a8   LR = 0x0806c387   PC = 0x0806e0ae
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24028610,
+                        r5: 0x8,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x1,
+                        r9: 0x0,
+                        r10: 0x12,
+                        r11: 0x1,
+                        psp: 0x24028540,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240014b0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050a0 (&abi::TaskDesc)
+                }
+
+13 update_server                0   3 recv
+   |
+   +--->  0x240233b8 0x08071618 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24023800 0x0807019c userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24023800 0x0807019c idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24023800 0x080701aa main
+   |                 @ /hubris/drv/stm32h7-update-server/src/main.rs:384
+   |
+   |
+   +--->   R0 = 0x240233dc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x240233e0
+   |       R4 = 0x240233dc   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x08071d50   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x24023398   LR = 0x080701ab   PC = 0x08071618
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x240233dc,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x8071d50,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x24023330,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240014d0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050b4 (&abi::TaskDesc)
+                }
+
+14 sensor                       0   4 recv, notif: bit0(T+847)
+   |
+   +--->  0x24028a88 0x0807f0ec userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24028f80 0x0807e0ac userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24028f80 0x0807e0ac idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:261
+   |      0x24028f80 0x0807e0ba main
+   |                 @ /hubris/task/sensor/src/main.rs:95
+   |
+   |
+   +--->   R0 = 0x24028f68   R1 = 0x00000008   R2 = 0x00000001   R3 = 0x24028d00
+   |       R4 = 0x24028f68   R5 = 0x00000008   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x24028a90   R9 = 0x24028f74  R10 = 0x0807f5dc  R11 = 0x00000001
+   |      R12 = 0x00000264   SP = 0x24028a68   LR = 0x0807e0bb   PC = 0x0807f0ec
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24028f68,
+                        r5: 0x8,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x24028a90,
+                        r9: 0x24028f74,
+                        r10: 0x807f5dc,
+                        r11: 0x1,
+                        psp: 0x24028a00,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x4),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a3030)),
+                        to_post: NotificationSet(0x1)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240014f0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050c8 (&abi::TaskDesc)
+                }
+
+15 udpecho                      0   6 notif: bit0
+   |
+   +--->  0x2401ce00 0x080817bc userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x2401d000 0x0808015a userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x2401d000 0x0808015a userlib::sys_recv_closed
+   |                 @ /hubris/sys/userlib/src/lib.rs:263
+   |      0x2401d000 0x0808016c main
+   |                 @ /hubris/task/udpecho/src/main.rs:14
+   |
+   |
+   +--->   R0 = 0x08081e28   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x2401cf9c
+   |       R4 = 0x08081e28   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x8000ffff
+   |       R8 = 0x2401cf9c   R9 = 0x00000000  R10 = 0x2401cfa5  R11 = 0x00000001
+   |      R12 = 0x2401cfb8   SP = 0x2401cde0   LR = 0x0808016d   PC = 0x080817bc
+   |      PSR = 0x21000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x8081e28,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x8000ffff,
+                        r8: 0x2401cf9c,
+                        r9: 0x0,
+                        r10: 0x2401cfa5,
+                        r11: 0x1,
+                        psp: 0x2401cd78,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001510 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050dc (&abi::TaskDesc)
+                }
+
+16 udpbroadcast                 0   6 notif: bit31(T+290)
+   |
+   +--->  0x24024768 0x08083672 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24024800 0x0808216c userlib::sys_get_timer
+   |                 @ /hubris/sys/userlib/src/lib.rs:1057
+   |      0x24024800 0x08082146 userlib::hl::sleep_until
+   |                 @ /hubris/sys/userlib/src/hl.rs:600
+   |      0x24024800 0x0808216c main
+   |                 @ /hubris/task/udpbroadcast/src/main.rs:15
+   |
+   |
+   +--->   R0 = 0x08083cc8   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x240247ac
+   |       R4 = 0x08083cc8   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x00000000   R9 = 0x24024791  R10 = 0x00000301  R11 = 0x00000001
+   |      R12 = 0x240247cc   SP = 0x24024748   LR = 0x0808216d   PC = 0x08083672
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x8083cc8,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x0,
+                        r9: 0x24024791,
+                        r10: 0x301,
+                        r11: 0x1,
+                        psp: 0x240246e0,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x4a2e03)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001530 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050f0 (&abi::TaskDesc)
+                }
+
+17 udprpc                       0   6 notif: bit0
+   |
+   +--->  0x2401e630 0x08075e36 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x2401f000 0x08074538 task_net_api::Net::recv_packet
+   |                 @ /hubris/target/thumbv7em-none-eabihf/release/build/task-net-api-1c282d4194cd92fd/out/client_stub.rs:34
+   |      0x2401f000 0x08074538 main
+   |                 @ /hubris/task/udprpc/src/main.rs:46
+   |
+   |
+   +--->   R0 = 0x080765f8   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x2401efbc
+   |       R4 = 0x080765f8   R5 = 0x00000000   R6 = 0x00000001   R7 = 0x8000ffff
+   |       R8 = 0x00000001   R9 = 0x2401efa5  R10 = 0x2401e688  R11 = 0x00000001
+   |      R12 = 0x2401efb8   SP = 0x2401e610   LR = 0x08074539   PC = 0x08075e36
+   |      PSR = 0x01000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x80765f8,
+                        r5: 0x0,
+                        r6: 0x1,
+                        r7: 0x8000ffff,
+                        r8: 0x1,
+                        r9: 0x2401efa5,
+                        r10: 0x2401e688,
+                        r11: 0x1,
+                        psp: 0x2401e5a8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001550 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005104 (&abi::TaskDesc)
+                }
+
+18 mgmt_gateway                 0   6 notif: bit0 bit1(irq37) bit2
+   |
+   +--->  0x240186e0 0x08046358 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24018800 0x080413b8 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24018800 0x080413b8 userlib::sys_recv_closed
+   |                 @ /hubris/sys/userlib/src/lib.rs:263
+   |      0x24018800 0x080413ca main
+   |                 @ /hubris/task/mgmt-gateway/src/main.rs:109
+   |
+   |
+   +--->   R0 = 0x08047cec   R1 = 0x00000000   R2 = 0x00000007   R3 = 0x240187c0
+   |       R4 = 0x08047cec   R5 = 0x00000000   R6 = 0x00000007   R7 = 0x8000ffff
+   |       R8 = 0x00000000   R9 = 0x00000008  R10 = 0x000001f8  R11 = 0x00000001
+   |      R12 = 0x240184a4   SP = 0x240186c0   LR = 0x080413cb   PC = 0x08046358
+   |      PSR = 0x21000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x8047cec,
+                        r5: 0x0,
+                        r6: 0x7,
+                        r7: 0x8000ffff,
+                        r8: 0x0,
+                        r9: 0x8,
+                        r10: 0x1f8,
+                        r11: 0x1,
+                        psp: 0x24018658,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x6),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x4)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001570 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005118 (&abi::TaskDesc)
+                }
+
+19 validate                     0   5 recv
+   |
+   +--->  0x240253b0 0x08079c80 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x240253e8 0x08078260 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x240253e8 0x08078260 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x240253e8 0x08078270 main
+   |                 @ /hubris/task/validate/src/main.rs:56
+   |
+   |
+   +--->   R0 = 0x240253b4   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x240253b8
+   |       R4 = 0x240253b4   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x08079f60   R9 = 0x240253e8  R10 = 0x00000000  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x24025390   LR = 0x08078271   PC = 0x08079c80
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x240253b4,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x8079f60,
+                        r9: 0x240253e8,
+                        r10: 0x0,
+                        r11: 0x1,
+                        psp: 0x24025328,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x24001590 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x800512c (&abi::TaskDesc)
+                }
+
+20 vpd                          0   4 recv
+   |
+   +--->  0x24029608 0x08085690 userlib::sys_recv_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:334
+   |      0x24029720 0x0808407c userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:282
+   |      0x24029720 0x0808407c idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/7350b8a/runtime/src/lib.rs:188
+   |      0x24029720 0x0808408a main
+   |                 @ /hubris/task/vpd/src/main.rs:119
+   |
+   |
+   +--->   R0 = 0x24029640   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x24029650
+   |       R4 = 0x24029640   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x240296e0   R9 = 0x00000000  R10 = 0x08085c38  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x240295e8   LR = 0x0808408b   PC = 0x08085690
+   |      PSR = 0x41000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x24029640,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x240296e0,
+                        r9: 0x0,
+                        r10: 0x8085c38,
+                        r11: 0x1,
+                        psp: 0x24029580,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x4),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240015b0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005140 (&abi::TaskDesc)
+                }
+
+21 idle                         0   7 RUNNING
+   |
+   +--->  0x24029900 0x08086852 main
+   |                 @ /hubris/task/idle/src/main.rs:13
+   |
+   |
+   +--->   R0 = 0x24029900   R1 = 0x24029900   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x24029900   LR = 0x0808684f   PC = 0x08086852
+   |      PSR = 0x61000000
+   |
+   +-----------> Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x24029898,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x7),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: 0x0,
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x240015d0 (<UNNAMED>),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005154 (&abi::TaskDesc)
+                }
+
