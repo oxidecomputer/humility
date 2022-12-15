@@ -64,10 +64,6 @@ struct HiffyArgs {
     )]
     timeout: u32,
 
-    /// verbose
-    #[clap(long, short)]
-    verbose: bool,
-
     /// list HIF functions
     #[clap(long = "list-functions", short = 'L')]
     listfuncs: bool,
@@ -101,8 +97,12 @@ struct HiffyArgs {
     task: Option<String>,
 
     /// arguments
-    #[clap(long, short, requires = "call", use_value_delimiter = true)]
+    #[clap(long, short, use_value_delimiter = true, requires = "call")]
     arguments: Vec<String>,
+
+    /// filter for list output
+    #[clap(use_value_delimiter = true, requires = "list")]
+    filter: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -111,49 +111,43 @@ pub enum HiffyLease<'a> {
     Write(&'a [u8]),
 }
 
-pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
-    println!(
-        "{:<15} {:<12} {:<19} {:<15} {:<15}",
-        "TASK", "INTERFACE", "OPERATION", "ARG", "ARGTYPE"
-    );
-
+pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
     let print_args = |op: &(&String, &Operation), module, margin| {
         let mut args = op.1.args.iter();
-        let m = margin;
 
         match args.next() {
-            None => {
-                println!("-");
-            }
+            None => {}
             Some(arg) => {
-                println!("{:<15} {}", arg.0, arg.1.ty.0);
+                println!("{}{:<27} {}", margin, arg.0, arg.1.ty.0);
 
                 for arg in args {
-                    println!("{:m$}{:<15} {}", "", arg.0, arg.1.ty.0, m = m);
+                    println!("{}{:<27} {}", margin, arg.0, arg.1.ty.0);
                 }
             }
-        }
-
-        if !verbose {
-            return;
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, Some(e))) => match &op.1.reply {
-                Reply::Result { ok, .. } => {
-                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
-                    println!("{:m$}{:<15} {}", "", "<error>", e.name, m = m);
+            Ok((_, Some(e))) => {
+                match &op.1.reply {
+                    Reply::Result { ok, .. } => {
+                        println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                        println!("{}{:<27} {}", margin, "<error>", e.name);
+                    }
+                    _ => {
+                        warn!("mismatch on reply: expected Reply::Result, found {:?}",
+                    op);
+                    }
                 }
-                _ => {
-                    warn!("Mismatch between expected reply and operation");
-                }
-            },
+            }
             Ok((_, None)) => match &op.1.reply {
-                Reply::Simple(ok) => {
-                    println!("{:m$}{:<15} {}", "", "<ok>", ok.ty.0, m = m);
+                Reply::Result { ok, .. } => {
+                    //
+                    // This is possible if the only error is ServerDeath
+                    //
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
                 }
-                _ => {
-                    warn!("Mismatch between expected reply and operation");
+                Reply::Simple(ok) => {
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
                 }
             },
             Err(e) => {
@@ -166,23 +160,27 @@ pub fn hiffy_list(hubris: &HubrisArchive, verbose: bool) -> Result<()> {
         let module = hubris.lookup_module(HubrisTask::Task(i as u32))?;
 
         if let Some(iface) = &module.iface {
-            let mut ops = iface.ops.iter();
+            if !filter.is_empty()
+                && !filter.iter().any(|f| iface.name == *f || module.name == *f)
+            {
+                continue;
+            }
 
-            print!("{:15} {:<12} ", module.name, iface.name);
+            let mut ops = iface.ops.iter().peekable();
 
-            match ops.next() {
-                None => {
-                    println!("-");
-                }
-                Some(op) => {
-                    print!("{:<20}", op.0);
-                    print_args(&op, module, 49);
+            println!("{:<28} TASK", "INTERFACE");
+            println!("{:<28} {}", iface.name, module.name);
+            println!("  |");
 
-                    for op in ops {
-                        print!("{:29}{:<20}", "", op.0);
-                        print_args(&op, module, 49);
-                    }
-                }
+            while let Some(op) = ops.next() {
+                println!("  +--> {}.{}", iface.name, op.0);
+
+                let last = ops.peek().is_none();
+                let c = if last { "" } else { "|" };
+                let margin = format!("  {:<8}", c);
+
+                print_args(&op, module, margin);
+                println!("  {}", c);
             }
         }
     }
@@ -401,13 +399,19 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = HiffyArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        hiffy_list(hubris, subargs.verbose)?;
+        hiffy_list(hubris, subargs.filter)?;
         return Ok(());
+    } else if !subargs.filter.is_empty() {
+        bail!("filters can only be provided with --list");
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     if let Some(call) = subargs.call {
+        if core.is_dump() {
+            bail!("can't make HIF calls on a dump");
+        }
+
         let func: Vec<&str> = call.split('.').collect();
 
         if func.len() != 2 {
@@ -538,7 +542,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
         Command::Attached {
             name: "hiffy",
             archive: Archive::Required,
-            attach: Attach::LiveOnly,
+            attach: Attach::Any,
             validate: Validate::Booted,
             run: hiffy,
         },

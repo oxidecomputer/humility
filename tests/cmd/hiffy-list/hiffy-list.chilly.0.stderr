@@ -1,0 +1,2 @@
+humility: attached to dump
+humility: WARNING: no type for HostFlash.hash: Result { ok: AttributedTy { ty: Ty("[u8; crate::SHA256_SZ]"), recv: FromBytes }, err: CLike(Ty("HfError")) } (as basetype: "expected [u8; crate::SHA256_SZ] to be a basetype"; as enum: "expected enum not found"; as struct: "expected structure not found"; as REPLY: "expected structure HostFlash_hash_REPLY not found")

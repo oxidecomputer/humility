@@ -1,0 +1,20 @@
+INTERFACE                    TASK
+Jefe                         jefe
+  |
+  +--> Jefe.get_state
+  |       <ok>                        u32
+  |
+  +--> Jefe.set_state
+  |       state                       u32
+  |       <ok>                        ()
+  |
+  +--> Jefe.request_reset
+  |       <ok>                        ()
+  |
+  +--> Jefe.get_reset_reason
+  |       <ok>                        ResetReason
+  |
+  +--> Jefe.set_reset_reason
+          reason                      ResetReason
+          <ok>                        ()
+  

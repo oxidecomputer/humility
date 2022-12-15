@@ -1,0 +1,18 @@
+INTERFACE                    TASK
+UserLeds                     user_leds
+  |
+  +--> UserLeds.led_on
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_off
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_toggle
+          index                       usize
+          <ok>                        ()
+          <error>                     LedError
+  
