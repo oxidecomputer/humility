@@ -3037,33 +3037,31 @@ impl HubrisArchive {
     ///
     /// Takes a list of potentially similar types and deduplicates the list.
     ///
-    fn dedup(&self, goffs: Vec<HubrisGoff>) -> Result<Vec<HubrisGoff>> {
+    fn dedup<'a, I: Iterator<Item = &'a HubrisGoff>>(
+        &self,
+        goffs: I,
+    ) -> Result<Vec<HubrisGoff>> {
         let mut cmp = Vec::new();
         let mut out = Vec::new();
 
-        if goffs.len() <= 1 {
-            Ok(goffs)
-        } else {
-            for goff in goffs {
-                cmp.push((goff, self.lookup_type(goff)?));
-            }
-
-            for i in 0..cmp.len() {
-                let mut dup = false;
-
-                for j in i + 1..cmp.len() {
-                    if !cmp[i].1.differs(self, &cmp[j].1)? {
-                        dup = true;
-                        break;
-                    }
-                }
-
-                if !dup {
-                    out.push(cmp[i].0);
-                }
-            }
-            Ok(out)
+        for &goff in goffs {
+            cmp.push((goff, self.lookup_type(goff)?));
         }
+
+        for (i, lhs) in cmp.iter().enumerate() {
+            let mut dup = false;
+            for rhs in &cmp[i + 1..] {
+                if !lhs.1.differs(self, &rhs.1)? {
+                    dup = true;
+                    break;
+                }
+            }
+            if !dup {
+                out.push(lhs.0);
+            }
+        }
+
+        Ok(out)
     }
 
     ///
@@ -3075,7 +3073,7 @@ impl HubrisArchive {
     pub fn lookup_struct_byname(&self, name: &str) -> Result<&HubrisStruct> {
         match self.structs_byname.get_vec(name) {
             Some(v) => {
-                let m = self.dedup(v.to_vec())?;
+                let m = self.dedup(v.iter())?;
 
                 if m.len() > 1 {
                     Err(anyhow!("{} matches more than one structure", name))
@@ -5603,12 +5601,8 @@ impl HubrisModule {
     ) -> Result<&'a HubrisStruct> {
         match hubris.structs_byname.get_vec(name) {
             Some(v) => {
-                let m = hubris.dedup(
-                    v.iter()
-                        .filter(|g| g.object == self.object)
-                        .copied()
-                        .collect::<Vec<HubrisGoff>>(),
-                )?;
+                let m = hubris
+                    .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
                     Err(anyhow!("{} matches more than one structure", name))
@@ -5632,12 +5626,8 @@ impl HubrisModule {
     ) -> Result<&'a HubrisEnum> {
         match hubris.enums_byname.get_vec(name) {
             Some(v) => {
-                let m = hubris.dedup(
-                    v.iter()
-                        .filter(|g| g.object == self.object)
-                        .copied()
-                        .collect::<Vec<HubrisGoff>>(),
-                )?;
+                let m = hubris
+                    .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
                     Err(anyhow!("{} matches more than one enum", name))
