@@ -5111,6 +5111,10 @@ impl HubrisStruct {
         true
     }
 
+    ///
+    /// Determine if we conclusively differ from another type, performing a
+    /// deep comparison.
+    ///
     pub fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
         if self.size != rhs.size || self.members.len() != rhs.members.len() {
             Ok(true)
