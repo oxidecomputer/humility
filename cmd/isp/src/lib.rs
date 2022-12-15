@@ -79,6 +79,8 @@ enum IspCmd {
     WriteKeyStore,
     /// Erase existing keystore
     EraseKeyStore,
+    /// Read the keystore region
+    ReadKeyStore,
     /// Get Bootloader property
     GetProperty { prop: BootloaderProperty },
     /// Get information about why the chip put itself in ISP mode
@@ -461,6 +463,14 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             crate::cmd::do_isp_write_keystore(&mut *port, bytes)?;
             crate::cmd::do_save_keystore(&mut *port)?;
             println!("done.")
+        }
+        IspCmd::ReadKeyStore => {
+            let m =
+                crate::cmd::do_isp_read_memory(&mut *port, 0x9e600, 512 * 3)?;
+
+            let mut dumper = Dumper::new();
+            dumper.size = if subargs.word { 4 } else { 1 };
+            dumper.dump(&m, 0x9e600);
         }
         IspCmd::SetupKeyStore => {
             // Step 1: Enroll
