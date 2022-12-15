@@ -421,13 +421,22 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
         bail!("filters can only be provided with --list");
     }
 
+    //
+    // Before we create our HiffyContext, check to see if this is a call and
+    // we're on a dump; running call on a dump always fails (obviously?), but
+    // in the event that we have a HIF mismatch (or any other failure to
+    // create the HiffyContext) *and* we're running call on a dump, we would
+    // rather fail with the dump message rather than with the HiffyContext
+    // creation failure.  (Note that -L will still create the HiffyContext,
+    // even if run on a dump.)
+    //
+    if subargs.call.is_some() && core.is_dump() {
+        bail!("can't make HIF calls on a dump");
+    }
+
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     if let Some(call) = subargs.call {
-        if core.is_dump() {
-            bail!("can't make HIF calls on a dump");
-        }
-
         let func: Vec<&str> = call.split('.').collect();
 
         if func.len() != 2 {
