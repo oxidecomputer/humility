@@ -90,6 +90,28 @@ pub fn do_generate_uds(port: &mut dyn serialport::SerialPort) -> Result<()> {
     Ok(())
 }
 
+pub fn do_generate_userkek(
+    port: &mut dyn serialport::SerialPort,
+) -> Result<()> {
+    let args = vec![
+        // Arg 0 = command
+        KeyProvisionCmds::SetIntrinsicKey as u32,
+        // Arg 1 = key type
+        KeyType::UserKEK as u32,
+        // Arg 2 = size
+        32_u32,
+    ];
+
+    let _ = do_command(
+        port,
+        CommandTag::KeyProvision,
+        ResponseCode::Generic,
+        args,
+    )?;
+
+    Ok(())
+}
+
 pub fn do_isp_write_keystore(
     port: &mut dyn serialport::SerialPort,
     data: Vec<u8>,

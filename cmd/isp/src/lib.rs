@@ -75,6 +75,8 @@ enum IspCmd {
     Enroll,
     /// Generate a new device secret for use in DICE
     GenerateUDS,
+    /// Generate a new user KEK for PUF
+    GenerateUserKEK,
     /// Write keystore to flash
     WriteKeyStore,
     /// Erase existing keystore
@@ -447,6 +449,13 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             println!("Generating new UDS");
 
             crate::cmd::do_generate_uds(&mut *port)?;
+            println!("done.");
+            println!("If you want to save this, remember to write to non-volatile memory");
+        }
+        IspCmd::GenerateUserKEK => {
+            println!("Generating new UserKEK");
+
+            crate::cmd::do_generate_userkek(&mut *port)?;
             println!("done.");
             println!("If you want to save this, remember to write to non-volatile memory");
         }

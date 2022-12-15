@@ -40,7 +40,7 @@ pub enum KeyType {
     // Prince = 7 - 9
     // USER is available to use for whatever
     // Wish there were more than one user :(
-    // USERKEK = 0xB,
+    UserKEK = 0xB,
     // UDS used in DICE
     Uds = 0xC,
 }
