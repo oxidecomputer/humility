@@ -4695,7 +4695,7 @@ impl HubrisArchive {
         Ok(())
     }
 
-    pub fn extract_file_to(&self, filename: &str, target: &Path) -> Result<()> {
+    pub fn extract_file_bytes(&self, filename: &str) -> Result<Vec<u8>> {
         let cursor = Cursor::new(self.archive.as_slice());
         let mut archive = zip::ZipArchive::new(cursor)?;
         let mut file = archive
@@ -4704,6 +4704,11 @@ impl HubrisArchive {
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
 
+        Ok(buffer)
+    }
+
+    pub fn extract_file_to(&self, filename: &str, target: &Path) -> Result<()> {
+        let buffer = self.extract_file_bytes(filename)?;
         std::fs::write(target, &buffer).map_err(Into::into)
     }
 

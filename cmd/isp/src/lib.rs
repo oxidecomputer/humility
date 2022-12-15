@@ -14,7 +14,7 @@
 //! 0x00000010 | a1 01 00 00 a3 01 00 00 a5 01 00 00 a7 01 00 00 | ................
 //!
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use byteorder::ByteOrder;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
@@ -83,6 +83,8 @@ enum IspCmd {
     GetProperty { prop: BootloaderProperty },
     /// Get information about why the chip put itself in ISP mode
     LastError,
+    /// Run initial setup commands
+    Bootstrap,
 }
 
 #[derive(Parser, Debug)]
@@ -482,6 +484,39 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         IspCmd::LastError => {
             let result = crate::cmd::do_isp_last_error(&mut *port)?;
             pretty_print_error(result);
+        }
+        IspCmd::Bootstrap => {
+            match context.archive.as_ref() {
+                Some(a) => {
+                    let cfpa = a
+                        .extract_file_bytes("img/CFPA.bin")
+                        .context("Missing CFPA file in archive")?;
+                    crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, cfpa)?;
+                    let cmpa = a
+                        .extract_file_bytes("img/CMPA.bin")
+                        .context("Missing CMPA file in archive")?;
+                    crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, cmpa)?;
+                    humility::msg!("Wrote CFPA and CMPA");
+                    let stage0 = a
+                        .extract_file_bytes("img/final.bin")
+                        .context("Missing hubris file in archive")?;
+                    crate::cmd::do_isp_write_memory(&mut *port, 0x0, stage0)?;
+                    humility::msg!("Wrote stage0");
+                }
+                None => humility::msg!("No hubris archive given!"),
+            }
+
+            // Step 1: Enroll
+            println!("Generating new activation code");
+            crate::cmd::do_enroll(&mut *port)?;
+
+            // Step 2: Generate UDS
+            println!("Generating new UDS");
+            crate::cmd::do_generate_uds(&mut *port)?;
+
+            println!("Writing keystore");
+            // Step 3: Write the keystore to persistent storage
+            crate::cmd::do_save_keystore(&mut *port)?;
         }
     };
 
