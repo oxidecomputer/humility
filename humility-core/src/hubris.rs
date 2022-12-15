@@ -3045,19 +3045,19 @@ impl HubrisArchive {
         let mut out = Vec::new();
 
         for &goff in goffs {
-            cmp.push((goff, self.lookup_type(goff)?));
+            cmp.push(goff);
         }
 
         for (i, lhs) in cmp.iter().enumerate() {
             let mut dup = false;
             for rhs in &cmp[i + 1..] {
-                if !lhs.1.differs(self, &rhs.1)? {
+                if !self.differ(*lhs, *rhs)? {
                     dup = true;
                     break;
                 }
             }
             if !dup {
-                out.push(lhs.0);
+                out.push(*lhs);
             }
         }
 
@@ -4961,6 +4961,32 @@ impl HubrisArchive {
     pub fn read_cmpa(&self) -> Result<Option<Vec<u8>>> {
         self.read_file("img/CMPA.bin")
     }
+
+    /// Determine if two types conclusively differ from one another, performing
+    /// a deep comparison.
+    pub fn differ(&self, lhs: HubrisGoff, rhs: HubrisGoff) -> Result<bool> {
+        let lhs = self.lookup_type(lhs)?;
+        let rhs = self.lookup_type(rhs)?;
+        match (lhs, rhs) {
+            (HubrisType::Base(lt), HubrisType::Base(rt)) => {
+                Ok(lt.encoding != rt.encoding || lt.size != rt.size)
+            }
+            (HubrisType::Struct(lt), HubrisType::Struct(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Enum(lt), HubrisType::Enum(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Array(lt), HubrisType::Array(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Union(lt), HubrisType::Union(rt)) => {
+                lt.differs(self, rt)
+            }
+            (HubrisType::Ptr(l), HubrisType::Ptr(r)) => self.differ(l, r),
+            _ => Ok(true),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -5109,10 +5135,6 @@ impl HubrisStruct {
         true
     }
 
-    ///
-    /// Determine if we conclusively differ from another type, performing a
-    /// deep comparison.
-    ///
     pub fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
         if self.size != rhs.size || self.members.len() != rhs.members.len() {
             Ok(true)
@@ -5122,10 +5144,7 @@ impl HubrisStruct {
                     return Ok(true);
                 }
 
-                let l = hubris.lookup_type(lm.goff)?;
-                let r = hubris.lookup_type(rm.goff)?;
-
-                if l.differs(hubris, &r)? {
+                if hubris.differ(lm.goff, rm.goff)? {
                     return Ok(true);
                 }
             }
@@ -5152,10 +5171,7 @@ impl HubrisArray {
         if self.count != rhs.count {
             Ok(true)
         } else {
-            let l = hubris.lookup_type(self.goff)?;
-            let r = hubris.lookup_type(rhs.goff)?;
-
-            l.differs(hubris, &r)
+            hubris.differ(self.goff, rhs.goff)
         }
     }
 }
@@ -5321,10 +5337,7 @@ impl HubrisEnum {
 
                 match (lm.goff, rm.goff) {
                     (Some(lg), Some(rg)) => {
-                        let l = hubris.lookup_type(lg)?;
-                        let r = hubris.lookup_type(rg)?;
-
-                        if l.differs(hubris, &r)? {
+                        if hubris.differ(lg, rg)? {
                             return Ok(true);
                         }
                     }
@@ -5385,10 +5398,7 @@ impl HubrisUnion {
 
                 match (lm.goff, rm.goff) {
                     (Some(lg), Some(rg)) => {
-                        let l = hubris.lookup_type(lg)?;
-                        let r = hubris.lookup_type(rg)?;
-
-                        if l.differs(hubris, &r)? {
+                        if hubris.differ(lg, rg)? {
                             return Ok(true);
                         }
                     }
@@ -5471,24 +5481,6 @@ impl<'a> HubrisType<'a> {
                 let elt_size = hubris.lookup_type(t.goff)?.size(hubris)?;
                 Ok(elt_size * t.count)
             }
-        }
-    }
-
-    pub fn differs(&self, hubris: &HubrisArchive, rhs: &Self) -> Result<bool> {
-        match (self, rhs) {
-            (Self::Base(lt), Self::Base(rt)) => {
-                Ok(lt.encoding != rt.encoding || lt.size != rt.size)
-            }
-            (Self::Struct(lt), Self::Struct(rt)) => lt.differs(hubris, rt),
-            (Self::Enum(lt), Self::Enum(rt)) => lt.differs(hubris, rt),
-            (Self::Array(lt), Self::Array(rt)) => lt.differs(hubris, rt),
-            (Self::Union(lt), Self::Union(rt)) => lt.differs(hubris, rt),
-            (Self::Ptr(l), Self::Ptr(r)) => {
-                let lt = hubris.lookup_type(*l)?;
-                let rt = hubris.lookup_type(*r)?;
-                lt.differs(hubris, &rt)
-            }
-            _ => Ok(true),
         }
     }
 }
