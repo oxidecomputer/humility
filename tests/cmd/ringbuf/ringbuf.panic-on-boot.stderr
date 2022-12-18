@@ -1,0 +1,20 @@
+humility: attached to dump
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_gimlet_seq_server::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_i2c_devices::adm1272::Trace, 32>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32h7_spi_server::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32h7_spi_server::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32h7_sprot_server::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c::Trace, 48>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c::Trace, 48>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c_server::Trace, 8>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<ksz8463::Trace, 16>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<stm32h7_update_server::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_control_plane_agent::Log, 16>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_hiffy::stm32h7::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_host_sp_comms::Trace, 16>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_jefe::external::Trace, 4>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_net::mgmt::Trace, 16>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_spd::Trace, 16>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_thermal::Trace, 32>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<task_validate::Trace, 64>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<vsc85xx::Trace, 16>> at address 0x0
