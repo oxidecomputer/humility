@@ -3391,6 +3391,9 @@ impl HubrisArchive {
         let (_, n) = self.task_table(core)?;
 
         if n == ntasks as u32 {
+            //
+            // Check the CURRENT_TASK_PTR; it's non-zero iff we have booted
+            //
             let ptr = core
                 .read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)
                 .context("failed to read CURRENT_TASK_PTR")?;
@@ -3400,18 +3403,17 @@ impl HubrisArchive {
             }
         }
 
+        //
+        // We're not booted -- let's see if we've panicked.
+        //
         if let Some(epitaph) = self.epitaph(core)? {
             bail!("kernel has panicked on boot: {}", epitaph);
         }
 
         //
-        // We're not booted -- let's see if we've panicked.
-        //
-
-        //
-        // We appear to not have booted, so we're going to fail -- but let's
-        // see if it's the common case of being actually in Reset itself to
-        // give a more certain message.
+        // Let's see if we're actually in Reset itself -- or if we aren't in a
+        // known module at all (in which case we might actually be executing in
+        // the ROM).
         //
         if let Some(sym) = self.esyms_byname.get("Reset") {
             core.halt()?;
@@ -3440,8 +3442,7 @@ impl HubrisArchive {
 
         bail!(
             "target does not appear to be booted and may be panicking on \
-            boot; to debug, reset while running either \"humility itm\" or \
-            (if ITM is unavailable), debug via semihosting"
+            boot; run \"humility registers -s\" for a kernel stack trace"
         );
     }
 
