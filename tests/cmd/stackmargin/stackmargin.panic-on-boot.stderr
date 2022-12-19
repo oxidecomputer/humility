@@ -1,0 +1,2 @@
+humility: attached to dump
+humility stackmargin failed: kernel has panicked on boot: "panicked at 'assertion failed: `(left == right)`/n  left: `1`,/n right: `2`', app/gimlet/src/main.rs:118:5"

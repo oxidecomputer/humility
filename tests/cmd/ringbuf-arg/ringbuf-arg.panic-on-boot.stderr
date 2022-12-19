@@ -1,0 +1,5 @@
+humility: attached to dump
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_i2c_devices::adm1272::Trace, 32>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c::Trace, 48>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c::Trace, 48>> at address 0x0
+humility: ringbuf dump failed: loading value of type struct UnsafeCell<ringbuf::Ringbuf<drv_stm32xx_i2c_server::Trace, 8>> at address 0x0
