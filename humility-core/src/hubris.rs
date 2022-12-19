@@ -84,7 +84,7 @@ pub struct HubrisConfigPatches {
 
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigKernel {
-    features: Vec<String>,
+    features: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2538,7 +2538,10 @@ impl HubrisArchive {
         self.manifest.board = Some(config.board.clone());
         self.manifest.name = Some(config.name.clone());
         self.manifest.target = Some(config.target.clone());
-        self.manifest.features = config.kernel.features.clone();
+        self.manifest.features = match config.kernel.features {
+            Some(ref features) => features.clone(),
+            None => vec![],
+        };
         self.manifest.auxflash =
             config.config.as_ref().and_then(|c| c.auxflash.clone());
 
@@ -3259,6 +3262,53 @@ impl HubrisArchive {
         }
     }
 
+    //
+    // If the kernel has died and has left an epitaph, this will return it
+    // as a string.  If the kernel is not dead -- or if this kernel pre-dates
+    // the epitaph -- this will return Ok(None).
+    //
+    pub fn epitaph(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Option<String>> {
+        match (
+            self.lookup_variable("KERNEL_HAS_FAILED"),
+            self.lookup_variable("KERNEL_EPITAPH"),
+        ) {
+            (Ok(failed), Ok(epitaph)) => {
+                if failed.size != 1 {
+                    bail!("KERNEL_HAS_FAILED exists, but is of the wrong size?");
+                }
+
+                let mut buf: Vec<u8> = vec![];
+                buf.resize_with(failed.size, Default::default);
+                core.read_8(failed.addr, buf.as_mut_slice())?;
+
+                match buf[0] {
+                    0 => Ok(None),
+
+                    1 => {
+                        buf.resize_with(epitaph.size, Default::default);
+                        core.read_8(epitaph.addr, buf.as_mut_slice())?;
+
+                        let fmt = HubrisPrintFormat {
+                            newline: false,
+                            interpret_as_c_string: true,
+                            ..HubrisPrintFormat::default()
+                        };
+
+                        Ok(Some(self.printfmt(&buf, epitaph.goff, fmt)?))
+                    }
+
+                    _ => {
+                        bail!("illegal KERNEL_HAS_FAILED value {}", buf[0]);
+                    }
+                }
+            }
+            (_, _) => Ok(None),
+        }
+    }
+
     pub fn validate(
         &self,
         core: &mut dyn crate::core::Core,
@@ -3341,26 +3391,58 @@ impl HubrisArchive {
         let (_, n) = self.task_table(core)?;
 
         if n == ntasks as u32 {
-            return Ok(());
+            //
+            // Check the CURRENT_TASK_PTR; it's non-zero iff we have booted
+            //
+            let ptr = core
+                .read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)
+                .context("failed to read CURRENT_TASK_PTR")?;
+
+            if ptr != 0 {
+                return Ok(());
+            }
         }
 
         //
-        // We appear to not have booted, so we're going to fail -- but let's
-        // see if it's the common case of being actually in Reset itself to
-        // give a more certain message.
+        // We're not booted -- let's see if we've panicked.
+        //
+        if let Some(epitaph) = self.epitaph(core)? {
+            bail!("kernel has panicked on boot: {}", epitaph);
+        }
+
+        //
+        // Let's see if we're actually in Reset itself -- or if we aren't in a
+        // known module at all (in which case we might actually be executing in
+        // the ROM).
         //
         if let Some(sym) = self.esyms_byname.get("Reset") {
+            core.halt()?;
+
             if let Ok(pc) = core.read_reg(ARMRegister::PC) {
+                core.run()?;
+
                 if pc >= sym.0 && pc < sym.0 + sym.1 {
                     bail!("target is not yet booted (currently in Reset)");
                 }
+
+                //
+                // Check against the PC not being in any known module
+                //
+                if self.instr_mod(pc).is_none() {
+                    bail!(
+                        "target does not appear booted and PC 0x{:x} is \
+                        unknown; is system executing in ROM?",
+                        pc
+                    );
+                }
+            } else {
+                core.run()?;
             }
         }
 
         bail!(
             "target does not appear to be booted and may be panicking on \
-            boot; to debug, reset while running either \"humility itm\" or \
-            (if ITM is unavailable), debug via semihosting"
+            boot; run \"humility registers -s\" for a kernel stack trace"
         );
     }
 

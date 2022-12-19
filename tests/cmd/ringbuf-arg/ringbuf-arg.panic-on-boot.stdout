@@ -1,0 +1,4 @@
+humility: ring buffer drv_i2c_devices::adm1272::__RINGBUF in power:
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in i2c_driver:
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in spd:
+humility: ring buffer drv_stm32xx_i2c_server::__RINGBUF in i2c_driver:

@@ -211,6 +211,10 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
         let mut taskblock = vec![0; task_t.size * task_count as usize];
         core.read_8(base, &mut taskblock)?;
 
+        if let Some(epitaph) = hubris.epitaph(core)? {
+            humility::warn!("kernel has panicked: {}", epitaph);
+        }
+
         let mut tasks = vec![];
         let mut panicked = false;
         let mut regs = HashMap::new();
@@ -242,16 +246,6 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                 if fault == doppel::FaultInfo::Panic {
                     panicked = true;
                 }
-            }
-        }
-
-        if let Ok(pc) = core.read_reg(ARMRegister::PC) {
-            if hubris.instr_mod(pc).is_none() {
-                humility::warn!(
-                    "PC 0x{:x} is unknown; \
-                    system may be executing in ROM!",
-                    pc
-                );
             }
         }
 

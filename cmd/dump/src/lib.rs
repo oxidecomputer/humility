@@ -84,7 +84,7 @@ pub fn init() -> (Command, ClapCommand<'static>) {
             name: "dump",
             archive: Archive::Required,
             attach: Attach::LiveOnly,
-            validate: Validate::Booted,
+            validate: Validate::Match,
             run: dumpcmd,
         },
         DumpArgs::command(),

@@ -8,3 +8,4 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.flash-ram-mismatch.0 tasks -slvr"
 
+status.code = 1
