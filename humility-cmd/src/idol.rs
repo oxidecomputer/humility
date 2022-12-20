@@ -469,13 +469,12 @@ fn serialize_arg(
             // the variant as a u8 tag, which is what hubpack and ssmarshal do
             // by default, but if this type has a custom Serialize impl this
             // will be incorrect!
-            let tag = u8::try_from(index)
-                .map_err(|_| {
-                    anyhow!(
-                        "cannot encode {}: index {index} does not fit in a u8",
-                        variant.name,
-                    )
-                })?;
+            let tag = u8::try_from(index).map_err(|_| {
+                anyhow!(
+                    "cannot encode {}: index {index} does not fit in a u8",
+                    variant.name,
+                )
+            })?;
 
             Ok(hubpack_serialize_append(buf, &tag)?)
         }
