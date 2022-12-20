@@ -38,7 +38,7 @@
 //! VSC8552; this is indicated with `--` in the relevant table positions.
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
 
@@ -47,7 +47,7 @@ use cmd_hiffy as humility_cmd_hiffy;
 use humility::cli::Subcommand;
 use humility::reflect::*;
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::IdolOperation;
+use humility_cmd::idol::HubrisIdol;
 use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
@@ -85,11 +85,7 @@ fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let op = IdolOperation::new(hubris, "Net", "get_mac_address", None)
-        .context(
-            "Could not find `get_mac_address`, \
-                  is your Hubris archive new enough?",
-        )?;
+    let op = hubris.get_idol_command("Net.get_mac_address")?;
 
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
@@ -148,12 +144,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let op_mac_count =
-        IdolOperation::new(hubris, "Net", "read_ksz8463_mac_count", None)
-            .context(
-                "Could not find `read_ksz8463_mac_count`, \
-                  is your Hubris archive new enough?",
-            )?;
+    let op_mac_count = hubris.get_idol_command("Net.read_ksz8463_mac_count")?;
 
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
@@ -189,7 +180,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
 
     humility::msg!("Reading {} MAC addresses...", mac_count);
 
-    let op = IdolOperation::new(hubris, "Net", "read_ksz8463_mac", None)?;
+    let op = hubris.get_idol_command("Net.read_ksz8463_mac")?;
     let funcs = hiffy_context.functions()?;
     let send = funcs.get("Send", 4)?;
 
@@ -279,11 +270,7 @@ fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let op = IdolOperation::new(hubris, "Net", "management_link_status", None)
-        .context(
-            "Could not find `management_link_status`, \
-                  is your Hubris archive new enough?",
-        )?;
+    let op = hubris.get_idol_command("Net.management_link_status")?;
 
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
@@ -364,11 +351,7 @@ fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let op = IdolOperation::new(hubris, "Net", "management_counters", None)
-        .context(
-            "Could not find `get_mac_address`, \
-                  is your Hubris archive new enough?",
-        )?;
+    let op = hubris.get_idol_command("Net.management_counters")?;
 
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,

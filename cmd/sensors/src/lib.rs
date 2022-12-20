@@ -23,7 +23,7 @@
 //! `--tabular`.  In its default output (with one sensor per row), error
 //! counts are also displayed.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
@@ -31,7 +31,7 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::idol;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use itertools::izip;
 use std::collections::HashSet;
@@ -168,8 +168,7 @@ fn print(
     let mut err_ops = vec![];
     let funcs = context.functions()?;
     let nerrbits = 32;
-    let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)
-        .context("is the 'sensor' task present?")?;
+    let op = hubris.get_idol_command("Sensor.get")?;
 
     let ok = hubris.lookup_basetype(op.ok)?;
 
@@ -226,9 +225,7 @@ fn print(
         all_ops.push(ops);
     }
 
-    if let Ok(errop) =
-        idol::IdolOperation::new(hubris, "Sensor", "get_nerrors", None)
-    {
+    if let Ok(errop) = hubris.get_idol_command("Sensor.get_nerrors") {
         let ok = hubris.lookup_basetype(errop.ok)?;
 
         if ok.encoding != HubrisEncoding::Unsigned {

@@ -9,7 +9,7 @@
 //! This subcommand should be rarely used; `humility flash` will automatically
 //! program auxiliary flash when needed.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{Command as ClapCommand, CommandFactory, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
@@ -20,8 +20,7 @@ use cmd_hiffy as humility_cmd_hiffy;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::IdolArgument;
-use humility_cmd::idol::IdolOperation;
+use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cmd_hiffy::HiffyLease;
 
@@ -96,20 +95,8 @@ impl<'a> AuxFlashHandler<'a> {
             .unwrap_or(Ok(DEFAULT_SLOT_SIZE_BYTES))
     }
 
-    fn get_idol_command(&self, name: &str) -> Result<IdolOperation<'a>> {
-        IdolOperation::new(self.hubris, "AuxFlash", name, None).with_context(
-            || {
-                format!(
-                    "Could not find `AuxFlash.{}`, \
-                     is your Hubris archive new enough?",
-                    name
-                )
-            },
-        )
-    }
-
     pub fn slot_count(&mut self) -> Result<u32> {
-        let op = self.get_idol_command("slot_count")?;
+        let op = self.hubris.get_idol_command("AuxFlash.slot_count")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
@@ -128,7 +115,9 @@ impl<'a> AuxFlashHandler<'a> {
 
     /// Returns the active slot, or `None` if there is no active slot
     pub fn active_slot(&mut self) -> Result<Option<u32>> {
-        let op = self.get_idol_command("scan_and_get_active_slot")?;
+        let op = self
+            .hubris
+            .get_idol_command("AuxFlash.scan_and_get_active_slot")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
@@ -149,7 +138,7 @@ impl<'a> AuxFlashHandler<'a> {
     }
 
     fn slot_erase(&mut self, slot: u32) -> Result<()> {
-        let op = self.get_idol_command("erase_slot")?;
+        let op = self.hubris.get_idol_command("AuxFlash.erase_slot")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
@@ -165,7 +154,7 @@ impl<'a> AuxFlashHandler<'a> {
     }
 
     pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
-        let op = self.get_idol_command("read_slot_chck")?;
+        let op = self.hubris.get_idol_command("AuxFlash.read_slot_chck")?;
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
@@ -232,7 +221,8 @@ impl<'a> AuxFlashHandler<'a> {
         slot: u32,
         count: Option<usize>,
     ) -> Result<Vec<u8>> {
-        let op = self.get_idol_command("read_slot_with_offset")?;
+        let op =
+            self.hubris.get_idol_command("AuxFlash.read_slot_with_offset")?;
         let slot_size = self.slot_size_bytes()?;
 
         let mut out = vec![0u8; count.unwrap_or(slot_size)];
@@ -329,7 +319,8 @@ impl<'a> AuxFlashHandler<'a> {
                 slot_size
             );
         }
-        let op = self.get_idol_command("write_slot_with_offset")?;
+        let op =
+            self.hubris.get_idol_command("AuxFlash.write_slot_with_offset")?;
 
         let bar = ProgressBar::new(0);
         bar.set_style(
