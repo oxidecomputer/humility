@@ -4,8 +4,10 @@
 
 use ::idol::syntax::{AttributedTy, Operation, RecvStrategy, Reply};
 use anyhow::{anyhow, bail, Context, Result};
+use hubpack::SerializedSize;
 use humility::hubris::*;
 use indexmap::IndexMap;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub struct IdolOperation<'a> {
@@ -53,8 +55,18 @@ impl<'a> IdolOperation<'a> {
         let mut map: IndexMap<_, _> =
             args.iter().map(|arg| (arg.0, &arg.1)).collect();
 
-        let mut payload = vec![0u8; self.args.size];
-        let mut offset = 0;
+        let mut payload = Vec::new();
+        match self.operation.encoding {
+            // Zerocopy will populate payload based on its actual size, so
+            // resize it appropriately.
+            ::idol::syntax::Encoding::Zerocopy => {
+                payload.resize(self.args.size, 0)
+            }
+            // Serializing args will append to `payload`, so leave it empty (for
+            // now).
+            ::idol::syntax::Encoding::Ssmarshal
+            | ::idol::syntax::Encoding::Hubpack => (),
+        }
 
         for arg in &self.operation.args {
             let val = map.remove(arg.0 as &str).ok_or_else(|| {
@@ -91,14 +103,7 @@ impl<'a> IdolOperation<'a> {
                     )?,
                 ::idol::syntax::Encoding::Ssmarshal
                 | ::idol::syntax::Encoding::Hubpack => {
-                    offset += self.payload_arg_serialized(
-                        hubris,
-                        module,
-                        member,
-                        arg,
-                        val,
-                        &mut payload[offset..],
-                    )?
+                    serialize_arg(hubris, member, val, &mut payload)?
                 }
             };
         }
@@ -156,52 +161,12 @@ impl<'a> IdolOperation<'a> {
             if s.newtype().is_some() {
                 call_arg(hubris, &s.members[0], val, payload)?;
             } else {
-                bail!("structure arguments currently unsupported");
+                bail!("non-newtype structure arguments currently unsupported");
             }
         } else {
             bail!("don't know what to do with {:?}", self.args);
         }
         Ok(())
-    }
-
-    // WARNING: This method assumes the argument type (`arg.1`) derived its
-    // `serde::Serialize` implementation! If it has a custom implementation, our
-    // assumptions about how ssmarshal/hubpack encode data may be wrong.
-    fn payload_arg_serialized(
-        &self,
-        hubris: &HubrisArchive,
-        module: &HubrisModule,
-        member: &HubrisStructMember,
-        arg: (&String, &AttributedTy),
-        val: &IdolArgument,
-        buf: &mut [u8],
-    ) -> Result<usize> {
-        // This is identical to payload_arg_zerocopy, but builds the struct
-        // using ssmarshal/hubpack-compatible serialization instead of from the
-        // raw data
-        let ty = &arg.1.ty.0;
-        if matches!(arg.1.recv, RecvStrategy::FromBytes) {
-            if ty != "bool" {
-                Ok(serialize_arg(hubris, member, val, buf)?)
-            } else {
-                let v = IdolArgument::String(match val {
-                    IdolArgument::String("true") => "1",
-                    IdolArgument::String("false") => "0",
-                    _ => bail!("Invalid bool argument {:?}", val),
-                });
-                Ok(serialize_arg(hubris, member, &v, buf)?)
-            }
-        } else if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
-            Ok(serialize_arg_enum(arg.0, e, val, buf)?)
-        } else if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
-            if s.newtype().is_some() {
-                Ok(serialize_arg(hubris, &s.members[0], val, buf)?)
-            } else {
-                bail!("structure arguments currently unsupported");
-            }
-        } else {
-            bail!("don't know what to do with {:?}", self.args);
-        }
     }
 }
 
@@ -369,19 +334,40 @@ fn call_arg(
     Ok(())
 }
 
+// Grow `buf` just enough to serialize `value` onto the end of it.
+fn hubpack_serialize_append<T: Serialize + SerializedSize>(
+    buf: &mut Vec<u8>,
+    value: &T,
+) -> hubpack::error::Result<()> {
+    let old_size = buf.len();
+
+    // Grow buf sufficiently for any possible T...
+    buf.resize(old_size + T::MAX_SIZE, 0);
+    let n = hubpack::serialize(&mut buf[old_size..], value)?;
+    assert!(n <= T::MAX_SIZE);
+
+    // ... then shrink it back if `value`'s serialized size is less than the max
+    buf.truncate(old_size + n);
+
+    Ok(())
+}
+
+// WARNING: This method assumes the argument type (`member`) derived its
+// `serde::Serialize` implementation! If it has a custom implementation, our
+// assumptions about how ssmarshal/hubpack encode data may be wrong.
 fn serialize_arg(
     hubris: &HubrisArchive,
     member: &HubrisStructMember,
     value: &IdolArgument,
-    buf: &mut [u8],
-) -> Result<usize> {
+    buf: &mut Vec<u8>,
+) -> Result<()> {
     let t = hubris.lookup_type(member.goff)?;
     let arg = &member.name;
 
-    let err = |err| anyhow!("illegal value for {}: {}", arg, err);
-
     match t {
         HubrisType::Base(base) => {
+            let err = |err| anyhow!("illegal value for {}: {}", arg, err);
+
             // If someone passed us a scalar, too bad - we're going to convert
             // it into a string then immediately reparse it.
             let value = match value {
@@ -392,19 +378,24 @@ fn serialize_arg(
             match (base.encoding, base.size) {
                 (HubrisEncoding::Unsigned, 8) => {
                     let v = parse_int::parse::<u64>(&value).map_err(err)?;
-                    Ok(hubpack::serialize(buf, &v)?)
+                    Ok(hubpack_serialize_append(buf, &v)?)
                 }
                 (HubrisEncoding::Unsigned, 4) => {
                     let v = parse_int::parse::<u32>(&value).map_err(err)?;
-                    Ok(hubpack::serialize(buf, &v)?)
+                    Ok(hubpack_serialize_append(buf, &v)?)
                 }
                 (HubrisEncoding::Unsigned, 2) => {
                     let v = parse_int::parse::<u16>(&value).map_err(err)?;
-                    Ok(hubpack::serialize(buf, &v)?)
+                    Ok(hubpack_serialize_append(buf, &v)?)
                 }
                 (HubrisEncoding::Unsigned, 1) => {
-                    let v = parse_int::parse::<u8>(&value).map_err(err)?;
-                    Ok(hubpack::serialize(buf, &v)?)
+                    // Allow "true" or "false" to map to 1/0
+                    let v = match value.as_str() {
+                        "true" | "True" | "TRUE" => 1,
+                        "false" | "False" | "FALSE" => 0,
+                        s => parse_int::parse::<u8>(s).map_err(err)?,
+                    };
+                    Ok(hubpack_serialize_append(buf, &v)?)
                 }
                 (_, _) => {
                     bail!(
@@ -415,44 +406,89 @@ fn serialize_arg(
                 }
             }
         }
+        HubrisType::Enum(e) => {
+            let value = match value {
+                IdolArgument::String(s) => *s,
+                IdolArgument::Scalar(_) => {
+                    bail!("expected a variant name for {arg}")
+                }
+            };
+
+            // Find the variant and its index.
+            let (index, variant) = e
+                .variants
+                .iter()
+                .enumerate()
+                .find(|(_i, variant)| variant.name == value)
+                .ok_or_else(|| {
+                    let all_variants = e
+                        .variants
+                        .iter()
+                        .map(|v| v.name.as_str())
+                        .collect::<Vec<_>>();
+                    anyhow!(
+                        "illegal value for {arg}: must be one of {}",
+                        all_variants.join(", ")
+                    )
+                })?;
+
+            // Ensure `variant` has no associated data. We assume if
+            // `variant.goff` is `None`, the variant has no associated data.
+            if let Some(variant_goff) = variant.goff {
+                let variant_t =
+                    hubris.lookup_type(variant_goff).with_context(|| {
+                        format!(
+                            "failed to lookup type info for variant {}",
+                            variant.name
+                        )
+                    })?;
+                match variant_t {
+                    HubrisType::Struct(s) => {
+                        if !s.members.is_empty() {
+                            bail!(
+                                "cannot encode {}: contains associated data",
+                                variant.name
+                            );
+                        }
+                    }
+                    HubrisType::Base(_)
+                    | HubrisType::Enum(_)
+                    | HubrisType::Array(_)
+                    | HubrisType::Union(_)
+                    | HubrisType::Ptr(_) => {
+                        bail!(
+                            "unexpected type for enum variant {}",
+                            variant.name
+                        )
+                    }
+                }
+            }
+
+            // We noted this above, but it's worth reiterating: We now assume
+            // that `arg` derived its `Serialize` impl! We're going to encode
+            // the variant as a u8 tag, which is what hubpack and ssmarshal do
+            // by default, but if this type has a custom Serialize impl this
+            // will be incorrect!
+            let tag = u8::try_from(index).map_err(|_| {
+                anyhow!(
+                    "cannot encode {}: index {index} does not fit in a u8",
+                    variant.name,
+                )
+            })?;
+
+            Ok(hubpack_serialize_append(buf, &tag)?)
+        }
+        HubrisType::Struct(s) => {
+            if s.newtype().is_some() {
+                serialize_arg(hubris, &s.members[0], value, buf)
+            } else {
+                bail!("non-newtype structure arguments currently unsupported");
+            }
+        }
         _ => {
             bail!("type of {} ({:?}) not yet supported", member.name, t);
         }
     }
-}
-
-fn serialize_arg_enum(
-    arg: &str,
-    e: &HubrisEnum,
-    value: &IdolArgument,
-    buf: &mut [u8],
-) -> Result<usize> {
-    let value = match value {
-        IdolArgument::String(value) => *value,
-        _ => {
-            bail!("invalid value for arg {} {:?}", arg, value);
-        }
-    };
-
-    // We need to encode the variant by its index, not its tag: hubpack assigns
-    // indices based on the source code order of variants, which may not match
-    // the tag assigned by rustc. (With ssmarshal those are guaranteed to be the
-    // same, as long as the enum used `#[repr(C)]`, which is required by
-    // ssmarshal's documentation but not enforced at compile time.) We assume
-    // here that the ordering of `e.variants` (from the DWARF) matches the
-    // source code ordering! This should be true based on section 5.7.10 of [the
-    // DWARF spec](https://dwarfstd.org/Dwarf5Std.php).
-    for (index, variant) in e.variants.iter().enumerate() {
-        if value == variant.name {
-            let v = u8::try_from(index)
-                .context("Could not pack enum variant into u8")?;
-            return Ok(hubpack::serialize(buf, &v)?);
-        }
-    }
-
-    let all =
-        e.variants.iter().map(|v| v.name.clone()).collect::<Vec<String>>();
-    bail!("{} must be one of: {}", arg, all.join(", "));
 }
 
 fn call_arg_enum(
