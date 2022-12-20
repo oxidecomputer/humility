@@ -8,14 +8,14 @@
 //! can measure voltage, displaying voltage, current (if measured) and
 //! temperature (if measured).
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
-use humility_cmd::idol;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::collections::BTreeMap;
 
@@ -49,8 +49,7 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let mut ops = vec![];
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Sensor", "get", None)
-        .context("is the 'sensor' task present?")?;
+    let op = hubris.get_idol_command("Sensor.get")?;
 
     let ok = hubris.lookup_basetype(op.ok)?;
 

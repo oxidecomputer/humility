@@ -42,7 +42,7 @@
 //! ```
 //!
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -51,7 +51,7 @@ use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::idol;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
@@ -158,8 +158,7 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
-    let op = idol::IdolOperation::new(hubris, "Validate", "validate_i2c", None)
-        .context("is the 'validate' task present?")?;
+    let op = hubris.get_idol_command("Validate.validate_i2c")?;
     let mut ops = vec![];
 
     let mut devices = vec![];

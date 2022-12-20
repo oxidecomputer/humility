@@ -175,10 +175,10 @@ use humility::core::Core;
 use humility::reflect::*;
 use humility::{hubris::*, ExecutionContext};
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::{IdolArgument, IdolOperation};
+use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::{Archive, Attach, Validate};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -323,7 +323,7 @@ fn monorail_read(
     let addr = reg.address();
     humility::msg!("Reading {} from {:#x}", reg, addr);
 
-    let op = IdolOperation::new(hubris, "Monorail", "read_vsc7448_reg", None)?;
+    let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
@@ -371,7 +371,7 @@ fn monorail_write(
     humility::msg!("Writing {:#x} to {} at {:#x}", value, reg, addr);
     pretty_print_fields(value, reg.fields(), 0);
 
-    let op = IdolOperation::new(hubris, "Monorail", "write_vsc7448_reg", None)?;
+    let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
@@ -458,7 +458,7 @@ fn monorail_phy_read(
 ) -> Result<()> {
     let reg = parse_phy_register(&reg)?;
     println!("Reading from port {} PHY, register {}", port, reg.name);
-    let op = IdolOperation::new(hubris, "Monorail", "read_phy_reg", None)?;
+    let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
@@ -501,7 +501,7 @@ fn monorail_phy_write(
         value, port, reg.name
     );
     pretty_print_fields(value as u32, &reg.fields, 0);
-    let op = IdolOperation::new(hubris, "Monorail", "write_phy_reg", None)?;
+    let op = hubris.get_idol_command("Monorail.write_phy_reg")?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
@@ -536,7 +536,7 @@ fn monorail_phy_dump(
     verbose: bool,
 ) -> Result<()> {
     use hif::*;
-    let op = IdolOperation::new(hubris, "Monorail", "read_phy_reg", None)?;
+    let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
 
     let funcs = context.functions()?;
     let send = funcs.get("Send", 4)?;
@@ -623,8 +623,7 @@ fn monorail_dump(
 ) -> Result<()> {
     let results = {
         use hif::*;
-        let op_read =
-            IdolOperation::new(hubris, "Monorail", "read_vsc7448_reg", None)?;
+        let op_read = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
 
         let funcs = context.functions()?;
         let send = funcs.get("Send", 4)?;
@@ -687,10 +686,8 @@ fn monorail_status(
     // port is dwarfed by the Hiffy call overhead, so no need to optimize.
     const NUM_PORTS: u8 = 53;
     let results = {
-        let op_port =
-            IdolOperation::new(hubris, "Monorail", "get_port_status", None)?;
-        let op_phy =
-            IdolOperation::new(hubris, "Monorail", "get_phy_status", None)?;
+        let op_port = hubris.get_idol_command("Monorail.get_port_status")?;
+        let op_phy = hubris.get_idol_command("Monorail.get_phy_status")?;
         use hif::*;
         let funcs = context.functions()?;
         let send = funcs.get("Send", 4)?;
@@ -889,11 +886,7 @@ fn monorail_mac_table(
     context: &mut HiffyContext,
 ) -> Result<()> {
     let op_mac_count =
-        IdolOperation::new(hubris, "Monorail", "read_vsc7448_mac_count", None)
-            .context(
-                "Could not find `read_vsc7448_mac_count`, \
-                  is your Hubris archive new enough?",
-            )?;
+        hubris.get_idol_command("Monorail.read_vsc7448_mac_count")?;
 
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
@@ -921,8 +914,7 @@ fn monorail_mac_table(
 
     println!("Reading {} MAC addresses...", mac_count);
 
-    let op =
-        IdolOperation::new(hubris, "Monorail", "read_vsc7448_next_mac", None)?;
+    let op = hubris.get_idol_command("Monorail.read_vsc7448_next_mac")?;
     let funcs = context.functions()?;
     let send = funcs.get("Send", 4)?;
 
@@ -1003,8 +995,7 @@ fn monorail_reset_counters(
     context: &mut HiffyContext,
     port: u8,
 ) -> Result<()> {
-    let op =
-        IdolOperation::new(hubris, "Monorail", "reset_port_counters", None)?;
+    let op = hubris.get_idol_command("Monorail.reset_port_counters")?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
@@ -1022,7 +1013,7 @@ fn monorail_counters(
     context: &mut HiffyContext,
     port: u8,
 ) -> Result<()> {
-    let op = IdolOperation::new(hubris, "Monorail", "get_port_counters", None)?;
+    let op = hubris.get_idol_command("Monorail.get_port_counters")?;
     let value = humility_cmd_hiffy::hiffy_call(
         hubris,
         core,
