@@ -407,8 +407,6 @@ fn serialize_arg(
             }
         }
         HubrisType::Enum(e) => {
-            let err = |err| anyhow!("illegal value for {}: {}", arg, err);
-
             let value = match value {
                 IdolArgument::String(s) => *s,
                 IdolArgument::Scalar(_) => {
@@ -428,7 +426,10 @@ fn serialize_arg(
                         .iter()
                         .map(|v| v.name.as_str())
                         .collect::<Vec<_>>();
-                    err(format!("must be one of {}", all_variants.join(", ")))
+                    anyhow!(
+                        "illegal value for {arg}: must be one of {}",
+                        all_variants.join(", ")
+                    )
                 })?;
 
             // Ensure `variant` has no associated data. We assume if
@@ -445,9 +446,9 @@ fn serialize_arg(
                     HubrisType::Struct(s) => {
                         if !s.members.is_empty() {
                             bail!(
-                                    "cannot encode variant {}: contains associated data",
-                                    variant.name
-                                );
+                                "cannot encode {}: contains associated data",
+                                variant.name
+                            );
                         }
                     }
                     HubrisType::Base(_)
@@ -469,12 +470,12 @@ fn serialize_arg(
             // by default, but if this type has a custom Serialize impl this
             // will be incorrect!
             let tag = u8::try_from(index)
-                        .map_err(|_| {
-                            anyhow!(
-                                "cannot encode variant {}: index {index} does not fit in a u8",
-                                variant.name,
-                            )
-                        })?;
+                .map_err(|_| {
+                    anyhow!(
+                        "cannot encode {}: index {index} does not fit in a u8",
+                        variant.name,
+                    )
+                })?;
 
             Ok(hubpack_serialize_append(buf, &tag)?)
         }
@@ -482,7 +483,7 @@ fn serialize_arg(
             if s.newtype().is_some() {
                 serialize_arg(hubris, &s.members[0], value, buf)
             } else {
-                bail!("structure arguments currently unsupported");
+                bail!("non-newtype structure arguments currently unsupported");
             }
         }
         _ => {
