@@ -251,11 +251,19 @@ fn rpc_call(
 
     let our_image_id = hubris.image_id().unwrap();
 
+    let nreply = match op.operation.encoding {
+        ::idol::syntax::Encoding::Zerocopy => hubris.typesize(op.ok)?,
+        ::idol::syntax::Encoding::Ssmarshal
+        | ::idol::syntax::Encoding::Hubpack => {
+            hubris.hubpack_serialized_maxsize(op.ok)?
+        }
+    };
+
     let header = RpcHeader {
         image_id: U64::from_bytes(our_image_id.try_into().unwrap()),
         task: U16::new(op.task.task().try_into().unwrap()),
         op: U16::new(op.code as u16),
-        nreply: U16::new(hubris.typesize(op.ok)? as u16),
+        nreply: U16::new(nreply as u16),
         nbytes: U16::new(payload.len().try_into().unwrap()),
     };
     let mut packet = header.as_bytes().to_vec();
@@ -263,7 +271,8 @@ fn rpc_call(
 
     socket.send(&packet)?;
     let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-    socket.recv(&mut buf)?;
+    let n = socket.recv(&mut buf)?;
+    let buf = &buf[..n];
     // Handle errors from the RPC task itself, which are reported as a non-zero
     // first byte in the reply packet.
     let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
