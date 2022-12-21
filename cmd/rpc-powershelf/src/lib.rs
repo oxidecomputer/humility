@@ -32,13 +32,17 @@ struct RpcArgs {
     )]
     timeout: u32,
 
-    /// Index of the power shelf to inspect.
+    /// index of the power shelf to inspect
     #[clap(long, default_value_t = 0)]
     index: u64,
 
-    /// Rail of the power shelf to inspect.
+    /// rail of the power shelf to inspect
     #[clap(long, default_value_t = 0)]
     rail: u64,
+
+    /// verbose output
+    #[clap(long, short)]
+    verbose: bool,
 
     /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
     #[clap(long, env = "HUMILITY_RPC_IP")]
@@ -75,6 +79,53 @@ fn lookup_operation_enum(hubris: &HubrisArchive) -> Result<&HubrisEnum> {
     Ok(operation)
 }
 
+fn interpret(variant: &str, payload: &[u8]) {
+    use pmbus::{CommandCode, Device, VOutModeCommandData};
+
+    // Slightly gross: Hard-code our device and VOUT_MODE for mwocp68. Should we
+    // instead add VOUT_MODE to the list of operations? How would we know if we
+    // were inspecting something other than an mwocp68?
+    let device = Device::Mwocp68;
+    let vout_mode = VOutModeCommandData::from_slice(&[0x17]).unwrap();
+
+    let code = match variant {
+        "FanConfig1_2" => CommandCode::FAN_CONFIG_1_2,
+        "StatusByte" => CommandCode::STATUS_BYTE,
+        "StatusWord" => CommandCode::STATUS_WORD,
+        "StatusVout" => CommandCode::STATUS_VOUT,
+        "StatusIout" => CommandCode::STATUS_IOUT,
+        "StatusInput" => CommandCode::STATUS_INPUT,
+        "StatusTemperature" => CommandCode::STATUS_TEMPERATURE,
+        "StatusCml" => CommandCode::STATUS_CML,
+        "StatusMfrSpecific" => CommandCode::STATUS_MFR_SPECIFIC,
+        "StatusFans1_2" => CommandCode::STATUS_FANS_1_2,
+        "PmbusRevision" => CommandCode::PMBUS_REVISION,
+        _ => {
+            println!("     | Missing command code mapping! Update humility");
+            return;
+        }
+    };
+
+    let _ = device.interpret(
+        code as u8,
+        payload,
+        || vout_mode,
+        |field, value| {
+            let (pos, width) = field.bits();
+
+            let bits = if width.0 == 1 {
+                format!("b{}", pos.0)
+            } else {
+                format!("b{}:{}", pos.0 + width.0 - 1, pos.0)
+            };
+
+            let value = format!("{}", value);
+
+            println!("     | {:6} {:<34} <= {}", bits, value, field.name());
+        },
+    );
+}
+
 fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RpcArgs::try_parse_from(subargs)?;
@@ -104,11 +155,41 @@ fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     for variant in &operation.variants {
         args[0].1 = idol::IdolArgument::String(&variant.name);
         let result = client.call(&idol_cmd, &args)?;
+
         println!(
             "{:<20} => {}",
             variant.name,
-            humility_cmd_hiffy::hiffy_format_result(hubris, result)
+            humility_cmd_hiffy::hiffy_format_result(hubris, result.clone())
         );
+
+        if subargs.verbose {
+            // We only verbosely print successful results whose values are
+            // `Raw8` or `Raw16`; all other value types are already sufficiently
+            // explained.
+            if let Ok(value) = result {
+                let value = value.as_enum()?;
+                if matches!(value.disc(), "Raw8" | "Raw16") {
+                    let contents = value
+                        .contents()
+                        .unwrap()
+                        .as_1tuple()
+                        .unwrap()
+                        .as_base()
+                        .unwrap();
+                    let mut payload = Vec::with_capacity(2);
+                    if let Some(x) = contents.as_u8() {
+                        payload.push(x);
+                    } else if let Some(x) = contents.as_u16() {
+                        payload.extend_from_slice(&x.to_le_bytes());
+                    } else {
+                        panic!(
+                            "Raw8/Raw16 contain something other than u8/u16"
+                        );
+                    }
+                    interpret(&variant.name, &payload);
+                }
+            }
+        }
     }
 
     Ok(())
