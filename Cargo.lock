@@ -1070,6 +1070,7 @@ dependencies = [
  "humility-cmd-reset",
  "humility-cmd-ringbuf",
  "humility-cmd-rpc",
+ "humility-cmd-rpc-powershelf",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -1690,6 +1691,25 @@ dependencies = [
  "parse_int",
  "winapi",
  "zerocopy",
+]
+
+[[package]]
+name = "humility-cmd-rpc-powershelf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-cmd-rpc",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "libc",
+ "log",
+ "parse_int",
+ "winapi",
 ]
 
 [[package]]

@@ -153,6 +153,7 @@ cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
 cmd-rpc = { path = "./cmd/rpc", package = "humility-cmd-rpc" }
+cmd-rpc-powershelf = { path = "./cmd/rpc-powershelf", package = "humility-cmd-rpc-powershelf" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spctrl = { path = "./cmd/spctrl", package = "humility-cmd-spctrl" }
 cmd-spd = { path = "./cmd/spd", package = "humility-cmd-spd" }
@@ -284,6 +285,7 @@ cmd-rencm = { workspace = true }
 cmd-rendmp = { workspace = true }
 cmd-ringbuf = { workspace = true }
 cmd-rpc = { workspace = true }
+cmd-rpc-powershelf = { workspace = true }
 cmd-sensors = { workspace = true }
 cmd-spctrl = { workspace = true }
 cmd-spd = { workspace = true }
