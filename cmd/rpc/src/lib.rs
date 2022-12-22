@@ -63,7 +63,7 @@ use clap::IntoApp;
 use clap::Parser;
 use colored::Colorize;
 use humility::cli::Subcommand;
-use humility::hubris::*;
+use humility::{hubris::*, reflect};
 use humility_cmd::doppel::RpcHeader;
 use humility_cmd::idol;
 use humility_cmd::{Archive, Command};
@@ -226,78 +226,124 @@ fn decode_iface(iface: &str) -> Result<u32> {
     Ok(scopeid)
 }
 
+pub struct RpcClient<'a> {
+    hubris: &'a HubrisArchive,
+    socket: UdpSocket,
+    rpc_reply_type: &'a HubrisEnum,
+    buf: [u8; 1024], // matches buffer size in `task-udprpc`
+}
+
+impl<'a> RpcClient<'a> {
+    pub fn new(
+        hubris: &'a HubrisArchive,
+        ip: &str,
+        timeout: Duration,
+    ) -> Result<Self> {
+        let mut iter = ip.split('%');
+        let ip = iter.next().expect("ip address is empty");
+        let iface = iter
+            .next()
+            .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
+
+        let scopeid = decode_iface(iface)?;
+
+        // Hard-coded socket address, based on Hubris configuration
+        let target = format!("[{}%{}]:998", ip, scopeid);
+        humility::msg!("Connecting to {}", target);
+
+        let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
+        let socket = UdpSocket::bind("[::]:0")?;
+        socket.set_read_timeout(Some(timeout))?;
+        socket.connect(&dest[..])?;
+
+        let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
+            anyhow!(
+                "Could not find `udprpc` task in this image. \
+                 Is it up to date?"
+            )
+        })?;
+        let rpc_reply_type = hubris
+            .lookup_module(*rpc_task)?
+            .lookup_enum_byname(hubris, "RpcReply")?;
+
+        Ok(Self { hubris, socket, rpc_reply_type, buf: [0; 1024] })
+    }
+
+    pub fn call(
+        &mut self,
+        op: &idol::IdolOperation,
+        args: &[(&str, idol::IdolArgument)],
+    ) -> Result<Result<reflect::Value, String>> {
+        let payload = op.payload(args)?;
+
+        let our_image_id = self.hubris.image_id().unwrap();
+
+        let nreply = match op.operation.encoding {
+            ::idol::syntax::Encoding::Zerocopy => {
+                self.hubris.typesize(op.ok)?
+            }
+            ::idol::syntax::Encoding::Ssmarshal
+            | ::idol::syntax::Encoding::Hubpack => {
+                self.hubris.hubpack_serialized_maxsize(op.ok)?
+            }
+        };
+
+        let header = RpcHeader {
+            image_id: U64::from_bytes(our_image_id.try_into().unwrap()),
+            task: U16::new(op.task.task().try_into().unwrap()),
+            op: U16::new(op.code as u16),
+            nreply: U16::new(nreply as u16),
+            nbytes: U16::new(payload.len().try_into().unwrap()),
+        };
+        let mut packet = header.as_bytes().to_vec();
+        packet.extend(payload.iter());
+
+        self.socket.send(&packet)?;
+        let n = self.socket.recv(&mut self.buf)?;
+        let buf = &self.buf[..n];
+
+        if buf[0] != 0 {
+            match self.rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
+                Some(e) => {
+                    let msg = format!("Got error from `udprpc`: {}", e.name);
+                    if e.name == "BadImageId" {
+                        bail!(
+                            "{msg}: {:02x?} (Humility) {:02x?} (Hubris)",
+                            our_image_id,
+                            &buf[1..9]
+                        );
+                    } else {
+                        bail!("{msg}");
+                    }
+                }
+                None => bail!("Got unknown error from `udprpc`: {}", buf[0]),
+            }
+        } else {
+            // Check the return code from the Idol call
+            let rc = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+            let val = if rc == 0 { Ok(buf[5..].to_vec()) } else { Err(rc) };
+            let result =
+                humility_cmd_hiffy::hiffy_decode(self.hubris, op, val)?;
+            Ok(result)
+        }
+    }
+}
+
 fn rpc_call(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
     rpc_args: &RpcArgs,
 ) -> Result<()> {
-    // rpc_args.ip must be Some(...), checked by clap
-    let mut iter = rpc_args.ip.as_ref().unwrap().split('%');
-    let ip = iter.next().unwrap();
-    let iface = iter
-        .next()
-        .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
+    let mut client = RpcClient::new(
+        hubris,
+        // rpc_args.ip must be Some(...), checked by clap
+        rpc_args.ip.as_deref().unwrap(),
+        Duration::from_millis(u64::from(rpc_args.timeout)),
+    )?;
 
-    let scopeid = decode_iface(iface)?;
-
-    // Hard-coded socket address, based on Hubris configuration
-    let target = format!("[{}%{}]:998", ip, scopeid);
-    humility::msg!("Connecting to {}", target);
-
-    let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
-    let socket = UdpSocket::bind("[::]:0")?;
-    let timeout = Duration::from_millis(rpc_args.timeout as u64);
-    socket.set_read_timeout(Some(timeout))?;
-    socket.connect(&dest[..])?;
-
-    let payload = op.payload(args)?;
-
-    let our_image_id = hubris.image_id().unwrap();
-
-    let header = RpcHeader {
-        image_id: U64::from_bytes(our_image_id.try_into().unwrap()),
-        task: U16::new(op.task.task().try_into().unwrap()),
-        op: U16::new(op.code as u16),
-        nreply: U16::new(hubris.typesize(op.ok)? as u16),
-        nbytes: U16::new(payload.len().try_into().unwrap()),
-    };
-    let mut packet = header.as_bytes().to_vec();
-    packet.extend(payload.iter());
-
-    socket.send(&packet)?;
-    let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-    socket.recv(&mut buf)?;
-    // Handle errors from the RPC task itself, which are reported as a non-zero
-    // first byte in the reply packet.
-    let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
-        anyhow!(
-            "Could not find `udprpc` task in this image. \
-                 Is it up to date?"
-        )
-    })?;
-    let rpc_reply_type = hubris
-        .lookup_module(*rpc_task)?
-        .lookup_enum_byname(hubris, "RpcReply")?;
-
-    if buf[0] != 0 {
-        match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
-            Some(e) => {
-                println!("Got error from `udprpc`: {}", e.name);
-                if e.name == "BadImageId" {
-                    println!("   {:02x?} (Humility)", our_image_id);
-                    println!("   {:02x?} (Hubris)", &buf[1..9]);
-                }
-            }
-            None => println!("Got unknown error from `udprpc`: {}", buf[0]),
-        }
-    } else {
-        // Check the return code from the Idol call
-        let rc = u32::from_be_bytes(buf[1..5].try_into().unwrap());
-        let val = if rc == 0 { Ok(buf[5..].to_vec()) } else { Err(rc) };
-        let result = humility_cmd_hiffy::hiffy_decode(hubris, op, val)?;
-        humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
-    }
+    let result = client.call(op, args)?;
+    humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
 
     Ok(())
 }

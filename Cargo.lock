@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.18"
+version = "0.9.19"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1060,6 +1060,7 @@ dependencies = [
  "humility-cmd-openocd",
  "humility-cmd-pmbus",
  "humility-cmd-power",
+ "humility-cmd-powershelf",
  "humility-cmd-probe",
  "humility-cmd-qspi",
  "humility-cmd-readmem",
@@ -1545,6 +1546,26 @@ dependencies = [
  "indexmap",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-powershelf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-cmd-rpc",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "libc",
+ "log",
+ "parse_int",
+ "pmbus",
+ "winapi",
 ]
 
 [[package]]
@@ -2561,7 +2582,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/pmbus#5ede5b7d35ece31a5e05fef9de1840f29a1435ba"
+source = "git+https://github.com/oxidecomputer/pmbus#781cf33414b267277e168ed7f8699c3959090f76"
 dependencies = [
  "anyhow",
  "convert_case",
