@@ -1,5 +1,5 @@
 [package]
-name = "humility-cmd-rpc-powershelf"
+name = "humility-cmd-powershelf"
 version = "0.1.0"
 edition = "2021"
 description = "inspect powershelf over the management network"

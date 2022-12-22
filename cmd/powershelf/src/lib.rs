@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! ## `humility rpc-powershelf`
+//! ## `humility powershelf`
 //!
-//! `humility rpc-powershelf` allows for remotely dumping the state of the PSC
+//! `humility powershelf` allows for remotely dumping the state of the PSC
 //! power shelves, via the same network mechanism as `humility rpc`.
 //!
 //! This command has the same requirements as `humility rpc` and uses the same
@@ -35,7 +35,7 @@ use humility_cmd::{Archive, Command};
 use humility_cmd_rpc::RpcClient;
 
 #[derive(Parser, Debug)]
-#[clap(name = "rpc-powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(name = "powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RpcArgs {
     /// sets timeout
     #[clap(
@@ -142,7 +142,7 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
     }
 }
 
-fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
+fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RpcArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
@@ -219,9 +219,9 @@ fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
 pub fn init() -> (Command, App<'static>) {
     (
         Command::Unattached {
-            name: "rpc-powershelf",
+            name: "powershelf",
             archive: Archive::Required,
-            run: rpc_powershelf_run,
+            run: powershelf_run,
         },
         RpcArgs::into_app(),
     )
