@@ -878,18 +878,22 @@ Task #7 Divide-by-zero
 ### `humility jefe`
 
 Humility allows for some (well-defined) manipulation of tasks via `jefe`,
-the Hubris supervisor.  By default, `jefe` will restart any faulting task;
-when debugging, it can be useful to hold a task in the faulted state. This
-is done via the `-h` option:
+the Hubris supervisor.  By default, `jefe` will carry out a configured set
+of responses if tasks fault -- restarting them unless configured otherwise.
+The policy that governs Jefe's response to task failure is called the
+_disposition._ While debugging, it can be useful to change Jefe's
+disposition on a particular task, so that the task will not automatically
+restart on fault.  This is done with the `-H`/`--hold` option:
 
 ```console
-% humility jefe -h ping
+% humility jefe --hold ping
 humility: attached via ST-Link
 humility: successfully changed disposition for ping
 ```
 
-This does not change the task, but rather `jefe`'s restart disposition; when
-the task next faults, it will not be restarted, e.g.:
+This doesn't make any immediate changes to the task, but merely updates a
+table inside `jefe`. When the task next faults, it will not be restarted,
+e.g.:
 
 ```console
 % humility tasks ping
@@ -918,20 +922,32 @@ ID TASK                 GEN PRI STATE
 
 ```
 
-To change the disposition of a task (back) to be restarted, use the `-r` flag:
+To change the disposition of a task (back) to be restarted, use the
+`--release`/`-r` flag:
 
 ```console
-% humility jefe -r ping
+% humility jefe --release ping
 humility: attached via ST-Link
 humility: successfully changed disposition for ping
 ```
 
-To inject a fault into a task, use the `-f` flag, which will change the
-disposition to injecting a fault.  The injected fault has a dedicated type to
-make clear that the fault originated outside of the task:
+`--release` undoes the effect of `--hold`. If the task is parked at a fault,
+it will be restarted immediately.  Otherwise just the disposition will be
+updated and the task will be left alone.
+
+If you would like to cause a task to restart, use the `--start`/`-s` flag.
+This will restart a running task immediately, and will re-run a held task
+*without releasing the hold.* This means the task will still be caught at
+the next fault, giving you a way of precisely trying an operation again.
+
+To inject a fault into a task, use the `--fault`/`-f` flag. This will cause
+`jefe` to use Kernel Trickery(tm) to inject a fault into the target task,
+and also switch its disposition to "held" so you can inspect the result.
+The injected fault has a dedicated type to make clear that the fault
+originated outside of the task:
 
 ```console
-% humility jefe -f pong
+% humility jefe --fault pong
 humility: attached via ST-Link
 humility: successfully changed disposition for pong
 % humility tasks pong
@@ -948,11 +964,8 @@ ID TASK                 GEN PRI STATE
                      @ /home/bmc/hubris/task/pong/src/main.rs:13
 ```
 
-To restart a task that has had a fault injected, again use the `-r` flag to
-change its disposition back to restart.
-
-Finally, to start a task that is not started by default, use the `-s` flag.
-
+As with tasks held by `--hold`, use `--release`/`-r` to set the task back to
+normal, or `--start`/`-s` to run it once but catch the next fault.
 
 
 ### `humility lpc55-pfr`
