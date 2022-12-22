@@ -4245,6 +4245,40 @@ impl HubrisArchive {
         Err(anyhow!("unknown size for type {}", goff))
     }
 
+    pub fn hubpack_serialized_maxsize(
+        &self,
+        goff: HubrisGoff,
+    ) -> Result<usize> {
+        let mut total = 0;
+
+        if let Some(v) = self.structs.get(&goff) {
+            for m in &v.members {
+                total += self.hubpack_serialized_maxsize(m.goff)?;
+            }
+            return Ok(total);
+        }
+
+        if let Some(v) = self.basetypes.get(&goff) {
+            return Ok(v.size);
+        }
+
+        if let Some(v) = self.enums.get(&goff) {
+            total += 1; // hubpack tag
+            for variant in &v.variants {
+                if let Some(goff) = variant.goff {
+                    total += self.hubpack_serialized_maxsize(goff)?;
+                }
+            }
+            return Ok(total);
+        }
+
+        if let Some(v) = self.arrays.get(&goff) {
+            return Ok(self.hubpack_serialized_maxsize(v.goff)? * v.count);
+        }
+
+        Err(anyhow!("unknown size for type {}", goff))
+    }
+
     pub fn printfmt(
         &self,
         buf: &[u8],

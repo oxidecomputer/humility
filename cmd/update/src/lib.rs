@@ -20,8 +20,7 @@ use cmd_hiffy as humility_cmd_hiffy;
 
 use humility::cli::Subcommand;
 use humility_cmd::hiffy::*;
-use humility_cmd::idol::IdolArgument;
-use humility_cmd::idol::IdolOperation;
+use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cmd_hiffy::HiffyLease;
 
@@ -63,12 +62,10 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = UpdateArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let start =
-        IdolOperation::new(hubris, "Update", "prep_image_update", None)?;
-    let write = IdolOperation::new(hubris, "Update", "write_one_block", None)?;
-    let finish =
-        IdolOperation::new(hubris, "Update", "finish_image_update", None)?;
-    let block_size = IdolOperation::new(hubris, "Update", "block_size", None)?;
+    let start = hubris.get_idol_command("Update.prep_image_update")?;
+    let write = hubris.get_idol_command("Update.write_one_block")?;
+    let finish = hubris.get_idol_command("Update.finish_image_update")?;
+    let block_size = hubris.get_idol_command("Update.block_size")?;
 
     let blk_size = match humility_cmd_hiffy::hiffy_call(
         hubris,

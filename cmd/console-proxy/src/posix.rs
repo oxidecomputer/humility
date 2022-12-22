@@ -23,7 +23,7 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::{IdolArgument, IdolOperation};
+use humility_cmd::idol::{HubrisIdol, IdolArgument};
 
 use super::UartConsoleArgs;
 use super::UartConsoleCommand;
@@ -54,13 +54,7 @@ impl<'a> UartConsoleHandler<'a> {
     }
 
     fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let op = IdolOperation::new(
-            self.hubris,
-            "ControlPlaneAgent",
-            "uart_read",
-            None,
-        )
-        .context("Could not find `ControlPlaneAgent.uart_read` operation")?;
+        let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
@@ -83,13 +77,8 @@ impl<'a> UartConsoleHandler<'a> {
     }
 
     fn uart_write(&mut self, buf: &[u8]) -> Result<usize> {
-        let op = IdolOperation::new(
-            self.hubris,
-            "ControlPlaneAgent",
-            "uart_write",
-            None,
-        )
-        .context("Could not find `ControlPlaneAgent.uart_write` operation")?;
+        let op =
+            self.hubris.get_idol_command("ControlPlaneAgent.uart_write")?;
 
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
@@ -188,15 +177,9 @@ impl<'a> UartConsoleHandler<'a> {
     }
 
     fn detach(&mut self) -> Result<()> {
-        let op = IdolOperation::new(
-            self.hubris,
-            "ControlPlaneAgent",
-            "set_humility_uart_client",
-            None,
-        )
-        .context(
-            "Could not find `ControlPlaneAgent.set_humility_uart_client` operation",
-        )?;
+        let op = self
+            .hubris
+            .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
@@ -214,15 +197,9 @@ impl<'a> UartConsoleHandler<'a> {
     }
 
     fn current_client(&mut self) -> Result<()> {
-        let op = IdolOperation::new(
-            self.hubris,
-            "ControlPlaneAgent",
-            "get_uart_client",
-            None,
-        )
-        .context(
-            "Could not find `ControlPlaneAgent.get_uart_client` operation",
-        )?;
+        let op = self
+            .hubris
+            .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
         let value = humility_cmd_hiffy::hiffy_call(
             self.hubris,
