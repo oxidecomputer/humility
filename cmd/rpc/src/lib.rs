@@ -116,13 +116,15 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     // For some reason, macOS requires the interface to be non-zero:
     // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
     // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
-    let interface = if cfg!(target_os = "macos") {
-        match &rpc_args.interface {
-            None => bail!("Must specify interface with `-i` on macOS"),
-            Some(iface) => decode_iface(iface)?,
+    let interface = match &rpc_args.interface {
+        None => {
+            if cfg!(target_os = "macos") {
+                bail!("Must specify interface with `-i` on macOS");
+            } else {
+                0
+            }
         }
-    } else {
-        0
+        Some(iface) => decode_iface(iface)?,
     };
     socket.join_multicast_v6(
         &Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 0, 1),
@@ -145,7 +147,9 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
                     continue;
                 } else {
                     let mac: [u8; 6] = buf[..6].try_into().unwrap();
-                    if mac[0] != 0x0e || mac[1] != 0x1d {
+                    if mac[0..2] != [0x0e, 0x1d]
+                        && mac[0..3] != [0xa8, 0x40, 0x25]
+                    {
                         humility::msg!(
                             "Skipping packet with non-matching MAC {:?}",
                             mac
