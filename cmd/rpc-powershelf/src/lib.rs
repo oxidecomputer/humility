@@ -4,7 +4,19 @@
 
 //! ## `humility rpc-powershelf`
 //!
-//! TODO docs
+//! `humility rpc-powershelf` allows for remotely dumping the state of the PSC
+//! power shelves, via the same network mechanism as `humility rpc`.
+//!
+//! This command has the same requirements as `humility rpc` and uses the same
+//! underlying mechanisms: the Hubris `udprpc` task should be listening on port
+//! 8 and the matching Hubris archive is required. See the `humility rpc`
+//! documentation for more details.
+//!
+//! This command is currently hard-coded to support only the MWOCP68, and it
+//! dumps 50+ properties described in the ACAN-114 application note. It will
+//! only dump the properties from a single shelf+rail combination, so seeing
+//! properties of all 6 shelves requires calling this command 6 time (with
+//! indices 0 through 5).
 
 use std::time::Duration;
 
@@ -79,7 +91,7 @@ fn lookup_operation_enum(hubris: &HubrisArchive) -> Result<&HubrisEnum> {
     Ok(operation)
 }
 
-fn interpret(variant: &str, payload: &[u8]) {
+fn interpret_raw_variant(variant: &str, payload: &[u8]) {
     use pmbus::{CommandCode, Device, VOutModeCommandData};
 
     // Slightly gross: Hard-code our device and VOUT_MODE for mwocp68. Should we
@@ -106,7 +118,7 @@ fn interpret(variant: &str, payload: &[u8]) {
         }
     };
 
-    let _ = device.interpret(
+    let result = device.interpret(
         code as u8,
         payload,
         || vout_mode,
@@ -124,6 +136,10 @@ fn interpret(variant: &str, payload: &[u8]) {
             println!("     | {:6} {:<34} <= {}", bits, value, field.name());
         },
     );
+
+    if let Err(err) = result {
+        println!("     | Error interpreting fields: {err:?}");
+    }
 }
 
 fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
@@ -131,7 +147,7 @@ fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = RpcArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
 
-    let operation = lookup_operation_enum(&hubris)?;
+    let operation = lookup_operation_enum(hubris)?;
 
     let mut client = RpcClient::new(
         hubris,
@@ -168,25 +184,30 @@ fn rpc_powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
             // explained.
             if let Ok(value) = result {
                 let value = value.as_enum()?;
-                if matches!(value.disc(), "Raw8" | "Raw16") {
-                    let contents = value
+
+                // Helper enum to unwrap `value` if it is one of the `Raw8(u8)`
+                // or `Raw16(u16)` enum variants: extract the contents as a
+                // 1tuple then pull out the base value.
+                let unwrap_to_base = || {
+                    value
                         .contents()
                         .unwrap()
                         .as_1tuple()
                         .unwrap()
                         .as_base()
-                        .unwrap();
-                    let mut payload = Vec::with_capacity(2);
-                    if let Some(x) = contents.as_u8() {
-                        payload.push(x);
-                    } else if let Some(x) = contents.as_u16() {
-                        payload.extend_from_slice(&x.to_le_bytes());
-                    } else {
-                        panic!(
-                            "Raw8/Raw16 contain something other than u8/u16"
-                        );
+                        .unwrap()
+                };
+
+                match value.disc() {
+                    "Raw8" => {
+                        let x = unwrap_to_base().as_u8().unwrap();
+                        interpret_raw_variant(&variant.name, &[x]);
                     }
-                    interpret(&variant.name, &payload);
+                    "Raw16" => {
+                        let x = unwrap_to_base().as_u16().unwrap();
+                        interpret_raw_variant(&variant.name, &x.to_le_bytes());
+                    }
+                    _ => (),
                 }
             }
         }

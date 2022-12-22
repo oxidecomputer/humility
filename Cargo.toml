@@ -88,7 +88,7 @@ hif = { git = "https://github.com/oxidecomputer/hif" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
-pmbus = { git = "https://github.com/oxidecomputer/pmbus", branch = "extra-mwocp68" } # FIXME after merging pmbus#9
+pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
 spd = { git = "https://github.com/oxidecomputer/spd" }
 serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
 tlvc = { git = "https://github.com/oxidecomputer/tlvc" }

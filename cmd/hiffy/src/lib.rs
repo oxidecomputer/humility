@@ -395,7 +395,7 @@ pub fn hiffy_format_result(
             let mut dumped = vec![];
             val.format(hubris, fmt, &mut dumped).unwrap();
 
-            format!("{}", std::str::from_utf8(&dumped).unwrap())
+            std::str::from_utf8(&dumped).unwrap().to_string()
         }
         Err(e) => {
             format!("Err({})", e)
