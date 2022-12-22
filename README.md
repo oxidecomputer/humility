@@ -248,6 +248,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility power](#humility-power): show power-related information
+- [humility powershelf](#humility-powershelf): inspect powershelf over the management network
 - [humility probe](#humility-probe): probe for any attached devices
 - [humility qspi](#humility-qspi): QSPI status, reading and writing
 - [humility readmem](#humility-readmem): read and display memory region
@@ -1298,6 +1299,23 @@ No documentation yet for `humility pmbus`; pull requests welcome!
 `humility power` displays the values associated with devices that
 can measure voltage, displaying voltage, current (if measured) and
 temperature (if measured).
+
+
+### `humility powershelf`
+
+`humility powershelf` allows for remotely dumping the state of the PSC
+power shelves, via the same network mechanism as `humility rpc`.
+
+This command has the same requirements as `humility rpc` and uses the same
+underlying mechanisms: the Hubris `udprpc` task should be listening on port
+8 and the matching Hubris archive is required. See the `humility rpc`
+documentation for more details.
+
+This command is currently hard-coded to support only the MWOCP68, and it
+dumps 50+ properties described in the ACAN-114 application note. It will
+only dump the properties from a single shelf+rail combination, so seeing
+properties of all 6 shelves requires calling this command 6 time (with
+indices 0 through 5).
 
 
 ### `humility probe`
