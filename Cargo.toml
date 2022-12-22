@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.9.18"
+version = "0.9.19"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -143,6 +143,7 @@ cmd-net = { path = "./cmd/net", package = "humility-cmd-net" }
 cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
 cmd-power = { path = "./cmd/power", package = "humility-cmd-power" }
+cmd-powershelf = { path = "./cmd/powershelf", package = "humility-cmd-powershelf" }
 cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
 cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
 cmd-readmem = { path = "./cmd/readmem", package = "humility-cmd-readmem" }
@@ -274,6 +275,7 @@ cmd-net = { workspace = true }
 cmd-openocd = { workspace = true }
 cmd-pmbus = { workspace = true }
 cmd-power = { workspace = true }
+cmd-powershelf = { workspace = true }
 cmd-probe = { workspace = true }
 cmd-qspi = { workspace = true }
 cmd-readmem = { workspace = true }

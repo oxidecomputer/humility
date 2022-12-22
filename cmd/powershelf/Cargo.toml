@@ -1,0 +1,27 @@
+[package]
+name = "humility-cmd-powershelf"
+version = "0.1.0"
+edition = "2021"
+description = "inspect powershelf over the management network"
+
+[dependencies]
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+cmd-hiffy = { workspace = true }
+cmd-rpc = { workspace = true }
+pmbus = { workspace = true }
+
+hif = { workspace = true }
+idol = { workspace = true }
+
+anyhow = { workspace = true }
+clap = { workspace = true }
+indexmap = { workspace = true }
+log = { workspace = true }
+parse_int = { workspace = true }
+
+[target.'cfg(not(windows))'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["netioapi"] }

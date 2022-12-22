@@ -380,29 +380,40 @@ pub fn hiffy_decode(
     Ok(r)
 }
 
-pub fn hiffy_print_result(
+pub fn hiffy_format_result(
     hubris: &HubrisArchive,
-    op: &idol::IdolOperation,
     result: std::result::Result<humility::reflect::Value, String>,
-) -> Result<()> {
+) -> String {
     let fmt = HubrisPrintFormat {
         newline: false,
         hex: true,
         ..HubrisPrintFormat::default()
     };
-    print!("{}.{}() => ", op.name.0, op.name.1);
     match result {
         Ok(val) => {
             use humility::reflect::Format;
             let mut dumped = vec![];
             val.format(hubris, fmt, &mut dumped).unwrap();
 
-            println!("{}", std::str::from_utf8(&dumped).unwrap());
+            std::str::from_utf8(&dumped).unwrap().to_string()
         }
         Err(e) => {
-            println!("Err({})", e);
+            format!("Err({})", e)
         }
     }
+}
+
+pub fn hiffy_print_result(
+    hubris: &HubrisArchive,
+    op: &idol::IdolOperation,
+    result: std::result::Result<humility::reflect::Value, String>,
+) -> Result<()> {
+    println!(
+        "{}.{}() => {}",
+        op.name.0,
+        op.name.1,
+        hiffy_format_result(hubris, result)
+    );
 
     Ok(())
 }
