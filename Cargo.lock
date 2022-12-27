@@ -1702,7 +1702,6 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-cmd-hiffy",
- "humility-cmd-net",
  "humility-core",
  "idol",
  "indexmap",

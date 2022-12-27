@@ -55,7 +55,6 @@ use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
 use cmd_hiffy as humility_cmd_hiffy;
-use cmd_net as humility_cmd_net;
 
 use anyhow::{anyhow, bail, Result};
 use clap::App;
@@ -140,8 +139,8 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     let mut buf = [0u8; 1024];
     let mut printed_header = false;
     loop {
-        match socket.recv(&mut buf) {
-            Ok(n) => {
+        match socket.recv_from(&mut buf) {
+            Ok((n, src)) => {
                 if n != 14 {
                     humility::msg!("Skipping unknown packet {:?}", &buf[..n]);
                     continue;
@@ -169,12 +168,11 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
                             );
                             printed_header = true;
                         }
-                        let ip6 = humility_cmd_net::mac_to_ip6(mac);
                         for (i, byte) in mac.iter().enumerate() {
                             print!("{}", if i == 0 { " " } else { ":" });
                             print!("{:02x}", byte)
                         }
-                        print!(" | {} | ", ip6);
+                        print!(" | {:25} | ", src.ip());
                         let image_id = &buf[6..n];
                         if image_id == hubris.image_id().unwrap() {
                             println!("{}", "Yes".green());
