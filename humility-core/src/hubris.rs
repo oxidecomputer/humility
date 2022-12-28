@@ -4729,11 +4729,11 @@ impl HubrisArchive {
             );
 
             println!(
-                "{:>17} {:2} {} {} {:13} {}",
-                "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
+                "{:>19} {:2} {:2} {} {} {:13} {}",
+                "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
             );
 
-            for device in &self.manifest.i2c_devices {
+            for (ndx, device) in self.manifest.i2c_devices.iter().enumerate() {
                 let mux = match (device.mux, device.segment) {
                     (Some(m), Some(s)) => format!("{}:{}", m, s),
                     (None, None) => "-".to_string(),
@@ -4741,7 +4741,8 @@ impl HubrisArchive {
                 };
 
                 println!(
-                    "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
+                    "{:>19} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+                    ndx,
                     device.controller,
                     device.port.name,
                     mux,
@@ -4778,29 +4779,25 @@ impl HubrisArchive {
             }
         }
 
-        let sensors = self
-            .manifest
-            .sensors
-            .iter()
-            .filter(|s| match &s.device {
-                HubrisSensorDevice::I2c(..) => false, // printed above
-                HubrisSensorDevice::Other(..) => true,
-            })
-            .collect::<Vec<_>>();
-        if !sensors.is_empty() {
+        if !self.manifest.sensors.is_empty() {
             println!(
-                "     sensors => {} additional device{}",
-                sensors.len(),
-                if sensors.len() > 1 { "s" } else { "" }
+                "     sensors => {} sensor{}",
+                self.manifest.sensors.len(),
+                if self.manifest.sensors.len() > 1 { "s" } else { "" }
             );
-            println!("                NAME      DEVICE    KIND");
-            for s in &sensors {
+            println!(
+                "                 ID NAME                    \
+                DEVICE        KIND"
+            );
+
+            for (ndx, s) in self.manifest.sensors.iter().enumerate() {
                 let device = match &s.device {
-                    HubrisSensorDevice::I2c(..) => unreachable!(),
-                    HubrisSensorDevice::Other(dev, _) => dev,
+                    HubrisSensorDevice::I2c(ndx) => format!("i2c id={}", ndx),
+                    HubrisSensorDevice::Other(dev, _) => dev.to_string(),
                 };
                 println!(
-                    "                {:9} {:9} {}",
+                    "                {:3} {:23} {:11} {}",
+                    ndx,
                     s.name,
                     device,
                     s.kind.to_string()

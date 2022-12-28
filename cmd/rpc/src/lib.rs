@@ -13,7 +13,7 @@
 //!
 //! An archive is required so that `humility` knows what functions are available
 //! and how to call them.  The archive ID is checked against the image ID on the
-//! target; `udprcp` will refuse to execute commands when the ID does not match.
+//! target; `udprpc` will refuse to execute commands when the ID does not match.
 //!
 //! Function calls are handled identically to the `humility hiffy` subcommand,
 //! except that an `--ip` address is required:
@@ -51,15 +51,13 @@
 //! --listen -ien0`)
 
 use std::collections::BTreeSet;
-use std::net::{Ipv6Addr, ToSocketAddrs, UdpSocket};
+use std::net::{IpAddr, Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
 use cmd_hiffy as humility_cmd_hiffy;
 
 use anyhow::{anyhow, bail, Result};
-use clap::App;
-use clap::IntoApp;
-use clap::Parser;
+use clap::{App, ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
 use humility::{hubris::*, reflect};
@@ -69,11 +67,14 @@ use humility_cmd::{Archive, Command};
 use zerocopy::{AsBytes, U16, U64};
 
 #[derive(Parser, Debug)]
-#[clap(name = "rpc", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(
+    name = "rpc", about = env!("CARGO_PKG_DESCRIPTION"),
+    group = ArgGroup::new("target").multiple(false)
+)]
 struct RpcArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 2000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -83,18 +84,23 @@ struct RpcArgs {
     list: bool,
 
     /// call a particular function
-    #[clap(long, short, conflicts_with_all = &["list"], requires = "ip")]
+    #[clap(long, short, conflicts_with = "list", requires = "target")]
     call: Option<String>,
 
     /// listen for compatible SPs on the network
-    #[clap(long, conflicts_with_all = &["list", "call"])]
+    #[clap(
+        long,
+        conflicts_with = "list",
+        group = "target",
+        requires = "interface"
+    )]
     listen: bool,
 
     /// arguments
     #[clap(long, short, requires = "call")]
     task: Option<String>,
 
-    /// interface on which to listen, e.g. 'en0' (required on macOS)
+    /// interface on which to listen, e.g. 'en0'
     #[clap(short, requires = "listen")]
     interface: Option<String>,
 
@@ -103,11 +109,23 @@ struct RpcArgs {
     arguments: Vec<String>,
 
     /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
-    #[clap(long, env = "HUMILITY_RPC_IP")]
-    ip: Option<String>,
+    #[clap(
+        long,
+        env = "HUMILITY_RPC_IP",
+        group = "target",
+        use_value_delimiter = true
+    )]
+    ip: Option<Vec<String>>,
 }
 
-fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+struct Target {
+    mac: [u8; 6],
+    image_id: [u8; 8],
+    ip: IpAddr,
+}
+
+fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
     let socket = UdpSocket::bind("[::]:8")?;
     let timeout = Duration::from_millis(rpc_args.timeout as u64);
     socket.set_read_timeout(Some(timeout))?;
@@ -131,14 +149,11 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
     )?;
 
     let mut seen = BTreeSet::new();
-    humility::msg!(
-        "listening... (ctrl-C to stop, or timeout in {:?})",
-        timeout
-    );
+    humility::msg!("listening for {} seconds...", timeout.as_secs());
+
     let timeout = Instant::now() + timeout;
     let mut buf = [0u8; 1024];
-    let mut printed_header = false;
-    loop {
+    while timeout > Instant::now() {
         match socket.recv_from(&mut buf) {
             Ok((n, src)) => {
                 if n != 14 {
@@ -153,37 +168,13 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
                             "Skipping packet with non-matching MAC {:?}",
                             mac
                         );
-                    } else if seen.insert(mac) {
-                        if !printed_header {
-                            println!(
-                                "       {}         |            {}           | {}",
-                                "MAC".bold(),
-                                "IPv6".bold(),
-                                "Compatible".bold()
-                            );
-                            println!(
-                                "-------------------|\
-                                 ---------------------------|\
-                                 -----------"
-                            );
-                            printed_header = true;
-                        }
-                        for (i, byte) in mac.iter().enumerate() {
-                            print!("{}", if i == 0 { " " } else { ":" });
-                            print!("{:02x}", byte)
-                        }
-                        print!(" | {:25} | ", src.ip());
-                        let image_id = &buf[6..n];
-                        if image_id == hubris.image_id().unwrap() {
-                            println!("{}", "Yes".green());
-                        } else {
-                            println!("{}", "No".red());
-                        }
+                    } else {
+                        seen.insert(Target {
+                            mac: mac,
+                            image_id: buf[6..n].try_into().unwrap(),
+                            ip: src.ip(),
+                        });
                     }
-                }
-
-                if timeout <= Instant::now() {
-                    break;
                 }
             }
             Err(e) => {
@@ -192,7 +183,7 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
                 match e.kind() {
                     std::io::ErrorKind::WouldBlock
                     | std::io::ErrorKind::TimedOut => {
-                        if !printed_header {
+                        if seen.is_empty() {
                             humility::msg!("timed out, exiting");
                         }
                         break;
@@ -202,7 +193,31 @@ fn rpc_listen(hubris: &HubrisArchive, rpc_args: &RpcArgs) -> Result<()> {
             }
         }
     }
-    Ok(())
+    Ok(seen)
+}
+
+fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
+    println!(
+        "       {}         |            {}           | {}",
+        "MAC".bold(),
+        "IPv6".bold(),
+        "Compatible".bold()
+    );
+
+    println!("-------------------|---------------------------| -----------");
+
+    for target in seen {
+        for (i, byte) in target.mac.iter().enumerate() {
+            print!("{}", if i == 0 { " " } else { ":" });
+            print!("{:02x}", byte)
+        }
+        print!(" | {:25} | ", target.ip);
+        if target.image_id == image_id {
+            println!("{}", "Yes".green());
+        } else {
+            println!("{}", "No".red());
+        }
+    }
 }
 
 fn decode_iface(iface: &str) -> Result<u32> {
@@ -247,7 +262,7 @@ impl<'a> RpcClient<'a> {
 
         // Hard-coded socket address, based on Hubris configuration
         let target = format!("[{}%{}]:998", ip, scopeid);
-        humility::msg!("Connecting to {}", target);
+        //humility::msg!("Connecting to {}", target);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
         let socket = UdpSocket::bind("[::]:0")?;
@@ -331,17 +346,17 @@ fn rpc_call(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
-    rpc_args: &RpcArgs,
+    ips: Vec<String>,
+    timeout: u32,
 ) -> Result<()> {
-    let mut client = RpcClient::new(
-        hubris,
-        // rpc_args.ip must be Some(...), checked by clap
-        rpc_args.ip.as_deref().unwrap(),
-        Duration::from_millis(u64::from(rpc_args.timeout)),
-    )?;
+    let timeout = Duration::from_millis(u64::from(timeout));
 
-    let result = client.call(op, args)?;
-    humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
+    for ip in &ips {
+        let mut client = RpcClient::new(hubris, ip, timeout)?;
+        let result = client.call(op, args)?;
+        print!("{:25} ", ip);
+        humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
+    }
 
     Ok(())
 }
@@ -354,9 +369,25 @@ fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
     if subargs.list {
         humility_cmd_hiffy::hiffy_list(hubris, vec![])?;
         return Ok(());
-    } else if subargs.listen {
-        return rpc_listen(hubris, &subargs);
     }
+
+    if subargs.listen && subargs.call.is_none() {
+        rpc_dump(rpc_listen(&subargs)?, hubris.image_id().unwrap());
+        return Ok(());
+    }
+
+    let ips = if subargs.listen {
+        let image_id = hubris.image_id().unwrap();
+        let interface: &str = subargs.interface.as_ref().unwrap();
+
+        rpc_listen(&subargs)?
+            .iter()
+            .filter(|t| t.image_id == image_id)
+            .map(|t| format!("{}%{}", t.ip, interface))
+            .collect::<Vec<String>>()
+    } else {
+        subargs.ip.unwrap()
+    };
 
     if let Some(call) = &subargs.call {
         if hubris.lookup_task("udprpc").is_none() {
@@ -391,7 +422,7 @@ fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
         };
 
         let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
-        rpc_call(hubris, &op, &args, &subargs)?;
+        rpc_call(hubris, &op, &args, ips, subargs.timeout)?;
 
         return Ok(());
     }
