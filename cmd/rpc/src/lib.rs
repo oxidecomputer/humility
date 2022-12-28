@@ -60,6 +60,7 @@ use anyhow::{anyhow, bail, Result};
 use clap::{App, ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
+use humility::net::decode_iface;
 use humility::{hubris::*, reflect};
 use humility_cmd::doppel::RpcHeader;
 use humility_cmd::idol;
@@ -218,25 +219,6 @@ fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
             println!("{}", "No".red());
         }
     }
-}
-
-fn decode_iface(iface: &str) -> Result<u32> {
-    #[cfg(not(windows))]
-    use libc::if_nametoindex;
-    #[cfg(windows)]
-    use winapi::shared::netioapi::if_nametoindex;
-
-    // Work around https://github.com/rust-lang/rust/issues/65976 by manually
-    // converting from scopeid to numerical value.  I'm not any happier about
-    // this than you are!
-    let iface_c = std::ffi::CString::new(iface).unwrap();
-    let scopeid: u32 = iface
-        .parse()
-        .unwrap_or_else(|_| unsafe { if_nametoindex(iface_c.as_ptr()) });
-    if scopeid == 0 {
-        bail!("Could not find interface for {}", iface);
-    }
-    Ok(scopeid)
 }
 
 pub struct RpcClient<'a> {

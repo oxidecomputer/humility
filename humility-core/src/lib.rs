@@ -13,6 +13,7 @@ pub mod cli;
 pub mod core;
 pub mod env;
 pub mod hubris;
+pub mod net;
 pub mod reflect;
 
 #[macro_use]
@@ -80,10 +81,12 @@ impl ExecutionContext {
                 };
 
                 //
-                // Cannot specify a dump/probe and also an environment and target
+                // Cannot specify a dump/probe/IP address and also an
+                // environment and target
                 //
                 assert!(cli.dump.is_none());
                 assert!(cli.probe.is_none());
+                assert!(cli.ip.is_none());
 
                 cli.probe = Some(env.probe.clone());
 

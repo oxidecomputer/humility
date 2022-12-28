@@ -3325,6 +3325,10 @@ impl HubrisArchive {
             return Ok(());
         }
 
+        if core.is_net() {
+            return Ok(());
+        }
+
         //
         // To validate that what we're running on the target matches what
         // we have in the archive, we are going to check the image ID, an

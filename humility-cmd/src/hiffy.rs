@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::{doppel::StaticCell, idol};
+use crate::{doppel::StaticCell, doppel::RpcHeader, idol};
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::Core;
@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::thread;
 use std::time::{Duration, Instant};
+use zerocopy::{AsBytes, U16, U64};
 
 #[derive(Debug, PartialEq)]
 enum State {
@@ -33,12 +34,13 @@ pub struct HiffyContext<'a> {
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
     failure: &'a HubrisVariable,
-    functions: HubrisGoff,
+    funcs: HubrisGoff,
     scratch_size: usize,
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
     timeout: u32,
     state: State,
+    functions: HashMap<String, TargetFunction>,
 }
 
 #[derive(Debug)]
@@ -185,61 +187,67 @@ impl<'a> HiffyContext<'a> {
         core: &mut dyn Core,
         timeout: u32,
     ) -> Result<HiffyContext<'a>> {
-        core.op_start()?;
-
-        let (major, minor) = (
-            Self::read_word(hubris, core, "HIFFY_VERSION_MAJOR"),
-            Self::read_word(hubris, core, "HIFFY_VERSION_MINOR"),
-        );
-
-        core.op_done()?;
-
-        let target = (major?, minor?);
-        let ours = (HIF_VERSION_MAJOR, HIF_VERSION_MINOR);
-
-        //
-        // For now, we insist on an exact version match between Humility
-        // and Hubris.
-        //
-        if ours != target {
-            //
-            // If the version in core appears wildly wrong (i.e, anything
-            // greater than a byte), it may be because Hiffy is getting
-            // starved; generate a messaage pointing in that direction.
-            //
-            if target.0 > 255 || target.1 > 255 {
-                bail!(
-                    "HIF versions appear uninitialized; \
-                    has the hiffy task not yet run?"
-                );
-            }
-
-            #[rustfmt::skip]
-            bail!(
-                "HIF version mismatch: target has {}.{}; ours is {}.{}",
-                target.0, target.1, ours.0, ours.1
-            );
-        }
-
-        let scratch_size = if let Ok(scratch) =
-            Self::variable(hubris, "HIFFY_SCRATCH", false)
-        {
-            let mut buf: Vec<u8> = vec![];
-            buf.resize_with(scratch.size, Default::default);
-
+        if !core.is_net() {
             core.op_start()?;
-            core.read_8(scratch.addr, buf.as_mut_slice())?;
+
+            let (major, minor) = (
+                Self::read_word(hubris, core, "HIFFY_VERSION_MAJOR"),
+                Self::read_word(hubris, core, "HIFFY_VERSION_MINOR"),
+            );
+
             core.op_done()?;
 
-            let def = hubris.lookup_struct(scratch.goff)?;
-            let val: Value =
-                Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
-            let scratch_cell: StaticCell = StaticCell::from_value(&val)?;
-            scratch_cell.cell.value.as_array()?.len()
-        } else {
-            // Backwards compatibility
-            // Previous versions stored a 256 byte array on the stack
-            256
+            let target = (major?, minor?);
+            let ours = (HIF_VERSION_MAJOR, HIF_VERSION_MINOR);
+
+            //
+            // For now, we insist on an exact version match between Humility
+            // and Hubris.
+            //
+            if ours != target {
+                //
+                // If the version in core appears wildly wrong (i.e, anything
+                // greater than a byte), it may be because Hiffy is getting
+                // starved; generate a messaage pointing in that direction.
+                //
+                if target.0 > 255 || target.1 > 255 {
+                    bail!(
+                        "HIF versions appear uninitialized; \
+                    has the hiffy task not yet run?"
+                    );
+                }
+
+                #[rustfmt::skip]
+                bail!(
+                    "HIF version mismatch: target has {}.{}; ours is {}.{}",
+                    target.0, target.1, ours.0, ours.1
+                );
+            }
+        }
+
+        let scratch_size = match (
+            core.is_net(),
+            Self::variable(hubris, "HIFFY_SCRATCH", false),
+        ) {
+            (false, Ok(scratch)) => {
+                let mut buf: Vec<u8> = vec![];
+                buf.resize_with(scratch.size, Default::default);
+
+                core.op_start()?;
+                core.read_8(scratch.addr, buf.as_mut_slice())?;
+                core.op_done()?;
+
+                let def = hubris.lookup_struct(scratch.goff)?;
+                let val: Value =
+                    Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
+                let scratch_cell: StaticCell = StaticCell::from_value(&val)?;
+                scratch_cell.cell.value.as_array()?.len()
+            }
+            _ => {
+                // Backwards/network compatibility
+                // Previous versions stored a 256 byte array on the stack
+                256
+            }
         };
 
         Ok(Self {
@@ -252,12 +260,13 @@ impl<'a> HiffyContext<'a> {
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
             failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
-            functions: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
+            funcs: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
             scratch_size,
             cached: None,
             kicked: None,
             timeout,
             state: State::Initialized,
+            functions: HashMap::new(),
         })
     }
 
@@ -303,7 +312,7 @@ impl<'a> HiffyContext<'a> {
         let hubris = self.hubris;
 
         let goff = hubris
-            .lookup_enum(self.functions)?
+            .lookup_enum(self.funcs)?
             .lookup_variant_byname("Some")?
             .goff
             .ok_or_else(|| anyhow!("malconstructed functions"))?;
@@ -328,6 +337,8 @@ impl<'a> HiffyContext<'a> {
                 args: Vec::new(),
                 errmap: HashMap::new(),
             };
+
+            self.functions.insert(func.name.clone(), func.id);
 
             //
             // We expect a 2-tuple that is our arguments and our error type
@@ -376,6 +387,119 @@ impl<'a> HiffyContext<'a> {
         }
 
         Ok(HiffyFunctions(rval))
+    }
+
+    fn rpc(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
+        let send = self.functions.get("Send").ok_or_else(|| {
+            anyhow!("illegal network operations: {:?}", ops)
+        })?;
+
+        let image_id = self.hubris.image_id().unwrap();
+
+        //
+        // We are expecting zero funny business here:  straight-line code
+        // that is pushing task + operation + payload onto the stack,
+        // calling Send, and then dropping it all.  If we see anything else,
+        // bomb out.
+        //
+        fn opval(op: &Op) -> Result<u32> {
+            match op {
+                Op::Push(v) => Ok(*v as u32),
+                Op::Push16(v) => Ok(*v as u32),
+                Op::Push32(v) => Ok(*v),
+                _ => {
+                    bail!("illegal network operation {:?}", op);
+                }
+            }
+        }
+
+        let mut start = 0;
+        let mut end = 0;
+
+        fn onecall<'a>(ops: &'a [Op], image_id: &'a [u8], send: TargetFunction) ->
+        Result<(Vec<u8>, &'a [Op])> {
+            //
+            // Scan forward for our call. We expect this to be a Send.
+            //
+            let found = ops.iter().enumerate().find(|&(ndx, op)| {
+                match op {
+                    Op::Call(id) if *id == send => true,
+                    _ => false,
+                }
+            }).ok_or_else(|| {
+                anyhow!("illegal network operations (no Send): {:?}", ops)
+            })?.0;
+
+            //
+            // We expect: task, operation, payload, payload length, reply length
+            //
+            if found < 4 {
+                bail!("illegal operations (missing arguments?): {:?}", ops);
+            }
+
+            if found + 1 >= ops.len() {
+                bail!("illegal operations (missing Done?): {:?}", ops);
+            }
+
+            let len = opval(&ops[found - 2])? as usize;
+            let nreply = opval(&ops[found - 1])?;
+
+            if 2 + len > found {
+                bail!("illegal operations (bad length {}): {:?}", len, ops);
+            }
+
+            let mut payload = vec![];
+
+            for op in ops[2..2 + len].iter() {
+                if let Op::Push(val) = op {
+                    payload.push(val);
+                } else {
+                    bail!("illegal operations (bad payload): {:?}", ops);
+                }
+            }
+
+            let header = RpcHeader {
+                image_id: U64::from_bytes(image_id.try_into().unwrap()),
+                task: U16::new(opval(&ops[0])?.try_into().unwrap()),
+                op: U16::new(opval(&ops[1])?.try_into().unwrap()),
+                nreply: U16::new(nreply as u16),
+                nbytes: U16::new(payload.len().try_into().unwrap()),
+            };
+
+            let mut packet = header.as_bytes().to_vec();
+            packet.extend(payload);
+
+            match ops[found + 1] {
+                Op::DropN(_) => {
+                    Ok((packet, &ops[found + 2..]))
+                }
+                _ => {
+                    bail!("illegal operations (missing Drop?): {:?}", ops);
+                }
+            }
+        }
+
+        let mut remainder = ops;
+        let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
+
+        loop {
+            let (packet, r) = onecall(remainder, image_id, *send)?;
+
+            core.send(&packet)?;
+            let n = core.recv(buf.as_mut_slice())?;
+
+            println!("n is {}", n);
+
+            if let Op::Done = remainder[0] {
+                break;
+            }
+
+            remainder = r;
+        }
+
+        self.state = State::Kicked;
+
+        bail!("foo");
     }
 
     /// Convenience routine to translate an Idol call into HIF operations,
@@ -525,8 +649,9 @@ impl<'a> HiffyContext<'a> {
         }
     }
 
-    /// Begins HIF execution.  This is non-blocking with respect to the HIF
-    /// program, so you will need to poll [Self::done] to check for completion.
+    /// Begins HIF execution.  This is potentially non-blocking with respect to
+    /// the HIF program, so you will need to poll [Self::done] to check for
+    /// completion.
     pub fn start(
         &mut self,
         core: &mut dyn Core,
@@ -538,6 +663,14 @@ impl<'a> HiffyContext<'a> {
             _ => {
                 bail!("invalid state for execution: {:?}", self.state);
             }
+        }
+
+        if core.is_net() {
+            if data.is_some() {
+                bail!("cannot execute -based operations over the network");
+            }
+
+            return self.rpc(core, ops);
         }
 
         if let Some(data) = data {
@@ -661,6 +794,15 @@ impl<'a> HiffyContext<'a> {
             bail!("invalid state for waiting: {:?}", self.state);
         }
 
+        //
+        // If this is over the network, our calls are already done by the
+        // time we're here.
+        //
+        if core.is_net() {
+            self.state = State::ResultsReady;
+            return Ok(true);
+        }
+
         core.op_start()?;
 
         let vars = (
@@ -757,6 +899,10 @@ impl<'a> HiffyContext<'a> {
     ) -> Result<Vec<Result<Vec<u8>, u32>>> {
         if self.state != State::ResultsReady {
             bail!("invalid state for consuming results: {:?}", self.state);
+        }
+
+        if core.is_net() {
+            bail!("no net results yet");
         }
 
         let mut rstack: Vec<u8> = vec![];

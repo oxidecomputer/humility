@@ -9,6 +9,7 @@ use anyhow::{anyhow, bail, ensure, Result};
 
 use crate::arch::ARMRegister;
 use crate::hubris::*;
+use crate::net::decode_iface;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -18,6 +19,7 @@ use std::fs;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
+use std::net::{ToSocketAddrs, UdpSocket};
 use std::path::Path;
 use std::rc::Rc;
 use std::str;
@@ -41,6 +43,10 @@ pub trait Core {
     fn run(&mut self) -> Result<()>;
     fn step(&mut self) -> Result<()>;
     fn is_dump(&self) -> bool {
+        false
+    }
+
+    fn is_net(&self) -> bool {
         false
     }
 
@@ -78,6 +84,16 @@ pub trait Core {
 
     /// Wait `duration` seconds for the targe to halt.
     fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
+
+    /// Send over network, if applicable
+    fn send(&mut self, _buf: &[u8]) -> Result<usize> {
+        bail!("cannot send over network");
+    }
+
+    /// Receive from network, if applicable
+    fn recv(&mut self, _buf: &mut [u8]) -> Result<usize> {
+        bail!("cannot receive from network");
+    }
 }
 
 pub struct UnattachedCore {
@@ -152,10 +168,6 @@ impl Core for UnattachedCore {
 
     fn read_swv(&mut self) -> Result<Vec<u8>> {
         bail!("Unimplemented when unattached!");
-    }
-
-    fn is_dump(&self) -> bool {
-        false
     }
 
     fn load(&mut self, _path: &Path) -> Result<()> {
@@ -1311,6 +1323,125 @@ impl Core for DumpCore {
     }
 }
 
+pub struct NetCore {
+    socket: UdpSocket,
+}
+
+impl NetCore {
+    fn new(
+        ip: &str,
+        hubris: &HubrisArchive,
+        timeout: Duration,
+    ) -> Result<NetCore> {
+        let mut iter = ip.split('%');
+        let ip = iter.next().expect("ip address is empty");
+        let iface = iter
+            .next()
+            .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
+
+        let scopeid = decode_iface(iface)?;
+
+        // Hard-coded socket address, based on Hubris configuration
+        let target = format!("[{}%{}]:998", ip, scopeid);
+
+        let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
+        let socket = UdpSocket::bind("[::]:0")?;
+        socket.set_read_timeout(Some(timeout))?;
+        socket.connect(&dest[..])?;
+
+        let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
+            anyhow!(
+                "Could not find `udprpc` task in this image. \
+                 Is it up to date?"
+            )
+        })?;
+        let _rpc_reply_type = hubris
+            .lookup_module(*rpc_task)?
+            .lookup_enum_byname(hubris, "RpcReply")?;
+
+        Ok(Self { socket })
+    }
+}
+
+#[rustfmt::skip::macros(bail)]
+impl Core for NetCore {
+    fn info(&self) -> (String, Option<String>) {
+        ("connected remotely".to_string(), None)
+    }
+
+    fn is_net(&self) -> bool {
+        true
+    }
+
+    fn send(&mut self, buf: &[u8]) -> Result<usize> {
+        self.socket.send(buf).map_err(anyhow::Error::from)
+    }
+
+    fn recv(&mut self, buf: &mut [u8]) -> Result<usize> {
+        self.socket.recv(buf).map_err(anyhow::Error::from)
+    }
+
+    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
+        bail!("cannot read 32-bit value at 0x{:x} over network", addr);
+    }
+
+    fn read_8(&mut self, addr: u32, _data: &mut [u8]) -> Result<()> {
+        bail!("cannot read memory at 0x{:x} over network", addr);
+    }
+
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+        bail!("cannot read register {} over network", reg);
+    }
+
+    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
+        bail!("cannot write register {} over network", reg);
+    }
+
+    fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
+        bail!("cannot write a word over network");
+    }
+
+    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
+        bail!("cannot write a byte over network");
+    }
+
+    fn halt(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn step(&mut self) -> Result<()> {
+        bail!("can't step over network");
+    }
+
+    fn init_swv(&mut self) -> Result<()> {
+        bail!("cannot enable SWV over network");
+    }
+
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
+        bail!("cannot read SWV over network");
+    }
+
+    fn load(&mut self, _path: &Path) -> Result<()> {
+        bail!("cannot load flash over network");
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        bail!("cannot reset over network");
+    }
+
+    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("cannot reset over network");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("cannot wait for halt over network");
+    }
+}
+
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
     if probe.contains('-') {
         let str = probe.to_owned();
@@ -1562,5 +1693,15 @@ pub fn attach_dump(
 ) -> Result<Box<dyn Core>> {
     let core = DumpCore::new(dump, hubris)?;
     crate::msg!("attached to dump");
+    Ok(Box::new(core))
+}
+
+pub fn attach_net(
+    ip: &str,
+    hubris: &HubrisArchive,
+    timeout: Duration,
+) -> Result<Box<dyn Core>> {
+    let core = NetCore::new(ip, hubris, timeout)?;
+    crate::msg!("connecting to {}", ip);
     Ok(Box::new(core))
 }
