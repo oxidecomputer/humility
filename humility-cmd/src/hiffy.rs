@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::{doppel::StaticCell, doppel::RpcHeader, idol};
+use crate::{doppel::RpcHeader, doppel::StaticCell, idol};
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::Core;
@@ -41,6 +41,8 @@ pub struct HiffyContext<'a> {
     timeout: u32,
     state: State,
     functions: HashMap<String, TargetFunction>,
+    rpc_results: Vec<Result<Vec<u8>, u32>>,
+    rpc_reply_type: Option<&'a HubrisEnum>,
 }
 
 #[derive(Debug)]
@@ -267,6 +269,21 @@ impl<'a> HiffyContext<'a> {
             timeout,
             state: State::Initialized,
             functions: HashMap::new(),
+            rpc_reply_type: if core.is_net() {
+                //
+                // This should have been checked when we initially attached.
+                //
+                let rpc_task = hubris.lookup_task("udprpc").unwrap();
+
+                Some(
+                    hubris
+                        .lookup_module(*rpc_task)?
+                        .lookup_enum_byname(hubris, "RpcReply")?,
+                )
+            } else {
+                None
+            },
+            rpc_results: Vec::new(),
         })
     }
 
@@ -389,10 +406,11 @@ impl<'a> HiffyContext<'a> {
         Ok(HiffyFunctions(rval))
     }
 
-    fn rpc(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
-        let send = self.functions.get("Send").ok_or_else(|| {
-            anyhow!("illegal network operations: {:?}", ops)
-        })?;
+    fn perform_rpc(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
+        let send = self
+            .functions
+            .get("Send")
+            .ok_or_else(|| anyhow!("illegal network operations: {:?}", ops))?;
 
         let image_id = self.hubris.image_id().unwrap();
 
@@ -416,19 +434,25 @@ impl<'a> HiffyContext<'a> {
         let mut start = 0;
         let mut end = 0;
 
-        fn onecall<'a>(ops: &'a [Op], image_id: &'a [u8], send: TargetFunction) ->
-        Result<(Vec<u8>, &'a [Op])> {
+        fn onecall<'a>(
+            ops: &'a [Op],
+            image_id: &'a [u8],
+            send: TargetFunction,
+        ) -> Result<(Vec<u8>, &'a [Op])> {
             //
             // Scan forward for our call. We expect this to be a Send.
             //
-            let found = ops.iter().enumerate().find(|&(ndx, op)| {
-                match op {
+            let found = ops
+                .iter()
+                .enumerate()
+                .find(|&(ndx, op)| match op {
                     Op::Call(id) if *id == send => true,
                     _ => false,
-                }
-            }).ok_or_else(|| {
-                anyhow!("illegal network operations (no Send): {:?}", ops)
-            })?.0;
+                })
+                .ok_or_else(|| {
+                    anyhow!("illegal network operations (no Send): {:?}", ops)
+                })?
+                .0;
 
             //
             // We expect: task, operation, payload, payload length, reply length
@@ -470,9 +494,7 @@ impl<'a> HiffyContext<'a> {
             packet.extend(payload);
 
             match ops[found + 1] {
-                Op::DropN(_) => {
-                    Ok((packet, &ops[found + 2..]))
-                }
+                Op::DropN(_) => Ok((packet, &ops[found + 2..])),
                 _ => {
                     bail!("illegal operations (missing Drop?): {:?}", ops);
                 }
@@ -481,25 +503,65 @@ impl<'a> HiffyContext<'a> {
 
         let mut remainder = ops;
         let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
+        let rpc_reply_type = self.rpc_reply_type.unwrap();
+
+        assert_eq!(self.rpc_results.len(), 0);
 
         loop {
             let (packet, r) = onecall(remainder, image_id, *send)?;
+            remainder = r;
 
             core.send(&packet)?;
             let n = core.recv(buf.as_mut_slice())?;
 
-            println!("n is {}", n);
+            //
+            // If udprpc gave us an error, it's because something was malformed
+            // or (most likely) we have an image mismatch.  We don't want to
+            // continue processing in this case; toss our error.
+            //
+            if buf[0] != 0 {
+                match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
+                    Some(e) => {
+                        let msg = format!("RPC error: {}", e.name);
+                        if e.name == "BadImageId" {
+                            bail!(
+                                "{msg}: {:02x?} (Humility) {:02x?} (Hubris)",
+                                image_id,
+                                &buf[1..9]
+                            );
+                        } else {
+                            bail!("{msg}");
+                        }
+                    }
+                    None => {
+                        bail!("Got unknown error from `udprpc`: {}", buf[0])
+                    }
+                }
+            }
+
+            assert_eq!(buf[0], 0);
+
+            //
+            // Now check the return code of the Idol call that we made, and
+            // spoof up a HIF function result.  Note that this implicitly depends
+            // on the fact that Idol does not use 0 as an error condition.
+            //
+            let rval = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+
+            if rval == 0 {
+                self.rpc_results.push(Ok(buf[5..].to_vec()));
+            } else {
+                self.rpc_results.push(Err(rval));
+            }
 
             if let Op::Done = remainder[0] {
                 break;
             }
-
-            remainder = r;
         }
 
         self.state = State::Kicked;
 
-        bail!("foo");
+        Ok(())
     }
 
     /// Convenience routine to translate an Idol call into HIF operations,
@@ -670,7 +732,7 @@ impl<'a> HiffyContext<'a> {
                 bail!("cannot execute -based operations over the network");
             }
 
-            return self.rpc(core, ops);
+            return self.perform_rpc(core, ops);
         }
 
         if let Some(data) = data {
@@ -796,7 +858,7 @@ impl<'a> HiffyContext<'a> {
 
         //
         // If this is over the network, our calls are already done by the
-        // time we're here.
+        // time we're here; immediately transition to `ResultsReady`.
         //
         if core.is_net() {
             self.state = State::ResultsReady;
@@ -902,7 +964,10 @@ impl<'a> HiffyContext<'a> {
         }
 
         if core.is_net() {
-            bail!("no net results yet");
+            let results = self.rpc_results.clone();
+            self.rpc_results = Vec::new();
+            self.state = State::ResultsConsumed;
+            return Ok(results);
         }
 
         let mut rstack: Vec<u8> = vec![];
