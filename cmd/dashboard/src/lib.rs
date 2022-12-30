@@ -16,7 +16,10 @@ use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode,
+        KeyModifiers,
+    },
     execute,
     terminal::{
         disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
@@ -688,6 +691,17 @@ fn run_dashboard<B: Backend>(
                     KeyCode::Char('-') => dashboard.zoom_out(),
                     KeyCode::Char('>') => dashboard.increase(core),
                     KeyCode::Char('<') => dashboard.decrease(core),
+                    KeyCode::Char('l') => {
+                        //
+                        // ^L -- form feed -- is historically used to clear and
+                        // redraw the screen.  And, notably, it is what dtach(1)
+                        // will send when attaching to a dashboard.  If we
+                        // see ^L, clear the terminal to force a total redraw.
+                        //
+                        if key.modifiers == KeyModifiers::CONTROL {
+                            terminal.clear()?;
+                        }
+                    }
                     KeyCode::Up => dashboard.up(),
                     KeyCode::Down => dashboard.down(),
                     KeyCode::Esc => dashboard.esc(),

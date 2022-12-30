@@ -11,10 +11,10 @@
                 ID TASK                SIZE FEATURES
                  0 jefe                8.1K itm
                  1 idle                0.1K 
-     sensors => 5 additional devices
-                NAME      DEVICE    KIND
-                xcvr30    qsfp      speed
-                xcvr30    qsfp      speed
-                xcvr30    qsfp      temp
-                xcvr30    qsfp      temp
-                xcvr30    qsfp      temp
+     sensors => 5 sensors
+                 ID NAME                    DEVICE        KIND
+                  0 xcvr30                  qsfp        speed
+                  1 xcvr30                  qsfp        speed
+                  2 xcvr30                  qsfp        temp
+                  3 xcvr30                  qsfp        temp
+                  4 xcvr30                  qsfp        temp

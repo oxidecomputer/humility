@@ -31,30 +31,66 @@
                 3 H    init mid           Mid bus
                 4 F    init rear          Rear bus
  i2c devices => 26 devices
-                C P  MUX ADDR DEVICE        DESCRIPTION
-                2 F  -   0x48 tmp117        Front temperature sensor (zone 1)
-                2 F  -   0x49 tmp117        Front temperature sensor (zone 2)
-                2 F  -   0x4a tmp117        Front temperature sensor (zone 3)
-                2 F  -   0x70 pca9545       U.2 ABCD mux
-                2 F  -   0x71 pca9545       U.2 EFGH mux
-                2 F  -   0x72 pca9545       U.2 IJ mux
-                2 B  -   0x73 pca9545       M.2 mux
-                3 H  -   0x24 tps546b24a    A2 3.3V rail
-                3 H  -   0x27 tps546b24a    A2 1.8V rail
-                3 H  -   0x29 tps546b24a    A2 5V rail
-                3 H  -   0x3a max5970       M.2 hot plug controller
-                3 H  -   0x4c sbtsi         CPU temperature sensor
-                3 H  -   0x58 idt8a34004    Clock generator
-                3 H  -   0x5a raa229618     CPU power controller
-                3 H  -   0x5b raa229618     SoC power controller
-                3 H  -   0x5c isl68224      DIMM ABCD power controller
-                3 H  -   0x5d isl68224      DIMM EFGH power controller
-                4 F  -   0x10 adm1272       Fan hot swap controller
-                4 F  -   0x14 adm1272       Sled hot swap controller
-                4 F  -   0x20 max31790      Fan controller
-                4 F  -   0x48 tmp117        Rear temperature sensor (zone 1)
-                4 F  -   0x49 tmp117        Rear temperature sensor (zone 2)
-                4 F  -   0x4a tmp117        Rear temperature sensor (zone 3)
-                4 F  -   0x4c tmp451        T6 temperature sensor
-                4 F  -   0x5f isl68224      T6 power controller
-                4 F  -   0x67 bmr491        IBC
+                 ID C  P  MUX ADDR DEVICE        DESCRIPTION
+                  0  2 F  -   0x48 tmp117        Front temperature sensor (zone 1)
+                  1  2 F  -   0x49 tmp117        Front temperature sensor (zone 2)
+                  2  2 F  -   0x4a tmp117        Front temperature sensor (zone 3)
+                  3  2 F  -   0x70 pca9545       U.2 ABCD mux
+                  4  2 F  -   0x71 pca9545       U.2 EFGH mux
+                  5  2 F  -   0x72 pca9545       U.2 IJ mux
+                  6  2 B  -   0x73 pca9545       M.2 mux
+                  7  3 H  -   0x24 tps546b24a    A2 3.3V rail
+                  8  3 H  -   0x27 tps546b24a    A2 1.8V rail
+                  9  3 H  -   0x29 tps546b24a    A2 5V rail
+                 10  3 H  -   0x3a max5970       M.2 hot plug controller
+                 11  3 H  -   0x4c sbtsi         CPU temperature sensor
+                 12  3 H  -   0x58 idt8a34004    Clock generator
+                 13  3 H  -   0x5a raa229618     CPU power controller
+                 14  3 H  -   0x5b raa229618     SoC power controller
+                 15  3 H  -   0x5c isl68224      DIMM ABCD power controller
+                 16  3 H  -   0x5d isl68224      DIMM EFGH power controller
+                 17  4 F  -   0x10 adm1272       Fan hot swap controller
+                 18  4 F  -   0x14 adm1272       Sled hot swap controller
+                 19  4 F  -   0x20 max31790      Fan controller
+                 20  4 F  -   0x48 tmp117        Rear temperature sensor (zone 1)
+                 21  4 F  -   0x49 tmp117        Rear temperature sensor (zone 2)
+                 22  4 F  -   0x4a tmp117        Rear temperature sensor (zone 3)
+                 23  4 F  -   0x4c tmp451        T6 temperature sensor
+                 24  4 F  -   0x5f isl68224      T6 power controller
+                 25  4 F  -   0x67 bmr491        IBC
+     sensors => 34 sensors
+                 ID NAME                    DEVICE        KIND
+                  0 zone1                   i2c id=0    temp
+                  1 zone2                   i2c id=1    temp
+                  2 zone3                   i2c id=2    temp
+                  3 cpu                     i2c id=11   temp
+                  4 VDD_VCORE               i2c id=13   temp
+                  5 VDD_MEM_ABCD            i2c id=13   temp
+                  6 VDD_VCORE               i2c id=13   power
+                  7 VDD_MEM_ABCD            i2c id=13   power
+                  8 VDD_VCORE               i2c id=13   current
+                  9 VDD_MEM_ABCD            i2c id=13   current
+                 10 VDD_VCORE               i2c id=13   voltage
+                 11 VDD_MEM_ABCD            i2c id=13   voltage
+                 12 VDDCR_SOC               i2c id=14   temp
+                 13 VDD_MEM_EFGH            i2c id=14   temp
+                 14 VDDCR_SOC               i2c id=14   power
+                 15 VDD_MEM_EFGH            i2c id=14   power
+                 16 VDDCR_SOC               i2c id=14   current
+                 17 VDD_MEM_EFGH            i2c id=14   current
+                 18 VDDCR_SOC               i2c id=14   voltage
+                 19 VDD_MEM_EFGH            i2c id=14   voltage
+                 20 max31790                i2c id=19   speed
+                 21 max31790#1              i2c id=19   speed
+                 22 max31790#2              i2c id=19   speed
+                 23 max31790#3              i2c id=19   speed
+                 24 max31790#4              i2c id=19   speed
+                 25 max31790#5              i2c id=19   speed
+                 26 zone1                   i2c id=20   temp
+                 27 zone2                   i2c id=21   temp
+                 28 zone3                   i2c id=22   temp
+                 29 tmp451                  i2c id=23   temp
+                 30 V12_SYS_A2              i2c id=25   temp
+                 31 V12_SYS_A2              i2c id=25   power
+                 32 V12_SYS_A2              i2c id=25   current
+                 33 V12_SYS_A2              i2c id=25   voltage

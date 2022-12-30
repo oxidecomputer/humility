@@ -39,68 +39,147 @@
                 3 H    init mid           Mid bus
                 4 F    init rear          Rear bus
  i2c devices => 64 devices
-                C P  MUX ADDR DEVICE        DESCRIPTION
-                2 F  -   0x48 tmp117        Southwest temperature sensor
-                2 F  -   0x49 tmp117        South temperature sensor
-                2 F  -   0x4a tmp117        Southeast temperature sensor
-                2 F  -   0x70 pca9545       U.2 ABCD mux
-                2 F  -   0x71 pca9545       U.2 EFGH mux
-                2 F  -   0x72 pca9545       U.2 IJ/FRUID mux
-                2 F  1:1 0x50 at24csw080    U.2 Sharkfin A VPD
-                2 F  1:1 0x38 max5970       U.2 Sharkfin A hot swap controller
-                2 F  1:2 0x50 at24csw080    U.2 Sharkfin B VPD
-                2 F  1:2 0x38 max5970       U.2 Sharkfin B hot swap controller
-                2 F  1:3 0x50 at24csw080    U.2 Sharkfin C VPD
-                2 F  1:3 0x38 max5970       U.2 Sharkfin C hot swap controller
-                2 F  1:4 0x50 at24csw080    U.2 Sharkfin D VPD
-                2 F  1:4 0x38 max5970       U.2 Sharkfin D hot swap controller
-                2 F  2:1 0x50 at24csw080    U.2 Sharkfin E VPD
-                2 F  2:1 0x38 max5970       U.2 Sharkfin E hot swap controller
-                2 F  2:2 0x50 at24csw080    U.2 Sharkfin F VPD
-                2 F  2:2 0x38 max5970       U.2 Sharkfin F hot swap controller
-                2 F  2:3 0x50 at24csw080    U.2 Sharkfin G VPD
-                2 F  2:3 0x38 max5970       U.2 Sharkfin G hot swap controller
-                2 F  2:4 0x50 at24csw080    U.2 Sharkfin H VPD
-                2 F  2:4 0x38 max5970       U.2 Sharkfin H hot swap controller
-                2 F  3:1 0x50 at24csw080    U.2 Sharkfin I VPD
-                2 F  3:1 0x38 max5970       U.2 Sharkfin I hot swap controller
-                2 F  3:2 0x50 at24csw080    U.2 Sharkfin J VPD
-                2 F  3:2 0x38 max5970       U.2 Sharkfin J hot swap controller
-                2 F  3:4 0x50 at24csw080    Gimlet VPD
-                2 B  -   0x73 pca9545       M.2 mux
-                2 B  1:3 0x50 at24csw080    Fan VPD
-                2 B  1:4 0x4c tmp451        T6 temperature sensor
-                3 H  -   0x24 tps546b24a    A2 3.3V rail
-                3 H  -   0x26 tps546b24a    A0 3.3V rail
-                3 H  -   0x27 tps546b24a    A2 5V rail
-                3 H  -   0x29 tps546b24a    A2 1.8V rail
-                3 H  -   0x3a max5970       M.2 hot plug controller
-                3 H  -   0x4c sbtsi         CPU temperature sensor
-                3 H  -   0x58 idt8a34003    Clock generator
-                3 H  -   0x5a raa229618     CPU power controller
-                3 H  -   0x5b raa229618     SoC power controller
-                3 H  -   0x5c isl68224      DIMM/SP3 1.8V A0 power controller
-                4 F  -   0x10 adm1272       Fan hot swap controller
-                4 F  -   0x14 adm1272       Sled hot swap controller
-                4 F  -   0x20 max31790      Fan controller
-                4 F  -   0x25 tps546b24a    T6 power controller
-                4 F  -   0x48 tmp117        Northeast temperature sensor
-                4 F  -   0x49 tmp117        North temperature sensor
-                4 F  -   0x4a tmp117        Northwest temperature sensor
-                4 F  -   0x67 bmr491        Intermediate bus converter
-                3 H  -   0x18 tse2004av     DIMM A0
-                3 H  -   0x19 tse2004av     DIMM A1
-                3 H  -   0x1a tse2004av     DIMM B0
-                3 H  -   0x1b tse2004av     DIMM B1
-                3 H  -   0x1c tse2004av     DIMM C0
-                3 H  -   0x1d tse2004av     DIMM C1
-                3 H  -   0x1e tse2004av     DIMM D0
-                3 H  -   0x1f tse2004av     DIMM D1
-                4 F  -   0x18 tse2004av     DIMM E0
-                4 F  -   0x19 tse2004av     DIMM E1
-                4 F  -   0x1a tse2004av     DIMM F0
-                4 F  -   0x1b tse2004av     DIMM F1
-                4 F  -   0x1c tse2004av     DIMM G0
-                4 F  -   0x1d tse2004av     DIMM G1
-                4 F  -   0x1e tse2004av     DIMM H0
-                4 F  -   0x1f tse2004av     DIMM H1
+                 ID C  P  MUX ADDR DEVICE        DESCRIPTION
+                  0  2 F  -   0x48 tmp117        Southwest temperature sensor
+                  1  2 F  -   0x49 tmp117        South temperature sensor
+                  2  2 F  -   0x4a tmp117        Southeast temperature sensor
+                  3  2 F  -   0x70 pca9545       U.2 ABCD mux
+                  4  2 F  -   0x71 pca9545       U.2 EFGH mux
+                  5  2 F  -   0x72 pca9545       U.2 IJ/FRUID mux
+                  6  2 F  1:1 0x50 at24csw080    U.2 Sharkfin A VPD
+                  7  2 F  1:1 0x38 max5970       U.2 Sharkfin A hot swap controller
+                  8  2 F  1:2 0x50 at24csw080    U.2 Sharkfin B VPD
+                  9  2 F  1:2 0x38 max5970       U.2 Sharkfin B hot swap controller
+                 10  2 F  1:3 0x50 at24csw080    U.2 Sharkfin C VPD
+                 11  2 F  1:3 0x38 max5970       U.2 Sharkfin C hot swap controller
+                 12  2 F  1:4 0x50 at24csw080    U.2 Sharkfin D VPD
+                 13  2 F  1:4 0x38 max5970       U.2 Sharkfin D hot swap controller
+                 14  2 F  2:1 0x50 at24csw080    U.2 Sharkfin E VPD
+                 15  2 F  2:1 0x38 max5970       U.2 Sharkfin E hot swap controller
+                 16  2 F  2:2 0x50 at24csw080    U.2 Sharkfin F VPD
+                 17  2 F  2:2 0x38 max5970       U.2 Sharkfin F hot swap controller
+                 18  2 F  2:3 0x50 at24csw080    U.2 Sharkfin G VPD
+                 19  2 F  2:3 0x38 max5970       U.2 Sharkfin G hot swap controller
+                 20  2 F  2:4 0x50 at24csw080    U.2 Sharkfin H VPD
+                 21  2 F  2:4 0x38 max5970       U.2 Sharkfin H hot swap controller
+                 22  2 F  3:1 0x50 at24csw080    U.2 Sharkfin I VPD
+                 23  2 F  3:1 0x38 max5970       U.2 Sharkfin I hot swap controller
+                 24  2 F  3:2 0x50 at24csw080    U.2 Sharkfin J VPD
+                 25  2 F  3:2 0x38 max5970       U.2 Sharkfin J hot swap controller
+                 26  2 F  3:4 0x50 at24csw080    Gimlet VPD
+                 27  2 B  -   0x73 pca9545       M.2 mux
+                 28  2 B  1:3 0x50 at24csw080    Fan VPD
+                 29  2 B  1:4 0x4c tmp451        T6 temperature sensor
+                 30  3 H  -   0x24 tps546b24a    A2 3.3V rail
+                 31  3 H  -   0x26 tps546b24a    A0 3.3V rail
+                 32  3 H  -   0x27 tps546b24a    A2 5V rail
+                 33  3 H  -   0x29 tps546b24a    A2 1.8V rail
+                 34  3 H  -   0x3a max5970       M.2 hot plug controller
+                 35  3 H  -   0x4c sbtsi         CPU temperature sensor
+                 36  3 H  -   0x58 idt8a34003    Clock generator
+                 37  3 H  -   0x5a raa229618     CPU power controller
+                 38  3 H  -   0x5b raa229618     SoC power controller
+                 39  3 H  -   0x5c isl68224      DIMM/SP3 1.8V A0 power controller
+                 40  4 F  -   0x10 adm1272       Fan hot swap controller
+                 41  4 F  -   0x14 adm1272       Sled hot swap controller
+                 42  4 F  -   0x20 max31790      Fan controller
+                 43  4 F  -   0x25 tps546b24a    T6 power controller
+                 44  4 F  -   0x48 tmp117        Northeast temperature sensor
+                 45  4 F  -   0x49 tmp117        North temperature sensor
+                 46  4 F  -   0x4a tmp117        Northwest temperature sensor
+                 47  4 F  -   0x67 bmr491        Intermediate bus converter
+                 48  3 H  -   0x18 tse2004av     DIMM A0
+                 49  3 H  -   0x19 tse2004av     DIMM A1
+                 50  3 H  -   0x1a tse2004av     DIMM B0
+                 51  3 H  -   0x1b tse2004av     DIMM B1
+                 52  3 H  -   0x1c tse2004av     DIMM C0
+                 53  3 H  -   0x1d tse2004av     DIMM C1
+                 54  3 H  -   0x1e tse2004av     DIMM D0
+                 55  3 H  -   0x1f tse2004av     DIMM D1
+                 56  4 F  -   0x18 tse2004av     DIMM E0
+                 57  4 F  -   0x19 tse2004av     DIMM E1
+                 58  4 F  -   0x1a tse2004av     DIMM F0
+                 59  4 F  -   0x1b tse2004av     DIMM F1
+                 60  4 F  -   0x1c tse2004av     DIMM G0
+                 61  4 F  -   0x1d tse2004av     DIMM G1
+                 62  4 F  -   0x1e tse2004av     DIMM H0
+                 63  4 F  -   0x1f tse2004av     DIMM H1
+     sensors => 77 sensors
+                 ID NAME                    DEVICE        KIND
+                  0 Southwest               i2c id=0    temp
+                  1 South                   i2c id=1    temp
+                  2 Southeast               i2c id=2    temp
+                  3 tmp451                  i2c id=29   temp
+                  4 V3P3_SP_A2              i2c id=30   temp
+                  5 V3P3_SP_A2              i2c id=30   current
+                  6 V3P3_SP_A2              i2c id=30   voltage
+                  7 V3P3_SYS_A0             i2c id=31   temp
+                  8 V3P3_SYS_A0             i2c id=31   current
+                  9 V3P3_SYS_A0             i2c id=31   voltage
+                 10 V5_SYS_A2               i2c id=32   temp
+                 11 V5_SYS_A2               i2c id=32   current
+                 12 V5_SYS_A2               i2c id=32   voltage
+                 13 V1P8_SYS_A2             i2c id=33   temp
+                 14 V1P8_SYS_A2             i2c id=33   current
+                 15 V1P8_SYS_A2             i2c id=33   voltage
+                 16 CPU                     i2c id=35   temp
+                 17 VDD_VCORE               i2c id=37   temp
+                 18 VDD_MEM_ABCD            i2c id=37   temp
+                 19 VDD_VCORE               i2c id=37   power
+                 20 VDD_MEM_ABCD            i2c id=37   power
+                 21 VDD_VCORE               i2c id=37   current
+                 22 VDD_MEM_ABCD            i2c id=37   current
+                 23 VDD_VCORE               i2c id=37   voltage
+                 24 VDD_MEM_ABCD            i2c id=37   voltage
+                 25 VDDCR_SOC               i2c id=38   temp
+                 26 VDD_MEM_EFGH            i2c id=38   temp
+                 27 VDDCR_SOC               i2c id=38   power
+                 28 VDD_MEM_EFGH            i2c id=38   power
+                 29 VDDCR_SOC               i2c id=38   current
+                 30 VDD_MEM_EFGH            i2c id=38   current
+                 31 VDDCR_SOC               i2c id=38   voltage
+                 32 VDD_MEM_EFGH            i2c id=38   voltage
+                 33 VPP_ABCD                i2c id=39   current
+                 34 VPP_EFGH                i2c id=39   current
+                 35 V1P8_SP3                i2c id=39   current
+                 36 VPP_ABCD                i2c id=39   voltage
+                 37 VPP_EFGH                i2c id=39   voltage
+                 38 V1P8_SP3                i2c id=39   voltage
+                 39 V54_FAN                 i2c id=40   temp
+                 40 V54_FAN                 i2c id=40   current
+                 41 V54_FAN                 i2c id=40   voltage
+                 42 V54_HS_OUTPUT           i2c id=41   temp
+                 43 V54_HS_OUTPUT           i2c id=41   current
+                 44 V54_HS_OUTPUT           i2c id=41   voltage
+                 45 Southeast               i2c id=42   speed
+                 46 Northeast               i2c id=42   speed
+                 47 South                   i2c id=42   speed
+                 48 North                   i2c id=42   speed
+                 49 Southwest               i2c id=42   speed
+                 50 Northwest               i2c id=42   speed
+                 51 V0P96_NIC_VDD_A0HP      i2c id=43   temp
+                 52 V0P96_NIC_VDD_A0HP      i2c id=43   current
+                 53 V0P96_NIC_VDD_A0HP      i2c id=43   voltage
+                 54 Northeast               i2c id=44   temp
+                 55 North                   i2c id=45   temp
+                 56 Northwest               i2c id=46   temp
+                 57 V12_SYS_A2              i2c id=47   temp
+                 58 V12_SYS_A2              i2c id=47   power
+                 59 V12_SYS_A2              i2c id=47   current
+                 60 V12_SYS_A2              i2c id=47   voltage
+                 61 DIMM_A0                 i2c id=48   temp
+                 62 DIMM_A1                 i2c id=49   temp
+                 63 DIMM_B0                 i2c id=50   temp
+                 64 DIMM_B1                 i2c id=51   temp
+                 65 DIMM_C0                 i2c id=52   temp
+                 66 DIMM_C1                 i2c id=53   temp
+                 67 DIMM_D0                 i2c id=54   temp
+                 68 DIMM_D1                 i2c id=55   temp
+                 69 DIMM_E0                 i2c id=56   temp
+                 70 DIMM_E1                 i2c id=57   temp
+                 71 DIMM_F0                 i2c id=58   temp
+                 72 DIMM_F1                 i2c id=59   temp
+                 73 DIMM_G0                 i2c id=60   temp
+                 74 DIMM_G1                 i2c id=61   temp
+                 75 DIMM_H0                 i2c id=62   temp
+                 76 DIMM_H1                 i2c id=63   temp
