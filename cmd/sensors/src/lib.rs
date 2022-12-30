@@ -90,7 +90,7 @@ fn list(
     named: &Option<HashSet<&String>>,
 ) -> Result<()> {
     println!(
-        "{:3} {:5} {:<7} {:>2} {:>2} {:3} {:4} {:13} {:4}",
+        "{:3} {:5} {:<13} {:>2} {:>2} {:3} {:4} {:13} {:4}",
         "ID", "HEXID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
     );
 
@@ -123,7 +123,7 @@ fn list(
                 };
 
                 println!(
-                    "{:3} {:#5x} {:7} {:>2} {:>2} {:>3} {:#04x} {:13} {:<1}",
+                    "{:3} {:#5x} {:13} {:>2} {:>2} {:>3} {:#04x} {:13} {:<1}",
                     ndx,
                     ndx,
                     s.kind.to_string(),
@@ -312,7 +312,7 @@ fn print(
         } else {
             let etypes = ["UNPWR", "ERR", "MSSNG", "UNAVL", "TMOUT"];
 
-            print!("{:20} {:12} {:>13}", "NAME", "KIND", "VALUE");
+            print!("{:20} {:13} {:>13}", "NAME", "KIND", "VALUE");
 
             for e in etypes {
                 print!(" {:>5}", e);
@@ -321,7 +321,7 @@ fn print(
             println!();
 
             for ((_, s), val, err) in izip!(&sensors, &rval, &errs) {
-                print!("{:20} {:12} ", s.name, s.kind.to_string());
+                print!("{:20} {:13} ", s.name, s.kind.to_string());
 
                 if let Some(val) = val {
                     print!(" {:12.2}", val);

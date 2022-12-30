@@ -18,25 +18,23 @@
 //! properties of all 6 shelves requires calling this command 6 time (with
 //! indices 0 through 5).
 
-use std::time::Duration;
-
 use cmd_hiffy as humility_cmd_hiffy;
-use cmd_rpc as humility_cmd_rpc;
 
 use anyhow::{anyhow, Context, Result};
 use clap::App;
 use clap::IntoApp;
 use clap::Parser;
+use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
+use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
-use humility_cmd::{Archive, Command};
-use humility_cmd_rpc::RpcClient;
+use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct RpcArgs {
+struct PowershelfArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -55,10 +53,6 @@ struct RpcArgs {
     /// verbose output
     #[clap(long, short)]
     verbose: bool,
-
-    /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
-    #[clap(long, env = "HUMILITY_RPC_IP")]
-    ip: String,
 }
 
 // Find the `task_power_api::Operation` enum.
@@ -143,17 +137,17 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
 }
 
 fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
+    let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = RpcArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
+
+    let subargs = PowershelfArgs::try_parse_from(subargs)?;
 
     let operation = lookup_operation_enum(hubris)?;
 
-    let mut client = RpcClient::new(
-        hubris,
-        &subargs.ip,
-        Duration::from_millis(u64::from(subargs.timeout)),
-    )?;
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut ops = vec![];
+    let funcs = context.functions()?;
 
     let idol_cmd = hubris
         .get_idol_command("Power.pmbus_read")
@@ -170,7 +164,20 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
 
     for variant in &operation.variants {
         args[0].1 = idol::IdolArgument::String(&variant.name);
-        let result = client.call(&idol_cmd, &args)?;
+        let payload = idol_cmd.payload(&args)?;
+        context.idol_call_ops(&funcs, &idol_cmd, &payload, &mut ops)?;
+    }
+
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    for (ndx, variant) in operation.variants.iter().enumerate() {
+        let result = humility_cmd_hiffy::hiffy_decode(
+            hubris,
+            &idol_cmd,
+            results[ndx].clone(),
+        )?;
 
         println!(
             "{:<20} => {}",
@@ -218,11 +225,13 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
 
 pub fn init() -> (Command, App<'static>) {
     (
-        Command::Unattached {
+        Command::Attached {
             name: "powershelf",
             archive: Archive::Required,
+            attach: Attach::LiveOnly,
+            validate: Validate::Booted,
             run: powershelf_run,
         },
-        RpcArgs::into_app(),
+        PowershelfArgs::into_app(),
     )
 }

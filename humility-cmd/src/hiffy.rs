@@ -431,9 +431,6 @@ impl<'a> HiffyContext<'a> {
             }
         }
 
-        let mut start = 0;
-        let mut end = 0;
-
         fn onecall<'a>(
             ops: &'a [Op],
             image_id: &'a [u8],
@@ -445,13 +442,8 @@ impl<'a> HiffyContext<'a> {
             let found = ops
                 .iter()
                 .enumerate()
-                .find(|&(ndx, op)| match op {
-                    Op::Call(id) if *id == send => true,
-                    _ => false,
-                })
-                .ok_or_else(|| {
-                    anyhow!("illegal network operations (no Send): {:?}", ops)
-                })?
+                .find(|&(_, op)| matches!(op, Op::Call(id) if *id == send))
+                .ok_or_else(|| anyhow!("can't make non-Idol calls over RPC"))?
                 .0;
 
             //
@@ -512,12 +504,12 @@ impl<'a> HiffyContext<'a> {
             remainder = r;
 
             core.send(&packet)?;
-            let n = core.recv(buf.as_mut_slice())?;
+            let _n = core.recv(buf.as_mut_slice())?;
 
             //
-            // If udprpc gave us an error, it's because something was malformed
-            // or (most likely) we have an image mismatch.  We don't want to
-            // continue processing in this case; toss our error.
+            // If udprpc gave us an error, it's because something was
+            // malformed or (most likely) we have an image mismatch.  We don't
+            // want to continue processing in this case; toss our error.
             //
             if buf[0] != 0 {
                 match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
@@ -543,8 +535,9 @@ impl<'a> HiffyContext<'a> {
 
             //
             // Now check the return code of the Idol call that we made, and
-            // spoof up a HIF function result.  Note that this implicitly depends
-            // on the fact that Idol does not use 0 as an error condition.
+            // spoof up a HIF function result.  Note that this implicitly
+            // depends on the fact that Idol does not use 0 as an error
+            // condition.
             //
             let rval = u32::from_be_bytes(buf[1..5].try_into().unwrap());
 

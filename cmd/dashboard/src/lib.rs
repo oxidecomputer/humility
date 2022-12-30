@@ -796,17 +796,20 @@ fn sequencer_state_ops<'a>(
 ) -> Result<idol::IdolOperation<'a>> {
     let funcs = context.functions()?;
 
-    // Sidecar and Gimlet have different names for this operation!
-    let op = ["tofino_seq_state", "get_state"]
-        .iter()
-        .map(|name| hubris.get_idol_command(&format!("Sequencer.{name}")))
-        .find_map(Result::ok)
-        .ok_or_else(|| {
-            anyhow!(
-                "Could not find Sequencer.get_state or \
+    // Sidecar and Gimlet have different names for this operation -- and the
+    // PSC doesn't have a sequencer at all, so fall back on Jefe.get_state()
+    // if we can't find either of their power state entry points.
+    let op =
+        ["Sequencer.tofino_seq_state", "Sequencer.get_state", "Jefe.get_state"]
+            .iter()
+            .map(|name| hubris.get_idol_command(name))
+            .find_map(Result::ok)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not find Sequencer.get_state or \
                  Sequencer.tofino_seq_state"
-            )
-        })?;
+                )
+            })?;
 
     context.idol_call_ops(&funcs, &op, &[], ops)?;
     Ok(op)

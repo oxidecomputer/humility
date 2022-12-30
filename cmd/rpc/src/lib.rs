@@ -171,7 +171,7 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
                         );
                     } else {
                         seen.insert(Target {
-                            mac: mac,
+                            mac,
                             image_id: buf[6..n].try_into().unwrap(),
                             ip: src.ip(),
                         });
