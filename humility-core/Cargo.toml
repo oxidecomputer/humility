@@ -43,3 +43,12 @@ probe-rs = { workspace = true }
 # which upstream seems uninterested in fixing.
 #
 capstone = { workspace = true }
+
+#
+# No one is happy about this.
+#
+[target.'cfg(not(windows))'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { workspace = true, features = ["netioapi"] }

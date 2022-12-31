@@ -8,7 +8,6 @@ description = "execute Idol calls over a network"
 humility = { workspace = true }
 humility-cmd = { workspace = true }
 cmd-hiffy = { workspace = true }
-cmd-net = { workspace = true }
 
 hif = { workspace = true }
 idol = { workspace = true }
