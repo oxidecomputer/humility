@@ -414,7 +414,7 @@ fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
 
 pub fn init() -> (Command, App<'static>) {
     (
-        Command::Unattached {
+        Command::Detached {
             name: "rpc",
             archive: Archive::Required,
             run: rpc_run,

@@ -55,8 +55,14 @@ pub enum Command {
         validate: Validate,
         run: fn(&mut humility::ExecutionContext) -> Result<()>,
     },
-    /// Not attached to a live system or dump
+    /// Not attached to a live system or dump, but may later attach
     Unattached {
+        name: &'static str,
+        archive: Archive,
+        run: fn(&mut humility::ExecutionContext) -> Result<()>,
+    },
+    /// Will never attach: any options attaching should be an error
+    Detached {
         name: &'static str,
         archive: Archive,
         run: fn(&mut humility::ExecutionContext) -> Result<()>,
