@@ -31,6 +31,7 @@ pub fn init(
         let name = match cmd {
             Command::Attached { name, .. } => name,
             Command::Unattached { name, .. } => name,
+            Command::Detached { name, .. } => name,
             Command::Raw { name, .. } => name,
         };
 
@@ -60,6 +61,9 @@ pub fn subcommand(
             (*archive, HubrisArchiveDoneness::Cook)
         }
         Command::Unattached { archive, .. } => {
+            (*archive, HubrisArchiveDoneness::Cook)
+        }
+        Command::Detached { archive, .. } => {
             (*archive, HubrisArchiveDoneness::Cook)
         }
         Command::Raw { .. } => (Archive::Required, HubrisArchiveDoneness::Raw),
@@ -97,6 +101,21 @@ pub fn subcommand(
             })
         }
         Command::Unattached { run, .. } => (run)(context),
+        Command::Detached { run, .. } => {
+            if context.cli.dump.is_some() {
+                bail!("cannot specify a dump for {} command", cmd);
+            }
+
+            if context.cli.ip.is_some() {
+                bail!("cannot specify IP address for {} command", cmd);
+            }
+
+            if context.cli.probe.is_some() {
+                bail!("cannot specify probe for {} command", cmd);
+            }
+
+            (run)(context)
+        }
         Command::Raw { run, .. } => (run)(context),
     }
 }

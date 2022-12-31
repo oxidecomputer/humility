@@ -2,10 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use clap::{AppSettings, Parser};
+use clap::{AppSettings, ArgGroup, Parser};
 
 #[derive(Parser, Debug, Clone)]
-#[clap(name = "humility", max_term_width = 80)]
+#[clap(
+    name = "humility", max_term_width = 80,
+    group = ArgGroup::new("hubris").multiple(false)
+)]
 #[clap(global_setting(AppSettings::NoAutoVersion))]
 pub struct Cli {
     /// verbose messages
@@ -16,12 +19,19 @@ pub struct Cli {
     #[clap(long, short = 'T', hide = true)]
     pub terse: bool,
 
+    /// sets timeout for Hubris-related operations
+    #[clap(
+        long, default_value_t = 2000, value_name = "timeout_ms",
+        parse(try_from_str = parse_int::parse)
+    )]
+    pub timeout: u32,
+
     /// print version information
     #[clap(long, short = 'V')]
     pub version: bool,
 
     /// probe to use
-    #[clap(long, short, env = "HUMILITY_PROBE", conflicts_with = "dump")]
+    #[clap(long, short, env = "HUMILITY_PROBE", group = "hubris")]
     pub probe: Option<String>,
 
     /// Hubris archive
@@ -29,16 +39,25 @@ pub struct Cli {
     pub archive: Option<String>,
 
     /// Hubris dump
-    #[clap(long, short, env = "HUMILITY_DUMP")]
+    #[clap(long, short, env = "HUMILITY_DUMP", group = "hubris")]
     pub dump: Option<String>,
+
+    /// IP address of remote Hubris instance
+    #[clap(long, short, env = "HUMILITY_IP", group = "hubris")]
+    pub ip: Option<String>,
 
     /// Hubris environment file
     #[clap(long, short, env = "HUMILITY_ENVIRONMENT")]
     pub environment: Option<String>,
 
     /// target to use from specified environment
-    #[clap(long, short, env = "HUMILITY_TARGET", requires = "environment",
-        conflicts_with_all = &["dump", "probe"])]
+    #[clap(
+        long,
+        short,
+        env = "HUMILITY_TARGET",
+        requires = "environment",
+        group = "hubris"
+    )]
     pub target: Option<String>,
 
     /// If multiple archives are specified in an environment, name of
@@ -62,8 +81,11 @@ pub struct Cli {
     pub chip: Option<String>,
 
     /// list targets within an environment
-    #[clap(long = "list-targets", requires = "environment",
-        conflicts_with_all = &["dump", "probe", "target"])]
+    #[clap(
+        long = "list-targets",
+        requires = "environment",
+        conflicts_with = "hubris"
+    )]
     pub list_targets: bool,
 
     #[clap(subcommand)]

@@ -49,42 +49,106 @@
                 4 F    init south0        South Bend 0
                 4 H    init south1        South Bend 1
  i2c devices => 36 devices
-                C P  MUX ADDR DEVICE        DESCRIPTION
-                1 B1 -   0x10 adm1272       Fan 1 hot swap controller
-                1 B1 -   0x23 max31790      Fan 0/1 controller
-                1 B1 -   0x49 tmp117        North-northeast temperature sensor
-                1 B1 -   0x63 raa229618     TF2 VDD rail
-                1 B1 -   0x70 pca9545       Northeast fan mux
-                1 B2 -   0x13 adm1272       Fan 0 hot swap controller
-                1 B2 -   0x1a tps546b24a    V3P3_SYS rail
-                1 B2 -   0x48 tmp117        Northeast temperature sensor
-                3 C  -   0x16 adm1272       54V hot swap controller
-                3 C  -   0x19 tps546b24a    V5P0_SYS rail
-                3 C  -   0x48 tmp117        North-northwest temperature sensor
-                3 C  -   0x4c tmp451        TF2 temperature sensor
-                3 C  -   0x60 raa229618     TF2 VDDA rail
-                3 C  -   0x67 bmr491        Intermediate bus converter
-                3 H  -   0x13 adm1272       Fan 2 hot swap controller
-                3 H  -   0x10 adm1272       Fan 3 hot swap controller
-                3 H  -   0x49 tmp117        Northwest temperature sensor
-                3 H  -   0x20 max31790      Fan 2/3 controller
-                3 H  -   0x70 pca9545       Northwest fan mux
-                4 F  -   0x62 isl68224      VDD[A]18 rail
-                4 F  -   0x58 idt8a34001    Clock generator
-                4 F  -   0x4a tmp117        South temperature sensor
-                4 F  -   0x48 tmp117        Southeast temperature sensor
-                4 F  -   0x49 tmp117        Southwest temperature sensor
-                4 H  -   0x1b tps546b24a    V1P0_SYS rail
-                4 H  -   0x1c tps546b24a    V1P8_SYS rail
-                4 H  -   0x4c tmp451        VSC7448 temperature sensor
-                4 D  -   0x50 at24csw080    Mainboard FRUID
-                1 B1 1:2 0x50 at24csw080    Fan 0 FRUID
-                1 B1 1:1 0x50 at24csw080    Fan 1 FRUID
-                3 H  1:2 0x50 at24csw080    Fan 2 FRUID
-                3 H  1:1 0x50 at24csw080    Fan 3 FRUID
-                2 F  -   0x50 at24csw080    Front IO board FRUID
-                2 F  -   0x73 pca9538       Front IO GPIO expander
-                2 F  -   0x0a pca9956b      Front IO LED driver (left)
-                2 F  -   0x0b pca9956b      Front IO LED driver (right)
- auxiliary flash => 16777216 bytes (16 MiB), 8 slots
-                    (2 MiB/slot)
+                 ID C  P  MUX ADDR DEVICE        DESCRIPTION
+                  0  1 B1 -   0x10 adm1272       Fan 1 hot swap controller
+                  1  1 B1 -   0x23 max31790      Fan 0/1 controller
+                  2  1 B1 -   0x49 tmp117        North-northeast temperature sensor
+                  3  1 B1 -   0x63 raa229618     TF2 VDD rail
+                  4  1 B1 -   0x70 pca9545       Northeast fan mux
+                  5  1 B2 -   0x13 adm1272       Fan 0 hot swap controller
+                  6  1 B2 -   0x1a tps546b24a    V3P3_SYS rail
+                  7  1 B2 -   0x48 tmp117        Northeast temperature sensor
+                  8  3 C  -   0x16 adm1272       54V hot swap controller
+                  9  3 C  -   0x19 tps546b24a    V5P0_SYS rail
+                 10  3 C  -   0x48 tmp117        North-northwest temperature sensor
+                 11  3 C  -   0x4c tmp451        TF2 temperature sensor
+                 12  3 C  -   0x60 raa229618     TF2 VDDA rail
+                 13  3 C  -   0x67 bmr491        Intermediate bus converter
+                 14  3 H  -   0x13 adm1272       Fan 2 hot swap controller
+                 15  3 H  -   0x10 adm1272       Fan 3 hot swap controller
+                 16  3 H  -   0x49 tmp117        Northwest temperature sensor
+                 17  3 H  -   0x20 max31790      Fan 2/3 controller
+                 18  3 H  -   0x70 pca9545       Northwest fan mux
+                 19  4 F  -   0x62 isl68224      VDD[A]18 rail
+                 20  4 F  -   0x58 idt8a34001    Clock generator
+                 21  4 F  -   0x4a tmp117        South temperature sensor
+                 22  4 F  -   0x48 tmp117        Southeast temperature sensor
+                 23  4 F  -   0x49 tmp117        Southwest temperature sensor
+                 24  4 H  -   0x1b tps546b24a    V1P0_SYS rail
+                 25  4 H  -   0x1c tps546b24a    V1P8_SYS rail
+                 26  4 H  -   0x4c tmp451        VSC7448 temperature sensor
+                 27  4 D  -   0x50 at24csw080    Mainboard FRUID
+                 28  1 B1 1:2 0x50 at24csw080    Fan 0 FRUID
+                 29  1 B1 1:1 0x50 at24csw080    Fan 1 FRUID
+                 30  3 H  1:2 0x50 at24csw080    Fan 2 FRUID
+                 31  3 H  1:1 0x50 at24csw080    Fan 3 FRUID
+                 32  2 F  -   0x50 at24csw080    Front IO board FRUID
+                 33  2 F  -   0x73 pca9538       Front IO GPIO expander
+                 34  2 F  -   0x0a pca9956b      Front IO LED driver (left)
+                 35  2 F  -   0x0b pca9956b      Front IO LED driver (right)
+   aux flash => 16777216 bytes (16 MiB), 8 slots (2 MiB/slot)
+     sensors => 63 sensors
+                 ID NAME                    DEVICE      KIND
+                  0 V54_FAN1                i2c id=0    temp
+                  1 V54_FAN1                i2c id=0    current
+                  2 V54_FAN1                i2c id=0    voltage
+                  3 East                    i2c id=1    speed
+                  4 East#1                  i2c id=1    speed
+                  5 East#2                  i2c id=1    speed
+                  6 East#3                  i2c id=1    speed
+                  7 NNE                     i2c id=2    temp
+                  8 V0P8_TF2_VDD_CORE       i2c id=3    temp
+                  9 V0P8_TF2_VDD_CORE       i2c id=3    current
+                 10 V0P8_TF2_VDD_CORE       i2c id=3    voltage
+                 11 V54_FAN0                i2c id=5    temp
+                 12 V54_FAN0                i2c id=5    current
+                 13 V54_FAN0                i2c id=5    voltage
+                 14 V3P3_SYS                i2c id=6    temp
+                 15 V3P3_SYS                i2c id=6    current
+                 16 V3P3_SYS                i2c id=6    voltage
+                 17 Northeast               i2c id=7    temp
+                 18 V54_HSC                 i2c id=8    temp
+                 19 V54_HSC                 i2c id=8    current
+                 20 V54_HSC                 i2c id=8    voltage
+                 21 V5P0_SYS                i2c id=9    temp
+                 22 V5P0_SYS                i2c id=9    current
+                 23 V5P0_SYS                i2c id=9    voltage
+                 24 NNW                     i2c id=10   temp
+                 25 tf2                     i2c id=11   temp
+                 26 V1P5_TF2_VDDA           i2c id=12   temp
+                 27 V0P9_TF2_VDDT           i2c id=12   temp
+                 28 V1P5_TF2_VDDA           i2c id=12   current
+                 29 V0P9_TF2_VDDT           i2c id=12   current
+                 30 V1P5_TF2_VDDA           i2c id=12   voltage
+                 31 V0P9_TF2_VDDT           i2c id=12   voltage
+                 32 V12P0_SYS               i2c id=13   temp
+                 33 V12P0_SYS               i2c id=13   power
+                 34 V12P0_SYS               i2c id=13   current
+                 35 V12P0_SYS               i2c id=13   voltage
+                 36 V54_FAN2                i2c id=14   temp
+                 37 V54_FAN2                i2c id=14   current
+                 38 V54_FAN2                i2c id=14   voltage
+                 39 V54_FAN3                i2c id=15   temp
+                 40 V54_FAN3                i2c id=15   current
+                 41 V54_FAN3                i2c id=15   voltage
+                 42 Northwest               i2c id=16   temp
+                 43 West                    i2c id=17   speed
+                 44 West#1                  i2c id=17   speed
+                 45 West#2                  i2c id=17   speed
+                 46 West#3                  i2c id=17   speed
+                 47 V1P8_TF2_VDDA           i2c id=19   temp
+                 48 V1P8_TF2_VDD            i2c id=19   temp
+                 49 V1P8_TF2_VDDA           i2c id=19   current
+                 50 V1P8_TF2_VDD            i2c id=19   current
+                 51 V1P8_TF2_VDDA           i2c id=19   voltage
+                 52 V1P8_TF2_VDD            i2c id=19   voltage
+                 53 South                   i2c id=21   temp
+                 54 Southeast               i2c id=22   temp
+                 55 Southwest               i2c id=23   temp
+                 56 V1P0_MGMT               i2c id=24   temp
+                 57 V1P0_MGMT               i2c id=24   current
+                 58 V1P0_MGMT               i2c id=24   voltage
+                 59 V1P8_SYS                i2c id=25   temp
+                 60 V1P8_SYS                i2c id=25   current
+                 61 V1P8_SYS                i2c id=25   voltage
+                 62 vsc7448                 i2c id=26   temp

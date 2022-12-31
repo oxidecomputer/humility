@@ -40,16 +40,16 @@ const MAX_HUBRIS_VERSION: u32 = 5;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
-    version: Option<String>,
-    gitrev: Option<String>,
-    features: Vec<String>,
-    board: Option<String>,
+    pub version: Option<String>,
+    pub gitrev: Option<String>,
+    pub features: Vec<String>,
+    pub board: Option<String>,
     pub name: Option<String>,
-    target: Option<String>,
-    task_features: HashMap<String, Vec<String>>,
+    pub target: Option<String>,
+    pub task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
-    peripherals: BTreeMap<String, u32>,
-    peripherals_byaddr: BTreeMap<u32, String>,
+    pub peripherals: BTreeMap<String, u32>,
+    pub peripherals_byaddr: BTreeMap<u32, String>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
@@ -372,7 +372,7 @@ pub struct HubrisArchive {
     apptable: Option<(u32, Vec<u8>)>,
 
     // image ID
-    imageid: Option<(u32, Vec<u8>)>,
+    pub imageid: Option<(u32, Vec<u8>)>,
 
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
@@ -3209,6 +3209,10 @@ impl HubrisArchive {
         }
     }
 
+    pub fn modules(&self) -> impl Iterator<Item = &HubrisModule> {
+        self.modules.values()
+    }
+
     pub fn lookup_task(&self, name: &str) -> Option<&HubrisTask> {
         self.tasks.get(name)
     }
@@ -3322,6 +3326,10 @@ impl HubrisArchive {
             // this to be validated because it will give no answers rather
             // than wrong ones.
             //
+            return Ok(());
+        }
+
+        if core.is_net() {
             return Ok(());
         }
 
@@ -4576,237 +4584,6 @@ impl HubrisArchive {
             HumanBytes(written as u64),
             HumanDuration(started.elapsed())
         );
-
-        Ok(())
-    }
-
-    #[allow(clippy::print_literal)]
-    pub fn manifest(&self) -> Result<()> {
-        ensure!(
-            !self.modules.is_empty(),
-            "must specify a valid Hubris archive"
-        );
-
-        let print = |what, val| {
-            println!("{:>12} => {}", what, val);
-        };
-
-        let size = |task| {
-            self.modules
-                .iter()
-                .find(|m| m.1.task == task)
-                .map(|module| module.1.memsize)
-                .unwrap()
-        };
-
-        print(
-            "version",
-            match &self.manifest.version {
-                Some(s) => s,
-                None => "<unknown>",
-            },
-        );
-
-        print(
-            "git rev",
-            match &self.manifest.gitrev {
-                Some(s) => s,
-                None => "<unknown>",
-            },
-        );
-
-        println!(
-            "{:>12} => {}",
-            "image id",
-            match &self.imageid {
-                Some(s) => {
-                    format!("{:x?}", s.1)
-                }
-                None => "<none>".to_string(),
-            },
-        );
-
-        print(
-            "board",
-            match &self.manifest.board {
-                Some(s) => s,
-                None => "<unknown>",
-            },
-        );
-
-        print(
-            "name",
-            match &self.manifest.name {
-                Some(s) => s,
-                None => "<unknown>",
-            },
-        );
-
-        print(
-            "target",
-            match &self.manifest.target {
-                Some(s) => s,
-                None => "<unknown>",
-            },
-        );
-
-        print("features", &self.manifest.features.join(", "));
-
-        let ttl = self.modules.iter().fold(0, |ttl, m| ttl + m.1.memsize);
-
-        println!("{:>12} => {}K", "total size", ttl / 1024);
-        println!(
-            "{:>12} => {}K",
-            "kernel size",
-            size(HubrisTask::Kernel) / 1024
-        );
-        println!("{:>12} => {}", "tasks", self.modules.len() - 1);
-        println!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
-
-        let mut id = 0;
-
-        for module in self.modules.values() {
-            if module.task == HubrisTask::Kernel {
-                continue;
-            }
-
-            let features = self.manifest.task_features.get(&module.name);
-
-            println!(
-                "{:>18} {:18} {:>4.1}K {}",
-                id,
-                module.name,
-                module.memsize as f64 / 1024_f64,
-                if let Some(f) = features {
-                    f.join(", ")
-                } else {
-                    "".to_string()
-                }
-            );
-
-            id += 1;
-        }
-
-        if !self.manifest.i2c_buses.is_empty() {
-            let mut controllers = HashSet::new();
-
-            for bus in &self.manifest.i2c_buses {
-                controllers.insert(bus.controller);
-            }
-
-            println!(
-                "{:>12} => {} controller{}, {} bus{}",
-                "i2c buses",
-                controllers.len(),
-                if controllers.len() != 1 { "s" } else { "" },
-                self.manifest.i2c_buses.len(),
-                if self.manifest.i2c_buses.len() != 1 { "es" } else { "" },
-            );
-
-            println!(
-                "{:>17} {} {} {:13} {}",
-                "C", "PORT", "MODE", "NAME", "DESCRIPTION"
-            );
-
-            for bus in &self.manifest.i2c_buses {
-                println!(
-                    "{:>17} {:4} {:4} {:13} {}",
-                    bus.controller,
-                    bus.port.name,
-                    if bus.target { "trgt" } else { "init" },
-                    bus.name.as_ref().unwrap_or(&"-".to_string()),
-                    bus.description.as_ref().unwrap_or(&"-".to_string()),
-                );
-            }
-        }
-
-        if !self.manifest.i2c_devices.is_empty() {
-            println!(
-                "{:>12} => {} device{}",
-                "i2c devices",
-                self.manifest.i2c_devices.len(),
-                if self.manifest.i2c_devices.len() != 1 { "s" } else { "" }
-            );
-
-            println!(
-                "{:>17} {:2} {} {} {:13} {}",
-                "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
-            );
-
-            for device in &self.manifest.i2c_devices {
-                let mux = match (device.mux, device.segment) {
-                    (Some(m), Some(s)) => format!("{}:{}", m, s),
-                    (None, None) => "-".to_string(),
-                    (_, _) => "?:?".to_string(),
-                };
-
-                println!(
-                    "{:>17} {:2} {:3} 0x{:02x} {:13} {}",
-                    device.controller,
-                    device.port.name,
-                    mux,
-                    device.address,
-                    device.device,
-                    device.description
-                );
-            }
-        }
-
-        if let Some(auxflash) = self.manifest.auxflash.as_ref() {
-            const ONE_MIB: usize = 1024 * 1024;
-            if auxflash.memory_size % ONE_MIB == 0 {
-                println!(
-                    " auxiliary flash => {} bytes ({} MiB), {} slots",
-                    auxflash.memory_size,
-                    auxflash.memory_size / ONE_MIB,
-                    auxflash.slot_count
-                );
-            } else {
-                println!(
-                    " auxiliary flash => {} bytes, {} slots",
-                    auxflash.memory_size, auxflash.slot_count
-                );
-            }
-            let bytes_per_slot = auxflash.memory_size / auxflash.slot_count;
-            if bytes_per_slot % ONE_MIB == 0 {
-                println!(
-                    "                    ({} MiB/slot)",
-                    bytes_per_slot / ONE_MIB
-                );
-            } else {
-                println!("                    ({} bytes/slot)", bytes_per_slot);
-            }
-        }
-
-        let sensors = self
-            .manifest
-            .sensors
-            .iter()
-            .filter(|s| match &s.device {
-                HubrisSensorDevice::I2c(..) => false, // printed above
-                HubrisSensorDevice::Other(..) => true,
-            })
-            .collect::<Vec<_>>();
-        if !sensors.is_empty() {
-            println!(
-                "     sensors => {} additional device{}",
-                sensors.len(),
-                if sensors.len() > 1 { "s" } else { "" }
-            );
-            println!("                NAME      DEVICE    KIND");
-            for s in &sensors {
-                let device = match &s.device {
-                    HubrisSensorDevice::I2c(..) => unreachable!(),
-                    HubrisSensorDevice::Other(dev, _) => dev,
-                };
-                println!(
-                    "                {:9} {:9} {}",
-                    s.name,
-                    device,
-                    s.kind.to_string()
-                );
-            }
-        }
 
         Ok(())
     }

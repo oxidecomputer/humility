@@ -14,6 +14,7 @@ use anyhow::{bail, Result};
 use humility::cli::Cli;
 use humility::core::Core;
 use humility::hubris::*;
+use std::time::Duration;
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -54,8 +55,14 @@ pub enum Command {
         validate: Validate,
         run: fn(&mut humility::ExecutionContext) -> Result<()>,
     },
-    /// Not attached to a live system or dump
+    /// Not attached to a live system or dump, but may later attach
     Unattached {
+        name: &'static str,
+        archive: Archive,
+        run: fn(&mut humility::ExecutionContext) -> Result<()>,
+    },
+    /// Will never attach: any options attaching should be an error
+    Detached {
         name: &'static str,
         archive: Archive,
         run: fn(&mut humility::ExecutionContext) -> Result<()>,
@@ -73,6 +80,8 @@ pub fn attach_live(
 ) -> Result<Box<dyn Core>> {
     if args.dump.is_some() {
         bail!("must be run against a live system");
+    } else if args.ip.is_some() {
+        attach_net(args, hubris)
     } else {
         let probe = match &args.probe {
             Some(p) => p,
@@ -94,6 +103,15 @@ pub fn attach_dump(
     }
 }
 
+pub fn attach_net(args: &Cli, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
+    if let Some(ip) = &args.ip {
+        let timeout = Duration::from_millis(args.timeout as u64);
+        humility::core::attach_net(ip, hubris, timeout)
+    } else {
+        bail!("must be run against a specified IP address");
+    }
+}
+
 pub fn attach(
     context: &mut humility::ExecutionContext,
     attach: Attach,
@@ -107,6 +125,10 @@ pub fn attach(
             Attach::LiveOnly => attach_live(&context.cli, hubris),
             Attach::DumpOnly => attach_dump(&context.cli, hubris),
             Attach::Any => {
+                //
+                // Our Clap constraints prevent us from having more than one
+                // of these set.
+                //
                 if context.cli.dump.is_some() {
                     attach_dump(&context.cli, hubris)
                 } else {

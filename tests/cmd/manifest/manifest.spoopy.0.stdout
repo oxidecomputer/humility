@@ -32,30 +32,93 @@
                 3 H    init mid           Mid bus
                 4 F    init rear          Rear bus
  i2c devices => 26 devices
-                C P  MUX ADDR DEVICE        DESCRIPTION
-                2 F  -   0x48 tmp117        Southwest temperature sensor
-                2 F  -   0x49 tmp117        South temperature sensor
-                2 F  -   0x4a tmp117        Southeast temperature sensor
-                2 F  -   0x70 pca9545       U.2 ABCD mux
-                2 F  -   0x71 pca9545       U.2 EFGH mux
-                2 F  -   0x72 pca9545       U.2 IJ/FRUID mux
-                2 B  -   0x73 pca9545       M.2 mux
-                2 B  1:4 0x4c tmp451        T6 temperature sensor
-                3 H  -   0x24 tps546b24a    A2 3.3V rail
-                3 H  -   0x26 tps546b24a    A0 3.3V rail
-                3 H  -   0x27 tps546b24a    A2 5V rail
-                3 H  -   0x29 tps546b24a    A2 1.8V rail
-                3 H  -   0x3a max5970       M.2 hot plug controller
-                3 H  -   0x4c sbtsi         CPU temperature sensor
-                3 H  -   0x58 idt8a34003    Clock generator
-                3 H  -   0x5a raa229618     CPU power controller
-                3 H  -   0x5b raa229618     SoC power controller
-                3 H  -   0x5c isl68224      DIMM/SP3 1.8V A0 power controller
-                4 F  -   0x10 adm1272       Fan hot swap controller
-                4 F  -   0x14 adm1272       Sled hot swap controller
-                4 F  -   0x20 max31790      Fan controller
-                4 F  -   0x25 tps546b24a    T6 power controller
-                4 F  -   0x48 tmp117        Northeast temperature sensor
-                4 F  -   0x49 tmp117        North temperature sensor
-                4 F  -   0x4a tmp117        Northwest temperature sensor
-                4 F  -   0x67 bmr491        Intermediate bus converter
+                 ID C  P  MUX ADDR DEVICE        DESCRIPTION
+                  0  2 F  -   0x48 tmp117        Southwest temperature sensor
+                  1  2 F  -   0x49 tmp117        South temperature sensor
+                  2  2 F  -   0x4a tmp117        Southeast temperature sensor
+                  3  2 F  -   0x70 pca9545       U.2 ABCD mux
+                  4  2 F  -   0x71 pca9545       U.2 EFGH mux
+                  5  2 F  -   0x72 pca9545       U.2 IJ/FRUID mux
+                  6  2 B  -   0x73 pca9545       M.2 mux
+                  7  2 B  1:4 0x4c tmp451        T6 temperature sensor
+                  8  3 H  -   0x24 tps546b24a    A2 3.3V rail
+                  9  3 H  -   0x26 tps546b24a    A0 3.3V rail
+                 10  3 H  -   0x27 tps546b24a    A2 5V rail
+                 11  3 H  -   0x29 tps546b24a    A2 1.8V rail
+                 12  3 H  -   0x3a max5970       M.2 hot plug controller
+                 13  3 H  -   0x4c sbtsi         CPU temperature sensor
+                 14  3 H  -   0x58 idt8a34003    Clock generator
+                 15  3 H  -   0x5a raa229618     CPU power controller
+                 16  3 H  -   0x5b raa229618     SoC power controller
+                 17  3 H  -   0x5c isl68224      DIMM/SP3 1.8V A0 power controller
+                 18  4 F  -   0x10 adm1272       Fan hot swap controller
+                 19  4 F  -   0x14 adm1272       Sled hot swap controller
+                 20  4 F  -   0x20 max31790      Fan controller
+                 21  4 F  -   0x25 tps546b24a    T6 power controller
+                 22  4 F  -   0x48 tmp117        Northeast temperature sensor
+                 23  4 F  -   0x49 tmp117        North temperature sensor
+                 24  4 F  -   0x4a tmp117        Northwest temperature sensor
+                 25  4 F  -   0x67 bmr491        Intermediate bus converter
+     sensors => 61 sensors
+                 ID NAME                    DEVICE      KIND
+                  0 Southwest               i2c id=0    temp
+                  1 South                   i2c id=1    temp
+                  2 Southeast               i2c id=2    temp
+                  3 tmp451                  i2c id=7    temp
+                  4 V3P3_SP_A2              i2c id=8    temp
+                  5 V3P3_SP_A2              i2c id=8    current
+                  6 V3P3_SP_A2              i2c id=8    voltage
+                  7 V3P3_SYS_A0             i2c id=9    temp
+                  8 V3P3_SYS_A0             i2c id=9    current
+                  9 V3P3_SYS_A0             i2c id=9    voltage
+                 10 V5_SYS_A2               i2c id=10   temp
+                 11 V5_SYS_A2               i2c id=10   current
+                 12 V5_SYS_A2               i2c id=10   voltage
+                 13 V1P8_SYS_A2             i2c id=11   temp
+                 14 V1P8_SYS_A2             i2c id=11   current
+                 15 V1P8_SYS_A2             i2c id=11   voltage
+                 16 CPU                     i2c id=13   temp
+                 17 VDD_VCORE               i2c id=15   temp
+                 18 VDD_MEM_ABCD            i2c id=15   temp
+                 19 VDD_VCORE               i2c id=15   power
+                 20 VDD_MEM_ABCD            i2c id=15   power
+                 21 VDD_VCORE               i2c id=15   current
+                 22 VDD_MEM_ABCD            i2c id=15   current
+                 23 VDD_VCORE               i2c id=15   voltage
+                 24 VDD_MEM_ABCD            i2c id=15   voltage
+                 25 VDDCR_SOC               i2c id=16   temp
+                 26 VDD_MEM_EFGH            i2c id=16   temp
+                 27 VDDCR_SOC               i2c id=16   power
+                 28 VDD_MEM_EFGH            i2c id=16   power
+                 29 VDDCR_SOC               i2c id=16   current
+                 30 VDD_MEM_EFGH            i2c id=16   current
+                 31 VDDCR_SOC               i2c id=16   voltage
+                 32 VDD_MEM_EFGH            i2c id=16   voltage
+                 33 VPP_ABCD                i2c id=17   current
+                 34 VPP_EFGH                i2c id=17   current
+                 35 V1P8_SP3                i2c id=17   current
+                 36 VPP_ABCD                i2c id=17   voltage
+                 37 VPP_EFGH                i2c id=17   voltage
+                 38 V1P8_SP3                i2c id=17   voltage
+                 39 V54_FAN                 i2c id=18   temp
+                 40 V54_FAN                 i2c id=18   current
+                 41 V54_FAN                 i2c id=18   voltage
+                 42 V54_HS_OUTPUT           i2c id=19   temp
+                 43 V54_HS_OUTPUT           i2c id=19   current
+                 44 V54_HS_OUTPUT           i2c id=19   voltage
+                 45 max31790                i2c id=20   speed
+                 46 max31790#1              i2c id=20   speed
+                 47 max31790#2              i2c id=20   speed
+                 48 max31790#3              i2c id=20   speed
+                 49 max31790#4              i2c id=20   speed
+                 50 max31790#5              i2c id=20   speed
+                 51 V0P96_NIC_VDD_A0HP      i2c id=21   temp
+                 52 V0P96_NIC_VDD_A0HP      i2c id=21   current
+                 53 V0P96_NIC_VDD_A0HP      i2c id=21   voltage
+                 54 Northeast               i2c id=22   temp
+                 55 North                   i2c id=23   temp
+                 56 Northwest               i2c id=24   temp
+                 57 V12_SYS_A2              i2c id=25   temp
+                 58 V12_SYS_A2              i2c id=25   power
+                 59 V12_SYS_A2              i2c id=25   current
+                 60 V12_SYS_A2              i2c id=25   voltage
