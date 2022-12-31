@@ -86,10 +86,9 @@
                  33  2 F  -   0x73 pca9538       Front IO GPIO expander
                  34  2 F  -   0x0a pca9956b      Front IO LED driver (left)
                  35  2 F  -   0x0b pca9956b      Front IO LED driver (right)
- auxiliary flash => 16777216 bytes (16 MiB), 8 slots
-                    (2 MiB/slot)
+   aux flash => 16777216 bytes (16 MiB), 8 slots (2 MiB/slot)
      sensors => 63 sensors
-                 ID NAME                    DEVICE        KIND
+                 ID NAME                    DEVICE      KIND
                   0 V54_FAN1                i2c id=0    temp
                   1 V54_FAN1                i2c id=0    current
                   2 V54_FAN1                i2c id=0    voltage

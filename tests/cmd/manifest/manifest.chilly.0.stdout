@@ -77,7 +77,7 @@
                  40  4 F  -   0x1e tse2004av     DIMM H0
                  41  4 F  -   0x1f tse2004av     DIMM H1
      sensors => 77 sensors
-                 ID NAME                    DEVICE        KIND
+                 ID NAME                    DEVICE      KIND
                   0 Southwest               i2c id=0    temp
                   1 South                   i2c id=1    temp
                   2 Southeast               i2c id=2    temp

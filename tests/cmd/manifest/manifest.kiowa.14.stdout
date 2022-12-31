@@ -59,7 +59,7 @@
                  24  4 F  -   0x5f isl68224      T6 power controller
                  25  4 F  -   0x67 bmr491        IBC
      sensors => 34 sensors
-                 ID NAME                    DEVICE        KIND
+                 ID NAME                    DEVICE      KIND
                   0 zone1                   i2c id=0    temp
                   1 zone2                   i2c id=1    temp
                   2 zone3                   i2c id=2    temp

@@ -211,40 +211,31 @@ fn manifestcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     if let Some(auxflash) = manifest.auxflash.as_ref() {
         const ONE_MIB: usize = 1024 * 1024;
+
+        print!("{:>12} => {} bytes", "aux flash", auxflash.memory_size);
+
         if auxflash.memory_size % ONE_MIB == 0 {
-            println!(
-                " auxiliary flash => {} bytes ({} MiB), {} slots",
-                auxflash.memory_size,
-                auxflash.memory_size / ONE_MIB,
-                auxflash.slot_count
-            );
-        } else {
-            println!(
-                " auxiliary flash => {} bytes, {} slots",
-                auxflash.memory_size, auxflash.slot_count
-            );
+            print!(" ({} MiB)", auxflash.memory_size / ONE_MIB);
         }
+
+        print!(", {} slots", auxflash.slot_count);
+
         let bytes_per_slot = auxflash.memory_size / auxflash.slot_count;
         if bytes_per_slot % ONE_MIB == 0 {
-            println!(
-                "                    ({} MiB/slot)",
-                bytes_per_slot / ONE_MIB
-            );
+            println!(" ({} MiB/slot)", bytes_per_slot / ONE_MIB);
         } else {
-            println!("                    ({} bytes/slot)", bytes_per_slot);
+            println!(" ({} bytes/slot)", bytes_per_slot);
         }
     }
 
     if !manifest.sensors.is_empty() {
         println!(
-            "     sensors => {} sensor{}",
+            "{:>12} => {} sensor{}",
+            "sensors",
             manifest.sensors.len(),
             if manifest.sensors.len() > 1 { "s" } else { "" }
         );
-        println!(
-            "                 ID NAME                    \
-                DEVICE        KIND"
-        );
+        println!("{:>19} {:23} {:11} {}", "ID", "NAME", "DEVICE", "KIND");
 
         for (ndx, s) in manifest.sensors.iter().enumerate() {
             let device = match &s.device {
