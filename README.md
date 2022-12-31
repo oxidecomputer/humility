@@ -138,6 +138,15 @@ Dumps are offered in lieu of a probe and an archive and specified via
 the `-d` option (long form `--dump`) or the `HUMILITY_DUMP` environment
 variable.
 
+### Network
+
+On Hubris systems that are so equipped, Humility can operate over a network
+in lieu of a dump or probe.  When operating over a network, the archive must
+always be provided via `-a`, as well as the IP address of the target via
+`-i` (long form `--ip`) or the `HUMILITY_IP` environment variable.
+Note that not all commands can operate over the network, including (but not
+limited to) any command that stops the target or reads memory directly.
+
 ### Environment
 
 On machines that have several different connected Hubris targets, Humility can
@@ -1956,7 +1965,7 @@ a target task.
 
 An archive is required so that `humility` knows what functions are available
 and how to call them.  The archive ID is checked against the image ID on the
-target; `udprcp` will refuse to execute commands when the ID does not match.
+target; `udprpc` will refuse to execute commands when the ID does not match.
 
 Function calls are handled identically to the `humility hiffy` subcommand,
 except that an `--ip` address is required:
