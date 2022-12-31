@@ -27,6 +27,7 @@
 //!
 //! You may need to configure an IPv6 network for `humility rpc` to work. On
 //! illumos, it looks like this:
+//!
 //! ```console
 //! % pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 //! ```
@@ -46,9 +47,11 @@
 //!
 //! Under the hood, this listens for packets from the Hubris `udpbroadcast`
 //! task, which includes MAC address and image ID (checked for compatibility).
+//! When listening, it is mandatory to specify the interface (e.g. `humility rpc
+//! --listen -i en0` on MacOS).
 //!
-//! (On macOS, it is mandatory to specify the interface, e.g. `humility rpc
-//! --listen -ien0`)
+//! To call all targets that match an archive, `--listen` can be combined with
+//! `--call`
 
 use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv6Addr, ToSocketAddrs, UdpSocket};
@@ -244,7 +247,6 @@ impl<'a> RpcClient<'a> {
 
         // Hard-coded socket address, based on Hubris configuration
         let target = format!("[{}%{}]:998", ip, scopeid);
-        //humility::msg!("Connecting to {}", target);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
         let socket = UdpSocket::bind("[::]:0")?;

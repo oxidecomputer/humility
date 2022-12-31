@@ -1979,6 +1979,7 @@ Alternatively, you can set the `HUMILITY_RPC_IP` environmental variable.
 
 You may need to configure an IPv6 network for `humility rpc` to work. On
 illumos, it looks like this:
+
 ```console
 % pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 ```
@@ -1998,9 +1999,11 @@ humility: listening... (ctrl-C to stop, or timeout in 5s)
 
 Under the hood, this listens for packets from the Hubris `udpbroadcast`
 task, which includes MAC address and image ID (checked for compatibility).
+When listening, it is mandatory to specify the interface (e.g. `humility rpc
+--listen -i en0` on MacOS).
 
-(On macOS, it is mandatory to specify the interface, e.g. `humility rpc
---listen -ien0`)
+To call all targets that match an archive, `--listen` can be combined with
+`--call`
 
 
 ### `humility sensors`
