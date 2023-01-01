@@ -764,15 +764,27 @@ impl Core for OpenOCDCore {
         Ok(())
     }
 
-    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
-        bail!("OpenOCD target does not support modifying state");
+    fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()> {
+        //
+        // Perform the writes one byte at a time.  We (obviously?) don't
+        // expect these writes to be large (they are likely due to HIF
+        // execution), but if they become so, this can be made up to 4X faster
+        // (and, it must be said, significantly more complicate) by using mww
+        // for the word-aligned writes within the data payload.
+        //
+        for (i, b) in data.iter().enumerate() {
+            self.sendcmd(&format!("mwb 0x{:x} 0x{:x}", addr + i as u32, b))?;
+        }
+
+        Ok(())
     }
 
     fn halt(&mut self) -> Result<()> {
         //
-        // On OpenOCD, we don't halt. If GDB is connected, it gets really,
-        // really confused!  This should probably be configurable at
-        // some point...
+        // On OpenOCD, we don't halt: if GDB is connected, it gets really,
+        // really confused!  (There is unfortunately no way to know if GDB is
+        // connected or not, but because the OpenOCD target is most often used
+        // when GDB is running, we assume that it is indeed running.)
         //
         Ok(())
     }
