@@ -808,7 +808,7 @@ impl<'a> HiffyContext<'a> {
             }
         }
 
-        core.write_8(self.text.addr, &buf[0..])?;
+        core.write_8(self.text.addr, &buf[0..current])?;
 
         if let Some(data) = data {
             core.write_8(self.data.addr, data)?;
