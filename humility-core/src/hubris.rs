@@ -4358,13 +4358,13 @@ impl HubrisArchive {
     pub fn dump(
         &self,
         core: &mut dyn crate::core::Core,
+        regions: &BTreeMap<u32, HubrisRegion>,
         dumpfile: Option<&str>,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::Write;
 
-        let regions = self.regions(core)?;
         let nsegs = regions.values().filter(|r| !r.attr.device).count();
 
         macro_rules! pad {
