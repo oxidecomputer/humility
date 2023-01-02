@@ -86,6 +86,10 @@ struct DumpArgs {
     #[clap(long)]
     force_dump_agent: bool,
 
+    /// clear any dump at the dump agent
+    #[clap(long)]
+    clear_dump_agent: bool,
+
     /// simulate dumper by reading directly from target (skipping agent)
     #[clap(
         long,
@@ -301,6 +305,61 @@ impl Core for AgentCore {
 
 type DumpLzss = lzss::Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
 
+fn initialize_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+) -> Result<()> {
+    let op = hubris.get_idol_command("DumpAgent.initialize_dump")?;
+    let mut ops = vec![];
+    context.idol_call_ops(&funcs, &op, &[], &mut ops)?;
+    ops.push(Op::Done);
+
+    if let Err(err) = &context.run(core, ops.as_slice(), None)?[0] {
+        bail!("failed to initialize dump: {}", op.strerror(*err));
+    }
+
+    Ok(())
+}
+
+fn initialize_segments(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+    segments: &Vec<&HubrisRegion>,
+) -> Result<()> {
+    let op = hubris.get_idol_command("DumpAgent.add_dump_segment")?;
+    let mut ops = vec![];
+
+    for r in segments {
+        let payload = op.payload(&[
+            ("address", idol::IdolArgument::Scalar(r.base as u64)),
+            ("length", idol::IdolArgument::Scalar(r.size as u64)),
+        ])?;
+
+        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    }
+
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    for (result, region) in results.iter().zip(segments.iter()) {
+        if let Err(err) = result {
+            bail!(
+                "failed to add segment at address {:#x} for length {}: {}",
+                region.base,
+                region.size,
+                op.strerror(*err)
+            );
+        }
+    }
+
+    Ok(())
+}
+
 fn read_dump_at(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -404,6 +463,15 @@ fn read_dump_at(
             bail!("{:?}", err);
         }
     }
+}
+
+fn read_dump_header(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+) -> Result<DumpAreaHeader> {
+    read_dump_at(hubris, core, context, funcs, 0, |_| false)
 }
 
 fn read_dump_headers(
@@ -558,6 +626,36 @@ fn dump_via_agent(
 
         core.run()?;
         humility::msg!("core resumed");
+    } else {
+        //
+        // Clear our dump state.  We should 
+        //
+        let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+        let funcs = context.functions()?;
+
+        let header = read_dump_header(hubris, core, &mut context, &funcs)?;
+
+        if header.dumper_version != humpty::DUMPER_NONE {
+            if !subargs.clear_dump_agent {
+                bail!(
+                    "there appears to already be a dump in situ; clear with \
+                    --clear-dump-agent"
+                )
+            }
+        }
+
+        humility::msg!("initializing dump agent state");
+        initialize_dump(hubris, core, &mut context, &funcs)?;
+
+        humility::msg!("initializing segments");
+        let segments = regions
+            .values()
+            .filter(|&r| !r.attr.device && r.attr.write)
+            .collect::<Vec<_>>();
+
+        initialize_segments(hubris, core, &mut context, &funcs, &segments)?;
+
+        bail!("not yet");
     }
 
     hubris.dump(&mut agent, &regions, subargs.dumpfile.as_deref())
@@ -571,7 +669,8 @@ fn dump_agent_status(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    read_dump(hubris, core, &mut context, &funcs)?;
+    let headers = read_dump_headers(hubris, core, &mut context, &funcs)?;
+    humility::msg!("{:#x?}", headers);
 
     Ok(())
 }
