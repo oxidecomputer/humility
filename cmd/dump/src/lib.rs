@@ -57,10 +57,10 @@ use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::doppel::DumpAreaHeader;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
+use humpty::DumpAreaHeader;
 use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::io::Read;
@@ -307,9 +307,10 @@ fn read_dump_at(
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
     offset: u32,
-) -> Result<(DumpAreaHeader, Vec<u8>)> {
+    mut progress: impl FnMut(&[u8]) -> bool,
+) -> Result<DumpAreaHeader> {
     //
-    // We expect a DumpAreaHeader to be here.
+    // We expect a DumpAreaHeader to be at the specified offset.
     //
     let op = hubris.get_idol_command("DumpAgent.read_dump")?;
     let mut ops = vec![];
@@ -320,29 +321,115 @@ fn read_dump_at(
     context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
-    //
-    // Call that.
-    //
-    let results = context.run(core, ops.as_slice(), None)?;
+    match &context.run(core, ops.as_slice(), None)?[0] {
+        Ok(val) => {
+            let header = DumpAreaHeader::read_from_prefix(val.as_slice())
+                .ok_or_else(|| {
+                    anyhow!("failed to read dump at offset {:#x}", offset)
+                })?;
 
-    // let mut rval = vec![];
+            if header.magic != humpty::DUMP_MAGIC {
+                bail!("bad magic at dump offset {:#x}: {:x?}", offset, header);
+            }
 
-    //
-    for r in &results {
-        if let Ok(val) = r {
+            let size = core::mem::size_of::<DumpAreaHeader>();
+
+            if header.written > size as u32 {
+                let max = std::cmp::min(header.written as usize, val.len());
+
+                if !progress(&val[size..max]) {
+                    return Ok(header);
+                }
+            }
+
+            let mut all_ops = vec![];
+            let mut offset = val.len() as u32;
+            let mut offsets = vec![];
+
+            while offset < header.written {
+                let mut ops = vec![];
+
+                let payload = op.payload(&[(
+                    "offset",
+                    idol::IdolArgument::Scalar(offset as u64),
+                )])?;
+
+                offsets.push(offset);
+
+                context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+                offset += val.len() as u32;
+                all_ops.push(ops);
+            }
+
             //
-            // We should be able to turn that into
-            let h = DumpAreaHeader::read_from_prefix(val.as_slice());
-
+            // We have all of our operations.  We're going to chunk it out
+            // in batches to make this somewhat practical when emulated.
             //
-            // XXX from here, we need to
-            println!("{:x?}", h);
-        } else {
-            bail!("{:?}", r);
+            let chunksize = (context.rdata_size() / val.len()) - 1;
+
+            for (ndx, o) in all_ops.chunks(chunksize).enumerate() {
+                let mut chunk: Vec<Op> = vec![];
+
+                for ops in o {
+                    chunk.extend(ops)
+                }
+
+                chunk.push(Op::Done);
+
+                let results = context.run(core, chunk.as_slice(), None)?;
+
+                for (rndx, r) in results.iter().enumerate() {
+                    match r {
+                        Ok(val) => {
+                            if !progress(val) {
+                                return Ok(header);
+                            }
+                        }
+
+                        Err(err) => {
+                            bail!(
+                                "failed to read dump at offset {}: {}",
+                                offsets[ndx * chunksize + rndx],
+                                op.strerror(*err)
+                            );
+                        }
+                    }
+                }
+            }
+
+            Ok(header)
+        }
+
+        Err(err) => {
+            bail!("{:?}", err);
         }
     }
+}
 
-    bail!("no");
+fn read_dump_headers(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+) -> Result<Vec<DumpAreaHeader>> {
+    let mut rval = vec![];
+    let mut done = false;
+    let mut offset = 0;
+
+    while !done {
+        let header =
+            read_dump_at(hubris, core, context, funcs, offset, |_| false)?;
+
+        if header.next != 0 {
+            offset += header.length;
+        } else {
+            done = true;
+        }
+
+        rval.push(header);
+    }
+
+    Ok(rval)
 }
 
 fn read_dump(
@@ -351,7 +438,39 @@ fn read_dump(
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
 ) -> Result<()> {
-    _ = read_dump_at(hubris, core, context, funcs, 0)?;
+    let headers = read_dump_headers(hubris, core, context, funcs)?;
+    let mut contents: Vec<u8> = vec![];
+    let mut offset = 0;
+
+    let total = headers.iter().fold(0, |sum, header| sum + header.written);
+
+    use indicatif::{HumanBytes, HumanDuration};
+    use indicatif::{ProgressBar, ProgressStyle};
+
+    let started = Instant::now();
+    let bar = ProgressBar::new(total as u64);
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("humility: pulling [{bar:30}] {bytes}/{total_bytes}"),
+    );
+
+    for header in &headers {
+        read_dump_at(hubris, core, context, funcs, offset, |rval| {
+            contents.extend(rval);
+            bar.set_position(contents.len() as u64);
+            true
+        })?;
+
+        offset += header.length;
+    }
+
+    bar.finish_and_clear();
+
+    humility::msg!(
+        "pulled {} in {}",
+        HumanBytes(total as u64),
+        HumanDuration(started.elapsed())
+    );
 
     Ok(())
 }

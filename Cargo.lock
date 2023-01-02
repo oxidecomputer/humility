@@ -1239,6 +1239,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humpty",
  "indicatif",
  "log",
  "lzss",
@@ -1957,6 +1958,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "humpty"
+version = "0.1.0"
+dependencies = [
+ "zerocopy",
 ]
 
 [[package]]

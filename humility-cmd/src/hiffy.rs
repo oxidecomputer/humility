@@ -295,6 +295,10 @@ impl<'a> HiffyContext<'a> {
         self.text.size
     }
 
+    pub fn rdata_size(&self) -> usize {
+        self.rstack.size
+    }
+
     ///
     /// Convenience routine to indicate the size of a HIF snippet
     ///
