@@ -52,27 +52,45 @@ use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use goblin::elf::Elf;
+use hif::*;
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
+use humility_cmd::doppel::DumpAreaHeader;
+use humility_cmd::hiffy::*;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::io::Read;
 use std::path::Path;
 use std::time::Instant;
+use zerocopy::FromBytes;
 
 #[derive(Parser, Debug)]
 #[clap(name = "dump", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DumpArgs {
+    /// sets timeout
+    #[clap(
+        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
+        parse(try_from_str = parse_int::parse)
+    )]
+    timeout: u32,
+
+    /// show dump agent status
+    #[clap(long)]
+    dump_agent_status: bool,
+
     /// force use of the dump agent
     #[clap(long)]
     force_dump_agent: bool,
 
     /// simulate dumper by reading directly from target (skipping agent)
     #[clap(
-        long, requires = "force_dump_agent", conflicts_with = "emulate_dumper"
+        long,
+        requires = "force_dump_agent",
+        conflicts_with = "emulate_dumper"
     )]
     simulate_dumper: bool,
 
@@ -93,7 +111,7 @@ struct DumpArgs {
 }
 
 //
-// When using the dump agent, we create our own ersatz core
+// When using the dump agent, we create our own ersatz Core
 //
 #[derive(Default)]
 struct AgentCore {
@@ -161,16 +179,15 @@ impl AgentCore {
                 // it and leave.
                 //
                 data.copy_from_slice(
-                    &self.flash_contents[roffs..roffs + data.len()]
+                    &self.flash_contents[roffs..roffs + data.len()],
                 );
 
                 return Ok(());
             }
 
             let len = (size as usize) - start;
-            data[..len].copy_from_slice(
-                &self.flash_contents[roffs..roffs + len]
-            );
+            data[..len]
+                .copy_from_slice(&self.flash_contents[roffs..roffs + len]);
 
             self.read_flash(addr + len as u32, &mut data[len..])
         } else {
@@ -282,6 +299,63 @@ impl Core for AgentCore {
     }
 }
 
+type DumpLzss = lzss::Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
+
+fn read_dump_at(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+    offset: u32,
+) -> Result<(DumpAreaHeader, Vec<u8>)> {
+    //
+    // We expect a DumpAreaHeader to be here.
+    //
+    let op = hubris.get_idol_command("DumpAgent.read_dump")?;
+    let mut ops = vec![];
+
+    let payload =
+        op.payload(&[("offset", idol::IdolArgument::Scalar(offset as u64))])?;
+
+    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    ops.push(Op::Done);
+
+    //
+    // Call that.
+    //
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    // let mut rval = vec![];
+
+    //
+    for r in &results {
+        if let Ok(val) = r {
+            //
+            // We should be able to turn that into
+            let h = DumpAreaHeader::read_from_prefix(val.as_slice());
+
+            //
+            // XXX from here, we need to
+            println!("{:x?}", h);
+        } else {
+            bail!("{:?}", r);
+        }
+    }
+
+    bail!("no");
+}
+
+fn read_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
+) -> Result<()> {
+    _ = read_dump_at(hubris, core, context, funcs, 0)?;
+
+    Ok(())
+}
+
 fn dump_via_agent(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -318,7 +392,8 @@ fn dump_via_agent(
                 .template("humility: reading [{bar:30}] {bytes}/{total_bytes}"),
         );
 
-        let mut written = 0;
+        let mut nread = 0;
+        let mut ncompressed = 0;
 
         for (_, region) in regions.iter() {
             if region.attr.device || !region.attr.write {
@@ -334,20 +409,31 @@ fn dump_via_agent(
                     if remain > bytes.len() { bytes.len() } else { remain };
 
                 core.read_8(addr, &mut bytes[0..nbytes])?;
+
+                let mut output = vec![0; 2048];
+
+                let compressed = DumpLzss::compress(
+                    lzss::SliceReader::new(&bytes[0..nbytes]),
+                    lzss::SliceWriter::new(&mut output),
+                )?;
+
+                ncompressed += compressed;
+
                 agent.add_ram_region(addr, bytes[0..nbytes].to_vec().clone());
 
                 remain -= nbytes;
-                written += nbytes;
+                nread += nbytes;
                 addr += nbytes as u32;
-                bar.set_position(written as u64);
+                bar.set_position(nread as u64);
             }
         }
 
         bar.finish_and_clear();
 
         humility::msg!(
-            "read {} in {}",
-            HumanBytes(written as u64),
+            "read {} (compressing to {}) in {}",
+            HumanBytes(nread as u64),
+            HumanBytes(ncompressed as u64),
             HumanDuration(started.elapsed())
         );
 
@@ -358,6 +444,19 @@ fn dump_via_agent(
     hubris.dump(&mut agent, &regions, subargs.dumpfile.as_deref())
 }
 
+fn dump_agent_status(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &DumpArgs,
+) -> Result<()> {
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let funcs = context.functions()?;
+
+    read_dump(hubris, core, &mut context, &funcs)?;
+
+    Ok(())
+}
+
 fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -365,7 +464,9 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = DumpArgs::try_parse_from(subargs)?;
 
-    if core.is_net() || subargs.force_dump_agent {
+    if subargs.dump_agent_status {
+        dump_agent_status(hubris, core, &subargs)
+    } else if core.is_net() || subargs.force_dump_agent {
         dump_via_agent(hubris, core, &subargs)
     } else {
         core.halt()?;
