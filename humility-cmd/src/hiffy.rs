@@ -11,7 +11,6 @@ use humility::reflect::{self, Load, Value};
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use zerocopy::{AsBytes, U16, U64};
@@ -457,8 +456,8 @@ impl<'a> HiffyContext<'a> {
         // Since this is a global structure, we use a `struct WorkspaceCleanup`
         // to make sure that we clear those pointers, so that it's not possible
         // to create multiple mutable references.
-        {
-            let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+        HIFFY_SEND_WORKSPACE.with(|workspace| {
+            let mut workspace = workspace.borrow_mut();
             workspace.hubris = Some(self.hubris);
 
             // SAFETY:
@@ -466,21 +465,18 @@ impl<'a> HiffyContext<'a> {
             // guarantee through the use of WorkspaceCleanup that it won't be
             // possible for it to outlive the original reference.
             workspace.core = Some(unsafe { std::mem::transmute(core) });
-        }
+        });
 
         struct WorkspaceCleanup;
         impl Drop for WorkspaceCleanup {
             fn drop(&mut self) {
-                // If `hiffy_send_fn` panics with the mutex locked, then it will
-                // be poisoned here (and return an Error); we'll skip cleaning
-                // up in that case, because we're already in the middle of a
-                // panic.
-                if let Ok(mut workspace) = HIFFY_SEND_WORKSPACE.lock() {
+                HIFFY_SEND_WORKSPACE.with(|workspace| {
+                    let mut workspace = workspace.borrow_mut();
                     workspace.hubris = None;
                     workspace.core = None;
                     workspace.results = vec![];
                     workspace.errors = vec![];
-                }
+                });
             }
         }
         let _cleanup = WorkspaceCleanup;
@@ -500,58 +496,60 @@ impl<'a> HiffyContext<'a> {
         assert_eq!(self.rpc_results.len(), 0);
 
         self.state = State::Kicked;
-        let workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
-        if let Some(e) = workspace.errors.first() {
-            // We have to translate from Error -> String to work around
-            // ownership
-            return Err(anyhow!(e.to_string()));
-        }
-        for buf in &workspace.results {
-            //
-            // If udprpc gave us an error, it's because something was
-            // malformed or (most likely) we have an image mismatch.  We don't
-            // want to continue processing in this case; toss our error.
-            //
-            if buf[0] != 0 {
-                let rpc_reply_type = self.rpc_reply_type.unwrap();
-                match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
-                    Some(e) => {
-                        let image_id = self.hubris.image_id().unwrap();
-                        let msg = format!("RPC error: {}", e.name);
-                        if e.name == "BadImageId" {
-                            bail!(
+        HIFFY_SEND_WORKSPACE.with(|workspace| {
+            let workspace = workspace.borrow();
+            if let Some(e) = workspace.errors.first() {
+                // We have to translate from Error -> String to work around
+                // ownership
+                return Err(anyhow!(e.to_string()));
+            }
+            for buf in &workspace.results {
+                //
+                // If udprpc gave us an error, it's because something was
+                // malformed or (most likely) we have an image mismatch.  We don't
+                // want to continue processing in this case; toss our error.
+                //
+                if buf[0] != 0 {
+                    let rpc_reply_type = self.rpc_reply_type.unwrap();
+                    match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
+                        Some(e) => {
+                            let image_id = self.hubris.image_id().unwrap();
+                            let msg = format!("RPC error: {}", e.name);
+                            if e.name == "BadImageId" {
+                                bail!(
                                 "{msg}: {:02x?} (Humility) {:02x?} (Hubris)",
                                 image_id,
                                 &buf[1..9]
                             );
-                        } else {
-                            bail!("{msg}");
+                            } else {
+                                bail!("{msg}");
+                            }
+                        }
+                        None => {
+                            bail!("Got unknown error from `udprpc`: {}", buf[0])
                         }
                     }
-                    None => {
-                        bail!("Got unknown error from `udprpc`: {}", buf[0])
-                    }
+                }
+
+                assert_eq!(buf[0], 0);
+
+                //
+                // Now check the return code of the Idol call that we made, and
+                // spoof up a HIF function result.  Note that this implicitly
+                // depends on the fact that Idol does not use 0 as an error
+                // condition.
+                //
+                let rval = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+
+                if rval == 0 {
+                    self.rpc_results.push(Ok(buf[5..].to_vec()));
+                } else {
+                    self.rpc_results.push(Err(rval));
                 }
             }
-
-            assert_eq!(buf[0], 0);
-
-            //
-            // Now check the return code of the Idol call that we made, and
-            // spoof up a HIF function result.  Note that this implicitly
-            // depends on the fact that Idol does not use 0 as an error
-            // condition.
-            //
-            let rval = u32::from_be_bytes(buf[1..5].try_into().unwrap());
-
-            if rval == 0 {
-                self.rpc_results.push(Ok(buf[5..].to_vec()));
-            } else {
-                self.rpc_results.push(Err(rval));
-            }
-        }
-        self.state = State::Kicked;
-        Ok(())
+            self.state = State::Kicked;
+            Ok(())
+        })
     }
 
     /// Convenience routine to translate an Idol call into HIF operations,
@@ -1017,20 +1015,15 @@ struct HiffySendWorkspace {
     errors: Vec<anyhow::Error>,
 }
 
-// SAFETY:
-// It's safe to send this between threads, albeit unsafe to actually dereference
-// the pointers within.
-unsafe impl Send for HiffySendWorkspace {}
-
-lazy_static::lazy_static! {
-    static ref HIFFY_SEND_WORKSPACE: Arc<Mutex<HiffySendWorkspace>> = Arc::new(Mutex::new(
+use std::cell::RefCell;
+thread_local! {
+    static HIFFY_SEND_WORKSPACE: RefCell<HiffySendWorkspace> = RefCell::new(
         HiffySendWorkspace {
             hubris: None,
             core: None,
             results: vec![],
             errors: vec![],
-        }
-    ));
+        });
 }
 
 fn hiffy_dummy_fn(
@@ -1041,6 +1034,10 @@ fn hiffy_dummy_fn(
     panic!("dummy function should never be called");
 }
 
+/// This is a reimplementation of `fn send` in `task/hiffy/src/common.rs`.
+///
+/// We extract a handful of parameters, then pack them into a packet and send
+/// them across the network to the `udprcp` task.
 fn hiffy_send_fn(
     stack: &[Option<u32>],
     _data: &[u8],
@@ -1081,48 +1078,52 @@ fn hiffy_send_fn(
             .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
     }
 
-    let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
-    let (hubris, core) = {
-        // SAFETY: we only ever call this function when the pointers are
-        // populated, and reset them to None afterwards.  This means we should
-        // fail at the initial unwrap() if someone violates the rules.
-        unsafe {
-            (
-                workspace.hubris.unwrap().as_ref().unwrap(),
-                workspace.core.unwrap().as_mut().unwrap(),
-            )
-        }
-    };
-    let image_id = hubris.image_id().unwrap();
-
-    let header = RpcHeader {
-        image_id: U64::from_bytes(image_id.try_into().unwrap()),
-        task: U16::new(task),
-        op: U16::new(op),
-        nreply: U16::new(nreply as u16),
-        nbytes: U16::new(nbytes),
-    };
-
-    let mut packet = header.as_bytes().to_vec();
-    packet.extend(&payload[0..nbytes as usize]);
-
-    // Send the packet out
-    if let Err(e) = core.send(&packet) {
-        workspace.errors.push(e);
-        return Err(Failure::FunctionError(0));
-    }
-
-    // Try to receive a reply
     let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-    match core.recv(buf.as_mut_slice()) {
-        Err(e) => {
+    HIFFY_SEND_WORKSPACE.with(|workspace| {
+        let mut workspace = workspace.borrow_mut();
+        let (hubris, core) = {
+            // SAFETY: we only ever call this function when the pointers are
+            // populated, and reset them to None afterwards.  This means we
+            // should fail at the initial unwrap() if someone violates the
+            // rules.
+            unsafe {
+                (
+                    workspace.hubris.unwrap().as_ref().unwrap(),
+                    workspace.core.unwrap().as_mut().unwrap(),
+                )
+            }
+        };
+        let image_id = hubris.image_id().unwrap();
+
+        let header = RpcHeader {
+            image_id: U64::from_bytes(image_id.try_into().unwrap()),
+            task: U16::new(task),
+            op: U16::new(op),
+            nreply: U16::new(nreply as u16),
+            nbytes: U16::new(nbytes),
+        };
+
+        let mut packet = header.as_bytes().to_vec();
+        packet.extend(&payload[0..nbytes as usize]);
+
+        // Send the packet out
+        if let Err(e) = core.send(&packet) {
             workspace.errors.push(e);
             return Err(Failure::FunctionError(0));
         }
-        Ok(_n) => (),
-    }
 
-    workspace.results.push(buf.to_vec());
+        // Try to receive a reply
+        match core.recv(buf.as_mut_slice()) {
+            Err(e) => {
+                workspace.errors.push(e);
+                return Err(Failure::FunctionError(0));
+            }
+            Ok(_n) => (),
+        }
+
+        workspace.results.push(buf.to_vec());
+        Ok(())
+    })?;
 
     //
     // Now check the return code of the Idol call that we made, and
