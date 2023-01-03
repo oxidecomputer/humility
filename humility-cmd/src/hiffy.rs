@@ -474,6 +474,8 @@ impl<'a> HiffyContext<'a> {
                 let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
                 workspace.hubris = None;
                 workspace.core = None;
+                workspace.results = vec![];
+                workspace.errors = vec![];
             }
         }
         let _cleanup = WorkspaceCleanup;
@@ -494,6 +496,11 @@ impl<'a> HiffyContext<'a> {
 
         self.state = State::Kicked;
         let workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+        if let Some(e) = workspace.errors.first() {
+            // We have to translate from Error -> String to work around
+            // ownership
+            return Err(anyhow!(e.to_string()));
+        }
         for buf in &workspace.results {
             //
             // If udprpc gave us an error, it's because something was
@@ -999,8 +1006,10 @@ struct HiffySendWorkspace {
     hubris: Option<*const HubrisArchive>,
     core: Option<*mut dyn Core>,
 
-    /// If we receive an RPC error, then record the buffer here
+    /// If we receive an RPC result, then record the buffer here
     results: Vec<Vec<u8>>,
+
+    errors: Vec<anyhow::Error>,
 }
 
 // SAFETY:
@@ -1014,6 +1023,7 @@ lazy_static::lazy_static! {
             hubris: None,
             core: None,
             results: vec![],
+            errors: vec![],
         }
     ));
 }
@@ -1066,16 +1076,17 @@ fn hiffy_send_fn(
             .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
     }
 
-    let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
-
-    // SAFETY: we only ever call this function when the pointers are populated,
-    // and reset them to None afterwards.  This means we should fail at the
-    // initial unwrap() if someone violates the rules.
-    let (hubris, core) = unsafe {
-        (
-            workspace.hubris.unwrap().as_ref().unwrap(),
-            workspace.core.unwrap().as_mut().unwrap(),
-        )
+    let (hubris, core) = {
+        let workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+        // SAFETY: we only ever call this function when the pointers are
+        // populated, and reset them to None afterwards.  This means we should
+        // fail at the initial unwrap() if someone violates the rules.
+        unsafe {
+            (
+                workspace.hubris.unwrap().as_ref().unwrap(),
+                workspace.core.unwrap().as_mut().unwrap(),
+            )
+        }
     };
     let image_id = hubris.image_id().unwrap();
 
@@ -1090,16 +1101,28 @@ fn hiffy_send_fn(
     let mut packet = header.as_bytes().to_vec();
     packet.extend(&payload[0..nbytes as usize]);
 
-    core.send(&packet).unwrap();
-    let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-    let _n = core.recv(buf.as_mut_slice()).unwrap();
+    // Send the packet out
+    if let Err(e) = core.send(&packet) {
+        let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+        workspace.errors.push(e);
+        return Err(Failure::FunctionError(0));
+    }
 
-    //
-    // If udprpc gave us an error, it's because something was
-    // malformed or (most likely) we have an image mismatch.  We don't
-    // want to continue processing in this case; toss our error.
-    //
-    workspace.results.push(buf.to_vec());
+    // Try to receive a reply
+    let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
+    match core.recv(buf.as_mut_slice()) {
+        Err(e) => {
+            let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+            workspace.errors.push(e);
+            return Err(Failure::FunctionError(0));
+        }
+        Ok(_n) => (),
+    }
+
+    {
+        let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+        workspace.results.push(buf.to_vec());
+    }
 
     //
     // Now check the return code of the Idol call that we made, and
