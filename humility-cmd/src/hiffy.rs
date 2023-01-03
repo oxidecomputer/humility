@@ -459,13 +459,22 @@ impl<'a> HiffyContext<'a> {
         // to create multiple mutable references.
         HIFFY_SEND_WORKSPACE.with(|workspace| {
             let mut workspace = workspace.borrow_mut();
-            workspace.hubris = self.hubris;
+            workspace.hubris = Some(std::ptr::NonNull::from(self.hubris));
 
             // SAFETY:
             // We are transmuting to strip the lifetime from this object, but
             // guarantee through the use of WorkspaceCleanup that it won't be
             // possible for it to outlive the original reference.
-            workspace.core = Some(unsafe { std::mem::transmute(core) });
+            let ptr = core as *mut dyn Core;
+            workspace.core = Some(
+                std::ptr::NonNull::new(unsafe {
+                    std::mem::transmute::<
+                        *mut (dyn Core + '_),
+                        *mut (dyn Core + 'static),
+                    >(ptr)
+                })
+                .unwrap(),
+            );
         });
 
         struct WorkspaceCleanup;
@@ -473,7 +482,7 @@ impl<'a> HiffyContext<'a> {
             fn drop(&mut self) {
                 HIFFY_SEND_WORKSPACE.with(|workspace| {
                     let mut workspace = workspace.borrow_mut();
-                    workspace.hubris = std::ptr::null();
+                    workspace.hubris = None;
                     workspace.core = None;
                     workspace.results = vec![];
                     workspace.errors = vec![];
@@ -1014,7 +1023,7 @@ impl<'a> HiffyContext<'a> {
 // thread-local `RefCell<HiffySendWorkspace>`.
 
 struct HiffySendWorkspace {
-    hubris: *const HubrisArchive,
+    hubris: Option<std::ptr::NonNull<HubrisArchive>>,
     core: Option<std::ptr::NonNull<dyn Core>>,
 
     /// If we receive an RPC result, then record the buffer here
@@ -1026,7 +1035,7 @@ struct HiffySendWorkspace {
 thread_local! {
     static HIFFY_SEND_WORKSPACE: RefCell<HiffySendWorkspace> = RefCell::new(
         HiffySendWorkspace {
-            hubris: std::ptr::null(),
+            hubris: None,
             core: None,
             results: vec![],
             errors: vec![],
@@ -1094,7 +1103,7 @@ fn hiffy_send_fn(
             // we should fail at this unwrap() if someone violates the rules.
             unsafe {
                 (
-                    workspace.hubris.as_ref().unwrap(),
+                    workspace.hubris.unwrap().as_ref(),
                     workspace.core.unwrap().as_mut(),
                 )
             }
