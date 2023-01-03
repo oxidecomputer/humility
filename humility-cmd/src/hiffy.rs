@@ -471,11 +471,16 @@ impl<'a> HiffyContext<'a> {
         struct WorkspaceCleanup;
         impl Drop for WorkspaceCleanup {
             fn drop(&mut self) {
-                let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
-                workspace.hubris = None;
-                workspace.core = None;
-                workspace.results = vec![];
-                workspace.errors = vec![];
+                // If `hiffy_send_fn` panics with the mutex locked, then it will
+                // be poisoned here (and return an Error); we'll skip cleaning
+                // up in that case, because we're already in the middle of a
+                // panic.
+                if let Ok(mut workspace) = HIFFY_SEND_WORKSPACE.lock() {
+                    workspace.hubris = None;
+                    workspace.core = None;
+                    workspace.results = vec![];
+                    workspace.errors = vec![];
+                }
             }
         }
         let _cleanup = WorkspaceCleanup;
@@ -1076,8 +1081,8 @@ fn hiffy_send_fn(
             .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
     }
 
+    let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
     let (hubris, core) = {
-        let workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
         // SAFETY: we only ever call this function when the pointers are
         // populated, and reset them to None afterwards.  This means we should
         // fail at the initial unwrap() if someone violates the rules.
@@ -1103,7 +1108,6 @@ fn hiffy_send_fn(
 
     // Send the packet out
     if let Err(e) = core.send(&packet) {
-        let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
         workspace.errors.push(e);
         return Err(Failure::FunctionError(0));
     }
@@ -1112,17 +1116,13 @@ fn hiffy_send_fn(
     let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
     match core.recv(buf.as_mut_slice()) {
         Err(e) => {
-            let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
             workspace.errors.push(e);
             return Err(Failure::FunctionError(0));
         }
         Ok(_n) => (),
     }
 
-    {
-        let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
-        workspace.results.push(buf.to_vec());
-    }
+    workspace.results.push(buf.to_vec());
 
     //
     // Now check the return code of the Idol call that we made, and
