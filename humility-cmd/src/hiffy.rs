@@ -9,6 +9,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
 use postcard::{take_from_bytes, to_slice};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::thread;
@@ -458,7 +459,7 @@ impl<'a> HiffyContext<'a> {
         // to create multiple mutable references.
         HIFFY_SEND_WORKSPACE.with(|workspace| {
             let mut workspace = workspace.borrow_mut();
-            workspace.hubris = Some(self.hubris);
+            workspace.hubris = self.hubris;
 
             // SAFETY:
             // We are transmuting to strip the lifetime from this object, but
@@ -472,7 +473,7 @@ impl<'a> HiffyContext<'a> {
             fn drop(&mut self) {
                 HIFFY_SEND_WORKSPACE.with(|workspace| {
                     let mut workspace = workspace.borrow_mut();
-                    workspace.hubris = None;
+                    workspace.hubris = std::ptr::null();
                     workspace.core = None;
                     workspace.results = vec![];
                     workspace.errors = vec![];
@@ -1004,10 +1005,17 @@ impl<'a> HiffyContext<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Welcome to the Cursed RPC Zone
+//
+// HIF requires its functions to have a bare `fn` signature, i.e. it doesn't
+// support closures.  This is tricky, because we need to pass some extra
+// parameters in order to replace local calls with networked RPC.
+//
+// To work around this, we use a global workspace, which is defined as a
+// thread-local `RefCell<HiffySendWorkspace>`.
 
 struct HiffySendWorkspace {
-    hubris: Option<*const HubrisArchive>,
-    core: Option<*mut dyn Core>,
+    hubris: *const HubrisArchive,
+    core: Option<std::ptr::NonNull<dyn Core>>,
 
     /// If we receive an RPC result, then record the buffer here
     results: Vec<Vec<u8>>,
@@ -1015,11 +1023,10 @@ struct HiffySendWorkspace {
     errors: Vec<anyhow::Error>,
 }
 
-use std::cell::RefCell;
 thread_local! {
     static HIFFY_SEND_WORKSPACE: RefCell<HiffySendWorkspace> = RefCell::new(
         HiffySendWorkspace {
-            hubris: None,
+            hubris: std::ptr::null(),
             core: None,
             results: vec![],
             errors: vec![],
@@ -1083,13 +1090,12 @@ fn hiffy_send_fn(
         let mut workspace = workspace.borrow_mut();
         let (hubris, core) = {
             // SAFETY: we only ever call this function when the pointers are
-            // populated, and reset them to None afterwards.  This means we
-            // should fail at the initial unwrap() if someone violates the
-            // rules.
+            // populated, and reset them to null / None afterwards.  This means
+            // we should fail at this unwrap() if someone violates the rules.
             unsafe {
                 (
-                    workspace.hubris.unwrap().as_ref().unwrap(),
-                    workspace.core.unwrap().as_mut().unwrap(),
+                    workspace.hubris.as_ref().unwrap(),
+                    workspace.core.unwrap().as_mut(),
                 )
             }
         };
