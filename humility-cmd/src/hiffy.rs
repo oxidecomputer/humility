@@ -11,6 +11,7 @@ use humility::reflect::{self, Load, Value};
 use postcard::{take_from_bytes, to_slice};
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use zerocopy::{AsBytes, U16, U64};
@@ -412,108 +413,98 @@ impl<'a> HiffyContext<'a> {
             .get("Send")
             .ok_or_else(|| anyhow!("illegal network operations: {:?}", ops))?;
 
-        let image_id = self.hubris.image_id().unwrap();
-
-        //
-        // We are expecting zero funny business here:  straight-line code
-        // that is pushing task + operation + payload onto the stack,
-        // calling Send, and then dropping it all.  If we see anything else,
-        // bomb out.
-        //
-        fn opval(op: &Op) -> Result<u32> {
-            match op {
-                Op::Push(v) => Ok(*v as u32),
-                Op::Push16(v) => Ok(*v as u32),
-                Op::Push32(v) => Ok(*v),
-                _ => {
-                    bail!("illegal network operation {:?}", op);
-                }
-            }
+        // Bail out immediately if the program makes a call other than Send
+        if ops.iter().any(|op| matches!(*op, Op::Call(id) if id != *send)) {
+            bail!("can't make non-Idol calls over RPC");
         }
 
-        fn onecall<'a>(
-            ops: &'a [Op],
-            image_id: &'a [u8],
-            send: TargetFunction,
-        ) -> Result<(Vec<u8>, &'a [Op])> {
-            //
-            // Scan forward for our call. We expect this to be a Send.
-            //
-            let found = ops
-                .iter()
-                .enumerate()
-                .find(|&(_, op)| matches!(op, Op::Call(id) if *id == send))
-                .ok_or_else(|| anyhow!("can't make non-Idol calls over RPC"))?
-                .0;
+        // Pick values that are much larger than we'd ever see on a machine
+        const HIFFY_TEXT_SIZE: usize = 65536;
+        const HIFFY_RSTACK_SIZE: usize = 65536;
+        const HIFFY_SCRATCH_SIZE: usize = 65536;
 
-            //
-            // We expect: task, operation, payload, payload length, reply length
-            //
-            if found < 4 {
-                bail!("illegal operations (missing arguments?): {:?}", ops);
-            }
+        // hard-coded values in task/hiffy/src/main.rs
+        const NLABELS: usize = 4;
+        let mut stack = [None; 32];
 
-            if found + 1 >= ops.len() {
-                bail!("illegal operations (missing Done?): {:?}", ops);
-            }
+        let mut rstack = vec![0u8; HIFFY_RSTACK_SIZE];
+        let mut scratch = vec![0u8; HIFFY_SCRATCH_SIZE];
+        let mut text = vec![0u8; HIFFY_TEXT_SIZE];
 
-            let len = opval(&ops[found - 2])? as usize;
-            let nreply = opval(&ops[found - 1])?;
-
-            if 2 + len > found {
-                bail!("illegal operations (bad length {}): {:?}", len, ops);
-            }
-
-            let mut payload = vec![];
-
-            for op in ops[2..2 + len].iter() {
-                if let Op::Push(val) = op {
-                    payload.push(val);
-                } else {
-                    bail!("illegal operations (bad payload): {:?}", ops);
-                }
-            }
-
-            let header = RpcHeader {
-                image_id: U64::from_bytes(image_id.try_into().unwrap()),
-                task: U16::new(opval(&ops[0])?.try_into().unwrap()),
-                op: U16::new(opval(&ops[1])?.try_into().unwrap()),
-                nreply: U16::new(nreply as u16),
-                nbytes: U16::new(payload.len().try_into().unwrap()),
-            };
-
-            let mut packet = header.as_bytes().to_vec();
-            packet.extend(payload);
-
-            match ops[found + 1] {
-                Op::DropN(_) => Ok((packet, &ops[found + 2..])),
-                _ => {
-                    bail!("illegal operations (missing Drop?): {:?}", ops);
-                }
-            }
+        // Serialize opcodes into `text`
+        let buf = &mut text.as_mut_slice();
+        let mut current = 0;
+        for op in ops {
+            let serialized = to_slice(op, &mut buf[current..]).unwrap();
+            current += serialized.len();
         }
 
-        let mut remainder = ops;
-        let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-        let rpc_reply_type = self.rpc_reply_type.unwrap();
+        // Build the HIF function array, which is a bunch of `hiffy_dummy_fn`
+        // followed by `hiffy_send_fn` at the index of `Send`.
+        let mut functions: Vec<Function> =
+            vec![hiffy_dummy_fn; send.0 as usize];
+        functions.push(hiffy_send_fn);
 
+        // Okay, this is a _little_ cursed: HIF functions use a C calling
+        // convention without any place to stash a context pointer, so we're
+        // going to put raw pointers to the HubrisArchive and Core into a global
+        // variable.
+        //
+        // This is made trickier by lifetimes: these are references, rather than
+        // value types, so we need to cast away the lifetime for the Core using
+        // std::mem::transmute (!)
+        //
+        // Since this is a global structure, we use a `struct WorkspaceCleanup`
+        // to make sure that we clear those pointers, so that it's not possible
+        // to create multiple mutable references.
+        {
+            let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+            workspace.hubris = Some(self.hubris);
+
+            // SAFETY:
+            // We are transmuting to strip the lifetime from this object, but
+            // guarantee through the use of WorkspaceCleanup that it won't be
+            // possible for it to outlive the original reference.
+            workspace.core = Some(unsafe { std::mem::transmute(core) });
+        }
+
+        struct WorkspaceCleanup;
+        impl Drop for WorkspaceCleanup {
+            fn drop(&mut self) {
+                let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+                workspace.hubris = None;
+                workspace.core = None;
+            }
+        }
+        let _cleanup = WorkspaceCleanup;
+        let v = execute::<_, NLABELS>(
+            &text,
+            &functions,
+            &[], // no data
+            &mut stack,
+            &mut rstack,
+            &mut scratch,
+            |_offset, _op| Ok(()),
+        );
+
+        if let Err(e) = v {
+            bail!("Hiffy execution error: {e:?}");
+        }
         assert_eq!(self.rpc_results.len(), 0);
 
-        loop {
-            let (packet, r) = onecall(remainder, image_id, *send)?;
-            remainder = r;
-
-            core.send(&packet)?;
-            let _n = core.recv(buf.as_mut_slice())?;
-
+        self.state = State::Kicked;
+        let workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+        for buf in &workspace.results {
             //
             // If udprpc gave us an error, it's because something was
             // malformed or (most likely) we have an image mismatch.  We don't
             // want to continue processing in this case; toss our error.
             //
             if buf[0] != 0 {
+                let rpc_reply_type = self.rpc_reply_type.unwrap();
                 match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
                     Some(e) => {
+                        let image_id = self.hubris.image_id().unwrap();
                         let msg = format!("RPC error: {}", e.name);
                         if e.name == "BadImageId" {
                             bail!(
@@ -546,14 +537,8 @@ impl<'a> HiffyContext<'a> {
             } else {
                 self.rpc_results.push(Err(rval));
             }
-
-            if let Op::Done = remainder[0] {
-                break;
-            }
         }
-
         self.state = State::Kicked;
-
         Ok(())
     }
 
@@ -1005,4 +990,129 @@ impl<'a> HiffyContext<'a> {
     pub fn scratch_size(&self) -> usize {
         self.scratch_size
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Welcome to the Cursed RPC Zone
+
+struct HiffySendWorkspace {
+    hubris: Option<*const HubrisArchive>,
+    core: Option<*mut dyn Core>,
+
+    /// If we receive an RPC error, then record the buffer here
+    results: Vec<Vec<u8>>,
+}
+
+// SAFETY:
+// It's safe to send this between threads, albeit unsafe to actually dereference
+// the pointers within.
+unsafe impl Send for HiffySendWorkspace {}
+
+lazy_static::lazy_static! {
+    static ref HIFFY_SEND_WORKSPACE: Arc<Mutex<HiffySendWorkspace>> = Arc::new(Mutex::new(
+        HiffySendWorkspace {
+            hubris: None,
+            core: None,
+            results: vec![],
+        }
+    ));
+}
+
+fn hiffy_dummy_fn(
+    _stack: &[Option<u32>],
+    _data: &[u8],
+    _rval: &mut [u8],
+) -> Result<usize, Failure> {
+    panic!("dummy function should never be called");
+}
+
+fn hiffy_send_fn(
+    stack: &[Option<u32>],
+    _data: &[u8],
+    rval: &mut [u8],
+) -> Result<usize, Failure> {
+    let mut payload = [0u8; 32];
+
+    let sp = stack.len();
+    if sp < 4 {
+        return Err(Failure::Fault(Fault::MissingParameters));
+    }
+
+    let nreply =
+        stack[sp - 1].ok_or(Failure::Fault(Fault::EmptyParameter(4)))?;
+    let nbytes: u16 = stack[sp - 2]
+        .ok_or(Failure::Fault(Fault::EmptyParameter(3)))?
+        .try_into()
+        .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
+
+    let fp = sp - (nbytes as usize + 4);
+
+    let task: u16 = stack[fp]
+        .ok_or(Failure::Fault(Fault::EmptyParameter(0)))?
+        .try_into()
+        .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
+
+    let op: u16 = stack[fp + 1]
+        .ok_or(Failure::Fault(Fault::EmptyParameter(1)))?
+        .try_into()
+        .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
+
+    let base = fp + 2;
+
+    for i in base..base + nbytes as usize {
+        payload[i - base] = stack[i]
+            .ok_or(Failure::Fault(Fault::EmptyParameter(2)))?
+            .try_into()
+            .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
+    }
+
+    let mut workspace = HIFFY_SEND_WORKSPACE.lock().unwrap();
+
+    // SAFETY: we only ever call this function when the pointers are populated,
+    // and reset them to None afterwards.  This means we should fail at the
+    // initial unwrap() if someone violates the rules.
+    let (hubris, core) = unsafe {
+        (
+            workspace.hubris.unwrap().as_ref().unwrap(),
+            workspace.core.unwrap().as_mut().unwrap(),
+        )
+    };
+    let image_id = hubris.image_id().unwrap();
+
+    let header = RpcHeader {
+        image_id: U64::from_bytes(image_id.try_into().unwrap()),
+        task: U16::new(task),
+        op: U16::new(op),
+        nreply: U16::new(nreply as u16),
+        nbytes: U16::new(nbytes),
+    };
+
+    let mut packet = header.as_bytes().to_vec();
+    packet.extend(&payload[0..nbytes as usize]);
+
+    core.send(&packet).unwrap();
+    let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
+    let _n = core.recv(buf.as_mut_slice()).unwrap();
+
+    //
+    // If udprpc gave us an error, it's because something was
+    // malformed or (most likely) we have an image mismatch.  We don't
+    // want to continue processing in this case; toss our error.
+    //
+    workspace.results.push(buf.to_vec());
+
+    //
+    // Now check the return code of the Idol call that we made, and
+    // spoof up a HIF function result.  Note that this implicitly
+    // depends on the fact that Idol does not use 0 as an error
+    // condition.
+    //
+    let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+
+    if code != 0 {
+        return Err(Failure::FunctionError(code));
+    }
+    rval[0..nreply as usize].copy_from_slice(&buf[5..(5 + nreply as usize)]);
+
+    Ok(nreply.try_into().unwrap())
 }
