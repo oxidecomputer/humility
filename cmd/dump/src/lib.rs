@@ -51,6 +51,7 @@
 use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
+use core::mem::size_of;
 use goblin::elf::Elf;
 use hif::*;
 use humility::arch::ARMRegister;
@@ -60,7 +61,10 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humpty::DumpAreaHeader;
+use humpty::{DumpAreaHeader, DumpSegmentData, DumpSegmentHeader};
+use indicatif::{HumanBytes, HumanDuration};
+use indicatif::{ProgressBar, ProgressStyle};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::io::Read;
@@ -85,6 +89,14 @@ struct DumpArgs {
     /// force use of the dump agent
     #[clap(long)]
     force_dump_agent: bool,
+
+    /// force dump to be read
+    #[clap(
+        long, conflicts_with_all = &["clear_dump_agent", "stimulate_dumper",
+        "emulate_dumper"]
+    )]
+    #[clap(long)]
+    force_read: bool,
 
     /// clear any dump at the dump agent
     #[clap(long)]
@@ -303,8 +315,6 @@ impl Core for AgentCore {
     }
 }
 
-type DumpLzss = lzss::Lzss<10, 4, 0x20, { 1 << 10 }, { 2 << 10 }>;
-
 fn initialize_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -313,7 +323,7 @@ fn initialize_dump(
 ) -> Result<()> {
     let op = hubris.get_idol_command("DumpAgent.initialize_dump")?;
     let mut ops = vec![];
-    context.idol_call_ops(&funcs, &op, &[], &mut ops)?;
+    context.idol_call_ops(funcs, &op, &[], &mut ops)?;
     ops.push(Op::Done);
 
     if let Err(err) = &context.run(core, ops.as_slice(), None)?[0] {
@@ -339,7 +349,7 @@ fn initialize_segments(
             ("length", idol::IdolArgument::Scalar(r.size as u64)),
         ])?;
 
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        context.idol_call_ops(funcs, &op, &payload, &mut ops)?;
     }
 
     ops.push(Op::Done);
@@ -360,12 +370,62 @@ fn initialize_segments(
     Ok(())
 }
 
+fn emulate_dump(core: &mut dyn Core, base: u32, total: u32) -> Result<()> {
+    let shared = RefCell::new(core);
+    let started = Instant::now();
+    let bar = ProgressBar::new(total as u64);
+    let mut nread = 0;
+    let mut nwritten = 0;
+
+    bar.set_style(ProgressStyle::default_bar().template(
+        "humility: dumping in situ [{bar:30}] {bytes}/{total_bytes}",
+    ));
+
+    let r = humpty::dump::<anyhow::Error, 2048>(
+        base,
+        |addr, buf| {
+            nread += buf.len();
+            bar.set_position(nread as u64);
+            shared.borrow_mut().read_8(addr, buf)
+        },
+        |addr, buf| {
+            nwritten += buf.len();
+            shared.borrow_mut().write_8(addr, buf)
+        },
+    );
+
+    bar.finish_and_clear();
+
+    humility::msg!(
+        "dumped {} in situ (compressed to {}) in {}",
+        HumanBytes(total as u64),
+        HumanBytes(nwritten as u64),
+        HumanDuration(started.elapsed())
+    );
+
+    if let Err(e) = r {
+        bail!("dump failed: {:x?}", e);
+    }
+
+    Ok(())
+}
+
+fn take_dump(
+    _hubris: &HubrisArchive,
+    _core: &mut dyn Core,
+    _context: &mut HiffyContext,
+    _funcs: &HiffyFunctions,
+) -> Result<()> {
+    humility::msg!("taking dump");
+    Ok(())
+}
+
 fn read_dump_at(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
-    offset: u32,
+    index: usize,
     mut progress: impl FnMut(&[u8]) -> bool,
 ) -> Result<DumpAreaHeader> {
     //
@@ -373,11 +433,14 @@ fn read_dump_at(
     //
     let op = hubris.get_idol_command("DumpAgent.read_dump")?;
     let mut ops = vec![];
+    let mut offset = 0;
 
-    let payload =
-        op.payload(&[("offset", idol::IdolArgument::Scalar(offset as u64))])?;
+    let payload = op.payload(&[
+        ("index", idol::IdolArgument::Scalar(index as u64)),
+        ("offset", idol::IdolArgument::Scalar(offset as u64)),
+    ])?;
 
-    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    context.idol_call_ops(funcs, &op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     match &context.run(core, ops.as_slice(), None)?[0] {
@@ -391,7 +454,7 @@ fn read_dump_at(
                 bail!("bad magic at dump offset {:#x}: {:x?}", offset, header);
             }
 
-            let size = core::mem::size_of::<DumpAreaHeader>();
+            let size = size_of::<DumpAreaHeader>();
 
             if header.written > size as u32 {
                 let max = std::cmp::min(header.written as usize, val.len());
@@ -402,20 +465,25 @@ fn read_dump_at(
             }
 
             let mut all_ops = vec![];
-            let mut offset = val.len() as u32;
             let mut offsets = vec![];
+            offset = val.len() as u32;
 
             while offset < header.written {
                 let mut ops = vec![];
 
-                let payload = op.payload(&[(
-                    "offset",
-                    idol::IdolArgument::Scalar(offset as u64),
-                )])?;
+                let payload = op.payload(&[
+                    ("index", idol::IdolArgument::Scalar(index as u64)),
+                    ("offset", idol::IdolArgument::Scalar(offset as u64)),
+                ])?;
 
-                offsets.push(offset);
+                let len = std::cmp::min(
+                    val.len(),
+                    (header.written - offset) as usize,
+                );
 
-                context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+                offsets.push((offset, len));
+
+                context.idol_call_ops(funcs, &op, &payload, &mut ops)?;
                 offset += val.len() as u32;
                 all_ops.push(ops);
             }
@@ -438,9 +506,11 @@ fn read_dump_at(
                 let results = context.run(core, chunk.as_slice(), None)?;
 
                 for (rndx, r) in results.iter().enumerate() {
+                    let (offset, size) = offsets[ndx * chunksize + rndx];
+
                     match r {
                         Ok(val) => {
-                            if !progress(val) {
+                            if !progress(&val[..size]) {
                                 return Ok(header);
                             }
                         }
@@ -448,7 +518,7 @@ fn read_dump_at(
                         Err(err) => {
                             bail!(
                                 "failed to read dump at offset {}: {}",
-                                offsets[ndx * chunksize + rndx],
+                                offset,
                                 op.strerror(*err)
                             );
                         }
@@ -482,14 +552,14 @@ fn read_dump_headers(
 ) -> Result<Vec<DumpAreaHeader>> {
     let mut rval = vec![];
     let mut done = false;
-    let mut offset = 0;
+    let mut ndx = 0;
 
     while !done {
         let header =
-            read_dump_at(hubris, core, context, funcs, offset, |_| false)?;
+            read_dump_at(hubris, core, context, funcs, ndx, |_| false)?;
 
         if header.next != 0 {
-            offset += header.length;
+            ndx += 1;
         } else {
             done = true;
         }
@@ -500,20 +570,60 @@ fn read_dump_headers(
     Ok(rval)
 }
 
+fn process_dump(
+    header: &DumpAreaHeader,
+    dump: &Vec<u8>,
+    agent: &mut AgentCore,
+) -> Result<()> {
+    let nsegments = header.nsegments;
+    let mut offset = nsegments as usize * size_of::<DumpSegmentHeader>();
+
+    if offset > dump.len() {
+        bail!("in situ dump is short; missing {} segments", nsegments);
+    }
+
+    if offset == dump.len() {
+        bail!("in situ dump is empty");
+    }
+
+    while offset < dump.len() {
+        let data = match DumpSegmentData::read_from_prefix(&dump[offset..]) {
+            Some(data) => data,
+            None => {
+                bail!("derailed at offset {}", offset);
+            }
+        };
+
+        offset += size_of::<DumpSegmentData>();
+
+        let len = data.uncompressed_length as usize;
+
+        let mut contents = vec![0; 2048];
+        let limit = offset + data.compressed_length as usize;
+
+        humpty::DumpLzss::decompress(
+            lzss::SliceReader::new(&dump[offset..limit]),
+            lzss::SliceWriter::new(&mut contents),
+        )?;
+
+        agent.add_ram_region(data.address, contents[0..len].to_vec());
+        offset = limit;
+    }
+
+    Ok(())
+}
+
 fn read_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
+    agent: &mut AgentCore,
 ) -> Result<()> {
     let headers = read_dump_headers(hubris, core, context, funcs)?;
     let mut contents: Vec<u8> = vec![];
-    let mut offset = 0;
 
     let total = headers.iter().fold(0, |sum, header| sum + header.written);
-
-    use indicatif::{HumanBytes, HumanDuration};
-    use indicatif::{ProgressBar, ProgressStyle};
 
     let started = Instant::now();
     let bar = ProgressBar::new(total as u64);
@@ -522,14 +632,12 @@ fn read_dump(
             .template("humility: pulling [{bar:30}] {bytes}/{total_bytes}"),
     );
 
-    for header in &headers {
-        read_dump_at(hubris, core, context, funcs, offset, |rval| {
+    for (ndx, _) in headers.iter().enumerate() {
+        read_dump_at(hubris, core, context, funcs, ndx, |rval| {
             contents.extend(rval);
             bar.set_position(contents.len() as u64);
             true
         })?;
-
-        offset += header.length;
     }
 
     bar.finish_and_clear();
@@ -540,7 +648,10 @@ fn read_dump(
         HumanDuration(started.elapsed())
     );
 
-    Ok(())
+    //
+    // We have a dump!  On to processing...
+    //
+    process_dump(&headers[0], &contents, agent)
 }
 
 fn dump_via_agent(
@@ -552,9 +663,6 @@ fn dump_via_agent(
     let regions = hubris.regions(core)?;
 
     if subargs.simulate_dumper {
-        use indicatif::{HumanBytes, HumanDuration};
-        use indicatif::{ProgressBar, ProgressStyle};
-
         //
         // We are being asked to simulate our dumper:  we are going to pull
         // our dynamic memory directly from our target -- and determine what
@@ -573,6 +681,7 @@ fn dump_via_agent(
             .fold(0, |ttl, r| ttl + r.size);
 
         let started = Instant::now();
+
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
             ProgressStyle::default_bar()
@@ -589,20 +698,43 @@ fn dump_via_agent(
 
             let mut remain = region.size as usize;
             let mut bytes = vec![0; 1024];
+            let input_len = (bytes.len() / 2) - (bytes.len() / 8);
+
             let mut addr = region.base;
 
             while remain > 0 {
-                let nbytes =
-                    if remain > bytes.len() { bytes.len() } else { remain };
+                let nbytes = core::cmp::min(remain, input_len);
+                let offs = bytes.len() - nbytes;
+                let len = bytes.len();
 
-                core.read_8(addr, &mut bytes[0..nbytes])?;
+                core.read_8(addr, &mut bytes[offs..len])?;
 
                 let mut output = vec![0; 2048];
+                let mut compare: Vec<u8> = vec![];
 
-                let compressed = DumpLzss::compress(
-                    lzss::SliceReader::new(&bytes[0..nbytes]),
+                compare.extend(&bytes[offs..len]);
+
+                let (compressed, rval) =
+                    humpty::DumpLzss::compress_in_place(&mut bytes, offs);
+
+                if let Some(overflow) = rval {
+                    bail!(
+                        "compresion overflow at address {:#x} by {} bytes",
+                        addr,
+                        overflow,
+                    );
+                }
+
+                humpty::DumpLzss::decompress(
+                    lzss::SliceReader::new(&bytes[0..compressed]),
                     lzss::SliceWriter::new(&mut output),
                 )?;
+
+                for i in 0..nbytes {
+                    if compare[i] != output[i] {
+                        bail!("compression/decompression mismatch!");
+                    }
+                }
 
                 ncompressed += compressed;
 
@@ -627,35 +759,62 @@ fn dump_via_agent(
         core.run()?;
         humility::msg!("core resumed");
     } else {
-        //
-        // Clear our dump state.  We should 
-        //
         let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
         let funcs = context.functions()?;
 
-        let header = read_dump_header(hubris, core, &mut context, &funcs)?;
-
-        if header.dumper_version != humpty::DUMPER_NONE {
-            if !subargs.clear_dump_agent {
-                bail!(
-                    "there appears to already be a dump in situ; clear with \
-                    --clear-dump-agent"
-                )
-            }
-        }
-
-        humility::msg!("initializing dump agent state");
-        initialize_dump(hubris, core, &mut context, &funcs)?;
-
-        humility::msg!("initializing segments");
         let segments = regions
             .values()
             .filter(|&r| !r.attr.device && r.attr.write)
             .collect::<Vec<_>>();
 
-        initialize_segments(hubris, core, &mut context, &funcs, &segments)?;
+        let header = read_dump_header(hubris, core, &mut context, &funcs)?;
 
-        bail!("not yet");
+        if !subargs.force_read {
+            if header.dumper_version != humpty::DUMPER_NONE
+                && subargs.clear_dump_agent
+            {
+                bail!(
+                    "there appears to already be a dump in situ; \
+                        clear with --clear-dump-agent"
+                )
+            }
+
+            humility::msg!("initializing dump agent state");
+            initialize_dump(hubris, core, &mut context, &funcs)?;
+
+            humility::msg!("initializing segments");
+            initialize_segments(hubris, core, &mut context, &funcs, &segments)?;
+
+            if subargs.clear_dump_agent {
+                return Ok(());
+            }
+        }
+
+        if subargs.emulate_dumper {
+            core.halt()?;
+            humility::msg!("core halted");
+
+            if let Some(ref stock) = subargs.stock_dumpfile {
+                hubris.dump(core, &regions, Some(stock))?;
+            }
+
+            let total = segments.iter().fold(0, |ttl, &r| ttl + r.size);
+            let base = header.address;
+
+            emulate_dump(core, base, total)?;
+            core.run()?;
+            humility::msg!("core resumed");
+        } else if !subargs.force_read {
+            //
+            // Tell the thing to take a dump
+            //
+            take_dump(hubris, core, &mut context, &funcs)?;
+        }
+
+        //
+        // If we're here, we have a dump in situ -- time to pull it.
+        //
+        read_dump(hubris, core, &mut context, &funcs, &mut agent)?;
     }
 
     hubris.dump(&mut agent, &regions, subargs.dumpfile.as_deref())
