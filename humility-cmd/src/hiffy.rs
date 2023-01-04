@@ -1129,15 +1129,15 @@ fn hiffy_send_fn(
 
         // Try to receive a reply
         match core.recv(buf.as_mut_slice()) {
+            Ok(n) => {
+                workspace.results.push(buf[0..n].to_vec());
+                Ok(())
+            }
             Err(e) => {
                 workspace.errors.push(e);
-                return Err(Failure::FunctionError(0));
+                Err(Failure::FunctionError(0))
             }
-            Ok(_n) => (),
         }
-
-        workspace.results.push(buf.to_vec());
-        Ok(())
     })?;
 
     //
