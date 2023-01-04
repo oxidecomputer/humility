@@ -4,17 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-humility = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-hif = { workspace = true }
-hubpack = { workspace = true }
-idol = { workspace = true }
-indexmap = { workspace = true }
-postcard = { workspace = true }
-parse_int = { workspace = true }
-colored = { workspace = true }
-log = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-zerocopy = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+colored.workspace = true
+hif.workspace = true
+hubpack.workspace = true
+humility.workspace = true
+idol.workspace = true
+indexmap.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+parse_int.workspace = true
+postcard.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+zerocopy.workspace = true

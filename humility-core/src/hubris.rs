@@ -3439,7 +3439,8 @@ impl HubrisArchive {
                 if self.instr_mod(pc).is_none() {
                     bail!(
                         "target does not appear booted and PC 0x{:x} is \
-                        unknown; is system executing in ROM?",
+                        unknown; is system executing boot ROM or other \
+                        program?",
                         pc
                     );
                 }
