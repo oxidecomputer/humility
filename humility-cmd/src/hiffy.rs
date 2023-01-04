@@ -439,11 +439,153 @@ impl<'a> HiffyContext<'a> {
             current += serialized.len();
         }
 
-        // Build the HIF function array, which is a bunch of `hiffy_dummy_fn`
-        // followed by `hiffy_send_fn` at the index of `Send`.
-        let mut functions: Vec<Function> =
-            vec![hiffy_dummy_fn; send.0 as usize];
-        functions.push(hiffy_send_fn);
+        ////////////////////////////////////////////////////////////////////////
+        // HIF requires its functions to have a bare `fn` signature, i.e. it
+        // doesn't support closures.  This is tricky, because we need to pass
+        // some extra parameters in order to replace local calls with networked
+        // RPC.
+        //
+        // To work around this, we use a static workspace, which is defined as a
+        // thread-local `RefCell<HiffySendWorkspace>`.  We'll smuggle our local
+        // variables as pointers into this workspace, then clean them up when
+        // we're done.
+        struct HiffySendWorkspace {
+            hubris: Option<std::ptr::NonNull<HubrisArchive>>,
+            core: Option<std::ptr::NonNull<dyn Core>>,
+
+            /// If we receive an RPC result, then record the buffer here
+            results: Vec<Vec<u8>>,
+
+            errors: Vec<anyhow::Error>,
+        }
+
+        thread_local! {
+            static HIFFY_SEND_WORKSPACE: RefCell<HiffySendWorkspace> =
+                RefCell::new(
+                    HiffySendWorkspace {
+                        hubris: None,
+                        core: None,
+                        results: vec![],
+                        errors: vec![],
+                    });
+        }
+
+        /// Reimplementation of `fn send` in `task/hiffy/src/common.rs`.
+        ///
+        /// We extract a handful of parameters, then pack them into a packet and
+        /// send them across the network to the `udprcp` task.
+        fn hiffy_send_fn(
+            stack: &[Option<u32>],
+            _data: &[u8],
+            rval: &mut [u8],
+        ) -> Result<usize, Failure> {
+            let mut payload = [0u8; 32];
+
+            let sp = stack.len();
+            if sp < 4 {
+                return Err(Failure::Fault(Fault::MissingParameters));
+            }
+
+            let nreply = stack[sp - 1]
+                .ok_or(Failure::Fault(Fault::EmptyParameter(4)))?;
+            let nbytes: u16 = stack[sp - 2]
+                .ok_or(Failure::Fault(Fault::EmptyParameter(3)))?
+                .try_into()
+                .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
+
+            let fp = sp - (nbytes as usize + 4);
+
+            let task: u16 = stack[fp]
+                .ok_or(Failure::Fault(Fault::EmptyParameter(0)))?
+                .try_into()
+                .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
+
+            let op: u16 = stack[fp + 1]
+                .ok_or(Failure::Fault(Fault::EmptyParameter(1)))?
+                .try_into()
+                .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
+
+            let base = fp + 2;
+
+            for i in base..base + nbytes as usize {
+                payload[i - base] = stack[i]
+                    .ok_or(Failure::Fault(Fault::EmptyParameter(2)))?
+                    .try_into()
+                    .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
+            }
+
+            let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
+            HIFFY_SEND_WORKSPACE.with(|workspace| {
+                let mut workspace = workspace.borrow_mut();
+                let (hubris, core) = {
+                    // SAFETY: we only ever call this function when the pointers
+                    // are populated, and reset them to null / None afterwards.
+                    // This means we should fail at this unwrap() if someone
+                    // violates the rules.
+                    unsafe {
+                        (
+                            workspace.hubris.unwrap().as_ref(),
+                            workspace.core.unwrap().as_mut(),
+                        )
+                    }
+                };
+                let image_id = hubris.image_id().unwrap();
+
+                let header = RpcHeader {
+                    image_id: U64::from_bytes(image_id.try_into().unwrap()),
+                    task: U16::new(task),
+                    op: U16::new(op),
+                    nreply: U16::new(nreply as u16),
+                    nbytes: U16::new(nbytes),
+                };
+
+                let mut packet = header.as_bytes().to_vec();
+                packet.extend(&payload[0..nbytes as usize]);
+
+                // Send the packet out
+                if let Err(e) = core.send(&packet) {
+                    workspace.errors.push(e);
+                    return Err(Failure::FunctionError(0));
+                }
+
+                // Try to receive a reply
+                match core.recv(buf.as_mut_slice()) {
+                    Ok(n) => {
+                        workspace.results.push(buf[0..n].to_vec());
+                        Ok(())
+                    }
+                    Err(e) => {
+                        workspace.errors.push(e);
+                        Err(Failure::FunctionError(0))
+                    }
+                }
+            })?;
+
+            //
+            // Now check the return code of the Idol call that we made, and
+            // spoof up a HIF function result.  Note that this implicitly
+            // depends on the fact that Idol does not use 0 as an error
+            // condition.
+            //
+            let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+
+            if code != 0 {
+                return Err(Failure::FunctionError(code));
+            }
+            rval[0..nreply as usize]
+                .copy_from_slice(&buf[5..(5 + nreply as usize)]);
+
+            Ok(nreply.try_into().unwrap())
+        }
+        ////////////////////////////////////////////////////////////////////////
+        // Back to normal code!
+        //
+        // We know from the `Call` check that this program only ever calls
+        // `Send`, at a particular index.  We'll build a function array that
+        // contains our local `hiffy_send_fn`, repeated just times so that the
+        // call operation works; i.e. at index `send.0`, it will find a function
+        // pointer to `hiffy_send_fn`.
+        let functions: Vec<Function> = vec![hiffy_send_fn; send.0 as usize + 1];
 
         // Okay, this is a _little_ cursed: HIF functions use a C calling
         // convention without any place to stash a context pointer, so we're
@@ -1010,148 +1152,4 @@ impl<'a> HiffyContext<'a> {
     pub fn scratch_size(&self) -> usize {
         self.scratch_size
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Welcome to the Cursed RPC Zone
-//
-// HIF requires its functions to have a bare `fn` signature, i.e. it doesn't
-// support closures.  This is tricky, because we need to pass some extra
-// parameters in order to replace local calls with networked RPC.
-//
-// To work around this, we use a global workspace, which is defined as a
-// thread-local `RefCell<HiffySendWorkspace>`.
-
-struct HiffySendWorkspace {
-    hubris: Option<std::ptr::NonNull<HubrisArchive>>,
-    core: Option<std::ptr::NonNull<dyn Core>>,
-
-    /// If we receive an RPC result, then record the buffer here
-    results: Vec<Vec<u8>>,
-
-    errors: Vec<anyhow::Error>,
-}
-
-thread_local! {
-    static HIFFY_SEND_WORKSPACE: RefCell<HiffySendWorkspace> = RefCell::new(
-        HiffySendWorkspace {
-            hubris: None,
-            core: None,
-            results: vec![],
-            errors: vec![],
-        });
-}
-
-fn hiffy_dummy_fn(
-    _stack: &[Option<u32>],
-    _data: &[u8],
-    _rval: &mut [u8],
-) -> Result<usize, Failure> {
-    panic!("dummy function should never be called");
-}
-
-/// This is a reimplementation of `fn send` in `task/hiffy/src/common.rs`.
-///
-/// We extract a handful of parameters, then pack them into a packet and send
-/// them across the network to the `udprcp` task.
-fn hiffy_send_fn(
-    stack: &[Option<u32>],
-    _data: &[u8],
-    rval: &mut [u8],
-) -> Result<usize, Failure> {
-    let mut payload = [0u8; 32];
-
-    let sp = stack.len();
-    if sp < 4 {
-        return Err(Failure::Fault(Fault::MissingParameters));
-    }
-
-    let nreply =
-        stack[sp - 1].ok_or(Failure::Fault(Fault::EmptyParameter(4)))?;
-    let nbytes: u16 = stack[sp - 2]
-        .ok_or(Failure::Fault(Fault::EmptyParameter(3)))?
-        .try_into()
-        .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
-
-    let fp = sp - (nbytes as usize + 4);
-
-    let task: u16 = stack[fp]
-        .ok_or(Failure::Fault(Fault::EmptyParameter(0)))?
-        .try_into()
-        .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
-
-    let op: u16 = stack[fp + 1]
-        .ok_or(Failure::Fault(Fault::EmptyParameter(1)))?
-        .try_into()
-        .map_err(|_| Failure::Fault(Fault::BadParameter(1)))?;
-
-    let base = fp + 2;
-
-    for i in base..base + nbytes as usize {
-        payload[i - base] = stack[i]
-            .ok_or(Failure::Fault(Fault::EmptyParameter(2)))?
-            .try_into()
-            .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
-    }
-
-    let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-    HIFFY_SEND_WORKSPACE.with(|workspace| {
-        let mut workspace = workspace.borrow_mut();
-        let (hubris, core) = {
-            // SAFETY: we only ever call this function when the pointers are
-            // populated, and reset them to null / None afterwards.  This means
-            // we should fail at this unwrap() if someone violates the rules.
-            unsafe {
-                (
-                    workspace.hubris.unwrap().as_ref(),
-                    workspace.core.unwrap().as_mut(),
-                )
-            }
-        };
-        let image_id = hubris.image_id().unwrap();
-
-        let header = RpcHeader {
-            image_id: U64::from_bytes(image_id.try_into().unwrap()),
-            task: U16::new(task),
-            op: U16::new(op),
-            nreply: U16::new(nreply as u16),
-            nbytes: U16::new(nbytes),
-        };
-
-        let mut packet = header.as_bytes().to_vec();
-        packet.extend(&payload[0..nbytes as usize]);
-
-        // Send the packet out
-        if let Err(e) = core.send(&packet) {
-            workspace.errors.push(e);
-            return Err(Failure::FunctionError(0));
-        }
-
-        // Try to receive a reply
-        match core.recv(buf.as_mut_slice()) {
-            Ok(n) => {
-                workspace.results.push(buf[0..n].to_vec());
-                Ok(())
-            }
-            Err(e) => {
-                workspace.errors.push(e);
-                Err(Failure::FunctionError(0))
-            }
-        }
-    })?;
-
-    //
-    // Now check the return code of the Idol call that we made, and
-    // spoof up a HIF function result.  Note that this implicitly
-    // depends on the fact that Idol does not use 0 as an error
-    // condition.
-    //
-    let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
-
-    if code != 0 {
-        return Err(Failure::FunctionError(code));
-    }
-    rval[0..nreply as usize].copy_from_slice(&buf[5..(5 + nreply as usize)]);
-
-    Ok(nreply.try_into().unwrap())
 }
