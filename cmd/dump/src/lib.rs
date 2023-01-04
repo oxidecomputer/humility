@@ -98,9 +98,9 @@ struct DumpArgs {
     #[clap(long)]
     force_read: bool,
 
-    /// clear any dump at the dump agent
+    /// initialize dump, clearing any dump at the dump agent
     #[clap(long)]
-    clear_dump_agent: bool,
+    initialize_dump_agent: bool,
 
     /// simulate dumper by reading directly from target (skipping agent)
     #[clap(
@@ -608,6 +608,10 @@ fn process_dump(
 
         agent.add_ram_region(data.address, contents[0..len].to_vec());
         offset = limit;
+
+        while offset < dump.len() && dump[offset] == humpty::DUMP_SEGMENT_PAD {
+            offset += 1;
+        }
     }
 
     Ok(())
@@ -771,11 +775,11 @@ fn dump_via_agent(
 
         if !subargs.force_read {
             if header.dumper_version != humpty::DUMPER_NONE
-                && subargs.clear_dump_agent
+                && !subargs.initialize_dump_agent
             {
                 bail!(
                     "there appears to already be a dump in situ; \
-                        clear with --clear-dump-agent"
+                        clear with --initialize-dump-agent"
                 )
             }
 
@@ -785,7 +789,7 @@ fn dump_via_agent(
             humility::msg!("initializing segments");
             initialize_segments(hubris, core, &mut context, &funcs, &segments)?;
 
-            if subargs.clear_dump_agent {
+            if subargs.initialize_dump_agent {
                 return Ok(());
             }
         }
