@@ -596,29 +596,17 @@ impl<'a> HiffyContext<'a> {
         // value types, so we need to cast away the lifetime for the Core using
         // std::mem::transmute (!)
         //
-        // Since this is a global structure, we use a `struct WorkspaceCleanup`
-        // to make sure that we clear those pointers, so that it's not possible
-        // to create multiple mutable references.
-        HIFFY_SEND_WORKSPACE.with(|workspace| {
-            let mut workspace = workspace.borrow_mut();
-            workspace.hubris = Some(std::ptr::NonNull::from(self.hubris));
-
-            // SAFETY:
-            // We are transmuting to strip the lifetime from this object, but
-            // guarantee through the use of WorkspaceCleanup that it won't be
-            // possible for it to outlive the original reference.
-            let ptr = core as *mut dyn Core;
-            workspace.core = Some(
-                std::ptr::NonNull::new(unsafe {
-                    std::mem::transmute::<
-                        *mut (dyn Core + '_),
-                        *mut (dyn Core + 'static),
-                    >(ptr)
-                })
-                .unwrap(),
-            );
-        });
-
+        // This is a thread-local structure, so no one should be able to mess
+        // with it except us.  As belt-and-suspenders, we also use a `struct
+        // WorkspaceCleanup` to make sure that we clear those pointers when
+        // we're done (so that no one tries to use them after the references
+        // expire).
+        //
+        // This cleanup is not **strictly necessary**, since there's no harm in
+        // leaking pointers (as long as you don't dereference them).  Still, it
+        // produces more pleasant invariants: the pointers are only valid
+        // between here and the drop of `_cleanup` (either explicitly after
+        // `execute` is called, or during a panic).
         struct WorkspaceCleanup;
         impl Drop for WorkspaceCleanup {
             fn drop(&mut self) {
@@ -626,12 +614,35 @@ impl<'a> HiffyContext<'a> {
                     let mut workspace = workspace.borrow_mut();
                     workspace.hubris = None;
                     workspace.core = None;
-                    workspace.results = vec![];
-                    workspace.errors = vec![];
                 });
             }
         }
-        let _cleanup = WorkspaceCleanup;
+        let cleanup = WorkspaceCleanup; // cleans up on drop
+
+        HIFFY_SEND_WORKSPACE.with(|workspace| {
+            let mut workspace = workspace.borrow_mut();
+            *workspace = HiffySendWorkspace {
+                hubris: Some(std::ptr::NonNull::from(self.hubris)),
+
+                // SAFETY: We are transmuting to strip the lifetime from this
+                // object, but guarantee through the use of WorkspaceCleanup
+                // that it won't be possible for it to outlive the original
+                // reference.
+                core: Some(
+                    std::ptr::NonNull::new(unsafe {
+                        std::mem::transmute::<
+                            *mut (dyn Core + '_),
+                            *mut (dyn Core + 'static),
+                        >(core as *mut dyn Core)
+                    })
+                    .unwrap(),
+                ),
+
+                results: vec![],
+                errors: vec![],
+            };
+        });
+
         let v = execute::<_, NLABELS>(
             &text,
             &functions,
@@ -641,6 +652,10 @@ impl<'a> HiffyContext<'a> {
             &mut scratch,
             |_offset, _op| Ok(()),
         );
+
+        // Explicitly do cleanup here, to minimize the danger zone when raw
+        // pointers are living in `HIFFY_SEND_WORKSPACE`
+        drop(cleanup);
 
         if let Err(e) = v {
             bail!("Hiffy execution error: {e:?}");
