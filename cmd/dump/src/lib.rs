@@ -61,11 +61,15 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humpty::{DumpAreaHeader, DumpSegmentData, DumpSegmentHeader};
+use humpty::{
+    DumpAreaHeader, DumpRegister, DumpSegmentData, DumpSegmentHeader,
+};
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
+use num_traits::FromPrimitive;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::io::Read;
 use std::path::Path;
@@ -134,6 +138,7 @@ struct AgentCore {
     flash_contents: Vec<u8>,
     flash_regions: BTreeMap<u32, (u32, usize)>,
     ram_regions: BTreeMap<u32, Vec<u8>>,
+    registers: HashMap<ARMRegister, u32>,
 }
 
 impl AgentCore {
@@ -173,6 +178,10 @@ impl AgentCore {
 
     fn add_ram_region(&mut self, addr: u32, contents: Vec<u8>) {
         self.ram_regions.insert(addr, contents);
+    }
+
+    fn add_register(&mut self, reg: ARMRegister, val: u32) {
+        self.registers.insert(reg, val);
     }
 
     fn read_flash(&self, addr: u32, data: &mut [u8]) -> Result<()> {
@@ -259,11 +268,11 @@ impl Core for AgentCore {
         self.read(addr, data)
     }
 
-    fn read_reg(&mut self, _reg: ARMRegister) -> Result<u32> {
-        //
-        // XXX: for now!
-        //
-        Ok(0x1de)
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+        match self.registers.get(&reg) {
+            Some(val) => Ok(*val),
+            None => bail!("unknown register {}", reg),
+        }
     }
 
     fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
@@ -381,8 +390,22 @@ fn emulate_dump(core: &mut dyn Core, base: u32, total: u32) -> Result<()> {
         "humility: dumping in situ [{bar:30}] {bytes}/{total_bytes}",
     ));
 
+    let mut rnum = 0;
+
     let r = humpty::dump::<anyhow::Error, 2048>(
         base,
+        || {
+            let start = rnum;
+
+            for i in start..=31 {
+                if let Some(reg) = ARMRegister::from_u16(i) {
+                    let val = shared.borrow_mut().read_reg(reg)?;
+                    rnum = i + 1;
+                    return Ok(Some(humpty::RegisterRead(i, val)));
+                }
+            }
+            Ok(None)
+        },
         |addr, buf| {
             nread += buf.len();
             bar.set_position(nread as u64);
@@ -579,7 +602,7 @@ fn process_dump(
     let mut offset = nsegments as usize * size_of::<DumpSegmentHeader>();
 
     if offset > dump.len() {
-        bail!("in situ dump is short; missing {} segments", nsegments);
+        bail!("in situ dump is short; missing {nsegments} segments");
     }
 
     if offset == dump.len() {
@@ -587,10 +610,32 @@ fn process_dump(
     }
 
     while offset < dump.len() {
+        if dump[offset..offset + 2] == humpty::DUMP_REGISTER_MAGIC {
+            //
+            // These are register values; slurp them and continue.
+            //
+            let reg = match DumpRegister::read_from_prefix(&dump[offset..]) {
+                Some(reg) => reg,
+                None => {
+                    bail!("derailed on registers at offset {offset}");
+                }
+            };
+
+            if let Some(register) = ARMRegister::from_u16(reg.register) {
+                agent.add_register(register, reg.value);
+            } else {
+                let r = reg.register;
+                bail!("unrecognized register {:#x} at offset {offset}", r);
+            }
+
+            offset += size_of::<DumpRegister>();
+            continue;
+        };
+
         let data = match DumpSegmentData::read_from_prefix(&dump[offset..]) {
             Some(data) => data,
             None => {
-                bail!("derailed at offset {}", offset);
+                bail!("derailed at offset {offset}");
             }
         };
 
@@ -598,7 +643,7 @@ fn process_dump(
 
         let len = data.uncompressed_length as usize;
 
-        let mut contents = vec![0; 2048];
+        let mut contents = vec![0; len];
         let limit = offset + data.compressed_length as usize;
 
         humpty::DumpLzss::decompress(
