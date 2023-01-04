@@ -2616,7 +2616,7 @@ checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 [[package]]
 name = "probe-rs"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#0df80f19094b74ef6e2569fa0f1e1dade7d83f24"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#5f5186f60234c5fac87a46b306fca82aa5edee2f"
 dependencies = [
  "anyhow",
  "base64",
@@ -2647,7 +2647,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#0df80f19094b74ef6e2569fa0f1e1dade7d83f24"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#5f5186f60234c5fac87a46b306fca82aa5edee2f"
 dependencies = [
  "base64",
  "jep106",
