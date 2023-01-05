@@ -392,7 +392,7 @@ fn emulate_dump(core: &mut dyn Core, base: u32, total: u32) -> Result<()> {
 
     let mut rnum = 0;
 
-    let r = humpty::dump::<anyhow::Error, 2048>(
+    let r = humpty::dump::<anyhow::Error, 2048, { humpty::DUMPER_EMULATED }>(
         base,
         || {
             let start = rnum;
@@ -434,12 +434,25 @@ fn emulate_dump(core: &mut dyn Core, base: u32, total: u32) -> Result<()> {
 }
 
 fn take_dump(
-    _hubris: &HubrisArchive,
-    _core: &mut dyn Core,
-    _context: &mut HiffyContext,
-    _funcs: &HiffyFunctions,
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    funcs: &HiffyFunctions,
 ) -> Result<()> {
-    humility::msg!("taking dump");
+    let op = hubris.get_idol_command("DumpAgent.take_dump")?;
+    let mut ops = vec![];
+
+    humility::msg!("taking dump; target will be stopped for ~20-30 seconds");
+
+    context.idol_call_ops(funcs, &op, &[], &mut ops)?;
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    if let Err(err) = results[0] {
+        bail!("failed to take dump: {}", op.strerror(err));
+    }
+
     Ok(())
 }
 
@@ -895,6 +908,10 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     } else if core.is_net() || subargs.force_dump_agent {
         dump_via_agent(hubris, core, &subargs)
     } else {
+        if subargs.initialize_dump_agent {
+            bail!("must also use --force-dump-agent to initialize dump agent");
+        }
+
         core.halt()?;
         humility::msg!("core halted");
 
