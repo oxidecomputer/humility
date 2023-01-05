@@ -1,0 +1,23 @@
+[package]
+name = "humility-cmd-bankerase"
+version = "0.1.0"
+edition = "2021"
+description = "Erase a bank"
+
+[dependencies]
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+parse_int = { workspace = true }
+log = { workspace = true }
+num-traits = { workspace = true }
+serde = { workspace = true }
+tempfile = { workspace = true }
+ron = { workspace = true }
+path-slash = { workspace = true }
+srec = { workspace = true }
+ihex = { workspace = true }
+goblin = { workspace = true }
+regex = { workspace = true }

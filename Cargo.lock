@@ -1033,6 +1033,7 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
+ "humility-cmd-bankerase",
  "humility-cmd-console-proxy",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
@@ -1153,14 +1154,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-cmd-bank-erase"
+name = "humility-cmd-bankerase"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
  "goblin",
  "humility-cmd",
- "humility-cmd-auxflash",
  "humility-core",
  "humility-cortex",
  "ihex",
