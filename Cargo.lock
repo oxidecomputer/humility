@@ -1153,6 +1153,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cmd-bank-erase"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "goblin",
+ "humility-cmd",
+ "humility-cmd-auxflash",
+ "humility-core",
+ "humility-cortex",
+ "ihex",
+ "log",
+ "num-traits",
+ "parse_int",
+ "path-slash",
+ "regex",
+ "ron 0.7.1",
+ "serde",
+ "srec",
+ "tempfile",
+]
+
+[[package]]
 name = "humility-cmd-console-proxy"
 version = "0.1.0"
 dependencies = [

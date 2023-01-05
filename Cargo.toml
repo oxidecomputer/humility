@@ -29,6 +29,7 @@ members = [
     "humility-arch-cortex",
     "cmd/apptable",
     "cmd/auxflash",
+    "cmd/bank_erase",
     "cmd/console-proxy",
     "cmd/dashboard",
     "cmd/debugmailbox",
@@ -115,6 +116,7 @@ humility-cmd = { path = "./humility-cmd" }
 humility_load_derive = { path = "./load_derive" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
+cmd-bankerase = { path = "./cmd/bank_erase", package = "humility-cmd-bankerase" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
