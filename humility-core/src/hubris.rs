@@ -4361,6 +4361,7 @@ impl HubrisArchive {
         core: &mut dyn crate::core::Core,
         regions: &BTreeMap<u32, HubrisRegion>,
         dumpfile: Option<&str>,
+        started: Option<Instant>,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
@@ -4546,7 +4547,11 @@ impl HubrisArchive {
         //
         let mut written = 0;
 
-        let started = Instant::now();
+        let started = match started {
+            Some(s) => s,
+            None => Instant::now(),
+        };
+
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
             ProgressStyle::default_bar()

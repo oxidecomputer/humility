@@ -50,7 +50,7 @@
 
 use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
-use clap::{CommandFactory, Parser, ArgGroup};
+use clap::{ArgGroup, CommandFactory, Parser};
 use core::mem::size_of;
 use goblin::elf::Elf;
 use hif::*;
@@ -73,13 +73,14 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::io::Read;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use zerocopy::FromBytes;
 
 #[derive(Parser, Debug)]
 #[clap(
     name = "dump", about = env!("CARGO_PKG_DESCRIPTION"),
-    group = ArgGroup::new("simulation").multiple(false).required(false)
+    group = ArgGroup::new("simulation").multiple(false)
+        .required(false).requires("force-dump-agent")
 )]
 
 struct DumpArgs {
@@ -94,17 +95,24 @@ struct DumpArgs {
     #[clap(long, conflicts_with = "simulation")]
     dump_agent_status: bool,
 
-    /// force use of the dump agent
+    /// force use of the dump agent when directly attached with a debug probe
     #[clap(long)]
     force_dump_agent: bool,
 
-    /// force dump to be read
+    /// force existing in situ dump to be read
     #[clap(long, conflicts_with = "simulation")]
     force_read: bool,
 
-    /// initialize dump, clearing any dump at the dump agent
+    /// initialize dump state, clearing any dump at the dump agent
     #[clap(long, conflicts_with = "simulation")]
     initialize_dump_agent: bool,
+
+    /// overwrite any dump state as part of taking dump
+    #[clap(
+        long, short = 'F',
+        conflicts_with_all = &["simulation", "initialize-dump-agent"]
+    )]
+    force_overwrite: bool,
 
     /// simulate dumper by reading directly from target (skipping agent)
     #[clap(long, group = "simulation")]
@@ -434,7 +442,13 @@ fn take_dump(
     let op = hubris.get_idol_command("DumpAgent.take_dump")?;
     let mut ops = vec![];
 
-    humility::msg!("taking dump; target will be stopped for ~20-30 seconds");
+    //
+    // We are about to disappear for -- as the kids say -- a minute.  Set
+    // our timeout to be a literal minute so we don't prematurely give up.
+    //
+    core.set_timeout(Duration::new(60, 0))?;
+
+    humility::msg!("taking dump; target will be stopped for ~20+ seconds");
 
     context.idol_call_ops(funcs, &op, &[], &mut ops)?;
     ops.push(Op::Done);
@@ -715,6 +729,7 @@ fn dump_via_agent(
 ) -> Result<()> {
     let mut agent = AgentCore::new(hubris)?;
     let regions = hubris.regions(core)?;
+    let started = Some(Instant::now());
 
     if subargs.simulate_dumper {
         //
@@ -726,7 +741,7 @@ fn dump_via_agent(
         humility::msg!("core halted");
 
         if let Some(ref stock) = subargs.stock_dumpfile {
-            hubris.dump(core, &regions, Some(stock))?;
+            hubris.dump(core, &regions, Some(stock), None)?;
         }
 
         let total = regions
@@ -826,10 +841,12 @@ fn dump_via_agent(
         if !subargs.force_read {
             if header.dumper_version != humpty::DUMPER_NONE
                 && !subargs.initialize_dump_agent
+                && !subargs.force_overwrite
             {
                 bail!(
                     "there appears to already be a dump in situ; \
-                        clear with --initialize-dump-agent"
+                        clear with --initialize-dump-agent or force dump \
+                        to be overwritten with --force-overwrite"
                 )
             }
 
@@ -849,7 +866,7 @@ fn dump_via_agent(
             humility::msg!("core halted");
 
             if let Some(ref stock) = subargs.stock_dumpfile {
-                hubris.dump(core, &regions, Some(stock))?;
+                hubris.dump(core, &regions, Some(stock), None)?;
             }
 
             let total = segments.iter().fold(0, |ttl, &r| ttl + r.size);
@@ -871,7 +888,7 @@ fn dump_via_agent(
         read_dump(hubris, core, &mut context, &funcs, &mut agent)?;
     }
 
-    hubris.dump(&mut agent, &regions, subargs.dumpfile.as_deref())
+    hubris.dump(&mut agent, &regions, subargs.dumpfile.as_deref(), started)
 }
 
 fn dump_agent_status(
@@ -895,6 +912,10 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = DumpArgs::try_parse_from(subargs)?;
 
+    if subargs.force_dump_agent && core.is_net() {
+        bail!("can only force the dump agent when attached via debug probe");
+    }
+
     if subargs.dump_agent_status {
         dump_agent_status(hubris, core, &subargs)
     } else if core.is_net() || subargs.force_dump_agent {
@@ -908,7 +929,8 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         humility::msg!("core halted");
 
         let regions = hubris.regions(core)?;
-        let rval = hubris.dump(core, &regions, subargs.dumpfile.as_deref());
+        let rval =
+            hubris.dump(core, &regions, subargs.dumpfile.as_deref(), None);
 
         core.run()?;
         humility::msg!("core resumed");

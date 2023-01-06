@@ -51,6 +51,10 @@ pub trait Core {
         false
     }
 
+    fn set_timeout(&mut self, _timeout: Duration) -> Result<()> {
+        Ok(())
+    }
+
     fn read_word_64(&mut self, addr: u32) -> Result<u64> {
         let mut buf = [0; 8];
         self.read_8(addr, &mut buf)?;
@@ -1448,6 +1452,11 @@ impl Core for NetCore {
 
     fn is_net(&self) -> bool {
         true
+    }
+
+    fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
+        self.socket.set_read_timeout(Some(timeout))?;
+        Ok(())
     }
 
     fn send(&mut self, buf: &[u8]) -> Result<usize> {
