@@ -50,6 +50,10 @@ pub trait Core {
         false
     }
 
+    fn set_timeout(&mut self, _timeout: Duration) -> Result<()> {
+        Ok(())
+    }
+
     fn read_word_64(&mut self, addr: u32) -> Result<u64> {
         let mut buf = [0; 8];
         self.read_8(addr, &mut buf)?;
@@ -1337,6 +1341,7 @@ impl Core for DumpCore {
 
 pub struct NetCore {
     socket: UdpSocket,
+    flash: HubrisFlashMap,
 }
 
 impl NetCore {
@@ -1371,7 +1376,38 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
-        Ok(Self { socket })
+        Ok(Self { socket, flash: HubrisFlashMap::new(hubris)? })
+    }
+
+    fn read(&self, addr: u32, data: &mut [u8]) -> Result<()> {
+        if let Some((&base, &(size, offset))) =
+            self.flash.regions.range(..=addr).rev().next()
+        {
+            if base <= addr && base + size > addr {
+                let start = (addr - base) as usize;
+                let roffs = offset + start;
+
+                if start + data.len() <= size as usize {
+                    data.copy_from_slice(
+                        &self.flash.contents[roffs..roffs + data.len()],
+                    );
+
+                    return Ok(());
+                }
+
+                let len = (size as usize) - start;
+                data[..len]
+                    .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
+
+                return self.read(addr + len as u32, &mut data[len..]);
+            }
+        }
+
+        bail!(
+            "0x{:0x} can't be read via the archive (and raw memory \
+            can't be read via the network)",
+            addr
+        );
     }
 }
 
@@ -1385,6 +1421,11 @@ impl Core for NetCore {
         true
     }
 
+    fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
+        self.socket.set_read_timeout(Some(timeout))?;
+        Ok(())
+    }
+
     fn send(&mut self, buf: &[u8]) -> Result<usize> {
         self.socket.send(buf).map_err(anyhow::Error::from)
     }
@@ -1394,11 +1435,13 @@ impl Core for NetCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        bail!("cannot read 32-bit value at 0x{:x} over network", addr);
+        let mut buf = [0; 4];
+        self.read(addr, &mut buf)?;
+        Ok(u32::from_le_bytes(buf))
     }
 
-    fn read_8(&mut self, addr: u32, _data: &mut [u8]) -> Result<()> {
-        bail!("cannot read memory at 0x{:x} over network", addr);
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        self.read(addr, data)
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {

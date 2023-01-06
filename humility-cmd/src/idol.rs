@@ -168,6 +168,20 @@ impl<'a> IdolOperation<'a> {
         }
         Ok(())
     }
+
+    pub fn strerror(&self, code: u32) -> String {
+        let variant = if let Some(error) = self.error {
+            error.lookup_variant_by_tag(code as u64)
+        } else {
+            None
+        };
+
+        if let Some(variant) = variant {
+            variant.name.to_string()
+        } else {
+            format!("<Unknown {}.{} error: {}>", self.name.0, self.name.1, code)
+        }
+    }
 }
 
 //

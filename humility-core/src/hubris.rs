@@ -313,6 +313,51 @@ impl HubrisSensorKind {
     }
 }
 
+pub struct HubrisFlashMap {
+    /// Linear map of all flash memory
+    pub contents: Vec<u8>,
+
+    /// Regions within that memory as offset + size tuples, indexed by address
+    pub regions: BTreeMap<u32, (u32, usize)>,
+}
+
+impl HubrisFlashMap {
+    pub fn new(hubris: &HubrisArchive) -> Result<Self> {
+        //
+        // We want to read in the "final.elf" from our archive and use that
+        // to determine the memory that constitutes flash.
+        //
+        let cursor = Cursor::new(hubris.archive());
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let mut file = archive
+            .by_name("img/final.elf")
+            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        let elf = Elf::parse(&contents).map_err(|e| {
+            anyhow!("failed to parse final.elf as an ELF file: {}", e)
+        })?;
+
+        let regions = elf
+            .section_headers
+            .iter()
+            .filter(|shdr| {
+                shdr.sh_type == goblin::elf::section_header::SHT_PROGBITS
+            })
+            .map(|shdr| {
+                (
+                    shdr.sh_addr as u32,
+                    (shdr.sh_size as u32, shdr.sh_offset as usize),
+                )
+            })
+            .collect();
+
+        Ok(Self { contents, regions })
+    }
+}
+
 //
 // This is the Hubris definition
 //
@@ -4359,13 +4404,14 @@ impl HubrisArchive {
     pub fn dump(
         &self,
         core: &mut dyn crate::core::Core,
+        regions: &BTreeMap<u32, HubrisRegion>,
         dumpfile: Option<&str>,
+        started: Option<Instant>,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::Write;
 
-        let regions = self.regions(core)?;
         let nsegs = regions.values().filter(|r| !r.attr.device).count();
 
         macro_rules! pad {
@@ -4546,7 +4592,8 @@ impl HubrisArchive {
         //
         let mut written = 0;
 
-        let started = Instant::now();
+        let started = started.unwrap_or_else(Instant::now);
+
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
             ProgressStyle::default_bar()

@@ -347,7 +347,8 @@ fn diagnose(context: &mut humility::ExecutionContext) -> Result<()> {
 
     if !subargs.no_dump {
         section("Generating Coredump");
-        let rval = hubris.dump(core, None);
+        let regions = hubris.regions(core)?;
+        let rval = hubris.dump(core, &regions, None, None);
         if let Err(e) = rval {
             println!("Coredump failed: {}", e);
         }
