@@ -130,18 +130,19 @@ struct DumpArgs {
 //
 // When using the dump agent, we create our own ersatz Core
 //
-#[derive(Default)]
 struct AgentCore {
-    flash_contents: Vec<u8>,
-    flash_regions: BTreeMap<u32, (u32, usize)>,
+    flash: HubrisFlashMap,
     ram_regions: BTreeMap<u32, Vec<u8>>,
     registers: HashMap<ARMRegister, u32>,
 }
 
 impl AgentCore {
     fn new(hubris: &HubrisArchive) -> Result<AgentCore> {
-        let (flash_contents, flash_regions) = hubris.flash_memory()?;
-        Ok(Self { flash_contents, flash_regions, ..Default::default() })
+        Ok(Self {
+            flash: HubrisFlashMap::new(hubris)?,
+            ram_regions: Default::default(),
+            registers: Default::default(),
+        })
     }
 
     fn add_ram_region(&mut self, addr: u32, contents: Vec<u8>) {
@@ -154,7 +155,7 @@ impl AgentCore {
 
     fn read_flash(&self, addr: u32, data: &mut [u8]) -> Result<()> {
         if let Some((&base, &(size, offset))) =
-            self.flash_regions.range(..=addr).rev().next()
+            self.flash.regions.range(..=addr).rev().next()
         {
             if base > addr || base + size <= addr {
                 //
@@ -172,7 +173,7 @@ impl AgentCore {
                 // it and leave.
                 //
                 data.copy_from_slice(
-                    &self.flash_contents[roffs..roffs + data.len()],
+                    &self.flash.contents[roffs..roffs + data.len()],
                 );
 
                 return Ok(());
@@ -180,7 +181,7 @@ impl AgentCore {
 
             let len = (size as usize) - start;
             data[..len]
-                .copy_from_slice(&self.flash_contents[roffs..roffs + len]);
+                .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
 
             self.read_flash(addr + len as u32, &mut data[len..])
         } else {

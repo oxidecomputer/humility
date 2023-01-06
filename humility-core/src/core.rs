@@ -1341,8 +1341,7 @@ impl Core for DumpCore {
 
 pub struct NetCore {
     socket: UdpSocket,
-    flash_contents: Vec<u8>,
-    flash_regions: BTreeMap<u32, (u32, usize)>,
+    flash: HubrisFlashMap,
 }
 
 impl NetCore {
@@ -1377,13 +1376,12 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
-        let (flash_contents, flash_regions) = hubris.flash_memory()?;
-        Ok(Self { socket, flash_contents, flash_regions })
+        Ok(Self { socket, flash: HubrisFlashMap::new(hubris)? })
     }
 
     fn read(&self, addr: u32, data: &mut [u8]) -> Result<()> {
         if let Some((&base, &(size, offset))) =
-            self.flash_regions.range(..=addr).rev().next()
+            self.flash.regions.range(..=addr).rev().next()
         {
             if base <= addr && base + size > addr {
                 let start = (addr - base) as usize;
@@ -1391,7 +1389,7 @@ impl NetCore {
 
                 if start + data.len() <= size as usize {
                     data.copy_from_slice(
-                        &self.flash_contents[roffs..roffs + data.len()],
+                        &self.flash.contents[roffs..roffs + data.len()],
                     );
 
                     return Ok(());
@@ -1399,7 +1397,7 @@ impl NetCore {
 
                 let len = (size as usize) - start;
                 data[..len]
-                    .copy_from_slice(&self.flash_contents[roffs..roffs + len]);
+                    .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
 
                 return self.read(addr + len as u32, &mut data[len..]);
             }
