@@ -16,7 +16,6 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
 use std::fs;
-use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
@@ -1378,37 +1377,7 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
-        //
-        // We want to read in the "final.elf" from our archive and use that
-        // to populate our flash contents to allow that to be read over the
-        // network ("network").
-        //
-        let cursor = Cursor::new(hubris.archive());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut file = archive
-            .by_name("img/final.elf")
-            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
-
-        let mut flash_contents = Vec::new();
-        file.read_to_end(&mut flash_contents)?;
-
-        let elf = Elf::parse(&flash_contents).map_err(|e| {
-            anyhow!("failed to parse final.elf as an ELF file: {}", e)
-        })?;
-
-        let mut flash_regions = BTreeMap::new();
-
-        for shdr in elf.section_headers.iter() {
-            if shdr.sh_type != goblin::elf::section_header::SHT_PROGBITS {
-                continue;
-            }
-
-            flash_regions.insert(
-                shdr.sh_addr as u32,
-                (shdr.sh_size as u32, shdr.sh_offset as usize),
-            );
-        }
-
+        let (flash_contents, flash_regions) = hubris.flash_memory()?;
         Ok(Self { socket, flash_contents, flash_regions })
     }
 

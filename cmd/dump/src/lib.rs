@@ -52,7 +52,6 @@ use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use core::mem::size_of;
-use goblin::elf::Elf;
 use hif::*;
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
@@ -70,8 +69,6 @@ use num_traits::FromPrimitive;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::io::Cursor;
-use std::io::Read;
 use std::path::Path;
 use std::time::{Duration, Instant};
 use zerocopy::FromBytes;
@@ -110,7 +107,7 @@ struct DumpArgs {
     /// overwrite any dump state as part of taking dump
     #[clap(
         long, short = 'F',
-        conflicts_with_all = &["simulation", "initialize-dump-agent"]
+        conflicts_with_all = &["initialize-dump-agent", "simulate-dumper"],
     )]
     force_overwrite: bool,
 
@@ -143,36 +140,7 @@ struct AgentCore {
 
 impl AgentCore {
     fn new(hubris: &HubrisArchive) -> Result<AgentCore> {
-        //
-        // We want to read in the "final.elf" from our archive and use that
-        // to populate our flash memory to dump.
-        //
-        let cursor = Cursor::new(hubris.archive());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut file = archive
-            .by_name("img/final.elf")
-            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
-
-        let mut flash_contents = Vec::new();
-        file.read_to_end(&mut flash_contents)?;
-
-        let elf = Elf::parse(&flash_contents).map_err(|e| {
-            anyhow!("failed to parse final.elf as an ELF file: {}", e)
-        })?;
-
-        let mut flash_regions = BTreeMap::new();
-
-        for shdr in elf.section_headers.iter() {
-            if shdr.sh_type != goblin::elf::section_header::SHT_PROGBITS {
-                continue;
-            }
-
-            flash_regions.insert(
-                shdr.sh_addr as u32,
-                (shdr.sh_size as u32, shdr.sh_offset as usize),
-            );
-        }
-
+        let (flash_contents, flash_regions) = hubris.flash_memory()?;
         Ok(Self { flash_contents, flash_regions, ..Default::default() })
     }
 

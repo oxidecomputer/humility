@@ -3758,6 +3758,47 @@ impl HubrisArchive {
         Ok(rval)
     }
 
+    //
+    // Returns a tuple of the contents of flash memory from the archive, and a
+    // tree of addresses/sizes + offsets.
+    //
+    pub fn flash_memory(
+        &self,
+    ) -> Result<(Vec<u8>, BTreeMap<u32, (u32, usize)>)> {
+        //
+        // We want to read in the "final.elf" from our archive and use that
+        // to determine the memory that constitutes flash.
+        //
+        let cursor = Cursor::new(self.archive());
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let mut file = archive
+            .by_name("img/final.elf")
+            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
+
+        let mut flash_contents = Vec::new();
+        file.read_to_end(&mut flash_contents)?;
+
+        let elf = Elf::parse(&flash_contents).map_err(|e| {
+            anyhow!("failed to parse final.elf as an ELF file: {}", e)
+        })?;
+
+        let flash_regions = elf
+            .section_headers
+            .iter()
+            .filter(|shdr| {
+                shdr.sh_type == goblin::elf::section_header::SHT_PROGBITS
+            })
+            .map(|shdr| {
+                (
+                    shdr.sh_addr as u32,
+                    (shdr.sh_size as u32, shdr.sh_offset as usize),
+                )
+            })
+            .collect();
+
+        Ok((flash_contents, flash_regions))
+    }
+
     pub fn regions(
         &self,
         core: &mut dyn crate::core::Core,
