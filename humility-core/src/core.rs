@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
 use std::fs;
+use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 use std::net::TcpStream;
@@ -1337,6 +1338,8 @@ impl Core for DumpCore {
 
 pub struct NetCore {
     socket: UdpSocket,
+    flash_contents: Vec<u8>,
+    flash_regions: BTreeMap<u32, (u32, usize)>,
 }
 
 impl NetCore {
@@ -1371,7 +1374,69 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
-        Ok(Self { socket })
+        //
+        // We want to read in the "final.elf" from our archive and use that
+        // to populate our flash contents to allow that to be read over the
+        // network ("network").
+        //
+        let cursor = Cursor::new(hubris.archive());
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let mut file = archive
+            .by_name("img/final.elf")
+            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
+
+        let mut flash_contents = Vec::new();
+        file.read_to_end(&mut flash_contents)?;
+
+        let elf = Elf::parse(&flash_contents).map_err(|e| {
+            anyhow!("failed to parse final.elf as an ELF file: {}", e)
+        })?;
+
+        let mut flash_regions = BTreeMap::new();
+
+        for shdr in elf.section_headers.iter() {
+            if shdr.sh_type != goblin::elf::section_header::SHT_PROGBITS {
+                continue;
+            }
+
+            flash_regions.insert(
+                shdr.sh_addr as u32,
+                (shdr.sh_size as u32, shdr.sh_offset as usize),
+            );
+        }
+
+        Ok(Self { socket, flash_contents, flash_regions })
+    }
+
+    fn read(&self, addr: u32, data: &mut [u8]) -> Result<()> {
+        if let Some((&base, &(size, offset))) =
+            self.flash_regions.range(..=addr).rev().next()
+        {
+            if base <= addr && base + size > addr {
+                let start = (addr - base) as usize;
+                let roffs = offset + start;
+
+                if start + data.len() <= size as usize {
+                    data.copy_from_slice(
+                        &self.flash_contents[roffs..roffs + data.len()],
+                    );
+
+                    return Ok(());
+                }
+
+                let len = (size as usize) - start;
+                data[..len]
+                    .copy_from_slice(&self.flash_contents[roffs..roffs + len]);
+
+                return self.read(addr + len as u32, &mut data[len..]);
+            }
+        }
+
+        bail!(
+            "0x{:0x} can't be read via the archive (and raw memory \
+            can't be read via the network)",
+            addr
+        );
     }
 }
 
@@ -1394,11 +1459,13 @@ impl Core for NetCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        bail!("cannot read 32-bit value at 0x{:x} over network", addr);
+        let mut buf = [0; 4];
+        self.read(addr, &mut buf)?;
+        Ok(u32::from_le_bytes(buf))
     }
 
-    fn read_8(&mut self, addr: u32, _data: &mut [u8]) -> Result<()> {
-        bail!("cannot read memory at 0x{:x} over network", addr);
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        self.read(addr, data)
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {

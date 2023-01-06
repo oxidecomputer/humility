@@ -50,7 +50,7 @@
 
 use anyhow::{anyhow, bail, Result};
 use clap::Command as ClapCommand;
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, Parser, ArgGroup};
 use core::mem::size_of;
 use goblin::elf::Elf;
 use hif::*;
@@ -77,7 +77,11 @@ use std::time::Instant;
 use zerocopy::FromBytes;
 
 #[derive(Parser, Debug)]
-#[clap(name = "dump", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(
+    name = "dump", about = env!("CARGO_PKG_DESCRIPTION"),
+    group = ArgGroup::new("simulation").multiple(false).required(false)
+)]
+
 struct DumpArgs {
     /// sets timeout
     #[clap(
@@ -87,7 +91,7 @@ struct DumpArgs {
     timeout: u32,
 
     /// show dump agent status
-    #[clap(long)]
+    #[clap(long, conflicts_with = "simulation")]
     dump_agent_status: bool,
 
     /// force use of the dump agent
@@ -95,36 +99,24 @@ struct DumpArgs {
     force_dump_agent: bool,
 
     /// force dump to be read
-    #[clap(
-        long, conflicts_with_all = &["clear_dump_agent", "stimulate_dumper",
-        "emulate_dumper"]
-    )]
-    #[clap(long)]
+    #[clap(long, conflicts_with = "simulation")]
     force_read: bool,
 
     /// initialize dump, clearing any dump at the dump agent
-    #[clap(long)]
+    #[clap(long, conflicts_with = "simulation")]
     initialize_dump_agent: bool,
 
     /// simulate dumper by reading directly from target (skipping agent)
-    #[clap(
-        long,
-        requires = "force_dump_agent",
-        conflicts_with = "emulate_dumper"
-    )]
+    #[clap(long, group = "simulation")]
     simulate_dumper: bool,
 
     /// in addition to simulating the dumper, generate a stock dump
-    #[clap(long, requires = "simulate_dumper")]
+    #[clap(long, requires = "simulation")]
     stock_dumpfile: Option<String>,
 
     /// emulate in situ dumper by reading directly from target and writing
     /// compressed memory back to agent's dump region
-    #[clap(
-        long,
-        requires = "force_dump_agent",
-        conflicts_with = "simulate_dumper"
-    )]
+    #[clap(long, group = "simulation")]
     emulate_dumper: bool,
 
     dumpfile: Option<String>,
