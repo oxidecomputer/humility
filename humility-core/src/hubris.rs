@@ -4592,10 +4592,7 @@ impl HubrisArchive {
         //
         let mut written = 0;
 
-        let started = match started {
-            Some(s) => s,
-            None => Instant::now(),
-        };
+        let started = started.unwrap_or_else(Instant::now);
 
         let bar = ProgressBar::new(total as u64);
         bar.set_style(

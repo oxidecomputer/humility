@@ -417,7 +417,7 @@ fn take_dump(
     //
     core.set_timeout(Duration::new(60, 0))?;
 
-    humility::msg!("taking dump; target will be stopped for ~20+ seconds");
+    humility::msg!("taking dump; target will be stopped for ~20 seconds");
 
     context.idol_call_ops(funcs, &op, &[], &mut ops)?;
     ops.push(Op::Done);
