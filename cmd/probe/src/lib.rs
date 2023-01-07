@@ -406,7 +406,52 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
             );
         }
     }
+
+
     if part.has_tz() {
+        // Temporarily force banked register accesses to Secure versions
+        let mut dscsr = DSCSR::read(core)?;
+        dscsr.set_sbrsel(true);
+        dscsr.set_sbrselen(true);
+        dscsr.write(core)?;
+
+        let sau_type = SAU_TYPE::read(core)?;
+        print("SAU_TYPE", format!("0x{:x}", sau_type.0));
+
+        if sau_type.sregion() > 0 {
+            let sau_ctrl = SAU_CTRL::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                "SAU_CTRL",
+                format!("{:x}", sau_ctrl.0)
+            );
+        }
+
+        for rnr in 0..sau_type.sregion() {
+            let mut sau_rnr = SAU_RNR(0);
+            sau_rnr.set_region(rnr);
+            sau_rnr.write(core)?;
+
+            let sau_rbar = SAU_RBAR::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                format!("SAU_RBAR{}", rnr),
+                format!("{:x}", sau_rbar.0)
+            );
+
+            let sau_rlar = SAU_RLAR::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                format!("SAU_RLAR{}", rnr),
+                format!("{:x}", sau_rlar.0)
+            );
+        }
+
+        // Switch back to using current security domain versions of banked
+        // registers
+        dscsr.set_sbrselen(false);
+        dscsr.write(core)?;
+
         let sfsr = SFSR::read(core)?;
         if sfsr.has_fault() {
             humility::msg!(
