@@ -11,7 +11,7 @@
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
-use humility::cli::{Subcommand};
+use humility::cli::Subcommand;
 use humility_cmd::{Archive, Command};
 
 #[derive(Parser, Debug)]
@@ -33,7 +33,7 @@ struct FlashArgs {
     address: u32,
 
     #[clap(long, parse(try_from_str = parse_int::parse))]
-    len: u32
+    len: u32,
 }
 
 fn bankerasecmd(context: &mut humility::ExecutionContext) -> Result<()> {
@@ -59,9 +59,9 @@ fn bankerasecmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let ihex = tempfile::NamedTempFile::new()?;
 
-    const ALIGN_MASK : u32 = 0x8000 - 1;
+    const ALIGN_MASK: u32 = 0x8000 - 1;
 
-    let len = subargs.len + ALIGN_MASK & !ALIGN_MASK;
+    let len = (subargs.len + ALIGN_MASK) & !ALIGN_MASK;
 
     std::fs::write(&ihex, generate_zeros(subargs.address, len)?)?;
     let ihex_path = ihex.path();
@@ -97,17 +97,15 @@ pub fn init() -> (Command, ClapCommand<'static>) {
     )
 }
 
-fn generate_zeros(address: u32, len : u32) -> Result<String> {
+fn generate_zeros(address: u32, len: u32) -> Result<String> {
     let mut records = vec![];
 
     // Generate a series of 32 byte zero entries
     for i in (0..len).step_by(32) {
         let a = address + i;
         records.push(ihex::Record::ExtendedLinearAddress((a >> 16) as u16));
-        records.push(ihex::Record::Data {
-            offset: a as u16,
-            value: vec![0; 32],
-        });
+        records
+            .push(ihex::Record::Data { offset: a as u16, value: vec![0; 32] });
     }
 
     records.push(ihex::Record::EndOfFile);
