@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.9.22"
+version = "0.9.23"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -86,6 +86,7 @@ members = [
 [workspace.dependencies]
 # `git`-based deps
 hif = { git = "https://github.com/oxidecomputer/hif" }
+humpty = { git = "https://github.com/oxidecomputer/humpty" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
@@ -195,6 +196,7 @@ jep106 = "0.2"
 lazy_static = "1.4.0"
 libc = "0.2"
 log = {version = "0.4.8", features = ["std"]}
+lzss = "0.8"
 multimap = "0.8.1"
 num-derive = "0.3"
 num-traits = "0.2"

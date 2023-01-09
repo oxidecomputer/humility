@@ -296,6 +296,10 @@ impl<'a> HiffyContext<'a> {
         self.text.size
     }
 
+    pub fn rdata_size(&self) -> usize {
+        self.rstack.size
+    }
+
     ///
     /// Convenience routine to indicate the size of a HIF snippet
     ///
@@ -473,7 +477,7 @@ impl<'a> HiffyContext<'a> {
         /// Reimplementation of `fn send` in `task/hiffy/src/common.rs`.
         ///
         /// We extract a handful of parameters, then pack them into a packet and
-        /// send them across the network to the `udprcp` task.
+        /// send them across the network to the `udprpc` task.
         fn hiffy_send_fn(
             stack: &[Option<u32>],
             _data: &[u8],

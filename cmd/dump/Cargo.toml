@@ -7,6 +7,15 @@ description = "generate Hubris dump"
 [dependencies]
 humility = { workspace = true }
 humility-cmd = { workspace = true }
+humpty = { workspace = true }
+indicatif = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
+zip = { workspace = true }
+goblin = { workspace = true }
+hif = { workspace = true }
+lzss = { workspace = true }
+parse_int = { workspace = true }
+zerocopy = { workspace = true }
+num-traits = { workspace = true }
