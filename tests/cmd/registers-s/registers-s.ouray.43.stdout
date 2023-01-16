@@ -12,6 +12,21 @@
   R11 = 0x20000248 <- kernel: 0x20000000+0x248
   R12 = 0x200012d8 <- jefe: 0x20001000+0x2d8
    SP = 0x20000ea0 <- kernel: 0x20000000+0xea0
+        |
+        +--->  0x20000eb0 0x00001280 ssmarshal::Serializer::write_u8
+               0x20000f58 0x00002b3c <&mut ssmarshal::Serializer as serde::ser::Serializer>::serialize_newtype_variant
+               0x20000f58 0x00002ae6 abi::_::<impl serde::ser::Serialize for abi::TaskState>::serialize
+               0x20000f58 0x00002adc ssmarshal::serialize
+               0x20000f58 0x00002ac8 kern::kipc::serialize_response
+               0x20000f58 0x00002ac2 kern::kipc::read_task_status
+               0x20000f58 0x00002ac2 kern::kipc::handle_kernel_message
+               0x20000f58 0x00002ac2 kern::syscalls::send
+               0x20000f58 0x00002a2c kern::syscalls::safe_syscall_entry
+               0x20000f58 0x00002074 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x00002048 kern::arch::arm_m::with_task_table
+               0x20000f58 0x00002b40 syscall_entry
+               0x20000f58 0x00003636 SVCall
+
    LR = 0x00002b41 <- kernel: syscall_entry+0xb05
    PC = 0x00001280 <- kernel: write_u8+0x2
   PSR = 0x6100000b <- 0110_0001_0000_0000_0000_0000_0000_1011

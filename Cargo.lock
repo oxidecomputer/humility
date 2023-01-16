@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.23"
+version = "0.9.24"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1615,6 +1615,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+ "parse-size",
  "parse_int",
 ]
 
@@ -2533,6 +2534,12 @@ dependencies = [
  "smallvec",
  "windows-sys",
 ]
+
+[[package]]
+name = "parse-size"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "944553dd59c802559559161f9816429058b869003836120e262e8caec061b7ae"
 
 [[package]]
 name = "parse_int"

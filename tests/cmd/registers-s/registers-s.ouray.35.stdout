@@ -12,6 +12,24 @@
   R11 = 0x200013b0 <- jefe: 0x20001000+0x3b0
   R12 = 0x200012d8 <- jefe: 0x20001000+0x2d8
    SP = 0x20000e70 <- kernel: 0x20000000+0xe70
+        |
+        +--->  0x20000e70 0x0000159e kern::umem::USlice<T>::last_byte_addr
+               0x20000e98 0x0000199e core::num::<impl u32>::wrapping_add
+               0x20000e98 0x00001992 <abi::RegionDesc as kern::app::RegionDescExt>::covers
+               0x20000e98 0x0000198e kern::task::Task::can_access::{{closure}}
+               0x20000e98 0x0000198a <core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::any
+               0x20000e98 0x0000199e kern::task::Task::can_access
+               0x20000eb0 0x000017a2 kern::task::Task::can_write
+               0x20000f58 0x00002ac8 kern::kipc::serialize_response
+               0x20000f58 0x00002ac2 kern::kipc::read_task_status
+               0x20000f58 0x00002ac2 kern::kipc::handle_kernel_message
+               0x20000f58 0x00002ac2 kern::syscalls::send
+               0x20000f58 0x00002a2c kern::syscalls::safe_syscall_entry
+               0x20000f58 0x00002074 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x00002048 kern::arch::arm_m::with_task_table
+               0x20000f58 0x00002ad6 syscall_entry
+               0x20000f58 0x00003636 SVCall
+
    LR = 0x0000199f <- kernel: can_access<u8>+0x25
    PC = 0x0000159e <- kernel: last_byte_addr<u8>+0x2
   PSR = 0x2100000b <- 0010_0001_0000_0000_0000_0000_0000_1011

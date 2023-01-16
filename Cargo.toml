@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.9.23"
+version = "0.9.24"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -199,6 +199,7 @@ multimap = "0.8.1"
 num-derive = "0.3"
 num-traits = "0.2"
 parse_int = "0.4.0"
+parse-size = { version = "1.0", features = ["std"]}
 paste = "0.1"
 path-slash = "0.1.4"
 postcard = "0.7.0"

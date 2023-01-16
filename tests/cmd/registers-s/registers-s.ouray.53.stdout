@@ -12,6 +12,13 @@
   R11 = 0x00000007
   R12 = 0x20002a78 <- i2c_driver: 0x20002800+0x278
    SP = 0x20000f18 <- kernel: 0x20000000+0xf18
+        |
+        +--->  0x20000f58 0x08003936 kern::arch::arm_m::DefaultHandler::{{closure}}::{{closure}}
+               0x20000f58 0x08003928 kern::arch::arm_m::with_irq_table
+               0x20000f58 0x08003928 kern::arch::arm_m::DefaultHandler::{{closure}}
+               0x20000f58 0x0800391c kern::arch::arm_m::with_task_table
+               0x20000f58 0x08003942 DefaultHandler
+
    LR = 0x08003933 <- kernel: DefaultHandler+0x47
    PC = 0x08003942 <- kernel: DefaultHandler+0x56
   PSR = 0x81000070 <- 1000_0001_0000_0000_0000_0000_0111_0000

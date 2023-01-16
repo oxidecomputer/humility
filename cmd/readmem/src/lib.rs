@@ -119,6 +119,11 @@ use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 use std::convert::TryInto;
 
+fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
+    let cfg = parse_size::Config::new().with_binary();
+    cfg.parse_size(src)
+}
+
 #[derive(Parser, Debug)]
 #[clap(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ReadmemArgs {
@@ -138,8 +143,8 @@ struct ReadmemArgs {
     address: String,
 
     /// length to read
-    #[clap(parse(try_from_str = parse_int::parse))]
-    length: Option<usize>,
+    #[clap(parse(try_from_str = parse_size))]
+    length: Option<u64>,
 }
 
 fn readmem(context: &mut humility::ExecutionContext) -> Result<()> {
@@ -157,7 +162,7 @@ fn readmem(context: &mut humility::ExecutionContext) -> Result<()> {
         1
     };
 
-    let length = subargs.length.unwrap_or(256);
+    let length = subargs.length.unwrap_or(256) as usize;
 
     if length & (size - 1) != 0 {
         bail!("length must be {}-byte aligned", size);
