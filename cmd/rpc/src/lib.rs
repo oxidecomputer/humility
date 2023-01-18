@@ -134,7 +134,22 @@ fn rpc_listen_one(
     interface: u32,
     port: u32,
 ) -> Result<BTreeSet<Target>> {
-    let socket = UdpSocket::bind(&format!("[::]:{port}"))?;
+    let socket = match UdpSocket::bind(&format!("[::]:{port}")) {
+        Ok(s) => s,
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                // If humility wasn't run as root, we can't listen on port 8;
+                // print a warning message instead of erroring out entirely.
+                humility::msg!(
+                    "Cannot listen on port {}; permission denied",
+                    port
+                );
+                return Ok(Default::default());
+            } else {
+                return Err(e.into());
+            }
+        }
+    };
     socket.set_read_timeout(Some(timeout))?;
 
     socket.join_multicast_v6(
