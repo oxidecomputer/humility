@@ -129,31 +129,35 @@ struct Target {
     ip: IpAddr,
 }
 
-fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
-    let socket = UdpSocket::bind("[::]:8")?;
-    let timeout = Duration::from_millis(rpc_args.timeout as u64);
-    socket.set_read_timeout(Some(timeout))?;
-
-    // For some reason, macOS requires the interface to be non-zero:
-    // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
-    // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
-    let interface = match &rpc_args.interface {
-        None => {
-            if cfg!(target_os = "macos") {
-                bail!("Must specify interface with `-i` on macOS");
+fn rpc_listen_one(
+    timeout: Duration,
+    interface: u32,
+    port: u32,
+) -> Result<BTreeSet<Target>> {
+    let socket = match UdpSocket::bind(&format!("[::]:{port}")) {
+        Ok(s) => s,
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                // If humility wasn't run as root, we can't listen on port 8;
+                // print a warning message instead of erroring out entirely.
+                humility::msg!(
+                    "Cannot listen on port {}; permission denied",
+                    port
+                );
+                return Ok(Default::default());
             } else {
-                0
+                return Err(e.into());
             }
         }
-        Some(iface) => decode_iface(iface)?,
     };
+    socket.set_read_timeout(Some(timeout))?;
+
     socket.join_multicast_v6(
         &Ipv6Addr::new(0xff02, 0, 0, 0, 0, 0, 0, 1),
         interface,
     )?;
 
     let mut seen = BTreeSet::new();
-    humility::msg!("listening for {} seconds...", timeout.as_secs());
 
     let timeout = Instant::now() + timeout;
     let mut buf = [0u8; 1024];
@@ -187,9 +191,6 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
                 match e.kind() {
                     std::io::ErrorKind::WouldBlock
                     | std::io::ErrorKind::TimedOut => {
-                        if seen.is_empty() {
-                            humility::msg!("timed out, exiting");
-                        }
                         break;
                     }
                     e => panic!("Got error {:?}", e),
@@ -200,15 +201,63 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
     Ok(seen)
 }
 
-fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
-    println!(
-        "       {}         |            {}           | {}",
-        "MAC".bold(),
-        "IPv6".bold(),
-        "Compatible".bold()
+fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
+    // For some reason, macOS requires the interface to be non-zero:
+    // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
+    // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
+    let interface = match &rpc_args.interface {
+        None => {
+            if cfg!(target_os = "macos") {
+                bail!("Must specify interface with `-i` on macOS");
+            } else {
+                0
+            }
+        }
+        Some(iface) => decode_iface(iface)?,
+    };
+
+    let timeout = Duration::from_millis(rpc_args.timeout as u64);
+    let ports = [8, 8888];
+    humility::msg!(
+        "listening for {} seconds on ports {:?}...",
+        timeout.as_secs(),
+        ports
     );
 
-    println!("-------------------|---------------------------| -----------");
+    let threads = ports
+        .iter()
+        .map(|&port| {
+            std::thread::spawn(move || -> Result<BTreeSet<Target>> {
+                rpc_listen_one(timeout, interface, port)
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let mut seen = BTreeSet::new();
+    for t in threads {
+        let out = t.join().unwrap()?;
+        seen.extend(out.into_iter());
+    }
+    if seen.is_empty() {
+        humility::msg!("timed out, exiting");
+    }
+
+    Ok(seen)
+}
+
+fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
+    if !seen.is_empty() {
+        println!(
+            "       {}         |            {}           | {}",
+            "MAC".bold(),
+            "IPv6".bold(),
+            "Compatible".bold()
+        );
+
+        println!(
+            "-------------------|---------------------------| -----------"
+        );
+    }
 
     for target in seen {
         for (i, byte) in target.mac.iter().enumerate() {
