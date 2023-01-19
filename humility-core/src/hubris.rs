@@ -2826,17 +2826,18 @@ impl HubrisArchive {
         //
         let contents = fs::read(archive)?;
 
+        let cursor = Cursor::new(&contents);
+        let archive = zip::ZipArchive::new(cursor)?;
+        let comment = str::from_utf8(archive.comment())
+            .context("Failed to decode comment string")?;
+        Self::check_version(comment)?;
+
         if doneness == HubrisArchiveDoneness::Cook {
             self.load_archive(&contents)?;
         }
 
         self.archive = contents;
-
-        let cursor = Cursor::new(&self.archive);
-        let archive = zip::ZipArchive::new(cursor)?;
-        let comment = str::from_utf8(archive.comment())
-            .context("Failed to decode comment string")?;
-        Self::check_version(comment)
+        Ok(())
     }
 
     fn check_version(comment: &str) -> Result<()> {
