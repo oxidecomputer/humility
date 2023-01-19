@@ -36,7 +36,7 @@ const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
-const MAX_HUBRIS_VERSION: u32 = 5;
+const MAX_HUBRIS_VERSION: u32 = 6;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -90,7 +90,16 @@ struct HubrisConfigKernel {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigTask {
     features: Option<Vec<String>>,
-    interrupts: Option<IndexMap<String, u32>>,
+    #[serde(default)]
+    notifications: Vec<String>,
+    interrupts: Option<IndexMap<String, HubrisTaskInterrupt>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+enum HubrisTaskInterrupt {
+    Mask(u32),
+    Named(String),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2637,8 +2646,22 @@ impl HubrisArchive {
                             }
                         }
                     };
+                    let notification = match notification {
+                        HubrisTaskInterrupt::Mask(i) => *i,
+                        HubrisTaskInterrupt::Named(name) => match task
+                            .notifications
+                            .iter()
+                            .position(|n| n == name)
+                        {
+                            Some(i) => i.try_into().unwrap(),
+                            None => bail!(
+                                "could not find notification '{name}' \
+                                 (options are {:?})",
+                                task.notifications),
+                        },
+                    };
 
-                    task_irqs.push((*notification, irq));
+                    task_irqs.push((notification, irq));
                 }
 
                 self.manifest.task_irqs.insert(name.clone(), task_irqs);
