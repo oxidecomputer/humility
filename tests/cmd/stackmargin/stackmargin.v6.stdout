@@ -1,0 +1,5 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+ 0 jefe               0x20000800        352        240        112
+ 1 sys                0x20000700        256        256          0
+ 2 usart_driver       0x20000a00        256        256          0
+ 3 idle               0x20000680         64         64          0

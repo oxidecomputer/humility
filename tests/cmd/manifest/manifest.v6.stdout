@@ -1,0 +1,15 @@
+     version => hubris build archive v6
+     git rev => 4996f6bcd985be7431fe9c156dee06c7cb1fce27-dirty
+    image id => [d0, b4, 39, bf, 67, ad, 82, 60]
+       board => stm32g070
+        name => demo-stm32g070-nucleo
+      target => thumbv6m-none-eabi
+    features => g070
+  total size => 26K
+ kernel size => 18K
+       tasks => 4
+                ID TASK                SIZE FEATURES
+                 0 idle                0.1K 
+                 1 sys                 2.0K g070
+                 2 jefe                4.1K log-null
+                 3 usart_driver        2.0K g070
