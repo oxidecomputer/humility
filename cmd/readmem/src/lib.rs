@@ -56,6 +56,10 @@
 //! 0x00011d00 |    62 6f 75 6e 64 73                            |  bounds
 //! ```
 //!
+//! The length argument can have an optional size suffix.  Note that "k" is
+//! used to to denote the SI kilobytes (that is, 1000 bytes); if one wishes to
+//! have a multiples of 1024 bytes (a kibibyte), "KiB" should be used instead.
+//!
 //! To display as half-words (16-bits) use `-h`; to display as words (32-bits)
 //! use `-w`.  (The addresses must be 2-byte and 4-byte aligned, respectively.)
 //!
@@ -120,7 +124,7 @@ use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 use std::convert::TryInto;
 
 fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
-    let cfg = parse_size::Config::new().with_binary();
+    let cfg = parse_size::Config::new();
     cfg.parse_size(src)
 }
 

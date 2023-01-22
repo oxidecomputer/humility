@@ -50,13 +50,20 @@ struct ReadvarArgs {
     /// values in decimal instead of hex
     #[clap(long, short)]
     decimal: bool,
+
     /// interpret array contents as a C string (ignored if variable is not an
     /// array)
     #[clap(long)]
     as_c_string: bool,
+
     /// list variables
     #[clap(long, short)]
     list: bool,
+
+    /// leave target halted
+    #[clap(long)]
+    leave_halted: bool,
+
     #[clap(conflicts_with = "list")]
     variable: Option<String>,
 }
@@ -72,7 +79,10 @@ fn readvar_dump(
 
     core.halt()?;
     core.read_8(variable.addr, buf.as_mut_slice())?;
-    core.run()?;
+
+    if !subargs.leave_halted {
+        core.run()?;
+    }
 
     let hex = !subargs.decimal;
 
@@ -108,6 +118,10 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
 
     for v in variables {
         readvar_dump(hubris, core, v, &subargs)?;
+    }
+
+    if subargs.leave_halted {
+        humility::msg!("leaving target halted");
     }
 
     Ok(())

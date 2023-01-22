@@ -18,7 +18,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x20001548   SP = 0x20001578   LR = 0x080083d5   PC = 0x0800a48e
    |      PSR = 0x01000000
    |
-   +-----------> Task {
+   +-----------> 0x200000b0 Task {
                     save: SavedState {
                         r4: 0x0,
                         r5: 0x0,
@@ -88,7 +88,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200024f0   LR = 0x08010a95   PC = 0x080155a6
    |      PSR = 0x01000000
    |
-   +-----------> Task {
+   +-----------> 0x20000160 Task {
                     save: SavedState {
                         r4: 0x0,
                         r5: 0x4,
@@ -156,7 +156,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x200035fc   SP = 0x20003538   LR = 0x0801845b   PC = 0x08019d46
    |      PSR = 0x01000000
    |
-   +-----------> Task {
+   +-----------> 0x20000210 Task {
                     save: SavedState {
                         r4: 0xffff0001,
                         r5: 0x20003600,
@@ -212,7 +212,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20004100   LR = 0xffffffff   PC = 0x0801c001
    |      PSR = 0x01000000
    |
-   +-----------> Task {
+   +-----------> 0x200002c0 Task {
                     save: SavedState {
                         r4: 0x0,
                         r5: 0x0,

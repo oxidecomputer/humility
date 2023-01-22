@@ -18,7 +18,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x200025a8   SP = 0x20002520   LR = 0x080102cf   PC = 0x08011fc6
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x200001b0 Task {
                     save: SavedState {
                         r4: 0x8012918,
                         r5: 0x0,
@@ -82,7 +82,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20003bb8   LR = 0x0802007b   PC = 0x08020e66
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000260 Task {
                     save: SavedState {
                         r4: 0x20003be0,
                         r5: 0x4,
@@ -148,7 +148,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20003fa0   LR = 0x0802218d   PC = 0x08023036
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000310 Task {
                     save: SavedState {
                         r4: 0x20003fd0,
                         r5: 0x5,
@@ -212,7 +212,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200043a0   LR = 0x0802419f   PC = 0x08024fee
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x200003c0 Task {
                     save: SavedState {
                         r4: 0x8025514,
                         r5: 0x0,
@@ -278,7 +278,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20002b58   LR = 0x0801443b   PC = 0x08015ba0
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000470 Task {
                     save: SavedState {
                         r4: 0x20002bd4,
                         r5: 0x4,
@@ -342,7 +342,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x08019ccc   SP = 0x20001350   LR = 0x080183f3   PC = 0x08019968
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x20000520 Task {
                     save: SavedState {
                         r4: 0x200013aa,
                         r5: 0x2,
@@ -408,7 +408,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200047a8   LR = 0x08026131   PC = 0x08026ece
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x200005d0 Task {
                     save: SavedState {
                         r4: 0x200047cc,
                         r5: 0x4,
@@ -468,7 +468,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20004b90   LR = 0x080280bd   PC = 0x08028d02
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000680 Task {
                     save: SavedState {
                         r4: 0x20004bc4,
                         r5: 0x10,
@@ -532,7 +532,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000018   SP = 0x20008558   LR = 0x08008a39   PC = 0x0800c02e
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000730 Task {
                     save: SavedState {
                         r4: 0x800d574,
                         r5: 0x0,
@@ -598,7 +598,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x200037e4   SP = 0x20003690   LR = 0x0801c297   PC = 0x0801d7f8
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x200007e0 Task {
                     save: SavedState {
                         r4: 0x200036cc,
                         r5: 0x4,
@@ -658,7 +658,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20004d90   LR = 0x0802a0c3   PC = 0x0802afa0
    |      PSR = 0x01000000
    |
-   +-----------> Task {
+   +-----------> 0x20000890 Task {
                     save: SavedState {
                         r4: 0x30001,
                         r5: 0x802b590,
@@ -714,7 +714,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20004ef8   LR = 0x0802c04f   PC = 0x0802c056
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x20000940 Task {
                     save: SavedState {
                         r4: 0x0,
                         r5: 0x0,

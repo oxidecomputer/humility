@@ -83,7 +83,7 @@ use zerocopy::FromBytes;
 struct DumpArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 20000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -95,6 +95,10 @@ struct DumpArgs {
     /// force use of the dump agent when directly attached with a debug probe
     #[clap(long)]
     force_dump_agent: bool,
+
+    /// force manual initiation, leaving target halted
+    #[clap(long, requires = "force-dump-agent")]
+    force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
     #[clap(long, conflicts_with = "simulation")]
@@ -123,6 +127,10 @@ struct DumpArgs {
     /// compressed memory back to agent's dump region
     #[clap(long, group = "simulation")]
     emulate_dumper: bool,
+
+    /// leave the target halted
+    #[clap(long, conflicts_with = "simulation")]
+    leave_halted: bool,
 
     dumpfile: Option<String>,
 }
@@ -419,12 +427,37 @@ fn take_dump(
 
     humility::msg!("taking dump; target will be stopped for ~20 seconds");
 
+    let rindex = if !core.is_net() {
+        humility::msg!("you will have 10 seconds to pull the debug probe");
+        let sleep = funcs.get("Sleep", 1)?;
+        let ms = 100;
+        let iter = 100;
+
+        ops.extend([
+            Op::Push(0),                      // Iterations completed
+            Op::Push(0),                      // Dummy comparison value
+            Op::Label(Target(0)),             // Start of loop
+            Op::Drop,                         // Drop comparison
+            Op::Push(ms),                     // Push arg for 100ms
+            Op::Call(sleep.id),               // Sleep for 100ms
+            Op::Drop,                         // Drop arg
+            Op::Push(1),                      // Push increment value
+            Op::Add,                          // Add to iterations
+            Op::Push(iter),                   // Push limit
+            Op::BranchGreaterThan(Target(0)), // Continue if not at limit
+        ]);
+
+        iter as usize
+    } else {
+        0
+    };
+
     context.idol_call_ops(funcs, &op, &[], &mut ops)?;
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    if let Err(err) = results[0] {
+    if let Err(err) = results[rindex] {
         bail!("failed to take dump: {}", op.strerror(err));
     }
 
@@ -845,6 +878,18 @@ fn dump_via_agent(
             core.run()?;
             humility::msg!("core resumed");
         } else if !subargs.force_read {
+            if subargs.force_manual_initiation {
+                core.halt()?;
+                humility::msg!("leaving core halted");
+                let base = header.address;
+                humility::msg!(
+                    "now unplug probe and manually call \
+                    Dumper.dump with address {:#x}",
+                    base
+                );
+                return Ok(());
+            }
+
             //
             // Tell the thing to take a dump
             //
@@ -887,7 +932,7 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     if subargs.dump_agent_status {
         dump_agent_status(hubris, core, &subargs)
-    } else if core.is_net() || subargs.force_dump_agent {
+    } else if core.is_net() || subargs.force_dump_agent || subargs.force_read {
         dump_via_agent(hubris, core, &subargs)
     } else {
         if subargs.initialize_dump_agent {
@@ -901,8 +946,12 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         let rval =
             hubris.dump(core, &regions, subargs.dumpfile.as_deref(), None);
 
-        core.run()?;
-        humility::msg!("core resumed");
+        if !subargs.leave_halted {
+            core.run()?;
+            humility::msg!("core resumed");
+        } else {
+            humility::msg!("core left halted");
+        }
 
         rval
     }

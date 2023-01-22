@@ -18,7 +18,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x200045a8   SP = 0x20004520   LR = 0x080102cd   PC = 0x08011480
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000588 Task {
                     save: SavedState {
                         r4: 0x8011a64,
                         r5: 0x0,
@@ -80,7 +80,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200053a8   LR = 0x08020083   PC = 0x08020d7a
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000638 Task {
                     save: SavedState {
                         r4: 0x200053d0,
                         r5: 0x10,
@@ -146,7 +146,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200057a8   LR = 0x080221a5   PC = 0x08022f8e
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x200006e8 Task {
                     save: SavedState {
                         r4: 0x200057d0,
                         r5: 0x5,
@@ -210,7 +210,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20005ba0   LR = 0x08024183   PC = 0x08024e9a
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x20000798 Task {
                     save: SavedState {
                         r4: 0x8025404,
                         r5: 0x0,
@@ -276,7 +276,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x20004bd8   SP = 0x20004b50   LR = 0x08014441   PC = 0x080158a4
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000848 Task {
                     save: SavedState {
                         r4: 0x20004bd4,
                         r5: 0x4,
@@ -338,7 +338,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x08019d30   SP = 0x20001340   LR = 0x08018533   PC = 0x08019954
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x200008f8 Task {
                     save: SavedState {
                         r4: 0x2000137c,
                         r5: 0x5,
@@ -400,7 +400,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20005fa0   LR = 0x08026137   PC = 0x08026e42
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x200009a8 Task {
                     save: SavedState {
                         r4: 0x20005fc8,
                         r5: 0xc,
@@ -460,7 +460,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20006398   LR = 0x080280bb   PC = 0x08028c0a
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000a58 Task {
                     save: SavedState {
                         r4: 0x200063c4,
                         r5: 0x10,
@@ -528,7 +528,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x200087b0   SP = 0x20008520   LR = 0x0800b19f   PC = 0x0800b12e
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000b08 Task {
                     save: SavedState {
                         r4: 0x800c1dc,
                         r5: 0x0,
@@ -592,7 +592,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x200026dc   SP = 0x20002638   LR = 0x0801d6cf   PC = 0x0801d660
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000bb8 Task {
                     save: SavedState {
                         r4: 0x801dd18,
                         r5: 0x0,
@@ -648,7 +648,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200064f8   LR = 0x0802a04f   PC = 0x0802a056
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x20000c68 Task {
                     save: SavedState {
                         r4: 0x0,
                         r5: 0x0,

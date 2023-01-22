@@ -1812,6 +1812,7 @@ dependencies = [
  "humility-core",
  "log",
  "num-traits",
+ "parse_int",
 ]
 
 [[package]]
