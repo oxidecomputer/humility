@@ -1,0 +1,21 @@
+[package]
+name = "humility-cmd-attest"
+version = "0.1.0"
+edition = "2021"
+description = "interact with the task acting as the root of trust for reporting"
+
+[dependencies]
+cmd-hiffy.workspace = true
+
+hif.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-cli = { workspace = true }
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+
+anyhow.workspace = true
+clap.workspace = true
+parse_int.workspace = true
+pem = "1"

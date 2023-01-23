@@ -1094,6 +1094,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-cmd-apptable",
+ "humility-cmd-attest",
  "humility-cmd-auxflash",
  "humility-cmd-bankerase",
  "humility-cmd-console-proxy",
@@ -1208,6 +1209,23 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-attest"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hif",
+ "humility-cli",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "parse_int",
+ "pem",
 ]
 
 [[package]]
@@ -2799,6 +2817,15 @@ dependencies = [
  "hmac",
  "password-hash",
  "sha2",
+]
+
+[[package]]
+name = "pem"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8835c273a76a90455d7344889b0964598e3316e2a79ede8e36f16bdcf2228b8"
+dependencies = [
+ "base64",
 ]
 
 [[package]]
