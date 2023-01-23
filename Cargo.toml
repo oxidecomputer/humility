@@ -81,6 +81,7 @@ members = [
     "cmd/rendmp",
     "cmd/repl",
     "cmd/ringbuf",
+    "cmd/attest",
     "cmd/sensors",
     "cmd/spctrl",
     "cmd/spd",
@@ -178,6 +179,7 @@ cmd-reset = { path = "./cmd/reset", package = "humility-cmd-reset" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
+cmd-attest = { path = "./cmd/attest", package = "humility-cmd-attest" }
 cmd-rpc = { path = "./cmd/rpc", package = "humility-cmd-rpc" }
 cmd-sbrmi = { path = "./cmd/sbrmi", package = "humility-cmd-sbrmi" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
@@ -318,6 +320,7 @@ cmd-reset = { workspace = true }
 cmd-rencm = { workspace = true }
 cmd-rendmp = { workspace = true }
 cmd-ringbuf = { workspace = true }
+cmd-attest = { workspace = true }
 cmd-rpc = { workspace = true }
 cmd-sbrmi = { workspace = true }
 cmd-sensors = { workspace = true }
