@@ -1246,6 +1246,7 @@ dependencies = [
  "lzss",
  "num-traits",
  "parse_int",
+ "probe-rs",
  "zerocopy",
  "zip",
 ]
