@@ -43,16 +43,15 @@
 //!
 
 use anyhow::Result;
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
+use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::idol::{self, HubrisIdol};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -260,15 +259,15 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "validate",
+pub fn init() -> Command {
+    Command {
+        app: ValidateArgs::command(),
+        name: "validate",
+        run: validate,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: validate,
         },
-        ValidateArgs::command(),
-    )
+    }
 }

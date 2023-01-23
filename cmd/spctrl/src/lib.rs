@@ -45,13 +45,12 @@
 //! ```
 
 use humility::cli::Subcommand;
-use humility_cmd::hiffy::*;
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 
 use std::str;
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 
@@ -153,15 +152,15 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "spctrl",
+pub fn init() -> Command {
+    Command {
+        app: SpCtrlArgs::command(),
+        name: "spctrl",
+        run: spctrl,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: spctrl,
         },
-        SpCtrlArgs::command(),
-    )
+    }
 }

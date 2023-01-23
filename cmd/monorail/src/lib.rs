@@ -176,10 +176,10 @@ use humility::reflect::*;
 use humility::{hubris::*, ExecutionContext};
 use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::idol::{HubrisIdol, IdolArgument};
-use humility_cmd::{Archive, Attach, Validate};
+use humility_cmd::{Archive, Attach, CommandKind, Validate};
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
+
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
@@ -1181,29 +1181,29 @@ fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
+pub fn init() -> humility_cmd::Command {
     // We do a bonus parse of the command-line arguments here to see if we're
     // doing a `monorail info` subcommand, which doesn't require a Hubris image
     // or attached device; skipping those steps improves runtime (especially
     // in debug builds)
-    let subcmd_attached = (
-        humility_cmd::Command::Attached {
-            name: "monorail",
+
+    let subcmd_attached = humility_cmd::Command {
+        app: MonorailArgs::command(),
+        name: "monorail",
+        run: monorail,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: monorail,
         },
-        MonorailArgs::command(),
-    );
-    let subcmd_unattached = (
-        humility_cmd::Command::Unattached {
-            name: "monorail",
-            archive: Archive::Ignored,
-            run: monorail_get_info,
-        },
-        MonorailArgs::command(),
-    );
+    };
+
+    let subcmd_unattached = humility_cmd::Command {
+        app: MonorailArgs::command(),
+        name: "monorail",
+        run: monorail_get_info,
+        kind: CommandKind::Unattached { archive: Archive::Ignored },
+    };
 
     // If there's a `monorail` subcommand, then attempt to parse the subcmd
     let mut args = std::env::args().skip_while(|a| a != "monorail").peekable();
@@ -1219,5 +1219,6 @@ pub fn init() -> (humility_cmd::Command, ClapCommand<'static>) {
             return subcmd_unattached;
         }
     }
+
     subcmd_attached
 }

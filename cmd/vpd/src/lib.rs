@@ -70,7 +70,6 @@
 //!
 
 use anyhow::{anyhow, bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
@@ -79,6 +78,7 @@ use humility::hubris::*;
 use humility::reflect;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -403,15 +403,15 @@ fn vpd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "vpd",
+pub fn init() -> Command {
+    Command {
+        app: VpdArgs::command(),
+        name: "vpd",
+        run: vpd,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: vpd,
         },
-        VpdArgs::command(),
-    )
+    }
 }

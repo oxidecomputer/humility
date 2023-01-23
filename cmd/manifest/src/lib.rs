@@ -42,10 +42,9 @@
 //! `humility manifest` can operate on either an archive or on a dump.
 
 use anyhow::Result;
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
@@ -255,13 +254,11 @@ fn manifestcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "manifest",
-            archive: Archive::Required,
-            run: manifestcmd,
-        },
-        ManifestArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: ManifestArgs::command(),
+        name: "manifest",
+        run: manifestcmd,
+        kind: CommandKind::Unattached { archive: Archive::Required },
+    }
 }

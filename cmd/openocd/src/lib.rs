@@ -10,13 +10,13 @@
 //! will both run OpenOCD and run a foreground GDB that is connected to it.
 //!
 
-use std::process::Command;
+use std::process;
 
 use humility::cli::{Cli, Subcommand};
-use humility_cmd::{Archive, Command as HumilityCmd};
+use humility_cmd::{Archive, Command, CommandKind};
 
 use anyhow::{bail, Context, Result};
-use clap::{Command as ClapCommand, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -103,8 +103,9 @@ fn openocd(context: &mut humility::ExecutionContext) -> Result<()> {
             &work_dir.path().join("openocd.cfg"),
         )
         .context("OpenOCD config missing. Is your Hubris build too old?")?;
-    let mut cmd =
-        Command::new(subargs.exec.unwrap_or_else(|| "openocd".to_string()));
+    let mut cmd = process::Command::new(
+        subargs.exec.unwrap_or_else(|| "openocd".to_string()),
+    );
     cmd.arg("-f").arg("openocd.cfg");
     if let Some(serial) = serial {
         cmd.arg("-c")
@@ -137,13 +138,11 @@ fn openocd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (HumilityCmd, ClapCommand<'static>) {
-    (
-        HumilityCmd::Unattached {
-            name: "openocd",
-            archive: Archive::Required,
-            run: openocd,
-        },
-        OcdArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: OcdArgs::command(),
+        name: "openocd",
+        run: openocd,
+        kind: CommandKind::Unattached { archive: Archive::Required },
+    }
 }

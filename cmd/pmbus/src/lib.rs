@@ -6,12 +6,11 @@ use colored::Colorize;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
 use humility_cmd::i2c::I2cArgs;
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indexmap::IndexMap;
@@ -1630,15 +1629,15 @@ fn pmbus(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "pmbus",
+pub fn init() -> Command {
+    Command {
+        app: PmbusArgs::command(),
+        name: "pmbus",
+        run: pmbus,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: pmbus,
         },
-        PmbusArgs::command(),
-    )
+    }
 }

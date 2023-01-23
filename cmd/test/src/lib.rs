@@ -108,12 +108,11 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::test::*;
+use humility_cmd::{test::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::itm::*;
 use std::cell::RefCell;
@@ -299,15 +298,15 @@ fn test(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "test",
+pub fn init() -> Command {
+    Command {
+        app: TestArgs::command(),
+        name: "test",
+        run: test,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: test,
         },
-        TestArgs::command(),
-    )
+    }
 }
