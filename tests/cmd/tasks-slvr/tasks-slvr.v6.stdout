@@ -1,6 +1,6 @@
 system time = 42126
 ID TASK                       GEN PRI STATE    
- 0 jefe                         0   0 recv, notif: bit0(T+74) bit1
+ 0 jefe                         0   0 recv, notif: bit0(T+74/timer) bit1(fault)
    |
    +--->  0x200008b8 0x08005a98 userlib::sys_recv_stub
    |                 @ /hubris/sys/userlib/src/lib.rs:333
@@ -84,7 +84,7 @@ ID TASK                       GEN PRI STATE
                     descriptor: 0x8004434 (&kern::descs::TaskDesc)
                 }
 
- 2 usart_driver                 0   2 recv, notif: bit0
+ 2 usart_driver                 0   2 recv, notif: bit0(usart-irq)
    |
    +--->  0x20000ab8 0x0800633e userlib::sys_recv_stub
    |                 @ /hubris/sys/userlib/src/lib.rs:333
