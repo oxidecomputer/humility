@@ -443,7 +443,7 @@ fn explain_sched_state(
         }
         SchedState::InRecv(tid) => {
             let notmask = *regs.get(&(task_index, ARMRegister::R6)).unwrap();
-            explain_recv(hubris, tid, notmask, irqs, timer);
+            explain_recv(hubris, task_index, tid, notmask, irqs, timer);
         }
     }
     Ok(())
@@ -560,6 +560,7 @@ fn explain_fault_source(e: doppel::FaultSource) {
 /// - Make common cases unobtrusive and easy to scan.
 fn explain_recv(
     hubris: &HubrisArchive,
+    task_index: u32,
     src: Option<TaskId>,
     notmask: u32,
     irqs: Option<&Vec<(u32, u32)>>,
@@ -612,12 +613,23 @@ fn explain_recv(
         }
     }
 
+    let task_mod = hubris.lookup_module(HubrisTask::Task(task_index));
+    let notification_names = if let Ok(task_mod) = task_mod {
+        hubris.manifest.task_notifications.get(&task_mod.name)
+    } else {
+        None
+    };
+    let notification_name = |s: usize| -> Option<&str> {
+        notification_names.and_then(|n| n.get(s)).map(|s| s.as_str())
+    };
+
     // Display notification bits, along with meaning where we can.
     if notmask != 0 {
         print!("{}notif:", if outer_first { "" } else { ", " });
         for nt in note_types {
             print!(" bit{}", nt.bit);
-            if !nt.irqs.is_empty() || nt.timer.is_some() {
+            let name = notification_name(nt.bit);
+            if !nt.irqs.is_empty() || nt.timer.is_some() || name.is_some() {
                 print!("(");
                 let mut first = true;
                 if let Some(ts) = nt.timer {
@@ -627,6 +639,9 @@ fn explain_recv(
                 for irq in &nt.irqs {
                     print!("{}irq{}", if !first { "/" } else { "" }, irq);
                     first = false;
+                }
+                if let Some(name) = name {
+                    print!("{}{name}", if !first { "/" } else { "" });
                 }
                 print!(")");
             }

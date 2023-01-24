@@ -48,6 +48,7 @@ pub struct HubrisManifest {
     pub target: Option<String>,
     pub task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
+    pub task_notifications: HashMap<String, Vec<String>>,
     pub peripherals: BTreeMap<String, u32>,
     pub peripherals_byaddr: BTreeMap<u32, String>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
@@ -2666,6 +2667,10 @@ impl HubrisArchive {
 
                 self.manifest.task_irqs.insert(name.clone(), task_irqs);
             }
+
+            self.manifest
+                .task_notifications
+                .insert(name.clone(), task.notifications.clone());
         }
 
         if let Some(ref config) = config.config {
