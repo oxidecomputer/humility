@@ -626,11 +626,8 @@ fn explain_recv(
     // Display notification bits, along with meaning where we can.
     if notmask != 0 {
         print!("{}notif:", if outer_first { "" } else { ", " });
-        for (i, nt) in note_types.iter().enumerate() {
+        for nt in note_types {
             let name = notification_name(nt.bit);
-            if i > 0 {
-                print!(",");
-            }
             if let Some(name) = name {
                 print!(" {name}");
             } else {
