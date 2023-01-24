@@ -12,6 +12,15 @@
   R11 = 0x00000004 <- kernel: __RESET_VECTOR+0x0
   R12 = 0x00000018 <- kernel: __EXCEPTIONS+0x10
    SP = 0x20000e80 <- kernel: 0x20000000+0xe80
+        |
+        +--->  0x20000ea0 0x00001eca <core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::next
+               0x20000ea0 0x00001eca <core::iter::adapters::enumerate::Enumerate<I> as core::iter::traits::iterator::Iterator>::next
+               0x20000ea0 0x00001ecc kern::arch::arm_m::apply_memory_protection
+               0x20000eb0 0x0000355e kern::arch::arm_m::set_current_task
+               0x20000eb0 0x0000355e kern::syscalls::switch_to
+               0x20000f58 0x00002dde syscall_entry
+               0x20000f58 0x00003636 SVCall
+
    LR = 0x00000008 <- kernel: __EXCEPTIONS+0x0
    PC = 0x00001ecc <- kernel: apply_memory_protection+0x24
   PSR = 0x8100000b <- 1000_0001_0000_0000_0000_0000_0000_1011

@@ -12,6 +12,16 @@
   R11 = 0x0000000d
   R12 = 0x00000002
    SP = 0x20000e60 <- kernel: 0x20000000+0xe60
+        |
+        +--->  0x20000eb0 0x080035b0 kern::syscalls::borrow_lease
+               0x20000f58 0x080021e0 <core::result::Result<T,E> as core::ops::try::Try>::into_result
+               0x20000f58 0x08002198 kern::syscalls::borrow_read
+               0x20000f58 0x08002078 kern::syscalls::safe_syscall_entry
+               0x20000f58 0x08002078 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x0800204c kern::arch::arm_m::with_task_table
+               0x20000f58 0x080021e0 syscall_entry
+               0x20000f58 0x0800375e SVCall
+
    LR = 0x200043db <- spi: 0x20004000+0x3db
    PC = 0x080035b0 <- kernel: borrow_lease+0x15c
   PSR = 0x2100000b <- 0010_0001_0000_0000_0000_0000_0000_1011

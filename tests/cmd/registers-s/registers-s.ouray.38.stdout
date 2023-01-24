@@ -12,6 +12,13 @@
   R11 = 0x20000248 <- kernel: 0x20000000+0x248
   R12 = 0x200012d8 <- jefe: 0x20001000+0x2d8
    SP = 0x20000eb0 <- kernel: 0x20000000+0xeb0
+        |
+        +--->  0x20000f58 0x00002a2c kern::syscalls::safe_syscall_entry
+               0x20000f58 0x00002074 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x00002048 kern::arch::arm_m::with_task_table
+               0x20000f58 0x00002d9e syscall_entry
+               0x20000f58 0x00003636 SVCall
+
    LR = 0x00002b41 <- kernel: syscall_entry+0xb05
    PC = 0x00002d9e <- kernel: syscall_entry+0xd62
   PSR = 0x6100000b <- 0110_0001_0000_0000_0000_0000_0000_1011

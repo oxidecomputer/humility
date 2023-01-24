@@ -10,3 +10,4 @@ humility-cmd = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 parse_int = { workspace = true }
+parse-size = { workspace = true }

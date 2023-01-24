@@ -388,17 +388,34 @@ as the debugged MCU, e.g.:
 ```console
 % humility -d hubris.core.0 tasks
 humility: attached to dump
-ID ADDR     TASK               GEN STATE
- 0 20000168 jefe                 0 Healthy(InRecv(None))
- 1 200001d8 rcc_driver           0 Healthy(InRecv(None))
- 2 20000248 gpio_driver          0 Healthy(InRecv(None))
- 3 200002b8 usart_driver         0 Healthy(InRecv(None))
- 4 20000328 i2c_driver           0 Healthy(InRecv(None))
- 5 20000398 user_leds            0 Healthy(InRecv(None))
- 6 20000408 pong                 0 Healthy(InRecv(None))
- 7 20000478 ping                40 Healthy(InReply(TaskId(0x3)))
- 8 200004e8 adt7420              0 Healthy(InRecv(Some(TaskId(0xffff))))
- 9 20000558 idle                 0 Healthy(Runnable)          <-
+system time = 94529
+ID TASK                       GEN PRI STATE
+ 0 jefe                         0   0 recv, notif: bit0 bit1(T+71)
+ 1 net                          1   5 recv, notif: bit0(irq61) bit2(T+213)
+ 2 sys                          0   1 recv
+ 3 spi4_driver                  0   3 recv
+ 4 spi2_driver                  0   3 recv
+ 5 i2c_driver                   0   3 recv
+ 6 spd                          0   2 notif: bit0(irq31/irq32)
+ 7 thermal                      0   5 recv, notif: bit0(T+673)
+ 8 power                        0   6 recv, notif: bit0(T+351)
+ 9 hiffy                        0   5 wait: reply from dump_agent/gen0
+10 gimlet_seq                   0   4 recv, notif: bit0
+11 hash_driver                  0   2 recv
+12 hf                           0   3 recv
+13 update_server                0   3 recv
+14 sensor                       0   4 recv, notif: bit0(T+472)
+15 host_sp_comms                0   7 recv, notif: bit0(irq82) bit1 bit2(T+59) bit3
+16 udpecho                      0   6 notif: bit0
+17 udpbroadcast                 0   6 notif: bit31(T+86)
+18 udprpc                       0   6 notif: bit0
+19 control_plane_agent          0   6 recv, notif: bit0 bit1(irq37) bit2
+20 sprot                        0   4 notif: bit31(T+2)
+21 validate                     0   5 recv
+22 vpd                          0   4 recv
+23 user_leds                    0   2 recv
+24 dump_agent                   0   4 wait: reply from sprot/gen0
+25 idle                         0   8 RUNNING
 ```
 
 
@@ -1555,6 +1572,10 @@ humility: reading at 0x11d01 for 6 bytes
               0 \/  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 0x00011d00 |    62 6f 75 6e 64 73                            |  bounds
 ```
+
+The length argument can have an optional size suffix.  Note that "k" is
+used to to denote the SI kilobytes (that is, 1000 bytes); if one wishes to
+have a multiples of 1024 bytes (a kibibyte), "KiB" should be used instead.
 
 To display as half-words (16-bits) use `-h`; to display as words (32-bits)
 use `-w`.  (The addresses must be 2-byte and 4-byte aligned, respectively.)

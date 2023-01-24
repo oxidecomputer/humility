@@ -199,6 +199,7 @@ multimap = "0.8.1"
 num-derive = "0.3"
 num-traits = "0.2"
 parse_int = "0.4.0"
+parse-size = { version = "1.0", features = ["std"]}
 paste = "0.1"
 path-slash = "0.1.4"
 postcard = "0.7.0"
