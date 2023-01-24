@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.26"
+version = "0.9.25"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
