@@ -274,7 +274,13 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
             if let Some(ref task) = subargs.task {
                 if *task != module {
-                    continue;
+                    if let Ok(task_addr) = parse_int::parse::<u32>(task) {
+                        if *addr != task_addr {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
                 }
 
                 found = true;
@@ -337,7 +343,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                     ..HubrisPrintFormat::default()
                 };
 
-                print!("   |\n   +-----------> ");
+                print!("   |\n   +-----------> {:#08x} ", addr);
                 task_value.format(hubris, fmt, &mut std::io::stdout())?;
                 println!("\n");
             }

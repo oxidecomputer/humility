@@ -1225,30 +1225,9 @@ impl Core for DumpCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        let rsize: usize = 4;
-
-        if let Some((&base, &(size, offset))) =
-            self.regions.range(..=addr).rev().next()
-        {
-            if base > addr {
-                // fall out to the bail below.
-            } else if (addr - base) + rsize as u32 > size {
-                bail!(
-                    "0x{:x} is valid, but relative to base (0x{:x}), \
-                    offset (0x{:x}) exceeds max (0x{:x})",
-                    addr, base, (addr - base) + rsize as u32, size
-                );
-            } else {
-                let offs = offset + (addr - base) as usize;
-
-                self.check_offset(addr, rsize, offs)?;
-
-                return Ok(u32::from_le_bytes(
-                    self.contents[offs..offs + rsize].try_into().unwrap(),
-                ));
-            }
-        }
-        bail!("read from invalid address: 0x{:x}", addr);
+        let mut buf = [0u8; 4];
+        self.read_8(addr, buf.as_mut_slice())?;
+        Ok(u32::from_le_bytes(buf))
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
@@ -1257,15 +1236,29 @@ impl Core for DumpCore {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).rev().next()
         {
-            if base > addr {
-                // fall out to the bail below.
-            } else if (addr - base) + rsize as u32 > size {
-                bail!(
-                    "0x{:x} is valid, but relative to base (0x{:x}), \
-                    offset (0x{:x}) exceeds max (0x{:x})",
-                    addr, base, (addr - base) + rsize as u32, size
-                );
-            } else {
+            if base <= addr && addr < (base + size) {
+                if (addr - base) + rsize as u32 > size {
+                    //
+                    // The memory we want to read starts in this region but
+                    // exceeds its bounds -- but if all of the memory we want
+                    // is in fact represented in the dump, we don't want to
+                    // return failure!  We recurse into reading whatever won't
+                    // be satisfied by this region, and (if that succeeds)
+                    // fall through into reading this one.
+                    //
+                    let next = (size - (addr - base)) as usize;
+
+                    if next >= rsize
+                        || self.read_8(base + size, &mut data[next..]).is_err()
+                    {
+                        bail!(
+                            "0x{:x} is valid, but relative to base (0x{:x}), \
+                            offset (0x{:x}) exceeds max (0x{:x})",
+                            addr, base, (addr - base) + rsize as u32, size
+                        );
+                    }
+                }
+
                 let offs = offset + (addr - base) as usize;
                 self.check_offset(addr, rsize, offs)?;
 
