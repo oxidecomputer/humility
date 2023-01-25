@@ -110,6 +110,17 @@ pub fn spi_task(
     let lookup = |peripheral| {
         let spi = format!("spi{}", peripheral);
         let tasks = hubris.lookup_feature(&spi)?;
+        let tasks: Vec<HubrisTask> = tasks
+            .into_iter()
+            .filter(|t| {
+                hubris
+                    .lookup_module(*t)
+                    .ok()
+                    .and_then(|m| m.iface.as_ref())
+                    .map(|iface| iface.name == "Spi")
+                    .unwrap_or(false)
+            })
+            .collect();
 
         match tasks.len() {
             0 => Ok(None),
