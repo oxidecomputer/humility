@@ -112,7 +112,6 @@
 //!
 
 use anyhow::{bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
@@ -120,7 +119,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 
@@ -275,7 +274,13 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
             if let Some(ref task) = subargs.task {
                 if *task != module {
-                    continue;
+                    if let Ok(task_addr) = parse_int::parse::<u32>(task) {
+                        if *addr != task_addr {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
                 }
 
                 found = true;
@@ -338,7 +343,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                     ..HubrisPrintFormat::default()
                 };
 
-                print!("   |\n   +-----------> ");
+                print!("   |\n   +-----------> {:#08x} ", addr);
                 task_value.format(hubris, fmt, &mut std::io::stdout())?;
                 println!("\n");
             }
@@ -438,7 +443,7 @@ fn explain_sched_state(
         }
         SchedState::InRecv(tid) => {
             let notmask = *regs.get(&(task_index, ARMRegister::R6)).unwrap();
-            explain_recv(hubris, tid, notmask, irqs, timer);
+            explain_recv(hubris, task_index, tid, notmask, irqs, timer);
         }
     }
     Ok(())
@@ -555,6 +560,7 @@ fn explain_fault_source(e: doppel::FaultSource) {
 /// - Make common cases unobtrusive and easy to scan.
 fn explain_recv(
     hubris: &HubrisArchive,
+    task_index: u32,
     src: Option<TaskId>,
     notmask: u32,
     irqs: Option<&Vec<(u32, u32)>>,
@@ -607,16 +613,31 @@ fn explain_recv(
         }
     }
 
+    let task_mod = hubris.lookup_module(HubrisTask::Task(task_index));
+    let notification_names = if let Ok(task_mod) = task_mod {
+        hubris.manifest.task_notifications.get(&task_mod.name)
+    } else {
+        None
+    };
+    let notification_name = |s: usize| -> Option<&str> {
+        notification_names.and_then(|n| n.get(s)).map(|s| s.as_str())
+    };
+
     // Display notification bits, along with meaning where we can.
     if notmask != 0 {
         print!("{}notif:", if outer_first { "" } else { ", " });
         for nt in note_types {
-            print!(" bit{}", nt.bit);
+            let name = notification_name(nt.bit);
+            if let Some(name) = name {
+                print!(" {name}");
+            } else {
+                print!(" bit{}", nt.bit);
+            }
             if !nt.irqs.is_empty() || nt.timer.is_some() {
                 print!("(");
                 let mut first = true;
                 if let Some(ts) = nt.timer {
-                    print!("T{:+}", ts);
+                    print!("{}T{:+}", if !first { "/" } else { "" }, ts);
                     first = false;
                 }
                 for irq in &nt.irqs {
@@ -634,15 +655,15 @@ fn explain_recv(
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "tasks",
+pub fn init() -> Command {
+    Command {
+        app: TasksArgs::command(),
+        name: "tasks",
+        run: tasks,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: tasks,
         },
-        TasksArgs::command(),
-    )
+    }
 }

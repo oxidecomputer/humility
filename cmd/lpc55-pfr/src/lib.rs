@@ -24,11 +24,10 @@
 //! ```
 
 use anyhow::{bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::{arch::ARMRegister, core::Core};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use lpc55_areas::{CFPAPage, CMPAPage};
 use std::io::Read;
 use std::path::PathBuf;
@@ -373,15 +372,15 @@ fn lpc55_pfr(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "lpc55-pfr",
+pub fn init() -> Command {
+    Command {
+        app: PfrArgs::command(),
+        name: "lpc55-pfr",
+        run: lpc55_pfr,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: lpc55_pfr,
         },
-        PfrArgs::command(),
-    )
+    }
 }

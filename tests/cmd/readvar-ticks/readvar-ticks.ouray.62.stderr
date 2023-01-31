@@ -1,2 +1,2 @@
 humility: attached to dump
-humility readvar failed: 0x20000020 is valid, but relative to base (0x802a000), offset (0x17fd6028) exceeds max (0x58)
+humility readvar failed: read of 8 bytes from invalid address: 0x20000020

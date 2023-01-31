@@ -12,6 +12,16 @@
   R11 = 0x00000004
   R12 = 0x20002aa8 <- i2c_driver: 0x20002800+0x2a8
    SP = 0x20000eb0 <- kernel: 0x20000000+0xeb0
+        |
+        +--->  0x20000f58 0x080022ee <kern::arch::arm_m::SavedState as kern::task::ArchState>::arg1
+               0x20000f58 0x080022ee kern::task::AsIrqArgs<&T>::control
+               0x20000f58 0x080022dc kern::syscalls::irq_control
+               0x20000f58 0x080020a0 kern::syscalls::safe_syscall_entry
+               0x20000f58 0x080020a0 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x08002074 kern::arch::arm_m::with_task_table
+               0x20000f58 0x080022ee syscall_entry
+               0x20000f58 0x0800375a SVCall
+
    LR = 0x0800208f <- kernel: syscall_entry+0x27
    PC = 0x080022ee <- kernel: syscall_entry+0x286
   PSR = 0x0100000b <- 0000_0001_0000_0000_0000_0000_0000_1011

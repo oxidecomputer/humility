@@ -56,6 +56,10 @@
 //! 0x00011d00 |    62 6f 75 6e 64 73                            |  bounds
 //! ```
 //!
+//! The length argument can have an optional size suffix.  Note that "k" is
+//! used to to denote the SI kilobytes (that is, 1000 bytes); if one wishes to
+//! have a multiples of 1024 bytes (a kibibyte), "KiB" should be used instead.
+//!
 //! To display as half-words (16-bits) use `-h`; to display as words (32-bits)
 //! use `-w`.  (The addresses must be 2-byte and 4-byte aligned, respectively.)
 //!
@@ -112,12 +116,28 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use std::convert::TryInto;
+
+//
+// We allow the size to be specified as a number (e.g., with an optional `0x`
+// prefix) or with a suffix (e.g. `KiB`) but not both -- with apologies for
+// those who yearn to express themselves in terms of octal multiples of
+// kibibytes!
+//
+fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
+    if let Ok(s) = std::str::from_utf8(src.as_ref()) {
+        if let Ok(rval) = parse_int::parse::<u64>(s) {
+            return Ok(rval);
+        }
+    }
+
+    let cfg = parse_size::Config::new();
+    cfg.parse_size(src)
+}
 
 #[derive(Parser, Debug)]
 #[clap(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -138,8 +158,8 @@ struct ReadmemArgs {
     address: String,
 
     /// length to read
-    #[clap(parse(try_from_str = parse_int::parse))]
-    length: Option<usize>,
+    #[clap(parse(try_from_str = parse_size))]
+    length: Option<u64>,
 }
 
 fn readmem(context: &mut humility::ExecutionContext) -> Result<()> {
@@ -157,7 +177,7 @@ fn readmem(context: &mut humility::ExecutionContext) -> Result<()> {
         1
     };
 
-    let length = subargs.length.unwrap_or(256);
+    let length = subargs.length.unwrap_or(256) as usize;
 
     if length & (size - 1) != 0 {
         bail!("length must be {}-byte aligned", size);
@@ -223,15 +243,15 @@ fn readmem(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "readmem",
+pub fn init() -> Command {
+    Command {
+        app: ReadmemArgs::command(),
+        name: "readmem",
+        run: readmem,
+        kind: CommandKind::Attached {
             archive: Archive::Optional,
             attach: Attach::Any,
             validate: Validate::None,
-            run: readmem,
         },
-        ReadmemArgs::command(),
-    )
+    }
 }

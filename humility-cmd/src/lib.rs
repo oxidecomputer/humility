@@ -11,6 +11,7 @@ pub mod stack;
 pub mod test;
 
 use anyhow::{bail, Result};
+use clap::Command as ClapCommand;
 use humility::cli::Cli;
 use humility::core::Core;
 use humility::hubris::*;
@@ -46,32 +47,28 @@ pub enum Validate {
     None,
 }
 
-pub enum Command {
+pub struct Command {
+    pub app: ClapCommand<'static>,
+    pub name: &'static str,
+    pub kind: CommandKind,
+    pub run: fn(&mut humility::ExecutionContext) -> Result<()>,
+}
+
+impl Command {
+    pub fn short_description(&self) -> String {
+        self.app.get_about().unwrap().to_string()
+    }
+}
+
+pub enum CommandKind {
     /// Attached to a live system or dump
-    Attached {
-        name: &'static str,
-        archive: Archive,
-        attach: Attach,
-        validate: Validate,
-        run: fn(&mut humility::ExecutionContext) -> Result<()>,
-    },
-    /// Not attached to a live system or dump, but may later attach
-    Unattached {
-        name: &'static str,
-        archive: Archive,
-        run: fn(&mut humility::ExecutionContext) -> Result<()>,
-    },
+    Attached { archive: Archive, attach: Attach, validate: Validate },
+    /// Not attached to a live system or dump
+    Unattached { archive: Archive },
     /// Will never attach: any options attaching should be an error
-    Detached {
-        name: &'static str,
-        archive: Archive,
-        run: fn(&mut humility::ExecutionContext) -> Result<()>,
-    },
+    Detached { archive: Archive },
     /// Operate on a raw archive, from either the command line or a dump
-    Raw {
-        name: &'static str,
-        run: fn(&mut humility::ExecutionContext) -> Result<()>,
-    },
+    Raw,
 }
 
 pub fn attach_live(

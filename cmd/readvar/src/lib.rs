@@ -37,12 +37,11 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "readvar", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -50,13 +49,20 @@ struct ReadvarArgs {
     /// values in decimal instead of hex
     #[clap(long, short)]
     decimal: bool,
+
     /// interpret array contents as a C string (ignored if variable is not an
     /// array)
     #[clap(long)]
     as_c_string: bool,
+
     /// list variables
     #[clap(long, short)]
     list: bool,
+
+    /// leave target halted
+    #[clap(long)]
+    leave_halted: bool,
+
     #[clap(conflicts_with = "list")]
     variable: Option<String>,
 }
@@ -72,7 +78,10 @@ fn readvar_dump(
 
     core.halt()?;
     core.read_8(variable.addr, buf.as_mut_slice())?;
-    core.run()?;
+
+    if !subargs.leave_halted {
+        core.run()?;
+    }
 
     let hex = !subargs.decimal;
 
@@ -110,18 +119,22 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
         readvar_dump(hubris, core, v, &subargs)?;
     }
 
+    if subargs.leave_halted {
+        humility::msg!("leaving target halted");
+    }
+
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "readvar",
+pub fn init() -> Command {
+    Command {
+        app: ReadvarArgs::command(),
+        name: "readvar",
+        run: readvar,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Match,
-            run: readvar,
         },
-        ReadvarArgs::command(),
-    )
+    }
 }

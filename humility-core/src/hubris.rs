@@ -36,7 +36,7 @@ const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 
-const MAX_HUBRIS_VERSION: u32 = 5;
+const MAX_HUBRIS_VERSION: u32 = 7;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -48,6 +48,7 @@ pub struct HubrisManifest {
     pub target: Option<String>,
     pub task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
+    pub task_notifications: HashMap<String, Vec<String>>,
     pub peripherals: BTreeMap<String, u32>,
     pub peripherals_byaddr: BTreeMap<u32, String>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
@@ -90,7 +91,16 @@ struct HubrisConfigKernel {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigTask {
     features: Option<Vec<String>>,
-    interrupts: Option<IndexMap<String, u32>>,
+    #[serde(default)]
+    notifications: Vec<String>,
+    interrupts: Option<IndexMap<String, HubrisTaskInterrupt>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+enum HubrisTaskInterrupt {
+    Mask(u32),
+    Named(String),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2637,12 +2647,30 @@ impl HubrisArchive {
                             }
                         }
                     };
+                    let notification = match notification {
+                        HubrisTaskInterrupt::Mask(i) => *i,
+                        HubrisTaskInterrupt::Named(name) => match task
+                            .notifications
+                            .iter()
+                            .position(|n| n == name)
+                        {
+                            Some(i) => i.try_into().unwrap(),
+                            None => bail!(
+                                "could not find notification '{name}' \
+                                 (options are {:?})",
+                                task.notifications),
+                        },
+                    };
 
-                    task_irqs.push((*notification, irq));
+                    task_irqs.push((notification, irq));
                 }
 
                 self.manifest.task_irqs.insert(name.clone(), task_irqs);
             }
+
+            self.manifest
+                .task_notifications
+                .insert(name.clone(), task.notifications.clone());
         }
 
         if let Some(ref config) = config.config {
@@ -2826,17 +2854,18 @@ impl HubrisArchive {
         //
         let contents = fs::read(archive)?;
 
+        let cursor = Cursor::new(&contents);
+        let archive = zip::ZipArchive::new(cursor)?;
+        let comment = str::from_utf8(archive.comment())
+            .context("Failed to decode comment string")?;
+        Self::check_version(comment)?;
+
         if doneness == HubrisArchiveDoneness::Cook {
             self.load_archive(&contents)?;
         }
 
         self.archive = contents;
-
-        let cursor = Cursor::new(&self.archive);
-        let archive = zip::ZipArchive::new(cursor)?;
-        let comment = str::from_utf8(archive.comment())
-            .context("Failed to decode comment string")?;
-        Self::check_version(comment)
+        Ok(())
     }
 
     fn check_version(comment: &str) -> Result<()> {

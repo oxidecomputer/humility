@@ -18,7 +18,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20000abc   LR = 0x080061d9   PC = 0x0800697c
    |      PSR = 0x01000200
    |
-   +-----------> Task {
+   +-----------> 0x20000288 Task {
                     save: SavedState {
                         r4: 0x8006c3c,
                         r5: 0x0,
@@ -64,7 +64,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200009a4   LR = 0x08003889   PC = 0x08003d6a
    |      PSR = 0x01000200
    |
-   +-----------> Task {
+   +-----------> 0x200002f8 Task {
                     save: SavedState {
                         r4: 0x200009d8,
                         r5: 0x5,
@@ -110,7 +110,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20000c8c   LR = 0x0800309b   PC = 0x0800319c
    |      PSR = 0x01000200
    |
-   +-----------> Task {
+   +-----------> 0x20000368 Task {
                     save: SavedState {
                         r4: 0x20000cc4,
                         r5: 0x10,
@@ -156,7 +156,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20000d8c   LR = 0x0800713d   PC = 0x08007642
    |      PSR = 0x01000200
    |
-   +-----------> Task {
+   +-----------> 0x200003d8 Task {
                     save: SavedState {
                         r4: 0x20000dcc,
                         r5: 0x4,
@@ -212,7 +212,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200010ac   LR = 0x0800512d   PC = 0x080050ac
    |      PSR = 0x01000200
    |
-   +-----------> Task {
+   +-----------> 0x20000448 Task {
                     save: SavedState {
                         r4: 0x8005408,
                         r5: 0x0,
@@ -256,7 +256,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20000838   LR = 0x08002f2b   PC = 0x08002f44
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x200004b8 Task {
                     save: SavedState {
                         r4: 0x0,
                         r5: 0x0,

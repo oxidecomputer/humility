@@ -34,14 +34,13 @@
 
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::hiffy::*;
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 
 use std::convert::TryInto;
 use std::str;
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 
@@ -111,6 +110,17 @@ pub fn spi_task(
     let lookup = |peripheral| {
         let spi = format!("spi{}", peripheral);
         let tasks = hubris.lookup_feature(&spi)?;
+        let tasks: Vec<HubrisTask> = tasks
+            .into_iter()
+            .filter(|t| {
+                hubris
+                    .lookup_module(*t)
+                    .ok()
+                    .and_then(|m| m.iface.as_ref())
+                    .map(|iface| iface.name == "Spi")
+                    .unwrap_or(false)
+            })
+            .collect();
 
         match tasks.len() {
             0 => Ok(None),
@@ -303,15 +313,15 @@ fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "spi",
+pub fn init() -> Command {
+    Command {
+        app: SpiArgs::command(),
+        name: "spi",
+        run: spi,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: spi,
         },
-        SpiArgs::command(),
-    )
+    }
 }

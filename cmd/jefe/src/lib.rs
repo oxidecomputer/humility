@@ -95,12 +95,11 @@
 //! normal, or `--start`/`-s` to run it once but catch the next fault.
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::jefe::{send_request, JefeRequest};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use std::num::NonZeroU32;
 
 #[derive(Parser, Debug)]
@@ -175,15 +174,15 @@ fn jefe(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "jefe",
+pub fn init() -> Command {
+    Command {
+        app: JefeArgs::command(),
+        name: "jefe",
+        run: jefe,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: jefe,
         },
-        JefeArgs::command(),
-    )
+    }
 }

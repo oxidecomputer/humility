@@ -22,10 +22,10 @@ use std::process::{Command, Stdio};
 use cmd_openocd::get_probe_serial;
 
 use humility::cli::Subcommand;
-use humility_cmd::{Archive, Command as HumilityCmd};
+use humility_cmd::{Archive, Command as HumilityCmd, CommandKind};
 
 use anyhow::{bail, Context, Result};
-use clap::{Command as ClapCommand, CommandFactory, Parser};
+use clap::{CommandFactory, Parser};
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -201,13 +201,11 @@ fn gdb(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (HumilityCmd, ClapCommand<'static>) {
-    (
-        HumilityCmd::Unattached {
-            name: "gdb",
-            archive: Archive::Required,
-            run: gdb,
-        },
-        GdbArgs::command(),
-    )
+pub fn init() -> HumilityCmd {
+    HumilityCmd {
+        app: GdbArgs::command(),
+        name: "gdb",
+        run: gdb,
+        kind: CommandKind::Unattached { archive: Archive::Required },
+    }
 }

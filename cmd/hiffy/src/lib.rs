@@ -47,15 +47,14 @@
 
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Context, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
-use humility_cmd::idol;
 use humility_cmd::{hiffy::*, Archive, Attach, Command, Validate};
+use humility_cmd::{idol, CommandKind};
 use std::io::Read;
 
 #[derive(Parser, Debug)]
@@ -573,15 +572,15 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "hiffy",
+pub fn init() -> Command {
+    Command {
+        app: HiffyArgs::command(),
+        name: "hiffy",
+        run: hiffy,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::Any,
             validate: Validate::Booted,
-            run: hiffy,
         },
-        HiffyArgs::command(),
-    )
+    }
 }

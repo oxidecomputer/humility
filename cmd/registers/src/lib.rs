@@ -130,12 +130,11 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::arch::{ARMRegister, ARMRegisterField};
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
 use std::collections::BTreeMap;
@@ -365,15 +364,15 @@ fn registers(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "registers",
+pub fn init() -> Command {
+    Command {
+        app: RegistersArgs::command(),
+        name: "registers",
+        run: registers,
+        kind: CommandKind::Attached {
             archive: Archive::Optional,
             attach: Attach::Any,
             validate: Validate::None,
-            run: registers,
         },
-        RegistersArgs::command(),
-    )
+    }
 }

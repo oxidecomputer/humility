@@ -2,4 +2,4 @@ humility: attached to dump
 humility spd failed: failed to read TASK_TABLE_SIZE
 
 Caused by:
-    0x20000008 is valid, but relative to base (0x802a000), offset (0x17fd600c) exceeds max (0x58)
+    read of 4 bytes from invalid address: 0x20000008

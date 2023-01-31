@@ -18,7 +18,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20001328   LR = 0x080081c7   PC = 0x08009b56
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x200001f0 Task {
                     save: SavedState {
                         r4: 0x800a3cc,
                         r5: 0x0,
@@ -82,7 +82,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x200017b8   LR = 0x0800c07b   PC = 0x0800ceee
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x200002a0 Task {
                     save: SavedState {
                         r4: 0x200017e0,
                         r5: 0x4,
@@ -148,7 +148,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20001ba8   LR = 0x0800e15f   PC = 0x0800f03e
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000350 Task {
                     save: SavedState {
                         r4: 0x20001bd0,
                         r5: 0x5,
@@ -212,7 +212,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20001fa0   LR = 0x0801014d   PC = 0x0801116a
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x20000400 Task {
                     save: SavedState {
                         r4: 0x80116a0,
                         r5: 0x0,
@@ -278,7 +278,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000003   SP = 0x20002310   LR = 0x080144f9   PC = 0x0801620a
    |      PSR = 0x61000000
    |
-   +-----------> Task {
+   +-----------> 0x200004b0 Task {
                     save: SavedState {
                         r4: 0x200023cc,
                         r5: 0x4,
@@ -340,7 +340,7 @@ ID TASK                       GEN PRI STATE
    |      R12 = 0x00000000   SP = 0x20002b30   LR = 0x080183f1   PC = 0x080198fa
    |      PSR = 0x41000000
    |
-   +-----------> Task {
+   +-----------> 0x20000560 Task {
                     save: SavedState {
                         r4: 0x8019edc,
                         r5: 0x0,

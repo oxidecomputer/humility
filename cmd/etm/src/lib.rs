@@ -3,13 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
-use humility_cmd::attach_live;
+use humility_cmd::{attach_live, CommandKind};
 use humility_cmd::{Archive, Command};
 use humility_cortex::debug::*;
 use humility_cortex::etm::*;
@@ -622,13 +621,11 @@ fn etmcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     rval
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "etm",
-            archive: Archive::Required,
-            run: etmcmd,
-        },
-        EtmArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: EtmArgs::command(),
+        name: "etm",
+        run: etmcmd,
+        kind: CommandKind::Unattached { archive: Archive::Required },
+    }
 }

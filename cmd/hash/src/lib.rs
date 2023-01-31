@@ -3,11 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 
 use humility::cli::Subcommand;
-use humility_cmd::hiffy::*;
+use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
 use sha2::{Digest, Sha256};
 use std::fs::File;
@@ -474,15 +473,15 @@ fn print_hash(buf: &[u8]) {
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "hash",
+pub fn init() -> Command {
+    Command {
+        app: HashArgs::command(),
+        name: "hash",
+        run: hash,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: hash,
         },
-        HashArgs::command(),
-    )
+    }
 }

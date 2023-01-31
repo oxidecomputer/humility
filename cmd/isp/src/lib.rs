@@ -16,10 +16,9 @@
 
 use anyhow::Result;
 use byteorder::ByteOrder;
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
-use humility_cmd::{Archive, Command, Dumper};
+use humility_cmd::{Archive, Command, CommandKind, Dumper};
 use lpc55_areas::{CFPAPage, CMPAPage};
 use serialport::{DataBits, FlowControl, Parity, StopBits};
 use std::io::Read;
@@ -488,13 +487,11 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "isp",
-            archive: Archive::Optional,
-            run: ispcmd,
-        },
-        IspArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: IspArgs::command(),
+        name: "isp",
+        run: ispcmd,
+        kind: CommandKind::Unattached { archive: Archive::Optional },
+    }
 }

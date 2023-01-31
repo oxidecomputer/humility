@@ -34,22 +34,38 @@
 //! ```console
 //! % humility -d hubris.core.0 tasks
 //! humility: attached to dump
-//! ID ADDR     TASK               GEN STATE
-//!  0 20000168 jefe                 0 Healthy(InRecv(None))
-//!  1 200001d8 rcc_driver           0 Healthy(InRecv(None))
-//!  2 20000248 gpio_driver          0 Healthy(InRecv(None))
-//!  3 200002b8 usart_driver         0 Healthy(InRecv(None))
-//!  4 20000328 i2c_driver           0 Healthy(InRecv(None))
-//!  5 20000398 user_leds            0 Healthy(InRecv(None))
-//!  6 20000408 pong                 0 Healthy(InRecv(None))
-//!  7 20000478 ping                40 Healthy(InReply(TaskId(0x3)))
-//!  8 200004e8 adt7420              0 Healthy(InRecv(Some(TaskId(0xffff))))
-//!  9 20000558 idle                 0 Healthy(Runnable)          <-
+//! system time = 94529
+//! ID TASK                       GEN PRI STATE    
+//!  0 jefe                         0   0 recv, notif: bit0 bit1(T+71)
+//!  1 net                          1   5 recv, notif: bit0(irq61) bit2(T+213)
+//!  2 sys                          0   1 recv
+//!  3 spi4_driver                  0   3 recv
+//!  4 spi2_driver                  0   3 recv
+//!  5 i2c_driver                   0   3 recv
+//!  6 spd                          0   2 notif: bit0(irq31/irq32)
+//!  7 thermal                      0   5 recv, notif: bit0(T+673)
+//!  8 power                        0   6 recv, notif: bit0(T+351)
+//!  9 hiffy                        0   5 wait: reply from dump_agent/gen0
+//! 10 gimlet_seq                   0   4 recv, notif: bit0
+//! 11 hash_driver                  0   2 recv
+//! 12 hf                           0   3 recv
+//! 13 update_server                0   3 recv
+//! 14 sensor                       0   4 recv, notif: bit0(T+472)
+//! 15 host_sp_comms                0   7 recv, notif: bit0(irq82) bit1 bit2(T+59) bit3
+//! 16 udpecho                      0   6 notif: bit0
+//! 17 udpbroadcast                 0   6 notif: bit31(T+86)
+//! 18 udprpc                       0   6 notif: bit0
+//! 19 control_plane_agent          0   6 recv, notif: bit0 bit1(irq37) bit2
+//! 20 sprot                        0   4 notif: bit31(T+2)
+//! 21 validate                     0   5 recv
+//! 22 vpd                          0   4 recv
+//! 23 user_leds                    0   2 recv
+//! 24 dump_agent                   0   4 wait: reply from sprot/gen0
+//! 25 idle                         0   8 RUNNING
 //! ```
 //!
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use core::mem::size_of;
 use hif::*;
@@ -59,7 +75,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humpty::{
     DumpAreaHeader, DumpRegister, DumpSegmentData, DumpSegmentHeader,
 };
@@ -83,7 +99,7 @@ use zerocopy::FromBytes;
 struct DumpArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 20000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
@@ -95,6 +111,10 @@ struct DumpArgs {
     /// force use of the dump agent when directly attached with a debug probe
     #[clap(long)]
     force_dump_agent: bool,
+
+    /// force manual initiation, leaving target halted
+    #[clap(long, requires = "force-dump-agent")]
+    force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
     #[clap(long, conflicts_with = "simulation")]
@@ -123,6 +143,10 @@ struct DumpArgs {
     /// compressed memory back to agent's dump region
     #[clap(long, group = "simulation")]
     emulate_dumper: bool,
+
+    /// leave the target halted
+    #[clap(long, conflicts_with = "simulation")]
+    leave_halted: bool,
 
     dumpfile: Option<String>,
 }
@@ -417,14 +441,51 @@ fn take_dump(
     //
     core.set_timeout(Duration::new(60, 0))?;
 
-    humility::msg!("taking dump; target will be stopped for ~20 seconds");
+    let rindex = if !core.is_net() {
+        //
+        // If we are connected via a dongle, we will need to be unplugged
+        // in order for the dump to operate.  Emit a message to this
+        // effect, and then send a HIF payload that will wait for 10
+        // seconds (100 iterations of 100ms apiece) and then start the dump;
+        // if the dongle has been pulled, the dump will start -- and if
+        // not the dump will fail.  However, because determining the
+        // presence of the dongle necessitates activating the pins on the
+        // RoT, we will lose our connection either way -- and unless the
+        // dump fails for an earlier reason, it will look like we lost
+        // our SWD connection no matter what.
+        //
+        humility::msg!("dump will start in 10 seconds; unplug probe now");
+
+        let sleep = funcs.get("Sleep", 1)?;
+        let ms = 100;
+        let iter = 100;
+
+        ops.extend([
+            Op::Push(0),                      // Iterations completed
+            Op::Push(0),                      // Dummy comparison value
+            Op::Label(Target(0)),             // Start of loop
+            Op::Drop,                         // Drop comparison
+            Op::Push(ms),                     // Push arg for 100ms
+            Op::Call(sleep.id),               // Sleep for 100ms
+            Op::Drop,                         // Drop arg
+            Op::Push(1),                      // Push increment value
+            Op::Add,                          // Add to iterations
+            Op::Push(iter),                   // Push limit
+            Op::BranchGreaterThan(Target(0)), // Continue if not at limit
+        ]);
+
+        iter as usize
+    } else {
+        humility::msg!("taking dump; target will be stopped for ~20 seconds");
+        0
+    };
 
     context.idol_call_ops(funcs, &op, &[], &mut ops)?;
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    if let Err(err) = results[0] {
+    if let Err(err) = results[rindex] {
         bail!("failed to take dump: {}", op.strerror(err));
     }
 
@@ -845,6 +906,23 @@ fn dump_via_agent(
             core.run()?;
             humility::msg!("core resumed");
         } else if !subargs.force_read {
+            if subargs.force_manual_initiation {
+                core.halt()?;
+                humility::msg!("leaving core halted");
+                let base = header.address;
+                humility::msg!(
+                    "unplug probe and manually \
+                    initiate dump from address {:#x}",
+                    base
+                );
+                humility::msg!(
+                    "e.g., \"humility hiffy --call \
+                    Dumper.dump -a address={:#x}\"",
+                    base
+                );
+                return Ok(());
+            }
+
             //
             // Tell the thing to take a dump
             //
@@ -887,7 +965,7 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     if subargs.dump_agent_status {
         dump_agent_status(hubris, core, &subargs)
-    } else if core.is_net() || subargs.force_dump_agent {
+    } else if core.is_net() || subargs.force_dump_agent || subargs.force_read {
         dump_via_agent(hubris, core, &subargs)
     } else {
         if subargs.initialize_dump_agent {
@@ -901,22 +979,26 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         let rval =
             hubris.dump(core, &regions, subargs.dumpfile.as_deref(), None);
 
-        core.run()?;
-        humility::msg!("core resumed");
+        if !subargs.leave_halted {
+            core.run()?;
+            humility::msg!("core resumed");
+        } else {
+            humility::msg!("core left halted");
+        }
 
         rval
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "dump",
+pub fn init() -> Command {
+    Command {
+        app: DumpArgs::command(),
+        name: "dump",
+        run: dumpcmd,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Match,
-            run: dumpcmd,
         },
-        DumpArgs::command(),
-    )
+    }
 }

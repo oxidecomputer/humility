@@ -6,7 +6,7 @@ use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashMap;
 
 //
@@ -27,17 +27,13 @@ pub fn init(
     let dcmds = dcmds();
 
     for dcmd in dcmds {
-        let (cmd, subcmd) = (dcmd.init)();
-        let name = match cmd {
-            Command::Attached { name, .. } => name,
-            Command::Unattached { name, .. } => name,
-            Command::Detached { name, .. } => name,
-            Command::Raw { name, .. } => name,
-        };
+        let cmd = (dcmd.init)();
+        let app = cmd.app.clone();
+        let name = cmd.name;
 
         cmds.insert(name, cmd);
 
-        rval = rval.subcommand(subcmd.after_help(dcmd.docmsg));
+        rval = rval.subcommand(app.after_help(dcmd.docmsg));
     }
 
     (cmds, rval)
@@ -56,17 +52,19 @@ pub fn subcommand(
 
     let mut hubris = HubrisArchive::new().context("failed to initialize")?;
 
-    let (archive, doneness) = match command {
-        Command::Attached { archive, .. } => {
+    let (archive, doneness) = match &command.kind {
+        CommandKind::Attached { archive, .. } => {
             (*archive, HubrisArchiveDoneness::Cook)
         }
-        Command::Unattached { archive, .. } => {
+        CommandKind::Unattached { archive, .. } => {
             (*archive, HubrisArchiveDoneness::Cook)
         }
-        Command::Detached { archive, .. } => {
+        CommandKind::Detached { archive, .. } => {
             (*archive, HubrisArchiveDoneness::Cook)
         }
-        Command::Raw { .. } => (Archive::Required, HubrisArchiveDoneness::Raw),
+        CommandKind::Raw { .. } => {
+            (Archive::Required, HubrisArchiveDoneness::Raw)
+        }
     };
 
     if archive != Archive::Ignored {
@@ -94,14 +92,16 @@ pub fn subcommand(
 
     context.archive = Some(hubris);
 
-    match command {
-        Command::Attached { run, attach, validate, .. } => {
+    let run = command.run;
+
+    match &command.kind {
+        CommandKind::Attached { attach, validate, .. } => {
             humility_cmd::attach(context, *attach, *validate, |context| {
                 (run)(context)
             })
         }
-        Command::Unattached { run, .. } => (run)(context),
-        Command::Detached { run, .. } => {
+        CommandKind::Unattached { .. } => (run)(context),
+        CommandKind::Detached { .. } => {
             if context.cli.dump.is_some() {
                 bail!("cannot specify a dump for {} command", cmd);
             }
@@ -116,6 +116,6 @@ pub fn subcommand(
 
             (run)(context)
         }
-        Command::Raw { run, .. } => (run)(context),
+        CommandKind::Raw { .. } => (run)(context),
     }
 }

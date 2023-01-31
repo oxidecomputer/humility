@@ -80,6 +80,7 @@
 
 use humility::cli::Subcommand;
 use humility::core::Core;
+use humility_cmd::CommandKind;
 use humility_cmd::{hiffy::*, Archive, Attach, Command, Dumper, Validate};
 use sha2::{Digest, Sha256};
 use std::fmt;
@@ -90,7 +91,6 @@ use std::mem;
 use std::time::Instant;
 
 use anyhow::{anyhow, bail, Result};
-use clap::Command as ClapCommand;
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 
@@ -1037,15 +1037,15 @@ impl fmt::Display for DeviceIdData {
     }
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Attached {
-            name: "qspi",
+pub fn init() -> Command {
+    Command {
+        app: QspiArgs::command(),
+        name: "qspi",
+        run: qspi,
+        kind: CommandKind::Attached {
             archive: Archive::Required,
             attach: Attach::LiveOnly,
             validate: Validate::Booted,
-            run: qspi,
         },
-        QspiArgs::command(),
-    )
+    }
 }
