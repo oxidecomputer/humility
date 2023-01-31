@@ -9,10 +9,9 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::Command as ClapCommand;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
 
 #[derive(Parser, Debug)]
 #[clap(name = "bankerase", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -86,15 +85,13 @@ fn bankerasecmd(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> (Command, ClapCommand<'static>) {
-    (
-        Command::Unattached {
-            name: "bankerase",
-            archive: Archive::Required,
-            run: bankerasecmd,
-        },
-        FlashArgs::command(),
-    )
+pub fn init() -> Command {
+    Command {
+        app: FlashArgs::command(),
+        name: "bankerase",
+        run: bankerasecmd,
+        kind: CommandKind::Unattached { archive: Archive::Required },
+    }
 }
 
 fn generate_zeros(address: u32, len: u32) -> Result<String> {
