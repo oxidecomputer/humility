@@ -4,8 +4,14 @@
 
 //! ## `humility bankerase`
 //!
-//! Erase some memory please write some words
+//! Erase flash in "erase block" size chunks (32 KiB) on the RoT.
 //!
+//! Erase `len` is given in bytes and then rounded up to the nearest block
+//! size so that all pages containing the range are erased. Then the erased
+//! pages are overwritten with 0s, but only starting at the address given. In
+//! other words, if the address is given as 0x40001 and len as 512, flash will
+//! be erased from 0x40000 to 0x48000,  but address 0x40000 will have value
+//! `0xff`, and every other byte will have value `0`.
 //!
 
 use anyhow::{bail, Result};
@@ -20,7 +26,8 @@ struct FlashArgs {
     #[clap(long, short = 'F')]
     force: bool,
 
-    /// reset delay
+    /// The time in milliseconds between erasing/zeroing flash and resetting
+    /// the RoT
     #[clap(
         long = "reset-delay", short = 'd',
         default_value_t = 100, value_name = "timeout_ms",
@@ -28,9 +35,12 @@ struct FlashArgs {
     )]
     reset_delay: u64,
 
+    /// The starting address of the flash to be erased on the RoT
     #[clap(long, parse(try_from_str = parse_int::parse))]
     address: u32,
 
+    /// The number of bytes to be erased. This is rounded up to the nearest
+    /// erase page size (32 KiB).
     #[clap(long, parse(try_from_str = parse_int::parse))]
     len: u32,
 }
