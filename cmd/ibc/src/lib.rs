@@ -101,8 +101,8 @@ impl<'a> IbcHandler<'a> {
 
         // Let's unroll the loop here to avoid having to think about it in HIF
         for i in 0..48 {
-            ops.push(Op::Push(i)); // This is our actual index
             ops.push(Op::Push(EVENT_INDEX));
+            ops.push(Op::Push(i)); // This is our actual index
             ops.push(Op::Push(1)); // Number of words to write
             ops.push(Op::Call(write_func.id));
             ops.push(Op::DropN(3));
