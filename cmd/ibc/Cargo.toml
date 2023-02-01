@@ -2,7 +2,7 @@
 name = "humility-cmd-ibc"
 version = "0.1.0"
 edition = "2021"
-description = "device-specific operations on the BMR491"
+description = "device-specific operations for the BMR491"
 
 [dependencies]
 anyhow.workspace = true
@@ -10,6 +10,7 @@ clap.workspace = true
 colored.workspace = true
 log.workspace = true
 parse_int.workspace = true
+zerocopy.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
