@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.9.27"
+version = "0.9.28"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -47,6 +47,7 @@ members = [
     "cmd/hiffy",
     "cmd/rpc",
     "cmd/i2c",
+    "cmd/ibc",
     "cmd/itm",
     "cmd/jefe",
     "cmd/lpc55gpio",
@@ -134,6 +135,7 @@ cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
 cmd-hash = { path = "./cmd/hash", package = "humility-cmd-hash" }
 cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
 cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }
+cmd-ibc = { path = "./cmd/ibc", package = "humility-cmd-ibc" }
 cmd-isp = { path = "./cmd/isp", package = "humility-cmd-isp" }
 cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
@@ -269,6 +271,7 @@ cmd-gpio = { workspace = true }
 cmd-hash = { workspace = true }
 cmd-hiffy = { workspace = true }
 cmd-i2c = { workspace = true }
+cmd-ibc = { workspace = true }
 cmd-isp = { workspace = true }
 cmd-itm = { workspace = true }
 cmd-jefe = { workspace = true }

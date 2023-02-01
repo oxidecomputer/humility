@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.27"
+version = "0.9.28"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1049,6 +1049,7 @@ dependencies = [
  "humility-cmd-hash",
  "humility-cmd-hiffy",
  "humility-cmd-i2c",
+ "humility-cmd-ibc",
  "humility-cmd-isp",
  "humility-cmd-itm",
  "humility-cmd-jefe",
@@ -1403,6 +1404,24 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-ibc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "log",
+ "parse_int",
+ "pmbus",
+ "zerocopy",
 ]
 
 [[package]]
