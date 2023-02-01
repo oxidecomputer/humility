@@ -1049,6 +1049,7 @@ dependencies = [
  "humility-cmd-hash",
  "humility-cmd-hiffy",
  "humility-cmd-i2c",
+ "humility-cmd-ibc",
  "humility-cmd-isp",
  "humility-cmd-itm",
  "humility-cmd-jefe",
@@ -1403,6 +1404,23 @@ dependencies = [
  "indicatif",
  "log",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-ibc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "idol",
+ "log",
+ "parse_int",
+ "pmbus",
 ]
 
 [[package]]
