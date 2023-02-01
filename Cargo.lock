@@ -1033,6 +1033,7 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
+ "humility-cmd-bankerase",
  "humility-cmd-console-proxy",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
@@ -1150,6 +1151,28 @@ dependencies = [
  "log",
  "parse_int",
  "tlvc",
+]
+
+[[package]]
+name = "humility-cmd-bankerase"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "goblin",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "ihex",
+ "log",
+ "num-traits",
+ "parse_int",
+ "path-slash",
+ "regex",
+ "ron 0.7.1",
+ "serde",
+ "srec",
+ "tempfile",
 ]
 
 [[package]]
