@@ -29,6 +29,7 @@ members = [
     "humility-arch-cortex",
     "cmd/apptable",
     "cmd/auxflash",
+    "cmd/bankerase",
     "cmd/console-proxy",
     "cmd/dashboard",
     "cmd/debugmailbox",
@@ -116,6 +117,7 @@ humility-cmd = { path = "./humility-cmd" }
 humility_load_derive = { path = "./load_derive" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
+cmd-bankerase = { path = "./cmd/bankerase", package = "humility-cmd-bankerase" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
@@ -250,6 +252,7 @@ humility-cortex = { workspace = true }
 humility-cmd = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
+cmd-bankerase = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
