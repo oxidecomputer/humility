@@ -2,7 +2,7 @@
 name = "humility-cmd-ibc"
 version = "0.1.0"
 edition = "2021"
-description = "device-specific operations for the BMR491"
+description = "interface to the BMR491 power regulator"
 
 [dependencies]
 anyhow.workspace = true

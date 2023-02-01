@@ -4,7 +4,67 @@
 
 //! ## `humility ibc`
 //!
-//! Tools to interact with the BMR491 IBC
+//! Interface to BMR491 power regulator
+//!
+//! This regulator is present on Gimlet and Sidecar PCAs.  Right now,
+//! `humility ibc` only exposes one subcommand: `black-box`.
+//!
+//! `humility ibc black-box` allows you to read out the blackbox log from the
+//! power converter.  This can be used to debug previous faults.  The log is
+//! stored in non-volatile memory, so it should be persistent through power
+//! loss.
+//!
+//! Here's an example:
+//! ```
+//! matt@igor ~ (sn5) $ pfexec ./humility -tsn5 ibc black-box
+//! humility: attached to 0483:374e:001B00083156501320323443 via ST-Link V3
+//! FAULT EVENT
+//!   EVENT_INDEX:        0
+//!   TIMESTAMP           0x000001ca = 45.5 sec
+//!   EVENT_ID            0x0000
+//!   STATUS_WORD         0x0010
+//!   STATUS_IOUT         0x0080
+//!   V_IN                0xf869 = 52.50V
+//!   V_OUT               0x5f00 = 11.88V
+//!   I_OUT               0x004e = 78.00A
+//!   TEMPERATURE         0x001c = 28.00°C
+//! FAULT EVENT
+//!   EVENT_INDEX:        1
+//!   TIMESTAMP           0x000001d4 = 46.6 sec
+//!   EVENT_ID            0x0001
+//!   STATUS_WORD         0x0001
+//!   STATUS_MFG          0x0001
+//!     b0 = BOOT_EVENT
+//!   V_IN                0xf83c = 30.00V
+//!   V_OUT               0x0000 = 0.00V
+//!   I_OUT               0x0000 = 0.00A
+//!   TEMPERATURE         0x0000 = 0.00°C
+//! FAULT EVENT
+//!   EVENT_INDEX:        2
+//!   TIMESTAMP           0x000002c4 = 1 min, 10.0 sec
+//!   EVENT_ID            0x0002
+//!   STATUS_WORD         0x0010
+//!   STATUS_IOUT         0x0080
+//!   V_IN                0xf877 = 59.50V
+//!   V_OUT               0x5f00 = 11.88V
+//!   I_OUT               0x0070 = 112.00A
+//!   TEMPERATURE         0x002c = 44.00°C
+//! FAULT EVENT
+//!   EVENT_INDEX:        3
+//!   TIMESTAMP           0x27ffb2c4 = 776 day, 16 hr, 48 min, 6.6 sec
+//!   EVENT_ID            0x0003
+//!   STATUS_WORD         0x0001
+//!   STATUS_MFG          0x0002
+//!     b1 = INPUT_LOW_EVENT
+//!   V_IN                0xf86b = 53.50V
+//!   V_OUT               0x6000 = 12.00V
+//!   I_OUT               0x0000 = 0.00A
+//!   TEMPERATURE         0x0016 = 22.00°C
+//! ```
+//!
+//! The log doesn't appear to be _completely_ reliable, so take it with a grain
+//! of salt and with the datasheet close at hand.  For example, the machine in
+//! the example above had **not** be up for 776 days.
 
 use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
