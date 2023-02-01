@@ -108,7 +108,7 @@ impl<'a> IbcHandler<'a> {
             ops.push(Op::DropN(3));
 
             ops.push(Op::Push(READ_EVENT));
-            ops.push(Op::Push(1)); // Number of bytes to read
+            ops.push(Op::Push(24)); // Number of bytes to read
             ops.push(Op::Call(read_func.id));
             ops.push(Op::DropN(2));
         }
