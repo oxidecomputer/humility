@@ -45,9 +45,7 @@ fn doc(context: &mut humility::ExecutionContext) -> Result<()> {
         None => docs(),
     };
 
-    let options = minimad::Options::default()
-        .clean_indentations(true)
-        .continue_spans(true);
+    let options = minimad::Options::default().continue_spans(true);
     let text = minimad::parse_text(text, options);
 
     let mut skin = MadSkin::default();

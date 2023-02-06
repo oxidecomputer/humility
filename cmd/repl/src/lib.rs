@@ -6,11 +6,11 @@
 //!
 //! `humility repl` is an interactive prompt that you can use with humility.
 //!
-//! This allows you to run several commands in succession without needing to type in some core settings
-//! over and over again.
+//! This allows you to run several commands in succession without needing to
+//! type in some core settings over and over again.
 //!
-//! `humility repl` takes the same top level arguments as any other subcommand, and will remember them
-//! inside of the prompt. For example:
+//! `humility repl` takes the same top level arguments as any other subcommand,
+//! and will remember them inside of the prompt. For example:
 //!
 //! ```console
 //! $ humility -a ../path/to/hubris/archive.zip repl
@@ -49,7 +49,9 @@
 //! in the background; your code is still running in the background while you
 //! use the repl!
 //!
-//! Finally, as you can see, `quit` will quit the repl. There is also a `history`
-//! command, which will show you recent commands you've put into the prompt.
+//! Finally, as you can see, `quit` will quit the repl. There is also a
+//! `history` command, which will show you recent commands you've put into the
+//! prompt.
 //!
-//! The repl is still very early days! We'll be adding more features in the future.
+//! The repl is still very early days! We'll be adding more features in the
+//! future.
