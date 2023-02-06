@@ -7,6 +7,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser};
+use colored::Colorize;
 use hif::*;
 use humility::cli::Subcommand;
 use humility::core::Core;
@@ -17,6 +18,7 @@ use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use raw_cpuid::{CpuId, CpuIdResult};
+use std::collections::HashSet;
 
 //
 // We pull in more or less verbatim the `cpuid` program from the raw-cpuid
@@ -179,6 +181,22 @@ fn cpuid(
     Ok(())
 }
 
+fn threadmap(arr: &reflect::Array) -> Result<HashSet<u8>> {
+    let mut rval = HashSet::new();
+
+    for (base, elem) in arr.iter().enumerate() {
+        let val = elem.as_base()?.as_u8().unwrap();
+
+        for bit in 0..8 {
+            if val & (1 << bit) != 0 {
+                rval.insert(((base * 8) + bit) as u8);
+            }
+        }
+    }
+
+    Ok(rval)
+}
+
 fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -189,6 +207,66 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
     if subargs.cpuid {
         return cpuid(hubris, core, &mut context, subargs.thread);
     }
+
+    let mut ops = vec![];
+    let funcs = context.functions()?;
+
+    let nthreads = hubris.get_idol_command("Sbrmi.nthreads")?;
+    context.idol_call_ops(&funcs, &nthreads, &[], &mut ops)?;
+
+    let enabled = hubris.get_idol_command("Sbrmi.enabled")?;
+    context.idol_call_ops(&funcs, &enabled, &[], &mut ops)?;
+
+    let alert = hubris.get_idol_command("Sbrmi.alert")?;
+    context.idol_call_ops(&funcs, &alert, &[], &mut ops)?;
+
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    let nthreads = context
+        .idol_result(&nthreads, &results[0])?
+        .as_base()?
+        .as_u8()
+        .unwrap();
+
+    let result = context.idol_result(&enabled, &results[1])?;
+    let enabled = threadmap(result.as_struct()?["value"].as_array()?)?;
+
+    let result = context.idol_result(&alert, &results[2])?;
+    let alert = threadmap(result.as_struct()?["value"].as_array()?)?;
+
+    print!(" THR");
+
+    for row in 0..16 {
+        print!(" 0x{:1x}", row);
+    }
+
+    println!();
+
+    for row in 0..8 {
+        print!("0x{:02x}", (row * 16));
+
+        for col in 0..16 {
+            let thread = (row * 16) + col as u8;
+
+            if thread < nthreads {
+                if alert.contains(&thread) {
+                    print!("{:>4}", "MCE".red());
+                } else if enabled.contains(&thread) {
+                    print!("{:>4}", "ok".green());
+                } else {
+                    print!("{:>4}", "?".blue());
+                }
+            } else {
+                print!("{:>4}", "-");
+            }
+        }
+
+        println!();
+    }
+
+    println!();
 
     Ok(())
 }
