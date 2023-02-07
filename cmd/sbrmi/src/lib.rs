@@ -101,6 +101,21 @@ fn cpuid(
     context: &mut HiffyContext,
     thread: u8,
 ) -> Result<()> {
+    //
+    // We want to call into the raw_cpuid crate to pull and display CPUID
+    // information, but it unfortunately takes only a function, not a
+    // closure.  (It -- understndably -- didn't forsee the CPUID instruction
+    // being run via a sidechannel I2C interface through an intermediary
+    // operating at a distance!)  We resort to the same technique used by the
+    // Hiffy RPC engine for its client-side HIF emulation:  we create a
+    // structure to hold the pointers to things that we need, and fill it with
+    // more or less raw pointers, transmuting away all lifetimes in the
+    // process.  We dispense with some of the precaution taken in that code
+    // because this isn't callable by anyone else, and the stakes here are
+    // generally low: we're going to call into the raw_cpuid code to
+    // prett-print the results of the proxied CPUID, and then we're going to
+    // exit.
+    //
     struct SbrmiWorkspace {
         hubris: Option<std::ptr::NonNull<HubrisArchive>>,
         core: Option<std::ptr::NonNull<dyn Core>>,
@@ -151,6 +166,8 @@ fn cpuid(
 
     SBRMI_WORKSPACE.with(|workspace| {
         let mut workspace = workspace.borrow_mut();
+
+        // Cough, cough.
         *workspace = SbrmiWorkspace {
             hubris: Some(std::ptr::NonNull::from(hubris)),
             core: Some(
@@ -197,6 +214,125 @@ fn threadmap(arr: &reflect::Array) -> Result<HashSet<u8>> {
     Ok(rval)
 }
 
+#[allow(non_camel_case_types, dead_code)]
+#[derive(Copy, Clone, Debug)]
+enum Msr {
+    MCG_CAP,
+    MCG_STATUS,
+    MCA_CTL(u8),
+    MCA_STATUS(u8),
+    MCA_ADDR(u8),
+    MCA_MISC(u8),
+    MCA_CONFIG(u8),
+    MCA_SYND(u8),
+    MCA_IPID(u8),
+    MCA_DESTAT(u8),
+    MCA_DEADDR(u8),
+}
+
+impl From<Msr> for u32 {
+    fn from(msr: Msr) -> Self {
+        let banked = |bank, offs| 0xc000_2000 + (bank as u32 * 0x10) + offs;
+
+        match msr {
+            Msr::MCG_CAP => 0x0000_0179,
+            Msr::MCG_STATUS => 0x0000_017a,
+            Msr::MCA_CTL(bank) => banked(bank, 0),
+            Msr::MCA_STATUS(bank) => banked(bank, 1),
+            Msr::MCA_ADDR(bank) => banked(bank, 2),
+            Msr::MCA_MISC(bank) => banked(bank, 3),
+            Msr::MCA_CONFIG(bank) => banked(bank, 4),
+            Msr::MCA_IPID(bank) => banked(bank, 5),
+            Msr::MCA_SYND(bank) => banked(bank, 6),
+            Msr::MCA_DESTAT(bank) => banked(bank, 8),
+            Msr::MCA_DEADDR(bank) => banked(bank, 9),
+        }
+    }
+}
+
+impl From<Msr> for u64 {
+    fn from(msr: Msr) -> Self {
+        u32::from(msr) as u64
+    }
+}
+
+fn mce(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    thread: u8,
+    mcg_cap: u64,
+) -> Result<()> {
+    //
+    // This is all a little dirty.
+    //
+    let nbanks = (mcg_cap & 0xff) as u8;
+    let op = hubris.get_idol_command("Sbrmi.rdmsr64")?;
+    let mut ops = vec![];
+    let funcs = context.functions()?;
+
+    for bank in 0..nbanks {
+        let payload = op.payload(&[
+            ("thread", idol::IdolArgument::Scalar(thread as u64)),
+            ("msr", idol::IdolArgument::Scalar(Msr::MCA_STATUS(bank).into())),
+        ])?;
+
+        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    }
+
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    for (bank, r) in results.iter().enumerate() {
+        let status = context.idol_result(&op, r)?.as_base()?.as_u64().unwrap();
+
+        if status == 0 {
+            continue;
+        }
+
+        println!("  {:02x} 0x{:016x}", bank, status);
+
+        ops = vec![];
+
+        let bank = bank as u8;
+
+        let allregs = vec![
+            Msr::MCA_IPID(bank),
+            Msr::MCA_CONFIG(bank),
+            Msr::MCA_ADDR(bank),
+            Msr::MCA_MISC(bank),
+            Msr::MCA_MISC(bank),
+            Msr::MCA_DESTAT(bank),
+            Msr::MCA_DEADDR(bank),
+        ];
+
+        for reg in &allregs {
+            let r = *reg;
+
+            let payload = op.payload(&[
+                ("thread", idol::IdolArgument::Scalar(thread as u64)),
+                ("msr", idol::IdolArgument::Scalar(r.into())),
+            ])?;
+
+            context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        }
+
+        ops.push(Op::Done);
+
+        let reg_results = context.run(core, ops.as_slice(), None)?;
+
+        for (ndx, reg) in reg_results.iter().enumerate() {
+            let v = context.idol_result(&op, reg)?.as_base()?.as_u64().unwrap();
+
+            let name = format!("{:?}", allregs[ndx]);
+            println!("    {name:20} 0x{v:016x}");
+        }
+    }
+
+    Ok(())
+}
+
 fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -219,6 +355,15 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let alert = hubris.get_idol_command("Sbrmi.alert")?;
     context.idol_call_ops(&funcs, &alert, &[], &mut ops)?;
+
+    let mcg_cap = hubris.get_idol_command("Sbrmi.rdmsr64")?;
+
+    let payload = mcg_cap.payload(&[
+        ("thread", idol::IdolArgument::Scalar(0 as u64)),
+        ("msr", idol::IdolArgument::Scalar(Msr::MCG_CAP.into())),
+    ])?;
+
+    context.idol_call_ops(&funcs, &mcg_cap, &payload, &mut ops)?;
 
     ops.push(Op::Done);
 
@@ -267,6 +412,17 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     println!();
+
+    let mcg_cap = context
+        .idol_result(&mcg_cap, &results[3])?
+        .as_base()?
+        .as_u64()
+        .unwrap();
+
+    for thread in alert {
+        println!("MCE on 0x{thread:x} ({thread}):");
+        mce(hubris, core, &mut context, thread, mcg_cap)?;
+    }
 
     Ok(())
 }
