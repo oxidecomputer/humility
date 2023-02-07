@@ -6,7 +6,7 @@
 //!
 
 use anyhow::{anyhow, Result};
-use clap::{CommandFactory, Parser};
+use clap::{ArgGroup, CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
 use humility::cli::Subcommand;
@@ -18,7 +18,7 @@ use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use raw_cpuid::{CpuId, CpuIdResult};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 //
 // We pull in more or less verbatim the `cpuid` program from the raw-cpuid
@@ -34,6 +34,7 @@ use std::cell::RefCell;
 #[derive(Parser, Debug)]
 #[clap(
     name = "sbrmi", about = env!("CARGO_PKG_DESCRIPTION"),
+    group = ArgGroup::new("command").multiple(false).required(false)
 )]
 struct SbrmiArgs {
     /// sets timeout
@@ -46,13 +47,17 @@ struct SbrmiArgs {
     /// thread to operate upon
     #[clap(
         long, short, parse(try_from_str = parse_int::parse),
-        default_value = "0"
+        requires = "command",
     )]
-    thread: u8,
+    thread: Option<u8>,
 
-    /// CPUID operations on target thread
-    #[clap(long, short)]
+    /// run/interpret CPUID on target thread
+    #[clap(long, short, group = "command")]
     cpuid: bool,
+
+    /// display MCA registers for target thread
+    #[clap(long, short, group = "command", requires = "thread")]
+    mca: bool,
 }
 
 fn call_cpuid(
@@ -99,8 +104,10 @@ fn cpuid(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    thread: u8,
+    thread: Option<u8>,
 ) -> Result<()> {
+    let thread = thread.unwrap_or(0);
+
     //
     // We want to call into the raw_cpuid crate to pull and display CPUID
     // information, but it unfortunately takes only a function, not a
@@ -215,7 +222,7 @@ fn threadmap(arr: &reflect::Array) -> Result<HashSet<u8>> {
 }
 
 #[allow(non_camel_case_types, dead_code)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 enum Msr {
     MCG_CAP,
     MCG_STATUS,
@@ -264,6 +271,7 @@ struct Field {
 }
 
 impl Field {
+    #[allow(clippy::self_named_constructors)]
     fn field(
         highbit: u16,
         lowbit: u16,
@@ -317,12 +325,13 @@ impl Msr {
     }
 }
 
-fn mce(
+fn mca(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
     thread: u8,
     mcg_cap: u64,
+    all_mca: bool,
 ) -> Result<()> {
     //
     // This is all a little dirty.
@@ -331,6 +340,7 @@ fn mce(
     let op = hubris.get_idol_command("Sbrmi.rdmsr64")?;
     let mut ops = vec![];
     let funcs = context.functions()?;
+    let thread_name = format!("thread 0x{thread:x} ({thread})");
 
     for bank in 0..nbanks {
         let payload = op.payload(&[
@@ -345,14 +355,20 @@ fn mce(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
+    if all_mca {
+        println!("MCA registers for {thread_name}:\n");
+    }
+
     for (bank, r) in results.iter().enumerate() {
         let status = context.idol_result(&op, r)?.as_base()?.as_u64().unwrap();
 
-        if status == 0 {
-            continue;
+        if !all_mca {
+            if status == 0 {
+                continue;
+            } else {
+                println!("=== MCE on {thread_name}, bank {bank} ===\n");
+            }
         }
-
-        println!("=== Bank {}", bank);
 
         ops = vec![];
 
@@ -384,16 +400,32 @@ fn mce(
         ops.push(Op::Done);
 
         let reg_results = context.run(core, ops.as_slice(), None)?;
+        let mut values = HashMap::new();
 
         for (ndx, reg) in reg_results.iter().enumerate() {
             let v = context.idol_result(&op, reg)?.as_base()?.as_u64().unwrap();
+            values.insert(allregs[ndx], v);
+        }
 
-            let name = format!("{:?}", allregs[ndx]);
-            println!("    {name:17} 0x{v:016x}");
+        if *values.get(&Msr::MCA_IPID(bank)).unwrap() == 0 {
+            continue;
+        }
 
-            if let Some(fields) = allregs[ndx].fields() {
+        for reg in &allregs {
+            let v = *(values.get(reg).unwrap());
+
+            let name = format!("{:?}", reg);
+            println!("    {name:14} 0x{v:016x}");
+
+            if let Msr::MCA_STATUS(_) = reg {
+                if v == 0 {
+                    continue;
+                }
+            }
+
+            if let Some(fields) = reg.fields() {
                 let blank = "";
-                print!("{blank:22}|\n{blank:22}+---> ");
+                print!("{blank:19}|\n{blank:19}+---> ");
 
                 for (i, field) in fields.iter().enumerate() {
                     let value = if field.highbit == field.lowbit {
@@ -417,19 +449,21 @@ fn mce(
                     let name = if let Some(mneumonic) = field.mneumonic {
                         format!("{} ({mneumonic})", field.name)
                     } else {
-                        format!("{}", field.name)
+                        field.name.to_string()
                     };
 
                     if i == 0 {
                         println!("{name:35} = {value}");
                     } else {
-                        println!("{blank:28}{name:35} = {value}");
+                        println!("{blank:25}{name:35} = {value}");
                     }
                 }
 
                 println!();
             }
         }
+
+        println!();
     }
 
     Ok(())
@@ -461,7 +495,7 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
     let mcg_cap = hubris.get_idol_command("Sbrmi.rdmsr64")?;
 
     let payload = mcg_cap.payload(&[
-        ("thread", idol::IdolArgument::Scalar(0 as u64)),
+        ("thread", idol::IdolArgument::Scalar(0_u64)),
         ("msr", idol::IdolArgument::Scalar(Msr::MCG_CAP.into())),
     ])?;
 
@@ -482,6 +516,18 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let result = context.idol_result(&alert, &results[2])?;
     let alert = threadmap(result.as_struct()?["value"].as_array()?)?;
+
+    let mcg_cap = context
+        .idol_result(&mcg_cap, &results[3])?
+        .as_base()?
+        .as_u64()
+        .unwrap();
+
+    if subargs.mca {
+        let thread = subargs.thread.unwrap();
+        mca(hubris, core, &mut context, thread, mcg_cap, true)?;
+        return Ok(());
+    }
 
     print!(" THR");
 
@@ -515,15 +561,8 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
 
     println!();
 
-    let mcg_cap = context
-        .idol_result(&mcg_cap, &results[3])?
-        .as_base()?
-        .as_u64()
-        .unwrap();
-
     for thread in alert {
-        println!("MCE on 0x{thread:x} ({thread}):");
-        mce(hubris, core, &mut context, thread, mcg_cap)?;
+        mca(hubris, core, &mut context, thread, mcg_cap, false)?;
     }
 
     Ok(())
