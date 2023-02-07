@@ -82,8 +82,10 @@
 //! this is required for erases and writes that would otherwise modify sector 0,
 //! as well as bulk erase.
 
+use cmd_hiffy as humility_cmd_hiffy;
 use humility::cli::Subcommand;
 use humility::core::Core;
+use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::CommandKind;
 use humility_cmd::{hiffy::*, Archive, Attach, Command, Dumper, Validate};
 use sha2::{Digest, Sha256};
@@ -951,15 +953,29 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         })?;
         let startup_options: u64 = parse_int::parse(startup_options)
             .context("failed to parse startup options (must be an integer)")?;
-        let slot = iter
+        let dev_select = iter
             .next()
-            .ok_or_else(|| anyhow!("could not get slot from '{p}'"))?;
-        let slot: u8 = parse_int::parse(slot)
+            .ok_or_else(|| anyhow!("could not get dev_select from '{p}'"))?;
+        let dev_select: u8 = parse_int::parse(dev_select)
             .context("failed to parse startup options (must be an integer)")?;
-        if slot > 1 {
-            bail!("slot must be 0 or 1");
-        }
-        unimplemented!()
+        let dev_select = match dev_select {
+            0 => "Flash0",
+            1 => "Flash1",
+            _ => bail!("dev_select must be 0 or 1"),
+        };
+        let out = humility_cmd_hiffy::hiffy_call(
+            hubris,
+            core,
+            &mut context,
+            &hubris.get_idol_command("HostFlash.write_persistent_data")?,
+            &[
+                ("startup_options", IdolArgument::Scalar(startup_options)),
+                ("dev_select", IdolArgument::String(dev_select)),
+            ],
+            None,
+        )?;
+        println!("Got out {out:?}");
+        return Ok(());
     } else {
         bail!("expected an operation");
     };

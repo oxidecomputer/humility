@@ -1668,6 +1668,7 @@ dependencies = [
  "clap",
  "hif",
  "humility-cmd",
+ "humility-cmd-hiffy",
  "humility-core",
  "indicatif",
  "log",
