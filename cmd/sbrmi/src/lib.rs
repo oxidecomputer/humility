@@ -256,6 +256,67 @@ impl From<Msr> for u64 {
     }
 }
 
+struct Field {
+    highbit: u16,
+    lowbit: u16,
+    name: &'static str,
+    mneumonic: Option<&'static str>,
+}
+
+impl Field {
+    fn field(
+        highbit: u16,
+        lowbit: u16,
+        name: &'static str,
+        mneumonic: Option<&'static str>,
+    ) -> Self {
+        Self { highbit, lowbit, name, mneumonic }
+    }
+
+    fn bit(
+        bit: u16,
+        name: &'static str,
+        mneumonic: Option<&'static str>,
+    ) -> Self {
+        Self { highbit: bit, lowbit: bit, name, mneumonic }
+    }
+}
+
+impl Msr {
+    fn fields(&self) -> Option<Vec<Field>> {
+        match self {
+            Msr::MCA_STATUS(_) => Some(vec![
+                Field::bit(63, "Valid", Some("VAL")),
+                Field::bit(62, "Overflow", Some("OVER")),
+                Field::bit(61, "Uncorrected error", Some("UC")),
+                Field::bit(60, "Error condition enabled", Some("EN")),
+                Field::bit(59, "Misc error register valid", Some("MISCV")),
+                Field::bit(58, "Address register valid", Some("ADDRV")),
+                Field::bit(57, "Processor context corrupt", Some("PCC")),
+                Field::bit(55, "Task content corrupt", Some("TCC")),
+                Field::bit(53, "Syndrome register valid", Some("SYNDV")),
+                Field::bit(44, "Deferred error", Some("Deferred")),
+                Field::bit(43, "Poisoned data consumed", Some("Poison")),
+                Field::field(31, 16, "Extended Error Code", None),
+                Field::field(15, 0, "MCA Error Code", None),
+            ]),
+            Msr::MCA_CONFIG(_) => Some(vec![
+                Field::bit(40, "Interrupt Enable", Some("IntEn")),
+                Field::field(38, 37, "Deferred error type", None),
+                Field::bit(32, "MCAX enable", Some("McaxEn")),
+                Field::bit(9, "MCA FRU text supported", None),
+                Field::bit(8, "Address LSB in MCA_STATUS", None),
+                Field::bit(7, "Deferred error status supported", None),
+                Field::bit(6, "System fatal error event supported", None),
+                Field::bit(5, "Deferred interrupt type supported", None),
+                Field::bit(2, "Deferred error logging supported", None),
+                Field::bit(0, "MCAX capable", None),
+            ]),
+            _ => None,
+        }
+    }
+}
+
 fn mce(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -291,18 +352,20 @@ fn mce(
             continue;
         }
 
-        println!("  {:02x} 0x{:016x}", bank, status);
+        println!("=== Bank {}", bank);
 
         ops = vec![];
 
         let bank = bank as u8;
 
         let allregs = vec![
-            Msr::MCA_IPID(bank),
-            Msr::MCA_CONFIG(bank),
+            Msr::MCA_CTL(bank),
+            Msr::MCA_STATUS(bank),
             Msr::MCA_ADDR(bank),
             Msr::MCA_MISC(bank),
-            Msr::MCA_MISC(bank),
+            Msr::MCA_CONFIG(bank),
+            Msr::MCA_SYND(bank),
+            Msr::MCA_IPID(bank),
             Msr::MCA_DESTAT(bank),
             Msr::MCA_DEADDR(bank),
         ];
@@ -326,7 +389,46 @@ fn mce(
             let v = context.idol_result(&op, reg)?.as_base()?.as_u64().unwrap();
 
             let name = format!("{:?}", allregs[ndx]);
-            println!("    {name:20} 0x{v:016x}");
+            println!("    {name:17} 0x{v:016x}");
+
+            if let Some(fields) = allregs[ndx].fields() {
+                let blank = "";
+                print!("{blank:22}|\n{blank:22}+---> ");
+
+                for (i, field) in fields.iter().enumerate() {
+                    let value = if field.highbit == field.lowbit {
+                        if v & (1 << field.highbit) != 0 {
+                            "true".to_string()
+                        } else {
+                            "false".to_string()
+                        }
+                    } else {
+                        let mask =
+                            (1u64 << (field.highbit - field.lowbit + 1)) - 1;
+                        let f = (v >> field.lowbit) & mask;
+
+                        if f >= 10 {
+                            format!("{:#x} ({})", f, f)
+                        } else {
+                            format!("{}", f)
+                        }
+                    };
+
+                    let name = if let Some(mneumonic) = field.mneumonic {
+                        format!("{} ({mneumonic})", field.name)
+                    } else {
+                        format!("{}", field.name)
+                    };
+
+                    if i == 0 {
+                        println!("{name:35} = {value}");
+                    } else {
+                        println!("{blank:28}{name:35} = {value}");
+                    }
+                }
+
+                println!();
+            }
         }
     }
 
