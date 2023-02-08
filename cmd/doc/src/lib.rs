@@ -45,10 +45,14 @@ fn doc(context: &mut humility::ExecutionContext) -> Result<()> {
         None => docs(),
     };
 
+    let options = minimad::Options::default().continue_spans(true);
+    let text = minimad::parse_text(text, options);
+
     let mut skin = MadSkin::default();
     skin.table.align = Alignment::Center;
     skin.code_block.align = Alignment::Center;
-    skin.print_text(text);
+    let text = FmtText::from_text(&skin, text, Some(80));
+    println!("{}", &text);
 
     if let Some(ref cmd) = subargs.command {
         skin.print_text(&format!(

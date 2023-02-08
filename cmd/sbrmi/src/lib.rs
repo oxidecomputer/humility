@@ -463,7 +463,7 @@ fn mca(
                     } else {
                         let mask =
                             (1u64 << (field.highbit - field.lowbit + 1)) - 1;
-                        format!("{:#x}", (v >> field.lowbit) & mask);
+                        format!("{:#x}", (v >> field.lowbit) & mask)
                     };
 
                     let name = if let Some(mneumonic) = field.mneumonic {
