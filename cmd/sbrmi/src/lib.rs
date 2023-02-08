@@ -320,6 +320,12 @@ impl Msr {
                 Field::bit(2, "Deferred error logging supported", None),
                 Field::bit(0, "MCAX capable", None),
             ]),
+            Msr::MCA_IPID(_) => Some(vec![
+                Field::field(63, 48, "MCA bank type", None),
+                Field::field(47, 44, "Instance ID (high)", None),
+                Field::field(43, 32, "Hardware ID", None),
+                Field::field(31, 0, "Instance ID (low)", None),
+            ]),
             _ => None,
         }
     }
@@ -351,6 +357,15 @@ fn mca(
         context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
     }
 
+    for bank in 0..nbanks {
+        let payload = op.payload(&[
+            ("thread", idol::IdolArgument::Scalar(thread as u64)),
+            ("msr", idol::IdolArgument::Scalar(Msr::MCA_IPID(bank).into())),
+        ])?;
+
+        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    }
+
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
@@ -359,8 +374,15 @@ fn mca(
         println!("MCA registers for {thread_name}:\n");
     }
 
-    for (bank, r) in results.iter().enumerate() {
+    let ipid_results = &results[nbanks as usize..];
+
+    for (bank, r) in results[..nbanks as usize].iter().enumerate() {
         let status = context.idol_result(&op, r)?.as_base()?.as_u64().unwrap();
+        let ipid = context
+            .idol_result(&op, &ipid_results[bank])?
+            .as_base()?
+            .as_u64()
+            .unwrap();
 
         if !all_mca {
             if status == 0 {
@@ -368,6 +390,10 @@ fn mca(
             } else {
                 println!("=== MCE on {thread_name}, bank {bank} ===\n");
             }
+        }
+
+        if ipid == 0 {
+            continue;
         }
 
         ops = vec![];
@@ -437,13 +463,7 @@ fn mca(
                     } else {
                         let mask =
                             (1u64 << (field.highbit - field.lowbit + 1)) - 1;
-                        let f = (v >> field.lowbit) & mask;
-
-                        if f >= 10 {
-                            format!("{:#x} ({})", f, f)
-                        } else {
-                            format!("{}", f)
-                        }
+                        format!("{:#x}", (v >> field.lowbit) & mask);
                     };
 
                     let name = if let Some(mneumonic) = field.mneumonic {
