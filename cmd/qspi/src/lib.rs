@@ -291,6 +291,9 @@ fn deltas(
 ///
 /// Erase specified sectors
 ///
+/// This will erase sector 0 when requested; it's up to the user to check the
+/// command-line arguments for --write-sector0 before calling this function.
+///
 fn erase(
     device: &QspiDevice,
     core: &mut dyn Core,
@@ -299,7 +302,6 @@ fn erase(
     all_sectors: &[u32],
 ) -> Result<()> {
     let f = funcs.get("QspiSectorErase", 1)?;
-
     let started = Instant::now();
     let len = all_sectors.len() as u32 * device.sector_size;
 
@@ -334,9 +336,24 @@ fn erase(
                 bail!("illegal erase address 0x{:x}", addr);
             }
 
-            ops.push(Op::Push32(*addr));
+            // Pick the appropriate function to erase this sector
+            let (f, needs_drop) = if *addr == 0 {
+                if let Ok(f) = funcs.get("QspiSector0Erase", 0) {
+                    (f, false)
+                } else {
+                    // Fallback for older Hubris images
+                    ops.push(Op::Push32(*addr));
+                    (funcs.get("QspiSectorErase", 1)?, true)
+                }
+            } else {
+                ops.push(Op::Push32(*addr));
+                (funcs.get("QspiSectorErase", 1)?, true)
+            };
+
             ops.push(Op::Call(f.id));
-            ops.push(Op::Drop);
+            if needs_drop {
+                ops.push(Op::Drop);
+            }
         }
 
         ops.push(Op::Done);
@@ -372,6 +389,9 @@ fn erase(
 ///
 /// Write in units of blocksize.
 ///
+/// This will write to sector 0 if requested; it's up to the user to check the
+/// command-line arguments for --write-sector0 before calling this function.
+///
 fn write(
     device: &QspiDevice,
     core: &mut dyn Core,
@@ -381,7 +401,15 @@ fn write(
     writelen: u32,
     mut getbytes: impl FnMut(&mut [u8]) -> Result<()>,
 ) -> Result<()> {
-    let qspi_page_program = funcs.get("QspiPageProgram", 3)?;
+    let qspi_page_program =
+        // This works on all pages, but importantly, allows us to write to
+        // sector 0.
+        if let Ok(f) = funcs.get("QspiPageProgramSector0", 3) {
+            f
+        } else {
+            // Backwards-compatibility for older Hubris images
+            funcs.get("QspiPageProgram", 3)?
+        };
 
     let data_size = context.data_size() as u32;
     let chunk = data_size - (data_size % device.block_size);
@@ -672,7 +700,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
                         if r[0] != 0 {
                             let a = offset + (i as u32 * BLOCK_SIZE);
                             humility::msg!(
-                                "block at 0x{:x} failed to verify",
+                                "block at 0x{:x} failed to verify\n",
                                 a
                             );
                         }
@@ -907,6 +935,12 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             return Ok(());
         }
 
+        if !subargs.write_sector0 {
+            if let Some(i) = sectors.iter().position(|p| *p == 0) {
+                humility::msg!("skipping sector 0");
+                sectors.remove(i);
+            }
+        }
         erase(&device, core, &mut context, &funcs, &sectors)?;
 
         let bar = ProgressBar::new(nbytes as u64);
@@ -974,7 +1008,11 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             ],
             None,
         )?;
-        println!("Got out {out:?}");
+        if let Err(e) = out {
+            bail!("write_persistent_data failed: {e}");
+        } else {
+            humility::msg!("write_persistent_data succeeded");
+        }
         return Ok(());
     } else {
         bail!("expected an operation");
