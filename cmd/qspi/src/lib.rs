@@ -92,7 +92,7 @@ use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
 use std::fs::File;
-use std::io::{BufWriter, Read, Seek, Write};
+use std::io::{BufWriter, Read, Write};
 use std::mem;
 use std::time::Instant;
 
@@ -622,8 +622,14 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
 
         // Skip sector0 if the user didn't specify --write-sector0
         if !subargs.write_sector0 {
+            let mut sector0 = vec![0u8; SECTOR_SIZE as usize];
+            file.read_exact(&mut sector0)?;
             offset += SECTOR_SIZE;
-            file.seek(std::io::SeekFrom::Start(SECTOR_SIZE as u64)).unwrap();
+            if sector0.iter().any(|c| *c != 0xFF) {
+                bail!("cannot skip sector 0 with non-empty bytes");
+            } else {
+                humility::msg!("skipping sector 0");
+            }
         }
 
         let started = Instant::now();
@@ -937,8 +943,13 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
 
         if !subargs.write_sector0 {
             if let Some(i) = sectors.iter().position(|p| *p == 0) {
-                humility::msg!("skipping sector 0");
                 sectors.remove(i);
+                let buf = bufs.remove(i);
+                if buf.iter().any(|c| *c != 0xFF) {
+                    bail!("cannot skip sector 0 with non-empty bytes");
+                } else {
+                    humility::msg!("skipping sector 0");
+                }
             }
         }
         erase(&device, core, &mut context, &funcs, &sectors)?;
