@@ -96,7 +96,7 @@ use std::io::{BufWriter, Read, Seek, Write};
 use std::mem;
 use std::time::Instant;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 
@@ -189,9 +189,9 @@ struct QspiArgs {
     #[clap(long, short = 'D', value_name = "filename", group = "command")]
     diffwrite: Option<String>,
 
-    /// writes persistent data (in the form "startup_options:slot")
-    #[clap(long, short, group = "command")]
-    persist: Option<String>,
+    /// persistently selects a storage slot
+    #[clap(long, group = "command")]
+    set_persistent_slot: Option<u8>,
 }
 
 struct QspiDevice {
@@ -980,18 +980,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         );
 
         return Ok(());
-    } else if let Some(p) = subargs.persist {
-        let mut iter = p.split(':');
-        let startup_options = iter.next().ok_or_else(|| {
-            anyhow!("could not get startup options from '{p}'")
-        })?;
-        let startup_options: u64 = parse_int::parse(startup_options)
-            .context("failed to parse startup options (must be an integer)")?;
-        let dev_select = iter
-            .next()
-            .ok_or_else(|| anyhow!("could not get dev_select from '{p}'"))?;
-        let dev_select: u8 = parse_int::parse(dev_select)
-            .context("failed to parse startup options (must be an integer)")?;
+    } else if let Some(dev_select) = subargs.set_persistent_slot {
         let dev_select = match dev_select {
             0 => "Flash0",
             1 => "Flash1",
@@ -1002,10 +991,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             core,
             &mut context,
             &hubris.get_idol_command("HostFlash.write_persistent_data")?,
-            &[
-                ("startup_options", IdolArgument::Scalar(startup_options)),
-                ("dev_select", IdolArgument::String(dev_select)),
-            ],
+            &[("dev_select", IdolArgument::String(dev_select))],
             None,
         )?;
         if let Err(e) = out {
