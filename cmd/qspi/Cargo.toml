@@ -7,6 +7,7 @@ description = "QSPI status, reading and writing"
 [dependencies]
 humility = { workspace = true }
 humility-cmd = { workspace = true }
+cmd-hiffy = { workspace = true }
 hif = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

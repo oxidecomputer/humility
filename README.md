@@ -230,6 +230,7 @@ a specified target.  (In the above example, one could execute `humility
 
 - [humility apptable](#humility-apptable): print Hubris apptable
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
+- [humility bankerase](#humility-bankerase): Erase a bank
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
@@ -297,6 +298,19 @@ Tools to interact with the auxiliary flash, described in RFD 311.
 
 This subcommand should be rarely used; `humility flash` will automatically
 program auxiliary flash when needed.
+
+
+### `humility bankerase`
+
+Erase flash in "erase block" size chunks (32 KiB) on the RoT.
+
+Erase `len` is given in bytes and then rounded up to the nearest block
+size so that all pages containing the range are erased. Then the erased
+pages are overwritten with 0s, but only starting at the address given. In
+other words, if the address is given as 0x40001 and len as 512, flash will
+be erased from 0x40000 to 0x48000,  but address 0x40000 will have value
+`0xff`, and every other byte will have value `0`.
+
 
 
 ### `humility console-proxy`
@@ -871,7 +885,7 @@ stored in non-volatile memory, so it should be persistent through power
 loss.
 
 Here's an example:
-```rust
+```console
 matt@igor ~ (sn5) $ pfexec ./humility -tsn5 ibc black-box
 humility: attached to 0483:374e:001B00083156501320323443 via ST-Link V3
 FAULT EVENT
@@ -1583,6 +1597,10 @@ humility: attached via ST-Link V3
 120000..000080: 4d07112733efe240f990fad785726c52de4335d6c5c30a33e60096d4c2576742
 ```
 
+By default, Hubris reserved sector 0 (the lowest 64 KiB) of QSPI for its own
+internal bookkeeping.  To override this, use the `--write-sector0` flag;
+this is required for erases and writes that would otherwise modify sector 0,
+as well as bulk erase.
 
 
 ### `humility readmem`
@@ -1934,11 +1952,11 @@ humility: image CRC (0x841f35a5) matches OTP CRC
 
 `humility repl` is an interactive prompt that you can use with humility.
 
-This allows you to run several commands in succession without needing to type in some core settings
-over and over again.
+This allows you to run several commands in succession without needing to
+type in some core settings over and over again.
 
-`humility repl` takes the same top level arguments as any other subcommand, and will remember them
-inside of the prompt. For example:
+`humility repl` takes the same top level arguments as any other subcommand,
+and will remember them inside of the prompt. For example:
 
 ```console
 $ humility -a ../path/to/hubris/archive.zip repl
@@ -1977,10 +1995,12 @@ archive each time. In the output above, you can see the ping task faulting
 in the background; your code is still running in the background while you
 use the repl!
 
-Finally, as you can see, `quit` will quit the repl. There is also a `history`
-command, which will show you recent commands you've put into the prompt.
+Finally, as you can see, `quit` will quit the repl. There is also a
+`history` command, which will show you recent commands you've put into the
+prompt.
 
-The repl is still very early days! We'll be adding more features in the future.
+The repl is still very early days! We'll be adding more features in the
+future.
 
 
 ### `humility reset`
