@@ -434,7 +434,13 @@ impl<'a> Dashboard<'a> {
 
         let output = if let Some(output) = &subargs.output {
             let mut f = File::create(output)?;
-            writeln!(&mut f, "{}", temps.join(","))?;
+            writeln!(
+                &mut f,
+                "Time,{},{},{},Power",
+                temps.join(","),
+                fans.join(","),
+                current.join(",")
+            )?;
             Some(f)
         } else {
             None
@@ -546,6 +552,12 @@ impl<'a> Dashboard<'a> {
                 }
 
                 if let Some(output) = &mut self.output {
+                    use std::time::SystemTime;
+
+                    let now = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)?;
+                    write!(output, "{},", now.as_secs())?;
+
                     for val in raw {
                         if let Some(val) = val {
                             write!(output, "{:.2},", val)?;
@@ -553,7 +565,7 @@ impl<'a> Dashboard<'a> {
                             write!(output, ",")?;
                         }
                     }
-                    writeln!(output)?;
+                    writeln!(output, "{}", self.status[0])?;
                 }
 
                 self.outstanding = false;
