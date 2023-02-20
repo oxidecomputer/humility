@@ -271,6 +271,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility reset](#humility-reset): Reset the chip using external pins
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
 - [humility rpc](#humility-rpc): execute Idol calls over a network
+- [humility sbrmi](#humility-sbrmi): Sideband Remote Management Interface (SB-RMI) commands
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
 - [humility spd](#humility-spd): scan for and read SPD devices
@@ -2111,6 +2112,94 @@ When listening, it is mandatory to specify the interface (e.g. `humility rpc
 
 To call all targets that match an archive, `--listen` can be combined with
 `--call`
+
+
+### `humility sbrmi`
+
+Print out information retrieved via AMD's sideband remote management
+interface (SB-RMI).  This interface is somewhat limited in its utility,
+but can sometimes yield information not available via other means.
+
+When run without arguments, this will indicate the presence of each
+thread; if all are present and not in alert status, one will see
+output like:
+
+```rust
+ THR 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
+0x00  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x10  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x20  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x30  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x40  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x50  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x60  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x70  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+```
+
+If any CPU has its alert bit set, it will be marked as `MCE`, and the
+machine check exception information will be displayed, e.g.:
+
+```rust
+ THR 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
+0x00  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x10  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x20  ok  ok  ok  ok  ok MCE  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x30  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x40  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x50  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x60  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+0x70  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
+
+=== MCE on thread 0x25 (37), bank 0 ===
+
+    MCA_CTL(0)     0x0000000000ffffff
+    MCA_STATUS(0)  0xb420000001130839
+                   |
+                   +---> Valid (VAL)                         = true
+                         Overflow (OVER)                     = false
+                         Uncorrected error (UC)              = true
+                         Error condition enabled (EN)        = true
+                         Misc error register valid (MISCV)   = false
+                         Address register valid (ADDRV)      = true
+                         Processor context corrupt (PCC)     = false
+                         Task content corrupt (TCC)          = false
+                         Syndrome register valid (SYNDV)     = true
+                         Deferred error (Deferred)           = false
+                         Poisoned data consumed (Poison)     = false
+                         Extended Error Code                 = 0x113
+                         MCA Error Code                      = 0x839
+
+    MCA_ADDR(0)    0x000ffffe14700008
+    MCA_MISC(0)    0xd010000000000000
+    MCA_CONFIG(0)  0x00000007000001fd
+                   |
+                   +---> Interrupt Enable (IntEn)            = false
+                         Deferred error type                 = 0x0
+                         MCAX enable (McaxEn)                = true
+                         MCA FRU text supported              = false
+                         Address LSB in MCA_STATUS           = true
+                         Deferred error status supported     = true
+                         System fatal error event supported  = true
+                         Deferred interrupt type supported   = true
+                         Deferred error logging supported    = true
+                         MCAX capable                        = true
+
+    MCA_SYND(0)    0x000000005c000002
+    MCA_IPID(0)    0x001000b000000000
+                   |
+                   +---> MCA bank type                       = 0x10
+                         Instance ID (high)                  = 0x0
+                         Hardware ID                         = 0xb0
+                         Instance ID (low)                   = 0x0
+
+    MCA_DESTAT(0)  0x0000000000000000
+    MCA_DEADDR(0)  0x0000000000000000
+```
+
+CPU identification information as provided by the `cpuid` instruction
+can be retrieved by using the `--cpuid` option and specifying a
+desired target thread; full MCA inbformation can similarly be retrieved
+using the `--mca` option and specifyin a desired thread.
 
 
 ### `humility sensors`
