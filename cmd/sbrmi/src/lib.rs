@@ -12,7 +12,7 @@
 //! thread; if all are present and not in alert status, one will see
 //! output like:
 //!
-//! ```
+//! ```console
 //!  THR 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
 //! 0x00  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
 //! 0x10  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
@@ -27,7 +27,7 @@
 //! If any CPU has its alert bit set, it will be marked as `MCE`, and the
 //! machine check exception information will be displayed, e.g.:
 //!
-//! ```
+//! ```console
 //!  THR 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
 //! 0x00  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
 //! 0x10  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
