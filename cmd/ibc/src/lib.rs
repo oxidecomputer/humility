@@ -70,6 +70,7 @@ use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
+use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
 use zerocopy::{
     byteorder::{BigEndian, U16, U32},
@@ -81,7 +82,6 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Attach, Command, Validate};
 
 #[derive(Parser, Debug)]
@@ -108,7 +108,7 @@ enum IbcSubcommand {
 }
 
 pub struct IbcHandler<'a> {
-    device: &'a HubrisI2cDevice,
+    hubris: &'a HubrisArchive,
     core: &'a mut dyn Core,
     context: HiffyContext<'a>,
 }
@@ -119,105 +119,59 @@ impl<'a> IbcHandler<'a> {
         core: &'a mut dyn Core,
         hiffy_timeout: u32,
     ) -> Result<Self> {
-        let device = hubris
-            .manifest
-            .i2c_devices
-            .iter()
-            .find(|d| d.device == "bmr491")
-            .ok_or_else(|| anyhow!("could not find 'bmr491' device"))?;
-        println!("{device:?}");
         let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
-        Ok(Self { device, core, context })
+        Ok(Self { hubris, core, context })
     }
+
     pub fn blackbox(&mut self, verbose: bool) -> Result<()> {
+        let bmr491_max_lifecycle_event_index = self
+            .hubris
+            .get_idol_command("Power.bmr491_max_lifecycle_event_index")?;
+        let bmr491_max_fault_event_index = self
+            .hubris
+            .get_idol_command("Power.bmr491_max_fault_event_index")?;
+        let read_mode = self.hubris.get_idol_command("Power.read_mode")?;
+        let read_log =
+            self.hubris.get_idol_command("Power.bmr491_event_log_read")?;
+
         let funcs = self.context.functions()?;
-        let write_func = funcs.get("I2cWrite", 8)?;
-        let read_func = funcs.get("I2cRead", 7)?;
-
-        let hargs = I2cArgs::from_device(self.device);
-
-        const EVENT_INDEX: u8 =
-            pmbus::commands::bmr491::CommandCode::MFR_EVENT_INDEX as u8;
-        const READ_EVENT: u8 =
-            pmbus::commands::bmr491::CommandCode::MFR_READ_EVENT as u8;
-
         let mut ops = vec![];
-        ops.push(Op::Push(hargs.controller));
-        ops.push(Op::Push(hargs.port.index));
-        if let Some(mux) = hargs.mux {
-            ops.push(Op::Push(mux.0));
-            ops.push(Op::Push(mux.1));
-        } else {
-            ops.push(Op::PushNone);
-            ops.push(Op::PushNone);
-        }
-        ops.push(Op::Push(hargs.address.unwrap()));
 
         // We must read VOUT_MODE to interpret later data
-        ops.push(Op::Push(
-            pmbus::commands::bmr491::CommandCode::VOUT_MODE as u8,
-        ));
-        ops.push(Op::Push(1)); // Number of bytes to read
-        ops.push(Op::Call(read_func.id));
-        ops.push(Op::DropN(2));
+        let payload = read_mode.payload(&[
+            ("dev", idol::IdolArgument::String("Bmr491")),
+            ("rail", idol::IdolArgument::Scalar(0)),
+            ("index", idol::IdolArgument::Scalar(0)),
+        ])?;
+        self.context.idol_call_ops(&funcs, &read_mode, &payload, &mut ops)?;
 
-        // The IBC contains 48 slots in its black box.  The lower 24 are fault
-        // slots, and the upper 24 are life-cycle events.  By writing special
-        // indexes to EVENT_INDEX, we can read back the index of the newest
-        // record in each section
-        ops.push(Op::Push(EVENT_INDEX));
-        ops.push(Op::Push(255)); // Special to get newest fault index
-        ops.push(Op::Push(1)); // Number of words to write
-        ops.push(Op::Call(write_func.id));
-        ops.push(Op::DropN(2));
-
-        ops.push(Op::Push(1)); // Number of bytes to read
-        ops.push(Op::Call(read_func.id));
-        ops.push(Op::DropN(1));
-
-        ops.push(Op::Push(254)); // Special to get newest life-cycle index
-        ops.push(Op::Push(1)); // Number of words to write
-        ops.push(Op::Call(write_func.id));
-        ops.push(Op::DropN(2));
-
-        ops.push(Op::Push(1)); // Number of bytes to read
-        ops.push(Op::Call(read_func.id));
-        ops.push(Op::DropN(2));
-
-        // Now, read all of the actual events!
-        // We'll unroll the loop here to avoid having to think about it in HIF
+        self.context.idol_call_ops(
+            &funcs,
+            &bmr491_max_fault_event_index,
+            &[],
+            &mut ops,
+        )?;
+        self.context.idol_call_ops(
+            &funcs,
+            &bmr491_max_lifecycle_event_index,
+            &[],
+            &mut ops,
+        )?;
         for i in 0..48 {
-            ops.push(Op::Push(EVENT_INDEX));
-            ops.push(Op::Push(i)); // This is our actual index
-            ops.push(Op::Push(1)); // Number of words to write
-            ops.push(Op::Call(write_func.id));
-            ops.push(Op::DropN(3));
-
-            ops.push(Op::Push(READ_EVENT));
-            ops.push(Op::Push(24)); // Number of bytes to read
-            ops.push(Op::Call(read_func.id));
-            ops.push(Op::DropN(2));
+            let payload = read_log
+                .payload(&[("index", idol::IdolArgument::Scalar(i))])?;
+            self.context
+                .idol_call_ops(&funcs, &read_log, &payload, &mut ops)?;
         }
-
-        ops.push(Op::DropN(5));
         ops.push(Op::Done);
-
-        let results = self.context.run(self.core, ops.as_slice(), None)?;
+        let results = self.context.run(self.core, &ops, None)?;
 
         let vout_mode = results[0].as_ref().unwrap()[0];
-
-        // Results are alternating between writing EVENT_INDEX and reading
-        // READ_EVENT
-        for (i, r) in results.iter().skip(1).step_by(2).enumerate() {
-            if let Err(e) = r {
-                bail!("Failed to read event {i}: {e}");
-            }
-        }
-        let newest_fault_event_index = results[2].as_ref().unwrap()[0];
-        let newest_lifecycle_event_index = results[4].as_ref().unwrap()[0];
+        let newest_fault_event_index = results[1].as_ref().unwrap()[0];
+        let newest_lifecycle_event_index = results[2].as_ref().unwrap()[0];
 
         let mut events = vec![];
-        for (i, r) in results.iter().skip(6).step_by(2).enumerate() {
+        for (i, r) in results.iter().skip(3).enumerate() {
             match r {
                 Ok(r) => {
                     events.push(IbcEvent::read_from(&r[1..]).ok_or_else(
