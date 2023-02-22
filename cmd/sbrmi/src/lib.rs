@@ -86,7 +86,7 @@
 //!
 //! CPU identification information as provided by the `cpuid` instruction
 //! can be retrieved by using the `--cpuid` option and specifying a
-//! desired target thread; full MCA inbformation can similarly be retrieved
+//! desired target thread; full MCA information can similarly be retrieved
 //! using the `--mca` option and specifyin a desired thread.
 
 use anyhow::{anyhow, Result};
@@ -195,7 +195,7 @@ fn cpuid(
     //
     // We want to call into the raw_cpuid crate to pull and display CPUID
     // information, but it unfortunately takes only a function, not a
-    // closure.  (It -- understndably -- didn't forsee the CPUID instruction
+    // closure.  (It -- understandably -- didn't forsee the CPUID instruction
     // being run via a sidechannel I2C interface through an intermediary
     // operating at a distance!)  We resort to the same technique used by the
     // Hiffy RPC engine for its client-side HIF emulation:  we create a
@@ -204,7 +204,7 @@ fn cpuid(
     // process.  We dispense with some of the precaution taken in that code
     // because this isn't callable by anyone else, and the stakes here are
     // generally low: we're going to call into the raw_cpuid code to
-    // prett-print the results of the proxied CPUID, and then we're going to
+    // pretty-print the results of the proxied CPUID, and then we're going to
     // exit.
     //
     struct SbrmiWorkspace {
