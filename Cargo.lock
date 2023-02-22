@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.29"
+version = "0.9.30"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1098,6 +1098,7 @@ dependencies = [
  "humility-cmd-reset",
  "humility-cmd-ringbuf",
  "humility-cmd-rpc",
+ "humility-cmd-sbrmi",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -1789,6 +1790,22 @@ dependencies = [
  "log",
  "parse_int",
  "winapi",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-cmd-sbrmi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "hif",
+ "humility-cmd",
+ "humility-core",
+ "parse_int",
+ "raw-cpuid",
+ "termimad",
  "zerocopy",
 ]
 
@@ -2721,7 +2738,7 @@ checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 [[package]]
 name = "probe-rs"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#0107acd26d1833d9cbe07c2d119a46667bdd320e"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#ca13d23ee7b4313596bca41f97debf45e1b74929"
 dependencies = [
  "anyhow",
  "base64",
@@ -2752,7 +2769,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#0107acd26d1833d9cbe07c2d119a46667bdd320e"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#ca13d23ee7b4313596bca41f97debf45e1b74929"
 dependencies = [
  "base64",
  "jep106",
@@ -2818,6 +2835,15 @@ name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
+
+[[package]]
+name = "raw-cpuid"
+version = "10.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6823ea29436221176fe662da99998ad3b4db2c7f31e7b6f5fe43adccd6320bb"
+dependencies = [
+ "bitflags",
+]
 
 [[package]]
 name = "rayon"

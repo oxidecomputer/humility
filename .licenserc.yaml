@@ -9,4 +9,7 @@ header:
   paths:
     - '**/*.rs'
 
+  paths-ignore:
+    - 'cmd/sbrmi/src/cpuid.rs'
+
   comment: on-failure
