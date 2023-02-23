@@ -4433,7 +4433,7 @@ impl HubrisArchive {
     pub fn dump(
         &self,
         core: &mut dyn crate::core::Core,
-        regions: &BTreeMap<u32, HubrisRegion>,
+        segments: &Vec<(u32, u32)>,
         dumpfile: Option<&str>,
         started: Option<Instant>,
     ) -> Result<()> {
@@ -4441,7 +4441,7 @@ impl HubrisArchive {
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::Write;
 
-        let nsegs = regions.values().filter(|r| !r.attr.device).count();
+        let nsegs = segments.len();
 
         macro_rules! pad {
             ($size:expr) => {
@@ -4552,26 +4552,22 @@ impl HubrisArchive {
 
         let mut total = 0;
 
-        for (_, region) in regions.iter() {
-            if region.attr.device {
-                continue;
-            }
-
+        for (base, size) in segments {
             let seg_phdr = goblin::elf32::program_header::ProgramHeader {
                 p_type: goblin::elf::program_header::PT_LOAD,
                 p_flags: goblin::elf::program_header::PF_R,
                 p_offset: offset,
-                p_vaddr: region.base,
-                p_filesz: region.size,
-                p_memsz: region.size,
+                p_vaddr: *base,
+                p_filesz: *size,
+                p_memsz: *size,
                 ..Default::default()
             };
 
             bytes.pwrite_with(seg_phdr, 0, ctx.le)?;
             file.write_all(&bytes)?;
 
-            offset += region.size + pad!(region.size);
-            total += region.size;
+            offset += *size + pad!(*size);
+            total += *size;
         }
 
         for note in &notes {
@@ -4629,14 +4625,10 @@ impl HubrisArchive {
                 .template("humility: dumping [{bar:30}] {bytes}/{total_bytes}"),
         );
 
-        for (_, region) in regions.iter() {
-            if region.attr.device {
-                continue;
-            }
-
-            let mut remain = region.size as usize;
+        for (base, size) in segments {
+            let mut remain = *size as usize;
             let mut bytes = vec![0; 1024];
-            let mut addr = region.base;
+            let mut addr = *base;
 
             while remain > 0 {
                 let nbytes =
@@ -4650,7 +4642,7 @@ impl HubrisArchive {
                 bar.set_position(written as u64);
             }
 
-            let npad = pad!(region.size) as usize;
+            let npad = pad!(*size) as usize;
             file.write_all(&pad[0..npad])?;
         }
 
