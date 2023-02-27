@@ -2124,7 +2124,7 @@ When run without arguments, this will indicate the presence of each
 thread; if all are present and not in alert status, one will see
 output like:
 
-```rust
+```console
  THR 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
 0x00  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
 0x10  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
@@ -2139,7 +2139,7 @@ output like:
 If any CPU has its alert bit set, it will be marked as `MCE`, and the
 machine check exception information will be displayed, e.g.:
 
-```rust
+```console
  THR 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
 0x00  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
 0x10  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok  ok
@@ -2198,7 +2198,7 @@ machine check exception information will be displayed, e.g.:
 
 CPU identification information as provided by the `cpuid` instruction
 can be retrieved by using the `--cpuid` option and specifying a
-desired target thread; full MCA inbformation can similarly be retrieved
+desired target thread; full MCA information can similarly be retrieved
 using the `--mca` option and specifyin a desired thread.
 
 
@@ -2678,6 +2678,20 @@ humility: attached via ST-Link V3
 ]
 ```
 
+You can also use the `--raw` flag to `--read` to see the raw bytes:
+
+```console
+% humility vpd --read -i 10 --raw
+humility: attached via ST-Link V3
+            \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x00000000 | 46 52 55 30 4c 00 00 00 fd c6 3b db 42 41 52 43 | FRU0L.....;.BARC
+0x00000010 | 1f 00 00 00 ce 3d d7 f7 30 58 56 31 3a 39 31 33 | .....=..0XV1:913
+0x00000020 | 30 30 30 30 30 31 39 3a 30 30 36 3a 42 52 4d 34 | 0000019:006:BRM4
+0x00000030 | 32 32 32 30 30 32 33 00 b9 1f 7f e3 4d 41 43 30 | 2220023.....MAC0
+0x00000040 | 09 00 00 00 61 64 d1 7e a8 40 25 04 01 00 08 00 | ....ad.~.@%.....
+0x00000050 | 08 00 00 00 26 27 3d 9d ee a4 f9 bb ff ff ff ff | ....&'=.........
+```
+
 Note that this will fail if the description matches more than one
 device, e.g.:
 
@@ -2700,6 +2714,9 @@ description of a valid TLV-C payload, e.g.:
 humility: attached via ST-Link V3
 humility: successfully wrote 56 bytes of VPD
 ```
+
+You can also use a file as a loopback device via `--loopback`, allowing
+you to, e.g., read binary data and format it (i.e., via `--read`).
 
 
 
