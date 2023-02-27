@@ -267,7 +267,7 @@ fn vpd_write(
     let target = match target {
         VpdTarget::Device(target) => target,
         VpdTarget::Loopback(mut file) => {
-            file.write(&bytes)?;
+            file.write_all(&bytes)?;
             return Ok(());
         }
     };
@@ -446,7 +446,7 @@ fn vpd_read(
         dumper.dump(&vpd, 0);
     } else if let Some(output) = &subargs.binary {
         let mut file = fs::File::create(output)?;
-        file.write(&vpd)?;
+        file.write_all(&vpd)?;
     } else {
         let p = tlvc_text::dump(reader);
         tlvc_text::save(std::io::stdout(), &p)?;
