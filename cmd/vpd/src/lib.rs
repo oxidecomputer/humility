@@ -45,6 +45,20 @@
 //! ]
 //! ```
 //!
+//! You can also use the `--raw` flag to `--read` to see the raw bytes:
+//!
+//! ```console
+//! % humility vpd --read -i 10 --raw
+//! humility: attached via ST-Link V3
+//!             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+//! 0x00000000 | 46 52 55 30 4c 00 00 00 fd c6 3b db 42 41 52 43 | FRU0L.....;.BARC
+//! 0x00000010 | 1f 00 00 00 ce 3d d7 f7 30 58 56 31 3a 39 31 33 | .....=..0XV1:913
+//! 0x00000020 | 30 30 30 30 30 31 39 3a 30 30 36 3a 42 52 4d 34 | 0000019:006:BRM4
+//! 0x00000030 | 32 32 32 30 30 32 33 00 b9 1f 7f e3 4d 41 43 30 | 2220023.....MAC0
+//! 0x00000040 | 09 00 00 00 61 64 d1 7e a8 40 25 04 01 00 08 00 | ....ad.~.@%.....
+//! 0x00000050 | 08 00 00 00 26 27 3d 9d ee a4 f9 bb ff ff ff ff | ....&'=.........
+//! ```
+//!
 //! Note that this will fail if the description matches more than one
 //! device, e.g.:
 //!
@@ -68,8 +82,11 @@
 //! humility: successfully wrote 56 bytes of VPD
 //! ```
 //!
+//! You can also use a file as a loopback device via `--loopback`, allowing
+//! you to, e.g., read binary data and format it (i.e., via `--read`).
+//!
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
@@ -79,9 +96,10 @@ use humility::reflect;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
+use std::io::{Read, Seek, SeekFrom, Write};
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -119,6 +137,26 @@ struct VpdArgs {
     /// erase the designated VPD
     #[clap(long, short, group = "command")]
     erase: bool,
+
+    /// raw output
+    #[clap(long, requires = "read")]
+    raw: bool,
+
+    /// binary output to file
+    #[clap(long, requires = "read", conflicts_with = "raw")]
+    binary: Option<String>,
+
+    /// specify binary file to act as a loopback device
+    #[clap(
+        long, short, value_name = "file",
+        conflicts_with_all = &["device", "id"]
+    )]
+    loopback: Option<String>,
+}
+
+enum VpdTarget {
+    Device(usize),
+    Loopback(fs::File),
 }
 
 fn vpd_devices(
@@ -159,7 +197,7 @@ fn list(hubris: &HubrisArchive) -> Result<()> {
     Ok(())
 }
 
-fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<usize> {
+fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<VpdTarget> {
     let mut rval = None;
 
     if let Some(ref description) = subargs.device {
@@ -179,16 +217,25 @@ fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<usize> {
             }
         }
 
-        rval.ok_or_else(|| {
-            anyhow!("no device matches description \"{}\"", description)
-        })
+        match rval {
+            Some(ndx) => Ok(VpdTarget::Device(ndx)),
+            None => {
+                bail!("no device matches description \"{}\"", description)
+            }
+        }
     } else if let Some(id) = subargs.id {
         let count = vpd_devices(hubris).count();
 
         if id < count {
-            Ok(id)
+            Ok(VpdTarget::Device(id))
         } else {
             bail!("device index {} invalid; --list to list", id)
+        }
+    } else if let Some(loopback) = &subargs.loopback {
+        if subargs.write.is_some() {
+            Ok(VpdTarget::Loopback(fs::File::create(loopback)?))
+        } else {
+            Ok(VpdTarget::Loopback(fs::File::open(loopback)?))
         }
     } else {
         bail!("must specify either device ID or device description");
@@ -215,6 +262,14 @@ fn vpd_write(
         tlvc_text::pack(&p)
     } else {
         vec![0xffu8; 1024]
+    };
+
+    let target = match target {
+        VpdTarget::Device(target) => target,
+        VpdTarget::Loopback(mut file) => {
+            file.write(&bytes)?;
+            return Ok(());
+        }
     };
 
     let mut all_ops = vec![];
@@ -284,9 +339,19 @@ fn vpd_read_at(
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
     op: &idol::IdolOperation,
-    target: usize,
+    target: &mut VpdTarget,
     offset: usize,
 ) -> Result<Vec<u8>> {
+    let target = match target {
+        VpdTarget::Device(target) => *target,
+        VpdTarget::Loopback(ref mut file) => {
+            let mut buffer = vec![];
+            file.seek(SeekFrom::Start(offset as u64))?;
+            file.read_to_end(&mut buffer)?;
+            return Ok(buffer);
+        }
+    };
+
     let payload = op.payload(&[
         ("index", idol::IdolArgument::Scalar(target as u64)),
         ("offset", idol::IdolArgument::Scalar(offset as u64)),
@@ -322,12 +387,12 @@ fn vpd_read(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
     let op = hubris.get_idol_command("Vpd.read")?;
-    let target = target(hubris, subargs)?;
+    let mut target = target(hubris, subargs)?;
 
     //
     // First, read in enough to read just the header.
     //
-    let mut vpd = vpd_read_at(core, &mut context, &funcs, &op, target, 0)?;
+    let mut vpd = vpd_read_at(core, &mut context, &funcs, &op, &mut target, 0)?;
 
     let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
         Ok(reader) => reader,
@@ -361,7 +426,7 @@ fn vpd_read(
             &mut context,
             &funcs,
             &op,
-            target,
+            &mut target,
             vpd.len(),
         )?);
     }
@@ -376,9 +441,17 @@ fn vpd_read(
         }
     };
 
-    let p = tlvc_text::dump(reader);
-    tlvc_text::save(std::io::stdout(), &p)?;
-    println!();
+    if subargs.raw {
+        let dumper = Dumper::new();
+        dumper.dump(&vpd, 0);
+    } else if let Some(output) = &subargs.binary {
+        let mut file = fs::File::create(output)?;
+        file.write(&vpd)?;
+    } else {
+        let p = tlvc_text::dump(reader);
+        tlvc_text::save(std::io::stdout(), &p)?;
+        println!();
+    }
 
     Ok(())
 }
