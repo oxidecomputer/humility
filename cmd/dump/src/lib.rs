@@ -76,9 +76,7 @@ use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humpty::{
-    DumpAreaHeader, DumpRegister, DumpSegmentData, DumpSegmentHeader,
-};
+use humpty::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
@@ -379,7 +377,13 @@ fn initialize_segments(
     Ok(())
 }
 
-fn emulate_dump(core: &mut dyn Core, base: u32, total: u32) -> Result<()> {
+fn emulate_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    task: Option<u16>,
+    base: u32,
+    total: u32,
+) -> Result<()> {
     let shared = RefCell::new(core);
     let started = Instant::now();
     let bar = ProgressBar::new(total as u64);
@@ -392,8 +396,19 @@ fn emulate_dump(core: &mut dyn Core, base: u32, total: u32) -> Result<()> {
 
     let mut rnum = 0;
 
+    let task = match task {
+        Some(t) => Some(DumpTask::new(
+            t,
+            shared
+                .borrow_mut()
+                .read_word_64(hubris.lookup_variable("TICKS")?.addr)?,
+        )),
+        None => None,
+    };
+
     let r = humpty::dump::<anyhow::Error, 2048, { humpty::DUMPER_EMULATED }>(
         base,
+        task,
         || {
             let start = rnum;
 
@@ -438,7 +453,7 @@ fn task_dump_segments(
     core: &mut dyn Core,
     regions: &BTreeMap<u32, HubrisRegion>,
     task: &str,
-) -> Result<Vec<(u32, u32)>> {
+) -> Result<(u16, Vec<(u32, u32)>)> {
     let mut rval = vec![];
     let (base, _) = hubris.task_table(core)?;
 
@@ -451,9 +466,12 @@ fn task_dump_segments(
 
     let task_t = hubris.lookup_struct_byname("Task")?;
 
-    if let HubrisTask::Task(ndx) = t {
-        rval.push((base + (*ndx * task_t.size as u32), task_t.size as u32));
-    }
+    let ndx = match t {
+        HubrisTask::Task(ndx) => ndx,
+        _ => bail!("invalid task \"{:?}\"", t),
+    };
+
+    rval.push((base + (*ndx * task_t.size as u32), task_t.size as u32));
 
     for v in regions.values() {
         if v.tasks.contains(t) {
@@ -461,7 +479,7 @@ fn task_dump_segments(
         }
     }
 
-    Ok(rval)
+    Ok((*ndx as u16, rval))
 }
 
 fn emulate_task_dump(
@@ -744,52 +762,65 @@ fn process_dump(
     }
 
     while offset < dump.len() {
-        if dump[offset..offset + 2] == humpty::DUMP_REGISTER_MAGIC {
-            //
-            // These are register values; slurp them and continue.
-            //
-            let reg = match DumpRegister::read_from_prefix(&dump[offset..]) {
-                Some(reg) => reg,
-                None => {
-                    bail!("derailed on registers at offset {offset}");
-                }
-            };
-
-            if let Some(register) = ARMRegister::from_u16(reg.register) {
-                agent.add_register(register, reg.value);
-            } else {
-                let r = reg.register;
-                bail!("unrecognized register {:#x} at offset {offset}", r);
-            }
-
-            offset += size_of::<DumpRegister>();
-            continue;
-        };
-
-        let data = match DumpSegmentData::read_from_prefix(&dump[offset..]) {
-            Some(data) => data,
+        let segment = match DumpSegment::from(&dump[offset..]) {
+            Some(segment) => segment,
             None => {
-                bail!("derailed at offset {offset}");
+                bail!("short read at offset {offset}");
             }
         };
 
-        offset += size_of::<DumpSegmentData>();
+        match segment {
+            DumpSegment::Task(task) => {
+                println!("task is {:?}", task);
 
-        let len = data.uncompressed_length as usize;
+                offset += size_of::<DumpTask>();
+                continue;
+            }
 
-        let mut contents = vec![0; len];
-        let limit = offset + data.compressed_length as usize;
+            DumpSegment::Register(reg) => {
+                //
+                // These are register values; slurp them and continue.
+                //
+                if let Some(register) = ARMRegister::from_u16(reg.register) {
+                    agent.add_register(register, reg.value);
+                } else {
+                    let r = reg.register;
+                    bail!("unrecognized register {r:#x} at offset {offset}");
+                }
 
-        humpty::DumpLzss::decompress(
-            lzss::SliceReader::new(&dump[offset..limit]),
-            lzss::SliceWriter::new(&mut contents),
-        )?;
+                offset += size_of::<DumpRegister>();
+                continue;
+            }
 
-        agent.add_ram_region(data.address, contents[0..len].to_vec());
-        offset = limit;
+            DumpSegment::Data(data) => {
+                offset += size_of::<DumpSegmentData>();
 
-        while offset < dump.len() && dump[offset] == humpty::DUMP_SEGMENT_PAD {
-            offset += 1;
+                let len = data.uncompressed_length as usize;
+
+                let mut contents = vec![0; len];
+                let limit = offset + data.compressed_length as usize;
+
+                humpty::DumpLzss::decompress(
+                    lzss::SliceReader::new(&dump[offset..limit]),
+                    lzss::SliceWriter::new(&mut contents),
+                )?;
+
+                agent.add_ram_region(data.address, contents[0..len].to_vec());
+                offset = limit;
+
+                while offset < dump.len()
+                    && dump[offset] == humpty::DUMP_SEGMENT_PAD
+                {
+                    offset += 1;
+                }
+            }
+
+            DumpSegment::Unknown(signature) => {
+                bail!(
+                    "unrecognized data with signature \
+                    {signature:x?} at offset {offset}"
+                );
+            }
         }
     }
 
@@ -846,14 +877,18 @@ fn dump_via_agent(
     let regions = hubris.regions(core)?;
     let started = Some(Instant::now());
 
-    let mut segments = if let Some(task) = &subargs.task {
-        task_dump_segments(hubris, core, &regions, task)?
+    let (task, mut segments) = if let Some(task) = &subargs.task {
+        let r = task_dump_segments(hubris, core, &regions, task)?;
+        (Some(r.0), r.1)
     } else {
-        regions
-            .values()
-            .filter(|&r| !r.attr.device && r.attr.write)
-            .map(|r| (r.base, r.size))
-            .collect::<Vec<_>>()
+        (
+            None,
+            regions
+                .values()
+                .filter(|&r| !r.attr.device && r.attr.write)
+                .map(|r| (r.base, r.size))
+                .collect::<Vec<_>>(),
+        )
     };
 
     if subargs.simulate_dumper {
@@ -962,7 +997,7 @@ fn dump_via_agent(
                 )
             }
 
-            if subargs.task.is_none() || subargs.initialize_dump_agent {
+            if task.is_none() || subargs.initialize_dump_agent {
                 humility::msg!("initializing dump agent state");
                 initialize_dump(hubris, core, &mut context, &funcs)?;
             }
@@ -971,7 +1006,7 @@ fn dump_via_agent(
                 return Ok(());
             }
 
-            if subargs.task.is_none() {
+            if task.is_none() {
                 humility::msg!("initializing segments");
                 initialize_segments(
                     hubris,
@@ -995,7 +1030,7 @@ fn dump_via_agent(
 
             let total = segments.iter().fold(0, |ttl, (_, size)| ttl + size);
 
-            if let Some(ref task) = subargs.task {
+            if let Some(task) = task {
                 match emulate_task_dump(hubris, core, &segments, base) {
                     Err(e) => {
                         core.run()?;
@@ -1003,11 +1038,11 @@ fn dump_via_agent(
                         return Err(e);
                     }
                     Ok(address) => {
-                        emulate_dump(core, address, total)?;
+                        emulate_dump(hubris, core, Some(task), address, total)?;
                     }
                 }
             } else {
-                emulate_dump(core, base, total)?;
+                emulate_dump(hubris, core, None, base, total)?;
             }
 
             core.run()?;
