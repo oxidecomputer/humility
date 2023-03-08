@@ -491,7 +491,7 @@ fn task_dump_segments(
 }
 
 fn emulate_task_dump(
-    hubris: &HubrisArchive,
+    _hubris: &HubrisArchive,
     core: &mut dyn Core,
     segments: &Vec<(u32, u32)>,
     base: u32,
@@ -501,7 +501,6 @@ fn emulate_task_dump(
     let area = match humpty::claim_dump_area::<anyhow::Error>(
         base,
         humpty::DumpAgent::Jefe,
-        false,
         |addr, buf| shared.borrow_mut().read_8(addr, buf),
         |addr, buf| shared.borrow_mut().write_8(addr, buf),
     ) {
@@ -803,7 +802,7 @@ fn task_areas(
                     break;
                 }
             }
-            Some(t) => {
+            Some(_task) => {
                 rval.insert(current, (headers[current].1.unwrap(), areas));
                 current = ndx;
                 areas = vec![*header];
@@ -840,7 +839,7 @@ fn process_dump(
         };
 
         match segment {
-            DumpSegment::Task(task) => {
+            DumpSegment::Task(_task) => {
                 offset += size_of::<DumpTask>();
                 continue;
             }
@@ -908,10 +907,9 @@ fn read_dump(
     agent: &mut AgentCore,
     area: Option<DumpArea>,
 ) -> Result<()> {
-    let headers = read_dump_headers(hubris, core, context, funcs)?;
     let mut contents: Vec<u8> = vec![];
 
-    let (base, headers, task) = {
+    let (base, headers, _task) = {
         let all = read_dump_headers(hubris, core, context, funcs)?;
 
         let area = match area {
@@ -920,7 +918,7 @@ fn read_dump(
             Some(DumpArea::ByAddress(address)) => all
                 .iter()
                 .enumerate()
-                .filter(|&(ndx, (header, _))| header.address == address)
+                .filter(|&(_, (header, _))| header.address == address)
                 .map(|(ndx, _)| ndx)
                 .next(),
         };
