@@ -14,7 +14,7 @@
 //! 0x00000010 | a1 01 00 00 a3 01 00 00 a5 01 00 00 a7 01 00 00 | ................
 //!
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use byteorder::ByteOrder;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
@@ -307,32 +307,42 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             println!("Write to CMPA done!");
         }
         IspCmd::WriteCFPA => {
-            let bytes = match &context.archive {
-                None => anyhow::bail!("Missing required archive"),
-                Some(archive) => match archive.read_cfpa()? {
-                    None => anyhow::bail!("CMPA not found in archive"),
-                    Some(cmpa) => cmpa,
-                },
+            // This command writes the CFPA from the archive, so, go find it.
+            let archive = context
+                .archive
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing required archive"))?;
+            let bytes = archive
+                .read_cfpa()
+                .context("trying to load CFPA from archive")? // I/O error
+                .ok_or_else(|| anyhow!("CFPA missing in archive"))?;
+
+            // The code below will become very upset if the CFPA file isn't 512
+            // bytes in length. Rather than panicking, let's present an error:
+            let bytes = as_array(&bytes).context("loading archive CFPA")?;
+            let cfpa = CFPAPage::from_bytes(bytes)?;
+
+            // Read a copy of the CMPA from the device so we can check for some
+            // potential bricking cases.
+            let cmpa = {
+                let cmpa_bytes =
+                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+                CMPAPage::from_bytes(
+                    as_array(&cmpa_bytes)
+                        .expect("constant above should be 512"),
+                )?
             };
-
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
-            let mut cmpa_bytes = [0u8; 512];
-            cmpa_bytes.clone_from_slice(&m);
-
-            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
-
-            let mut cfpa_bytes = [0u8; 512];
-            cfpa_bytes.clone_from_slice(&bytes);
-
-            let cfpa = CFPAPage::from_bytes(&cfpa_bytes)?;
 
             if (cfpa.dcfg_cc_socu_ns_pin != 0 || cfpa.dcfg_cc_socu_ns_dflt != 0)
                 && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
             {
-                anyhow::bail!("It looks like the CMPA debug settings aren't set but the CFPA settings are! This will brick the chip!");
+                anyhow::bail!(
+                    "It looks like the CMPA debug settings aren't set \
+                    but the CFPA settings are! This will brick the chip!"
+                );
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, &bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
             println!("Write to CFPA done!");
         }
         IspCmd::ReadCFPA => {
@@ -494,4 +504,10 @@ pub fn init() -> Command {
         run: ispcmd,
         kind: CommandKind::Unattached { archive: Archive::Optional },
     }
+}
+
+fn as_array<const N: usize>(slice: &[u8]) -> Result<&[u8; N]> {
+    slice
+        .try_into()
+        .map_err(|_| anyhow!("data should be {N}B, but is: {}", slice.len()))
 }
