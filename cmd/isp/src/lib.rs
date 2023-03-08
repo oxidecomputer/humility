@@ -27,6 +27,11 @@ use std::path::PathBuf;
 mod cmd;
 mod protocol;
 
+const CFPA_SCRATCH_ADDR: u32 = 0x9_DE00;
+const CFPA_PING_ADDR: u32 = 0x9_E000;
+const CFPA_PONG_ADDR: u32 = 0x9_E200;
+const CMPA_ADDR: u32 = 0x9_E400;
+
 use crate::protocol::BootloaderProperty;
 
 #[derive(Parser, Debug)]
@@ -281,8 +286,16 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             cmpa_bytes.clone_from_slice(&bytes);
             let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
 
-            let m1 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
-            let m2 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+            let m1 = crate::cmd::do_isp_read_memory(
+                &mut *port,
+                CFPA_PING_ADDR,
+                512,
+            )?;
+            let m2 = crate::cmd::do_isp_read_memory(
+                &mut *port,
+                CFPA_PONG_ADDR,
+                512,
+            )?;
             let mut ping_bytes = [0u8; 512];
             let mut pong_bytes = [0u8; 512];
 
@@ -303,7 +316,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 anyhow::bail!("CFPA has non-zero debug settings but CMPA has zero settings! This would brick the chip!");
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, &bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, CMPA_ADDR, &bytes)?;
             println!("Write to CMPA done!");
         }
         IspCmd::WriteCFPA => {
@@ -326,7 +339,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             // potential bricking cases.
             let cmpa = {
                 let cmpa_bytes =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+                    crate::cmd::do_isp_read_memory(&mut *port, CMPA_ADDR, 512)?;
                 CMPAPage::from_bytes(
                     as_array(&cmpa_bytes)
                         .expect("constant above should be 512"),
@@ -342,32 +355,54 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 );
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
+            crate::cmd::do_isp_write_memory(
+                &mut *port,
+                CFPA_SCRATCH_ADDR,
+                bytes,
+            )?;
             println!("Write to CFPA done!");
         }
         IspCmd::ReadCFPA => {
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9de00, 512)?;
+            let m = crate::cmd::do_isp_read_memory(
+                &mut *port,
+                CFPA_SCRATCH_ADDR,
+                512,
+            )?;
 
             let mut dumper = Dumper::new();
             dumper.size = 4;
             println!("=====Scratch Page=====");
-            dumper.dump(&m, 0x9de00);
+            dumper.dump(&m, CFPA_SCRATCH_ADDR);
 
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
+            let m = crate::cmd::do_isp_read_memory(
+                &mut *port,
+                CFPA_PING_ADDR,
+                512,
+            )?;
 
             println!("=====Ping Page=====");
-            dumper.dump(&m, 0x9e000);
+            dumper.dump(&m, CFPA_PING_ADDR);
 
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+            let m = crate::cmd::do_isp_read_memory(
+                &mut *port,
+                CFPA_PONG_ADDR,
+                512,
+            )?;
             println!("=====Pong Page=====");
-            dumper.dump(&m, 0x9e200);
+            dumper.dump(&m, CFPA_PONG_ADDR);
         }
         IspCmd::EraseCMPA { full } => {
             let b = if full {
-                let m1 =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
-                let m2 =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
+                let m1 = crate::cmd::do_isp_read_memory(
+                    &mut *port,
+                    CFPA_PING_ADDR,
+                    512,
+                )?;
+                let m2 = crate::cmd::do_isp_read_memory(
+                    &mut *port,
+                    CFPA_PONG_ADDR,
+                    512,
+                )?;
                 let mut ping_bytes = [0u8; 512];
                 let mut pong_bytes = [0u8; 512];
 
@@ -388,7 +423,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 vec![0; 512]
             } else {
                 let m =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+                    crate::cmd::do_isp_read_memory(&mut *port, CMPA_ADDR, 512)?;
                 let mut bytes = [0u8; 512];
                 bytes.clone_from_slice(&m);
 
@@ -397,16 +432,16 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 cmpa.secure_boot_cfg = 0;
                 cmpa.to_vec()?
             };
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, &b)?;
+            crate::cmd::do_isp_write_memory(&mut *port, CMPA_ADDR, &b)?;
             println!("CMPA region erased!");
             println!("You can now boot unsigned images");
         }
         IspCmd::ReadCMPA => {
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+            let m = crate::cmd::do_isp_read_memory(&mut *port, CMPA_ADDR, 512)?;
 
             let mut dumper = Dumper::new();
             dumper.size = 4;
-            dumper.dump(&m, 0x9e400);
+            dumper.dump(&m, CMPA_ADDR);
         }
         IspCmd::Restore => {
             println!("Erasing flash");
