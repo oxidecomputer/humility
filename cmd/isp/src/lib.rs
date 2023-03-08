@@ -260,7 +260,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
             infile.read_to_end(&mut bytes)?;
 
-            crate::cmd::do_isp_write_memory(&mut *port, address, bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, address, &bytes)?;
             println!("Write complete!");
         }
         IspCmd::FlashEraseAll => {
@@ -303,7 +303,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 anyhow::bail!("CFPA has non-zero debug settings but CMPA has zero settings! This would brick the chip!");
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, &bytes)?;
             println!("Write to CMPA done!");
         }
         IspCmd::WriteCFPA => {
@@ -332,7 +332,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 anyhow::bail!("It looks like the CMPA debug settings aren't set but the CFPA settings are! This will brick the chip!");
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, &bytes)?;
             println!("Write to CFPA done!");
         }
         IspCmd::ReadCFPA => {
@@ -387,7 +387,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 cmpa.secure_boot_cfg = 0;
                 cmpa.to_vec()?
             };
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, b)?;
+            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, &b)?;
             println!("CMPA region erased!");
             println!("You can now boot unsigned images");
         }
@@ -429,7 +429,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             );
 
             println!("Writing bytes");
-            crate::cmd::do_isp_write_memory(&mut *port, 0x0, bytes.to_vec())?;
+            crate::cmd::do_isp_write_memory(&mut *port, 0x0, &bytes)?;
 
             println!("Restore done! SWD should work now.");
         }
@@ -457,7 +457,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             // Write 3 * 512 bytes of 0
             let bytes = vec![0; 512 * 3];
 
-            crate::cmd::do_isp_write_keystore(&mut *port, bytes)?;
+            crate::cmd::do_isp_write_keystore(&mut *port, &bytes)?;
             crate::cmd::do_save_keystore(&mut *port)?;
             println!("done.")
         }
