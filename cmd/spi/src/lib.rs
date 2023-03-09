@@ -226,11 +226,11 @@ fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
             }
 
             addr = match size {
-                1 => arr[l - size] as u32,
-                2 => u16::from_le_bytes(arr[l - size..l].try_into().unwrap())
-                    as u32,
-                4 => u32::from_le_bytes(arr[l - size..l].try_into().unwrap())
-                    as u32,
+                1 => u32::from(arr[l - size]),
+                2 => u32::from(u16::from_le_bytes(
+                    arr[l - size..l].try_into().unwrap(),
+                )),
+                4 => u32::from_le_bytes(arr[l - size..l].try_into().unwrap()),
                 _ => {
                     bail!("invalid address size");
                 }
@@ -245,11 +245,11 @@ fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
             }
 
             addr = match size {
-                1 => arr[l - size] as u32,
-                2 => u16::from_be_bytes(arr[l - size..l].try_into().unwrap())
-                    as u32,
-                4 => u32::from_be_bytes(arr[l - size..l].try_into().unwrap())
-                    as u32,
+                1 => u32::from(arr[l - size]),
+                2 => u32::from(u16::from_be_bytes(
+                    arr[l - size..l].try_into().unwrap(),
+                )),
+                4 => u32::from_be_bytes(arr[l - size..l].try_into().unwrap()),
                 _ => {
                     bail!("invalid address size");
                 }

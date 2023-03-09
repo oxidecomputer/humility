@@ -108,7 +108,7 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
                     bail!("invalid byte {}", byte)
                 }
             }
-            ops.push(Op::Push32(addr as u32));
+            ops.push(Op::Push32(addr));
             ops.push(Op::Push32(arr.len() as u32));
 
             let sp_write = funcs.get("WriteToSp", 2)?;
@@ -120,7 +120,7 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
             println!("{:x?}", results);
         }
         SpCtrlCmd::Read { addr, nbytes } => {
-            ops.push(Op::Push32(addr as u32));
+            ops.push(Op::Push32(addr));
             ops.push(Op::Push32(nbytes as u32));
             let sp_read = funcs.get("ReadFromSp", 2)?;
             ops.push(Op::Call(sp_read.id));
