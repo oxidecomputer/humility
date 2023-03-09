@@ -213,11 +213,11 @@ impl Dumper {
                 print!(
                     "{:0width$x} ",
                     match size {
-                        1 => line[i - offs] as u32,
-                        2 =>
-                            u16::from_le_bytes(slice.try_into().unwrap()) as u32,
-                        4 =>
-                            u32::from_le_bytes(slice.try_into().unwrap()) as u32,
+                        1 => u32::from(line[i - offs]),
+                        2 => u32::from(u16::from_le_bytes(
+                            slice.try_into().unwrap()
+                        )),
+                        4 => u32::from_le_bytes(slice.try_into().unwrap()),
                         _ => {
                             panic!("invalid size");
                         }

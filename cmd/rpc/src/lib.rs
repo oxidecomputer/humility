@@ -337,7 +337,7 @@ impl<'a> RpcClient<'a> {
         let header = RpcHeader {
             image_id: U64::from_bytes(our_image_id.try_into().unwrap()),
             task: U16::new(op.task.task().try_into().unwrap()),
-            op: U16::new(op.code as u16),
+            op: U16::new(op.code),
             nreply: U16::new(nreply as u16),
             nbytes: U16::new(payload.len().try_into().unwrap()),
         };

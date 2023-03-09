@@ -254,7 +254,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             println!("If you didn't already erase the flash this operation will fail!");
             println!("This operation may take a while");
             let mut infile =
-                std::fs::OpenOptions::new().read(true).open(&file)?;
+                std::fs::OpenOptions::new().read(true).open(file)?;
 
             let mut bytes = Vec::new();
 
