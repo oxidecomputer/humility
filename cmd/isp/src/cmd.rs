@@ -128,6 +128,19 @@ pub fn do_isp_read_memory(
     recv_data(port, cnt, ResponseCode::Generic)
 }
 
+/// Variant of `do_isp_read_memory` that reads a compile-time byte count, which
+/// means it can return a precisely sized allocation that can be treated as a
+/// fixed length array without further work.
+pub fn do_isp_read_memory_array<const N: usize>(
+    port: &mut dyn serialport::SerialPort,
+    address: u32,
+) -> Result<Box<[u8; N]>> {
+    let cnt = u32::try_from(N).unwrap();
+    let bytes = do_isp_read_memory(port, address, cnt)?;
+    Ok(crate::fixed_vec(bytes)
+        .expect("do_isp_read_memory returned wrong vec length!"))
+}
+
 pub fn do_isp_write_memory(
     port: &mut dyn serialport::SerialPort,
     address: u32,
