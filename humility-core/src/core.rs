@@ -987,9 +987,9 @@ impl GDBCore {
         log::trace!("command {} returned {}", cmd, rstr);
 
         match rstr.len() {
-            2 => Ok(u8::from_le_bytes(buf[..].try_into().unwrap()) as u32),
-            4 => Ok(u16::from_le_bytes(buf[..].try_into().unwrap()) as u32),
-            8 => Ok(u32::from_le_bytes(buf[..].try_into().unwrap()) as u32),
+            2 => Ok(u32::from(u8::from_le_bytes(buf[..].try_into().unwrap()))),
+            4 => Ok(u32::from(u16::from_le_bytes(buf[..].try_into().unwrap()))),
+            8 => Ok(u32::from_le_bytes(buf[..].try_into().unwrap())),
             16 => {
                 //
                 // Amazingly, for some 32-bit register values under certain

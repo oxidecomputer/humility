@@ -284,7 +284,7 @@ impl Graph {
                 continue;
             }
 
-            let offs = (self.time - (self.width - i)) as usize;
+            let offs = self.time - (self.width - i);
 
             for (_ndx, s) in &mut self.series.iter_mut().enumerate() {
                 if let Some(datum) = s.raw[offs] {

@@ -709,7 +709,7 @@ fn monorail_status(
             ops.push(Op::Push32(op.task.task())); // Task id
             ops.push(Op::Push16(op.code)); // opcode
             ops.push(Op::Push(0)); // port (payload)
-            ops.push(Op::Push(NUM_PORTS as u8)); // comparison target (dummy)
+            ops.push(Op::Push(NUM_PORTS)); // comparison target (dummy)
             ops.push(Op::Label(label));
             {
                 ops.push(Op::Drop); // Drop comparison target
@@ -719,7 +719,7 @@ fn monorail_status(
                 ops.push(Op::DropN(2)); // Drop payload and return size
                 ops.push(Op::Push(1)); // Increment by one
                 ops.push(Op::Add); // port = port + 1
-                ops.push(Op::Push(NUM_PORTS as u8)); // Comparison target
+                ops.push(Op::Push(NUM_PORTS)); // Comparison target
                 ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
             }
             ops.push(Op::DropN(4)); // Cleanup

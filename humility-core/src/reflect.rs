@@ -900,7 +900,7 @@ pub fn load_base(buf: &[u8], ty: &HubrisBasetype, addr: usize) -> Result<Base> {
         }
 
         (Unsigned, 0) => Base::U0,
-        (Unsigned, 1) => Base::U8(buf[0] as u8),
+        (Unsigned, 1) => Base::U8(buf[0]),
         (Unsigned, 2) => Base::U16(u16::from_le_bytes(buf.try_into().unwrap())),
         (Unsigned, 4) => Base::U32(u32::from_le_bytes(buf.try_into().unwrap())),
         (Unsigned, 8) => Base::U64(u64::from_le_bytes(buf.try_into().unwrap())),

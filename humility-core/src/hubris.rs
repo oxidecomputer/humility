@@ -633,7 +633,7 @@ impl HubrisArchive {
         // that our search is over when the address plus the length
         // is less than our base.
         //
-        for ((addr, _depth), (len, goff, origin)) in
+        for (&(addr, _depth), (len, goff, origin)) in
             self.inlined.range(..=(pc, std::isize::MAX)).rev()
         {
             if addr + len < base {
@@ -646,7 +646,7 @@ impl HubrisArchive {
 
             if let Some(func) = self.subprograms.get(origin) {
                 inlined.push(HubrisInlined {
-                    addr: *addr as u32,
+                    addr,
                     name: func,
                     id: *goff,
                     origin: *origin,
@@ -963,9 +963,9 @@ impl HubrisArchive {
         Err(anyhow!("missing address range for {}", goff))
     }
 
-    fn dwarf_subprogram<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_subprogram<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1036,9 +1036,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_basetype<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1100,9 +1100,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_ptrtype<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_ptrtype<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1167,9 +1167,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_variable<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_variable<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1397,9 +1397,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_struct<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_struct<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1444,9 +1444,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_const_enum<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_const_enum<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1499,9 +1499,9 @@ impl HubrisArchive {
         }
     }
 
-    fn dwarf_enum_variant<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_enum_variant<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1629,9 +1629,9 @@ impl HubrisArchive {
         }
     }
 
-    fn dwarf_union<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_union<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -1673,9 +1673,9 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn dwarf_member<'a, R: gimli::Reader<Offset = usize>>(
+    fn dwarf_member<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<
             gimli::EndianSlice<gimli::LittleEndian>,
@@ -2138,7 +2138,7 @@ impl HubrisArchive {
             .collect::<HashSet<_>>();
 
         let offset = textsec.sh_offset as u32;
-        let size = textsec.sh_size as u32;
+        let textsize = textsec.sh_size as u32;
         let current = self.current;
 
         log::trace!("loading {} as object {}", object, self.current);
@@ -2323,7 +2323,7 @@ impl HubrisArchive {
                 name: String::from(object),
                 object: current,
                 textbase: (textsec.sh_addr as u32),
-                textsize: size as u32,
+                textsize,
                 memsize: memsz as u32,
                 heapbss,
                 task,
@@ -4038,7 +4038,7 @@ impl HubrisArchive {
         };
 
         let readreg = |rname| -> Result<u32> {
-            let o = state.lookup_member(rname)?.offset as usize;
+            let o = state.lookup_member(rname)?.offset;
             Ok(u32::from_le_bytes(regs[o..o + 4].try_into().unwrap()))
         };
 
@@ -4047,7 +4047,7 @@ impl HubrisArchive {
         //
         for r in 4..=11 {
             let rname = format!("r{}", r);
-            let o = state.lookup_member(&rname)?.offset as usize;
+            let o = state.lookup_member(&rname)?.offset;
             let val = u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
 
             rval.insert(ARMRegister::from_usize(r).unwrap(), val);
@@ -5250,10 +5250,10 @@ impl HubrisEnum {
     ) -> Result<&HubrisEnumVariant> {
         let readval = |b: &[u8], o, sz| -> Result<u64> {
             Ok(match sz {
-                1 => b[o] as u64,
-                2 => u16::from_le_bytes(b[o..o + 2].try_into()?) as u64,
-                4 => u32::from_le_bytes(b[o..o + 4].try_into()?) as u64,
-                8 => u64::from_le_bytes(b[o..o + 8].try_into()?) as u64,
+                1 => u64::from(b[o]),
+                2 => u64::from(u16::from_le_bytes(b[o..o + 2].try_into()?)),
+                4 => u64::from(u32::from_le_bytes(b[o..o + 4].try_into()?)),
+                8 => u64::from_le_bytes(b[o..o + 8].try_into()?),
                 _ => {
                     bail!("bad variant size!");
                 }

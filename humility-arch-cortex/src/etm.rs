@@ -572,7 +572,7 @@ fn etm_payload_decode(
         }
     };
 
-    let reason = |ibyte| match ((ibyte >> 5) as u8) & 0b11 {
+    let reason = |ibyte: u8| match (ibyte >> 5) & 0b11 {
         0b00 => ETM3SyncReason::Periodic,
         0b01 => ETM3SyncReason::TracingEnabled,
         0b10 => ETM3SyncReason::TracingRestarted,

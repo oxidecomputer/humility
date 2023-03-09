@@ -235,7 +235,7 @@ fn lpc55_pfr(context: &mut humility::ExecutionContext) -> Result<()> {
         PfrCmd::WriteCFPA { file } => {
             let mut file_bytes = Vec::new();
             let mut infile =
-                std::fs::OpenOptions::new().read(true).open(&file)?;
+                std::fs::OpenOptions::new().read(true).open(file)?;
 
             infile.read_to_end(&mut file_bytes)?;
 
@@ -289,7 +289,7 @@ fn lpc55_pfr(context: &mut humility::ExecutionContext) -> Result<()> {
         PfrCmd::WriteCMPA { file } => {
             let mut file_bytes = Vec::new();
             let mut infile =
-                std::fs::OpenOptions::new().read(true).open(&file)?;
+                std::fs::OpenOptions::new().read(true).open(file)?;
 
             infile.read_to_end(&mut file_bytes)?;
 

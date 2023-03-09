@@ -743,7 +743,7 @@ impl<'a> HiffyContext<'a> {
             } else if val <= u16::MAX as u32 {
                 Op::Push16(val as u16)
             } else {
-                Op::Push32(val as u32)
+                Op::Push32(val)
             }
         };
 
