@@ -341,30 +341,23 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             println!("Write to CFPA done!");
         }
         IspCmd::ReadCFPA => {
-            let m = crate::cmd::do_isp_read_memory_array::<512>(
-                &mut *port,
-                CFPA_SCRATCH_ADDR,
-            )?;
+            // We're going to dump all three versions of the CFPA, in hex,
+            // without decoding.
+            let pages = [
+                (CFPA_SCRATCH_ADDR, "Scratch"),
+                (CFPA_PING_ADDR, "Ping"),
+                (CFPA_PONG_ADDR, "Pong"),
+            ];
+            for (addr, name) in pages {
+                let m = crate::cmd::do_isp_read_memory_array::<512>(
+                    &mut *port, addr,
+                )?;
 
-            let mut dumper = Dumper::new();
-            dumper.size = 4;
-            println!("=====Scratch Page=====");
-            dumper.dump(&*m, CFPA_SCRATCH_ADDR);
-
-            let m = crate::cmd::do_isp_read_memory_array::<512>(
-                &mut *port,
-                CFPA_PING_ADDR,
-            )?;
-
-            println!("=====Ping Page=====");
-            dumper.dump(&*m, CFPA_PING_ADDR);
-
-            let m = crate::cmd::do_isp_read_memory_array::<512>(
-                &mut *port,
-                CFPA_PONG_ADDR,
-            )?;
-            println!("=====Pong Page=====");
-            dumper.dump(&*m, CFPA_PONG_ADDR);
+                let mut dumper = Dumper::new();
+                dumper.size = 4;
+                println!("====={name} Page=====");
+                dumper.dump(&*m, addr);
+            }
         }
         IspCmd::EraseCMPA { full } => {
             let b = if full {
