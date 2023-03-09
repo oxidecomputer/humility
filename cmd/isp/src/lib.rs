@@ -55,9 +55,9 @@ enum IspCmd {
     },
     /// Erases all non-secure flash. This MUST be done before writing!
     FlashEraseAll,
-    /// Write a file to the CMPA region
+    /// Write the CMPA image from the current archive to the CMPA region
     WriteCMPA,
-    /// Write a file to the CFPA region
+    /// Write the CMPA image from the current archive to the CFPA region
     WriteCFPA,
     /// Read the CMPA region
     ReadCMPA,
