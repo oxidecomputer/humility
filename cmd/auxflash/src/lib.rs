@@ -391,11 +391,11 @@ fn auxflash(context: &mut humility::ExecutionContext) -> Result<()> {
         }
         AuxFlashCommand::Read { slot, output, count } => {
             let data = worker.auxflash_read(slot, count)?;
-            std::fs::write(&output, &data)?;
+            std::fs::write(output, data)?;
         }
         AuxFlashCommand::Write { slot, input, force } => match input {
             Some(input) => {
-                let data = std::fs::read(&input)?;
+                let data = std::fs::read(input)?;
                 worker.auxflash_write(slot, &data, force)?;
             }
             None => {

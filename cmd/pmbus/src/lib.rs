@@ -726,8 +726,8 @@ fn summarize(
                 // For each of the commands that we need to run, add a call
                 // for it
                 //
-                for (code, _) in &commands {
-                    driver.command(*code, |cmd| {
+                for &(code, _) in &commands {
+                    driver.command(code, |cmd| {
                         let op = match cmd.read_op() {
                             pmbus::Operation::ReadByte => Op::Push(1),
                             pmbus::Operation::ReadWord => Op::Push(2),
@@ -738,11 +738,11 @@ fn summarize(
                             }
                         };
 
-                        ops.push(Op::Push(*code));
+                        ops.push(Op::Push(code));
                         ops.push(op);
                         ops.push(Op::Call(func.id));
                         ops.push(Op::DropN(2));
-                        calls.push(*code as u8);
+                        calls.push(code);
                     });
                 }
 

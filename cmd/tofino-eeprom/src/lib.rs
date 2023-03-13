@@ -159,10 +159,10 @@ fn eeprom(context: &mut humility::ExecutionContext) -> Result<()> {
     match subargs.cmd {
         EepromCommand::Read { output, count } => {
             let data = worker.eeprom_read(count)?;
-            std::fs::write(&output, &data)?;
+            std::fs::write(output, data)?;
         }
         EepromCommand::Write { input } => {
-            let data = std::fs::read(&input)?;
+            let data = std::fs::read(input)?;
             worker.eeprom_write(&data)?;
         }
     }

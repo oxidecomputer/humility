@@ -350,7 +350,7 @@ pub fn read_rom(
             // This is a ROM table, so we want to read its entries, and
             // descend.
             //
-            for offset in (0..max).step_by(size_of::<u32>() as usize) {
+            for offset in (0..max).step_by(size_of::<u32>()) {
                 let val = core.read_word_32(base + offset as u32)?;
 
                 if val == 0 {

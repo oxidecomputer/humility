@@ -3,7 +3,6 @@ on: [push, pull_request]
 name: Continuous integration
 
 env:
-  MSRV: 1.65.0
   CARGO_INCREMENTAL: 0 # set here rather than on CI profile so that the tests get it too
 
 jobs:
@@ -24,11 +23,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.MSRV }}
-          override: true
       - uses: Swatinem/rust-cache@v1
       - name: Install cargo-readme
         uses: baptiste0928/cargo-install@v1
@@ -86,11 +80,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.MSRV }}
-          override: true
       - uses: Swatinem/rust-cache@v1
       - name: Install cargo-readme
         uses: baptiste0928/cargo-install@v1
@@ -109,12 +98,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.MSRV }}
-          override: true
-          components: clippy
       - uses: Swatinem/rust-cache@v1
       - name: Install cargo-readme
         uses: baptiste0928/cargo-install@v1
