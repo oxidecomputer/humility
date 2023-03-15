@@ -277,7 +277,7 @@ impl Core for AgentCore {
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
         match self.registers.get(&reg) {
             Some(val) => Ok(*val),
-            None => bail!("unknown register {}", reg),
+            None => Ok(0xdefec8ed),
         }
     }
 
@@ -429,7 +429,7 @@ fn emulate_dump(
             }
             Ok(None)
         },
-        |addr, buf| {
+        |addr, buf, _meta| {
             nread += buf.len();
             bar.set_position(nread as u64);
             shared.borrow_mut().read_8(addr, buf)
@@ -501,7 +501,7 @@ fn emulate_task_dump(
     let area = match humpty::claim_dump_area::<anyhow::Error>(
         base,
         humpty::DumpAgent::Jefe,
-        |addr, buf| shared.borrow_mut().read_8(addr, buf),
+        |addr, buf, _meta| shared.borrow_mut().read_8(addr, buf),
         |addr, buf| shared.borrow_mut().write_8(addr, buf),
     ) {
         Ok(area) => area,
@@ -526,7 +526,7 @@ fn emulate_task_dump(
             area.address,
             *base,
             *size,
-            |addr, buf| shared.borrow_mut().read_8(addr, buf),
+            |addr, buf, _meta| shared.borrow_mut().read_8(addr, buf),
             |addr, buf| shared.borrow_mut().write_8(addr, buf),
         ) {
             bail!("adding segment at {base:#x} (length {size}) failed: {e:x?}");
@@ -995,7 +995,37 @@ fn dump_via_agent(
         None => None,
     };
 
-    let (task, mut segments) = if let Some(task) = &subargs.task {
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let funcs = context.functions()?;
+
+    let (task, mut segments) = if let Some(DumpArea::ByIndex(ndx)) = area {
+        let all = read_dump_headers(hubris, core, &mut context, &funcs)?;
+        let areas = task_areas(&all);
+
+        if let Some((task, _)) = areas.get(&ndx) {
+            let mut rval = vec![];
+            let (base, _) = hubris.task_table(core)?;
+
+            let ndx = task.id as usize;
+
+            let task_t = hubris.lookup_struct_byname("Task")?;
+            rval.push((base + (ndx * task_t.size) as u32, task_t.size as u32));
+
+            for v in regions.values() {
+                if v.attr.device || !v.attr.write || v.attr.dma {
+                    continue;
+                }
+
+                if v.tasks.contains(&HubrisTask::Task(ndx as u32)) {
+                    rval.push((v.base, v.size));
+                }
+            }
+
+            (Some(ndx as u16), rval)
+        } else {
+            bail!("area index {ndx} is invalid (--list to list)");
+        }
+    } else if let Some(task) = &subargs.task {
         let r = task_dump_segments(hubris, core, &regions, task)?;
         (Some(r.0), r.1)
     } else {
@@ -1003,7 +1033,7 @@ fn dump_via_agent(
             None,
             regions
                 .values()
-                .filter(|&r| !r.attr.device && r.attr.write)
+                .filter(|&r| !r.attr.device && r.attr.write && !r.attr.dma)
                 .map(|r| (r.base, r.size))
                 .collect::<Vec<_>>(),
         )
@@ -1099,8 +1129,6 @@ fn dump_via_agent(
         core.run()?;
         humility::msg!("core resumed");
     } else {
-        let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-        let funcs = context.functions()?;
         let header = read_dump_header(hubris, core, &mut context, &funcs)?.0;
 
         if !subargs.force_read {
