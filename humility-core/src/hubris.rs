@@ -25,6 +25,7 @@ use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
+use humpty::DumpTask;
 use idol::syntax::Interface;
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
@@ -35,6 +36,7 @@ const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
+const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
 const MAX_HUBRIS_VERSION: u32 = 7;
 
@@ -3340,6 +3342,36 @@ impl HubrisArchive {
         }
     }
 
+    pub fn current_task(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Option<HubrisTask>> {
+        let cur = core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
+        let (base, task_count) = self.task_table(core)?;
+        let task_t = self.lookup_struct_byname("Task")?;
+        let size = task_t.size;
+
+        if (cur - base) % size as u32 != 0 {
+            bail!("CURRENT_TASK_PTR ({cur:#x}) - base ({base:#x}) is not an
+even multiple of task size ({size})")
+        }
+
+        let ndx = (cur - base) / task_t.size as u32;
+
+        if ndx >= task_count {
+            bail!("current task ({ndx}) exceeds max ({task_count})");
+        }
+
+        Ok(Some(HubrisTask::Task(ndx)))
+    }
+
+    pub fn ticks(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<u64> {
+        core.read_word_64(self.lookup_variable("TICKS")?.addr)
+    }
+
     //
     // If the kernel has died and has left an epitaph, this will return it
     // as a string.  If the kernel is not dead -- or if this kernel pre-dates
@@ -4430,10 +4462,49 @@ impl HubrisArchive {
         })
     }
 
+    pub fn dump_segments(
+        &self,
+        core: &mut dyn crate::core::Core,
+        task: Option<DumpTask>,
+        include_nonwritable: bool,
+    ) -> Result<Vec<(u32, u32)>> {
+        let regions = self.regions(core)?;
+
+        Ok(match task {
+            None => regions
+                .values()
+                .filter(|&r| !r.attr.device && !r.attr.dma)
+                .filter(|&r| include_nonwritable || r.attr.write)
+                .map(|r| (r.base, r.size))
+                .collect::<Vec<_>>(),
+            Some(task) => {
+                let t = HubrisTask::Task(task.id as u32);
+
+                let mut segments = regions
+                    .values()
+                    .filter(|&r| !r.attr.device && !r.attr.dma)
+                    .filter(|&r| include_nonwritable || r.attr.write)
+                    .filter(|&r| r.tasks.contains(&t))
+                    .map(|r| (r.base, r.size))
+                    .collect::<Vec<_>>();
+
+                let (base, _) = self.task_table(core)?;
+                let ndx = task.id as usize;
+                let task_t = self.lookup_struct_byname("Task")?;
+                segments.push((
+                    base + (ndx * task_t.size) as u32,
+                    task_t.size as u32,
+                ));
+
+                segments
+            }
+        })
+    }
+
     pub fn dump(
         &self,
         core: &mut dyn crate::core::Core,
-        segments: &Vec<(u32, u32)>,
+        task: Option<DumpTask>,
         dumpfile: Option<&str>,
         started: Option<Instant>,
     ) -> Result<()> {
@@ -4441,6 +4512,7 @@ impl HubrisArchive {
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::Write;
 
+        let segments = self.dump_segments(core, task, true)?;
         let nsegs = segments.len();
 
         macro_rules! pad {
@@ -4552,7 +4624,7 @@ impl HubrisArchive {
 
         let mut total = 0;
 
-        for (base, size) in segments {
+        for (base, size) in &segments {
             let seg_phdr = goblin::elf32::program_header::ProgramHeader {
                 p_type: goblin::elf::program_header::PT_LOAD,
                 p_flags: goblin::elf::program_header::PF_R,
@@ -4625,7 +4697,7 @@ impl HubrisArchive {
                 .template("humility: dumping [{bar:30}] {bytes}/{total_bytes}"),
         );
 
-        for (base, size) in segments {
+        for (base, size) in &segments {
             let mut remain = *size as usize;
             let mut bytes = vec![0; 1024];
             let mut addr = *base;

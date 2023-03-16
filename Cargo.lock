@@ -1986,6 +1986,7 @@ dependencies = [
  "goblin",
  "hubpack",
  "humility_load_derive",
+ "humpty",
  "idol",
  "indexmap",
  "indicatif",

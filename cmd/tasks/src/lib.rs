@@ -182,7 +182,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
-    let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
+    let ticks = hubris.ticks(core)?;
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -200,8 +200,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
     loop {
         core.halt()?;
 
-        let cur =
-            core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
+        let cur = hubris.current_task(core)?;
 
         //
         // We read the entire task table at a go to get as consistent a
@@ -311,7 +310,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                 i,
                 &regs,
                 task.state,
-                *addr == cur,
+                cur == Some(HubrisTask::Task(i)),
                 irqs,
                 timer,
             )?;

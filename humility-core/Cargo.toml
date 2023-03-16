@@ -31,6 +31,7 @@ regex = { workspace = true }
 colored = { workspace = true }
 clap = { workspace = true }
 ron = { workspace = true }
+humpty = { workspace = true }
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure

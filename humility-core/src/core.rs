@@ -30,7 +30,6 @@ use goblin::elf::Elf;
 
 pub trait Core {
     fn info(&self) -> (String, Option<String>);
-    fn read_word_32(&mut self, addr: u32) -> Result<u32>;
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
     fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()>;
@@ -52,6 +51,12 @@ pub trait Core {
 
     fn set_timeout(&mut self, _timeout: Duration) -> Result<()> {
         Ok(())
+    }
+
+    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
+        let mut buf = [0; 4];
+        self.read_8(addr, &mut buf)?;
+        Ok(u32::from_le_bytes(buf))
     }
 
     fn read_word_64(&mut self, addr: u32) -> Result<u64> {
@@ -128,10 +133,6 @@ impl Core for UnattachedCore {
         );
 
         (ident, self.serial_number.clone())
-    }
-
-    fn read_word_32(&mut self, _addr: u32) -> Result<u32> {
-        bail!("Unimplemented when unattached!");
     }
 
     fn read_8(&mut self, _addr: u32, _data: &mut [u8]) -> Result<()> {
@@ -1224,12 +1225,6 @@ impl Core for DumpCore {
         ("core dump".to_string(), None)
     }
 
-    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        let mut buf = [0u8; 4];
-        self.read_8(addr, buf.as_mut_slice())?;
-        Ok(u32::from_le_bytes(buf))
-    }
-
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         let rsize = data.len();
 
@@ -1425,12 +1420,6 @@ impl Core for NetCore {
 
     fn recv(&mut self, buf: &mut [u8]) -> Result<usize> {
         self.socket.recv(buf).map_err(anyhow::Error::from)
-    }
-
-    fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        let mut buf = [0; 4];
-        self.read(addr, &mut buf)?;
-        Ok(u32::from_le_bytes(buf))
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
