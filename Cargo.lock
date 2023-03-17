@@ -2006,6 +2006,7 @@ dependencies = [
  "serde_json",
  "toml",
  "winapi",
+ "zerocopy",
  "zip",
 ]
 

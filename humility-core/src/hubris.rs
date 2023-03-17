@@ -31,6 +31,7 @@ use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
+use zerocopy::{AsBytes, FromBytes};
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
@@ -437,6 +438,9 @@ pub struct HubrisArchive {
     // current object
     current: u32,
 
+    // non-None if a dump of a task
+    dump_task: Option<DumpTask>,
+
     // Capstone library handle
     cs: capstone::Capstone,
 
@@ -548,6 +552,7 @@ impl HubrisArchive {
                 }
             },
             current: 0,
+            dump_task: None,
             instrs: HashMap::new(),
             syscall_pushes: HashMap::new(),
             registers: HashMap::new(),
@@ -3079,6 +3084,18 @@ impl HubrisArchive {
                             OXIDE_NT_HUBRIS_REGISTERS => {
                                 self.load_registers(note.desc)?;
                             }
+                            OXIDE_NT_HUBRIS_TASK => {
+                                match DumpTask::read_from_prefix(note.desc) {
+                                    Some(task) => {
+                                        self.dump_task = Some(task);
+                                    }
+                                    None => {
+                                        bail!(
+                                            "unrecognized task {:?}", note.desc
+                                        );
+                                    }
+                                }
+                            }
                             _ => {
                                 bail!("unrecognized note 0x{:x}", note.n_type);
                             }
@@ -3271,8 +3288,14 @@ impl HubrisArchive {
     pub fn qualified_variables(
         &self,
     ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
-        self.qualified_variables.iter_all().flat_map(|(n, v)| {
+        let dump_task = self.dump_task();
+
+        self.qualified_variables.iter_all().flat_map(move |(n, v)| {
             v.iter()
+                .filter(|&v| match dump_task {
+                    None => true,
+                    Some(t) => t == HubrisTask::from(v.goff),
+                })
                 .map(|e| (n.as_str(), e))
                 .collect::<Vec<(&str, &HubrisVariable)>>()
         })
@@ -3342,18 +3365,36 @@ impl HubrisArchive {
         }
     }
 
+    pub fn dump_task(&self) -> Option<HubrisTask> {
+        match self.dump_task {
+            Some(task) => Some(HubrisTask::Task(task.id.into())),
+            None => None,
+        }
+    }
+
     pub fn current_task(
         &self,
         core: &mut dyn crate::core::Core,
     ) -> Result<Option<HubrisTask>> {
-        let cur = core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
+        //
+        // If this is a dump and it only contains a single task, there is
+        // no current task.
+        //
+        if self.dump_task.is_some() {
+            return Ok(None);
+        }
+
+        let cur =
+            core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
         let (base, task_count) = self.task_table(core)?;
         let task_t = self.lookup_struct_byname("Task")?;
         let size = task_t.size;
 
         if (cur - base) % size as u32 != 0 {
-            bail!("CURRENT_TASK_PTR ({cur:#x}) - base ({base:#x}) is not an
-even multiple of task size ({size})")
+            bail!(
+                "CURRENT_TASK_PTR ({cur:#x}) - base ({base:#x}) \
+                is not an even multiple of task size ({size})"
+            )
         }
 
         let ndx = (cur - base) / task_t.size as u32;
@@ -3365,11 +3406,11 @@ even multiple of task size ({size})")
         Ok(Some(HubrisTask::Task(ndx)))
     }
 
-    pub fn ticks(
-        &self,
-        core: &mut dyn crate::core::Core,
-    ) -> Result<u64> {
-        core.read_word_64(self.lookup_variable("TICKS")?.addr)
+    pub fn ticks(&self, core: &mut dyn crate::core::Core) -> Result<u64> {
+        match self.dump_task {
+            Some(task) => Ok(task.time),
+            None => core.read_word_64(self.lookup_variable("TICKS")?.addr),
+        }
     }
 
     //
@@ -3499,6 +3540,10 @@ even multiple of task size ({size})")
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
+            return Ok(());
+        }
+
+        if self.dump_task().is_some() {
             return Ok(());
         }
 
@@ -4011,8 +4056,7 @@ even multiple of task size ({size})")
         t: HubrisTask,
     ) -> Result<BTreeMap<ARMRegister, u32>> {
         let (base, _) = self.task_table(core)?;
-        let cur =
-            core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
+        let cur = self.current_task(core)?;
 
         let module = self.lookup_module(t)?;
         let mut rval = BTreeMap::new();
@@ -4037,7 +4081,7 @@ even multiple of task size ({size})")
         //
         // If this is the current task, we want to pull the current PC.
         //
-        if offset - save == cur {
+        if cur == Some(t) {
             let pc = core.read_reg(ARMRegister::PC)?;
 
             //
@@ -4483,8 +4527,10 @@ even multiple of task size ({size})")
                 let mut segments = regions
                     .values()
                     .filter(|&r| !r.attr.device && !r.attr.dma)
-                    .filter(|&r| include_nonwritable || r.attr.write)
-                    .filter(|&r| r.tasks.contains(&t))
+                    .filter(|&r| {
+                        r.tasks.contains(&t)
+                            || (include_nonwritable && !r.attr.write)
+                    })
                     .map(|r| (r.base, r.size))
                     .collect::<Vec<_>>();
 
@@ -4541,18 +4587,30 @@ even multiple of task size ({size})")
         let mut notes = vec![];
         let mut regs = vec![];
 
-        for i in 0..31 {
-            if let Some(reg) = ARMRegister::from_u16(i) {
-                let val = core.read_reg(reg)?;
-                regs.push((i, val));
+        match task {
+            Some(_) => {
+                notes.push(goblin::elf::note::Nhdr32 {
+                    n_namesz: (oxide.len() + 1) as u32,
+                    n_descsz: std::mem::size_of::<DumpTask>() as u32,
+                    n_type: OXIDE_NT_HUBRIS_TASK,
+                });
+            }
+
+            None => {
+                for i in 0..31 {
+                    if let Some(reg) = ARMRegister::from_u16(i) {
+                        let val = core.read_reg(reg)?;
+                        regs.push((i, val));
+                    }
+                }
+
+                notes.push(goblin::elf::note::Nhdr32 {
+                    n_namesz: (oxide.len() + 1) as u32,
+                    n_descsz: regs.len() as u32 * 8,
+                    n_type: OXIDE_NT_HUBRIS_REGISTERS,
+                });
             }
         }
-
-        notes.push(goblin::elf::note::Nhdr32 {
-            n_namesz: (oxide.len() + 1) as u32,
-            n_descsz: regs.len() as u32 * 8,
-            n_type: OXIDE_NT_HUBRIS_REGISTERS,
-        });
 
         notes.push(goblin::elf::note::Nhdr32 {
             n_namesz: (oxide.len() + 1) as u32,
@@ -4671,9 +4729,15 @@ even multiple of task size ({size})")
                         file.write_all(&bytes)?;
                     }
                 }
+
                 OXIDE_NT_HUBRIS_ARCHIVE => {
                     file.write_all(&self.archive)?;
                 }
+
+                OXIDE_NT_HUBRIS_TASK => {
+                    file.write_all(task.unwrap().as_bytes())?;
+                }
+
                 _ => {
                     panic!("unimplemented note");
                 }
@@ -4755,33 +4819,6 @@ even multiple of task size ({size})")
             std::fs::write(file_name, buffer)?;
             Ok(())
         })?;
-        Ok(())
-    }
-
-    #[allow(clippy::print_literal)]
-    pub fn list_variables(&self) -> Result<()> {
-        let mut variables = vec![];
-
-        for (name, variable) in &self.variables {
-            for v in variable {
-                variables.push((HubrisTask::from(v.goff), name, v));
-            }
-        }
-
-        variables.sort();
-
-        println!(
-            "{:18} {:<30} {:<10} {}",
-            "MODULE", "VARIABLE", "ADDR", "SIZE"
-        );
-
-        for v in variables {
-            let task = &self.lookup_module(v.0)?.name;
-            println!(
-                "{:18} {:<30} 0x{:08x} {:<}",
-                task, v.1, v.2.addr, v.2.size
-            );
-        }
         Ok(())
     }
 

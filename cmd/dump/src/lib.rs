@@ -678,7 +678,17 @@ fn read_dump_at(
         }
 
         Err(err) => {
-            bail!("{:?}", err);
+            let variant = if let Some(error) = op.error {
+                error.lookup_variant_by_tag(*err as u64)
+            } else {
+                None
+            };
+
+            if let Some(variant) = variant {
+                bail!("{}", variant.name.to_string());
+            } else {
+                bail!("error {:?}", err);
+            }
         }
     }
 }
@@ -996,7 +1006,9 @@ fn dump_via_agent(
 
         match task {
             Some(task) => {
-                if hubris.current_task(core)? == Some(HubrisTask::Task(task.id as u32)) {
+                if hubris.current_task(core)?
+                    == Some(HubrisTask::Task(task.id as u32))
+                {
                     core.run()?;
                     bail!("cannot dump a task while it is running");
                 }

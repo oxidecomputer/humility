@@ -107,16 +107,34 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = ReadvarArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        return hubris.list_variables();
+        println!(
+            "{:18} {:<42} {:<10} {}",
+            "MODULE", "VARIABLE", "ADDR", "SIZE"
+        );
+
+        let mut all: Vec<_> = hubris
+            .qualified_variables()
+            .map(|(n, v)| (HubrisTask::from(v.goff), n, v))
+            .collect::<_>();
+
+        all.sort();
+
+        for (task, name, v) in &all {
+            let task = &hubris.lookup_module(*task)?.name;
+            println!("{:18} {:<42} 0x{:08x} {:<}", task, name, v.addr, v.size);
+        }
+
+        return Ok(());
     }
 
-    let variables = match subargs.variable {
-        Some(ref variable) => hubris.lookup_variables(variable)?,
-        None => bail!("expected variable (use \"-l\" to list)"),
-    };
-
-    for v in variables {
-        readvar_dump(hubris, core, v, &subargs)?;
+    if let Some(ref variable) = subargs.variable {
+        for (_, v) in
+            hubris.qualified_variables().filter(|&(n, _)| n == variable)
+        {
+            readvar_dump(hubris, core, v, &subargs)?;
+        }
+    } else {
+        bail!("expected variable (use \"-l\" to list)");
     }
 
     if subargs.leave_halted {
