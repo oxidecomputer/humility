@@ -77,6 +77,7 @@ use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humpty::*;
+use indexmap::IndexMap;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
@@ -556,7 +557,7 @@ fn read_dump_at(
     funcs: &HiffyFunctions,
     index: usize,
     mut progress: impl FnMut(&[u8]) -> bool,
-) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
+) -> Result<DumpAreaHeader> {
     //
     // We expect a DumpAreaHeader to be at the specified offset.
     //
@@ -583,32 +584,13 @@ fn read_dump_at(
                 bail!("bad magic at dump offset {:#x}: {:x?}", offset, header);
             }
 
-            //
-            // This is a little sleazy:  we know that if we have task dump
-            // here, the number of segments is sufficiently low to assure that
-            // we will have also slurped our task information.
-            //
             let size = size_of::<DumpAreaHeader>();
-            let toffs = size
-                + header.nsegments as usize * size_of::<DumpSegmentHeader>();
-
-            let task = if toffs < val.len() {
-                if let Some(DumpSegment::Task(task)) =
-                    DumpSegment::from(&val[toffs..])
-                {
-                    Some(task)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
 
             if header.written > size as u32 {
                 let max = std::cmp::min(header.written as usize, val.len());
 
                 if !progress(&val[size..max]) {
-                    return Ok((header, task));
+                    return Ok(header);
                 }
             }
 
@@ -659,7 +641,7 @@ fn read_dump_at(
                     match r {
                         Ok(val) => {
                             if !progress(&val[..size]) {
-                                return Ok((header, task));
+                                return Ok(header);
                             }
                         }
 
@@ -674,7 +656,7 @@ fn read_dump_at(
                 }
             }
 
-            Ok((header, task))
+            Ok(header)
         }
 
         Err(err) => {
@@ -698,8 +680,43 @@ fn read_dump_header(
     core: &mut dyn Core,
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
-) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
+) -> Result<DumpAreaHeader> {
     read_dump_at(hubris, core, context, funcs, 0, |_| false)
+}
+
+fn parse_dump_header(
+    area: usize,
+    buf: &[u8],
+) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
+    let header = DumpAreaHeader::read_from_prefix(buf)
+        .ok_or_else(|| anyhow!("failed to parse dump area {area}"))?;
+
+    if header.magic != humpty::DUMP_MAGIC {
+        bail!("bad magic at in dump area {area}: {header:x?}");
+    }
+
+    //
+    // This is a little sleazy (or maybe even a lot sleazy?):  we know that if
+    // we have task dump here, the number of segments is sufficiently low to
+    // assure that we will have also slurped our task information -- anbd we
+    // know that our task information will immediately follow our segment
+    // headers.  Gone fishin'...
+    //
+    let size = size_of::<DumpAreaHeader>();
+    let toffs =
+        size + header.nsegments as usize * size_of::<DumpSegmentHeader>();
+
+    let task = if toffs < buf.len() {
+        if let Some(DumpSegment::Task(t)) = DumpSegment::from(&buf[toffs..]) {
+            Some(t)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok((header, task))
 }
 
 fn read_dump_headers(
@@ -708,24 +725,62 @@ fn read_dump_headers(
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
 ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
+    let rsize = 256;
+    let chunksize = (context.rdata_size() / rsize) - 1;
+    let op = hubris.get_idol_command("DumpAgent.read_dump")?;
+    let mut base = 0;
     let mut rval = vec![];
-    let mut done = false;
-    let mut ndx = 0;
 
-    while !done {
-        let header =
-            read_dump_at(hubris, core, context, funcs, ndx, |_| false)?;
+    //
+    // Iterate over dump area headers in chunksize units.  Once we've hit an
+    // area that hasn't been dumped to, or an invalid area (denoting that all
+    // areas are full), we're done...
+    //
+    loop {
+        let mut ops = vec![];
 
-        if header.0.next != 0 {
-            ndx += 1;
-        } else {
-            done = true;
+        for i in 0..chunksize {
+            let payload = op.payload(&[
+                ("index", idol::IdolArgument::Scalar((base + i) as u64)),
+                ("offset", idol::IdolArgument::Scalar(0u64)),
+            ])?;
+
+            context.idol_call_ops(funcs, &op, &payload, &mut ops)?;
         }
 
-        rval.push(header);
-    }
+        ops.push(Op::Done);
 
-    Ok(rval)
+        let results = context.run(core, &ops, None)?;
+
+        for (i, r) in results.iter().enumerate() {
+            let area = base + i;
+
+            match r {
+                Ok(val) => {
+                    let header = parse_dump_header(base + i, val)?;
+
+                    if header.0.dumper == humpty::DUMPER_NONE {
+                        return Ok(rval);
+                    }
+
+                    rval.push(header);
+                }
+
+                Err(err) => {
+                    if op.strerror(*err) == "InvalidArea" {
+                        return Ok(rval);
+                    }
+
+                    bail!(
+                        "failed to header for area {area}: {}",
+                        op.strerror(*err)
+                    );
+                }
+            }
+        }
+
+        base += chunksize;
+    }
 }
 
 //
@@ -735,8 +790,8 @@ fn read_dump_headers(
 //
 fn task_areas(
     headers: &Vec<(DumpAreaHeader, Option<DumpTask>)>,
-) -> HashMap<usize, (DumpTask, Vec<DumpAreaHeader>)> {
-    let mut rval = HashMap::new();
+) -> IndexMap<usize, (DumpTask, Vec<DumpAreaHeader>)> {
+    let mut rval = IndexMap::new();
 
     if headers[0].1.is_none() {
         return rval;
@@ -1101,7 +1156,7 @@ fn dump_via_agent(
         core.run()?;
         humility::msg!("core resumed");
     } else {
-        let header = read_dump_header(hubris, core, &mut context, &funcs)?.0;
+        let header = read_dump_header(hubris, core, &mut context, &funcs)?;
 
         if !subargs.force_read {
             if header.dumper != humpty::DUMPER_NONE
@@ -1215,30 +1270,37 @@ fn dump_list(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
+    println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
+
     let headers = read_dump_headers(hubris, core, &mut context, &funcs)?;
 
-    println!("{:4} {:21} {}", "AREA", "TASK", "TIME");
+    if headers.len() == 0 || headers[0].0.dumper == humpty::DUMPER_NONE {
+        return Ok(());
+    }
 
-    for (area, (header, task)) in headers.iter().enumerate() {
-        match task {
-            None => {
-                if header.dumper != humpty::DUMPER_NONE {
-                    println!("{:>4} {:21}", area, "<system>");
-                    return Ok(());
-                }
-            }
-            Some(t) => {
-                println!(
-                    "{:>4} {:21} {}",
-                    area,
-                    match hubris.lookup_module(HubrisTask::Task(t.id.into())) {
-                        Ok(module) => &module.name,
-                        _ => "<unknown>",
-                    },
-                    t.time,
-                );
-            }
-        }
+    if headers[0].1 == None {
+        let size = headers
+            .iter()
+            .filter(|&(h, _)| h.dumper != humpty::DUMPER_NONE)
+            .fold(0, |ttl, (h, _)| ttl + h.written);
+
+        println!("{:>4} {:21} {:<10} {size}", 0, "<system>", "-");
+        return Ok(());
+    }
+
+    let areas = task_areas(&headers);
+
+    for (area, (task, headers)) in &areas {
+        let size = headers.iter().fold(0, |ttl, h| ttl + h.written);
+
+        println!(
+            "{area:>4} {:21} {:<10} {size}",
+            match hubris.lookup_module(HubrisTask::Task(task.id.into())) {
+                Ok(module) => &module.name,
+                _ => "<unknown>",
+            },
+            task.time,
+        );
     }
 
     Ok(())

@@ -1273,6 +1273,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humpty",
+ "indexmap",
  "indicatif",
  "log",
  "lzss",
