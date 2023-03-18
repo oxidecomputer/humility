@@ -71,6 +71,7 @@ fn readvar_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     variable: &HubrisVariable,
+    name: &str,
     subargs: &ReadvarArgs,
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
@@ -91,7 +92,6 @@ fn readvar_dump(
         interpret_as_c_string: subargs.as_c_string,
         ..HubrisPrintFormat::default()
     };
-    let name = subargs.variable.as_ref().unwrap();
     let dumped = hubris.printfmt(&buf, variable.goff, fmt)?;
 
     println!("{} (0x{:08x}) = {}", name, variable.addr, dumped);
@@ -127,11 +127,28 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
+    fn match_exact(n: &str, v: &String) -> bool {
+        n == v
+    }
+
+    fn match_suffix(n: &str, v: &String) -> bool {
+        let mut suffix = "::".to_string();
+        suffix.push_str(v);
+
+        n == v || n.ends_with(&suffix)
+    }
+
     if let Some(ref variable) = subargs.variable {
-        for (_, v) in
-            hubris.qualified_variables().filter(|&(n, _)| n == variable)
+        let m = if variable.contains("::") {
+            match_exact
+        } else {
+            match_suffix
+        };
+
+        for (n, v) in hubris.qualified_variables()
+            .filter(|&(n, _)| m(n, variable))
         {
-            readvar_dump(hubris, core, v, &subargs)?;
+            readvar_dump(hubris, core, v, n, &subargs)?;
         }
     } else {
         bail!("expected variable (use \"-l\" to list)");

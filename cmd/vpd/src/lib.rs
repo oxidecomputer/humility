@@ -148,7 +148,7 @@ struct VpdArgs {
 
     /// specify binary file to act as a loopback device
     #[clap(
-        long, short, value_name = "file",
+        long, value_name = "file",
         conflicts_with_all = &["device", "id"]
     )]
     loopback: Option<String>,
