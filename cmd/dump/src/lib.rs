@@ -123,6 +123,10 @@ struct DumpArgs {
     #[clap(long, conflicts_with = "simulation")]
     initialize_dump_agent: bool,
 
+    /// retain dump state after a system dump
+    #[clap(long, conflicts_with_all = &["task", "list", "area"])]
+    retain_state: bool,
+
     /// overwrite any dump state as part of taking dump
     #[clap(
         long, short = 'F',
@@ -1252,11 +1256,16 @@ fn dump_via_agent(
 
     //
     // If this was a whole-system dump, we will leave our state initialized
-    // to assure that it will be ready to take subsequent task dumps.
+    // to assure that it will be ready to take subsequent task dumps (unless
+    // explicitly asked not to).
     //
     if task.is_none() {
-        humility::msg!("resetting dump agent state");
-        initialize_dump(hubris, core, &mut context, &funcs)?;
+        if !subargs.retain_state {
+            humility::msg!("resetting dump agent state");
+            initialize_dump(hubris, core, &mut context, &funcs)?;
+        } else {
+            humility::msg!("retaining dump agent state");
+        }
     }
 
     Ok(())
