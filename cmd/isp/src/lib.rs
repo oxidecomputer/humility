@@ -14,7 +14,7 @@
 //! 0x00000010 | a1 01 00 00 a3 01 00 00 a5 01 00 00 a7 01 00 00 | ................
 //!
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use byteorder::ByteOrder;
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
@@ -26,6 +26,11 @@ use std::path::PathBuf;
 
 mod cmd;
 mod protocol;
+
+const CFPA_SCRATCH_ADDR: u32 = 0x9_DE00;
+const CFPA_PING_ADDR: u32 = 0x9_E000;
+const CFPA_PONG_ADDR: u32 = 0x9_E200;
+const CMPA_ADDR: u32 = 0x9_E400;
 
 use crate::protocol::BootloaderProperty;
 
@@ -50,9 +55,9 @@ enum IspCmd {
     },
     /// Erases all non-secure flash. This MUST be done before writing!
     FlashEraseAll,
-    /// Write a file to the CMPA region
+    /// Write the CMPA image from the current archive to the CMPA region
     WriteCMPA,
-    /// Write a file to the CFPA region
+    /// Write the CMPA image from the current archive to the CFPA region
     WriteCFPA,
     /// Read the CMPA region
     ReadCMPA,
@@ -260,7 +265,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
             infile.read_to_end(&mut bytes)?;
 
-            crate::cmd::do_isp_write_memory(&mut *port, address, bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, address, &bytes)?;
             println!("Write complete!");
         }
         IspCmd::FlashEraseAll => {
@@ -277,126 +282,117 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
                 },
             };
 
-            let mut cmpa_bytes = [0u8; 512];
-            cmpa_bytes.clone_from_slice(&bytes);
-            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
+            let cmpa_bytes: &[u8; 512] =
+                as_array(&bytes).context("reading archive CMPA")?;
 
-            let m1 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
-            let m2 = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
-            let mut ping_bytes = [0u8; 512];
-            let mut pong_bytes = [0u8; 512];
+            let cmpa = CMPAPage::from_bytes(cmpa_bytes)?;
 
-            ping_bytes.clone_from_slice(&m1);
-            pong_bytes.clone_from_slice(&m2);
-            let ping = CFPAPage::from_bytes(&ping_bytes)?;
-            let pong = CFPAPage::from_bytes(&pong_bytes)?;
+            let cfpa = read_current_cfpa(&mut *port)?;
 
-            let (pin, dflt) = if ping.version > pong.version {
-                (ping.dcfg_cc_socu_ns_pin, ping.dcfg_cc_socu_ns_dflt)
-            } else {
-                (pong.dcfg_cc_socu_ns_pin, pong.dcfg_cc_socu_ns_dflt)
-            };
+            let (pin, dflt) =
+                (cfpa.dcfg_cc_socu_ns_pin, cfpa.dcfg_cc_socu_ns_dflt);
 
             if (pin != 0 || dflt != 0)
                 && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
             {
-                anyhow::bail!("CFPA has non-zero debug settings but CMPA has zero settings! This would brick the chip!");
+                anyhow::bail!(
+                    "CFPA has non-zero debug settings but CMPA \
+                    has zero settings! This would brick the chip!"
+                );
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, bytes)?;
+            crate::cmd::do_isp_write_memory(&mut *port, CMPA_ADDR, &bytes)?;
             println!("Write to CMPA done!");
         }
         IspCmd::WriteCFPA => {
-            let bytes = match &context.archive {
-                None => anyhow::bail!("Missing required archive"),
-                Some(archive) => match archive.read_cfpa()? {
-                    None => anyhow::bail!("CMPA not found in archive"),
-                    Some(cmpa) => cmpa,
-                },
-            };
+            // This command writes the CFPA from the archive, so, go find it.
+            let archive = context
+                .archive
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing required archive"))?;
+            let bytes = archive
+                .read_cfpa()
+                .context("trying to load CFPA from archive")? // I/O error
+                .ok_or_else(|| anyhow!("CFPA missing in archive"))?;
 
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
-            let mut cmpa_bytes = [0u8; 512];
-            cmpa_bytes.clone_from_slice(&m);
+            // The code below will become very upset if the CFPA file isn't 512
+            // bytes in length. Rather than panicking, let's present an error:
+            let bytes = fixed_vec(bytes).context("loading archive CFPA")?;
+            let cfpa = CFPAPage::from_bytes(&bytes)?;
 
-            let cmpa = CMPAPage::from_bytes(&cmpa_bytes)?;
-
-            let mut cfpa_bytes = [0u8; 512];
-            cfpa_bytes.clone_from_slice(&bytes);
-
-            let cfpa = CFPAPage::from_bytes(&cfpa_bytes)?;
+            // Read a copy of the CMPA from the device so we can check for some
+            // potential bricking cases.
+            let cmpa = read_cmpa(&mut *port)?;
 
             if (cfpa.dcfg_cc_socu_ns_pin != 0 || cfpa.dcfg_cc_socu_ns_dflt != 0)
                 && (cmpa.cc_socu_pin == 0 || cmpa.cc_socu_dflt == 0)
             {
-                anyhow::bail!("It looks like the CMPA debug settings aren't set but the CFPA settings are! This will brick the chip!");
+                anyhow::bail!(
+                    "It looks like the CMPA debug settings aren't set \
+                    but the CFPA settings are! This will brick the chip!"
+                );
             }
 
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9de00, bytes)?;
+            crate::cmd::do_isp_write_memory(
+                &mut *port,
+                CFPA_SCRATCH_ADDR,
+                &*bytes,
+            )?;
             println!("Write to CFPA done!");
         }
         IspCmd::ReadCFPA => {
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9de00, 512)?;
+            // We're going to dump all three versions of the CFPA, in hex,
+            // without decoding.
+            let pages = [
+                (CFPA_SCRATCH_ADDR, "Scratch"),
+                (CFPA_PING_ADDR, "Ping"),
+                (CFPA_PONG_ADDR, "Pong"),
+            ];
+            for (addr, name) in pages {
+                let m = crate::cmd::do_isp_read_memory_array::<512>(
+                    &mut *port, addr,
+                )?;
 
-            let mut dumper = Dumper::new();
-            dumper.size = 4;
-            println!("=====Scratch Page=====");
-            dumper.dump(&m, 0x9de00);
-
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
-
-            println!("=====Ping Page=====");
-            dumper.dump(&m, 0x9e000);
-
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
-            println!("=====Pong Page=====");
-            dumper.dump(&m, 0x9e200);
+                let mut dumper = Dumper::new();
+                dumper.size = 4;
+                println!("====={name} Page=====");
+                dumper.dump(&*m, addr);
+            }
         }
         IspCmd::EraseCMPA { full } => {
             let b = if full {
-                let m1 =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e000, 512)?;
-                let m2 =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e200, 512)?;
-                let mut ping_bytes = [0u8; 512];
-                let mut pong_bytes = [0u8; 512];
+                // We're reading the CFPA to erase the CMPA -- this is not a
+                // typo! Before allowing the erase we check fields in the CFPA
+                // to try to prevent bricking the chip.
+                let cfpa = read_current_cfpa(&mut *port)?;
 
-                ping_bytes.clone_from_slice(&m1);
-                pong_bytes.clone_from_slice(&m2);
-                let ping = CFPAPage::from_bytes(&ping_bytes)?;
-                let pong = CFPAPage::from_bytes(&pong_bytes)?;
-
-                let (pin, dflt) = if ping.version > pong.version {
-                    (ping.dcfg_cc_socu_ns_pin, ping.dcfg_cc_socu_ns_dflt)
-                } else {
-                    (pong.dcfg_cc_socu_ns_pin, pong.dcfg_cc_socu_ns_dflt)
-                };
+                let (pin, dflt) =
+                    (cfpa.dcfg_cc_socu_ns_pin, cfpa.dcfg_cc_socu_ns_dflt);
                 if pin != 0 || dflt != 0 {
-                    anyhow::bail!("The CFPA has non-zero settings! Erasing the CMPA would brick the chip!");
+                    anyhow::bail!(
+                        "The CFPA has non-zero settings! Erasing \
+                        the CMPA would brick the chip!"
+                    );
                 }
 
                 vec![0; 512]
             } else {
-                let m =
-                    crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
-                let mut bytes = [0u8; 512];
-                bytes.clone_from_slice(&m);
-
-                let mut cmpa = CMPAPage::from_bytes(&bytes)?;
-
+                let mut cmpa = read_cmpa(&mut *port)?;
                 cmpa.secure_boot_cfg = 0;
                 cmpa.to_vec()?
             };
-            crate::cmd::do_isp_write_memory(&mut *port, 0x9e400, b)?;
+            crate::cmd::do_isp_write_memory(&mut *port, CMPA_ADDR, &b)?;
             println!("CMPA region erased!");
             println!("You can now boot unsigned images");
         }
         IspCmd::ReadCMPA => {
-            let m = crate::cmd::do_isp_read_memory(&mut *port, 0x9e400, 512)?;
+            let m = crate::cmd::do_isp_read_memory_array::<512>(
+                &mut *port, CMPA_ADDR,
+            )?;
 
             let mut dumper = Dumper::new();
             dumper.size = 4;
-            dumper.dump(&m, 0x9e400);
+            dumper.dump(&*m, CMPA_ADDR);
         }
         IspCmd::Restore => {
             println!("Erasing flash");
@@ -429,7 +425,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             );
 
             println!("Writing bytes");
-            crate::cmd::do_isp_write_memory(&mut *port, 0x0, bytes.to_vec())?;
+            crate::cmd::do_isp_write_memory(&mut *port, 0x0, &bytes)?;
 
             println!("Restore done! SWD should work now.");
         }
@@ -457,7 +453,7 @@ fn ispcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             // Write 3 * 512 bytes of 0
             let bytes = vec![0; 512 * 3];
 
-            crate::cmd::do_isp_write_keystore(&mut *port, bytes)?;
+            crate::cmd::do_isp_write_keystore(&mut *port, &bytes)?;
             crate::cmd::do_save_keystore(&mut *port)?;
             println!("done.")
         }
@@ -494,4 +490,53 @@ pub fn init() -> Command {
         run: ispcmd,
         kind: CommandKind::Unattached { archive: Archive::Optional },
     }
+}
+
+/// Attempts to cast `slice` into an array reference, succeeding only if the
+/// length equals `N`. This is a wrapper for the `TryFrom` impl from the
+/// standard library that adds slightly improved error reporting.
+fn as_array<const N: usize>(slice: &[u8]) -> Result<&[u8; N]> {
+    slice
+        .try_into()
+        .map_err(|_| anyhow!("data should be {N}B, but is: {}", slice.len()))
+}
+
+/// Attempts to cast `vec` into a `Box<[T; N]>`, succeeding only if the length
+/// is right.
+fn fixed_vec<T, const N: usize>(vec: Vec<T>) -> Result<Box<[T; N]>> {
+    vec.try_into().map_err(|vec: Vec<T>| {
+        anyhow!("len should be {N}, but is: {}", vec.len())
+    })
+}
+
+/// Reads the CMPA page over the ISP connection and parses the result.
+pub fn read_cmpa(port: &mut dyn serialport::SerialPort) -> Result<CMPAPage> {
+    let m = crate::cmd::do_isp_read_memory_array::<512>(port, CMPA_ADDR)
+        .context("reading CMPA")?;
+    CMPAPage::from_bytes(&m).context("parsing CMPA using packed_struct")
+}
+
+/// The CFPA is held in two copies, and whichever has the higher version field
+/// is the current one. This reads both copies and compares version fields to
+/// determine which is most current, and returns that.
+///
+/// Note: NXP doesn't specify the behavior when the version field is equal, nor
+/// what happens if it wraps around; this function will arbitrarily return one
+/// page if the versions are equal, and wraparound is not supported.
+pub fn read_current_cfpa(
+    port: &mut dyn serialport::SerialPort,
+) -> Result<CFPAPage> {
+    let ping_bytes =
+        crate::cmd::do_isp_read_memory_array::<512>(port, CFPA_PING_ADDR)
+            .context("reading CPFA ping page")?;
+    let pong_bytes =
+        crate::cmd::do_isp_read_memory_array::<512>(&mut *port, CFPA_PONG_ADDR)
+            .context("reading CFPA pong page")?;
+
+    let ping = CFPAPage::from_bytes(&ping_bytes)
+        .context("parsing CFPA ping page with packed_struct")?;
+    let pong = CFPAPage::from_bytes(&pong_bytes)
+        .context("parsing CFPA pong page with packed_struct")?;
+
+    Ok(if ping.version > pong.version { ping } else { pong })
 }
