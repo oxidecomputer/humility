@@ -421,7 +421,7 @@ ID TASK                       GEN PRI STATE
 12 hf                           0   3 recv
 13 update_server                0   3 recv
 14 sensor                       0   4 recv, notif: bit0(T+472)
-15 host_sp_comms                0   7 recv, notif: bit0(irq82) bit1 bit2(T+59) bit3
+15 host_sp_comms                0   7 recv, notif: bit0(irq82) bit1
 16 udpecho                      0   6 notif: bit0
 17 udpbroadcast                 0   6 notif: bit31(T+86)
 18 udprpc                       0   6 notif: bit0
