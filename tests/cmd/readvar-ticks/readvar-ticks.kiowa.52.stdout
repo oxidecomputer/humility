@@ -1,1 +1,1 @@
-TICKS (0x20000020) = 0x10312
+kern::arch::arm_m::TICKS (0x20000020) = 0x10312

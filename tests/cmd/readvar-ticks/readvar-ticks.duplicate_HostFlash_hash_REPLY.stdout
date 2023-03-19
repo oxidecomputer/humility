@@ -1,4 +1,4 @@
-TICKS (0x240015f8) = [
+kern::arch::arm_m::TICKS (0x240015f8) = [
     AtomicU32 {
         v: UnsafeCell<u32> {
             value: 0x4a2ce1

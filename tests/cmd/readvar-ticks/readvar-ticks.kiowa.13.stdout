@@ -1,1 +1,1 @@
-TICKS (0x20000420) = 0x2b162c
+kern::arch::arm_m::TICKS (0x20000420) = 0x2b162c
