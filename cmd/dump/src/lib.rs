@@ -793,7 +793,7 @@ fn read_dump_headers(
 // area indices to a task/vector of headers tuple.
 //
 fn task_areas(
-    headers: &Vec<(DumpAreaHeader, Option<DumpTask>)>,
+    headers: &[(DumpAreaHeader, Option<DumpTask>)],
 ) -> IndexMap<usize, (DumpTask, Vec<DumpAreaHeader>)> {
     let mut rval = IndexMap::new();
 
@@ -1018,10 +1018,7 @@ fn dump_via_agent(
 ) -> Result<()> {
     let mut agent = AgentCore::new(hubris)?;
     let started = Some(Instant::now());
-    let mut area = match subargs.area {
-        Some(ndx) => Some(DumpArea::ByIndex(ndx)),
-        None => None,
-    };
+    let mut area = subargs.area.map(DumpArea::ByIndex);
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
@@ -1283,11 +1280,11 @@ fn dump_list(
 
     let headers = read_dump_headers(hubris, core, &mut context, &funcs)?;
 
-    if headers.len() == 0 || headers[0].0.dumper == humpty::DUMPER_NONE {
+    if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
         return Ok(());
     }
 
-    if headers[0].1 == None {
+    if headers[0].1.is_none() {
         let size = headers
             .iter()
             .filter(|&(h, _)| h.dumper != humpty::DUMPER_NONE)

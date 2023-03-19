@@ -3366,10 +3366,7 @@ impl HubrisArchive {
     }
 
     pub fn dump_task(&self) -> Option<HubrisTask> {
-        match self.dump_task {
-            Some(task) => Some(HubrisTask::Task(task.id.into())),
-            None => None,
-        }
+        self.dump_task.map(|task| HubrisTask::Task(task.id.into()))
     }
 
     pub fn current_task(

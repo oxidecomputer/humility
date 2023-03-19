@@ -108,8 +108,8 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
 
     if subargs.list {
         println!(
-            "{:18} {:<42} {:<10} {}",
-            "MODULE", "VARIABLE", "ADDR", "SIZE"
+            "{:18} {:<42} {:<10} SIZE",
+            "MODULE", "VARIABLE", "ADDR"
         );
 
         let mut all: Vec<_> = hubris
