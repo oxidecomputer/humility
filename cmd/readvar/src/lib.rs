@@ -139,14 +139,11 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     if let Some(ref variable) = subargs.variable {
-        let m = if variable.contains("::") {
-            match_exact
-        } else {
-            match_suffix
-        };
+        let m =
+            if variable.contains("::") { match_exact } else { match_suffix };
 
-        for (n, v) in hubris.qualified_variables()
-            .filter(|&(n, _)| m(n, variable))
+        for (n, v) in
+            hubris.qualified_variables().filter(|&(n, _)| m(n, variable))
         {
             readvar_dump(hubris, core, v, n, &subargs)?;
         }

@@ -1,0 +1,3 @@
+system time = 62053
+ID TASK                       GEN PRI STATE    
+ 1 net                          0   5 FAULT: panicked at 'MAC RX watchdog', task/net/src/main.rs:263:41 (was: ready)
