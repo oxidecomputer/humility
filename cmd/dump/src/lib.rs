@@ -159,7 +159,9 @@ struct DumpArgs {
     #[clap(long, conflicts_with = "simulation")]
     leave_halted: bool,
 
-    #[clap(long, short, conflicts_with = "task")]
+    #[clap(long, short, conflicts_with_all = &[
+        "task", "simulation", "area"
+    ])]
     list: bool,
 
     dumpfile: Option<String>,
@@ -703,7 +705,7 @@ fn parse_dump_header(
     //
     // This is a little sleazy (or maybe even a lot sleazy?):  we know that if
     // we have task dump here, the number of segments is sufficiently low to
-    // assure that we will have also slurped our task information -- anbd we
+    // assure that we will have also slurped our task information -- and we
     // know that our task information will immediately follow our segment
     // headers.  Gone fishin'...
     //
@@ -1161,16 +1163,17 @@ fn dump_via_agent(
     } else {
         let header = read_dump_header(hubris, core, &mut context, &funcs)?;
 
-        if !subargs.force_read {
+        if !subargs.force_read && subargs.area.is_none() {
             if header.dumper != humpty::DUMPER_NONE
                 && !subargs.initialize_dump_agent
                 && !subargs.force_overwrite
                 && task.is_none()
             {
                 bail!(
-                    "there appears to already be a dump in situ; \
-                        clear with --initialize-dump-agent or force dump \
-                        to be overwritten with --force-overwrite"
+                    "there appears to already be one or more dumps in situ; \
+                    list them with --list, clear them with \
+                    --initialize-dump-agent, or force them to be overwritten \
+                    with --force-overwrite"
                 )
             }
 
@@ -1221,7 +1224,7 @@ fn dump_via_agent(
             emulate_dump(core, task, address, total)?;
             core.run()?;
             humility::msg!("core resumed");
-        } else if !subargs.force_read {
+        } else if !subargs.force_read && subargs.area.is_none() {
             if subargs.force_manual_initiation {
                 core.halt()?;
                 humility::msg!("leaving core halted");
@@ -1343,7 +1346,11 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         dump_list(hubris, core, &subargs)
     } else if subargs.dump_agent_status {
         dump_agent_status(hubris, core, &subargs)
-    } else if core.is_net() || subargs.force_dump_agent || subargs.force_read {
+    } else if core.is_net()
+        || subargs.force_dump_agent
+        || subargs.force_read
+        || subargs.area.is_some()
+    {
         dump_via_agent(hubris, core, &subargs)
     } else {
         if subargs.initialize_dump_agent {
