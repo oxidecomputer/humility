@@ -199,7 +199,8 @@ impl AgentCore {
                 //
                 // It's not here, and we have already tried RAM...
                 //
-                bail!("address 0x{:08x} not found", addr);
+                humility::msg!("address 0x{:08x} not found", addr);
+                return Ok(());
             }
 
             let start = (addr - base) as usize;
@@ -728,6 +729,7 @@ fn read_dump_headers(
     core: &mut dyn Core,
     context: &mut HiffyContext,
     funcs: &HiffyFunctions,
+    raw: bool,
 ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
     let rsize = 256;
     let chunksize = (context.rdata_size() / rsize) - 1;
@@ -763,7 +765,7 @@ fn read_dump_headers(
                 Ok(val) => {
                     let header = parse_dump_header(base + i, val)?;
 
-                    if header.0.dumper == humpty::DUMPER_NONE {
+                    if !raw && header.0.dumper == humpty::DUMPER_NONE {
                         return Ok(rval);
                     }
 
@@ -937,7 +939,7 @@ fn read_dump(
     let mut contents: Vec<u8> = vec![];
 
     let (base, headers, task) = {
-        let all = read_dump_headers(hubris, core, context, funcs)?;
+        let all = read_dump_headers(hubris, core, context, funcs, false)?;
 
         let area = match area {
             None => None,
@@ -1278,7 +1280,7 @@ fn dump_list(
 
     println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
 
-    let headers = read_dump_headers(hubris, core, &mut context, &funcs)?;
+    let headers = read_dump_headers(hubris, core, &mut context, &funcs, false)?;
 
     if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
         return Ok(());
@@ -1320,7 +1322,7 @@ fn dump_agent_status(
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let funcs = context.functions()?;
 
-    let headers = read_dump_headers(hubris, core, &mut context, &funcs)?;
+    let headers = read_dump_headers(hubris, core, &mut context, &funcs, true)?;
     humility::msg!("{:#x?}", headers);
 
     Ok(())
