@@ -455,7 +455,7 @@ fn emulate_task_dump(
 
     let area = match humpty::claim_dump_area::<anyhow::Error>(
         base,
-        humpty::DumpAgent::Jefe,
+        humpty::DumpContents::SingleTask,
         |addr, buf, _meta| shared.borrow_mut().read_8(addr, buf),
         |addr, buf| shared.borrow_mut().write_8(addr, buf),
     ) {
@@ -477,7 +477,7 @@ fn emulate_task_dump(
     for (base, size) in segments {
         total += size;
 
-        if let Err(e) = humpty::add_dump_segment::<anyhow::Error>(
+        if let Err(e) = humpty::add_dump_segment_header::<anyhow::Error>(
             area.address,
             *base,
             *size,
@@ -519,7 +519,10 @@ fn take_dump(
         // dump fails for an earlier reason, it will look like we lost
         // our SWD connection no matter what.
         //
-        humility::msg!("dump will start in 10 seconds; unplug probe now");
+        humility::msg!(
+            "dump will start in 10 seconds; unplug probe now, and \
+            reset RoT via SWD after dump is complete to re-attach"
+        );
 
         let sleep = funcs.get("Sleep", 1)?;
         let ms = 100;
@@ -955,18 +958,11 @@ fn read_dump(
         };
 
         match area {
-            None => {
-                if all[0].1.is_some() {
-                    bail!("area must be explicitly specified (--list to list)");
-                }
-                (
-                    0usize,
-                    all.iter()
-                        .map(|(h, _t)| *h)
-                        .collect::<Vec<DumpAreaHeader>>(),
-                    None,
-                )
-            }
+            None | Some(0) if all[0].1.is_none() => (
+                0usize,
+                all.iter().map(|(h, _t)| *h).collect::<Vec<DumpAreaHeader>>(),
+                None,
+            ),
 
             Some(ndx) => {
                 let areas = task_areas(&all);
@@ -978,6 +974,10 @@ fn read_dump(
                         (ndx, headers.clone(), Some(*task))
                     }
                 }
+            }
+
+            _ => {
+                bail!("area must be explicitly specified (--list to list)");
             }
         }
     };
