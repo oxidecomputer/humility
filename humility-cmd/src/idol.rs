@@ -340,6 +340,36 @@ fn call_arg(
                 }
             }
         }
+        HubrisType::Array(&HubrisArray { goff, count }) => {
+            let t = hubris.lookup_type(goff)?;
+            if !matches!(
+                t,
+                HubrisType::Base(HubrisBasetype {
+                    encoding: HubrisEncoding::Unsigned,
+                    size: 1,
+                })
+            ) {
+                bail!(
+                    "array type in {} ({t:?}) not yet supported",
+                    member.name
+                );
+            }
+            match value {
+                IdolArgument::String(value) => {
+                    if value.len() != count {
+                        bail!(
+                            "Cannot convert '{value}' to [u8; {count}]; \
+                             wrong length"
+                        );
+                    }
+                    let dest = &mut buf[member.offset..member.offset + count];
+                    dest.copy_from_slice(value.as_bytes());
+                }
+                IdolArgument::Scalar(v) => {
+                    bail!("Cannot convert scalar {v} to [u8; {count}]")
+                }
+            }
+        }
         _ => {
             bail!("type of {} ({:?}) not yet supported", member.name, t);
         }
