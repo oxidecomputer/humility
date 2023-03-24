@@ -53,7 +53,7 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
-use humility_cmd::{hiffy::*, Archive, Attach, Command, Validate};
+use humility_cmd::{hiffy::*, Archive, Attach, Command, Dumper, Validate};
 use humility_cmd::{idol, CommandKind};
 use std::io::Read;
 
@@ -529,7 +529,7 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
             } else if subargs.hex {
                 println!("Data: {:x?}", data);
             } else {
-                println!("Data: {:?}", data);
+                Dumper::new().dump(&data, 0x0);
             }
         }
 
