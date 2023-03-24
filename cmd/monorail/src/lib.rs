@@ -668,8 +668,10 @@ fn monorail_dump(
         };
         let addr = format!("{}", start_address as usize + i * 4);
         // XXX this is inefficient
-        let reg = parse_reg_or_addr(&addr)?;
-        println!("{}    {:#010x}", reg, value);
+        match parse_reg_or_addr(&addr) {
+            Ok(reg) => println!("{}    {:#010x}", reg, value),
+            Err(e) => humility::msg!("skipping unknown register at {}", addr),
+        }
     }
 
     Ok(())
