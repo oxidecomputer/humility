@@ -670,7 +670,9 @@ fn monorail_dump(
         // XXX this is inefficient
         match parse_reg_or_addr(&addr) {
             Ok(reg) => println!("{}    {:#010x}", reg, value),
-            Err(e) => humility::msg!("skipping unknown register at {}", addr),
+            Err(e) => {
+                humility::msg!("skipping unknown register at {}: {}", addr, e)
+            }
         }
     }
 
