@@ -30,6 +30,11 @@ use goblin::elf::Elf;
 
 pub trait Core {
     fn info(&self) -> (String, Option<String>);
+
+    fn vid_pid(&self) -> Option<(u16, u16)> {
+        None
+    }
+
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()>;
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32>;
     fn write_reg(&mut self, reg: ARMRegister, value: u32) -> Result<()>;
@@ -133,6 +138,10 @@ impl Core for UnattachedCore {
         );
 
         (ident, self.serial_number.clone())
+    }
+
+    fn vid_pid(&self) -> Option<(u16, u16)> {
+        Some((self.vendor_id, self.product_id))
     }
 
     fn read_8(&mut self, _addr: u32, _data: &mut [u8]) -> Result<()> {
@@ -274,6 +283,10 @@ impl Core for ProbeCore {
         );
 
         (ident, self.serial_number.clone())
+    }
+
+    fn vid_pid(&self) -> Option<(u16, u16)> {
+        Some((self.vendor_id, self.product_id))
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {

@@ -201,8 +201,7 @@ impl AgentCore {
                 //
                 // It's not here, and we have already tried RAM...
                 //
-                humility::msg!("address 0x{:08x} not found", addr);
-                return Ok(());
+                bail!("address 0x{:08x} not found", addr);
             }
 
             let start = (addr - base) as usize;

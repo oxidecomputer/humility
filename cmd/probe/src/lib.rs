@@ -86,9 +86,10 @@
 //! humility:          SPR => 0x7000000
 //! ```
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use humility::arch::ARMRegister;
+use humility::cli::Subcommand;
 use humility::hubris::HubrisValidate;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
@@ -98,12 +99,18 @@ use humility_cortex::scs::*;
 
 #[derive(Parser, Debug)]
 #[clap(name = "probe", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ProbeArgs {}
+struct ProbeArgs {
+    /// display environment variable for this probe
+    #[clap(long, short)]
+    environment: bool,
+}
 
 #[rustfmt::skip::macros(format)]
 fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let hubris = context.archive.as_ref().unwrap();
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let subargs = ProbeArgs::try_parse_from(subargs)?;
 
     use num_traits::FromPrimitive;
     let mut status = vec![];
@@ -125,6 +132,19 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let dfsr = DFSR::read(core)?;
 
     let info = core.info();
+
+    if subargs.environment {
+        match (info.1, core.vid_pid()) {
+            (Some(ref serial), Some((vid, pid))) => {
+                println!("HUMILITY_PROBE={vid:04x}:{pid:04x}:{serial}");
+                return Ok(());
+            }
+            _ => {
+                bail!("missing serial, vendor ID or product ID");
+            }
+        }
+    }
+
     print("probe", info.0);
     print(
         "probe serial",
