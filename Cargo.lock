@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.32"
+version = "0.9.33"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1764,6 +1764,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "hubpack",
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
@@ -1772,6 +1773,7 @@ dependencies = [
  "libc",
  "log",
  "parse_int",
+ "serde",
  "winapi",
  "zerocopy",
 ]

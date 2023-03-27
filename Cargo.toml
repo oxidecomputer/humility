@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.9.32"
+version = "0.9.33"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -243,6 +243,7 @@ debug = true
 [profile.ci]
 inherits = "release"
 debug = false
+debug-assertions = true
 
 [build-dependencies]
 cargo_metadata = { workspace = true }

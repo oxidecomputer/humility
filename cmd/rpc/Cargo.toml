@@ -5,6 +5,7 @@ edition = "2021"
 description = "execute Idol calls over a network"
 
 [dependencies]
+hubpack = { workspace = true }
 humility = { workspace = true }
 humility-cmd = { workspace = true }
 cmd-hiffy = { workspace = true }
@@ -18,6 +19,7 @@ colored = { workspace = true }
 indexmap = { workspace = true }
 log = { workspace = true }
 parse_int = { workspace = true }
+serde = { workspace = true }
 zerocopy = { workspace = true }
 
 [target.'cfg(not(windows))'.dependencies]

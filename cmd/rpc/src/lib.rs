@@ -38,17 +38,20 @@
 //! ```console
 //! % humility rpc --listen
 //! humility: listening... (ctrl-C to stop, or timeout in 5s)
-//!        MAC         |            IPv6           | Compatible
-//! -------------------|---------------------------|-----------
-//!  0e:1d:27:87:03:bc | fe80::0c1d:27ff:fe87:03bc | Yes
-//!  0e:1d:38:73:ce:c3 | fe80::0c1d:38ff:fe73:cec3 | No
-//!  0e:1d:8d:3d:da:79 | fe80::0c1d:8dff:fe3d:da79 | No
+//! MAC               IPv6                      COMPAT PART        REV SERIAL
+//! a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066
+//! a8:40:25:05:05:00 fe80::aa40:25ff:fe05:500  No     (legacy)      0 (legacy)
+//! a8:40:25:05:05:00 fe80::aa40:25ff:fe05:501  No     (legacy)      0 (legacy)
 //! ```
 //!
 //! Under the hood, this listens for packets from the Hubris `udpbroadcast`
 //! task, which includes MAC address and image ID (checked for compatibility).
 //! When listening, it is mandatory to specify the interface (e.g. `humility rpc
-//! --listen -i en0` on MacOS).
+//! --listen -i en0` on MacOS). If the `Part` / `Serial` columns are marked as
+//! `(legacy)`, the SP is running an older version of `udpbroadcast` that did
+//! not include identity information. If they are marked as `(vpdfail)`, they
+//! are running a new-enough `udpbroadcast`, but the SP was unable to read its
+//! identity from its VPD.
 //!
 //! To call all targets that match an archive, `--listen` can be combined with
 //! `--call`
@@ -62,12 +65,14 @@ use cmd_hiffy as humility_cmd_hiffy;
 use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
+use hubpack::SerializedSize;
 use humility::cli::Subcommand;
 use humility::net::decode_iface;
 use humility::{hubris::*, reflect};
 use humility_cmd::doppel::RpcHeader;
 use humility_cmd::{idol, CommandKind};
 use humility_cmd::{Archive, Command};
+use serde::{Deserialize, Serialize};
 use zerocopy::{AsBytes, U16, U64};
 
 #[derive(Parser, Debug)]
@@ -122,11 +127,31 @@ struct RpcArgs {
     ip: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, SerializedSize)]
+struct BroadcastDataV0 {
+    mac_address: [u8; 6],
+    image_id: [u8; 8],
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, SerializedSize)]
+struct BroadcastDataV1 {
+    version: u32,
+    mac_address: [u8; 6],
+    image_id: [u8; 8],
+    identity_valid: bool,
+    part_number: [u8; 11],
+    revision: u32,
+    serial: [u8; 11],
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct Target {
     mac: [u8; 6],
     image_id: [u8; 8],
     ip: IpAddr,
+    part_number: String,
+    revision: u32,
+    serial: String,
 }
 
 fn rpc_listen_one(
@@ -164,25 +189,82 @@ fn rpc_listen_one(
     while timeout > Instant::now() {
         match socket.recv_from(&mut buf) {
             Ok((n, src)) => {
-                if n != 14 {
-                    humility::msg!("Skipping unknown packet {:?}", &buf[..n]);
-                    continue;
-                } else {
-                    let mac: [u8; 6] = buf[..6].try_into().unwrap();
-                    if mac[0..2] != [0x0e, 0x1d]
-                        && mac[0..3] != [0xa8, 0x40, 0x25]
-                    {
-                        humility::msg!(
-                            "Skipping packet with non-matching MAC {:?}",
-                            mac
-                        );
-                    } else {
-                        seen.insert(Target {
-                            mac,
-                            image_id: buf[6..n].try_into().unwrap(),
+                // For both BroadcastDataV0 and BroadcastDataV1, we have no
+                // fields that can serialize as variable size (e.g., no enums
+                // with different-sized variants), so hubpack's `MAX_SIZE`
+                // constant is equal to the actual serialized size.
+                let target = match n {
+                    BroadcastDataV0::MAX_SIZE => {
+                        let data: BroadcastDataV0 =
+                            match hubpack::deserialize(&buf[..n]) {
+                                Ok((data, _)) => data,
+                                Err(err) => {
+                                    humility::msg!(
+                                        "Failed to deserialize packet {:?}: {}",
+                                        &buf[..n],
+                                        err,
+                                    );
+                                    continue;
+                                }
+                            };
+                        Target {
+                            mac: data.mac_address,
+                            image_id: data.image_id,
                             ip: src.ip(),
-                        });
+                            part_number: "(legacy)".to_string(),
+                            revision: 0,
+                            serial: "(legacy)".to_string(),
+                        }
                     }
+                    BroadcastDataV1::MAX_SIZE => {
+                        let data: BroadcastDataV1 =
+                            match hubpack::deserialize(&buf[..n]) {
+                                Ok((data, _)) => data,
+                                Err(err) => {
+                                    humility::msg!(
+                                        "Failed to deserialize packet {:?}: {}",
+                                        &buf[..n],
+                                        err,
+                                    );
+                                    continue;
+                                }
+                            };
+                        let (part_number, serial) = if data.identity_valid {
+                            (
+                                String::from_utf8_lossy(&data.part_number)
+                                    .to_string(),
+                                String::from_utf8_lossy(&data.serial)
+                                    .to_string(),
+                            )
+                        } else {
+                            ("(vpdfail)".to_string(), "(vpdfail)".to_string())
+                        };
+                        Target {
+                            mac: data.mac_address,
+                            image_id: data.image_id,
+                            ip: src.ip(),
+                            part_number,
+                            revision: data.revision,
+                            serial,
+                        }
+                    }
+                    _ => {
+                        humility::msg!(
+                            "Skipping unknown packet {:?}",
+                            &buf[..n]
+                        );
+                        continue;
+                    }
+                };
+                if target.mac[0..2] != [0x0e, 0x1d]
+                    && target.mac[0..3] != [0xa8, 0x40, 0x25]
+                {
+                    humility::msg!(
+                        "Skipping packet with non-matching MAC {:?}",
+                        target.mac
+                    );
+                } else {
+                    seen.insert(target);
                 }
             }
             Err(e) => {
@@ -248,28 +330,30 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
 fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
     if !seen.is_empty() {
         println!(
-            "       {}         |            {}           | {}",
+            "{:17} {:25} {:6} {:11} {:3} {:11}",
             "MAC".bold(),
             "IPv6".bold(),
-            "Compatible".bold()
-        );
-
-        println!(
-            "-------------------|---------------------------| -----------"
+            "COMPAT".bold(),
+            "PART".bold(),
+            "REV".bold(),
+            "SERIAL".bold(),
         );
     }
 
     for target in seen {
         for (i, byte) in target.mac.iter().enumerate() {
-            print!("{}", if i == 0 { " " } else { ":" });
+            print!("{}", if i == 0 { "" } else { ":" });
             print!("{:02x}", byte)
         }
-        print!(" | {:25} | ", target.ip);
+        print!(" {:25} ", target.ip);
         if target.image_id == image_id {
-            println!("{}", "Yes".green());
+            print!("{:6}", "Yes".green());
         } else {
-            println!("{}", "No".red());
+            print!("{:6}", "No".red());
         }
+        print!(" {:11}", target.part_number);
+        print!(" {:3}", target.revision);
+        println!(" {:11}", target.serial);
     }
 }
 
