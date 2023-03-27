@@ -243,6 +243,7 @@ debug = true
 [profile.ci]
 inherits = "release"
 debug = false
+debug-assertions = true
 
 [build-dependencies]
 cargo_metadata = { workspace = true }
