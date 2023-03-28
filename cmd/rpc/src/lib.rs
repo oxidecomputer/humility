@@ -394,7 +394,8 @@ impl<'a> RpcClient<'a> {
         })?;
         let rpc_reply_type = hubris
             .lookup_module(*rpc_task)?
-            .lookup_enum_byname(hubris, "RpcReply")?;
+            .lookup_enum_byname(hubris, "RpcReply")?
+            .ok_or_else(|| anyhow!("can't find RpcReply"))?;
 
         Ok(Self { hubris, socket, rpc_reply_type, buf: [0; 1024] })
     }

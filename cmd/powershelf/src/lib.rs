@@ -67,8 +67,10 @@ fn lookup_operation_enum(hubris: &HubrisArchive) -> Result<&HubrisEnum> {
     // doesn't show up alone, but `Option<task_power_api::Operation>` does! Find
     // that, then drill down to get the enum we want out.
     let opt_operation = module
-        .lookup_enum_byname(hubris, "Option<task_power_api::Operation>")
-        .context("Could not look up task_power_api::Operation")?;
+        .lookup_enum_byname(hubris, "Option<task_power_api::Operation>")?
+        .ok_or_else(|| {
+            anyhow!("Could not look up task_power_api::Operation")
+        })?;
     let some_operation_goff = opt_operation
         .variants
         .iter()

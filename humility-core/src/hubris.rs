@@ -519,6 +519,9 @@ pub struct HubrisArchive {
 
     // Definitions: name to goff
     definitions: MultiMap<String, HubrisGoff>,
+
+    // Namespaces
+    namespaces: Vec<(String, Option<usize>)>,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -577,7 +580,58 @@ impl HubrisArchive {
             qualified_variables: MultiMap::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
+            namespaces: Vec::new(),
         })
+    }
+
+    //
+    // For a namespace identifer, compose and return the entire namespace
+    // vector as strings.
+    //
+    fn namespace(&self, namespace: Option<usize>) -> Result<Vec<&String>> {
+        let mut rval = vec![];
+        let mut current = namespace;
+
+        while let Some(namespace) = current {
+            if namespace >= self.namespaces.len() {
+                bail!("namespace id {namespace} is invalid");
+            }
+
+            let (name, parent) = &self.namespaces[namespace];
+            rval.push(name);
+            current = *parent;
+        }
+
+        rval.reverse();
+
+        Ok(rval)
+    }
+
+    //
+    // A convenience routine to take a namespace identifier and a name,
+    // and return the entire, ::-delimited name.
+    //
+    fn namespaced_name(
+        &self,
+        namespace: Option<usize>,
+        name: &String,
+    ) -> Result<Option<String>> {
+        let mut n = self.namespace(namespace)?;
+
+        if !n.is_empty() {
+            n.push(name);
+
+            let full = n
+                .iter()
+                .copied()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                .join("::");
+
+            Ok(Some(full))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
@@ -1412,6 +1466,7 @@ impl HubrisArchive {
             gimli::EndianSlice<gimli::LittleEndian>,
             usize,
         >,
+        namespace: Option<usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -1442,6 +1497,7 @@ impl HubrisArchive {
                     size,
                     goff,
                     members: Vec::new(),
+                    namespace,
                 },
             );
 
@@ -1460,6 +1516,7 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
+        namespace: Option<usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut name = None;
@@ -1496,6 +1553,7 @@ impl HubrisArchive {
                     discriminant: Some(HubrisDiscriminant::Value(dgoff, 0)),
                     tag: None,
                     variants: Vec::new(),
+                    namespace,
                 },
             );
 
@@ -1565,6 +1623,7 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
+        namespace: Option<usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut discr = None;
@@ -1597,6 +1656,7 @@ impl HubrisArchive {
                 discriminant: discr.map(HubrisDiscriminant::Expected),
                 tag: None,
                 variants: Vec::new(),
+                namespace,
             },
         );
 
@@ -1827,9 +1887,22 @@ impl HubrisArchive {
             let mut stack: Vec<HubrisGoff> = vec![];
 
             let mut array = None;
+            let mut namespace = vec![];
 
             while let Some((delta, entry)) = entries.next_dfs()? {
                 depth += delta;
+
+                //
+                // See if our depth has become shallower than our namespace,
+                // trimming it until it fits.
+                //
+                while let Some((_, d)) = namespace.last() {
+                    if depth > *d {
+                        break;
+                    }
+
+                    namespace.pop();
+                }
 
                 let goff = self.dwarf_goff(&unit, entry);
                 self.dwarf_fileline(&dwarf, &unit, entry)?;
@@ -1841,6 +1914,33 @@ impl HubrisArchive {
                 }
 
                 match entry.tag() {
+                    gimli::constants::DW_TAG_namespace => {
+                        //
+                        // For a namespace tag, create an entry in our
+                        // namespaces vector, and push a tuple consisting
+                        // of the identifer and our depth.
+                        //
+                        let mut attrs = entry.attrs();
+
+                        while let Some(attr) = attrs.next()? {
+                            if attr.name() == gimli::constants::DW_AT_name {
+                                let name = dwarf_name(&dwarf, attr.value());
+
+                                if let Some(name) = name {
+                                    let id = self.namespaces.len();
+                                    let parent =
+                                        namespace.last().map(|(id, _)| *id);
+
+                                    self.namespaces
+                                        .push((name.to_string(), parent));
+                                    namespace.push((id, depth));
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+
                     gimli::constants::DW_TAG_inlined_subroutine => {
                         self.dwarf_inlined(&dwarf, &unit, entry, depth)?;
                     }
@@ -1854,7 +1954,8 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_structure_type => {
-                        self.dwarf_struct(&dwarf, &unit, entry)?;
+                        let ns = namespace.last().map(|(id, _)| *id);
+                        self.dwarf_struct(&dwarf, &unit, entry, ns)?;
                     }
 
                     gimli::constants::DW_TAG_base_type => {
@@ -1889,7 +1990,8 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_enumeration_type => {
-                        self.dwarf_const_enum(&dwarf, &unit, entry, goff)?;
+                        let ns = namespace.last().map(|(id, _)| *id);
+                        self.dwarf_const_enum(&dwarf, &unit, entry, goff, ns)?;
                     }
 
                     gimli::constants::DW_TAG_enumerator => {
@@ -1904,7 +2006,8 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        self.dwarf_enum(&unit, entry, parent)?;
+                        let ns = namespace.last().map(|(id, _)| *id);
+                        self.dwarf_enum(&unit, entry, parent, ns)?;
 
                         //
                         // The discriminant is a (grand)child member; we need
@@ -2813,6 +2916,42 @@ impl HubrisArchive {
             id += 1;
             Ok(())
         })?;
+
+        //
+        // We have loaded everything; now post-process our enums and structs
+        // to add their fully scoped names.
+        //
+        let mut work = vec![];
+
+        for (name, enums) in self.enums_byname.iter_all() {
+            for goff in enums.iter() {
+                let e = self.enums.get(goff).unwrap();
+
+                if let Some(full) = self.namespaced_name(e.namespace, name)? {
+                    work.push((full, *goff));
+                }
+            }
+        }
+
+        for (name, goff) in work.iter() {
+            self.enums_byname.insert(name.clone(), *goff);
+        }
+
+        let mut work = vec![];
+
+        for (name, structs) in self.structs_byname.iter_all() {
+            for goff in structs.iter() {
+                let s = self.structs.get(goff).unwrap();
+
+                if let Some(full) = self.namespaced_name(s.namespace, name)? {
+                    work.push((full, *goff));
+                }
+            }
+        }
+
+        for (name, goff) in work.iter() {
+            self.enums_byname.insert(name.clone(), *goff);
+        }
 
         Ok(())
     }
@@ -5166,6 +5305,7 @@ pub struct HubrisStruct {
     pub goff: HubrisGoff,
     pub size: usize,
     pub members: Vec<HubrisStructMember>,
+    pub namespace: Option<usize>,
 }
 
 impl HubrisStruct {
@@ -5299,6 +5439,7 @@ pub struct HubrisEnum {
     /// temporary to hold tag of next variant
     pub tag: Option<u64>,
     pub variants: Vec<HubrisEnumVariant>,
+    pub namespace: Option<usize>,
 }
 
 impl HubrisEnum {
@@ -5658,24 +5799,45 @@ impl HubrisModule {
         &self,
         hubris: &'a HubrisArchive,
         name: &str,
-    ) -> Result<&'a HubrisStruct> {
+    ) -> Result<Option<&'a HubrisStruct>> {
         match hubris.structs_byname.get_vec(name) {
             Some(v) => {
                 let m = hubris
                     .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
-                    Err(anyhow!("{} matches more than one structure", name))
+                    let all = m
+                        .iter()
+                        .map(|goff| {
+                            let s = hubris.structs.get(goff).unwrap();
+
+                            if let Ok(Some(name)) = hubris
+                                .namespaced_name(s.namespace, &name.to_string())
+                            {
+                                format!("{name} as {goff}")
+                            } else {
+                                format!("{goff}")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    Err(anyhow!(
+                        "{name} matches more than one structure: {all}"
+                    ))
                 } else if m.is_empty() {
-                    Err(anyhow!("no {} in {}", name, self.name))
+                    Ok(None)
                 } else {
-                    Ok(hubris.structs.get(&m[0]).unwrap())
+                    Ok(Some(hubris.structs.get(&m[0]).unwrap()))
                 }
             }
-            _ => self.lookup_struct_byname(
-                hubris,
-                try_scoped(name, "structure", &hubris.structs_byname)?,
-            ),
+            _ => {
+                if let Some(scoped) = try_scoped(name, &hubris.structs_byname) {
+                    self.lookup_struct_byname(hubris, scoped)
+                } else {
+                    Ok(None)
+                }
+            }
         }
     }
 
@@ -5683,24 +5845,43 @@ impl HubrisModule {
         &self,
         hubris: &'a HubrisArchive,
         name: &str,
-    ) -> Result<&'a HubrisEnum> {
+    ) -> Result<Option<&'a HubrisEnum>> {
         match hubris.enums_byname.get_vec(name) {
             Some(v) => {
                 let m = hubris
                     .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
-                    Err(anyhow!("{} matches more than one enum", name))
+                    let all = m
+                        .iter()
+                        .map(|goff| {
+                            let e = hubris.enums.get(goff).unwrap();
+
+                            if let Ok(Some(name)) = hubris
+                                .namespaced_name(e.namespace, &name.to_string())
+                            {
+                                format!("{name} as {goff}")
+                            } else {
+                                format!("{goff}")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    Err(anyhow!("{name} matches more than one enum: {all}"))
                 } else if m.is_empty() {
-                    Err(anyhow!("no {} in {}", name, self.name))
+                    Ok(None)
                 } else {
-                    Ok(hubris.enums.get(&m[0]).unwrap())
+                    Ok(Some(hubris.enums.get(&m[0]).unwrap()))
                 }
             }
-            _ => self.lookup_enum_byname(
-                hubris,
-                try_scoped(name, "enum", &hubris.enums_byname)?,
-            ),
+            _ => {
+                if let Some(scoped) = try_scoped(name, &hubris.structs_byname) {
+                    self.lookup_enum_byname(hubris, scoped)
+                } else {
+                    Ok(None)
+                }
+            }
         }
     }
 }
@@ -5739,13 +5920,12 @@ pub enum HubrisValidate {
 //
 fn try_scoped<'a>(
     name: &'a str,
-    kind: &'static str,
     map: &'a MultiMap<String, HubrisGoff>,
-) -> Result<&'a str> {
+) -> Option<&'a str> {
     let search = name.replace('<', "<.*::");
 
     if search == name {
-        Err(anyhow!("expected {} not found", kind))
+        None
     } else {
         use regex::Regex;
 
@@ -5760,23 +5940,10 @@ fn try_scoped<'a>(
             }
         }
 
-        if matched.is_empty() {
-            Err(anyhow!(
-                "expected {} {} not found (also tried {})",
-                kind,
-                name,
-                search
-            ))
-        } else if matched.len() > 1 {
-            Err(anyhow!(
-                "expected {} {} not found ({} matched multiple types: {:?})",
-                kind,
-                name,
-                search,
-                matched
-            ))
+        if matched.len() == 1 {
+            Some(matched[0])
         } else {
-            Ok(matched[0])
+            None
         }
     }
 }
