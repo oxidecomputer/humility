@@ -1,1 +1,1 @@
-TICKS (0x20004de0) = 0x6378
+kern::arch::arm_m::TICKS (0x20004de0) = 0x6378

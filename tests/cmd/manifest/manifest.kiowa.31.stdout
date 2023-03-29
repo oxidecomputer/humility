@@ -8,10 +8,10 @@
   total size => 25K
  kernel size => 12K
        tasks => 6
-                ID TASK                SIZE FEATURES
-                 0 idle                0.1K 
-                 1 pong                0.7K 
-                 2 sys                 1.6K g031
-                 3 hiffy               5.8K stm32g0, gpio, micro
-                 4 jefe                3.1K log-null
-                 5 user_leds           2.0K stm32g0
+                ID OBJ TASK                SIZE FEATURES
+                 0   6 idle                0.1K 
+                 1   3 pong                0.7K 
+                 2   2 sys                 1.6K g031
+                 3   5 hiffy               5.8K stm32g0, gpio, micro
+                 4   1 jefe                3.1K log-null
+                 5   4 user_leds           2.0K stm32g0

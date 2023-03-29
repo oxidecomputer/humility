@@ -71,6 +71,7 @@ fn readvar_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     variable: &HubrisVariable,
+    name: &str,
     subargs: &ReadvarArgs,
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
@@ -91,7 +92,6 @@ fn readvar_dump(
         interpret_as_c_string: subargs.as_c_string,
         ..HubrisPrintFormat::default()
     };
-    let name = subargs.variable.as_ref().unwrap();
     let dumped = hubris.printfmt(&buf, variable.goff, fmt)?;
 
     println!("{} (0x{:08x}) = {}", name, variable.addr, dumped);
@@ -107,16 +107,45 @@ fn readvar(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = ReadvarArgs::try_parse_from(subargs)?;
 
     if subargs.list {
-        return hubris.list_variables();
+        println!("{:18} {:<42} {:<10} SIZE", "MODULE", "VARIABLE", "ADDR");
+
+        let mut all: Vec<_> = hubris
+            .qualified_variables()
+            .map(|(n, v)| (HubrisTask::from(v.goff), n, v))
+            .collect::<_>();
+
+        all.sort();
+
+        for (task, name, v) in &all {
+            let task = &hubris.lookup_module(*task)?.name;
+            println!("{:18} {:<42} 0x{:08x} {:<}", task, name, v.addr, v.size);
+        }
+
+        return Ok(());
     }
 
-    let variables = match subargs.variable {
-        Some(ref variable) => hubris.lookup_variables(variable)?,
-        None => bail!("expected variable (use \"-l\" to list)"),
-    };
+    fn match_exact(n: &str, v: &String) -> bool {
+        n == v
+    }
 
-    for v in variables {
-        readvar_dump(hubris, core, v, &subargs)?;
+    fn match_suffix(n: &str, v: &String) -> bool {
+        let mut suffix = "::".to_string();
+        suffix.push_str(v);
+
+        n == v || n.ends_with(&suffix)
+    }
+
+    if let Some(ref variable) = subargs.variable {
+        let m =
+            if variable.contains("::") { match_exact } else { match_suffix };
+
+        for (n, v) in
+            hubris.qualified_variables().filter(|&(n, _)| m(n, variable))
+        {
+            readvar_dump(hubris, core, v, n, &subargs)?;
+        }
+    } else {
+        bail!("expected variable (use \"-l\" to list)");
     }
 
     if subargs.leave_halted {

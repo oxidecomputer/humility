@@ -428,7 +428,19 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
         hiffy_list(hubris, subargs.filter)?;
         return Ok(());
     } else if !subargs.filter.is_empty() {
-        bail!("filters can only be provided with --list");
+        //
+        // It is likely that the user has provided an argument to a HIF
+        // call without specifying -a; generate a message that tries to
+        // point them in the right direction.
+        //
+        bail!(
+            "extraneous command line argument; missing {}?",
+            if subargs.call.is_some() {
+                "--arguments"
+            } else {
+                "--list or --call?"
+            }
+        );
     }
 
     //

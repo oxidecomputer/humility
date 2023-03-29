@@ -8,9 +8,9 @@
   total size => 40K
  kernel size => 32K
        tasks => 2
-                ID TASK                SIZE FEATURES
-                 0 jefe                8.1K itm
-                 1 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   1 jefe                8.1K itm
+                 1   2 idle                0.1K 
      sensors => 5 sensors
                  ID NAME                    DEVICE      KIND
                   0 xcvr30                  qsfp        speed

@@ -1,1 +1,1 @@
-TICKS (0x20004020) = 0xb77d
+kern::arch::arm_m::TICKS (0x20004020) = 0xb77d

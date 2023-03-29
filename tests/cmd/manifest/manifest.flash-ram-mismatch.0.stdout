@@ -8,25 +8,25 @@
   total size => 494K
  kernel size => 35K
        tasks => 18
-                ID TASK                SIZE FEATURES
-                 0 hiffy              56.4K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash
-                 1 gimlet_seq         64.1K h753
-                 2 net                150.2K mgmt, h753, gimlet, vlan
-                 3 spi4_driver        16.1K spi4, h753
-                 4 spi2_driver        16.1K spi2, h753
-                 5 i2c_driver         16.3K h753, itm
-                 6 spd                24.1K h753, itm
-                 7 thermal            16.8K itm, gimlet
-                 8 power              16.1K itm, gimlet
-                 9 hash_driver        16.1K h753
-                10 hf                 16.1K h753, hash
-                11 validate           16.1K 
-                12 jefe                8.1K itm
-                13 sensor              8.1K itm
-                14 udpecho             8.1K vlan
-                15 udpbroadcast        8.1K vlan
-                16 sys                 2.0K h753
-                17 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0  10 hiffy              56.4K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash
+                 1  11 gimlet_seq         64.1K h753
+                 2   2 net                150.2K mgmt, h753, gimlet, vlan
+                 3   4 spi4_driver        16.1K spi4, h753
+                 4   5 spi2_driver        16.1K spi2, h753
+                 5   6 i2c_driver         16.3K h753, itm
+                 6   7 spd                24.1K h753, itm
+                 7   8 thermal            16.8K itm, gimlet
+                 8   9 power              16.1K itm, gimlet
+                 9  12 hash_driver        16.1K h753
+                10  13 hf                 16.1K h753, hash
+                11  17 validate           16.1K 
+                12   1 jefe                8.1K itm
+                13  14 sensor              8.1K itm
+                14  15 udpecho             8.1K vlan
+                15  16 udpbroadcast        8.1K vlan
+                16   3 sys                 2.0K h753
+                17  18 idle                0.1K 
    i2c buses => 4 controllers, 5 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B    trgt spd           SPD proxy

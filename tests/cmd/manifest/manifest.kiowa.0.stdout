@@ -8,8 +8,8 @@
   total size => 69K
  kernel size => 19K
        tasks => 4
-                ID TASK                SIZE FEATURES
-                 0 runner             12.2K itm
-                 1 suite              30.1K 
-                 2 assist              7.2K itm
-                 3 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   1 runner             12.2K itm
+                 1   2 suite              30.1K 
+                 2   3 assist              7.2K itm
+                 3   4 idle                0.1K 

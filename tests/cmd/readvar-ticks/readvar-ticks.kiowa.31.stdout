@@ -1,1 +1,1 @@
-TICKS (0x20000600) = 0x7bfa
+kern::arch::arm_m::TICKS (0x20000600) = 0x7bfa

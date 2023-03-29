@@ -1,0 +1,65 @@
+system time = 61246
+ID TASK                       GEN PRI STATE    
+ 1 net                          0   5 FAULT: panicked at 'MAC RX watchdog', task/net/src/main.rs:268:41 (was: ready)
+   |
+   +--->  0x24008cd0 0x0803038a userlib::sys_panic_stub
+   |                 @ /hubris/sys/userlib/src/lib.rs:990
+   |      0x24008d08 0x080303c0 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:982
+   |      0x24008d08 0x080303c4 rust_begin_unwind
+   |                 @ /hubris/sys/userlib/src/lib.rs:1298
+   |      0x24008d28 0x08028ac6 core::panicking::panic_fmt
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/panicking.rs:50
+   |      0x24009798 0x080270b2 main
+   |                 @ /hubris/task/net/src/main.rs:147
+   |
+   |
+   +--->   R0 = 0x2400f524   R1 = 0x0000003a   R2 = 0x2400f55e   R3 = 0x2400f55e
+   |       R4 = 0x2400f524   R5 = 0x0000003a   R6 = 0x24009528   R7 = 0x24008d00
+   |       R8 = 0x24009548   R9 = 0x0000ef3e  R10 = 0x00000000  R11 = 0x00000008
+   |      R12 = 0x2400f554   SP = 0x24008cc0   LR = 0x080303c5   PC = 0x0803038a
+   |      PSR = 0x61000000
+   |
+   +-----------> 0x24000538 Task {
+                    save: SavedState {
+                        r4: 0x2400f524,
+                        r5: 0x3a,
+                        r6: 0x24009528,
+                        r7: 0x24008d00,
+                        r8: 0x24009548,
+                        r9: 0xef3e,
+                        r10: 0x0,
+                        r11: 0x8,
+                        psp: 0x24008c58,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Faulted {
+                        fault: Panic,
+                        original_state: Runnable
+                    },
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0xf132)),
+                        to_post: NotificationSet(0x4)
+                    },
+                    generation: 0x0,
+                    notifications: 0x0,
+                    descriptor: 0x8005594 (&kern::descs::TaskDesc)
+                }
+
