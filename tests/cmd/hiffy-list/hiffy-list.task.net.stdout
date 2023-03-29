@@ -18,7 +18,7 @@ Jefe                         jefe
   |       reason                      ResetReason
   |       <ok>                        ()
   |
-  +--> Jefe.initialize_dump_areas
+  +--> Jefe.reinitialize_dump_areas
   |       <ok>                        ()
   |       <error>                     DumpAgentError
   |
@@ -172,6 +172,34 @@ Spi                          spi2_driver
           <error>                     SpiError
   
 INTERFACE                    TASK
+Packrat                      packrat
+  |
+  +--> Packrat.get_mac_address_block
+  |       <ok>                        MacAddressBlock
+  |       <error>                     CacheGetError
+  |
+  +--> Packrat.set_mac_address_block
+  |       macs                        MacAddressBlock
+  |       <ok>                        ()
+  |       <error>                     CacheSetError
+  |
+  +--> Packrat.get_identity
+  |       <ok>                        VpdIdentity
+  |       <error>                     CacheGetError
+  |
+  +--> Packrat.set_identity
+  |       macs                        VpdIdentity
+  |       <ok>                        ()
+  |       <error>                     CacheSetError
+  |
+  +--> Packrat.get_next_boot_host_startup_options
+  |       <ok>                        HostStartupOptions
+  |
+  +--> Packrat.set_next_boot_host_startup_options
+          startup_options             HostStartupOptions
+          <ok>                        ()
+  
+INTERFACE                    TASK
 Thermal                      thermal
   |
   +--> Thermal.set_mode_manual
@@ -273,11 +301,11 @@ INTERFACE                    TASK
 Sequencer                    gimlet_seq
   |
   +--> Sequencer.get_state
-  |       <ok>                        PowerState
+  |       <ok>                        drv_gimlet_state::PowerState
   |       <error>                     SeqError
   |
   +--> Sequencer.set_state
-  |       state                       PowerState
+  |       state                       drv_gimlet_state::PowerState
   |       <ok>                        ()
   |       <error>                     SeqError
   |
@@ -416,7 +444,12 @@ Update                       update_server
   |       <ok>                        ImageVersion
   |
   +--> Update.status
-          <ok>                        UpdateStatus
+  |       <ok>                        UpdateStatus
+  |
+  +--> Update.read_image_caboose
+          name                        [u8; 4]
+          <ok>                        u32
+          <error>                     CabooseError
   
 INTERFACE                    TASK
 Sensor                       sensor

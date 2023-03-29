@@ -618,14 +618,24 @@ pub fn lookup_reply<'a>(
         .ok_or_else(|| anyhow!("unknown operation \"{}\"", op))?
         .reply;
 
+    let lookup_ok_err = |ok| {
+        if let Err(e) = m.lookup_enum_byname(hubris, ok) {
+            Err(e)
+        } else if let Err(e) = m.lookup_struct_byname(hubris, ok) {
+            Err(e)
+        } else {
+            bail!("no type for {}.{op}", iface.name);
+        }
+    };
+
     let lookup_ok = |ok| {
         match hubris.lookup_basetype_byname(ok) {
             Ok(goff) => Ok(*goff),
-            Err(_) => match m.lookup_enum_byname(hubris, ok)? {
-                Some(e) => Ok(e.goff),
-                None => match m.lookup_struct_byname(hubris, ok)? {
-                    Some(s) => Ok(s.goff),
-                    None => {
+            Err(_) => match m.lookup_enum_byname(hubris, ok) {
+                Ok(Some(e)) => Ok(e.goff),
+                _ => match m.lookup_struct_byname(hubris, ok) {
+                    Ok(Some(s)) => Ok(s.goff),
+                    _ => {
                         //
                         // As a last ditch, we look up the REPLY type.  This is
                         // a last effort because it might not be there:  if no
@@ -636,7 +646,7 @@ pub fn lookup_reply<'a>(
                         match hubris.lookup_struct_byname(&t) {
                             Ok(s) => Ok(s.goff),
                             Err(_) => {
-                                bail!("no type for {}.{op}", iface.name);
+                                lookup_ok_err(ok)
                             }
                         }
                     }

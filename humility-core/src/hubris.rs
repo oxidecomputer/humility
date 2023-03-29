@@ -2950,7 +2950,7 @@ impl HubrisArchive {
         }
 
         for (name, goff) in work.iter() {
-            self.enums_byname.insert(name.clone(), *goff);
+            self.structs_byname.insert(name.clone(), *goff);
         }
 
         Ok(())
@@ -5876,7 +5876,7 @@ impl HubrisModule {
                 }
             }
             _ => {
-                if let Some(scoped) = try_scoped(name, &hubris.structs_byname) {
+                if let Some(scoped) = try_scoped(name, &hubris.enums_byname) {
                     self.lookup_enum_byname(hubris, scoped)
                 } else {
                     Ok(None)

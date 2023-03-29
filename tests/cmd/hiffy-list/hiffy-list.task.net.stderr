@@ -1,3 +1,3 @@
 humility: attached to dump
-humility: WARNING: no type for Jefe.get_dump_area: Result { ok: AttributedTy { ty: Ty("DumpArea"), recv: FromBytes }, err: CLike(Ty("DumpAgentError")) } (as basetype: "expected DumpArea to be a basetype"; as enum: "expected enum not found"; as struct: "DumpArea matches more than one structure"; as REPLY: "expected structure Jefe_get_dump_area_REPLY not found")
-humility: WARNING: no type for Jefe.claim_dump_area: Result { ok: AttributedTy { ty: Ty("DumpArea"), recv: FromBytes }, err: CLike(Ty("DumpAgentError")) } (as basetype: "expected DumpArea to be a basetype"; as enum: "expected enum not found"; as struct: "DumpArea matches more than one structure"; as REPLY: "expected structure Jefe_claim_dump_area_REPLY not found")
+humility: WARNING: DumpArea matches more than one structure: task_jefe::dump::DumpArea as GOFF 0x00003dd0 (object 1), humpty::DumpArea as GOFF 0x0000ea1b (object 1)
+humility: WARNING: DumpArea matches more than one structure: task_jefe::dump::DumpArea as GOFF 0x00003dd0 (object 1), humpty::DumpArea as GOFF 0x0000ea1b (object 1)
