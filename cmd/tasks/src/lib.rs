@@ -201,7 +201,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
         core.halt()?;
 
         let cur = hubris.current_task(core)?;
-        let dump_task = hubris.dump_task();
+        let task_dump = hubris.task_dump();
 
         //
         // We read the entire task table at a go to get as consistent a
@@ -209,7 +209,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
         //
         let mut taskblock = vec![0; task_t.size * task_count as usize];
 
-        if let Some(HubrisTask::Task(i)) = dump_task {
+        if let Some(HubrisTask::Task(i)) = task_dump {
             let offs = i as usize * task_t.size;
             let addr = base + offs as u32;
             core.read_8(addr, &mut taskblock[offs..offs + task_t.size])?;
@@ -229,7 +229,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
             let addr = base + i * task_t.size as u32;
             let offs = i as usize * task_t.size;
 
-            if let Some(HubrisTask::Task(ndx)) = dump_task {
+            if let Some(HubrisTask::Task(ndx)) = task_dump {
                 if ndx != i {
                     continue;
                 }

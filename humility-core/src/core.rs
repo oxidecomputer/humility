@@ -1533,7 +1533,7 @@ fn get_usb_probe(index: Option<usize>) -> Result<probe_rs::DebugProbeInfo> {
     } else {
         bail!(
             "multiple USB probes detected; must \
-                       explicitly append index (e.g., \"-p usb-0\")"
+            explicitly append index (e.g., \"-p usb-0\")"
         );
     }
 }

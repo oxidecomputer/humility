@@ -439,7 +439,7 @@ pub struct HubrisArchive {
     current: u32,
 
     // non-None if a dump of a task
-    dump_task: Option<DumpTask>,
+    task_dump: Option<DumpTask>,
 
     // Capstone library handle
     cs: capstone::Capstone,
@@ -555,7 +555,7 @@ impl HubrisArchive {
                 }
             },
             current: 0,
-            dump_task: None,
+            task_dump: None,
             instrs: HashMap::new(),
             syscall_pushes: HashMap::new(),
             registers: HashMap::new(),
@@ -3226,7 +3226,7 @@ impl HubrisArchive {
                             OXIDE_NT_HUBRIS_TASK => {
                                 match DumpTask::read_from_prefix(note.desc) {
                                     Some(task) => {
-                                        self.dump_task = Some(task);
+                                        self.task_dump = Some(task);
                                     }
                                     None => {
                                         bail!(
@@ -3427,11 +3427,11 @@ impl HubrisArchive {
     pub fn qualified_variables(
         &self,
     ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
-        let dump_task = self.dump_task();
+        let task_dump = self.task_dump();
 
         self.qualified_variables.iter_all().flat_map(move |(n, v)| {
             v.iter()
-                .filter(|&v| match dump_task {
+                .filter(|&v| match task_dump {
                     None => true,
                     Some(t) => t == HubrisTask::from(v.goff),
                 })
@@ -3504,8 +3504,10 @@ impl HubrisArchive {
         }
     }
 
-    pub fn dump_task(&self) -> Option<HubrisTask> {
-        self.dump_task.map(|task| HubrisTask::Task(task.id.into()))
+    /// If this is a dump from a single task, returns that task -- or None
+    /// otherwise.
+    pub fn task_dump(&self) -> Option<HubrisTask> {
+        self.task_dump.map(|task| HubrisTask::Task(task.id.into()))
     }
 
     pub fn current_task(
@@ -3516,7 +3518,7 @@ impl HubrisArchive {
         // If this is a dump and it only contains a single task, there is
         // no current task.
         //
-        if self.dump_task.is_some() {
+        if self.task_dump.is_some() {
             return Ok(None);
         }
 
@@ -3543,7 +3545,7 @@ impl HubrisArchive {
     }
 
     pub fn ticks(&self, core: &mut dyn crate::core::Core) -> Result<u64> {
-        match self.dump_task {
+        match self.task_dump {
             Some(task) => Ok(task.time),
             None => core.read_word_64(self.lookup_variable("TICKS")?.addr),
         }
@@ -3679,7 +3681,7 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        if self.dump_task().is_some() {
+        if self.task_dump().is_some() {
             return Ok(());
         }
 

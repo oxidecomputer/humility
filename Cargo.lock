@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.33"
+version = "0.10.0"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -2040,7 +2040,7 @@ dependencies = [
 [[package]]
 name = "humpty"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/humpty?branch=taskdumpy#78af963e75b53599287218159e1b703ba1ac3138"
+source = "git+https://github.com/oxidecomputer/humpty#70c646c4a9f31120fe4b39928580ce9f90358bfb"
 dependencies = [
  "hubpack",
  "lzss",

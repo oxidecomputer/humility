@@ -709,7 +709,9 @@ fn parse_dump_header(
     // we have task dump here, the number of segments is sufficiently low to
     // assure that we will have also slurped our task information -- and we
     // know that our task information will immediately follow our segment
-    // headers.  Gone fishin'...
+    // headers.  (We take some of the sting off of this by at least checking
+    // the sizes when we read the dump headers -- but we still rely on the
+    // fact that any task information is dumped first.)  Gone fishin'...
     //
     let size = size_of::<DumpAreaHeader>();
     let toffs =
@@ -735,11 +737,31 @@ fn read_dump_headers(
     funcs: &HiffyFunctions,
     raw: bool,
 ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
-    let rsize = 256;
-    let chunksize = (context.rdata_size() / rsize) - 1;
     let op = hubris.get_idol_command("DumpAgent.read_dump")?;
+    let rsize = hubris.lookup_type(op.ok)?.size(&hubris)?;
+    let chunksize = (context.rdata_size() / rsize) - 1;
+
     let mut base = 0;
     let mut rval = vec![];
+
+    //
+    // Do some sanity checks on the number of bytes returned by read_dump().
+    // If these checks fail, something is really wrong.
+    //
+    let min = size_of::<DumpAreaHeader>() + size_of::<DumpSegment>();
+
+    if rsize < min {
+        bail!("read_dump size is {rsize}, but expected minimum size of {min}");
+    }
+
+    let max_nsegments = (rsize - min) / size_of::<DumpSegmentHeader>();
+
+    if max_nsegments < 16 {
+        bail!(
+            "read_dump size of {rsize} is unexpectedly small (can only \
+            hold {max_nsegments} dumpable segments)"
+        );
+    }
 
     //
     // Iterate over dump area headers in chunksize units.  Once we've hit an
@@ -825,6 +847,10 @@ fn task_areas(
                 }
             }
             Some(_task) => {
+                //
+                // We have hit a new task dump, so record what we have seen
+                // for our current task dump, and start a new one.
+                //
                 rval.insert(current, (headers[current].1.unwrap(), areas));
                 current = ndx;
                 areas = vec![*header];
