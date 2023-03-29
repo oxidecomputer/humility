@@ -418,6 +418,78 @@ pub enum HubrisArchiveDoneness {
     Raw,
 }
 
+#[derive(Copy, Clone, Debug)]
+struct NamespaceId(usize);
+
+#[derive(Debug)]
+struct Namespaces(Vec<NamespaceComponent>);
+
+#[derive(Debug)]
+struct NamespaceComponent {
+    name: String,
+    parent: Option<NamespaceId>,
+}
+
+impl Namespaces {
+    fn new() -> Self {
+        Namespaces(Vec::new())
+    }
+
+    fn allocate(
+        &mut self,
+        name: &str,
+        parent: Option<NamespaceId>,
+    ) -> NamespaceId {
+        let id = NamespaceId(self.0.len());
+
+        self.0.push(NamespaceComponent { name: name.to_string(), parent });
+
+        id
+    }
+
+    //
+    // For a namespace identifer, compose and return the entire namespace
+    // vector as strings.
+    //
+    fn to_full(&self, id: Option<NamespaceId>) -> Result<Vec<&str>> {
+        let mut rval = vec![];
+        let mut current = id;
+
+        while let Some(id) = current {
+            let component = self
+                .0
+                .get(id.0)
+                .ok_or_else(|| anyhow!("namespace id {} is invalid", id.0))?;
+
+            rval.push(component.name.as_str());
+            current = component.parent;
+        }
+
+        rval.reverse();
+
+        Ok(rval)
+    }
+
+    //
+    // A convenience routine to take a namespace identifier and a name,
+    // and return the entire, ::-delimited name.
+    //
+    fn to_full_name(
+        &self,
+        id: Option<NamespaceId>,
+        name: &String,
+    ) -> Result<Option<String>> {
+        let mut n = self.to_full(id)?;
+
+        if !n.is_empty() {
+            n.push(name);
+            Ok(Some(n.join("::")))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct HubrisArchive {
     // the entire archive
@@ -438,7 +510,7 @@ pub struct HubrisArchive {
     // current object
     current: u32,
 
-    // non-None if a dump of a task
+    // non-None if a dump of a single task
     task_dump: Option<DumpTask>,
 
     // Capstone library handle
@@ -520,8 +592,8 @@ pub struct HubrisArchive {
     // Definitions: name to goff
     definitions: MultiMap<String, HubrisGoff>,
 
-    // Namespaces
-    namespaces: Vec<(String, Option<usize>)>,
+    // Space of all namespaces -- but namespacesspace seems needlessly cruel
+    namespaces: Namespaces,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -580,58 +652,8 @@ impl HubrisArchive {
             qualified_variables: MultiMap::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
-            namespaces: Vec::new(),
+            namespaces: Namespaces::new(),
         })
-    }
-
-    //
-    // For a namespace identifer, compose and return the entire namespace
-    // vector as strings.
-    //
-    fn namespace(&self, namespace: Option<usize>) -> Result<Vec<&String>> {
-        let mut rval = vec![];
-        let mut current = namespace;
-
-        while let Some(namespace) = current {
-            if namespace >= self.namespaces.len() {
-                bail!("namespace id {namespace} is invalid");
-            }
-
-            let (name, parent) = &self.namespaces[namespace];
-            rval.push(name);
-            current = *parent;
-        }
-
-        rval.reverse();
-
-        Ok(rval)
-    }
-
-    //
-    // A convenience routine to take a namespace identifier and a name,
-    // and return the entire, ::-delimited name.
-    //
-    fn namespaced_name(
-        &self,
-        namespace: Option<usize>,
-        name: &String,
-    ) -> Result<Option<String>> {
-        let mut n = self.namespace(namespace)?;
-
-        if !n.is_empty() {
-            n.push(name);
-
-            let full = n
-                .iter()
-                .copied()
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join("::");
-
-            Ok(Some(full))
-        } else {
-            Ok(None)
-        }
     }
 
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
@@ -1466,7 +1488,7 @@ impl HubrisArchive {
             gimli::EndianSlice<gimli::LittleEndian>,
             usize,
         >,
-        namespace: Option<usize>,
+        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -1516,7 +1538,7 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
-        namespace: Option<usize>,
+        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut name = None;
@@ -1623,7 +1645,7 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
-        namespace: Option<usize>,
+        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut discr = None;
@@ -1927,13 +1949,13 @@ impl HubrisArchive {
                                 let name = dwarf_name(&dwarf, attr.value());
 
                                 if let Some(name) = name {
-                                    let id = self.namespaces.len();
-                                    let parent =
-                                        namespace.last().map(|(id, _)| *id);
-
-                                    self.namespaces
-                                        .push((name.to_string(), parent));
-                                    namespace.push((id, depth));
+                                    namespace.push((
+                                        self.namespaces.allocate(
+                                            name,
+                                            namespace.last().map(|(id, _)| *id),
+                                        ),
+                                        depth,
+                                    ));
                                 }
 
                                 break;
@@ -2925,9 +2947,9 @@ impl HubrisArchive {
 
         for (name, enums) in self.enums_byname.iter_all() {
             for goff in enums.iter() {
-                let e = self.enums.get(goff).unwrap();
+                let n = self.enums.get(goff).unwrap().namespace;
 
-                if let Some(full) = self.namespaced_name(e.namespace, name)? {
+                if let Some(full) = self.namespaces.to_full_name(n, name)? {
                     work.push((full, *goff));
                 }
             }
@@ -2941,9 +2963,9 @@ impl HubrisArchive {
 
         for (name, structs) in self.structs_byname.iter_all() {
             for goff in structs.iter() {
-                let s = self.structs.get(goff).unwrap();
+                let n = self.structs.get(goff).unwrap().namespace;
 
-                if let Some(full) = self.namespaced_name(s.namespace, name)? {
+                if let Some(full) = self.namespaces.to_full_name(n, name)? {
                     work.push((full, *goff));
                 }
             }
@@ -5307,7 +5329,7 @@ pub struct HubrisStruct {
     pub goff: HubrisGoff,
     pub size: usize,
     pub members: Vec<HubrisStructMember>,
-    pub namespace: Option<usize>,
+    namespace: Option<NamespaceId>,
 }
 
 impl HubrisStruct {
@@ -5441,7 +5463,7 @@ pub struct HubrisEnum {
     /// temporary to hold tag of next variant
     pub tag: Option<u64>,
     pub variants: Vec<HubrisEnumVariant>,
-    pub namespace: Option<usize>,
+    namespace: Option<NamespaceId>,
 }
 
 impl HubrisEnum {
@@ -5810,15 +5832,16 @@ impl HubrisModule {
                 if m.len() > 1 {
                     let all = m
                         .iter()
-                        .map(|goff| {
-                            let s = hubris.structs.get(goff).unwrap();
+                        .map(|g| {
+                            let ns = hubris.structs.get(g).unwrap().namespace;
 
                             if let Ok(Some(name)) = hubris
-                                .namespaced_name(s.namespace, &name.to_string())
+                                .namespaces
+                                .to_full_name(ns, &name.to_string())
                             {
-                                format!("{name} as {goff}")
+                                format!("{name} as {g}")
                             } else {
-                                format!("{goff}")
+                                format!("{g}")
                             }
                         })
                         .collect::<Vec<_>>()
@@ -5856,15 +5879,16 @@ impl HubrisModule {
                 if m.len() > 1 {
                     let all = m
                         .iter()
-                        .map(|goff| {
-                            let e = hubris.enums.get(goff).unwrap();
+                        .map(|g| {
+                            let n = hubris.enums.get(g).unwrap().namespace;
 
                             if let Ok(Some(name)) = hubris
-                                .namespaced_name(e.namespace, &name.to_string())
+                                .namespaces
+                                .to_full_name(n, &name.to_string())
                             {
-                                format!("{name} as {goff}")
+                                format!("{name} as {g}")
                             } else {
-                                format!("{goff}")
+                                format!("{g}")
                             }
                         })
                         .collect::<Vec<_>>()

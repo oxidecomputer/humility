@@ -619,13 +619,9 @@ pub fn lookup_reply<'a>(
         .reply;
 
     let lookup_ok_err = |ok| {
-        if let Err(e) = m.lookup_enum_byname(hubris, ok) {
-            Err(e)
-        } else if let Err(e) = m.lookup_struct_byname(hubris, ok) {
-            Err(e)
-        } else {
-            bail!("no type for {}.{op}", iface.name);
-        }
+        m.lookup_enum_byname(hubris, ok)?;
+        m.lookup_struct_byname(hubris, ok)?;
+        bail!("no type for {}.{op}", iface.name);
     };
 
     let lookup_ok = |ok| {

@@ -738,7 +738,7 @@ fn read_dump_headers(
     raw: bool,
 ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
     let op = hubris.get_idol_command("DumpAgent.read_dump")?;
-    let rsize = hubris.lookup_type(op.ok)?.size(&hubris)?;
+    let rsize = hubris.lookup_type(op.ok)?.size(hubris)?;
     let chunksize = (context.rdata_size() / rsize) - 1;
 
     let mut base = 0;
