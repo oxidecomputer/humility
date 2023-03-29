@@ -8,22 +8,22 @@
   total size => 314K
  kernel size => 25K
        tasks => 15
-                ID TASK                SIZE FEATURES
-                 0 hiffy              43.8K h753, stm32h7, itm, i2c, gpio, spi, qspi
-                 1 gimlet_seq         48.0K h753
-                 2 net                95.3K mgmt, h753, gimlet
-                 3 spi4_driver        11.3K spi4, h753
-                 4 spi2_driver        11.7K spi2, h753
-                 5 i2c_driver         11.7K h753, itm
-                 6 spd                19.4K h753, itm
-                 7 power              12.0K itm, h753
-                 8 hf                  8.7K h753
-                 9 udpecho             7.0K 
-                10 jefe                7.1K itm
-                11 thermal             7.6K itm, h753
-                12 sensor              4.2K itm
-                13 sys                 1.6K h753
-                14 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0  10 hiffy              43.8K h753, stm32h7, itm, i2c, gpio, spi, qspi
+                 1  11 gimlet_seq         48.0K h753
+                 2   2 net                95.3K mgmt, h753, gimlet
+                 3   4 spi4_driver        11.3K spi4, h753
+                 4   5 spi2_driver        11.7K spi2, h753
+                 5   6 i2c_driver         11.7K h753, itm
+                 6   7 spd                19.4K h753, itm
+                 7   9 power              12.0K itm, h753
+                 8  12 hf                  8.7K h753
+                 9  14 udpecho             7.0K 
+                10   1 jefe                7.1K itm
+                11   8 thermal             7.6K itm, h753
+                12  13 sensor              4.2K itm
+                13   3 sys                 1.6K h753
+                14  15 idle                0.1K 
    i2c buses => 4 controllers, 5 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B    trgt spd           SPD proxy

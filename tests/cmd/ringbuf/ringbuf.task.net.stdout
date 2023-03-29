@@ -1,4 +1,3 @@
-humility: ring buffer drv_local_vpd::__RINGBUF in net:
 humility: ring buffer ksz8463::__RINGBUF in net:
  NDX LINE      GEN    COUNT PAYLOAD
    7  148        4        1 Write(IACR, 0x40f)
@@ -22,4 +21,5 @@ humility: ring buffer vsc85xx::__RINGBUF in net:
  NDX LINE      GEN    COUNT PAYLOAD
    0   26        1        1 Vsc8562InitSgmii(0x1e)
    1   23        1        1 ViperPatch(0x1e)
-   2  133        1        1 GotCrc(0xfb48)
+   2  133        1        1 GotCrc(0x5121)
+   3  133        1        1 GotCrc(0xfb48)

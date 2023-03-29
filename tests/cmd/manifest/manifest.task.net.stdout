@@ -1,40 +1,41 @@
-     version => hubris build archive v7
-     git rev => b9b43293816580bcb02ab3ecc6a49822cd4424c2-dirty
-    image id => [cb, fc, b, 8a, e1, 97, d9, 66]
+     version => hubris build archive v8
+     git rev => 16f0e43d8c1eee4549852a98e494bd2a02cd2329-dirty
+    image id => [7, 3a, b7, 28, 41, 42, 69, 92]
        board => gimlet-c
         name => gimlet-c-lab
       target => thumbv7em-none-eabihf
-    features => 
-  total size => 828K
+    features => dump
+  total size => 837K
  kernel size => 36K
-       tasks => 26
-                ID TASK                SIZE FEATURES
-                 0 thermal            32.8K itm, gimlet
-                 1 gimlet_seq         64.1K h753, stay-in-a2
-                 2 net                162.8K mgmt, h753, gimlet, vlan, vpd-mac
-                 3 control_plane_agent 139.2K gimlet, usart1, vlan, baud_rate_3M, vpd-identity
-                 4 power              33.7K itm, gimlet
-                 5 hiffy              56.6K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash, update, sprot
-                 6 host_sp_comms      52.1K stm32h753, uart7, baud_rate_3M, hardware_flow_control, vlan
-                 7 sprot              33.4K sink_test, use-spi-core, h753, spi4
-                 8 jefe               16.3K itm, dump
-                 9 spi2_driver        16.1K spi2, h753
-                10 i2c_driver         16.1K h753, itm
-                11 spd                24.1K h753, itm
-                12 hash_driver        16.1K h753
-                13 hf                 16.1K h753, hash
-                14 update_server      16.1K 
-                15 udpecho            16.1K vlan
-                16 udprpc             16.1K vlan
-                17 validate           16.1K 
-                18 sensor             11.5K itm
-                19 udpbroadcast        8.1K vlan
-                20 vpd                 8.1K 
-                21 dump_agent          8.1K 
-                22 sbrmi               8.7K 
-                23 sys                 2.0K h753
-                24 user_leds           1.0K stm32h7
-                25 idle                0.1K 
+       tasks => 27
+                ID OBJ TASK                SIZE FEATURES
+                 0   8 thermal            32.8K itm, gimlet
+                 1  11 gimlet_seq         64.7K h753, stay-in-a2
+                 2   2 net                162.8K mgmt, h753, gimlet, vlan, vpd-mac
+                 3  20 control_plane_agent 139.2K gimlet, usart1, vlan, baud_rate_3M
+                 4   9 power              33.7K itm, gimlet
+                 5  10 hiffy              56.6K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash, update, sprot
+                 6  16 host_sp_comms      52.1K stm32h753, uart7, baud_rate_3M, hardware_flow_control, vlan
+                 7  21 sprot              33.4K sink_test, use-spi-core, h753, spi4
+                 8   1 jefe               16.3K itm, dump
+                 9   4 spi2_driver        16.1K spi2, h753
+                10   5 i2c_driver         16.1K h753, itm
+                11   6 spd                24.1K h753, itm
+                12  12 hash_driver        16.1K h753
+                13  13 hf                 16.1K h753, hash
+                14  14 update_server      16.1K 
+                15  17 udpecho            16.1K vlan
+                16  19 udprpc             16.1K vlan
+                17  22 validate           16.1K 
+                18   7 packrat             8.8K 
+                19  15 sensor             11.5K itm
+                20  18 udpbroadcast        8.1K vlan
+                21  23 vpd                 8.1K 
+                22  25 dump_agent          8.1K 
+                23  26 sbrmi               8.7K 
+                24   3 sys                 2.0K h753
+                25  24 user_leds           1.0K stm32h7
+                26  27 idle                0.1K 
    i2c buses => 4 controllers, 5 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B    trgt spd           SPD proxy

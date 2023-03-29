@@ -1,2 +1,2 @@
 ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
- 1 net                0x24008000       6040       4304       1736
+ 1 net                0x24008000       6040       4336       1704

@@ -8,13 +8,13 @@
   total size => 43K
  kernel size => 13K
        tasks => 9
-                ID TASK                SIZE FEATURES
-                 0 hiffy              15.0K 
-                 1 jefe                3.2K log-null
-                 2 ping                5.0K uart
-                 3 gpio_driver         2.7K g0b1
-                 4 usart_driver        1.5K g0b1
-                 5 user_leds           1.1K stm32g0
-                 6 rcc_driver          0.7K g0b1
-                 7 pong                0.7K 
-                 8 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   8 hiffy              15.0K 
+                 1   1 jefe                3.2K log-null
+                 2   7 ping                5.0K uart
+                 3   3 gpio_driver         2.7K g0b1
+                 4   4 usart_driver        1.5K g0b1
+                 5   5 user_leds           1.1K stm32g0
+                 6   2 rcc_driver          0.7K g0b1
+                 7   6 pong                0.7K 
+                 8   9 idle                0.1K 

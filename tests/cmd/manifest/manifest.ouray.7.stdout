@@ -8,14 +8,14 @@
   total size => 91K
  kernel size => 19K
        tasks => 10
-                ID TASK                SIZE FEATURES
-                 0 jefe                9.6K itm
-                 1 rcc_driver          5.1K 
-                 2 gpio_driver         5.5K 
-                 3 usart_driver        6.3K h743
-                 4 i2c_driver          7.6K h743
-                 5 user_leds           5.3K stm32h7
-                 6 pong                4.8K 
-                 7 adt7420            10.2K h7b3, itm
-                 8 i2c_debug          17.8K itm
-                 9 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   1 jefe                9.6K itm
+                 1   2 rcc_driver          5.1K 
+                 2   3 gpio_driver         5.5K 
+                 3   4 usart_driver        6.3K h743
+                 4   5 i2c_driver          7.6K h743
+                 5   6 user_leds           5.3K stm32h7
+                 6   7 pong                4.8K 
+                 7   8 adt7420            10.2K h7b3, itm
+                 8   9 i2c_debug          17.8K itm
+                 9  10 idle                0.1K 
