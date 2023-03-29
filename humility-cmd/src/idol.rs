@@ -645,9 +645,7 @@ pub fn lookup_reply<'a>(
 
                         match hubris.lookup_struct_byname(&t) {
                             Ok(s) => Ok(s.goff),
-                            Err(_) => {
-                                lookup_ok_err(ok)
-                            }
+                            Err(_) => lookup_ok_err(ok),
                         }
                     }
                 },
