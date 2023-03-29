@@ -444,8 +444,7 @@ fn emulate_dump(
     Ok(())
 }
 
-fn emulate_task_dump(
-    _hubris: &HubrisArchive,
+fn emulate_task_dump_prep(
     core: &mut dyn Core,
     segments: &Vec<(u32, u32)>,
     base: u32,
@@ -1068,10 +1067,7 @@ fn dump_via_agent(
                 }
             };
 
-            Some(DumpTask::new(
-                *ndx as u16,
-                core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?,
-            ))
+            Some(DumpTask::new(*ndx as u16, hubris.ticks(core)?))
         }
         None => None,
     };
@@ -1230,7 +1226,7 @@ fn dump_via_agent(
             let total = segments.iter().fold(0, |ttl, (_, size)| ttl + size);
 
             let address = if task.is_some() {
-                match emulate_task_dump(hubris, core, &segments, base) {
+                match emulate_task_dump_prep(core, &segments, base) {
                     Err(e) => {
                         core.run()?;
                         humility::msg!("core resumed after failure");
