@@ -8,6 +8,6 @@
   total size => 16K
  kernel size => 11K
        tasks => 2
-                ID TASK                SIZE FEATURES
-                 0 idle                0.1K 
-                 1 jefe                4.1K log-null
+                ID OBJ TASK                SIZE FEATURES
+                 0   2 idle                0.1K 
+                 1   1 jefe                4.1K log-null

@@ -1,1 +1,1 @@
-TICKS (0x20000eb8) = 0xd90e
+kern::arch::arm_m::TICKS (0x20000eb8) = 0xd90e

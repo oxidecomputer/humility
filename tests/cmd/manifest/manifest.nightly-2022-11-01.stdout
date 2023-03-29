@@ -8,31 +8,31 @@
   total size => 698K
  kernel size => 35K
        tasks => 24
-                ID TASK                SIZE FEATURES
-                 0 thermal            32.8K itm, gimlet
-                 1 gimlet_seq         64.1K h753
-                 2 net                162.8K mgmt, h753, gimlet, vlan, vpd-mac
-                 3 control_plane_agent 70.2K gimlet, usart1, vlan, baud_rate_3M, hardware_flow_control
-                 4 hiffy              56.6K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash, update, sprot
-                 5 sprot              33.1K sink_test
-                 6 spi4_driver        16.1K spi4, h753
-                 7 spi2_driver        16.1K spi2, h753
-                 8 i2c_driver         16.1K h753, itm
-                 9 spd                24.1K h753, itm
-                10 power              17.7K itm, gimlet
-                11 hash_driver        16.1K h753
-                12 hf                 16.1K h753, hash
-                13 update_server      16.1K 
-                14 host_sp_comms      29.6K stm32h753, uart7, baud_rate_3M, hardware_flow_control, vlan
-                15 udprpc             16.1K vlan
-                16 validate           16.1K 
-                17 jefe                8.1K itm
-                18 sensor              8.1K itm
-                19 udpecho             8.1K vlan
-                20 udpbroadcast        8.1K vlan
-                21 vpd                 8.1K 
-                22 sys                 2.0K h753
-                23 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   8 thermal            32.8K itm, gimlet
+                 1  11 gimlet_seq         64.1K h753
+                 2   2 net                162.8K mgmt, h753, gimlet, vlan, vpd-mac
+                 3  20 control_plane_agent 70.2K gimlet, usart1, vlan, baud_rate_3M, hardware_flow_control
+                 4  10 hiffy              56.6K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash, update, sprot
+                 5  21 sprot              33.1K sink_test
+                 6   4 spi4_driver        16.1K spi4, h753
+                 7   5 spi2_driver        16.1K spi2, h753
+                 8   6 i2c_driver         16.1K h753, itm
+                 9   7 spd                24.1K h753, itm
+                10   9 power              17.7K itm, gimlet
+                11  12 hash_driver        16.1K h753
+                12  13 hf                 16.1K h753, hash
+                13  14 update_server      16.1K 
+                14  16 host_sp_comms      29.6K stm32h753, uart7, baud_rate_3M, hardware_flow_control, vlan
+                15  19 udprpc             16.1K vlan
+                16  22 validate           16.1K 
+                17   1 jefe                8.1K itm
+                18  15 sensor              8.1K itm
+                19  17 udpecho             8.1K vlan
+                20  18 udpbroadcast        8.1K vlan
+                21  23 vpd                 8.1K 
+                22   3 sys                 2.0K h753
+                23  24 idle                0.1K 
    i2c buses => 4 controllers, 5 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B    trgt spd           SPD proxy

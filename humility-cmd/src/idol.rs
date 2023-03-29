@@ -39,7 +39,9 @@ impl<'a> IdolOperation<'a> {
 
         let t = format!("{}_{}_ARGS", interface, operation);
         let module = hubris.lookup_module(task)?;
-        let args = module.lookup_struct_byname(hubris, &t)?;
+        let args = module
+            .lookup_struct_byname(hubris, &t)?
+            .ok_or_else(|| anyhow!("failed to find {t}"))?;
         let (ok, error) = lookup_reply(hubris, module, operation)?;
 
         //
@@ -149,7 +151,7 @@ impl<'a> IdolOperation<'a> {
         // to encode it.  First, see if we can look up the
         // AttributedType as an enum...
         //
-        else if let Ok(e) = module.lookup_enum_byname(hubris, ty) {
+        else if let Some(e) = module.lookup_enum_byname(hubris, ty)? {
             call_arg_enum(hubris, arg.0, member, e, val, payload)?;
         }
         //
@@ -157,14 +159,14 @@ impl<'a> IdolOperation<'a> {
         // we will allow it if it's a newtype -- otherwise we'll
         // toss.
         //
-        else if let Ok(s) = module.lookup_struct_byname(hubris, ty) {
+        else if let Some(s) = module.lookup_struct_byname(hubris, ty)? {
             if s.newtype().is_some() {
                 call_arg(hubris, &s.members[0], val, payload)?;
             } else {
                 bail!("non-newtype structure arguments currently unsupported");
             }
         } else {
-            bail!("don't know what to do with {:?}", self.args);
+            bail!("don't know what to do with {:?}", ty);
         }
         Ok(())
     }
@@ -370,6 +372,7 @@ fn call_arg(
                 }
             }
         }
+
         _ => {
             bail!("type of {} ({:?}) not yet supported", member.name, t);
         }
@@ -615,55 +618,44 @@ pub fn lookup_reply<'a>(
         .ok_or_else(|| anyhow!("unknown operation \"{}\"", op))?
         .reply;
 
-    let lookup_ok =
-        |ok| {
-            match hubris.lookup_basetype_byname(ok) {
-                Ok(goff) => Ok(*goff),
-                Err(basetype_err) => match m.lookup_enum_byname(hubris, ok) {
-                    Ok(e) => Ok(e.goff),
-                    Err(enum_err) => match m.lookup_struct_byname(hubris, ok) {
-                        Ok(s) => Ok(s.goff),
-                        Err(struct_err) => {
-                            //
-                            // As a last ditch, we look up the REPLY type.
-                            // This is a last effort because it might not be
-                            // there:  if no task calls the function, the type
-                            // will be absent.
-                            //
-                            let t = format!("{}_{}_REPLY", iface.name, op);
+    let lookup_ok_err = |ok| {
+        m.lookup_enum_byname(hubris, ok)?;
+        m.lookup_struct_byname(hubris, ok)?;
+        bail!("no type for {}.{op}", iface.name);
+    };
 
-                            match hubris.lookup_struct_byname(&t) {
-                                Ok(s) => Ok(s.goff),
-                                Err(reply_err) => {
-                                    //
-                                    // If all of that has failed, we want to
-                                    // generate an error message that contains
-                                    // all of the failures we encountered:
-                                    // this is (much) more likely to be due to
-                                    // Humility limitations rather than
-                                    // anything else.
-                                    //
-                                    bail!(
-                                        "no type for {}.{}: {:?} (as basetype: \
-                                        \"{:?}\"; as enum: \"{:?}\"; as \
-                                        struct: \"{:?}\"; as REPLY: \"{:?}\")",
-                                        iface.name, op, reply, basetype_err,
-                                        enum_err, struct_err, reply_err
-                                    );
-                                }
-                            }
+    let lookup_ok = |ok| {
+        match hubris.lookup_basetype_byname(ok) {
+            Ok(goff) => Ok(*goff),
+            Err(_) => match m.lookup_enum_byname(hubris, ok) {
+                Ok(Some(e)) => Ok(e.goff),
+                _ => match m.lookup_struct_byname(hubris, ok) {
+                    Ok(Some(s)) => Ok(s.goff),
+                    _ => {
+                        //
+                        // As a last ditch, we look up the REPLY type.  This is
+                        // a last effort because it might not be there:  if no
+                        // task calls the function, the type will be absent.
+                        //
+                        let t = format!("{}_{}_REPLY", iface.name, op);
+
+                        match hubris.lookup_struct_byname(&t) {
+                            Ok(s) => Ok(s.goff),
+                            Err(_) => lookup_ok_err(ok),
                         }
-                    },
+                    }
                 },
-            }
-        };
+            },
+        }
+    };
 
     match reply {
         Reply::Result { ok, err } => match err {
             ::idol::syntax::Error::CLike(t) => {
-                let err = m.lookup_enum_byname(hubris, &t.0).context(
-                    format!("failed to find error type {:?}", reply),
-                )?;
+                let err =
+                    m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(|| {
+                        anyhow!("failed to find error type {reply:?}")
+                    })?;
                 Ok((lookup_ok(&ok.ty.0)?, Some(err)))
             }
             ::idol::syntax::Error::ServerDeath => {

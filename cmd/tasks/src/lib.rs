@@ -182,7 +182,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
-    let ticks = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
+    let ticks = hubris.ticks(core)?;
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -200,18 +200,25 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
     loop {
         core.halt()?;
 
-        let cur =
-            core.read_word_32(hubris.lookup_symword("CURRENT_TASK_PTR")?)?;
+        let cur = hubris.current_task(core)?;
+        let task_dump = hubris.task_dump();
 
         //
         // We read the entire task table at a go to get as consistent a
         // snapshot as possible.
         //
         let mut taskblock = vec![0; task_t.size * task_count as usize];
-        core.read_8(base, &mut taskblock)?;
 
-        if let Some(epitaph) = hubris.epitaph(core)? {
-            humility::warn!("kernel has panicked: {}", epitaph);
+        if let Some(HubrisTask::Task(i)) = task_dump {
+            let offs = i as usize * task_t.size;
+            let addr = base + offs as u32;
+            core.read_8(addr, &mut taskblock[offs..offs + task_t.size])?;
+        } else {
+            core.read_8(base, &mut taskblock)?;
+
+            if let Some(epitaph) = hubris.epitaph(core)? {
+                humility::warn!("kernel has panicked: {}", epitaph);
+            }
         }
 
         let mut tasks = vec![];
@@ -221,6 +228,12 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
         for i in 0..task_count {
             let addr = base + i * task_t.size as u32;
             let offs = i as usize * task_t.size;
+
+            if let Some(HubrisTask::Task(ndx)) = task_dump {
+                if ndx != i {
+                    continue;
+                }
+            }
 
             let task_value: reflect::Value =
                 reflect::load(hubris, &taskblock, task_t, offs).with_context(
@@ -239,7 +252,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                 regs.insert((i, ARMRegister::from_usize(r).unwrap()), v);
             }
 
-            tasks.push((addr, task_value, task));
+            tasks.push((i, addr, task_value, task));
 
             if let TaskState::Faulted { fault, .. } = task.state {
                 if fault == doppel::FaultInfo::Panic {
@@ -261,8 +274,8 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
         let mut any_names_truncated = false;
 
-        for (i, (addr, task_value, task)) in tasks.iter().enumerate() {
-            let i = i as u32;
+        for (i, addr, task_value, task) in tasks.iter() {
+            let i = *i;
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
 
             let module = match hubris.lookup_module(HubrisTask::Task(i)) {
@@ -311,7 +324,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                 i,
                 &regs,
                 task.state,
-                *addr == cur,
+                cur == Some(HubrisTask::Task(i)),
                 irqs,
                 timer,
             )?;

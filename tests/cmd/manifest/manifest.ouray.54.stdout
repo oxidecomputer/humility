@@ -8,12 +8,12 @@
   total size => 70K
  kernel size => 18K
        tasks => 8
-                ID TASK                SIZE FEATURES
-                 0 jefe               10.6K itm
-                 1 rcc_driver          4.9K stm32f4
-                 2 usart_driver        6.3K stm32f4
-                 3 user_leds           5.7K stm32f4
-                 4 ping                5.5K uart
-                 5 pong                4.8K 
-                 6 hiffy              14.4K 
-                 7 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   1 jefe               10.6K itm
+                 1   2 rcc_driver          4.9K stm32f4
+                 2   3 usart_driver        6.3K stm32f4
+                 3   4 user_leds           5.7K stm32f4
+                 4   5 ping                5.5K uart
+                 5   6 pong                4.8K 
+                 6   7 hiffy              14.4K 
+                 7   8 idle                0.1K 

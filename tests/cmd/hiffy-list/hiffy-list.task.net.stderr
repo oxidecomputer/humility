@@ -1,0 +1,3 @@
+humility: attached to dump
+humility: WARNING: DumpArea matches more than one structure: task_jefe::dump::DumpArea as GOFF 0x00003dd0 (object 1), humpty::DumpArea as GOFF 0x0000ea1b (object 1)
+humility: WARNING: DumpArea matches more than one structure: task_jefe::dump::DumpArea as GOFF 0x00003dd0 (object 1), humpty::DumpArea as GOFF 0x0000ea1b (object 1)

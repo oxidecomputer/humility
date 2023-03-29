@@ -25,18 +25,21 @@ use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
+use humpty::DumpTask;
 use idol::syntax::Interface;
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
+use zerocopy::{AsBytes, FromBytes};
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
 const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
+const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
-const MAX_HUBRIS_VERSION: u32 = 7;
+const MAX_HUBRIS_VERSION: u32 = 8;
 
 #[derive(Default, Debug)]
 pub struct HubrisManifest {
@@ -415,6 +418,78 @@ pub enum HubrisArchiveDoneness {
     Raw,
 }
 
+#[derive(Copy, Clone, Debug)]
+struct NamespaceId(usize);
+
+#[derive(Debug)]
+struct Namespaces(Vec<NamespaceComponent>);
+
+#[derive(Debug)]
+struct NamespaceComponent {
+    name: String,
+    parent: Option<NamespaceId>,
+}
+
+impl Namespaces {
+    fn new() -> Self {
+        Namespaces(Vec::new())
+    }
+
+    fn allocate(
+        &mut self,
+        name: &str,
+        parent: Option<NamespaceId>,
+    ) -> NamespaceId {
+        let id = NamespaceId(self.0.len());
+
+        self.0.push(NamespaceComponent { name: name.to_string(), parent });
+
+        id
+    }
+
+    //
+    // For a namespace identifer, compose and return the entire namespace
+    // vector as strings.
+    //
+    fn to_full(&self, id: Option<NamespaceId>) -> Result<Vec<&str>> {
+        let mut rval = vec![];
+        let mut current = id;
+
+        while let Some(id) = current {
+            let component = self
+                .0
+                .get(id.0)
+                .ok_or_else(|| anyhow!("namespace id {} is invalid", id.0))?;
+
+            rval.push(component.name.as_str());
+            current = component.parent;
+        }
+
+        rval.reverse();
+
+        Ok(rval)
+    }
+
+    //
+    // A convenience routine to take a namespace identifier and a name,
+    // and return the entire, ::-delimited name.
+    //
+    fn to_full_name(
+        &self,
+        id: Option<NamespaceId>,
+        name: &String,
+    ) -> Result<Option<String>> {
+        let mut n = self.to_full(id)?;
+
+        if !n.is_empty() {
+            n.push(name);
+            Ok(Some(n.join("::")))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct HubrisArchive {
     // the entire archive
@@ -434,6 +509,9 @@ pub struct HubrisArchive {
 
     // current object
     current: u32,
+
+    // non-None if a dump of a single task
+    task_dump: Option<DumpTask>,
 
     // Capstone library handle
     cs: capstone::Capstone,
@@ -513,6 +591,9 @@ pub struct HubrisArchive {
 
     // Definitions: name to goff
     definitions: MultiMap<String, HubrisGoff>,
+
+    // Space of all namespaces -- but namespacesspace seems needlessly cruel
+    namespaces: Namespaces,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -546,6 +627,7 @@ impl HubrisArchive {
                 }
             },
             current: 0,
+            task_dump: None,
             instrs: HashMap::new(),
             syscall_pushes: HashMap::new(),
             registers: HashMap::new(),
@@ -570,6 +652,7 @@ impl HubrisArchive {
             qualified_variables: MultiMap::new(),
             unions: HashMap::new(),
             definitions: MultiMap::new(),
+            namespaces: Namespaces::new(),
         })
     }
 
@@ -1405,6 +1488,7 @@ impl HubrisArchive {
             gimli::EndianSlice<gimli::LittleEndian>,
             usize,
         >,
+        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -1435,6 +1519,7 @@ impl HubrisArchive {
                     size,
                     goff,
                     members: Vec::new(),
+                    namespace,
                 },
             );
 
@@ -1453,6 +1538,7 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
+        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut name = None;
@@ -1489,6 +1575,7 @@ impl HubrisArchive {
                     discriminant: Some(HubrisDiscriminant::Value(dgoff, 0)),
                     tag: None,
                     variants: Vec::new(),
+                    namespace,
                 },
             );
 
@@ -1558,6 +1645,7 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
+        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut discr = None;
@@ -1590,6 +1678,7 @@ impl HubrisArchive {
                 discriminant: discr.map(HubrisDiscriminant::Expected),
                 tag: None,
                 variants: Vec::new(),
+                namespace,
             },
         );
 
@@ -1820,9 +1909,22 @@ impl HubrisArchive {
             let mut stack: Vec<HubrisGoff> = vec![];
 
             let mut array = None;
+            let mut namespace = vec![];
 
             while let Some((delta, entry)) = entries.next_dfs()? {
                 depth += delta;
+
+                //
+                // See if our depth has become shallower than our namespace,
+                // trimming it until it fits.
+                //
+                while let Some((_, d)) = namespace.last() {
+                    if depth > *d {
+                        break;
+                    }
+
+                    namespace.pop();
+                }
 
                 let goff = self.dwarf_goff(&unit, entry);
                 self.dwarf_fileline(&dwarf, &unit, entry)?;
@@ -1834,6 +1936,33 @@ impl HubrisArchive {
                 }
 
                 match entry.tag() {
+                    gimli::constants::DW_TAG_namespace => {
+                        //
+                        // For a namespace tag, create an entry in our
+                        // namespaces vector, and push a tuple consisting
+                        // of the identifer and our depth.
+                        //
+                        let mut attrs = entry.attrs();
+
+                        while let Some(attr) = attrs.next()? {
+                            if attr.name() == gimli::constants::DW_AT_name {
+                                let name = dwarf_name(&dwarf, attr.value());
+
+                                if let Some(name) = name {
+                                    namespace.push((
+                                        self.namespaces.allocate(
+                                            name,
+                                            namespace.last().map(|(id, _)| *id),
+                                        ),
+                                        depth,
+                                    ));
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+
                     gimli::constants::DW_TAG_inlined_subroutine => {
                         self.dwarf_inlined(&dwarf, &unit, entry, depth)?;
                     }
@@ -1847,7 +1976,8 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_structure_type => {
-                        self.dwarf_struct(&dwarf, &unit, entry)?;
+                        let ns = namespace.last().map(|(id, _)| *id);
+                        self.dwarf_struct(&dwarf, &unit, entry, ns)?;
                     }
 
                     gimli::constants::DW_TAG_base_type => {
@@ -1882,7 +2012,8 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_enumeration_type => {
-                        self.dwarf_const_enum(&dwarf, &unit, entry, goff)?;
+                        let ns = namespace.last().map(|(id, _)| *id);
+                        self.dwarf_const_enum(&dwarf, &unit, entry, goff, ns)?;
                     }
 
                     gimli::constants::DW_TAG_enumerator => {
@@ -1897,7 +2028,8 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        self.dwarf_enum(&unit, entry, parent)?;
+                        let ns = namespace.last().map(|(id, _)| *id);
+                        self.dwarf_enum(&unit, entry, parent, ns)?;
 
                         //
                         // The discriminant is a (grand)child member; we need
@@ -2807,6 +2939,42 @@ impl HubrisArchive {
             Ok(())
         })?;
 
+        //
+        // We have loaded everything; now post-process our enums and structs
+        // to add their fully scoped names.
+        //
+        let mut work = vec![];
+
+        for (name, enums) in self.enums_byname.iter_all() {
+            for goff in enums.iter() {
+                let n = self.enums.get(goff).unwrap().namespace;
+
+                if let Some(full) = self.namespaces.to_full_name(n, name)? {
+                    work.push((full, *goff));
+                }
+            }
+        }
+
+        for (name, goff) in work.iter() {
+            self.enums_byname.insert(name.clone(), *goff);
+        }
+
+        let mut work = vec![];
+
+        for (name, structs) in self.structs_byname.iter_all() {
+            for goff in structs.iter() {
+                let n = self.structs.get(goff).unwrap().namespace;
+
+                if let Some(full) = self.namespaces.to_full_name(n, name)? {
+                    work.push((full, *goff));
+                }
+            }
+        }
+
+        for (name, goff) in work.iter() {
+            self.structs_byname.insert(name.clone(), *goff);
+        }
+
         Ok(())
     }
 
@@ -3077,6 +3245,18 @@ impl HubrisArchive {
                             OXIDE_NT_HUBRIS_REGISTERS => {
                                 self.load_registers(note.desc)?;
                             }
+                            OXIDE_NT_HUBRIS_TASK => {
+                                match DumpTask::read_from_prefix(note.desc) {
+                                    Some(task) => {
+                                        self.task_dump = Some(task);
+                                    }
+                                    None => {
+                                        bail!(
+                                            "unrecognized task {:?}", note.desc
+                                        );
+                                    }
+                                }
+                            }
                             _ => {
                                 bail!("unrecognized note 0x{:x}", note.n_type);
                             }
@@ -3269,8 +3449,14 @@ impl HubrisArchive {
     pub fn qualified_variables(
         &self,
     ) -> impl Iterator<Item = (&str, &HubrisVariable)> {
-        self.qualified_variables.iter_all().flat_map(|(n, v)| {
+        let task_dump = self.task_dump();
+
+        self.qualified_variables.iter_all().flat_map(move |(n, v)| {
             v.iter()
+                .filter(|&v| match task_dump {
+                    None => true,
+                    Some(t) => t == HubrisTask::from(v.goff),
+                })
                 .map(|e| (n.as_str(), e))
                 .collect::<Vec<(&str, &HubrisVariable)>>()
         })
@@ -3337,6 +3523,53 @@ impl HubrisArchive {
             self.current as usize - 1
         } else {
             0
+        }
+    }
+
+    /// If this is a dump from a single task, returns that task -- or None
+    /// otherwise.
+    pub fn task_dump(&self) -> Option<HubrisTask> {
+        self.task_dump.map(|task| HubrisTask::Task(task.id.into()))
+    }
+
+    pub fn current_task(
+        &self,
+        core: &mut dyn crate::core::Core,
+    ) -> Result<Option<HubrisTask>> {
+        //
+        // If this is a dump and it only contains a single task, there is
+        // no current task.
+        //
+        if self.task_dump.is_some() {
+            return Ok(None);
+        }
+
+        let cur =
+            core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
+        let (base, task_count) = self.task_table(core)?;
+        let task_t = self.lookup_struct_byname("Task")?;
+        let size = task_t.size;
+
+        if (cur - base) % size as u32 != 0 {
+            bail!(
+                "CURRENT_TASK_PTR ({cur:#x}) - base ({base:#x}) \
+                is not an even multiple of task size ({size})"
+            )
+        }
+
+        let ndx = (cur - base) / task_t.size as u32;
+
+        if ndx >= task_count {
+            bail!("current task ({ndx}) exceeds max ({task_count})");
+        }
+
+        Ok(Some(HubrisTask::Task(ndx)))
+    }
+
+    pub fn ticks(&self, core: &mut dyn crate::core::Core) -> Result<u64> {
+        match self.task_dump {
+            Some(task) => Ok(task.time),
+            None => core.read_word_64(self.lookup_variable("TICKS")?.addr),
         }
     }
 
@@ -3467,6 +3700,10 @@ impl HubrisArchive {
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
+            return Ok(());
+        }
+
+        if self.task_dump().is_some() {
             return Ok(());
         }
 
@@ -3979,8 +4216,7 @@ impl HubrisArchive {
         t: HubrisTask,
     ) -> Result<BTreeMap<ARMRegister, u32>> {
         let (base, _) = self.task_table(core)?;
-        let cur =
-            core.read_word_32(self.lookup_symword("CURRENT_TASK_PTR")?)?;
+        let cur = self.current_task(core)?;
 
         let module = self.lookup_module(t)?;
         let mut rval = BTreeMap::new();
@@ -4005,7 +4241,7 @@ impl HubrisArchive {
         //
         // If this is the current task, we want to pull the current PC.
         //
-        if offset - save == cur {
+        if cur == Some(t) {
             let pc = core.read_reg(ARMRegister::PC)?;
 
             //
@@ -4430,10 +4666,51 @@ impl HubrisArchive {
         })
     }
 
+    pub fn dump_segments(
+        &self,
+        core: &mut dyn crate::core::Core,
+        task: Option<DumpTask>,
+        include_nonwritable: bool,
+    ) -> Result<Vec<(u32, u32)>> {
+        let regions = self.regions(core)?;
+
+        Ok(match task {
+            None => regions
+                .values()
+                .filter(|&r| !r.attr.device && !r.attr.dma)
+                .filter(|&r| include_nonwritable || r.attr.write)
+                .map(|r| (r.base, r.size))
+                .collect::<Vec<_>>(),
+            Some(task) => {
+                let t = HubrisTask::Task(task.id as u32);
+
+                let mut segments = regions
+                    .values()
+                    .filter(|&r| !r.attr.device && !r.attr.dma)
+                    .filter(|&r| {
+                        r.tasks.contains(&t)
+                            || (include_nonwritable && !r.attr.write)
+                    })
+                    .map(|r| (r.base, r.size))
+                    .collect::<Vec<_>>();
+
+                let (base, _) = self.task_table(core)?;
+                let ndx = task.id as usize;
+                let task_t = self.lookup_struct_byname("Task")?;
+                segments.push((
+                    base + (ndx * task_t.size) as u32,
+                    task_t.size as u32,
+                ));
+
+                segments
+            }
+        })
+    }
+
     pub fn dump(
         &self,
         core: &mut dyn crate::core::Core,
-        regions: &BTreeMap<u32, HubrisRegion>,
+        task: Option<DumpTask>,
         dumpfile: Option<&str>,
         started: Option<Instant>,
     ) -> Result<()> {
@@ -4441,7 +4718,8 @@ impl HubrisArchive {
         use indicatif::{ProgressBar, ProgressStyle};
         use std::io::Write;
 
-        let nsegs = regions.values().filter(|r| !r.attr.device).count();
+        let segments = self.dump_segments(core, task, true)?;
+        let nsegs = segments.len();
 
         macro_rules! pad {
             ($size:expr) => {
@@ -4469,18 +4747,30 @@ impl HubrisArchive {
         let mut notes = vec![];
         let mut regs = vec![];
 
-        for i in 0..31 {
-            if let Some(reg) = ARMRegister::from_u16(i) {
-                let val = core.read_reg(reg)?;
-                regs.push((i, val));
+        match task {
+            Some(_) => {
+                notes.push(goblin::elf::note::Nhdr32 {
+                    n_namesz: (oxide.len() + 1) as u32,
+                    n_descsz: std::mem::size_of::<DumpTask>() as u32,
+                    n_type: OXIDE_NT_HUBRIS_TASK,
+                });
+            }
+
+            None => {
+                for i in 0..31 {
+                    if let Some(reg) = ARMRegister::from_u16(i) {
+                        let val = core.read_reg(reg)?;
+                        regs.push((i, val));
+                    }
+                }
+
+                notes.push(goblin::elf::note::Nhdr32 {
+                    n_namesz: (oxide.len() + 1) as u32,
+                    n_descsz: regs.len() as u32 * 8,
+                    n_type: OXIDE_NT_HUBRIS_REGISTERS,
+                });
             }
         }
-
-        notes.push(goblin::elf::note::Nhdr32 {
-            n_namesz: (oxide.len() + 1) as u32,
-            n_descsz: regs.len() as u32 * 8,
-            n_type: OXIDE_NT_HUBRIS_REGISTERS,
-        });
 
         notes.push(goblin::elf::note::Nhdr32 {
             n_namesz: (oxide.len() + 1) as u32,
@@ -4552,26 +4842,22 @@ impl HubrisArchive {
 
         let mut total = 0;
 
-        for (_, region) in regions.iter() {
-            if region.attr.device {
-                continue;
-            }
-
+        for (base, size) in &segments {
             let seg_phdr = goblin::elf32::program_header::ProgramHeader {
                 p_type: goblin::elf::program_header::PT_LOAD,
                 p_flags: goblin::elf::program_header::PF_R,
                 p_offset: offset,
-                p_vaddr: region.base,
-                p_filesz: region.size,
-                p_memsz: region.size,
+                p_vaddr: *base,
+                p_filesz: *size,
+                p_memsz: *size,
                 ..Default::default()
             };
 
             bytes.pwrite_with(seg_phdr, 0, ctx.le)?;
             file.write_all(&bytes)?;
 
-            offset += region.size + pad!(region.size);
-            total += region.size;
+            offset += *size + pad!(*size);
+            total += *size;
         }
 
         for note in &notes {
@@ -4603,9 +4889,15 @@ impl HubrisArchive {
                         file.write_all(&bytes)?;
                     }
                 }
+
                 OXIDE_NT_HUBRIS_ARCHIVE => {
                     file.write_all(&self.archive)?;
                 }
+
+                OXIDE_NT_HUBRIS_TASK => {
+                    file.write_all(task.unwrap().as_bytes())?;
+                }
+
                 _ => {
                     panic!("unimplemented note");
                 }
@@ -4629,14 +4921,10 @@ impl HubrisArchive {
                 .template("humility: dumping [{bar:30}] {bytes}/{total_bytes}"),
         );
 
-        for (_, region) in regions.iter() {
-            if region.attr.device {
-                continue;
-            }
-
-            let mut remain = region.size as usize;
+        for (base, size) in &segments {
+            let mut remain = *size as usize;
             let mut bytes = vec![0; 1024];
-            let mut addr = region.base;
+            let mut addr = *base;
 
             while remain > 0 {
                 let nbytes =
@@ -4650,7 +4938,7 @@ impl HubrisArchive {
                 bar.set_position(written as u64);
             }
 
-            let npad = pad!(region.size) as usize;
+            let npad = pad!(*size) as usize;
             file.write_all(&pad[0..npad])?;
         }
 
@@ -4691,33 +4979,6 @@ impl HubrisArchive {
             std::fs::write(file_name, buffer)?;
             Ok(())
         })?;
-        Ok(())
-    }
-
-    #[allow(clippy::print_literal)]
-    pub fn list_variables(&self) -> Result<()> {
-        let mut variables = vec![];
-
-        for (name, variable) in &self.variables {
-            for v in variable {
-                variables.push((HubrisTask::from(v.goff), name, v));
-            }
-        }
-
-        variables.sort();
-
-        println!(
-            "{:18} {:<30} {:<10} {}",
-            "MODULE", "VARIABLE", "ADDR", "SIZE"
-        );
-
-        for v in variables {
-            let task = &self.lookup_module(v.0)?.name;
-            println!(
-                "{:18} {:<30} 0x{:08x} {:<}",
-                task, v.1, v.2.addr, v.2.size
-            );
-        }
         Ok(())
     }
 
@@ -5068,6 +5329,7 @@ pub struct HubrisStruct {
     pub goff: HubrisGoff,
     pub size: usize,
     pub members: Vec<HubrisStructMember>,
+    namespace: Option<NamespaceId>,
 }
 
 impl HubrisStruct {
@@ -5201,6 +5463,7 @@ pub struct HubrisEnum {
     /// temporary to hold tag of next variant
     pub tag: Option<u64>,
     pub variants: Vec<HubrisEnumVariant>,
+    namespace: Option<NamespaceId>,
 }
 
 impl HubrisEnum {
@@ -5560,24 +5823,46 @@ impl HubrisModule {
         &self,
         hubris: &'a HubrisArchive,
         name: &str,
-    ) -> Result<&'a HubrisStruct> {
+    ) -> Result<Option<&'a HubrisStruct>> {
         match hubris.structs_byname.get_vec(name) {
             Some(v) => {
                 let m = hubris
                     .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
-                    Err(anyhow!("{} matches more than one structure", name))
+                    let all = m
+                        .iter()
+                        .map(|g| {
+                            let ns = hubris.structs.get(g).unwrap().namespace;
+
+                            if let Ok(Some(name)) = hubris
+                                .namespaces
+                                .to_full_name(ns, &name.to_string())
+                            {
+                                format!("{name} as {g}")
+                            } else {
+                                format!("{g}")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    Err(anyhow!(
+                        "{name} matches more than one structure: {all}"
+                    ))
                 } else if m.is_empty() {
-                    Err(anyhow!("no {} in {}", name, self.name))
+                    Ok(None)
                 } else {
-                    Ok(hubris.structs.get(&m[0]).unwrap())
+                    Ok(Some(hubris.structs.get(&m[0]).unwrap()))
                 }
             }
-            _ => self.lookup_struct_byname(
-                hubris,
-                try_scoped(name, "structure", &hubris.structs_byname)?,
-            ),
+            _ => {
+                if let Some(scoped) = try_scoped(name, &hubris.structs_byname) {
+                    self.lookup_struct_byname(hubris, scoped)
+                } else {
+                    Ok(None)
+                }
+            }
         }
     }
 
@@ -5585,24 +5870,44 @@ impl HubrisModule {
         &self,
         hubris: &'a HubrisArchive,
         name: &str,
-    ) -> Result<&'a HubrisEnum> {
+    ) -> Result<Option<&'a HubrisEnum>> {
         match hubris.enums_byname.get_vec(name) {
             Some(v) => {
                 let m = hubris
                     .dedup(v.iter().filter(|g| g.object == self.object))?;
 
                 if m.len() > 1 {
-                    Err(anyhow!("{} matches more than one enum", name))
+                    let all = m
+                        .iter()
+                        .map(|g| {
+                            let n = hubris.enums.get(g).unwrap().namespace;
+
+                            if let Ok(Some(name)) = hubris
+                                .namespaces
+                                .to_full_name(n, &name.to_string())
+                            {
+                                format!("{name} as {g}")
+                            } else {
+                                format!("{g}")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    Err(anyhow!("{name} matches more than one enum: {all}"))
                 } else if m.is_empty() {
-                    Err(anyhow!("no {} in {}", name, self.name))
+                    Ok(None)
                 } else {
-                    Ok(hubris.enums.get(&m[0]).unwrap())
+                    Ok(Some(hubris.enums.get(&m[0]).unwrap()))
                 }
             }
-            _ => self.lookup_enum_byname(
-                hubris,
-                try_scoped(name, "enum", &hubris.enums_byname)?,
-            ),
+            _ => {
+                if let Some(scoped) = try_scoped(name, &hubris.enums_byname) {
+                    self.lookup_enum_byname(hubris, scoped)
+                } else {
+                    Ok(None)
+                }
+            }
         }
     }
 }
@@ -5641,13 +5946,12 @@ pub enum HubrisValidate {
 //
 fn try_scoped<'a>(
     name: &'a str,
-    kind: &'static str,
     map: &'a MultiMap<String, HubrisGoff>,
-) -> Result<&'a str> {
+) -> Option<&'a str> {
     let search = name.replace('<', "<.*::");
 
     if search == name {
-        Err(anyhow!("expected {} not found", kind))
+        None
     } else {
         use regex::Regex;
 
@@ -5662,23 +5966,10 @@ fn try_scoped<'a>(
             }
         }
 
-        if matched.is_empty() {
-            Err(anyhow!(
-                "expected {} {} not found (also tried {})",
-                kind,
-                name,
-                search
-            ))
-        } else if matched.len() > 1 {
-            Err(anyhow!(
-                "expected {} {} not found ({} matched multiple types: {:?})",
-                kind,
-                name,
-                search,
-                matched
-            ))
+        if matched.len() == 1 {
+            Some(matched[0])
         } else {
-            Ok(matched[0])
+            None
         }
     }
 }

@@ -47,10 +47,18 @@ fn stackmargin(context: &mut humility::ExecutionContext) -> Result<()> {
     let (base, size) = hubris.task_table(core)?;
     let task = hubris.lookup_struct_byname("Task")?;
     let taskdesc = hubris.lookup_struct_byname("TaskDesc")?;
+    let task_dump = hubris.task_dump();
 
     let mut taskblock: Vec<u8> = vec![];
     taskblock.resize_with(task.size * size as usize, Default::default);
-    core.read_8(base, taskblock.as_mut_slice())?;
+
+    if let Some(HubrisTask::Task(i)) = task_dump {
+        let offs = i as usize * task.size;
+        let addr = base + offs as u32;
+        core.read_8(addr, &mut taskblock[offs..offs + task.size])?;
+    } else {
+        core.read_8(base, &mut taskblock)?;
+    }
 
     let descriptor = task.lookup_member("descriptor")?.offset as u32;
     let initial_stack = taskdesc.lookup_member("initial_stack")?.offset as u32;
@@ -72,6 +80,12 @@ fn stackmargin(context: &mut humility::ExecutionContext) -> Result<()> {
     };
 
     for i in 0..size {
+        if let Some(HubrisTask::Task(ndx)) = task_dump {
+            if ndx != i {
+                continue;
+            }
+        }
+
         let offs = i as usize * task.size;
         let daddr = taskblock32(offs + descriptor as usize);
         let initial = core.read_word_32(daddr + initial_stack)?;

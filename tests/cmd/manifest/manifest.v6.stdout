@@ -8,8 +8,8 @@
   total size => 26K
  kernel size => 18K
        tasks => 4
-                ID TASK                SIZE FEATURES
-                 0 idle                0.1K 
-                 1 sys                 2.0K g070
-                 2 jefe                4.1K log-null
-                 3 usart_driver        2.0K g070
+                ID OBJ TASK                SIZE FEATURES
+                 0   4 idle                0.1K 
+                 1   2 sys                 2.0K g070
+                 2   1 jefe                4.1K log-null
+                 3   3 usart_driver        2.0K g070

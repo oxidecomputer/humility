@@ -8,21 +8,21 @@
   total size => 342K
  kernel size => 25K
        tasks => 14
-                ID TASK                SIZE FEATURES
-                 0 idle                0.1K 
-                 1 pong                1.0K 
-                 2 jefe                8.1K itm
-                 3 udpecho            32.1K 
-                 4 hiffy              56.1K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash
-                 5 i2c_driver         16.3K h753
-                 6 spi_driver         16.1K spi1, h753
-                 7 net                142.3K h753
-                 8 hf                 16.1K h753, hash
-                 9 ping                8.1K 
-                10 hash_driver         8.1K h753
-                11 rng_driver          8.1K h753
-                12 sys                 2.0K h753
-                13 user_leds           2.0K stm32h7
+                ID OBJ TASK                SIZE FEATURES
+                 0  13 idle                0.1K 
+                 1   8 pong                1.0K 
+                 2   1 jefe                8.1K itm
+                 3   9 udpecho            32.1K 
+                 4  10 hiffy              56.1K h753, stm32h7, itm, i2c, gpio, spi, qspi, hash
+                 5   3 i2c_driver         16.3K h753
+                 6   4 spi_driver         16.1K spi1, h753
+                 7   5 net                142.3K h753
+                 8  11 hf                 16.1K h753, hash
+                 9   7 ping                8.1K 
+                10  12 hash_driver         8.1K h753
+                11  14 rng_driver          8.1K h753
+                12   2 sys                 2.0K h753
+                13   6 user_leds           2.0K stm32h7
    i2c buses => 1 controller, 1 bus
                 C PORT MODE NAME          DESCRIPTION
                 2 F    init -             -

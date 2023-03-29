@@ -120,7 +120,7 @@ fn manifestcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     println!("{:>12} => {}K", "total size", ttl / 1024);
     println!("{:>12} => {}K", "kernel size", size(HubrisTask::Kernel) / 1024);
     println!("{:>12} => {}", "tasks", hubris.ntasks());
-    println!("{:>18} {:18} {:>5} {}", "ID", "TASK", "SIZE", "FEATURES");
+    println!("{:>18} {:3} {:18} {:>5} FEATURES", "ID", "OBJ", "TASK", "SIZE");
 
     let mut id = 0;
 
@@ -132,8 +132,9 @@ fn manifestcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         let features = manifest.task_features.get(&module.name);
 
         println!(
-            "{:>18} {:18} {:>4.1}K {}",
+            "{:>18} {:>3} {:18} {:>4.1}K {}",
             id,
+            module.object,
             module.name,
             module.memsize as f64 / 1024_f64,
             if let Some(f) = features { f.join(", ") } else { "".to_string() }

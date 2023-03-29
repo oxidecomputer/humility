@@ -8,35 +8,35 @@
   total size => 911K
  kernel size => 26K
        tasks => 28
-                ID TASK                SIZE FEATURES
-                 0 idle                0.1K 
-                 1 sys                 2.0K h753
-                 2 jefe                8.1K itm
-                 3 udpecho             8.1K vlan
-                 4 spi1_driver        16.1K h753, spi1
-                 5 control_plane_agent 67.1K sidecar, vlan, auxflash
-                 6 net                171.1K mgmt, h753, sidecar, vlan, vpd-mac
-                 7 monorail           128.7K mgmt, sidecar, vlan
-                 8 sequencer          64.9K 
-                 9 auxflash           32.1K h753
-                10 sprot              33.1K sink_test
-                11 hiffy              56.6K h753, spi, stm32h7, itm, i2c, gpio
-                12 ecp5_mainboard     33.4K mainboard
-                13 ecp5_front_io      33.4K front_io
-                14 transceivers       34.5K vlan
-                15 spi2_driver        16.1K h753, spi2
-                16 spi3_driver        16.1K h753, spi3
-                17 spi4_driver        16.1K spi4, h753
-                18 spi5_driver        16.1K h753, spi5
-                19 update_server      16.1K 
-                20 udprpc             16.1K vlan
-                21 i2c_driver         16.1K h753, itm
-                22 thermal            16.8K itm, sidecar
-                23 power              16.8K itm, sidecar
-                24 validate           16.1K 
-                25 ignition           16.5K sequencer
-                26 udpbroadcast        8.1K vlan
-                27 sensor              8.1K itm
+                ID OBJ TASK                SIZE FEATURES
+                 0  28 idle                0.1K 
+                 1   2 sys                 2.0K h753
+                 2   1 jefe                8.1K itm
+                 3  13 udpecho             8.1K vlan
+                 4   3 spi1_driver        16.1K h753, spi1
+                 5  11 control_plane_agent 67.1K sidecar, vlan, auxflash
+                 6  10 net                171.1K mgmt, h753, sidecar, vlan, vpd-mac
+                 7  16 monorail           128.7K mgmt, sidecar, vlan
+                 8  23 sequencer          64.9K 
+                 9   9 auxflash           32.1K h753
+                10  12 sprot              33.1K sink_test
+                11  18 hiffy              56.6K h753, spi, stm32h7, itm, i2c, gpio
+                12  20 ecp5_mainboard     33.4K mainboard
+                13  21 ecp5_front_io      33.4K front_io
+                14  22 transceivers       34.5K vlan
+                15   4 spi2_driver        16.1K h753, spi2
+                16   5 spi3_driver        16.1K h753, spi3
+                17   6 spi4_driver        16.1K spi4, h753
+                18   7 spi5_driver        16.1K h753, spi5
+                19   8 update_server      16.1K 
+                20  15 udprpc             16.1K vlan
+                21  17 i2c_driver         16.1K h753, itm
+                22  24 thermal            16.8K itm, sidecar
+                23  25 power              16.8K itm, sidecar
+                24  26 validate           16.1K 
+                25  27 ignition           16.5K sequencer
+                26  14 udpbroadcast        8.1K vlan
+                27  19 sensor              8.1K itm
    i2c buses => 4 controllers, 9 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B1   init northeast0    Northeast Corridor 0

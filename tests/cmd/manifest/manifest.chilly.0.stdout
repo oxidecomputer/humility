@@ -8,23 +8,23 @@
   total size => 329K
  kernel size => 25K
        tasks => 16
-                ID TASK                SIZE FEATURES
-                 0 thermal            12.8K itm, h753, gimlet
-                 1 gimlet_seq         49.9K h753
-                 2 net                95.2K mgmt, h753, gimlet
-                 3 hiffy              43.8K h753, stm32h7, itm, i2c, gpio, spi, qspi
-                 4 spi4_driver        11.3K spi4, h753
-                 5 spi2_driver        11.7K spi2, h753
-                 6 i2c_driver         11.9K h753, itm
-                 7 spd                19.4K h753, itm
-                 8 power              11.8K itm, h753
-                 9 hf                  8.7K h753
-                10 udpecho             7.0K 
-                11 jefe                7.1K itm
-                12 sensor              4.2K itm
-                13 validate            7.9K 
-                14 sys                 1.6K h753
-                15 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   8 thermal            12.8K itm, h753, gimlet
+                 1  11 gimlet_seq         49.9K h753
+                 2   2 net                95.2K mgmt, h753, gimlet
+                 3  10 hiffy              43.8K h753, stm32h7, itm, i2c, gpio, spi, qspi
+                 4   4 spi4_driver        11.3K spi4, h753
+                 5   5 spi2_driver        11.7K spi2, h753
+                 6   6 i2c_driver         11.9K h753, itm
+                 7   7 spd                19.4K h753, itm
+                 8   9 power              11.8K itm, h753
+                 9  12 hf                  8.7K h753
+                10  14 udpecho             7.0K 
+                11   1 jefe                7.1K itm
+                12  13 sensor              4.2K itm
+                13  15 validate            7.9K 
+                14   3 sys                 1.6K h753
+                15  16 idle                0.1K 
    i2c buses => 4 controllers, 5 buses
                 C PORT MODE NAME          DESCRIPTION
                 1 B    trgt spd           SPD proxy

@@ -8,16 +8,16 @@
   total size => 88K
  kernel size => 22K
        tasks => 12
-                ID TASK                SIZE FEATURES
-                 0 hiffy              18.7K lpc55, gpio
-                 1 spi0_driver         6.6K spi0
-                 2 jefe                7.0K itm
-                 3 gpio_driver         7.1K 
-                 4 user_leds           1.3K lpc55
-                 5 usart_driver        5.3K 
-                 6 i2c_driver          5.9K 
-                 7 rng_driver          4.6K 
-                 8 ping                4.8K uart
-                 9 pong                0.6K 
-                10 syscon_driver       3.8K 
-                11 idle                0.1K 
+                ID OBJ TASK                SIZE FEATURES
+                 0   2 hiffy              18.7K lpc55, gpio
+                 1  10 spi0_driver         6.6K spi0
+                 2   1 jefe                7.0K itm
+                 3   5 gpio_driver         7.1K 
+                 4   6 user_leds           1.3K lpc55
+                 5   7 usart_driver        5.3K 
+                 6   8 i2c_driver          5.9K 
+                 7   9 rng_driver          4.6K 
+                 8  11 ping                4.8K uart
+                 9  12 pong                0.6K 
+                10   4 syscon_driver       3.8K 
+                11   3 idle                0.1K 

@@ -168,26 +168,14 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitvec"
-version = "0.22.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5237f00a8c86130a0cc317830e558b966dd7850d48a953d998c813f01a41b527"
-dependencies = [
- "funty 1.2.0",
- "radium 0.6.2",
- "tap",
- "wyz 0.4.0",
-]
-
-[[package]]
-name = "bitvec"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
 dependencies = [
- "funty 2.0.0",
- "radium 0.7.0",
+ "funty",
+ "radium",
  "tap",
- "wyz 0.5.1",
+ "wyz",
 ]
 
 [[package]]
@@ -868,12 +856,6 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "funty"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1847abb9cb65d566acd5942e94aea9c8f547ad02c98e1649326fc0e8910b8b1e"
-
-[[package]]
-name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
@@ -1044,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.9.33"
+version = "0.10.0"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1291,6 +1273,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humpty",
+ "indexmap",
  "indicatif",
  "log",
  "lzss",
@@ -2006,6 +1989,7 @@ dependencies = [
  "goblin",
  "hubpack",
  "humility_load_derive",
+ "humpty",
  "idol",
  "indexmap",
  "indicatif",
@@ -2025,6 +2009,7 @@ dependencies = [
  "serde_json",
  "toml",
  "winapi",
+ "zerocopy",
  "zip",
 ]
 
@@ -2055,9 +2040,11 @@ dependencies = [
 [[package]]
 name = "humpty"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/humpty#bcb02bd530beadd296a3a80b0ec2c4dbc00403c1"
+source = "git+https://github.com/oxidecomputer/humpty#70c646c4a9f31120fe4b39928580ce9f90358bfb"
 dependencies = [
+ "hubpack",
  "lzss",
+ "serde",
  "static_assertions",
  "zerocopy",
 ]
@@ -2560,7 +2547,7 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36b29691432cc9eff8b282278473b63df73bea49bc3ec5e67f31a3ae9c3ec190"
 dependencies = [
- "bitvec 1.0.1",
+ "bitvec",
  "packed_struct_codegen",
  "serde",
 ]
@@ -2740,13 +2727,13 @@ checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 [[package]]
 name = "probe-rs"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#ca13d23ee7b4313596bca41f97debf45e1b74929"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#d731eaa3e30d178a881af20bcbccb07abcf7394b"
 dependencies = [
  "anyhow",
  "base64",
  "bincode",
  "bitfield 0.13.2",
- "bitvec 0.22.3",
+ "bitvec",
  "enum-primitive-derive",
  "gimli 0.26.2",
  "hidapi",
@@ -2771,7 +2758,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#ca13d23ee7b4313596bca41f97debf45e1b74929"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#d731eaa3e30d178a881af20bcbccb07abcf7394b"
 dependencies = [
  "base64",
  "jep106",
@@ -2825,12 +2812,6 @@ checksum = "bbe448f377a7d6961e30f5955f9b8d106c3f5e449d493ee1b125c1d43c2b5179"
 dependencies = [
  "proc-macro2",
 ]
-
-[[package]]
-name = "radium"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
 
 [[package]]
 name = "radium"
@@ -3396,9 +3377,9 @@ dependencies = [
 
 [[package]]
 name = "svg"
-version = "0.10.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e72d8b19ab05827afefcca66bf47040c1e66a0901eb814784c77d4ec118bd309"
+checksum = "e715e0c3fc987f4c435dc7189641fd9caa6919a74675ace605c38e201d278001"
 
 [[package]]
 name = "syn"
@@ -3875,15 +3856,6 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
-
-[[package]]
-name = "wyz"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "129e027ad65ce1453680623c3fb5163cbf7107bfe1aa32257e7d0e63f9ced188"
-dependencies = [
- "tap",
-]
 
 [[package]]
 name = "wyz"
