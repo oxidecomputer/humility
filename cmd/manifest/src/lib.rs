@@ -43,8 +43,8 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
-use humility::hubris::*;
 use humility::cli::Subcommand;
+use humility::hubris::*;
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashSet;
 
