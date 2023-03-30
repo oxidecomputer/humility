@@ -5,7 +5,7 @@
 use crate::arch::{presyscall_pushes, ARMRegister};
 use capstone::prelude::*;
 use indexmap::IndexMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::io::prelude::*;
 
 use std::borrow::Cow;
@@ -41,7 +41,7 @@ const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
 const MAX_HUBRIS_VERSION: u32 = 8;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize)]
 pub struct HubrisManifest {
     pub version: Option<String>,
     pub gitrev: Option<String>,
@@ -127,12 +127,12 @@ struct HubrisConfigI2cController {
     target: Option<bool>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct HubrisConfigI2cPmbus {
     rails: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct HubrisConfigI2cPower {
     rails: Option<Vec<String>>,
     #[serde(default = "HubrisConfigI2cPower::default_pmbus")]
@@ -153,7 +153,7 @@ impl HubrisConfigI2cPower {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 struct HubrisConfigI2cSensors {
     #[serde(default)]
@@ -180,7 +180,7 @@ struct HubrisConfigI2cSensors {
     names: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct HubrisConfigI2cDevice {
     device: String,
     name: Option<String>,
@@ -203,7 +203,7 @@ struct HubrisConfigI2c {
     devices: Option<Vec<HubrisConfigI2cDevice>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct HubrisConfigAuxflash {
     pub memory_size: usize,
@@ -238,13 +238,13 @@ pub struct HubrisConfigSensorSensor {
     sensors: BTreeMap<String, usize>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct HubrisI2cPort {
     pub name: String,
     pub index: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct HubrisI2cBus {
     pub controller: u8,
     pub port: HubrisI2cPort,
@@ -253,14 +253,14 @@ pub struct HubrisI2cBus {
     pub target: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub enum HubrisI2cDeviceClass {
     Pmbus { rails: Vec<String> },
     Unspecified,
     Unknown,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct HubrisI2cDevice {
     pub device: String,
     pub name: Option<String>,
@@ -274,7 +274,7 @@ pub struct HubrisI2cDevice {
     pub removable: bool,
 }
 
-#[derive(Copy, Clone, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Deserialize, Debug, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum HubrisSensorKind {
     Temperature,
@@ -286,13 +286,13 @@ pub enum HubrisSensorKind {
     Speed,
 }
 
-#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Serialize)]
 pub enum HubrisSensorDevice {
     I2c(usize),
     Other(String, usize),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct HubrisSensor {
     pub name: String,
     pub kind: HubrisSensorKind,
