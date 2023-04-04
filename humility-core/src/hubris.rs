@@ -2460,7 +2460,6 @@ impl HubrisArchive {
                 heapbss,
                 task,
                 iface,
-                buffer: buffer.to_vec(),
             },
         );
 
@@ -3770,101 +3769,126 @@ impl HubrisArchive {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
 
-        let mut incore = HashMap::new();
+        // The verification logic we use is:
+        //
+        // - We find program headers (PHDRs) in the post-signing combined ELF
+        //   object.
+        //
+        // - We find the subset of those that are type PT_LOAD, meaning they
+        //   contain real data that is used by the program, as opposed to (say)
+        //   stack metadata.
+        //
+        // - We find the subset of _those_ that should be in flash, by looking
+        //   for non-zero filesz, meaning they contain at least one byte of
+        //   initialized data (as opposed to, say, BSS, which contains zero).
+        //
+        // - We check the target to see if filesz bytes starting at the PHDR's
+        //   physical address (paddr) match the ELF object. The paddr is used
+        //   because of the DATA section initialization image, which is loaded
+        //   into flash at paddr but then copied into RAM on startup to its
+        //   vaddr.
+        //
+        // Note that, at the time of this writing, the post-signing final ELF
+        // object (final.elf) contains a _single_ PHDR. However, there's no
+        // reason that needs to remain true in the future, so this code is
+        // written to be general and check all PHDRs.
 
-        for m in self.modules.values() {
-            let elf = Elf::parse(&m.buffer).map_err(|e| {
-                anyhow!("busted in-core ELF object {}: {}", m.name, e)
-            })?;
+        // We don't use final.elf for much and don't keep it around in a
+        // convenient buffer. So, go get it out of the archive.
+        let cursor = Cursor::new(self.archive());
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        let mut elf_file = archive
+            .by_name("img/final.elf")
+            .context("could not find final.elf in archive!")?;
+        let mut file_contents = vec![];
+        elf_file.read_to_end(&mut file_contents)?;
 
-            elf.program_headers
-                .iter()
-                .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
-                .filter(|h| h.p_flags & goblin::elf::program_header::PF_W == 0)
-                .filter(|h| h.p_flags & goblin::elf::program_header::PF_R != 0)
-                .filter(|h| h.p_flags & goblin::elf::program_header::PF_X != 0)
-                .map(|h| (h.p_vaddr, h.p_offset as usize))
-                .for_each(|h| {
-                    incore.insert(h.0, (m, h.1));
-                });
-        }
+        let elf =
+            Elf::parse(&file_contents).context("busted final ELF object")?;
 
-        let regions = self.regions(core)?;
-        let mut total = 0;
+        // First pass: Find all the PHDRs that are relevant for this algorithm.
+        //
+        // This vec is (paddr, expected bytes)
+        let phdrs: Vec<(u32, &[u8])> = elf
+            .program_headers
+            .iter()
+            // Only check loaded data
+            .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
+            // Only check data with initialization (not, e.g., BSS)
+            .filter(|h| h.p_filesz > 0)
+            .map(|h| {
+                let offset = h.p_offset as usize;
+                let sz = h.p_filesz as usize;
+                let chunk = &file_contents[offset..offset + sz];
+                (h.p_paddr as u32, chunk)
+            })
+            .collect();
 
-        for region in regions.values() {
-            if region.attr.device {
-                continue;
-            }
+        // Second pass: figure out how large they all are, so we can start
+        // displaying a progress bar.
+        let total: usize = phdrs.iter().map(|(_a, chunk)| chunk.len()).sum();
 
-            if incore.get(&(region.base as u64)).is_some() {
-                total += region.size;
-            }
-        }
-
-        let mut written = 0;
-        let mut bytes = vec![0; 1024];
+        let mut verified = 0;
+        let mut buffer = vec![0; 1024];
+        let mut problems = 0;
 
         let started = Instant::now();
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
             ProgressStyle::default_bar().template(
-                "humility: verifying [{bar:30}] {bytes}/{total_bytes}",
+                "humility: verifying [{bar:30}] {buffer}/{total_bytes}",
             ),
         );
 
-        for region in regions.values() {
-            if region.attr.device {
-                continue;
-            }
+        // Third and final pass: read out the actual ranges from the target and
+        // see if they match!
+        for (paddr, mut expected_bytes) in phdrs {
+            log::info!(
+                "verifying {} bytes at {:#x}",
+                expected_bytes.len(),
+                paddr
+            );
+            let mut addr = paddr;
 
-            if let Some((m, offset)) = incore.get(&(region.base as u64)) {
-                //
-                // We want to read this bit from flash and compare.
-                //
-                let mut remain = region.size as usize;
-                let mut addr = region.base;
-                let mut o = 0;
+            while !expected_bytes.is_empty() {
+                let nbytes = usize::min(expected_bytes.len(), buffer.len());
 
-                while remain > 0 {
-                    let nbytes =
-                        if remain > bytes.len() { bytes.len() } else { remain };
+                core.read_8(addr, &mut buffer[0..nbytes])?;
 
-                    core.read_8(addr, &mut bytes[0..nbytes])?;
+                #[allow(clippy::needless_range_loop)]
+                for i in 0..nbytes {
+                    if expected_bytes[i] != buffer[i] {
+                        bar.finish_and_clear();
 
-                    #[allow(clippy::needless_range_loop)]
-                    for i in 0..nbytes {
-                        if m.buffer[offset + o + i] != bytes[i] {
-                            bar.finish_and_clear();
-
-                            bail!(
-                                "differs at addr 0x{:x} (\"{}\", \
-                                offset {}): found 0x{:x}, expected 0x{:x}",
-                                addr + i as u32,
-                                m.name,
-                                offset + o + i,
-                                bytes[i],
-                                m.buffer[offset + o + i]
-                            );
-                        }
+                        log::error!(
+                            "differs at addr 0x{:x}:
+                                found 0x{:x}, expected 0x{:x}",
+                            addr + i as u32,
+                            buffer[i],
+                            expected_bytes[i]
+                        );
+                        problems += 1;
                     }
-
-                    remain -= nbytes;
-                    addr += nbytes as u32;
-                    written += nbytes;
-                    o += nbytes;
-                    bar.set_position(written as u64);
                 }
+
+                expected_bytes = &expected_bytes[nbytes..];
+                addr += nbytes as u32;
+                verified += nbytes;
+                bar.set_position(verified as u64);
             }
         }
 
         bar.finish_and_clear();
 
-        msg!(
-            "verified {} in {}",
-            HumanBytes(written as u64),
-            HumanDuration(started.elapsed())
-        );
+        if problems > 0 {
+            bail!("found {problems} problems!");
+        } else {
+            msg!(
+                "verified {} in {}",
+                HumanBytes(verified as u64),
+                HumanDuration(started.elapsed())
+            );
+        }
 
         Ok(())
     }
@@ -5815,7 +5839,6 @@ pub struct HubrisModule {
     pub memsize: u32,
     pub heapbss: (Option<u32>, Option<u32>),
     pub iface: Option<Interface>,
-    buffer: Vec<u8>,
 }
 
 impl HubrisModule {
