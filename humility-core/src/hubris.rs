@@ -3550,11 +3550,19 @@ impl HubrisArchive {
         let task_t = self.lookup_struct_byname("Task")?;
         let size = task_t.size;
 
+        if cur < base || cur >= base + (task_count * size as u32) {
+            bail!(
+                "CURRENT_TASK_PTR ({cur:#x}) does not appear to point into \
+                the task table ({base:#x}, {task_count} tasks, {size} \
+                bytes per task)"
+            );
+        }
+
         if (cur - base) % size as u32 != 0 {
             bail!(
                 "CURRENT_TASK_PTR ({cur:#x}) - base ({base:#x}) \
                 is not an even multiple of task size ({size})"
-            )
+            );
         }
 
         let ndx = (cur - base) / task_t.size as u32;
