@@ -296,12 +296,12 @@ impl Core for ProbeCore {
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
             if addr + 4 < range.0 + range.1 {
                 let mut core = self.session.core(0)?;
-                return Ok(core.read_word_32(addr).with_context(|| {
+                return core.read_word_32(addr).with_context(|| {
                     format!(
                         "failed to perform unhalted word read at address \
                         {addr:#x}",
                     )
-                })?);
+                });
             }
         }
 
@@ -327,24 +327,24 @@ impl Core for ProbeCore {
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
             if addr + (data.len() as u32) < range.0 + range.1 {
                 let mut core = self.session.core(0)?;
-                return Ok(core.read_8(addr, data).with_context(|| {
+                return core.read_8(addr, data).with_context(|| {
                     format!(
                         "failed to perform unhalted read at address \
                         {addr:#x} for length {}",
                         data.len()
                     )
-                })?);
+                });
             }
         }
 
         self.halt_and_read(|core| {
-            Ok(core.read_8(addr, data).with_context(|| {
+            core.read_8(addr, data).with_context(|| {
                 format!(
                     "failed to perform halted read at address \
                     {addr:#x} for length {}",
                     data.len()
                 )
-            })?)
+            })
         })
     }
 
