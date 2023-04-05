@@ -889,7 +889,10 @@ impl<'a> HiffyContext<'a> {
 
         if core.is_net() {
             if data.is_some() {
-                bail!("cannot execute -based operations over the network");
+                bail!(
+                    "cannot execute HIF operations with local data \
+                     over the network"
+                );
             }
 
             return self.perform_rpc(core, ops);
