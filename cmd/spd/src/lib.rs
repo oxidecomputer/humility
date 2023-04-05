@@ -6,6 +6,8 @@ use humility::cli::Subcommand;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{hiffy::*, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
+use std::fs::File;
+use std::io::Write;
 use std::str;
 
 use anyhow::{bail, Result};
@@ -22,7 +24,7 @@ struct SpdArgs {
     )]
     timeout: u32,
 
-    /// verbose output
+    /// verbose output (including raw 512-byte SPD)
     #[clap(long, short)]
     verbose: bool,
 
@@ -45,6 +47,22 @@ struct SpdArgs {
     /// specifies I2C multiplexer and segment
     #[clap(long, short, value_name = "mux:segment")]
     mux: Option<String>,
+
+    /// dump only the specified address
+    #[clap(long, short, value_name = "address",
+        parse(try_from_str = parse_int::parse)
+    )]
+    address: Option<u8>,
+
+    /// output SPD for specified address as binary to the specified file
+    #[clap(
+        long,
+        short,
+        value_name = "file",
+        requires = "address",
+        conflicts_with = "verbose"
+    )]
+    output: Option<String>,
 }
 
 const SPD_SIZE: usize = 512;
@@ -71,12 +89,29 @@ fn dump_spd(
 
     let manufacturer = jep106::JEP106Code::new(jep_cc, jep_id);
 
+    if let Some(address) = subargs.address {
+        if address != addr {
+            return Ok(());
+        }
+    }
+
+    if let Some(filename) = &subargs.output {
+        let mut output = File::create(filename)?;
+        output.write_all(buf)?;
+        humility::msg!(
+            "wrote SPD data for address {} as binary to {}",
+            addr,
+            filename
+        );
+        return Ok(());
+    }
+
     let part = str::from_utf8(
         &buf[Offset::PartNumberBase.to_usize()
             ..=Offset::PartNumberLimit.to_usize()],
     );
 
-    if header || subargs.verbose {
+    if header || subargs.address.is_some() || subargs.verbose {
         println!(
             "{:4} {:25} {:20} {:4} {:4}",
             "ADDR", "MANUFACTURER", "PART", "WEEK", "YEAR"
