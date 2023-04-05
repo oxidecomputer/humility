@@ -94,7 +94,6 @@ use zerocopy::FromBytes;
     group = ArgGroup::new("simulation").multiple(false)
         .required(false).requires("force-dump-agent")
 )]
-
 struct DumpArgs {
     /// sets timeout
     #[clap(
@@ -969,6 +968,10 @@ fn read_dump(
 
     let (base, headers, task) = {
         let all = read_dump_headers(hubris, core, context, funcs, false)?;
+
+        if all.is_empty() {
+            bail!("no dump is present?");
+        }
 
         let area = match area {
             None => None,

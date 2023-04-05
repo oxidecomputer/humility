@@ -43,18 +43,31 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
+use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
 #[clap(name = "manifest", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ManifestArgs {}
+struct ManifestArgs {
+    /// generate JSON output
+    #[clap(short, long)]
+    json: bool,
+}
 
 #[allow(clippy::print_literal)]
 fn manifestcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
     let manifest = &hubris.manifest;
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+
+    let subargs = ManifestArgs::try_parse_from(subargs)?;
+
+    if subargs.json {
+        println!("{}", serde_json::to_string(manifest)?);
+        return Ok(());
+    }
 
     let print = |what, val| {
         println!("{:>12} => {}", what, val);

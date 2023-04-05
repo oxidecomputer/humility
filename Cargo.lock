@@ -413,9 +413,9 @@ dependencies = [
 
 [[package]]
 name = "convert_case"
-version = "0.3.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e1f025f441cdfb75831bec89b9d6a6ed02e5e763f78fc5e1ff30d4870fefaec"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "coolor"
@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1521,6 +1521,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+ "serde_json",
 ]
 
 [[package]]
@@ -2040,7 +2041,7 @@ dependencies = [
 [[package]]
 name = "humpty"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/humpty#70c646c4a9f31120fe4b39928580ce9f90358bfb"
+source = "git+https://github.com/oxidecomputer/humpty#b87a452e1c0a75e3e906616efc44945ac988748b"
 dependencies = [
  "hubpack",
  "lzss",
@@ -2695,14 +2696,14 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/pmbus#781cf33414b267277e168ed7f8699c3959090f76"
+source = "git+https://github.com/oxidecomputer/pmbus#03124d68e77a84a1e05513133c61990b14a2a75d"
 dependencies = [
  "anyhow",
  "convert_case",
  "libm",
  "num-derive",
  "num-traits",
- "ron 0.6.6",
+ "ron 0.8.0",
  "serde",
  "serde_with",
 ]

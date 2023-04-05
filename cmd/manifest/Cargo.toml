@@ -9,3 +9,4 @@ humility = { workspace = true }
 humility-cmd = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
+serde_json = { workspace = true }

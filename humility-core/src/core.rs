@@ -5,7 +5,7 @@
 use probe_rs::MemoryInterface;
 use probe_rs::{flashing, Probe};
 
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 
 use crate::arch::ARMRegister;
 use crate::hubris::*;
@@ -296,12 +296,22 @@ impl Core for ProbeCore {
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
             if addr + 4 < range.0 + range.1 {
                 let mut core = self.session.core(0)?;
-                return Ok(core.read_word_32(addr)?);
+                return core.read_word_32(addr).with_context(|| {
+                    format!(
+                        "failed to perform unhalted word read at address \
+                        {addr:#x}",
+                    )
+                });
             }
         }
 
         self.halt_and_read(|core| {
-            rval = core.read_word_32(addr)?;
+            rval = core.read_word_32(addr).with_context(|| {
+                format!(
+                    "failed to perform halted word read at address {addr:#x}"
+                )
+            })?;
+
             Ok(())
         })?;
 
@@ -317,11 +327,25 @@ impl Core for ProbeCore {
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
             if addr + (data.len() as u32) < range.0 + range.1 {
                 let mut core = self.session.core(0)?;
-                return Ok(core.read_8(addr, data)?);
+                return core.read_8(addr, data).with_context(|| {
+                    format!(
+                        "failed to perform unhalted read at address \
+                        {addr:#x} for length {}",
+                        data.len()
+                    )
+                });
             }
         }
 
-        self.halt_and_read(|core| Ok(core.read_8(addr, data)?))
+        self.halt_and_read(|core| {
+            core.read_8(addr, data).with_context(|| {
+                format!(
+                    "failed to perform halted read at address \
+                    {addr:#x} for length {}",
+                    data.len()
+                )
+            })
+        })
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
