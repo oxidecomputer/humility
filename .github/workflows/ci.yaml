@@ -1,6 +1,8 @@
-on: [push, pull_request]
-
 name: Continuous integration
+on:
+  pull_request:
+  push:
+    branches: [master]
 
 env:
   CARGO_INCREMENTAL: 0 # set here rather than on CI profile so that the tests get it too
