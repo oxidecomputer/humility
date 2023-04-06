@@ -2116,6 +2116,7 @@ impl HubrisArchive {
 
     fn load_object_idolatry(
         &mut self,
+        object: &str,
         buffer: &[u8],
         elf: &goblin::elf::Elf,
     ) -> Result<Option<Interface>> {
@@ -2144,7 +2145,14 @@ impl HubrisArchive {
 
             let s = str::from_utf8(section).context("bad .idolatry string")?;
 
-            Ok(Some(Interface::from_str(s)?))
+            match Interface::from_str(s) {
+                Ok(interface) => Ok(Some(interface)),
+                Err(err) => {
+                    warn!("failed to load Idol definition for {object}: {err}");
+                    log::debug!("failed Idol for {object} ({err:?}): {s}");
+                    Ok(None)
+                }
+            }
         } else {
             Ok(None)
         }
@@ -2447,13 +2455,7 @@ impl HubrisArchive {
         self.load_object_frames(task, buffer, &elf)
             .context(format!("{}: failed to load debug frames", object))?;
 
-        let iface = match self.load_object_idolatry(buffer, &elf) {
-            Ok(iface) => iface,
-            Err(e) => {
-                warn!("failed to load Idol interface for {task}: {e}");
-                None
-            }
-        };
+        let iface = self.load_object_idolatry(object, buffer, &elf)?;
 
         self.modules.insert(
             textsec.sh_addr as u32,
