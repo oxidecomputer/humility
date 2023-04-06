@@ -246,7 +246,7 @@ trycmd = "0.13.2"
 tui = { version = "0.16", default-features = false }
 winapi = "0.3.9"
 zerocopy = "0.6.1"
-zip = "0.5"
+zip = "0.6.4"
 
 [profile.release]
 debug = true
