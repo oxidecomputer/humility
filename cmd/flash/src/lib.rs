@@ -332,12 +332,12 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let ihex_path = ihex.path();
 
     //
-    // Load the flash image, and reset the part if that works.
+    // Load the flash image.  If that fails, we're in a world of hurt:  we
+    // really don't want to run the core for fear of masking of initial
+    // error.  (It will hopefully be pretty clear to the user that a
+    // half-flashed part is going to be in an ill-defined state!)
     //
-    if let Err(err) = core.load(ihex_path) {
-        core.run()?;
-        return Err(err);
-    }
+    core.load(ihex_path)?;
 
     //
     // On Gimlet Rev B, the BOOT0 pin is unstrapped -- and during a flash,
