@@ -120,6 +120,7 @@ fn docs() -> &'static str {{
     )?;
 
     let root = metadata.workspace_root;
+    println!("cargo:rerun-if-changed={}", root.join("README.md.in").display());
     let input = std::fs::read(root.join("README.md.in"))?;
 
     output.write_all(&input)?;
