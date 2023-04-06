@@ -1,4 +1,4 @@
 humility registers failed: failed to load dump "hubris.core.kiowa.3.fails"
 
 Caused by:
-    invalid Zip archive
+    invalid Zip archive: Invalid zip header
