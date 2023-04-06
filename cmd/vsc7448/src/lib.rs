@@ -132,7 +132,6 @@ struct Vsc7448<'a> {
     context: HiffyContext<'a>,
 
     task: HubrisTask,
-    funcs: HiffyFunctions,
 }
 
 impl<'a> Vsc7448<'a> {
@@ -142,15 +141,14 @@ impl<'a> Vsc7448<'a> {
         args: &Vsc7448Args,
     ) -> Result<Self> {
         let mut context = HiffyContext::new(hubris, core, args.timeout)?;
-        let funcs = context.functions()?;
 
         let task = spi_task(hubris, args.peripheral)?;
-        Ok(Self { core, context, task, funcs })
+        Ok(Self { core, context, task })
     }
 
     /// Writes a single 32-bit register
     fn write(&mut self, addr: u32, data: u32) -> Result<()> {
-        let spi_write = self.funcs.get("SpiWrite", 3)?;
+        let spi_write = self.context.get_function("SpiWrite", 3)?;
 
         // Write 7 bytes from the data array over SPI
         let ops = [
@@ -182,7 +180,7 @@ impl<'a> Vsc7448<'a> {
 
     /// Reads a single 32-bit register
     fn read(&mut self, addr: u32) -> Result<u32> {
-        let spi_read = self.funcs.get("SpiRead", 4)?;
+        let spi_read = self.context.get_function("SpiRead", 4)?;
 
         // Write 3 bytes of address, and read 8 bytes back in total
         // (3 address bytes, 1 padding byte, 4 bytes of result)

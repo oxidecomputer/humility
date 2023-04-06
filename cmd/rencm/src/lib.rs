@@ -101,9 +101,8 @@ fn rencm_attached(
     modules: &[Module],
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
-    let read_func = funcs.get("I2cRead", 7)?;
-    let write_func = funcs.get("I2cWrite", 8)?;
+    let read_func = context.get_function("I2cRead", 7)?;
+    let write_func = context.get_function("I2cWrite", 8)?;
 
     let hargs = I2cArgs::parse(
         hubris,

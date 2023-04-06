@@ -280,25 +280,22 @@ pub fn hiffy_call(
 ) -> Result<std::result::Result<humility::reflect::Value, String>> {
     check_lease(op, lease.as_ref())?;
 
-    let funcs = context.functions()?;
     let mut ops = vec![];
 
     let payload = op.payload(args)?;
     match lease.as_ref() {
-        None => context.idol_call_ops(&funcs, op, &payload, &mut ops)?,
+        None => context.idol_call_ops(op, &payload, &mut ops)?,
         // Read/Write is flipped when passing through the Idol operation;
         // HiffyLease::Read/Write is from the perspective of the host, but
         // idol_call_ops_read/write is from the perspective of the called
         // function.
         Some(HiffyLease::Read(n)) => context.idol_call_ops_write(
-            &funcs,
             op,
             &payload,
             &mut ops,
             n.len().try_into().unwrap(),
         )?,
         Some(HiffyLease::Write(d)) => context.idol_call_ops_read(
-            &funcs,
             op,
             &payload,
             &mut ops,
@@ -552,7 +549,7 @@ fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
         bail!("expected one of -l, -L, or -c");
     }
 
-    let funcs = context.functions()?;
+    let funcs = context.functions();
     let mut byid: Vec<Option<(&String, &HiffyFunction)>> = vec![];
 
     byid.resize(funcs.len(), None);

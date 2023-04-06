@@ -181,8 +181,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     humility::msg!("Reading {} MAC addresses...", mac_count);
 
     let op = hubris.get_idol_command("Net.read_ksz8463_mac")?;
-    let funcs = hiffy_context.functions()?;
-    let send = funcs.get("Send", 4)?;
+    let send = hiffy_context.get_function("Send", 4)?;
 
     use hif::*;
     let label = Target(0);

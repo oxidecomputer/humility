@@ -165,7 +165,6 @@ fn print(
 ) -> Result<()> {
     let mut all_ops = vec![];
     let mut err_ops = vec![];
-    let funcs = context.functions()?;
     let nerrbits = 32;
     let op = hubris.get_idol_command("Sensor.get")?;
 
@@ -217,7 +216,7 @@ fn print(
         for (i, _) in s {
             let payload =
                 op.payload(&[("id", idol::IdolArgument::Scalar(*i as u64))])?;
-            context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+            context.idol_call_ops(&op, &payload, &mut ops)?;
         }
 
         ops.push(Op::Done);
@@ -243,7 +242,7 @@ fn print(
                     "id",
                     idol::IdolArgument::Scalar(*i as u64),
                 )])?;
-                context.idol_call_ops(&funcs, &errop, &payload, &mut ops)?;
+                context.idol_call_ops(&errop, &payload, &mut ops)?;
             }
 
             ops.push(Op::Done);

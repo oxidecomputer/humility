@@ -245,10 +245,9 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
 
-    let i2c_read = funcs.get("I2cRead", 7)?;
-    let i2c_write = funcs.get("I2cWrite", 8)?;
+    let i2c_read = context.get_function("I2cRead", 7)?;
+    let i2c_write = context.get_function("I2cWrite", 8)?;
 
     let hargs = I2cArgs::parse(
         hubris,
@@ -277,7 +276,7 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
     // First, we want to have all SPDs on the specified bus flip to
     // their 0 page
     //
-    set_page(&mut ops, i2c_write, 0);
+    set_page(&mut ops, &i2c_write, 0);
 
     //
     // Now issue single byte register reads to determine where our devices are.
@@ -326,7 +325,7 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
             // Switch to the 1 page
             //
             ops.push(Op::DropN(3));
-            set_page(&mut ops, i2c_write, 1);
+            set_page(&mut ops, &i2c_write, 1);
 
             //
             // Issue an identical read for the bottom 128 bytes...
@@ -348,7 +347,7 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
             //
             // Finally, set ourselves back to the 0 page
             //
-            set_page(&mut ops, i2c_write, 0);
+            set_page(&mut ops, &i2c_write, 0);
 
             ops.push(Op::Done);
 

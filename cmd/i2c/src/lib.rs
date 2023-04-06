@@ -471,8 +471,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
         }
     };
 
-    let funcs = context.functions()?;
-    let func = funcs.get(fname, args)?;
+    let func = context.get_function(fname, args)?;
 
     let hargs = humility_cmd::i2c::I2cArgs::parse(
         hubris,
@@ -556,7 +555,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
         let mut file = File::open(filename)?;
         let mut last = false;
 
-        let sleep = funcs.get("Sleep", 1)?;
+        let sleep = context.get_function("Sleep", 1)?;
 
         let started = Instant::now();
         let bar = ProgressBar::new(filelen as u64);
@@ -753,7 +752,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    i2c_done(&subargs, &hargs, &results, func)?;
+    i2c_done(&subargs, &hargs, &results, &func)?;
 
     Ok(())
 }

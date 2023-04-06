@@ -298,10 +298,9 @@ fn erase(
     device: &QspiDevice,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    funcs: &HiffyFunctions,
     all_sectors: &[u32],
 ) -> Result<()> {
-    let f = funcs.get("QspiSectorErase", 1)?;
+    let f = context.get_function("QspiSectorErase", 1)?;
     let started = Instant::now();
     let len = all_sectors.len() as u32 * device.sector_size;
 
@@ -338,16 +337,16 @@ fn erase(
 
             // Pick the appropriate function to erase this sector
             let (f, needs_drop) = if *addr == 0 {
-                if let Ok(f) = funcs.get("QspiSector0Erase", 0) {
+                if let Ok(f) = context.get_function("QspiSector0Erase", 0) {
                     (f, false)
                 } else {
                     // Fallback for older Hubris images
                     ops.push(Op::Push32(*addr));
-                    (funcs.get("QspiSectorErase", 1)?, true)
+                    (context.get_function("QspiSectorErase", 1)?, true)
                 }
             } else {
                 ops.push(Op::Push32(*addr));
-                (funcs.get("QspiSectorErase", 1)?, true)
+                (context.get_function("QspiSectorErase", 1)?, true)
             };
 
             ops.push(Op::Call(f.id));
@@ -396,7 +395,6 @@ fn write(
     device: &QspiDevice,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    funcs: &HiffyFunctions,
     addr: u32,
     writelen: u32,
     mut getbytes: impl FnMut(&mut [u8]) -> Result<()>,
@@ -404,11 +402,11 @@ fn write(
     let qspi_page_program =
         // This works on all pages, but importantly, allows us to write to
         // sector 0.
-        if let Ok(f) = funcs.get("QspiPageProgramSector0", 3) {
+        if let Ok(f) = context.get_function("QspiPageProgramSector0", 3) {
             f
         } else {
             // Backwards-compatibility for older Hubris images
-            funcs.get("QspiPageProgram", 3)?
+            context.get_function("QspiPageProgram", 3)?
         };
 
     let data_size = context.data_size() as u32;
@@ -484,7 +482,6 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = QspiArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
 
     const SECTOR_SIZE: u32 = 64 * 1024;
     const BLOCK_SIZE: u32 = 256; // Conflating flash block size with hubris scratch buffer.
@@ -496,21 +493,21 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
     let mut hash_name = "".to_string();
 
     let (data, func) = if subargs.status {
-        let qspi_read_status = funcs.get("QspiReadStatus", 0)?;
+        let qspi_read_status = context.get_function("QspiReadStatus", 0)?;
         ops.push(Op::Call(qspi_read_status.id));
         (None, qspi_read_status)
     } else if subargs.id {
-        let qspi_read_id = funcs.get("QspiReadId", 0)?;
+        let qspi_read_id = context.get_function("QspiReadId", 0)?;
         ops.push(Op::Call(qspi_read_id.id));
         (None, qspi_read_id)
     } else if subargs.hash {
-        let qspi_hash = funcs.get("QspiHash", 2)?;
-        let qspi_read_id = funcs.get("QspiReadId", 0)?;
+        let qspi_hash = context.get_function("QspiHash", 2)?;
+        let qspi_read_id = context.get_function("QspiReadId", 0)?;
         // Address is optional and defaults to zero.
         let addr = subargs.addr.unwrap_or(0) as u32;
         // nbytes is optional and defaults to the size of the entire flash.
         let nbytes =
-            optional_nbytes(core, &mut context, qspi_read_id, subargs.nbytes)?;
+            optional_nbytes(core, &mut context, &qspi_read_id, subargs.nbytes)?;
         ops.push(Op::Push32(addr));
         ops.push(Op::Push32(nbytes));
         ops.push(Op::Call(qspi_hash.id));
@@ -521,16 +518,16 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         let qspi_sector_erase = if addr / SECTOR_SIZE == 0 {
             if !subargs.write_sector0 {
                 bail!("cannot erase sector 0 without --write-sector0 flag");
-            } else if let Ok(f) = funcs.get("QspiSector0Erase", 0) {
+            } else if let Ok(f) = context.get_function("QspiSector0Erase", 0) {
                 f
             } else {
                 // Backwards-compatibility for older Hubris images
                 ops.push(Op::Push32(addr));
-                funcs.get("QspiSectorErase", 1)?
+                context.get_function("QspiSectorErase", 1)?
             }
         } else {
             ops.push(Op::Push32(addr));
-            funcs.get("QspiSectorErase", 1)?
+            context.get_function("QspiSectorErase", 1)?
         };
         ops.push(Op::Call(qspi_sector_erase.id));
         (None, qspi_sector_erase)
@@ -538,11 +535,11 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         if !subargs.write_sector0 {
             bail!("cannot perform bulk erase without --write-sector0 flag");
         }
-        let qspi_bulk_erase = funcs.get("QspiBulkErase", 0)?;
+        let qspi_bulk_erase = context.get_function("QspiBulkErase", 0)?;
         ops.push(Op::Call(qspi_bulk_erase.id));
         (None, qspi_bulk_erase)
     } else if subargs.read {
-        let qspi_read = funcs.get("QspiRead", 2)?;
+        let qspi_read = context.get_function("QspiRead", 2)?;
         ops.push(Op::Push32(subargs.addr.unwrap() as u32));
         ops.push(Op::Push32(subargs.nbytes.unwrap() as u32));
         ops.push(Op::Call(qspi_read.id));
@@ -552,14 +549,16 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         let qspi_page_program = if addr / SECTOR_SIZE == 0 {
             if !subargs.write_sector0 {
                 bail!("cannot write to sector 0 without --write-sector0 flag");
-            } else if let Ok(f) = funcs.get("QspiPageProgramSector0", 3) {
+            } else if let Ok(f) =
+                context.get_function("QspiPageProgramSector0", 3)
+            {
                 f
             } else {
                 // Backwards-compatibility for older Hubris images
-                funcs.get("QspiPageProgram", 3)?
+                context.get_function("QspiPageProgram", 3)?
             }
         } else {
-            funcs.get("QspiPageProgram", 3)?
+            context.get_function("QspiPageProgram", 3)?
         };
         let bytes: Vec<&str> = write.split(',').collect();
         let mut arr = vec![];
@@ -579,18 +578,18 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         (Some(arr), qspi_page_program)
     } else if let Some(filename) = subargs.writefile {
         let qspi_page_program = if subargs.verify {
-            funcs.get("QspiVerify", 3)?
+            context.get_function("QspiVerify", 3)?
         } else if subargs.write_sector0 {
             // This works on all pages, but importantly, allows us to write to
             // sector 0.
-            if let Ok(f) = funcs.get("QspiPageProgramSector0", 3) {
+            if let Ok(f) = context.get_function("QspiPageProgramSector0", 3) {
                 f
             } else {
                 // Backwards-compatibility for older Hubris images
-                funcs.get("QspiPageProgram", 3)?
+                context.get_function("QspiPageProgram", 3)?
             }
         } else {
-            funcs.get("QspiPageProgram", 3)?
+            context.get_function("QspiPageProgram", 3)?
         };
 
         let filelen = fs::metadata(filename.clone())?.len() as u32;
@@ -605,7 +604,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
                 .step_by(SECTOR_SIZE as usize)
                 .collect::<Vec<u32>>();
 
-            erase(&device, core, &mut context, &funcs, &sectors)?;
+            erase(&device, core, &mut context, &sectors)?;
         } else {
             humility::msg!("will verify {} bytes...", filelen);
         }
@@ -738,8 +737,8 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
     } else if let Some(filename) = subargs.readfile {
         // Address(default=0) and n-bytes(default=size of part-address) are
         // optional.
-        let qspi_read_id = funcs.get("QspiReadId", 0)?;
-        let qspi_read = funcs.get("QspiRead", 2)?;
+        let qspi_read_id = context.get_function("QspiReadId", 0)?;
+        let qspi_read = context.get_function("QspiRead", 2)?;
 
         // Address is optional and defaults to zero.
         // The default can/should be done in `#[clap(...` for "address"
@@ -748,7 +747,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         println!("addr={:?}", address);
 
         let nbytes =
-            optional_nbytes(core, &mut context, qspi_read_id, subargs.nbytes)?;
+            optional_nbytes(core, &mut context, &qspi_read_id, subargs.nbytes)?;
         println!("nbytes={:?}", nbytes);
 
         //
@@ -848,7 +847,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
         return Ok(());
     } else if let Some(filename) = subargs.diffwrite {
         let filelen = fs::metadata(filename.clone())?.len() as u32;
-        let qspi_hash = funcs.get("QspiHash", 2)?;
+        let qspi_hash = context.get_function("QspiHash", 2)?;
         let started = Instant::now();
 
         //
@@ -952,7 +951,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
                 }
             }
         }
-        erase(&device, core, &mut context, &funcs, &sectors)?;
+        erase(&device, core, &mut context, &sectors)?;
 
         let bar = ProgressBar::new(nbytes as u64);
 
@@ -978,7 +977,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
                 Ok(())
             };
 
-            write(&device, core, &mut context, &funcs, *addr, writelen, w)?;
+            write(&device, core, &mut context, *addr, writelen, w)?;
         }
 
         bar.finish_and_clear();
