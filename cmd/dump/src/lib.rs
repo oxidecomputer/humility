@@ -71,7 +71,7 @@ use core::mem::size_of;
 use hif::*;
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
-use humility::core::Core;
+use humility::core::{Core, NetAgent};
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
@@ -556,6 +556,7 @@ fn take_dump(
     Ok(())
 }
 
+/// Sends a remote dump command over the network
 fn dump_remote_action(
     core: &mut dyn Core,
     msg: humpty::udp::Request,
@@ -569,11 +570,13 @@ fn dump_remote_action(
         .context("failed to serialize message")?;
 
     // Send the packet out
-    core.send(&buf[..size]).context("failed to send packet")?;
+    core.send(&buf[..size], NetAgent::DumpAgent)
+        .context("failed to send packet")?;
 
     // Try to receive a reply
-    let size =
-        core.recv(buf.as_mut_slice()).context("failed to receive packet")?;
+    let size = core
+        .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
+        .context("failed to receive packet")?;
 
     let ((rheader, reply), _): ((Header, Response), _) =
         hubpack::deserialize(&buf[..size])
@@ -758,6 +761,19 @@ fn parse_dump_header(
 }
 
 fn read_dump_headers(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    raw: bool,
+) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
+    if use_dump_agent_udp(hubris, core) {
+        todo!()
+    } else {
+        read_dump_headers_hiffy(hubris, core, context, raw)
+    }
+}
+
+fn read_dump_headers_hiffy(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
@@ -984,7 +1000,31 @@ enum DumpArea {
     ByAddress(u32),
 }
 
+fn use_dump_agent_udp(hubris: &HubrisArchive, core: &mut dyn Core) -> bool {
+    core.is_net()
+        && hubris
+            .manifest
+            .task_features
+            .get("dump-agent")
+            .map(|f| f.contains(&"net".to_string()))
+            .unwrap_or(false)
+}
+
 fn read_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    agent: &mut AgentCore,
+    area: Option<DumpArea>,
+) -> Result<Option<DumpTask>> {
+    if use_dump_agent_udp(hubris, core) {
+        todo!()
+    } else {
+        read_dump_hiffy(hubris, core, context, agent, area)
+    }
+}
+
+fn read_dump_hiffy(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,

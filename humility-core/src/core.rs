@@ -100,12 +100,12 @@ pub trait Core {
     fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
 
     /// Send over network, if applicable
-    fn send(&mut self, _buf: &[u8]) -> Result<usize> {
+    fn send(&mut self, _buf: &[u8], _agent: NetAgent) -> Result<usize> {
         bail!("cannot send over network");
     }
 
     /// Receive from network, if applicable
-    fn recv(&mut self, _buf: &mut [u8]) -> Result<usize> {
+    fn recv(&mut self, _buf: &mut [u8], _agent: NetAgent) -> Result<usize> {
         bail!("cannot receive from network");
     }
 }
@@ -1364,8 +1364,18 @@ impl Core for DumpCore {
     }
 }
 
+/// Something that you can talk to on the network
+///
+/// `control-plane-agent` is deliberately skipped, because it's best talked to
+/// via `faux-mgs`.
+pub enum NetAgent {
+    UdpRpc,
+    DumpAgent,
+}
+
 pub struct NetCore {
-    socket: UdpSocket,
+    udprpc_socket: UdpSocket,
+    dump_agent_socket: UdpSocket,
     flash: HubrisFlashMap,
 }
 
@@ -1387,9 +1397,9 @@ impl NetCore {
         let target = format!("[{}%{}]:998", ip, scopeid);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
-        let socket = UdpSocket::bind("[::]:0")?;
-        socket.set_read_timeout(Some(timeout))?;
-        socket.connect(&dest[..])?;
+        let udprpc_socket = UdpSocket::bind("[::]:0")?;
+        udprpc_socket.set_read_timeout(Some(timeout))?;
+        udprpc_socket.connect(&dest[..])?;
 
         let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
             anyhow!(
@@ -1401,7 +1411,18 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
-        Ok(Self { socket, flash: HubrisFlashMap::new(hubris)? })
+        // Hard-coded socket address, based on Hubris configuration
+        let target = format!("[{}%{}]:11113", ip, scopeid);
+        let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
+        let dump_agent_socket = UdpSocket::bind("[::]:0")?;
+        dump_agent_socket.set_read_timeout(Some(timeout))?;
+        dump_agent_socket.connect(&dest[..])?;
+
+        Ok(Self {
+            udprpc_socket,
+            dump_agent_socket,
+            flash: HubrisFlashMap::new(hubris)?,
+        })
     }
 
     fn read(&self, addr: u32, data: &mut [u8]) -> Result<()> {
@@ -1447,16 +1468,25 @@ impl Core for NetCore {
     }
 
     fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
-        self.socket.set_read_timeout(Some(timeout))?;
+        self.udprpc_socket.set_read_timeout(Some(timeout))?;
+        self.dump_agent_socket.set_read_timeout(Some(timeout))?;
         Ok(())
     }
 
-    fn send(&mut self, buf: &[u8]) -> Result<usize> {
-        self.socket.send(buf).map_err(anyhow::Error::from)
+    fn send(&mut self, buf: &[u8], target: NetAgent) -> Result<usize> {
+        match target {
+            NetAgent::UdpRpc => self.udprpc_socket.send(buf),
+            NetAgent::DumpAgent => self.dump_agent_socket.send(buf),
+        }
+        .map_err(anyhow::Error::from)
     }
 
-    fn recv(&mut self, buf: &mut [u8]) -> Result<usize> {
-        self.socket.recv(buf).map_err(anyhow::Error::from)
+    fn recv(&mut self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
+        match target {
+            NetAgent::UdpRpc => self.udprpc_socket.recv(buf),
+            NetAgent::DumpAgent => self.dump_agent_socket.recv(buf),
+        }
+        .map_err(anyhow::Error::from)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
