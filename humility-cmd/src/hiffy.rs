@@ -120,7 +120,7 @@ impl HiffyFunction {
 pub struct HiffyFunctions(pub HashMap<String, HiffyFunction>);
 
 impl HiffyFunctions {
-    pub fn get(&self, name: &str, nargs: usize) -> Result<HiffyFunction> {
+    fn get(&self, name: &str, nargs: usize) -> Result<HiffyFunction> {
         let f = self
             .0
             .get(name)
@@ -416,9 +416,8 @@ impl<'a> HiffyContext<'a> {
     }
 
     fn perform_rpc(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
-        let send = self.functions.get("Send", 4).with_context(|| {
-            format!("illegal network operations: {:?}", ops)
-        })?;
+        let send =
+            self.get_function("Send", 4).context("could not find Send")?;
 
         // Bail out immediately if the program makes a call other than Send
         if ops.iter().any(|op| matches!(*op, Op::Call(id) if id != send.id)) {
@@ -738,7 +737,7 @@ impl<'a> HiffyContext<'a> {
         func_name: &str,
     ) -> Result<()> {
         let arg_count = if lease_size.is_some() { 5 } else { 4 };
-        let send = self.functions.get(func_name, arg_count)?;
+        let send = self.get_function(func_name, arg_count)?;
 
         let push = |val: u32| {
             if val <= u8::MAX as u32 {
