@@ -10,8 +10,7 @@
 
 # Humility
 
-Humility is the debugger for
-<a href="https://github.com/oxidecomputer/hubris">Hubris</a>.
+Humility is the debugger for Hubris.
 
 ## Guiding principles
 
@@ -26,29 +25,27 @@ the system.
 
 ### Hubris-specific
 
-Humility is Hubris-specific:  it is not trying to be a generic *in situ*
+Humility is Hubris-specific:  it is not trying to be a generic in situ
 debugger, but rather specifically focused on debugging Hubris-based systems.
 Humility is therefore willing to encode Hubris-specific concepts like
 archives and tasks.
 
 ### Microcontroller-specific
 
-Debuggers must cut through abstractions, which
-often requires knowledge of underlying
-implementation detail.  For Humility, this means being willing to take
-advantage of microcontroller-specific debug facilities where applicable.
-While Hubris may make decisions in the name of greater portability,
-Humility will generally make decisions to maximize debuggability, even
-where these facilities are highly specific to a particular MCU.
+Debuggers must cut through abstractions, which often requires knowledge of
+underlying implementation detail.  For Humility, this means being willing to
+take advantage of microcontroller-specific debug facilities where applicable.
+While Hubris may make decisions in the name of greater portability, Humility
+will generally make decisions to maximize debuggability, even where these
+facilities are highly specific to a particular MCU.
 
 ### Device-specific
 
 Humility is unafraid to offer device-specific functionality where that
 functionality is useful for system debuggability.  (For example,
-`humility i2c` functions as an I<sup>2</sup>C analyzer.)  That said, all device
+`humility i2c` functions as an I2C analyzer.)  That said, all device
 interaction uses Hubris as a proxy to actually communicate with the devices
-themselves (e.g., via [HIF](https://github.com/oxidecomputer/hif));
-Humility does not seek to create second I/O path.
+themselves (e.g., HIF); Humility does not seek to create second I/O path.
 
 ### Pragmatic
 
@@ -67,15 +64,14 @@ options that are specific to particular subcommands.
 Humility needs to have some way of extracting information and/or controlling
 the microcontroller running Hubris.  This is done through some variant of a
 debug *probe*, a separate microcontroller that speaks to debug-specific
-functionality on the target microcontroller.  (For details of the mechanics
-of these probes on ARM parts, see <a
-href="https://65.rfd.oxide.computer">RFD 65</a>.)
+functionality on the target microcontroller.
 
 For most evaluation boards, this debug probe is available on the board, and
 is connected to a host via USB, e.g. ST's STLink/V2 on the STM32F407
 Discovery or the LPC-Link2 present on the LPCXpresso55S69.
 (On the Gemini board, there are two SWD headers, one for the LPC55S28
 and the other for the STM32H753.)
+
 While Humility allows for direct attachment to an on-chip debugger, doing so
 precludes other connections (from, for example, OpenOCD), making it too
 disruptive to development workflows. To allow for easier development
@@ -87,19 +83,6 @@ which can have the following values:
 
 - `auto` (default): Automatically determine how to attach to the
   microcontroller.
-
-- `ocd`: Attach via OpenOCD, which is presumed to have the TCL interface
-  available on localhost on port 6666 (its default).
-
-- `jlink`: Attach via Segger JLink, which is presumed to have the GDB
-  interface available on localhost on port 2331 (its default).  Note that
-  when semihosting is being used by Hubris, the Segger JLink GDB server
-  will become confused when Humility attaches to it -- and subsequent
-  calls to semihosting will cause a halt.  A subsequent Humility invocation
-  will resume the target (directing semihosting output correctly to the
-  running GDB instance), but subsequent semihosting output will again cause
-  a halt. To recover from this condition, send an explicit ^C to the
-  running GDB and continue from the resulting stop.
 
 - `usb`: Attach directly via USB to a debug probe.  When multiple probes
   are plugged in via USB, a probe index must be specified as a suffix
@@ -116,6 +99,19 @@ which can have the following values:
   of the probe (as reported via `humility probe` or found in the 
   `iSerialNumber` field of the USB device descriptor) can be postpended,
   also delimited by a colon, e.g. `0483:374e:004000343137510939383538`.
+
+- `ocd`: Attach via OpenOCD, which is presumed to have the TCL interface
+  available on localhost on port 6666 (its default).
+
+- `jlink`: Attach via Segger JLink, which is presumed to have the GDB
+  interface available on localhost on port 2331 (its default).  Note that
+  when semihosting is being used by Hubris, the Segger JLink GDB server
+  will become confused when Humility attaches to it -- and subsequent
+  calls to semihosting will cause a halt.  A subsequent Humility invocation
+  will resume the target (directing semihosting output correctly to the
+  running GDB instance), but subsequent semihosting output will again cause
+  a halt. To recover from this condition, send an explicit ^C to the
+  running GDB and continue from the resulting stop.
 
 ### Archive
 
@@ -2098,17 +2094,20 @@ To listen for compatible devices on your network, run `humility rpc
 ```console
 % humility rpc --listen
 humility: listening... (ctrl-C to stop, or timeout in 5s)
-       MAC         |            IPv6           | Compatible
--------------------|---------------------------|-----------
- 0e:1d:27:87:03:bc | fe80::0c1d:27ff:fe87:03bc | Yes
- 0e:1d:38:73:ce:c3 | fe80::0c1d:38ff:fe73:cec3 | No
- 0e:1d:8d:3d:da:79 | fe80::0c1d:8dff:fe3d:da79 | No
+MAC               IPv6                      COMPAT PART        REV SERIAL
+a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066
+a8:40:25:05:05:00 fe80::aa40:25ff:fe05:500  No     (legacy)      0 (legacy)
+a8:40:25:05:05:00 fe80::aa40:25ff:fe05:501  No     (legacy)      0 (legacy)
 ```
 
 Under the hood, this listens for packets from the Hubris `udpbroadcast`
 task, which includes MAC address and image ID (checked for compatibility).
 When listening, it is mandatory to specify the interface (e.g. `humility rpc
---listen -i en0` on MacOS).
+--listen -i en0` on MacOS). If the `Part` / `Serial` columns are marked as
+`(legacy)`, the SP is running an older version of `udpbroadcast` that did
+not include identity information. If they are marked as `(vpdfail)`, they
+are running a new-enough `udpbroadcast`, but the SP was unable to read its
+identity from its VPD.
 
 To call all targets that match an archive, `--listen` can be combined with
 `--call`

@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.1"
+version = "0.10.2"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -2728,7 +2728,7 @@ checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 [[package]]
 name = "probe-rs"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#d731eaa3e30d178a881af20bcbccb07abcf7394b"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#75afc22df6bad7cae756b48728c5d788906aefe0"
 dependencies = [
  "anyhow",
  "base64",
@@ -2759,7 +2759,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.12.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#d731eaa3e30d178a881af20bcbccb07abcf7394b"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#75afc22df6bad7cae756b48728c5d788906aefe0"
 dependencies = [
  "base64",
  "jep106",

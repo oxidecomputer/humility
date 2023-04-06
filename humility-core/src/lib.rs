@@ -70,6 +70,42 @@ impl ExecutionContext {
         m: &ArgMatches,
         is_interactive: bool,
     ) -> Result<ExecutionContext> {
+        //
+        // Before we do our processing, we need to check for the presence of
+        // environment variables on our mutually exclusive attach options
+        // (i.e., dump/probe/ip/target).  Clap has support for options being
+        // set as environment variables, so why are we doing it here?  We do
+        // this manually because Clap's behavior when an option has a
+        // specified environment variable is to treat a variable that is in
+        // the environment just as if the option had been set on the command
+        // line -- but that isn't actually what we want here: if an option is
+        // set on the command line, we want to ignore the fact that a
+        // different mutually exclusive option may be in the environment.  So
+        // we only look at the environment if none of these is set (Clap
+        // assures that at most one is set on the command line), and we
+        // examine the environment in an order of precence: probe, ip, target,
+        // dump.  If the user has specified no command line options but
+        // multiple of these in the environment, they will get the first in
+        // this ordering that we find.
+        //
+        if cli.dump.is_none()
+            && cli.probe.is_none()
+            && cli.ip.is_none()
+            && cli.target.is_none()
+        {
+            use std::env;
+
+            if let Ok(e) = env::var("HUMILITY_PROBE") {
+                cli.probe = Some(e);
+            } else if let Ok(e) = env::var("HUMILITY_IP") {
+                cli.ip = Some(e);
+            } else if let Ok(e) = env::var("HUMILITY_TARGET") {
+                cli.target = Some(e);
+            } else if let Ok(e) = env::var("HUMILITY_DUMP") {
+                cli.dump = Some(e);
+            }
+        }
+
         let environment = match (&cli.environment, &cli.target) {
             (Some(ref env), Some(ref target)) => {
                 let env = match Environment::from_file(env, target) {
@@ -92,7 +128,7 @@ impl ExecutionContext {
 
                 //
                 // If we have an archive on the command-line or in an environment
-                // variable, we want ot prefer that over whatever is in the
+                // variable, we want to prefer that over whatever is in the
                 // environment file -- but we also want to warn the user about
                 // what is going on.
                 //
@@ -198,15 +234,15 @@ impl ExecutionContext {
 
                 (true, false) => {
                     warn!(
-                    "dump on command-line overriding archive in environment"
-                );
+                        "dump on command-line overriding archive in environment"
+                    );
                     cli.archive = None;
                 }
 
                 (false, true) => {
                     warn!(
-                    "archive on command-line overriding dump in environment"
-                );
+                        "archive on command-line overriding dump in environment"
+                    );
                     cli.dump = None;
                 }
             }
