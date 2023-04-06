@@ -65,7 +65,7 @@
 //! ```
 //!
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use core::mem::size_of;
 use hif::*;
@@ -81,6 +81,7 @@ use indexmap::IndexMap;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
+use rand::Rng;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -553,6 +554,38 @@ fn take_dump(
     }
 
     Ok(())
+}
+
+fn dump_remote_action(
+    core: &mut dyn Core,
+    msg: humpty::udp::Request,
+) -> Result<humpty::udp::Response> {
+    use humpty::udp::{Header, Request, Response};
+    let mut rng = rand::thread_rng();
+    let header =
+        Header { version: humpty::udp::VERSION, message_id: rng.gen() };
+    let mut buf = vec![0u8; std::mem::size_of::<(Header, Request)>()];
+    let size = hubpack::serialize(&mut buf, &(header, msg))
+        .context("failed to serialize message")?;
+
+    // Send the packet out
+    core.send(&buf[..size]).context("failed to send packet")?;
+
+    // Try to receive a reply
+    let size =
+        core.recv(buf.as_mut_slice()).context("failed to receive packet")?;
+
+    let ((rheader, reply), _): ((Header, Response), _) =
+        hubpack::deserialize(&buf[..size])
+            .map_err(|_| anyhow!("deserialization failed"))?;
+    if rheader.message_id != header.message_id {
+        bail!(
+            "message ID mismatch: {} != {}",
+            rheader.message_id,
+            header.message_id
+        );
+    }
+    Ok(reply)
 }
 
 fn read_dump_at(

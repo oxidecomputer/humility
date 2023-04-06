@@ -871,6 +871,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "getrandom"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "wasi 0.11.0+wasi-snapshot-preview1",
+]
+
+[[package]]
 name = "gimli"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1270,6 +1281,7 @@ dependencies = [
  "clap",
  "goblin",
  "hif",
+ "hubpack",
  "humility-cmd",
  "humility-core",
  "humpty",
@@ -1280,6 +1292,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
+ "rand",
  "zerocopy",
  "zip",
 ]
@@ -2041,11 +2054,12 @@ dependencies = [
 [[package]]
 name = "humpty"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/humpty#b87a452e1c0a75e3e906616efc44945ac988748b"
+source = "git+https://github.com/oxidecomputer/humpty?branch=udp-types#0ea3b81566e06ad90030f5a507529bbc8dd925ea"
 dependencies = [
  "hubpack",
  "lzss",
  "serde",
+ "serde-big-array",
  "static_assertions",
  "zerocopy",
 ]
@@ -2726,6 +2740,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
 
 [[package]]
+name = "ppv-lite86"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
 name = "probe-rs"
 version = "0.12.0"
 source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.12.0#75afc22df6bad7cae756b48728c5d788906aefe0"
@@ -2819,6 +2839,36 @@ name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
+
+[[package]]
+name = "rand"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+dependencies = [
+ "libc",
+ "rand_chacha",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+dependencies = [
+ "ppv-lite86",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+dependencies = [
+ "getrandom",
+]
 
 [[package]]
 name = "raw-cpuid"
@@ -3110,6 +3160,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f747710de3dcd43b88c9168773254e809d8ddbdf9653b84e2554ab219f17860"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
