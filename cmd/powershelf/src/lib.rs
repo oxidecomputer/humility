@@ -149,7 +149,6 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let mut ops = vec![];
-    let funcs = context.functions()?;
 
     let idol_cmd = hubris
         .get_idol_command("Power.pmbus_read")
@@ -167,7 +166,7 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     for variant in &operation.variants {
         args[0].1 = idol::IdolArgument::String(&variant.name);
         let payload = idol_cmd.payload(&args)?;
-        context.idol_call_ops(&funcs, &idol_cmd, &payload, &mut ops)?;
+        context.idol_call_ops(&idol_cmd, &payload, &mut ops)?;
     }
 
     ops.push(Op::Done);

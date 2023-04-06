@@ -177,10 +177,9 @@ fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = SpiArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
 
-    let spi_read = funcs.get("SpiRead", 4)?;
-    let spi_write = funcs.get("SpiWrite", 3)?;
+    let spi_read = context.get_function("SpiRead", 4)?;
+    let spi_write = context.get_function("SpiWrite", 3)?;
 
     let task = spi_task(hubris, subargs.peripheral)?;
     let mut ops = vec![];

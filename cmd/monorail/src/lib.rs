@@ -538,8 +538,7 @@ fn monorail_phy_dump(
     use hif::*;
     let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
 
-    let funcs = context.functions()?;
-    let send = funcs.get("Send", 4)?;
+    let send = context.get_function("Send", 4)?;
     let ret_size = hubris.typesize(op.ok)? as u32;
     assert_eq!(ret_size, 2);
 
@@ -625,8 +624,7 @@ fn monorail_dump(
         use hif::*;
         let op_read = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
 
-        let funcs = context.functions()?;
-        let send = funcs.get("Send", 4)?;
+        let send = context.get_function("Send", 4)?;
         let mut ops = vec![];
 
         let label = Target(0);
@@ -693,8 +691,7 @@ fn monorail_status(
         let op_port = hubris.get_idol_command("Monorail.get_port_status")?;
         let op_phy = hubris.get_idol_command("Monorail.get_phy_status")?;
         use hif::*;
-        let funcs = context.functions()?;
-        let send = funcs.get("Send", 4)?;
+        let send = context.get_function("Send", 4)?;
         let mut ops = vec![];
 
         let label = Target(0);
@@ -919,8 +916,7 @@ fn monorail_mac_table(
     println!("Reading {} MAC addresses...", mac_count);
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_next_mac")?;
-    let funcs = context.functions()?;
-    let send = funcs.get("Send", 4)?;
+    let send = context.get_function("Send", 4)?;
 
     use hif::*;
     let label = Target(0);

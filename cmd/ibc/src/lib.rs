@@ -134,7 +134,6 @@ impl<'a> IbcHandler<'a> {
         let read_log =
             self.hubris.get_idol_command("Power.bmr491_event_log_read")?;
 
-        let funcs = self.context.functions()?;
         let mut ops = vec![];
 
         // We must read VOUT_MODE to interpret later data
@@ -143,16 +142,14 @@ impl<'a> IbcHandler<'a> {
             ("rail", idol::IdolArgument::Scalar(0)),
             ("index", idol::IdolArgument::Scalar(0)),
         ])?;
-        self.context.idol_call_ops(&funcs, &read_mode, &payload, &mut ops)?;
+        self.context.idol_call_ops(&read_mode, &payload, &mut ops)?;
 
         self.context.idol_call_ops(
-            &funcs,
             &bmr491_max_fault_event_index,
             &[],
             &mut ops,
         )?;
         self.context.idol_call_ops(
-            &funcs,
             &bmr491_max_lifecycle_event_index,
             &[],
             &mut ops,
@@ -160,8 +157,7 @@ impl<'a> IbcHandler<'a> {
         for i in 0..48 {
             let payload = read_log
                 .payload(&[("index", idol::IdolArgument::Scalar(i))])?;
-            self.context
-                .idol_call_ops(&funcs, &read_log, &payload, &mut ops)?;
+            self.context.idol_call_ops(&read_log, &payload, &mut ops)?;
         }
         ops.push(Op::Done);
         let results = self.context.run(self.core, &ops, None)?;

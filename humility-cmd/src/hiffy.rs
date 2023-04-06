@@ -35,18 +35,17 @@ pub struct HiffyContext<'a> {
     requests: &'a HubrisVariable,
     errors: &'a HubrisVariable,
     failure: &'a HubrisVariable,
-    funcs: HubrisGoff,
     scratch_size: usize,
     cached: Option<(u32, u32)>,
     kicked: Option<Instant>,
     timeout: u32,
     state: State,
-    functions: HashMap<String, TargetFunction>,
+    functions: HiffyFunctions,
     rpc_results: Vec<Result<Vec<u8>, u32>>,
     rpc_reply_type: Option<&'a HubrisEnum>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HiffyFunction {
     pub id: TargetFunction,
     pub name: String,
@@ -117,11 +116,11 @@ impl HiffyFunction {
 }
 
 /// Simple wrapper `struct` that exposes a checked `get(name, nargs)`
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HiffyFunctions(pub HashMap<String, HiffyFunction>);
 
 impl HiffyFunctions {
-    pub fn get(&self, name: &str, nargs: usize) -> Result<&HiffyFunction> {
+    fn get(&self, name: &str, nargs: usize) -> Result<HiffyFunction> {
         let f = self
             .0
             .get(name)
@@ -136,7 +135,7 @@ impl HiffyFunctions {
                 nargs
             );
         }
-        Ok(f)
+        Ok(f.clone())
     }
     pub fn len(&self) -> usize {
         self.0.len()
@@ -253,6 +252,80 @@ impl<'a> HiffyContext<'a> {
             }
         };
 
+        let mut function_map = HashMap::new();
+        let funcs = Self::definition(hubris, "HIFFY_FUNCTIONS")?;
+        let goff = hubris
+            .lookup_enum(funcs)?
+            .lookup_variant_byname("Some")?
+            .goff
+            .ok_or_else(|| anyhow!("malconstructed functions"))?;
+
+        let ptr = hubris.lookup_struct(goff)?.lookup_member("__0")?.goff;
+        let goff = hubris.lookup_ptrtype(ptr)?;
+        let functions = hubris.lookup_enum(goff)?;
+
+        //
+        // Iterate over our functions.  Note that we very much expect these to
+        // be encoded in the DWARF in program order!
+        //
+        for (id, f) in functions.variants.iter().enumerate() {
+            let goff = f.goff.ok_or_else(|| {
+                anyhow!("function {} in {}: missing a type", f.name, goff)
+            })?;
+
+            let mut func = HiffyFunction {
+                id: TargetFunction(u8::try_from(id)?),
+                name: f.name.to_string(),
+                args: Vec::new(),
+                errmap: HashMap::new(),
+            };
+
+            //
+            // We expect a 2-tuple that is our arguments and our error type
+            //
+            let sig = hubris.lookup_struct(goff)?;
+            let args = sig.lookup_member("__0")?.goff;
+
+            if let Ok(args) = hubris.lookup_struct(args) {
+                for arg in &args.members {
+                    func.args.push(arg.goff);
+                }
+            } else {
+                //
+                // This isn't a structure argument; if it's not an empty
+                // tuple (denoting no argument), push our single argument.
+                //
+                match hubris.lookup_basetype(args) {
+                    Ok(basetype) if basetype.size == 0 => {}
+                    _ => {
+                        func.args.push(args);
+                    }
+                }
+            }
+
+            let err = sig.lookup_member("__1")?.goff;
+
+            //
+            // We expect our error type to be 4-byte base type or an enum.
+            //
+            if let Ok(err) = hubris.lookup_enum(err) {
+                for e in &err.variants {
+                    let tag = e.tag.ok_or_else(|| {
+                        anyhow!(
+                            "function {}: malformed error type {}",
+                            f.name,
+                            err.goff,
+                        )
+                    })?;
+
+                    let val = u32::try_from(tag)?;
+                    func.errmap.insert(val, e.name.to_string());
+                }
+            }
+
+            function_map.insert(func.name.clone(), func);
+        }
+
         Ok(Self {
             hubris,
             ready: Self::variable(hubris, "HIFFY_READY", true)?,
@@ -263,13 +336,12 @@ impl<'a> HiffyContext<'a> {
             requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
             failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
-            funcs: Self::definition(hubris, "HIFFY_FUNCTIONS")?,
             scratch_size,
             cached: None,
             kicked: None,
             timeout,
             state: State::Initialized,
-            functions: HashMap::new(),
+            functions: HiffyFunctions(function_map),
             rpc_reply_type: if core.is_net() {
                 //
                 // This should have been checked when we initially attached.
@@ -331,95 +403,24 @@ impl<'a> HiffyContext<'a> {
         Ok(total)
     }
 
-    pub fn functions(&mut self) -> Result<HiffyFunctions> {
-        let hubris = self.hubris;
+    pub fn get_function(
+        &self,
+        name: &str,
+        nargs: usize,
+    ) -> Result<HiffyFunction> {
+        self.functions.get(name, nargs)
+    }
 
-        let goff = hubris
-            .lookup_enum(self.funcs)?
-            .lookup_variant_byname("Some")?
-            .goff
-            .ok_or_else(|| anyhow!("malconstructed functions"))?;
-
-        let ptr = hubris.lookup_struct(goff)?.lookup_member("__0")?.goff;
-        let goff = hubris.lookup_ptrtype(ptr)?;
-        let functions = hubris.lookup_enum(goff)?;
-        let mut rval = HashMap::new();
-
-        //
-        // Iterate over our functions.  Note that we very much expect these to
-        // be encoded in the DWARF in program order!
-        //
-        for (id, f) in functions.variants.iter().enumerate() {
-            let goff = f.goff.ok_or_else(|| {
-                anyhow!("function {} in {}: missing a type", f.name, goff)
-            })?;
-
-            let mut func = HiffyFunction {
-                id: TargetFunction(u8::try_from(id)?),
-                name: f.name.to_string(),
-                args: Vec::new(),
-                errmap: HashMap::new(),
-            };
-
-            self.functions.insert(func.name.clone(), func.id);
-
-            //
-            // We expect a 2-tuple that is our arguments and our error type
-            //
-            let sig = hubris.lookup_struct(goff)?;
-            let args = sig.lookup_member("__0")?.goff;
-
-            if let Ok(args) = hubris.lookup_struct(args) {
-                for arg in &args.members {
-                    func.args.push(arg.goff);
-                }
-            } else {
-                //
-                // This isn't a structure argument; if it's not an empty
-                // tuple (denoting no argument), push our single argument.
-                //
-                match hubris.lookup_basetype(args) {
-                    Ok(basetype) if basetype.size == 0 => {}
-                    _ => {
-                        func.args.push(args);
-                    }
-                }
-            }
-
-            let err = sig.lookup_member("__1")?.goff;
-
-            //
-            // We expect our error type to be 4-byte base type or an enum.
-            //
-            if let Ok(err) = hubris.lookup_enum(err) {
-                for e in &err.variants {
-                    let tag = e.tag.ok_or_else(|| {
-                        anyhow!(
-                            "function {}: malformed error type {}",
-                            f.name,
-                            err.goff,
-                        )
-                    })?;
-
-                    let val = u32::try_from(tag)?;
-                    func.errmap.insert(val, e.name.to_string());
-                }
-            }
-
-            rval.insert(func.name.clone(), func);
-        }
-
-        Ok(HiffyFunctions(rval))
+    pub fn functions(&self) -> HiffyFunctions {
+        self.functions.clone()
     }
 
     fn perform_rpc(&mut self, core: &mut dyn Core, ops: &[Op]) -> Result<()> {
-        let send = self
-            .functions
-            .get("Send")
-            .ok_or_else(|| anyhow!("illegal network operations: {:?}", ops))?;
+        let send =
+            self.get_function("Send", 4).context("could not find Send")?;
 
         // Bail out immediately if the program makes a call other than Send
-        if ops.iter().any(|op| matches!(*op, Op::Call(id) if id != *send)) {
+        if ops.iter().any(|op| matches!(*op, Op::Call(id) if id != send.id)) {
             bail!("can't make non-Idol calls over RPC");
         }
 
@@ -590,7 +591,8 @@ impl<'a> HiffyContext<'a> {
         // contains our local `hiffy_send_fn`, repeated just times so that the
         // call operation works; i.e. at index `send.0`, it will find a function
         // pointer to `hiffy_send_fn`.
-        let functions: Vec<Function> = vec![hiffy_send_fn; send.0 as usize + 1];
+        let functions: Vec<Function> =
+            vec![hiffy_send_fn; send.id.0 as usize + 1];
 
         // Okay, this is a _little_ cursed: HIF functions use a C calling
         // convention without any place to stash a context pointer, so we're
@@ -728,7 +730,6 @@ impl<'a> HiffyContext<'a> {
     /// generic across `Send/SendLeaseRead/SendLeaseWrite`
     fn idol_call_ops_inner(
         &self,
-        funcs: &HiffyFunctions,
         op: &idol::IdolOperation,
         payload: &[u8],
         ops: &mut Vec<Op>,
@@ -736,7 +737,7 @@ impl<'a> HiffyContext<'a> {
         func_name: &str,
     ) -> Result<()> {
         let arg_count = if lease_size.is_some() { 5 } else { 4 };
-        let send = funcs.get(func_name, arg_count)?;
+        let send = self.get_function(func_name, arg_count)?;
 
         let push = |val: u32| {
             if val <= u8::MAX as u32 {
@@ -786,26 +787,23 @@ impl<'a> HiffyContext<'a> {
     /// Convenience routine to translate an Idol call into HIF operations
     pub fn idol_call_ops(
         &self,
-        funcs: &HiffyFunctions,
         op: &idol::IdolOperation,
         payload: &[u8],
         ops: &mut Vec<Op>,
     ) -> Result<()> {
-        self.idol_call_ops_inner(funcs, op, payload, ops, None, "Send")
+        self.idol_call_ops_inner(op, payload, ops, None, "Send")
     }
 
     /// Convenience routine to translate an Idol call (which reads data from the
     /// device back to the host) into HIF operations
     pub fn idol_call_ops_read(
         &self,
-        funcs: &HiffyFunctions,
         op: &idol::IdolOperation,
         payload: &[u8],
         ops: &mut Vec<Op>,
         lease_size: u32,
     ) -> Result<()> {
         self.idol_call_ops_inner(
-            funcs,
             op,
             payload,
             ops,
@@ -818,14 +816,12 @@ impl<'a> HiffyContext<'a> {
     /// the host to the device) into HIF operations
     pub fn idol_call_ops_write(
         &self,
-        funcs: &HiffyFunctions,
         op: &idol::IdolOperation,
         payload: &[u8],
         ops: &mut Vec<Op>,
         lease_size: u32,
     ) -> Result<()> {
         self.idol_call_ops_inner(
-            funcs,
             op,
             payload,
             ops,

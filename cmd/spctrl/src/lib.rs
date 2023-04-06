@@ -94,7 +94,6 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = SpCtrlArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
     let mut ops = vec![];
 
     match subargs.cmd {
@@ -111,7 +110,7 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
             ops.push(Op::Push32(addr));
             ops.push(Op::Push32(arr.len() as u32));
 
-            let sp_write = funcs.get("WriteToSp", 2)?;
+            let sp_write = context.get_function("WriteToSp", 2)?;
             ops.push(Op::Call(sp_write.id));
             ops.push(Op::Done);
 
@@ -122,7 +121,7 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
         SpCtrlCmd::Read { addr, nbytes } => {
             ops.push(Op::Push32(addr));
             ops.push(Op::Push32(nbytes as u32));
-            let sp_read = funcs.get("ReadFromSp", 2)?;
+            let sp_read = context.get_function("ReadFromSp", 2)?;
             ops.push(Op::Call(sp_read.id));
             ops.push(Op::Done);
 
@@ -139,7 +138,7 @@ fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
             }
         }
         SpCtrlCmd::Init => {
-            let init = funcs.get("SpCtrlInit", 0)?;
+            let init = context.get_function("SpCtrlInit", 0)?;
             ops.push(Op::Call(init.id));
             ops.push(Op::Done);
 

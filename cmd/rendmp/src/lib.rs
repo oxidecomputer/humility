@@ -784,9 +784,8 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
-    let i2c_read = funcs.get("I2cRead", 7)?;
-    let i2c_write = funcs.get("I2cWrite", 8)?;
+    let i2c_read = context.get_function("I2cRead", 7)?;
+    let i2c_write = context.get_function("I2cWrite", 8)?;
 
     let hargs = match (&subargs.rail, &subargs.device) {
         (Some(rail), None) => {
