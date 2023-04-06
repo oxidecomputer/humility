@@ -2447,7 +2447,13 @@ impl HubrisArchive {
         self.load_object_frames(task, buffer, &elf)
             .context(format!("{}: failed to load debug frames", object))?;
 
-        let iface = self.load_object_idolatry(buffer, &elf)?;
+        let iface = match self.load_object_idolatry(buffer, &elf) {
+            Ok(iface) => iface,
+            Err(e) => {
+                warn!("failed to load Idol interface for {task}: {e}");
+                None
+            }
+        };
 
         self.modules.insert(
             textsec.sh_addr as u32,
