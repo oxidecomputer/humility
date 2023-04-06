@@ -333,7 +333,7 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
 
     //
     // Load the flash image.  If that fails, we're in a world of hurt:  we
-    // really don't want to run the core for fear of masking of initial
+    // really don't want to run the core for fear of masking the initial
     // error.  (It will hopefully be pretty clear to the user that a
     // half-flashed part is going to be in an ill-defined state!)
     //

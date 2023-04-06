@@ -30,38 +30,48 @@ pub struct Cli {
     #[clap(long, short = 'V')]
     pub version: bool,
 
-    /// probe to use
-    #[clap(long, short, env = "HUMILITY_PROBE", group = "hubris")]
+    /// If a system has multiple debug probes attached, the specific probe
+    /// to use.  If specifying a USB probe, its index can be used (e.g.,
+    /// "usb-0"); if specifying an exact probe, this is of the form
+    /// "vid:pid[:serial]". This may also be set via the HUMILITY_PROBE
+    /// environment variable. Run "humility doc" for more information on
+    /// probes.
+    #[clap(long, short, group = "hubris")]
     pub probe: Option<String>,
 
-    /// Hubris archive
-    #[clap(long, short, env = "HUMILITY_ARCHIVE")]
+    /// File that contains the Hubris archive. This may also be set via
+    /// the HUMILITY_ARCHIVE environment variable. Run "humility doc" for
+    /// more information on Hubris archives.
+    #[clap(long, short, env = "HUMILITY_ARCHIVE", hide_env = true)]
     pub archive: Option<String>,
 
-    /// Hubris dump
-    #[clap(long, short, env = "HUMILITY_DUMP", group = "hubris")]
+    /// Hubris dump. This may also be set via the HUMILITY_DUMP environment
+    /// variable. Run "humility doc" for more information on debugging
+    /// from a hubris dump.
+    #[clap(long, short, group = "hubris")]
     pub dump: Option<String>,
 
-    /// IP address of remote Hubris instance
-    #[clap(long, short, env = "HUMILITY_IP", group = "hubris")]
+    /// IP address of remote Hubris instance. This may also be set via the
+    /// HUMILITY_IP environment variable. Run "humility doc" for more
+    /// information on running Humility over a network.
+    #[clap(long, short, group = "hubris")]
     pub ip: Option<String>,
 
-    /// Hubris environment file
-    #[clap(long, short, env = "HUMILITY_ENVIRONMENT")]
+    /// Hubris environment file. Thie may also be set via the
+    /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
+    /// more information on Humility environments.
+    #[clap(long, short, env = "HUMILITY_ENVIRONMENT", hide_env = true)]
     pub environment: Option<String>,
 
-    /// target to use from specified environment
-    #[clap(
-        long,
-        short,
-        env = "HUMILITY_TARGET",
-        requires = "environment",
-        group = "hubris"
-    )]
+    /// Target to use from a specified environment. This may also be set via
+    /// the HUMILITY_TARGET environment variable. Run "humility doc" for
+    /// for information on specifying targets within an environment.
+    #[clap(long, short, requires = "environment", group = "hubris")]
     pub target: Option<String>,
 
     /// If multiple archives are specified in an environment, name of
-    /// the archive to use
+    /// the archive to use.  Run "humility doc" for more information on
+    /// Humility environments and their relationship to archives.
     #[clap(long, requires = "environment")]
     pub archive_name: Option<String>,
 
@@ -80,7 +90,8 @@ pub struct Cli {
     #[clap(long, short, env = "HUMILITY_CHIP", hide = true)]
     pub chip: Option<String>,
 
-    /// list targets within an environment
+    /// List targets within an environment. Run "humility doc" for more
+    /// information on Humility environments.
     #[clap(
         long = "list-targets",
         requires = "environment",
