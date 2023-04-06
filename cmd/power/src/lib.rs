@@ -47,7 +47,6 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let mut ops = vec![];
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command("Sensor.get")?;
 
     let ok = hubris.lookup_basetype(op.ok)?;
@@ -118,7 +117,7 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
 
             let payload =
                 op.payload(&[("id", idol::IdolArgument::Scalar(i as u64))])?;
-            context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+            context.idol_call_ops(&op, &payload, &mut ops)?;
             ndx += 1;
         }
     }

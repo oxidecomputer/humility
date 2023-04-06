@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 
 use humility::cli::Subcommand;
@@ -106,7 +106,6 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
     let subargs = HashArgs::try_parse_from(subargs)?;
     let archive = context.archive.as_ref().unwrap();
     let mut context = HiffyContext::new(archive, core, subargs.timeout)?;
-    let funcs = context.functions()?;
     let scratch_size = context.scratch_size();
     let mut ops = vec![];
 
@@ -151,24 +150,24 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
         if subargs.init {
             return Err(anyhow!("--init is not used with --digest"));
         }
-        Some(funcs.get("HashDigest", 1)?)
+        Some(context.get_function("HashDigest", 1)?)
     } else if subargs.update {
         if subargs.init {
-            ops.push(Op::Call(funcs.get("HashInit", 0)?.id));
+            ops.push(Op::Call(context.get_function("HashInit", 0)?.id));
         }
-        Some(funcs.get("HashUpdate", 1)?)
+        Some(context.get_function("HashUpdate", 1)?)
     } else if subargs.finalize {
         if subargs.init {
             return Err(anyhow!("--init is not used with --finalize"));
         }
-        Some(funcs.get("HashFinalize", 0)?)
+        Some(context.get_function("HashFinalize", 0)?)
     } else if subargs.test {
         if subargs.init {
             return Err(anyhow!("--init is not used with --test"));
         }
         None
     } else if subargs.init {
-        Some(funcs.get("HashInit", 0)?)
+        Some(context.get_function("HashInit", 0)?)
     } else {
         None
     };
@@ -191,7 +190,7 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
                 ));
                 // On first iteration, --digest won't have the Init already pushed.
                 if subargs.digest {
-                    ops.push(Op::Call(funcs.get("HashInit", 0)?.id));
+                    ops.push(Op::Call(context.get_function("HashInit", 0)?.id));
                 }
                 for index in (0..data.len()).step_by(scratch_size) {
                     bar.set_position(index as u64);
@@ -202,7 +201,9 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
                     };
                     let buf = &data[index..index + nbytes];
                     ops.push(Op::Push32(buf.len() as u32));
-                    ops.push(Op::Call(funcs.get("HashUpdate", 1)?.id));
+                    ops.push(Op::Call(
+                        context.get_function("HashUpdate", 1)?.id,
+                    ));
                     ops.push(Op::Done);
                     let results =
                         context.run(core, ops.as_slice(), Some(buf))?;
@@ -217,7 +218,9 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
                 }
                 bar.finish_and_clear();
                 if subargs.digest {
-                    ops.push(Op::Call(funcs.get("HashFinalize", 0)?.id));
+                    ops.push(Op::Call(
+                        context.get_function("HashFinalize", 0)?.id,
+                    ));
                     ops.push(Op::Done);
                     let results = context.run(core, ops.as_slice(), None)?;
                     match &results[0] {
@@ -292,8 +295,13 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
         println!(" correct");
     };
 
-    let mut datacmd = |_info, id, data: Option<&[u8]>| {
-        ops.clear();
+    fn datacmd(
+        core: &mut dyn humility::core::Core,
+        context: &mut HiffyContext,
+        id: hif::TargetFunction,
+        data: Option<&[u8]>,
+    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+        let mut ops = vec![];
         if let Some(payload) = data {
             ops.push(Op::Push32(payload.len() as u32));
         }
@@ -307,9 +315,9 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
                 _ => None,
             },
         )
-    };
+    }
 
-    let digest_id = funcs.get("HashDigest", 1)?.id;
+    let digest_id = context.get_function("HashDigest", 1)?.id;
 
     // These short tests all fit in a single Hubris scratch buffer.
     struct ShortTest<'a> {
@@ -388,7 +396,9 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
         println!(" lib_sum");
         assert_eq!(lib_sum[..], test.expected);
 
-        let result = datacmd(test.desc, digest_id, Some(&test.vector[0..]))?;
+        let result =
+            datacmd(core, &mut context, digest_id, Some(&test.vector[0..]))
+                .with_context(|| test.desc.to_string())?;
         match &result[0] {
             Ok(buf) => {
                 report(test.desc, buf.as_slice(), &test.expected[0..]);
@@ -424,7 +434,8 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut hasher = Sha256::new();
 
-    datacmd("test 3 init", funcs.get("HashInit", 0)?.id, None)?;
+    let hash_init = context.get_function("HashInit", 0)?.id;
+    datacmd(core, &mut context, hash_init, None).context("test 3 init")?;
 
     let mut count = 0;
     while count < limit {
@@ -433,19 +444,18 @@ fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
             nbytes = block.len();
         }
         hasher.update(&block[0..nbytes]);
-        datacmd(
-            "test 3 update",
-            funcs.get("HashUpdate", 1)?.id,
-            Some(&block[0..nbytes]),
-        )?;
+        let hash_update = context.get_function("HashUpdate", 1)?.id;
+        datacmd(core, &mut context, hash_update, Some(&block[0..nbytes]))
+            .context("test 3 update")?;
         count += nbytes;
         bar.set_position(count as u64);
     }
     bar.finish_and_clear();
 
     let lib_sum = hasher.finalize();
-    let result =
-        datacmd("test 3 finalize", funcs.get("HashFinalize", 0)?.id, None)?;
+    let hash_finalize = context.get_function("HashFinalize", 0)?.id;
+    let result = datacmd(core, &mut context, hash_finalize, None)
+        .context("test 3 finalize")?;
     match &result[0] {
         Ok(buf) => {
             report("Test vector 3", buf.as_slice(), &expected_sum[0..]);

@@ -156,7 +156,6 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command("Validate.validate_i2c")?;
     let mut ops = vec![];
 
@@ -183,7 +182,7 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
 
         let payload =
             op.payload(&[("index", idol::IdolArgument::Scalar(ndx as u64))])?;
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        context.idol_call_ops(&op, &payload, &mut ops)?;
     }
 
     ops.push(Op::Done);

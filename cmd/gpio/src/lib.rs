@@ -155,13 +155,12 @@ fn gpio(context: &mut humility::ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
     let subargs = GpioArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
 
-    let gpio_toggle = funcs.get("GpioToggle", 2)?;
-    let gpio_set = funcs.get("GpioSet", 2)?;
-    let gpio_reset = funcs.get("GpioReset", 2)?;
-    let gpio_input = funcs.get("GpioInput", 1)?;
-    let gpio_configure = funcs.get("GpioConfigure", 7)?;
+    let gpio_toggle = context.get_function("GpioToggle", 2)?;
+    let gpio_set = context.get_function("GpioSet", 2)?;
+    let gpio_reset = context.get_function("GpioReset", 2)?;
+    let gpio_input = context.get_function("GpioInput", 1)?;
+    let gpio_configure = context.get_function("GpioConfigure", 7)?;
     let mut configure_args = vec![];
 
     let target = if subargs.toggle {

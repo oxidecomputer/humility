@@ -787,7 +787,6 @@ fn sensor_ops(
     capture: impl Fn(&HubrisSensor) -> bool,
 ) -> Result<Vec<String>> {
     let mut sensors = vec![];
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command("Sensor.get")?;
 
     let ok = hubris.lookup_basetype(op.ok)?;
@@ -807,7 +806,7 @@ fn sensor_ops(
 
         let payload =
             op.payload(&[("id", idol::IdolArgument::Scalar(i as u64))])?;
-        context.idol_call_ops(&funcs, &op, &payload, ops)?;
+        context.idol_call_ops(&op, &payload, ops)?;
         sensors.push(s.name.clone());
     }
 
@@ -819,8 +818,6 @@ fn sequencer_state_ops<'a>(
     context: &mut HiffyContext,
     ops: &mut Vec<Op>,
 ) -> Result<idol::IdolOperation<'a>> {
-    let funcs = context.functions()?;
-
     // Sidecar and Gimlet have different names for this operation -- and the
     // PSC doesn't have a sequencer at all, so fall back on Jefe.get_state()
     // if we can't find either of their power state entry points.
@@ -836,7 +833,7 @@ fn sequencer_state_ops<'a>(
                 )
             })?;
 
-    context.idol_call_ops(&funcs, &op, &[], ops)?;
+    context.idol_call_ops(&op, &[], ops)?;
     Ok(op)
 }
 
@@ -846,7 +843,6 @@ fn power_ops(
     state: &str,
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
-    let funcs = context.functions()?;
 
     if let Ok(op) = hubris.get_idol_command("Sequencer.set_tofino_seq_policy") {
         // Translate from Gimlet-style power states to Tofino-style policies
@@ -857,7 +853,7 @@ fn power_ops(
                 let op = hubris
                     .get_idol_command("Sequencer.clear_tofino_seq_error")?;
                 let payload = op.payload(&[])?;
-                context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+                context.idol_call_ops(&op, &payload, &mut ops)?;
 
                 // Then, return the policy which will get us to power up
                 "LatchOffOnFault"
@@ -867,14 +863,12 @@ fn power_ops(
         };
 
         context.idol_call_ops(
-            &funcs,
             &op,
             &op.payload(&[("policy", idol::IdolArgument::String(policy))])?,
             &mut ops,
         )?;
     } else if let Ok(op) = hubris.get_idol_command("Sequencer.set_state") {
         context.idol_call_ops(
-            &funcs,
             &op,
             &op.payload(&[("state", idol::IdolArgument::String(state))])?,
             &mut ops,
@@ -893,7 +887,6 @@ fn fan_ops(
     on: bool,
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command(if on {
         "Sequencer.fans_on"
     } else {
@@ -901,7 +894,7 @@ fn fan_ops(
     })?;
 
     let payload = vec![];
-    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    context.idol_call_ops(&op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     Ok(ops)
@@ -914,7 +907,6 @@ fn pwm_ops(
     pwm: u8,
 ) -> Result<Vec<Op>> {
     let mut ops = vec![];
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command("Thermal.set_fan_pwm")?;
 
     let payload = op.payload(&[
@@ -922,7 +914,7 @@ fn pwm_ops(
         ("pwm", idol::IdolArgument::Scalar(pwm as u64)),
     ])?;
 
-    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    context.idol_call_ops(&op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     Ok(ops)

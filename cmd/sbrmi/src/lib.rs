@@ -153,7 +153,6 @@ fn call_cpuid(
     ecx: u32,
 ) -> Result<CpuIdResult> {
     let op = hubris.get_idol_command("Sbrmi.cpuid")?;
-    let funcs = context.functions()?;
     let mut ops = vec![];
 
     let payload = op.payload(&[
@@ -162,7 +161,7 @@ fn call_cpuid(
         ("ecx", idol::IdolArgument::Scalar(ecx as u64)),
     ])?;
 
-    context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+    context.idol_call_ops(&op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
@@ -429,7 +428,6 @@ fn mca(
     let nbanks = (mcg_cap & 0xff) as u8;
     let op = hubris.get_idol_command("Sbrmi.rdmsr64")?;
     let mut ops = vec![];
-    let funcs = context.functions()?;
     let thread_name = format!("thread 0x{thread:x} ({thread})");
 
     for bank in 0..nbanks {
@@ -438,7 +436,7 @@ fn mca(
             ("msr", idol::IdolArgument::Scalar(Msr::MCA_STATUS(bank).into())),
         ])?;
 
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        context.idol_call_ops(&op, &payload, &mut ops)?;
     }
 
     for bank in 0..nbanks {
@@ -447,7 +445,7 @@ fn mca(
             ("msr", idol::IdolArgument::Scalar(Msr::MCA_IPID(bank).into())),
         ])?;
 
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        context.idol_call_ops(&op, &payload, &mut ops)?;
     }
 
     ops.push(Op::Done);
@@ -504,7 +502,7 @@ fn mca(
                 ("msr", idol::IdolArgument::Scalar(r.into())),
             ])?;
 
-            context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+            context.idol_call_ops(&op, &payload, &mut ops)?;
         }
 
         ops.push(Op::Done);
@@ -585,16 +583,15 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     let mut ops = vec![];
-    let funcs = context.functions()?;
 
     let nthreads = hubris.get_idol_command("Sbrmi.nthreads")?;
-    context.idol_call_ops(&funcs, &nthreads, &[], &mut ops)?;
+    context.idol_call_ops(&nthreads, &[], &mut ops)?;
 
     let enabled = hubris.get_idol_command("Sbrmi.enabled")?;
-    context.idol_call_ops(&funcs, &enabled, &[], &mut ops)?;
+    context.idol_call_ops(&enabled, &[], &mut ops)?;
 
     let alert = hubris.get_idol_command("Sbrmi.alert")?;
-    context.idol_call_ops(&funcs, &alert, &[], &mut ops)?;
+    context.idol_call_ops(&alert, &[], &mut ops)?;
 
     let mcg_cap = hubris.get_idol_command("Sbrmi.rdmsr64")?;
 
@@ -603,7 +600,7 @@ fn sbrmi(context: &mut humility::ExecutionContext) -> Result<()> {
         ("msr", idol::IdolArgument::Scalar(Msr::MCG_CAP.into())),
     ])?;
 
-    context.idol_call_ops(&funcs, &mcg_cap, &payload, &mut ops)?;
+    context.idol_call_ops(&mcg_cap, &payload, &mut ops)?;
 
     ops.push(Op::Done);
 

@@ -1337,17 +1337,16 @@ fn pmbus(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
-    let func = funcs.get("I2cRead", 7)?;
-    let write_func = funcs.get("I2cWrite", 8)?;
+    let func = context.get_function("I2cRead", 7)?;
+    let write_func = context.get_function("I2cWrite", 8)?;
 
     if subargs.summarize {
-        summarize(&subargs, hubris, core, &mut context, func, write_func)?;
+        summarize(&subargs, hubris, core, &mut context, &func, &write_func)?;
         return Ok(());
     }
 
     if subargs.writes.is_some() {
-        writes(&subargs, hubris, core, &mut context, func, write_func)?;
+        writes(&subargs, hubris, core, &mut context, &func, &write_func)?;
         return Ok(());
     }
 

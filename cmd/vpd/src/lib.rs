@@ -248,7 +248,6 @@ fn vpd_write(
     subargs: &VpdArgs,
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command("Vpd.write")?;
     let target = target(hubris, subargs)?;
 
@@ -282,7 +281,7 @@ fn vpd_write(
             ("contents", idol::IdolArgument::Scalar(*b as u64)),
         ])?;
 
-        context.idol_call_ops(&funcs, &op, &payload, &mut ops)?;
+        context.idol_call_ops(&op, &payload, &mut ops)?;
         all_ops.push(ops);
     }
 
@@ -337,7 +336,6 @@ fn vpd_write(
 fn vpd_read_at(
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    funcs: &HiffyFunctions,
     op: &idol::IdolOperation,
     target: &mut VpdTarget,
     offset: usize,
@@ -359,7 +357,7 @@ fn vpd_read_at(
 
     let mut ops = vec![];
 
-    context.idol_call_ops(funcs, op, &payload, &mut ops)?;
+    context.idol_call_ops(op, &payload, &mut ops)?;
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
@@ -385,14 +383,13 @@ fn vpd_read(
     subargs: &VpdArgs,
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let funcs = context.functions()?;
     let op = hubris.get_idol_command("Vpd.read")?;
     let mut target = target(hubris, subargs)?;
 
     //
     // First, read in enough to read just the header.
     //
-    let mut vpd = vpd_read_at(core, &mut context, &funcs, &op, &mut target, 0)?;
+    let mut vpd = vpd_read_at(core, &mut context, &op, &mut target, 0)?;
 
     let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
         Ok(reader) => reader,
@@ -424,7 +421,6 @@ fn vpd_read(
         vpd.extend(vpd_read_at(
             core,
             &mut context,
-            &funcs,
             &op,
             &mut target,
             vpd.len(),
