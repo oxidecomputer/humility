@@ -4706,6 +4706,7 @@ impl HubrisArchive {
         })
     }
 
+    /// Returns a set of `(start, size)` dump segments
     pub fn dump_segments(
         &self,
         core: &mut dyn crate::core::Core,

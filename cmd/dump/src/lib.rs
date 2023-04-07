@@ -168,6 +168,8 @@ struct DumpArgs {
     dumpfile: Option<String>,
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 //
 // When using the dump agent, we create our own ersatz Core
 //
@@ -330,57 +332,476 @@ impl Core for AgentCore {
     }
 }
 
-fn initialize_dump(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
-    let op = hubris.get_idol_command("DumpAgent.initialize_dump")?;
-    let mut ops = vec![];
-    context.idol_call_ops(&op, &[], &mut ops)?;
-    ops.push(Op::Done);
+////////////////////////////////////////////////////////////////////////////////
 
-    if let Err(err) = &context.run(core, ops.as_slice(), None)?[0] {
-        bail!("failed to initialize dump: {}", op.strerror(*err));
+/// Trait which abstracts away dump agent interfaces
+trait DumpAgent {
+    fn read_dump_header(&mut self) -> Result<DumpAreaHeader> {
+        self.read_dump_at(0, |_| false)
     }
 
-    Ok(())
+    fn core(&mut self) -> &mut dyn Core;
+
+    fn read_dump_at(
+        &mut self,
+        index: usize,
+        progress: impl FnMut(&[u8]) -> bool,
+    ) -> Result<DumpAreaHeader>;
+
+    fn initialize_dump(&mut self) -> Result<()>;
+
+    fn initialize_segments(&mut self, segments: &[(u32, u32)]) -> Result<()>;
+    fn take_dump(&mut self) -> Result<()>;
+
+    /// Reads the given dump into the output `AgentCore`
+    fn read_dump(
+        &mut self,
+        area: Option<DumpArea>,
+        out: &mut AgentCore,
+    ) -> Result<Option<DumpTask>>;
+
+    /// Reads dump headers from the target
+    ///
+    /// If `raw` is set, includes headers configured as `DUMPER_NONE`;
+    /// otherwise, stops once the first `DUMPER_NONE` header is encountered.
+    fn read_dump_headers(
+        &mut self,
+        raw: bool,
+    ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>>;
 }
 
-fn initialize_segments(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
-    let op = hubris.get_idol_command("DumpAgent.add_dump_segment")?;
-    let mut ops = vec![];
-    let segments = hubris.dump_segments(core, None, false)?;
+////////////////////////////////////////////////////////////////////////////////
 
-    for (base, size) in &segments {
-        let payload = op.payload(&[
-            ("address", idol::IdolArgument::Scalar(*base as u64)),
-            ("length", idol::IdolArgument::Scalar(*size as u64)),
-        ])?;
+/// Represents a dump agent that communicates through the `hiffy` task
+///
+/// The agent is either local (connected via a debugger) or remote; in the
+/// latter case, HIF programs are sent to the `udprpc` task under the hood by
+/// the `HiffyContext`, which sees that its core is a `NetCore`.
+struct HiffyDumpAgent<'a> {
+    hubris: &'a HubrisArchive,
+    core: &'a mut dyn Core,
+    context: HiffyContext<'a>,
+}
 
-        context.idol_call_ops(&op, &payload, &mut ops)?;
+impl<'a> HiffyDumpAgent<'a> {
+    fn new(
+        hubris: &'a HubrisArchive,
+        core: &'a mut dyn Core,
+        timeout: u32,
+    ) -> Result<Self> {
+        let context = HiffyContext::new(hubris, core, timeout)?;
+        Ok(Self { hubris, core, context })
+    }
+    fn run(&mut self, ops: &[Op]) -> Result<Vec<Result<Vec<u8>, u32>>> {
+        self.context.run(self.core, ops, None)
+    }
+}
+
+impl<'a> DumpAgent for HiffyDumpAgent<'a> {
+    fn core(&mut self) -> &mut dyn Core {
+        self.core
     }
 
-    ops.push(Op::Done);
+    fn initialize_dump(&mut self) -> Result<()> {
+        let op = self.hubris.get_idol_command("DumpAgent.initialize_dump")?;
+        let mut ops = vec![];
+        self.context.idol_call_ops(&op, &[], &mut ops)?;
+        ops.push(Op::Done);
 
-    let results = context.run(core, ops.as_slice(), None)?;
+        if let Err(err) = &self.run(ops.as_slice())?[0] {
+            bail!("failed to initialize dump: {}", op.strerror(*err));
+        }
 
-    for (result, (base, size)) in results.iter().zip(segments.iter()) {
-        if let Err(err) = result {
-            bail!(
-                "failed to add segment at address {:#x} for length {}: {}",
-                *base,
-                *size,
-                op.strerror(*err)
+        Ok(())
+    }
+
+    fn initialize_segments(&mut self, segments: &[(u32, u32)]) -> Result<()> {
+        let op = self.hubris.get_idol_command("DumpAgent.add_dump_segment")?;
+        let mut ops = vec![];
+
+        for (base, size) in segments {
+            let payload = op.payload(&[
+                ("address", idol::IdolArgument::Scalar(*base as u64)),
+                ("length", idol::IdolArgument::Scalar(*size as u64)),
+            ])?;
+
+            self.context.idol_call_ops(&op, &payload, &mut ops)?;
+        }
+
+        ops.push(Op::Done);
+
+        let results = self.run(ops.as_slice())?;
+
+        for (result, (base, size)) in results.iter().zip(segments.iter()) {
+            if let Err(err) = result {
+                bail!(
+                    "failed to add segment at address {:#x} for length {}: {}",
+                    *base,
+                    *size,
+                    op.strerror(*err)
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn take_dump(&mut self) -> Result<()> {
+        let op = self.hubris.get_idol_command("DumpAgent.take_dump")?;
+        let mut ops = vec![];
+
+        //
+        // We are about to disappear for -- as the kids say -- a minute.  Set
+        // our timeout to be a literal minute so we don't prematurely give up.
+        //
+        self.core.set_timeout(Duration::new(60, 0))?;
+
+        let rindex = if !self.core.is_net() {
+            //
+            // If we are connected via a dongle, we will need to be unplugged
+            // in order for the dump to operate.  Emit a message to this
+            // effect, and then send a HIF payload that will wait for 10
+            // seconds (100 iterations of 100ms apiece) and then start the dump;
+            // if the dongle has been pulled, the dump will start -- and if
+            // not the dump will fail.  However, because determining the
+            // presence of the dongle necessitates activating the pins on the
+            // RoT, we will lose our connection either way -- and unless the
+            // dump fails for an earlier reason, it will look like we lost
+            // our SWD connection no matter what.
+            //
+            humility::msg!(
+                "dump will start in 10 seconds; unplug probe now, and \
+            reset RoT via SWD after dump is complete to re-attach"
             );
+
+            let sleep = self.context.get_function("Sleep", 1)?;
+            let ms = 100;
+            let iter = 100;
+
+            ops.extend([
+                Op::Push(0),                      // Iterations completed
+                Op::Push(0),                      // Dummy comparison value
+                Op::Label(Target(0)),             // Start of loop
+                Op::Drop,                         // Drop comparison
+                Op::Push(ms),                     // Push arg for 100ms
+                Op::Call(sleep.id),               // Sleep for 100ms
+                Op::Drop,                         // Drop arg
+                Op::Push(1),                      // Push increment value
+                Op::Add,                          // Add to iterations
+                Op::Push(iter),                   // Push limit
+                Op::BranchGreaterThan(Target(0)), // Continue if not at limit
+            ]);
+
+            iter as usize
+        } else {
+            humility::msg!(
+                "taking dump; target will be stopped for ~20 seconds"
+            );
+            0
+        };
+
+        self.context.idol_call_ops(&op, &[], &mut ops)?;
+        ops.push(Op::Done);
+
+        let results = self.run(ops.as_slice())?;
+
+        if let Err(err) = results[rindex] {
+            bail!("failed to take dump: {}", op.strerror(err));
+        }
+
+        Ok(())
+    }
+
+    fn read_dump_headers(
+        &mut self,
+        raw: bool,
+    ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
+        let op = self.hubris.get_idol_command("DumpAgent.read_dump")?;
+        let rsize = self.hubris.lookup_type(op.ok)?.size(self.hubris)?;
+        let chunksize = (self.context.rdata_size() / rsize) - 1;
+
+        let mut base = 0;
+        let mut rval = vec![];
+
+        //
+        // Do some sanity checks on the number of bytes returned by read_dump().
+        // If these checks fail, something is really wrong.
+        //
+        let min = size_of::<DumpAreaHeader>() + size_of::<DumpSegment>();
+
+        if rsize < min {
+            bail!(
+                "read_dump size is {rsize}, but expected minimum size of {min}"
+            );
+        }
+
+        let max_nsegments = (rsize - min) / size_of::<DumpSegmentHeader>();
+
+        if max_nsegments < 16 {
+            bail!(
+                "read_dump size of {rsize} is unexpectedly small (can only \
+            hold {max_nsegments} dumpable segments)"
+            );
+        }
+
+        //
+        // Iterate over dump area headers in chunksize units.  Once we've hit an
+        // area that hasn't been dumped to, or an invalid area (denoting that all
+        // areas are full), we're done...
+        //
+        loop {
+            let mut ops = vec![];
+
+            for i in 0..chunksize {
+                let payload = op.payload(&[
+                    ("index", idol::IdolArgument::Scalar((base + i) as u64)),
+                    ("offset", idol::IdolArgument::Scalar(0u64)),
+                ])?;
+
+                self.context.idol_call_ops(&op, &payload, &mut ops)?;
+            }
+
+            ops.push(Op::Done);
+
+            let results = self.run(&ops)?;
+
+            for (i, r) in results.iter().enumerate() {
+                let area = base + i;
+
+                match r {
+                    Ok(val) => {
+                        let header = parse_dump_header(base + i, val)?;
+
+                        if !raw && header.0.dumper == humpty::DUMPER_NONE {
+                            return Ok(rval);
+                        }
+
+                        rval.push(header);
+                    }
+
+                    Err(err) => {
+                        if op.strerror(*err) == "InvalidArea" {
+                            return Ok(rval);
+                        }
+
+                        bail!(
+                            "failed to header for area {area}: {}",
+                            op.strerror(*err)
+                        );
+                    }
+                }
+            }
+
+            base += chunksize;
         }
     }
 
-    Ok(())
+    fn read_dump_at(
+        &mut self,
+        index: usize,
+        mut progress: impl FnMut(&[u8]) -> bool,
+    ) -> Result<DumpAreaHeader> {
+        //
+        // We expect a DumpAreaHeader to be at the specified offset.
+        //
+        let op = self.hubris.get_idol_command("DumpAgent.read_dump")?;
+        let mut ops = vec![];
+        let mut offset = 0;
+
+        let payload = op.payload(&[
+            ("index", idol::IdolArgument::Scalar(index as u64)),
+            ("offset", idol::IdolArgument::Scalar(offset as u64)),
+        ])?;
+
+        self.context.idol_call_ops(&op, &payload, &mut ops)?;
+        ops.push(Op::Done);
+
+        match &self.run(ops.as_slice())?[0] {
+            Ok(val) => {
+                let header = DumpAreaHeader::read_from_prefix(val.as_slice())
+                    .ok_or_else(|| {
+                    anyhow!("failed to read dump at offset {:#x}", offset)
+                })?;
+
+                if header.magic != humpty::DUMP_MAGIC {
+                    bail!(
+                        "bad magic at dump offset {:#x}: {:x?}",
+                        offset,
+                        header
+                    );
+                }
+
+                let size = size_of::<DumpAreaHeader>();
+
+                if header.written > size as u32 {
+                    let max = std::cmp::min(header.written as usize, val.len());
+
+                    if !progress(&val[size..max]) {
+                        return Ok(header);
+                    }
+                }
+
+                let mut all_ops = vec![];
+                let mut offsets = vec![];
+                offset = val.len() as u32;
+
+                while offset < header.written {
+                    let mut ops = vec![];
+
+                    let payload = op.payload(&[
+                        ("index", idol::IdolArgument::Scalar(index as u64)),
+                        ("offset", idol::IdolArgument::Scalar(offset as u64)),
+                    ])?;
+
+                    let len = std::cmp::min(
+                        val.len(),
+                        (header.written - offset) as usize,
+                    );
+
+                    offsets.push((offset, len));
+
+                    self.context.idol_call_ops(&op, &payload, &mut ops)?;
+                    offset += val.len() as u32;
+                    all_ops.push(ops);
+                }
+
+                //
+                // We have all of our operations.  We're going to chunk it out
+                // in batches to make this somewhat practical when emulated.
+                //
+                let chunksize = (self.context.rdata_size() / val.len()) - 1;
+
+                for (ndx, o) in all_ops.chunks(chunksize).enumerate() {
+                    let mut chunk: Vec<Op> = vec![];
+
+                    for ops in o {
+                        chunk.extend(ops)
+                    }
+
+                    chunk.push(Op::Done);
+
+                    let results = self.run(chunk.as_slice())?;
+
+                    for (rndx, r) in results.iter().enumerate() {
+                        let (offset, size) = offsets[ndx * chunksize + rndx];
+
+                        match r {
+                            Ok(val) => {
+                                if !progress(&val[..size]) {
+                                    return Ok(header);
+                                }
+                            }
+
+                            Err(err) => {
+                                bail!(
+                                    "failed to read dump at offset {}: {}",
+                                    offset,
+                                    op.strerror(*err)
+                                );
+                            }
+                        }
+                    }
+                }
+
+                Ok(header)
+            }
+
+            Err(err) => {
+                let variant = if let Some(error) = op.error {
+                    error.lookup_variant_by_tag(*err as u64)
+                } else {
+                    None
+                };
+
+                if let Some(variant) = variant {
+                    bail!("{}", variant.name.to_string());
+                } else {
+                    bail!("error {:?}", err);
+                }
+            }
+        }
+    }
+
+    fn read_dump(
+        &mut self,
+        area: Option<DumpArea>,
+        out: &mut AgentCore,
+    ) -> Result<Option<DumpTask>> {
+        let mut contents: Vec<u8> = vec![];
+
+        let (base, headers, task) = {
+            let all = self.read_dump_headers(false)?;
+
+            let area = match area {
+                None => None,
+                Some(DumpArea::ByIndex(ndx)) => Some(ndx),
+                Some(DumpArea::ByAddress(address)) => all
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, (header, _))| header.address == address)
+                    .map(|(ndx, _)| ndx)
+                    .next(),
+            };
+
+            match area {
+                None | Some(0) if all[0].1.is_none() => (
+                    0usize,
+                    all.iter()
+                        .map(|(h, _t)| *h)
+                        .collect::<Vec<DumpAreaHeader>>(),
+                    None,
+                ),
+
+                Some(ndx) => {
+                    let areas = task_areas(&all);
+                    match areas.get(&ndx) {
+                        None => {
+                            bail!("area {ndx} is invalid (--list to list)");
+                        }
+                        Some((task, headers)) => {
+                            (ndx, headers.clone(), Some(*task))
+                        }
+                    }
+                }
+
+                _ => {
+                    bail!("area must be explicitly specified (--list to list)");
+                }
+            }
+        };
+
+        let total = headers.iter().fold(0, |sum, header| sum + header.written);
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(total as u64);
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("humility: pulling [{bar:30}] {bytes}/{total_bytes}"),
+        );
+
+        for (ndx, _) in headers.iter().enumerate() {
+            self.read_dump_at(ndx + base, |rval| {
+                contents.extend(rval);
+                bar.set_position(contents.len() as u64);
+                true
+            })?;
+        }
+
+        bar.finish_and_clear();
+
+        humility::msg!(
+            "pulled {} in {}",
+            HumanBytes(total as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        //
+        // We have a dump!  On to processing...
+        //
+        process_dump(&headers[0], &contents, out, task)?;
+
+        Ok(task)
+    }
 }
 
 fn emulate_dump(
@@ -488,74 +909,6 @@ fn emulate_task_dump_prep(
     Ok(area.address)
 }
 
-fn take_dump(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<()> {
-    let op = hubris.get_idol_command("DumpAgent.take_dump")?;
-    let mut ops = vec![];
-
-    //
-    // We are about to disappear for -- as the kids say -- a minute.  Set
-    // our timeout to be a literal minute so we don't prematurely give up.
-    //
-    core.set_timeout(Duration::new(60, 0))?;
-
-    let rindex = if !core.is_net() {
-        //
-        // If we are connected via a dongle, we will need to be unplugged
-        // in order for the dump to operate.  Emit a message to this
-        // effect, and then send a HIF payload that will wait for 10
-        // seconds (100 iterations of 100ms apiece) and then start the dump;
-        // if the dongle has been pulled, the dump will start -- and if
-        // not the dump will fail.  However, because determining the
-        // presence of the dongle necessitates activating the pins on the
-        // RoT, we will lose our connection either way -- and unless the
-        // dump fails for an earlier reason, it will look like we lost
-        // our SWD connection no matter what.
-        //
-        humility::msg!(
-            "dump will start in 10 seconds; unplug probe now, and \
-            reset RoT via SWD after dump is complete to re-attach"
-        );
-
-        let sleep = context.get_function("Sleep", 1)?;
-        let ms = 100;
-        let iter = 100;
-
-        ops.extend([
-            Op::Push(0),                      // Iterations completed
-            Op::Push(0),                      // Dummy comparison value
-            Op::Label(Target(0)),             // Start of loop
-            Op::Drop,                         // Drop comparison
-            Op::Push(ms),                     // Push arg for 100ms
-            Op::Call(sleep.id),               // Sleep for 100ms
-            Op::Drop,                         // Drop arg
-            Op::Push(1),                      // Push increment value
-            Op::Add,                          // Add to iterations
-            Op::Push(iter),                   // Push limit
-            Op::BranchGreaterThan(Target(0)), // Continue if not at limit
-        ]);
-
-        iter as usize
-    } else {
-        humility::msg!("taking dump; target will be stopped for ~20 seconds");
-        0
-    };
-
-    context.idol_call_ops(&op, &[], &mut ops)?;
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-
-    if let Err(err) = results[rindex] {
-        bail!("failed to take dump: {}", op.strerror(err));
-    }
-
-    Ok(())
-}
-
 /// Sends a remote dump command over the network
 fn dump_remote_action(
     core: &mut dyn Core,
@@ -589,138 +942,6 @@ fn dump_remote_action(
         );
     }
     Ok(reply)
-}
-
-fn read_dump_at(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    index: usize,
-    mut progress: impl FnMut(&[u8]) -> bool,
-) -> Result<DumpAreaHeader> {
-    //
-    // We expect a DumpAreaHeader to be at the specified offset.
-    //
-    let op = hubris.get_idol_command("DumpAgent.read_dump")?;
-    let mut ops = vec![];
-    let mut offset = 0;
-
-    let payload = op.payload(&[
-        ("index", idol::IdolArgument::Scalar(index as u64)),
-        ("offset", idol::IdolArgument::Scalar(offset as u64)),
-    ])?;
-
-    context.idol_call_ops(&op, &payload, &mut ops)?;
-    ops.push(Op::Done);
-
-    match &context.run(core, ops.as_slice(), None)?[0] {
-        Ok(val) => {
-            let header = DumpAreaHeader::read_from_prefix(val.as_slice())
-                .ok_or_else(|| {
-                    anyhow!("failed to read dump at offset {:#x}", offset)
-                })?;
-
-            if header.magic != humpty::DUMP_MAGIC {
-                bail!("bad magic at dump offset {:#x}: {:x?}", offset, header);
-            }
-
-            let size = size_of::<DumpAreaHeader>();
-
-            if header.written > size as u32 {
-                let max = std::cmp::min(header.written as usize, val.len());
-
-                if !progress(&val[size..max]) {
-                    return Ok(header);
-                }
-            }
-
-            let mut all_ops = vec![];
-            let mut offsets = vec![];
-            offset = val.len() as u32;
-
-            while offset < header.written {
-                let mut ops = vec![];
-
-                let payload = op.payload(&[
-                    ("index", idol::IdolArgument::Scalar(index as u64)),
-                    ("offset", idol::IdolArgument::Scalar(offset as u64)),
-                ])?;
-
-                let len = std::cmp::min(
-                    val.len(),
-                    (header.written - offset) as usize,
-                );
-
-                offsets.push((offset, len));
-
-                context.idol_call_ops(&op, &payload, &mut ops)?;
-                offset += val.len() as u32;
-                all_ops.push(ops);
-            }
-
-            //
-            // We have all of our operations.  We're going to chunk it out
-            // in batches to make this somewhat practical when emulated.
-            //
-            let chunksize = (context.rdata_size() / val.len()) - 1;
-
-            for (ndx, o) in all_ops.chunks(chunksize).enumerate() {
-                let mut chunk: Vec<Op> = vec![];
-
-                for ops in o {
-                    chunk.extend(ops)
-                }
-
-                chunk.push(Op::Done);
-
-                let results = context.run(core, chunk.as_slice(), None)?;
-
-                for (rndx, r) in results.iter().enumerate() {
-                    let (offset, size) = offsets[ndx * chunksize + rndx];
-
-                    match r {
-                        Ok(val) => {
-                            if !progress(&val[..size]) {
-                                return Ok(header);
-                            }
-                        }
-
-                        Err(err) => {
-                            bail!(
-                                "failed to read dump at offset {}: {}",
-                                offset,
-                                op.strerror(*err)
-                            );
-                        }
-                    }
-                }
-            }
-
-            Ok(header)
-        }
-
-        Err(err) => {
-            let variant = if let Some(error) = op.error {
-                error.lookup_variant_by_tag(*err as u64)
-            } else {
-                None
-            };
-
-            if let Some(variant) = variant {
-                bail!("{}", variant.name.to_string());
-            } else {
-                bail!("error {:?}", err);
-            }
-        }
-    }
-}
-
-fn read_dump_header(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-) -> Result<DumpAreaHeader> {
-    read_dump_at(hubris, core, context, 0, |_| false)
 }
 
 fn parse_dump_header(
@@ -758,103 +979,6 @@ fn parse_dump_header(
     };
 
     Ok((header, task))
-}
-
-fn read_dump_headers(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    raw: bool,
-) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
-    if use_dump_agent_udp(hubris, core) {
-        todo!()
-    } else {
-        read_dump_headers_hiffy(hubris, core, context, raw)
-    }
-}
-
-fn read_dump_headers_hiffy(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    raw: bool,
-) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
-    let op = hubris.get_idol_command("DumpAgent.read_dump")?;
-    let rsize = hubris.lookup_type(op.ok)?.size(hubris)?;
-    let chunksize = (context.rdata_size() / rsize) - 1;
-
-    let mut base = 0;
-    let mut rval = vec![];
-
-    //
-    // Do some sanity checks on the number of bytes returned by read_dump().
-    // If these checks fail, something is really wrong.
-    //
-    let min = size_of::<DumpAreaHeader>() + size_of::<DumpSegment>();
-
-    if rsize < min {
-        bail!("read_dump size is {rsize}, but expected minimum size of {min}");
-    }
-
-    let max_nsegments = (rsize - min) / size_of::<DumpSegmentHeader>();
-
-    if max_nsegments < 16 {
-        bail!(
-            "read_dump size of {rsize} is unexpectedly small (can only \
-            hold {max_nsegments} dumpable segments)"
-        );
-    }
-
-    //
-    // Iterate over dump area headers in chunksize units.  Once we've hit an
-    // area that hasn't been dumped to, or an invalid area (denoting that all
-    // areas are full), we're done...
-    //
-    loop {
-        let mut ops = vec![];
-
-        for i in 0..chunksize {
-            let payload = op.payload(&[
-                ("index", idol::IdolArgument::Scalar((base + i) as u64)),
-                ("offset", idol::IdolArgument::Scalar(0u64)),
-            ])?;
-
-            context.idol_call_ops(&op, &payload, &mut ops)?;
-        }
-
-        ops.push(Op::Done);
-
-        let results = context.run(core, &ops, None)?;
-
-        for (i, r) in results.iter().enumerate() {
-            let area = base + i;
-
-            match r {
-                Ok(val) => {
-                    let header = parse_dump_header(base + i, val)?;
-
-                    if !raw && header.0.dumper == humpty::DUMPER_NONE {
-                        return Ok(rval);
-                    }
-
-                    rval.push(header);
-                }
-
-                Err(err) => {
-                    if op.strerror(*err) == "InvalidArea" {
-                        return Ok(rval);
-                    }
-
-                    bail!(
-                        "failed to header for area {area}: {}",
-                        op.strerror(*err)
-                    );
-                }
-            }
-        }
-
-        base += chunksize;
-    }
 }
 
 //
@@ -1010,111 +1134,14 @@ fn use_dump_agent_udp(hubris: &HubrisArchive, core: &mut dyn Core) -> bool {
             .unwrap_or(false)
 }
 
-fn read_dump(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    agent: &mut AgentCore,
-    area: Option<DumpArea>,
-) -> Result<Option<DumpTask>> {
-    if use_dump_agent_udp(hubris, core) {
-        todo!()
-    } else {
-        read_dump_hiffy(hubris, core, context, agent, area)
-    }
-}
-
-fn read_dump_hiffy(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    agent: &mut AgentCore,
-    area: Option<DumpArea>,
-) -> Result<Option<DumpTask>> {
-    let mut contents: Vec<u8> = vec![];
-
-    let (base, headers, task) = {
-        let all = read_dump_headers(hubris, core, context, false)?;
-
-        let area = match area {
-            None => None,
-            Some(DumpArea::ByIndex(ndx)) => Some(ndx),
-            Some(DumpArea::ByAddress(address)) => all
-                .iter()
-                .enumerate()
-                .filter(|&(_, (header, _))| header.address == address)
-                .map(|(ndx, _)| ndx)
-                .next(),
-        };
-
-        match area {
-            None | Some(0) if all[0].1.is_none() => (
-                0usize,
-                all.iter().map(|(h, _t)| *h).collect::<Vec<DumpAreaHeader>>(),
-                None,
-            ),
-
-            Some(ndx) => {
-                let areas = task_areas(&all);
-                match areas.get(&ndx) {
-                    None => {
-                        bail!("area {ndx} is invalid (--list to list)");
-                    }
-                    Some((task, headers)) => {
-                        (ndx, headers.clone(), Some(*task))
-                    }
-                }
-            }
-
-            _ => {
-                bail!("area must be explicitly specified (--list to list)");
-            }
-        }
-    };
-
-    let total = headers.iter().fold(0, |sum, header| sum + header.written);
-
-    let started = Instant::now();
-    let bar = ProgressBar::new(total as u64);
-    bar.set_style(
-        ProgressStyle::default_bar()
-            .template("humility: pulling [{bar:30}] {bytes}/{total_bytes}"),
-    );
-
-    for (ndx, _) in headers.iter().enumerate() {
-        read_dump_at(hubris, core, context, ndx + base, |rval| {
-            contents.extend(rval);
-            bar.set_position(contents.len() as u64);
-            true
-        })?;
-    }
-
-    bar.finish_and_clear();
-
-    humility::msg!(
-        "pulled {} in {}",
-        HumanBytes(total as u64),
-        HumanDuration(started.elapsed())
-    );
-
-    //
-    // We have a dump!  On to processing...
-    //
-    process_dump(&headers[0], &contents, agent, task)?;
-
-    Ok(task)
-}
-
 fn dump_via_agent(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<()> {
-    let mut agent = AgentCore::new(hubris)?;
+    let mut out = AgentCore::new(hubris)?;
     let started = Some(Instant::now());
     let mut area = subargs.area.map(DumpArea::ByIndex);
-
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     //
     // Our task can come from a couple of different spots:  we can either
@@ -1163,7 +1190,7 @@ fn dump_via_agent(
                 for i in 0..=ARMRegister::max() {
                     if let Some(reg) = ARMRegister::from_u16(i) {
                         let val = core.read_reg(reg)?;
-                        agent.add_register(reg, val);
+                        out.add_register(reg, val);
                     }
                 }
             }
@@ -1226,7 +1253,7 @@ fn dump_via_agent(
 
                 ncompressed += compressed;
 
-                agent.add_ram_region(addr, compare);
+                out.add_ram_region(addr, compare);
 
                 remain -= nbytes;
                 nread += nbytes;
@@ -1247,7 +1274,9 @@ fn dump_via_agent(
         core.run()?;
         humility::msg!("core resumed");
     } else {
-        let header = read_dump_header(hubris, core, &mut context)?;
+        let segments = hubris.dump_segments(core, None, false)?;
+        let mut agent = HiffyDumpAgent::new(hubris, core, subargs.timeout)?;
+        let header = agent.read_dump_header()?;
 
         if !subargs.force_read && subargs.area.is_none() {
             if header.dumper != humpty::DUMPER_NONE
@@ -1265,7 +1294,7 @@ fn dump_via_agent(
 
             if task.is_none() || subargs.initialize_dump_agent {
                 humility::msg!("initializing dump agent state");
-                initialize_dump(hubris, core, &mut context)?;
+                agent.initialize_dump()?;
             }
 
             if subargs.initialize_dump_agent {
@@ -1274,26 +1303,25 @@ fn dump_via_agent(
 
             if task.is_none() {
                 humility::msg!("initializing segments");
-                initialize_segments(hubris, core, &mut context)?;
+                agent.initialize_segments(&segments)?;
             }
         }
 
         if subargs.emulate_dumper {
-            core.halt()?;
+            agent.core().halt()?;
             humility::msg!("core halted");
 
             if let Some(ref stock) = subargs.stock_dumpfile {
-                hubris.dump(core, task, Some(stock), None)?;
+                hubris.dump(agent.core(), task, Some(stock), None)?;
             }
 
             let base = header.address;
-            let segments = hubris.dump_segments(core, task, false)?;
             let total = segments.iter().fold(0, |ttl, (_, size)| ttl + size);
 
             let address = if task.is_some() {
-                match emulate_task_dump_prep(core, &segments, base) {
+                match emulate_task_dump_prep(agent.core(), &segments, base) {
                     Err(e) => {
-                        core.run()?;
+                        agent.core().run()?;
                         humility::msg!("core resumed after failure");
                         return Err(e);
                     }
@@ -1307,12 +1335,12 @@ fn dump_via_agent(
                 base
             };
 
-            emulate_dump(core, task, address, total)?;
-            core.run()?;
+            emulate_dump(agent.core(), task, address, total)?;
+            agent.core().run()?;
             humility::msg!("core resumed");
         } else if !subargs.force_read && subargs.area.is_none() {
             if subargs.force_manual_initiation {
-                core.halt()?;
+                agent.core().halt()?;
                 humility::msg!("leaving core halted");
                 let base = header.address;
                 humility::msg!(
@@ -1331,30 +1359,30 @@ fn dump_via_agent(
             //
             // Tell the thing to take a dump
             //
-            take_dump(hubris, core, &mut context)?;
+            agent.take_dump()?;
         }
 
         //
         // If we're here, we have a dump in situ -- time to pull it.
         //
-        task = read_dump(hubris, core, &mut context, &mut agent, area)?;
-    }
+        task = agent.read_dump(area, &mut out)?;
 
-    hubris.dump(&mut agent, task, subargs.dumpfile.as_deref(), started)?;
-
-    //
-    // If this was a whole-system dump, we will leave our state initialized
-    // to assure that it will be ready to take subsequent task dumps (unless
-    // explicitly asked not to).
-    //
-    if task.is_none() {
-        if !subargs.retain_state {
-            humility::msg!("resetting dump agent state");
-            initialize_dump(hubris, core, &mut context)?;
-        } else {
-            humility::msg!("retaining dump agent state");
+        //
+        // If this was a whole-system dump, we will leave our state initialized
+        // to assure that it will be ready to take subsequent task dumps (unless
+        // explicitly asked not to).
+        //
+        if task.is_none() {
+            if !subargs.retain_state {
+                humility::msg!("resetting dump agent state");
+                agent.initialize_dump()?;
+            } else {
+                humility::msg!("retaining dump agent state");
+            }
         }
     }
+
+    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started)?;
 
     Ok(())
 }
@@ -1364,11 +1392,10 @@ fn dump_list(
     core: &mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
     println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
 
-    let headers = read_dump_headers(hubris, core, &mut context, false)?;
+    let mut agent = HiffyDumpAgent::new(hubris, core, subargs.timeout)?;
+    let headers = agent.read_dump_headers(false)?;
 
     if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
         return Ok(());
@@ -1407,9 +1434,8 @@ fn dump_agent_status(
     core: &mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
-    let headers = read_dump_headers(hubris, core, &mut context, true)?;
+    let mut agent = HiffyDumpAgent::new(hubris, core, subargs.timeout)?;
+    let headers = agent.read_dump_headers(true)?;
     humility::msg!("{:#x?}", headers);
 
     Ok(())
