@@ -336,29 +336,94 @@ impl Core for AgentCore {
 
 /// Trait which abstracts away dump agent interfaces
 trait DumpAgent {
-    fn read_dump_header(&mut self) -> Result<DumpAreaHeader> {
-        self.read_dump_at(0, |_| false)
-    }
-
     fn core(&mut self) -> &mut dyn Core;
 
-    fn read_dump_at(
-        &mut self,
-        index: usize,
-        progress: impl FnMut(&[u8]) -> bool,
-    ) -> Result<DumpAreaHeader>;
-
+    /// Initializes the dump regions
     fn initialize_dump(&mut self) -> Result<()>;
 
+    /// Initializes a set of segments defined as `(address, length)` tuples
     fn initialize_segments(&mut self, segments: &[(u32, u32)]) -> Result<()>;
+
+    /// Kicks off a dump
     fn take_dump(&mut self) -> Result<()>;
 
-    /// Reads the given dump into the output `AgentCore`
-    fn read_dump(
+    /// General-purpose dump reading abstraction
+    ///
+    /// This function is given an iterator over areas, which are represented as
+    /// `index, offset` tuples.  It reads from those areas, chunking internally
+    /// as needed for efficiency.
+    ///
+    /// Reading terminates when either the iterator runs out _or_ the `cont`
+    /// callback returns `false`; the data for which it returned `false` is not
+    /// returned.
+    fn read_generic<I, F>(&mut self, areas: I, cont: F) -> Result<Vec<Vec<u8>>>
+    where
+        I: Iterator<Item = (u8, u32)>,
+        F: FnMut(u8, u32, &[u8]) -> Result<bool>;
+
+    //////////////////////////////////////////////////////////////////////////
+    // Everything below here is implemented in terms of the functions above, but
+    // lives in the trait for convenience.
+
+    fn read_dump_header(&mut self) -> Result<DumpAreaHeader> {
+        self.read_dump_header_at(0)
+    }
+
+    fn read_dump_header_at(&mut self, i: u8) -> Result<DumpAreaHeader> {
+        let val =
+            self.read_generic(std::iter::once((i, 0)), |_, _, _| Ok(false))?;
+        assert_eq!(val.len(), 0);
+        let (header, _task) = parse_dump_header(i as usize, &val[0])?;
+        Ok(header)
+    }
+
+    fn read_dump_area(
         &mut self,
-        area: Option<DumpArea>,
-        out: &mut AgentCore,
-    ) -> Result<Option<DumpTask>>;
+        index: u8,
+        mut progress: impl FnMut(usize),
+    ) -> Result<(DumpAreaHeader, Vec<u8>)> {
+        // Read the header of this dump area
+        let val = &self
+            .read_generic(std::iter::once((index, 0)), |_, _, _| Ok(false))?[0];
+
+        let header = DumpAreaHeader::read_from_prefix(val.as_slice())
+            .ok_or_else(|| anyhow!("failed to read parse header"))?;
+
+        if header.magic != humpty::DUMP_MAGIC {
+            bail!("bad magic at dump offset {:#x}: {:x?}", index, header);
+        }
+
+        let size = size_of::<DumpAreaHeader>();
+
+        let mut out = vec![];
+        if header.written > size as u32 {
+            let max = val.len().min(header.written as usize);
+            let data = val[size..max].to_owned();
+            progress(data.len());
+            out.push(data);
+        }
+
+        let chunk_size = val.len();
+        assert_eq!(chunk_size, 256);
+
+        let mut chunks = vec![];
+        let mut offset = chunk_size;
+        while offset < header.written as usize {
+            let len = chunk_size.min(header.written as usize - offset);
+            chunks.push((offset.try_into().unwrap(), len.try_into().unwrap()));
+            offset += len;
+        }
+
+        out.extend(self.read_generic(
+            chunks.into_iter(),
+            |_index, _offset, result| {
+                progress(result.len());
+                Ok(true)
+            },
+        )?);
+
+        Ok((header, out.into_iter().flatten().collect()))
+    }
 
     /// Reads dump headers from the target
     ///
@@ -367,7 +432,112 @@ trait DumpAgent {
     fn read_dump_headers(
         &mut self,
         raw: bool,
-    ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>>;
+    ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
+        //
+        // Iterate over dump area headers.  Once we've hit an area that hasn't
+        // been dumped to, or an invalid area (denoting that all areas are
+        // full), we're done...
+        //
+        let results = self.read_generic(
+            (0..).map(|index| (index, 0)),
+            |index, _offset, val| {
+                let (header, _task) = parse_dump_header(index as usize, val)?;
+                if !raw && header.dumper == humpty::DUMPER_NONE {
+                    Ok(false)
+                } else {
+                    Ok(true)
+                }
+            },
+        )?;
+
+        results
+            .into_iter()
+            .enumerate()
+            .map(|(i, r)| parse_dump_header(i, &r))
+            .collect::<Result<Vec<_>>>()
+    }
+
+    fn read_dump(
+        &mut self,
+        area: Option<DumpArea>,
+        out: &mut AgentCore,
+    ) -> Result<Option<DumpTask>> {
+        let (base, headers, task) = {
+            let all = self.read_dump_headers(false)?;
+
+            let area = match area {
+                None => None,
+                Some(DumpArea::ByIndex(ndx)) => Some(ndx),
+                Some(DumpArea::ByAddress(address)) => all
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, (header, _))| header.address == address)
+                    .map(|(ndx, _)| ndx)
+                    .next(),
+            };
+
+            match area {
+                None | Some(0) if all[0].1.is_none() => (
+                    0usize,
+                    all.iter()
+                        .map(|(h, _t)| *h)
+                        .collect::<Vec<DumpAreaHeader>>(),
+                    None,
+                ),
+
+                Some(ndx) => {
+                    let areas = task_areas(&all);
+                    match areas.get(&ndx) {
+                        None => {
+                            bail!("area {ndx} is invalid (--list to list)");
+                        }
+                        Some((task, headers)) => {
+                            (ndx, headers.clone(), Some(*task))
+                        }
+                    }
+                }
+
+                _ => {
+                    bail!("area must be explicitly specified (--list to list)");
+                }
+            }
+        };
+
+        let total = headers.iter().fold(0, |sum, header| sum + header.written);
+
+        let started = Instant::now();
+        let bar = ProgressBar::new(total as u64);
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("humility: pulling [{bar:30}] {bytes}/{total_bytes}"),
+        );
+
+        let mut count = 0;
+        let mut contents = vec![];
+        for (ndx, _) in headers.iter().enumerate() {
+            let index = (ndx + base).try_into().unwrap();
+            let (_header, data) = self.read_dump_area(index, |size| {
+                count += size;
+                bar.set_position(size as u64);
+            })?;
+            contents.extend(data.into_iter());
+        }
+
+        bar.finish_and_clear();
+
+        humility::msg!(
+            "pulled {} in {}",
+            HumanBytes(total as u64),
+            HumanDuration(started.elapsed())
+        );
+
+        //
+        // We have a dump!  On to processing...
+        //
+        process_dump(&headers[0], &contents, out, task)?;
+
+        Ok(task)
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -390,6 +560,30 @@ impl<'a> HiffyDumpAgent<'a> {
         timeout: u32,
     ) -> Result<Self> {
         let context = HiffyContext::new(hubris, core, timeout)?;
+
+        //
+        // Do some sanity checks on the number of bytes returned by read_dump().
+        // If these checks fail, something is really wrong.
+        //
+        let op = hubris.get_idol_command("DumpAgent.read_dump")?;
+        let rsize = hubris.lookup_type(op.ok)?.size(hubris)?;
+        let min = size_of::<DumpAreaHeader>() + size_of::<DumpSegment>();
+
+        if rsize < min {
+            bail!(
+                "read_dump size is {rsize}, but expected minimum size of {min}"
+            );
+        }
+
+        let max_nsegments = (rsize - min) / size_of::<DumpSegmentHeader>();
+
+        if max_nsegments < 16 {
+            bail!(
+                "read_dump size of {rsize} is unexpectedly small (can only \
+                 hold {max_nsegments} dumpable segments)"
+            );
+        }
+
         Ok(Self { hubris, core, context })
     }
     fn run(&mut self, ops: &[Op]) -> Result<Vec<Result<Vec<u8>, u32>>> {
@@ -512,297 +706,187 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         Ok(())
     }
 
-    fn read_dump_headers(
+    /// This is the tricky one
+    fn read_generic<I, F>(
         &mut self,
-        raw: bool,
-    ) -> Result<Vec<(DumpAreaHeader, Option<DumpTask>)>> {
+        mut areas: I,
+        mut cont: F,
+    ) -> Result<Vec<Vec<u8>>>
+    where
+        I: Iterator<Item = (u8, u32)>,
+        F: FnMut(u8, u32, &[u8]) -> Result<bool>,
+    {
+        // Because HIF has overhead, we're going to process a chunk of multiple
+        // read_dump calls in a single HIF program.  The size depends on our
+        // return data size.
         let op = self.hubris.get_idol_command("DumpAgent.read_dump")?;
         let rsize = self.hubris.lookup_type(op.ok)?.size(self.hubris)?;
         let chunksize = (self.context.rdata_size() / rsize) - 1;
 
-        let mut base = 0;
         let mut rval = vec![];
-
-        //
-        // Do some sanity checks on the number of bytes returned by read_dump().
-        // If these checks fail, something is really wrong.
-        //
-        let min = size_of::<DumpAreaHeader>() + size_of::<DumpSegment>();
-
-        if rsize < min {
-            bail!(
-                "read_dump size is {rsize}, but expected minimum size of {min}"
-            );
-        }
-
-        let max_nsegments = (rsize - min) / size_of::<DumpSegmentHeader>();
-
-        if max_nsegments < 16 {
-            bail!(
-                "read_dump size of {rsize} is unexpectedly small (can only \
-            hold {max_nsegments} dumpable segments)"
-            );
-        }
-
-        //
-        // Iterate over dump area headers in chunksize units.  Once we've hit an
-        // area that hasn't been dumped to, or an invalid area (denoting that all
-        // areas are full), we're done...
-        //
         loop {
+            // Prepare a program to dump a handful of sections
             let mut ops = vec![];
-
-            for i in 0..chunksize {
-                let payload = op.payload(&[
-                    ("index", idol::IdolArgument::Scalar((base + i) as u64)),
-                    ("offset", idol::IdolArgument::Scalar(0u64)),
-                ])?;
-
-                self.context.idol_call_ops(&op, &payload, &mut ops)?;
-            }
-
-            ops.push(Op::Done);
-
-            let results = self.run(&ops)?;
-
-            for (i, r) in results.iter().enumerate() {
-                let area = base + i;
-
-                match r {
-                    Ok(val) => {
-                        let header = parse_dump_header(base + i, val)?;
-
-                        if !raw && header.0.dumper == humpty::DUMPER_NONE {
-                            return Ok(rval);
-                        }
-
-                        rval.push(header);
-                    }
-
-                    Err(err) => {
-                        if op.strerror(*err) == "InvalidArea" {
-                            return Ok(rval);
-                        }
-
-                        bail!(
-                            "failed to header for area {area}: {}",
-                            op.strerror(*err)
-                        );
-                    }
-                }
-            }
-
-            base += chunksize;
-        }
-    }
-
-    fn read_dump_at(
-        &mut self,
-        index: usize,
-        mut progress: impl FnMut(&[u8]) -> bool,
-    ) -> Result<DumpAreaHeader> {
-        //
-        // We expect a DumpAreaHeader to be at the specified offset.
-        //
-        let op = self.hubris.get_idol_command("DumpAgent.read_dump")?;
-        let mut ops = vec![];
-        let mut offset = 0;
-
-        let payload = op.payload(&[
-            ("index", idol::IdolArgument::Scalar(index as u64)),
-            ("offset", idol::IdolArgument::Scalar(offset as u64)),
-        ])?;
-
-        self.context.idol_call_ops(&op, &payload, &mut ops)?;
-        ops.push(Op::Done);
-
-        match &self.run(ops.as_slice())?[0] {
-            Ok(val) => {
-                let header = DumpAreaHeader::read_from_prefix(val.as_slice())
-                    .ok_or_else(|| {
-                    anyhow!("failed to read dump at offset {:#x}", offset)
-                })?;
-
-                if header.magic != humpty::DUMP_MAGIC {
-                    bail!(
-                        "bad magic at dump offset {:#x}: {:x?}",
-                        offset,
-                        header
-                    );
-                }
-
-                let size = size_of::<DumpAreaHeader>();
-
-                if header.written > size as u32 {
-                    let max = std::cmp::min(header.written as usize, val.len());
-
-                    if !progress(&val[size..max]) {
-                        return Ok(header);
-                    }
-                }
-
-                let mut all_ops = vec![];
-                let mut offsets = vec![];
-                offset = val.len() as u32;
-
-                while offset < header.written {
-                    let mut ops = vec![];
-
+            let mut pos = vec![];
+            for _ in 0..chunksize {
+                if let Some((index, offset)) = areas.next() {
                     let payload = op.payload(&[
                         ("index", idol::IdolArgument::Scalar(index as u64)),
                         ("offset", idol::IdolArgument::Scalar(offset as u64)),
                     ])?;
 
-                    let len = std::cmp::min(
-                        val.len(),
-                        (header.written - offset) as usize,
-                    );
-
-                    offsets.push((offset, len));
-
                     self.context.idol_call_ops(&op, &payload, &mut ops)?;
-                    offset += val.len() as u32;
-                    all_ops.push(ops);
+                    pos.push((index, offset))
+                } else {
+                    break;
                 }
+            }
+            if ops.is_empty() {
+                break;
+            }
+            ops.push(Op::Done);
 
-                //
-                // We have all of our operations.  We're going to chunk it out
-                // in batches to make this somewhat practical when emulated.
-                //
-                let chunksize = (self.context.rdata_size() / val.len()) - 1;
-
-                for (ndx, o) in all_ops.chunks(chunksize).enumerate() {
-                    let mut chunk: Vec<Op> = vec![];
-
-                    for ops in o {
-                        chunk.extend(ops)
+            // Check the results.
+            //
+            // In some cases, this is used to process entire
+            let results = self.run(&ops)?;
+            for (r, (index, offset)) in results.iter().zip(pos.into_iter()) {
+                match r {
+                    Ok(val) => {
+                        if !cont(index, offset, val)? {
+                            return Ok(rval);
+                        }
+                        rval.push(val.to_vec());
                     }
-
-                    chunk.push(Op::Done);
-
-                    let results = self.run(chunk.as_slice())?;
-
-                    for (rndx, r) in results.iter().enumerate() {
-                        let (offset, size) = offsets[ndx * chunksize + rndx];
-
-                        match r {
-                            Ok(val) => {
-                                if !progress(&val[..size]) {
-                                    return Ok(header);
-                                }
-                            }
-
-                            Err(err) => {
-                                bail!(
-                                    "failed to read dump at offset {}: {}",
-                                    offset,
-                                    op.strerror(*err)
-                                );
-                            }
+                    Err(err) => {
+                        let s = op.strerror(*err);
+                        if s == "InvalidArea" {
+                            return Ok(rval);
+                        } else {
+                            bail!(
+                                "failed to read index {index}, offset: {offset}:
+                                {s}",
+                            );
                         }
                     }
-                }
-
-                Ok(header)
-            }
-
-            Err(err) => {
-                let variant = if let Some(error) = op.error {
-                    error.lookup_variant_by_tag(*err as u64)
-                } else {
-                    None
-                };
-
-                if let Some(variant) = variant {
-                    bail!("{}", variant.name.to_string());
-                } else {
-                    bail!("error {:?}", err);
                 }
             }
         }
-    }
 
-    fn read_dump(
-        &mut self,
-        area: Option<DumpArea>,
-        out: &mut AgentCore,
-    ) -> Result<Option<DumpTask>> {
-        let mut contents: Vec<u8> = vec![];
-
-        let (base, headers, task) = {
-            let all = self.read_dump_headers(false)?;
-
-            let area = match area {
-                None => None,
-                Some(DumpArea::ByIndex(ndx)) => Some(ndx),
-                Some(DumpArea::ByAddress(address)) => all
-                    .iter()
-                    .enumerate()
-                    .filter(|&(_, (header, _))| header.address == address)
-                    .map(|(ndx, _)| ndx)
-                    .next(),
-            };
-
-            match area {
-                None | Some(0) if all[0].1.is_none() => (
-                    0usize,
-                    all.iter()
-                        .map(|(h, _t)| *h)
-                        .collect::<Vec<DumpAreaHeader>>(),
-                    None,
-                ),
-
-                Some(ndx) => {
-                    let areas = task_areas(&all);
-                    match areas.get(&ndx) {
-                        None => {
-                            bail!("area {ndx} is invalid (--list to list)");
-                        }
-                        Some((task, headers)) => {
-                            (ndx, headers.clone(), Some(*task))
-                        }
-                    }
-                }
-
-                _ => {
-                    bail!("area must be explicitly specified (--list to list)");
-                }
-            }
-        };
-
-        let total = headers.iter().fold(0, |sum, header| sum + header.written);
-
-        let started = Instant::now();
-        let bar = ProgressBar::new(total as u64);
-        bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: pulling [{bar:30}] {bytes}/{total_bytes}"),
-        );
-
-        for (ndx, _) in headers.iter().enumerate() {
-            self.read_dump_at(ndx + base, |rval| {
-                contents.extend(rval);
-                bar.set_position(contents.len() as u64);
-                true
-            })?;
-        }
-
-        bar.finish_and_clear();
-
-        humility::msg!(
-            "pulled {} in {}",
-            HumanBytes(total as u64),
-            HumanDuration(started.elapsed())
-        );
-
-        //
-        // We have a dump!  On to processing...
-        //
-        process_dump(&headers[0], &contents, out, task)?;
-
-        Ok(task)
+        Ok(rval)
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct UdpDumpAgent<'a> {
+    hubris: &'a HubrisArchive,
+    core: &'a mut dyn Core,
+}
+
+impl<'a> UdpDumpAgent<'a> {
+    /// Sends a remote dump command over the network
+    fn dump_remote_action(
+        &mut self,
+        msg: udp::Request,
+    ) -> Result<Result<udp::Response, udp::Error>> {
+        use udp::{Header, Request, Response};
+        let mut rng = rand::thread_rng();
+        let header = Header { version: udp::VERSION, message_id: rng.gen() };
+        let mut buf = vec![0u8; std::mem::size_of::<(Header, Request)>()];
+        let size = hubpack::serialize(&mut buf, &(header, msg))
+            .context("failed to serialize message")?;
+
+        // Send the packet out
+        self.core
+            .send(&buf[..size], NetAgent::DumpAgent)
+            .context("failed to send packet")?;
+
+        // Try to receive a reply
+        let size = self
+            .core
+            .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
+            .context("failed to receive packet")?;
+
+        let ((rheader, reply), _): ((Header, Result<Response, udp::Error>), _) =
+            hubpack::deserialize(&buf[..size])
+                .map_err(|_| anyhow!("deserialization failed"))?;
+        if rheader.message_id != header.message_id {
+            bail!(
+                "message ID mismatch: {} != {}",
+                rheader.message_id,
+                header.message_id
+            );
+        }
+        Ok(reply)
+    }
+}
+
+impl<'a> DumpAgent for UdpDumpAgent<'a> {
+    fn read_generic<I, F>(
+        &mut self,
+        areas: I,
+        mut cont: F,
+    ) -> Result<Vec<Vec<u8>>>
+    where
+        I: Iterator<Item = (u8, u32)>,
+        F: FnMut(u8, u32, &[u8]) -> Result<bool>,
+    {
+        let mut out = vec![];
+        for (index, offset) in areas {
+            let r = self
+                .dump_remote_action(udp::Request::ReadDump { index, offset })?;
+            match r {
+                Ok(udp::Response::ReadDump(d)) => {
+                    if !cont(index, offset, &d)? {
+                        break;
+                    } else {
+                        out.push(d.to_vec())
+                    }
+                }
+                Err(udp::Error::InvalidArea) => break,
+                _ => bail!("invalid reply: {r:?}"),
+            }
+        }
+        Ok(out)
+    }
+
+    fn core(&mut self) -> &mut dyn Core {
+        self.core
+    }
+
+    fn initialize_dump(&mut self) -> Result<()> {
+        let r = self.dump_remote_action(udp::Request::InitializeDump)?;
+        match r {
+            Ok(udp::Response::InitializeDump) => Ok(()),
+            _ => bail!("invalid response: {r:?}"),
+        }
+    }
+
+    fn initialize_segments(&mut self, segments: &[(u32, u32)]) -> Result<()> {
+        for &(address, length) in segments {
+            let r = self.dump_remote_action(udp::Request::AddDumpSegment {
+                address,
+                length,
+            })?;
+            match r {
+                Ok(udp::Response::AddDumpSegment) => (),
+                _ => bail!("invalid response: {r:?}"),
+            }
+        }
+        Ok(())
+    }
+
+    fn take_dump(&mut self) -> Result<()> {
+        let r = self.dump_remote_action(udp::Request::TakeDump)?;
+        match r {
+            Ok(udp::Response::TakeDump) => Ok(()),
+            _ => bail!("invalid response: {r:?}"),
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 fn emulate_dump(
     core: &mut dyn Core,
@@ -907,41 +991,6 @@ fn emulate_task_dump_prep(
     }
 
     Ok(area.address)
-}
-
-/// Sends a remote dump command over the network
-fn dump_remote_action(
-    core: &mut dyn Core,
-    msg: humpty::udp::Request,
-) -> Result<humpty::udp::Response> {
-    use humpty::udp::{Header, Request, Response};
-    let mut rng = rand::thread_rng();
-    let header =
-        Header { version: humpty::udp::VERSION, message_id: rng.gen() };
-    let mut buf = vec![0u8; std::mem::size_of::<(Header, Request)>()];
-    let size = hubpack::serialize(&mut buf, &(header, msg))
-        .context("failed to serialize message")?;
-
-    // Send the packet out
-    core.send(&buf[..size], NetAgent::DumpAgent)
-        .context("failed to send packet")?;
-
-    // Try to receive a reply
-    let size = core
-        .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
-        .context("failed to receive packet")?;
-
-    let ((rheader, reply), _): ((Header, Response), _) =
-        hubpack::deserialize(&buf[..size])
-            .map_err(|_| anyhow!("deserialization failed"))?;
-    if rheader.message_id != header.message_id {
-        bail!(
-            "message ID mismatch: {} != {}",
-            rheader.message_id,
-            header.message_id
-        );
-    }
-    Ok(reply)
 }
 
 fn parse_dump_header(
