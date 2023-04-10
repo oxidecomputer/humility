@@ -797,7 +797,13 @@ impl<'a> UdpDumpAgent<'a> {
         use udp::{Header, Request, Response};
         let mut rng = rand::thread_rng();
         let header = Header { version: udp::VERSION, message_id: rng.gen() };
-        let mut buf = vec![0u8; std::mem::size_of::<(Header, Request)>()];
+        let mut buf = vec![
+            0u8;
+            std::cmp::max(
+                std::mem::size_of::<(Header, Request)>(),
+                std::mem::size_of::<(Header, Response)>()
+            )
+        ];
         let size = hubpack::serialize(&mut buf, &(header, msg))
             .context("failed to serialize message")?;
 
@@ -1178,12 +1184,23 @@ fn get_dump_agent<'a>(
     core: &'a mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<Box<dyn DumpAgent + 'a>> {
+    // Find the dump agent task name.  This is usually `dump_agent`, but that's
+    // not guaranteed; what *is* guaranteed is that it implements the DumpAgent
+    // interface.
+    let dump_agent_task_name = (0..hubris.ntasks())
+        .map(|t| hubris.lookup_module(HubrisTask::Task(t as u32)).unwrap())
+        .filter(|t| {
+            t.iface.as_ref().map(|i| i.name == "DumpAgent").unwrap_or(false)
+        })
+        .map(|t| t.name.as_str())
+        .next();
+
     if core.is_net()
         && !subargs.force_hiffy_agent
         && hubris
             .manifest
             .task_features
-            .get("dump-agent")
+            .get(dump_agent_task_name.unwrap_or(""))
             .map(|f| f.contains(&"net".to_string()))
             .unwrap_or(false)
     {
