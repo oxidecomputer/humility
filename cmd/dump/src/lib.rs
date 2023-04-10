@@ -372,6 +372,7 @@ trait DumpAgent {
     /// The `cont` callback can also be used as a progress tracker.  Each time
     /// it is called, it takes an incremental number of bytes that have been
     /// read in the most recent operation.
+    #[allow(clippy::type_complexity)]
     fn read_generic(
         &mut self,
         areas: &mut dyn Iterator<Item = (u8, u32)>,
