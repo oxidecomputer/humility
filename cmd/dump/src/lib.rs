@@ -393,10 +393,12 @@ trait DumpAgentExt {
     ////////////////////////////////////////////////////////////////////////
     // Everything beyond this point is implemented in terms of `read_generic`
 
+    /// Reads the root header
     fn read_dump_header(&mut self) -> Result<DumpAreaHeader> {
         self.read_dump_header_at(0)
     }
 
+    /// Reads the header from the given dump area
     fn read_dump_header_at(&mut self, i: u8) -> Result<DumpAreaHeader> {
         let val = self.read_dump_area_start(i)?;
         let (header, _task) = parse_dump_header(i as usize, &val)?;
@@ -505,6 +507,7 @@ trait DumpAgentExt {
         out: &mut AgentCore,
     ) -> Result<Option<DumpTask>> {
         let (base, headers, task) = {
+            // Read dump headers until the first empty header (DUMPER_NONE)
             let all = self.read_dump_headers(false)?;
 
             let area = match area {
