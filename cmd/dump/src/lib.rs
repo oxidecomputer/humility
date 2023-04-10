@@ -357,9 +357,21 @@ trait DumpAgent {
     /// `index, offset` tuples.  It reads from those areas, chunking internally
     /// as needed for efficiency.
     ///
-    /// Reading terminates when either the iterator runs out _or_ the `cont`
-    /// callback returns `false`; the data for which it returned `false` is not
-    /// returned.
+    /// In the implementation, reading should terminate under three conditions:
+    /// - the iterator runs out
+    /// - the `cont` callback returns `false` (in which case the data for which
+    ///   it returned `false` is *not* returned)
+    /// - the read operation returns an `InvalidArea` error
+    ///
+    /// The latter is a little subtle, so it merits further explanation.  In
+    /// some cases, we may optimistically read dump areas that _may not exist_,
+    /// so we rely on this error to tell us when we've gone off the edge of the
+    /// map.  As an example, this occurs when using `--dump-agent-status` to
+    /// read every single area.
+    ///
+    /// The `cont` callback can also be used as a progress tracker.  Each time
+    /// it is called, it takes an incremental number of bytes that have been
+    /// read in the most recent operation.
     fn read_generic(
         &mut self,
         areas: &mut dyn Iterator<Item = (u8, u32)>,
@@ -375,26 +387,31 @@ trait DumpAgent {
     }
 
     fn read_dump_header_at(&mut self, i: u8) -> Result<DumpAreaHeader> {
-        let val = self
+        let val = self.read_dump_area_start(i)?;
+        let (header, _task) = parse_dump_header(i as usize, &val)?;
+        Ok(header)
+    }
+
+    /// Reads 256 bytes from the start of the given dump area
+    ///
+    /// This is enough data to extract the header
+    fn read_dump_area_start(&mut self, i: u8) -> Result<Vec<u8>> {
+        // Read the header of this dump area
+        let mut val = self
             .read_generic(&mut std::iter::once((i, 0)), &mut |_, _, _| {
                 Ok(true)
             })?;
         assert_eq!(val.len(), 1);
-        let (header, _task) = parse_dump_header(i as usize, &val[0])?;
-        Ok(header)
+        Ok(val.pop().unwrap())
     }
 
+    /// Reads back a single dump area by index
     fn read_dump_area(
         &mut self,
         index: u8,
         progress: &mut dyn FnMut(usize),
     ) -> Result<(DumpAreaHeader, Vec<u8>)> {
-        // Read the header of this dump area
-        let val = &self.read_generic(
-            &mut std::iter::once((index, 0)),
-            &mut |_, _, _| Ok(true),
-        )?[0];
-
+        let val = self.read_dump_area_start(index)?;
         let header = DumpAreaHeader::read_from_prefix(val.as_slice())
             .ok_or_else(|| anyhow!("failed to read parse header"))?;
 
@@ -419,19 +436,26 @@ trait DumpAgent {
         let mut offset = chunk_size;
         while offset < header.written as usize {
             let len = chunk_size.min(header.written as usize - offset);
-            chunks.push((offset.try_into().unwrap(), len.try_into().unwrap()));
+            chunks.push(offset.try_into().unwrap());
             offset += len;
         }
 
+        // Read all of the region, one 256-byte chunk at a time
         out.extend(self.read_generic(
-            &mut chunks.into_iter(),
+            &mut chunks.into_iter().map(|offset| (index, offset)),
             &mut |_index, _offset, result| {
                 progress(result.len());
                 Ok(true)
             },
         )?);
 
-        Ok((header, out.into_iter().flatten().collect()))
+        // Collect chunks into a single vec
+        let mut out_data: Vec<u8> = out.into_iter().flatten().collect();
+
+        // Because we read in chunks, we may have extra data at the end here
+        out_data.resize(offset, 0u8);
+
+        Ok((header, out_data))
     }
 
     /// Reads dump headers from the target
@@ -527,7 +551,7 @@ trait DumpAgent {
             let index = (ndx + base).try_into().unwrap();
             let (_header, data) = self.read_dump_area(index, &mut |size| {
                 count += size;
-                bar.set_position(size as u64);
+                bar.set_position(count as u64);
             })?;
             contents.extend(data.into_iter());
         }
@@ -751,9 +775,7 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
             }
             ops.push(Op::Done);
 
-            // Check the results.
-            //
-            // In some cases, this is used to process entire
+            // Check the results
             let results = self.run(&ops)?;
             for (r, (index, offset)) in results.iter().zip(pos.into_iter()) {
                 match r {
