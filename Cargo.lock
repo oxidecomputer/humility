@@ -2054,7 +2054,7 @@ dependencies = [
 [[package]]
 name = "humpty"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/humpty?branch=udp-types#ffb6044785baa928349370636d42c7d0d08dc8e6"
+source = "git+https://github.com/oxidecomputer/humpty?branch=udp-types#5972cd5ee06fafc4fbe88ffe5369e3d750e10ece"
 dependencies = [
  "hubpack",
  "lzss",
