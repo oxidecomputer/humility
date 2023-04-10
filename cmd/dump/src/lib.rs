@@ -867,16 +867,38 @@ impl<'a> UdpDumpAgent<'a> {
             .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
             .context("failed to receive packet")?;
 
-        let ((rheader, reply), _): ((Header, Result<Response, udp::Error>), _) =
+        let (reply_header, rest): (udp::Header, _) =
             hubpack::deserialize(&buf[..size])
-                .map_err(|_| anyhow!("deserialization failed"))?;
-        if rheader.message_id != header.message_id {
+                .map_err(|_| anyhow!("deserialization of header failed"))?;
+        if reply_header.message_id != header.message_id {
             bail!(
                 "message ID mismatch: {} != {}",
-                rheader.message_id,
+                reply_header.message_id,
                 header.message_id
             );
+        } else if reply_header.version < udp::version::MIN {
+            bail!(
+                "received reply with invalid version: {} < our min ({})",
+                reply_header.version,
+                udp::version::MIN
+            );
         }
+
+        let (reply, _) = hubpack::deserialize(rest).map_err(|_| {
+            if reply_header.version > udp::version::CURRENT {
+                anyhow!(
+                    "deserialization of body failed, \
+                        version {} > our version {}",
+                    reply_header.version,
+                    udp::version::CURRENT
+                )
+            } else {
+                anyhow!(
+                    "deserialization of body failed, despite versions matching"
+                )
+            }
+        })?;
+
         Ok(reply)
     }
 }
