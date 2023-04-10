@@ -844,7 +844,8 @@ impl<'a> UdpDumpAgent<'a> {
     ) -> Result<Result<udp::Response, udp::Error>> {
         use udp::{Header, Request, Response};
         let mut rng = rand::thread_rng();
-        let header = Header { version: udp::VERSION, message_id: rng.gen() };
+        let header =
+            Header { version: udp::version::CURRENT, message_id: rng.gen() };
         let mut buf = vec![
             0u8;
             std::cmp::max(
