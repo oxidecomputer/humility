@@ -377,10 +377,20 @@ trait DumpAgent {
         areas: &mut dyn Iterator<Item = (u8, u32)>,
         cont: &mut dyn FnMut(u8, u32, &[u8]) -> Result<bool>,
     ) -> Result<Vec<Vec<u8>>>;
+}
 
-    //////////////////////////////////////////////////////////////////////////
-    // Everything below here is implemented in terms of the functions above, but
-    // lives in the trait for convenience.
+/// This is the trait which does the vast majority of dumping
+///
+/// It's expected to use `read_generic` from a `DumpAgent`
+trait DumpAgentExt {
+    /// Helper function to make calling `read_generic` more pleasant
+    fn read_generic<I, F>(&mut self, areas: I, cont: F) -> Result<Vec<Vec<u8>>>
+    where
+        I: Iterator<Item = (u8, u32)>,
+        F: FnMut(u8, u32, &[u8]) -> Result<bool>;
+
+    ////////////////////////////////////////////////////////////////////////
+    // Everything beyond this point is implemented in terms of `read_generic`
 
     fn read_dump_header(&mut self) -> Result<DumpAreaHeader> {
         self.read_dump_header_at(0)
@@ -397,10 +407,8 @@ trait DumpAgent {
     /// This is enough data to extract the header
     fn read_dump_area_start(&mut self, i: u8) -> Result<Vec<u8>> {
         // Read the header of this dump area
-        let mut val = self
-            .read_generic(&mut std::iter::once((i, 0)), &mut |_, _, _| {
-                Ok(true)
-            })?;
+        let mut val =
+            self.read_generic(std::iter::once((i, 0)), |_, _, _| Ok(true))?;
         assert_eq!(val.len(), 1);
         Ok(val.pop().unwrap())
     }
@@ -442,8 +450,8 @@ trait DumpAgent {
 
         // Read all of the region, one 256-byte chunk at a time
         out.extend(self.read_generic(
-            &mut chunks.into_iter().map(|offset| (index, offset)),
-            &mut |_index, _offset, result| {
+            chunks.into_iter().map(|offset| (index, offset)),
+            |_index, _offset, result| {
                 progress(result.len());
                 Ok(true)
             },
@@ -472,8 +480,8 @@ trait DumpAgent {
         // full), we're done...
         //
         let results = self.read_generic(
-            &mut (0..).map(|index| (index, 0)),
-            &mut |index, _offset, val| {
+            (0..).map(|index| (index, 0)),
+            |index, _offset, val| {
                 let (header, _task) = parse_dump_header(index as usize, val)?;
                 if !raw && header.dumper == humpty::DUMPER_NONE {
                     Ok(false)
@@ -570,6 +578,20 @@ trait DumpAgent {
         process_dump(&headers[0], &contents, out, task)?;
 
         Ok(task)
+    }
+}
+
+impl<'a> DumpAgentExt for Box<dyn DumpAgent + 'a> {
+    fn read_generic<I, F>(
+        &mut self,
+        mut areas: I,
+        mut cont: F,
+    ) -> Result<Vec<Vec<u8>>>
+    where
+        I: Iterator<Item = (u8, u32)>,
+        F: FnMut(u8, u32, &[u8]) -> Result<bool>,
+    {
+        DumpAgent::read_generic(self.as_mut(), &mut areas, &mut cont)
     }
 }
 
