@@ -356,10 +356,11 @@ trait DumpAgent {
     /// Reading terminates when either the iterator runs out _or_ the `cont`
     /// callback returns `false`; the data for which it returned `false` is not
     /// returned.
-    fn read_generic<I, F>(&mut self, areas: I, cont: F) -> Result<Vec<Vec<u8>>>
-    where
-        I: Iterator<Item = (u8, u32)>,
-        F: FnMut(u8, u32, &[u8]) -> Result<bool>;
+    fn read_generic(
+        &mut self,
+        areas: &mut dyn Iterator<Item = (u8, u32)>,
+        cont: &mut dyn FnMut(u8, u32, &[u8]) -> Result<bool>,
+    ) -> Result<Vec<Vec<u8>>>;
 
     //////////////////////////////////////////////////////////////////////////
     // Everything below here is implemented in terms of the functions above, but
@@ -370,8 +371,10 @@ trait DumpAgent {
     }
 
     fn read_dump_header_at(&mut self, i: u8) -> Result<DumpAreaHeader> {
-        let val =
-            self.read_generic(std::iter::once((i, 0)), |_, _, _| Ok(false))?;
+        let val = self
+            .read_generic(&mut std::iter::once((i, 0)), &mut |_, _, _| {
+                Ok(false)
+            })?;
         assert_eq!(val.len(), 0);
         let (header, _task) = parse_dump_header(i as usize, &val[0])?;
         Ok(header)
@@ -380,11 +383,13 @@ trait DumpAgent {
     fn read_dump_area(
         &mut self,
         index: u8,
-        mut progress: impl FnMut(usize),
+        progress: &mut dyn FnMut(usize),
     ) -> Result<(DumpAreaHeader, Vec<u8>)> {
         // Read the header of this dump area
-        let val = &self
-            .read_generic(std::iter::once((index, 0)), |_, _, _| Ok(false))?[0];
+        let val = &self.read_generic(
+            &mut std::iter::once((index, 0)),
+            &mut |_, _, _| Ok(false),
+        )?[0];
 
         let header = DumpAreaHeader::read_from_prefix(val.as_slice())
             .ok_or_else(|| anyhow!("failed to read parse header"))?;
@@ -415,8 +420,8 @@ trait DumpAgent {
         }
 
         out.extend(self.read_generic(
-            chunks.into_iter(),
-            |_index, _offset, result| {
+            &mut chunks.into_iter(),
+            &mut |_index, _offset, result| {
                 progress(result.len());
                 Ok(true)
             },
@@ -439,8 +444,8 @@ trait DumpAgent {
         // full), we're done...
         //
         let results = self.read_generic(
-            (0..).map(|index| (index, 0)),
-            |index, _offset, val| {
+            &mut (0..).map(|index| (index, 0)),
+            &mut |index, _offset, val| {
                 let (header, _task) = parse_dump_header(index as usize, val)?;
                 if !raw && header.dumper == humpty::DUMPER_NONE {
                     Ok(false)
@@ -516,7 +521,7 @@ trait DumpAgent {
         let mut contents = vec![];
         for (ndx, _) in headers.iter().enumerate() {
             let index = (ndx + base).try_into().unwrap();
-            let (_header, data) = self.read_dump_area(index, |size| {
+            let (_header, data) = self.read_dump_area(index, &mut |size| {
                 count += size;
                 bar.set_position(size as u64);
             })?;
@@ -707,15 +712,11 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
     }
 
     /// This is the tricky one
-    fn read_generic<I, F>(
+    fn read_generic(
         &mut self,
-        mut areas: I,
-        mut cont: F,
-    ) -> Result<Vec<Vec<u8>>>
-    where
-        I: Iterator<Item = (u8, u32)>,
-        F: FnMut(u8, u32, &[u8]) -> Result<bool>,
-    {
+        areas: &mut dyn Iterator<Item = (u8, u32)>,
+        cont: &mut dyn FnMut(u8, u32, &[u8]) -> Result<bool>,
+    ) -> Result<Vec<Vec<u8>>> {
         // Because HIF has overhead, we're going to process a chunk of multiple
         // read_dump calls in a single HIF program.  The size depends on our
         // return data size.
@@ -780,7 +781,6 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct UdpDumpAgent<'a> {
-    hubris: &'a HubrisArchive,
     core: &'a mut dyn Core,
 }
 
@@ -823,15 +823,11 @@ impl<'a> UdpDumpAgent<'a> {
 }
 
 impl<'a> DumpAgent for UdpDumpAgent<'a> {
-    fn read_generic<I, F>(
+    fn read_generic(
         &mut self,
-        areas: I,
-        mut cont: F,
-    ) -> Result<Vec<Vec<u8>>>
-    where
-        I: Iterator<Item = (u8, u32)>,
-        F: FnMut(u8, u32, &[u8]) -> Result<bool>,
-    {
+        areas: &mut dyn Iterator<Item = (u8, u32)>,
+        cont: &mut dyn FnMut(u8, u32, &[u8]) -> Result<bool>,
+    ) -> Result<Vec<Vec<u8>>> {
         let mut out = vec![];
         for (index, offset) in areas {
             let r = self
@@ -1173,14 +1169,25 @@ enum DumpArea {
     ByAddress(u32),
 }
 
-fn use_dump_agent_udp(hubris: &HubrisArchive, core: &mut dyn Core) -> bool {
-    core.is_net()
+fn get_dump_agent<'a>(
+    hubris: &'a HubrisArchive,
+    core: &'a mut dyn Core,
+    subargs: &DumpArgs,
+) -> Result<Box<dyn DumpAgent + 'a>> {
+    if core.is_net()
         && hubris
             .manifest
             .task_features
             .get("dump-agent")
             .map(|f| f.contains(&"net".to_string()))
             .unwrap_or(false)
+    {
+        humility::msg!("making UDP dump agent");
+        Ok(Box::new(UdpDumpAgent { core }))
+    } else {
+        humility::msg!("making hiffy dump agent");
+        Ok(Box::new(HiffyDumpAgent::new(hubris, core, subargs.timeout)?))
+    }
 }
 
 fn dump_via_agent(
@@ -1324,7 +1331,7 @@ fn dump_via_agent(
         humility::msg!("core resumed");
     } else {
         let segments = hubris.dump_segments(core, None, false)?;
-        let mut agent = HiffyDumpAgent::new(hubris, core, subargs.timeout)?;
+        let mut agent = get_dump_agent(hubris, core, subargs)?;
         let header = agent.read_dump_header()?;
 
         if !subargs.force_read && subargs.area.is_none() {
@@ -1443,7 +1450,7 @@ fn dump_list(
 ) -> Result<()> {
     println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
 
-    let mut agent = HiffyDumpAgent::new(hubris, core, subargs.timeout)?;
+    let mut agent = get_dump_agent(hubris, core, subargs)?;
     let headers = agent.read_dump_headers(false)?;
 
     if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
@@ -1483,7 +1490,7 @@ fn dump_agent_status(
     core: &mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<()> {
-    let mut agent = HiffyDumpAgent::new(hubris, core, subargs.timeout)?;
+    let mut agent = get_dump_agent(hubris, core, subargs)?;
     let headers = agent.read_dump_headers(true)?;
     humility::msg!("{:#x?}", headers);
 
