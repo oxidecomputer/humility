@@ -112,6 +112,10 @@ struct DumpArgs {
     #[clap(long)]
     force_dump_agent: bool,
 
+    /// force use of hiffy, even if the UDP dump agent is available
+    #[clap(long)]
+    force_hiffy_agent: bool,
+
     /// force manual initiation, leaving target halted
     #[clap(long, requires = "force-dump-agent")]
     force_manual_initiation: bool,
@@ -1175,6 +1179,7 @@ fn get_dump_agent<'a>(
     subargs: &DumpArgs,
 ) -> Result<Box<dyn DumpAgent + 'a>> {
     if core.is_net()
+        && !subargs.force_hiffy_agent
         && hubris
             .manifest
             .task_features
