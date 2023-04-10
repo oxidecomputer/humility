@@ -377,9 +377,9 @@ trait DumpAgent {
     fn read_dump_header_at(&mut self, i: u8) -> Result<DumpAreaHeader> {
         let val = self
             .read_generic(&mut std::iter::once((i, 0)), &mut |_, _, _| {
-                Ok(false)
+                Ok(true)
             })?;
-        assert_eq!(val.len(), 0);
+        assert_eq!(val.len(), 1);
         let (header, _task) = parse_dump_header(i as usize, &val[0])?;
         Ok(header)
     }
@@ -392,7 +392,7 @@ trait DumpAgent {
         // Read the header of this dump area
         let val = &self.read_generic(
             &mut std::iter::once((index, 0)),
-            &mut |_, _, _| Ok(false),
+            &mut |_, _, _| Ok(true),
         )?[0];
 
         let header = DumpAreaHeader::read_from_prefix(val.as_slice())
@@ -1470,9 +1470,9 @@ fn dump_list(
     core: &mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<()> {
-    println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
-
     let mut agent = get_dump_agent(hubris, core, subargs)?;
+
+    println!("{:4} {:21} {:10} SIZE", "AREA", "TASK", "TIME");
     let headers = agent.read_dump_headers(false)?;
 
     if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
