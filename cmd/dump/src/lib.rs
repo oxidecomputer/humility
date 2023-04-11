@@ -444,7 +444,7 @@ trait DumpAgentExt {
         assert_eq!(chunk_size, 256);
 
         let mut chunks = vec![];
-        let mut offset = chunk_size;
+        let mut offset = chunk_size.min(header.written as usize);
         while offset < header.written as usize {
             let len = chunk_size.min(header.written as usize - offset);
             chunks.push(offset.try_into().unwrap());
