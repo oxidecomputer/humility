@@ -5,52 +5,54 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-goblin = { workspace = true }
-hubpack = { workspace = true }
-rustc-demangle = { workspace = true }
-anyhow = { workspace = true }
-gimli = { workspace = true }
-fallible-iterator = { workspace = true }
-humility_load_derive = { workspace = true }
-indexmap = { workspace = true }
-scroll = { workspace = true }
-multimap = { workspace = true }
-num-traits = { workspace = true }
-num-derive = { workspace = true }
-indicatif = { workspace = true }
-toml = { workspace = true }
-bitfield = { workspace = true }
-log = { workspace = true }
-zip = { workspace = true }
-rusb = { workspace = true }
-parse_int = { workspace = true }
-idol = { workspace = true }
-regex = { workspace = true }
-colored = { workspace = true }
-clap = { workspace = true }
-ron = { workspace = true }
-humpty = { workspace = true }
-zerocopy = { workspace = true }
+anyhow.workspace = true
+bitfield.workspace = true
+clap.workspace = true
+colored.workspace = true
+fallible-iterator.workspace = true
+gimli.workspace = true
+goblin.workspace = true
+hubpack.workspace = true
+humility_load_derive.workspace = true
+humpty.workspace = true
+idol.workspace = true
+indexmap.workspace = true
+indicatif.workspace = true
+log.workspace = true
+lzss.workspace = true
+multimap.workspace = true
+num-derive.workspace = true
+num-traits.workspace = true
+parse_int.workspace = true
+rand.workspace = true
+regex.workspace = true
+ron.workspace = true
+rusb.workspace = true
+rustc-demangle.workspace = true
+scroll.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+zerocopy.workspace = true
+zip.workspace = true
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
 # that we can float necessary patches on probe-rs.
 #
-probe-rs = { workspace = true }
+probe-rs.workspace = true
 
 #
 # We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,
 # which upstream seems uninterested in fixing.
 #
-capstone = { workspace = true }
+capstone.workspace = true
 
 #
 # No one is happy about this.
 #
 [target.'cfg(not(windows))'.dependencies]
-libc = { workspace = true }
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winapi = { workspace = true, features = ["netioapi"] }

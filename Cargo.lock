@@ -1340,7 +1340,6 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
- "rand",
  "zerocopy",
  "zip",
 ]
@@ -2057,11 +2056,13 @@ dependencies = [
  "indicatif",
  "libc",
  "log",
+ "lzss",
  "multimap",
  "num-derive",
  "num-traits",
  "parse_int",
  "probe-rs",
+ "rand",
  "regex",
  "ron 0.7.1",
  "rusb",
@@ -2102,7 +2103,7 @@ dependencies = [
 [[package]]
 name = "humpty"
 version = "0.1.1"
-source = "git+https://github.com/oxidecomputer/humpty#b4052d8b0c1fe555e1686b281104852d7fba5230"
+source = "git+https://github.com/oxidecomputer/humpty?branch=single-task-dump#5a89634ee21463b3b0a3b56af82d9ebbe15dc2ef"
 dependencies = [
  "hubpack",
  "lzss",

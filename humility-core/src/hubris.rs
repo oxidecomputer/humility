@@ -326,6 +326,7 @@ impl HubrisSensorKind {
     }
 }
 
+#[derive(Clone)]
 pub struct HubrisFlashMap {
     /// Linear map of all flash memory
     pub contents: Vec<u8>,

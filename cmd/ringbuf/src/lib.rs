@@ -68,6 +68,9 @@ struct RingbufArgs {
     /// list variables
     #[clap(long, short)]
     list: bool,
+    /// print full errors
+    #[clap(long, short)]
+    verbose: bool,
     /// print only a single ringbuffer by substring of name
     #[clap(conflicts_with = "list")]
     name: Option<String>,
@@ -212,7 +215,11 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
         );
         if let Some(def) = def {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
-                humility::msg!("ringbuf dump failed: {}", e);
+                if subargs.verbose {
+                    humility::msg!("ringbuf dump failed: {:?}", e);
+                } else {
+                    humility::msg!("ringbuf dump failed: {}", e);
+                }
             }
         } else {
             humility::msg!("could not look up type: {:?}", v.1.goff);

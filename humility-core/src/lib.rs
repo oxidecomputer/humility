@@ -11,6 +11,7 @@ use hubris::HubrisArchive;
 pub mod arch;
 pub mod cli;
 pub mod core;
+pub mod dump;
 pub mod env;
 pub mod hubris;
 pub mod net;

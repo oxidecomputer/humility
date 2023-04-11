@@ -100,12 +100,12 @@ pub trait Core {
     fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()>;
 
     /// Send over network, if applicable
-    fn send(&mut self, _buf: &[u8], _agent: NetAgent) -> Result<usize> {
+    fn send(&self, _buf: &[u8], _agent: NetAgent) -> Result<usize> {
         bail!("cannot send over network");
     }
 
     /// Receive from network, if applicable
-    fn recv(&mut self, _buf: &mut [u8], _agent: NetAgent) -> Result<usize> {
+    fn recv(&self, _buf: &mut [u8], _agent: NetAgent) -> Result<usize> {
         bail!("cannot receive from network");
     }
 }
@@ -1377,6 +1377,7 @@ pub struct NetCore {
     udprpc_socket: UdpSocket,
     dump_agent_socket: UdpSocket,
     flash: HubrisFlashMap,
+    ram: Vec<HubrisRegion>,
 }
 
 impl NetCore {
@@ -1384,7 +1385,7 @@ impl NetCore {
         ip: &str,
         hubris: &HubrisArchive,
         timeout: Duration,
-    ) -> Result<NetCore> {
+    ) -> Result<Self> {
         let mut iter = ip.split('%');
         let ip = iter.next().expect("ip address is empty");
         let iface = iter
@@ -1418,14 +1419,44 @@ impl NetCore {
         dump_agent_socket.set_read_timeout(Some(timeout))?;
         dump_agent_socket.connect(&dest[..])?;
 
-        Ok(Self {
+        let mut out = Self {
             udprpc_socket,
             dump_agent_socket,
             flash: HubrisFlashMap::new(hubris)?,
-        })
+            ram: vec![], // filled in below
+        };
+
+        // Surprisingly, this works: `hubris.regions` only reads data from the
+        // kernel's task table, which is in flash, so this works despite using a
+        // NetCore (which cannot read arbitrary memory).
+        let regions = hubris.regions(&mut out)?;
+        let mut ram_regions: Vec<_> = regions
+            .into_values()
+            .filter(|r| {
+                !r.attr.device
+                    && !r.attr.dma
+                    && !r.attr.execute
+                    && r.attr.read
+                    && r.attr.write
+                    && !r.tasks.is_empty()
+            })
+            .collect();
+
+        // Sort regions so we can find a target region with binary search
+        ram_regions.sort_by_key(|r| r.base);
+
+        // Assert a simple invariant to detect weird images
+        for (a, b) in ram_regions.iter().zip(ram_regions.iter().skip(1)) {
+            if b.base < a.base + a.size {
+                bail!("overlapping regions: {a:x?}; {b:x?}");
+            }
+        }
+
+        out.ram = ram_regions;
+        Ok(out)
     }
 
-    fn read(&self, addr: u32, data: &mut [u8]) -> Result<()> {
+    fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         if let Some((&base, &(size, offset))) =
             self.flash.regions.range(..=addr).rev().next()
         {
@@ -1449,11 +1480,145 @@ impl NetCore {
             }
         }
 
-        bail!(
-            "0x{:0x} can't be read via the archive (and raw memory \
-            can't be read via the network)",
-            addr
-        );
+        self.read_ram(addr, data).context(format!(
+            "0x{addr:0x} can't be read via the archive or over the network"
+        ))
+    }
+
+    /// Reads data from RAM using the (UDP) dump agent as a proxy
+    fn read_ram(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        let p = self.ram.partition_point(|v| v.base <= addr);
+        if p == 0 {
+            bail!("address not found in RAM map");
+        }
+
+        // By construction, we know that every region in self.ram has at least
+        // one task associated with it.  If this task is the supervisor, then
+        // that's bad news.
+        let region = &self.ram[p - 1];
+        let Some(task) = region.tasks.iter().find(|t| t.task() != 0) else {
+            bail!("supervisor memory cannot be read using dump facilities");
+        };
+
+        // Send a request to dump this specific region of memory within the task
+        let aligned_start = addr & !0b11;
+        let mut aligned_length = data.len() as u32 + addr - aligned_start;
+        while aligned_length & 0b11 != 0 {
+            aligned_length += 1;
+        }
+        let r =
+            self.dump_remote_action(humpty::udp::Request::DumpTaskRegion {
+                task_index: task.task(),
+                start: aligned_start,
+                length: aligned_length,
+            })?;
+        let dump_index = match r {
+            Ok(humpty::udp::Response::DumpTaskRegion(addr)) => addr,
+            Ok(o) => bail!("unexpected response from dump agent: {o:?}"),
+            Err(humpty::udp::Error::DumpAreaInUse) => {
+                bail!(
+                    "out of space for dump_agent; \
+                     use `humility dump --initialize-dump-agent` \
+                     to free space"
+                )
+            }
+            Err(e) => {
+                bail!("dump agent failed: {e:?}")
+            }
+        };
+
+        // We're going to collect just this region into an ersatz AgentCore
+        let mut agent_core = crate::dump::AgentCore::new(self.flash.clone());
+        {
+            use crate::dump::{
+                DumpAgent, DumpAgentExt, DumpArea, UdpDumpAgent,
+            };
+            let mut udp_dump: Box<dyn DumpAgent> =
+                Box::new(UdpDumpAgent::new(self));
+            udp_dump.read_dump(
+                Some(DumpArea::ByIndex(dump_index as usize)),
+                &mut agent_core,
+                false,
+            )?;
+        }
+
+        // Pop the most recent dump, since we were just using it to read memory
+        // and it doesn't need to take up a dump area forever.
+        let r = self.dump_remote_action(
+            humpty::udp::Request::ReinitializeDumpFrom { index: dump_index },
+        )?;
+        match r {
+            Ok(humpty::udp::Response::ReinitializeDumpFrom) => (),
+            r => bail!("unexpected response from dump agent: {r:?}"),
+        }
+        // By construction, this AgentCore has exactly what it needs!
+        agent_core.read_8(addr, data)?;
+        Ok(())
+    }
+
+    /// Sends a remote dump command over the network
+    fn dump_remote_action(
+        &self,
+        msg: humpty::udp::Request,
+    ) -> Result<Result<humpty::udp::Response, humpty::udp::Error>> {
+        use humpty::udp::{version, Header, Request, Response};
+        use rand::Rng;
+
+        let mut rng = rand::thread_rng();
+        let header =
+            Header { version: version::CURRENT, message_id: rng.gen() };
+        let mut buf = vec![
+            0u8;
+            std::cmp::max(
+                std::mem::size_of::<(Header, Request)>(),
+                std::mem::size_of::<(Header, Response)>()
+            )
+        ];
+        let size = hubpack::serialize(&mut buf, &(header, msg))
+            .context("failed to serialize message")?;
+
+        // Send the packet out
+        self.send(&buf[..size], NetAgent::DumpAgent)
+            .context("failed to send packet")?;
+
+        // Try to receive a reply
+        let size = self
+            .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
+            .context("failed to receive packet")?;
+
+        let (reply_header, rest): (Header, _) =
+            hubpack::deserialize(&buf[..size])
+                .map_err(|_| anyhow!("deserialization of header failed"))?;
+        if reply_header.message_id != header.message_id {
+            bail!(
+                "message ID mismatch: {} != {}",
+                reply_header.message_id,
+                header.message_id
+            );
+        } else if reply_header.version < version::MIN {
+            bail!(
+                "received reply with invalid version: {} < our min ({})",
+                reply_header.version,
+                version::MIN
+            );
+        }
+
+        let (reply, _) = hubpack::deserialize(rest).map_err(|_| {
+            if reply_header.version > version::CURRENT {
+                anyhow!(
+                    "deserialization of body failed, \
+                        version {} > our version {}",
+                    reply_header.version,
+                    version::CURRENT
+                )
+            } else {
+                anyhow!(
+                    "deserialization of body failed, despite versions matching"
+                )
+            }
+        })?;
+
+        Ok(reply)
     }
 }
 
@@ -1473,7 +1638,7 @@ impl Core for NetCore {
         Ok(())
     }
 
-    fn send(&mut self, buf: &[u8], target: NetAgent) -> Result<usize> {
+    fn send(&self, buf: &[u8], target: NetAgent) -> Result<usize> {
         match target {
             NetAgent::UdpRpc => self.udprpc_socket.send(buf),
             NetAgent::DumpAgent => self.dump_agent_socket.send(buf),
@@ -1481,7 +1646,7 @@ impl Core for NetCore {
         .map_err(anyhow::Error::from)
     }
 
-    fn recv(&mut self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
+    fn recv(&self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
         match target {
             NetAgent::UdpRpc => self.udprpc_socket.recv(buf),
             NetAgent::DumpAgent => self.dump_agent_socket.recv(buf),
