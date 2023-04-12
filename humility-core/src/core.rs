@@ -1393,7 +1393,7 @@ impl NetCore {
 
         let scopeid = decode_iface(iface)?;
 
-        // Hard-coded socket address, based on Hubris configuration
+        // See oxidecomputer/oana for standard Hubris UDP ports
         let target = format!("[{}%{}]:998", ip, scopeid);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
@@ -1411,7 +1411,7 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
-        // Hard-coded socket address, based on Hubris configuration
+        // See oxidecomputer/oana for standard Hubris UDP ports
         let target = format!("[{}%{}]:11113", ip, scopeid);
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
         let dump_agent_socket = UdpSocket::bind("[::]:0")?;
