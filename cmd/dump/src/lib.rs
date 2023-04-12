@@ -765,15 +765,19 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         Ok(())
     }
 
-    /// This is the tricky one
+    /// Reads dump areas from the target
+    ///
+    /// Under the hood, we combine multiple calls to `DumpAgent.read_dump` into
+    /// a single HIF program for efficiency; this should be transparent to the
+    /// caller.
     fn read_generic(
         &mut self,
         areas: &mut dyn Iterator<Item = (u8, u32)>,
         cont: &mut dyn FnMut(u8, u32, &[u8]) -> Result<bool>,
     ) -> Result<Vec<Vec<u8>>> {
         // Because HIF has overhead, we're going to process a chunk of multiple
-        // read_dump calls in a single HIF program.  The size depends on our
-        // return data size.
+        // `read_dump` calls in a single HIF program.  The number depends on our
+        // returned data size and the Hiffy context's `rdata` array size.
         let op = self.hubris.get_idol_command("DumpAgent.read_dump")?;
         let rsize = self.hubris.lookup_type(op.ok)?.size(self.hubris)?;
         let chunksize = (self.context.rdata_size() / rsize) - 1;
@@ -842,15 +846,15 @@ impl<'a> UdpDumpAgent<'a> {
         &mut self,
         msg: udp::Request,
     ) -> Result<Result<udp::Response, udp::Error>> {
-        use udp::{Header, Request, Response};
+        use udp::{Header, RequestMessage, ResponseMessage};
         let mut rng = rand::thread_rng();
         let header =
             Header { version: udp::version::CURRENT, message_id: rng.gen() };
         let mut buf = vec![
             0u8;
             std::cmp::max(
-                std::mem::size_of::<(Header, Request)>(),
-                std::mem::size_of::<(Header, Response)>()
+                std::mem::size_of::<RequestMessage>(),
+                std::mem::size_of::<ResponseMessage>()
             )
         ];
         let size = hubpack::serialize(&mut buf, &(header, msg))
