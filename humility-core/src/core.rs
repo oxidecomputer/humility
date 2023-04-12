@@ -1523,9 +1523,8 @@ impl NetCore {
             Ok(o) => bail!("unexpected response from dump agent: {o:?}"),
             Err(humpty::udp::Error::DumpAreaInUse) => {
                 bail!(
-                    "out of space for dump_agent; \
-                     use `humility dump --initialize-dump-agent` \
-                     to free space"
+                    "out of space for dump_agent; use \
+                     `humility dump --initialize-dump-agent` to free space"
                 )
             }
             Err(e) => {
