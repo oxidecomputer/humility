@@ -598,6 +598,20 @@ pub trait DumpAgentExt {
     }
 }
 
+impl DumpAgentExt for &mut dyn DumpAgent {
+    fn read_generic<I, F>(
+        &mut self,
+        mut areas: I,
+        mut cont: F,
+    ) -> Result<Vec<Vec<u8>>>
+    where
+        I: Iterator<Item = (u8, u32)>,
+        F: FnMut(u8, u32, &[u8]) -> Result<bool>,
+    {
+        DumpAgent::read_generic(*self, &mut areas, &mut cont)
+    }
+}
+
 impl<'a> DumpAgentExt for Box<dyn DumpAgent + 'a> {
     fn read_generic<I, F>(
         &mut self,
@@ -671,7 +685,7 @@ impl<'a> UdpDumpAgent<'a> {
     }
 
     /// Sends a remote dump command over the network
-    fn dump_remote_action(
+    pub fn dump_remote_action(
         &mut self,
         msg: humpty::udp::Request,
     ) -> Result<Result<humpty::udp::Response, humpty::udp::Error>> {

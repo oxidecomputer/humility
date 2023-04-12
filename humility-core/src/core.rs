@@ -1496,9 +1496,14 @@ impl NetCore {
         // one task associated with it.  If this task is the supervisor, then
         // that's bad news.
         let region = &self.ram[p - 1];
-        let Some(task) = region.tasks.iter().find(|t| t.task() != 0) else {
+        let Some(&task) = region.tasks.iter().find(|t| t.task() != 0) else {
             bail!("supervisor memory cannot be read using dump facilities");
         };
+
+        use crate::dump::{DumpAgent, DumpAgentExt, DumpArea, UdpDumpAgent};
+        let mut agent_core = crate::dump::AgentCore::new(self.flash.clone());
+
+        let mut udp_dump = UdpDumpAgent::new(self);
 
         // Send a request to dump this specific region of memory within the task
         let aligned_start = addr & !0b11;
@@ -1506,12 +1511,13 @@ impl NetCore {
         while aligned_length & 0b11 != 0 {
             aligned_length += 1;
         }
-        let r =
-            self.dump_remote_action(humpty::udp::Request::DumpTaskRegion {
+        let r = udp_dump.dump_remote_action(
+            humpty::udp::Request::DumpTaskRegion {
                 task_index: task.task(),
                 start: aligned_start,
                 length: aligned_length,
-            })?;
+            },
+        )?;
         let dump_index = match r {
             Ok(humpty::udp::Response::DumpTaskRegion(addr)) => addr,
             Ok(o) => bail!("unexpected response from dump agent: {o:?}"),
@@ -1528,23 +1534,15 @@ impl NetCore {
         };
 
         // We're going to collect just this region into an ersatz AgentCore
-        let mut agent_core = crate::dump::AgentCore::new(self.flash.clone());
-        {
-            use crate::dump::{
-                DumpAgent, DumpAgentExt, DumpArea, UdpDumpAgent,
-            };
-            let mut udp_dump: Box<dyn DumpAgent> =
-                Box::new(UdpDumpAgent::new(self));
-            udp_dump.read_dump(
-                Some(DumpArea::ByIndex(dump_index as usize)),
-                &mut agent_core,
-                false,
-            )?;
-        }
+        (&mut udp_dump as &mut dyn DumpAgent).read_dump(
+            Some(DumpArea::ByIndex(dump_index as usize)),
+            &mut agent_core,
+            false,
+        )?;
 
         // Pop the most recent dump, since we were just using it to read memory
         // and it doesn't need to take up a dump area forever.
-        let r = self.dump_remote_action(
+        let r = udp_dump.dump_remote_action(
             humpty::udp::Request::ReinitializeDumpFrom { index: dump_index },
         )?;
         match r {
@@ -1554,71 +1552,6 @@ impl NetCore {
         // By construction, this AgentCore has exactly what it needs!
         agent_core.read_8(addr, data)?;
         Ok(())
-    }
-
-    /// Sends a remote dump command over the network
-    fn dump_remote_action(
-        &self,
-        msg: humpty::udp::Request,
-    ) -> Result<Result<humpty::udp::Response, humpty::udp::Error>> {
-        use humpty::udp::{version, Header, Request, Response};
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-        let header =
-            Header { version: version::CURRENT, message_id: rng.gen() };
-        let mut buf = vec![
-            0u8;
-            std::cmp::max(
-                std::mem::size_of::<(Header, Request)>(),
-                std::mem::size_of::<(Header, Response)>()
-            )
-        ];
-        let size = hubpack::serialize(&mut buf, &(header, msg))
-            .context("failed to serialize message")?;
-
-        // Send the packet out
-        self.send(&buf[..size], NetAgent::DumpAgent)
-            .context("failed to send packet")?;
-
-        // Try to receive a reply
-        let size = self
-            .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
-            .context("failed to receive packet")?;
-
-        let (reply_header, rest): (Header, _) =
-            hubpack::deserialize(&buf[..size])
-                .map_err(|_| anyhow!("deserialization of header failed"))?;
-        if reply_header.message_id != header.message_id {
-            bail!(
-                "message ID mismatch: {} != {}",
-                reply_header.message_id,
-                header.message_id
-            );
-        } else if reply_header.version < version::MIN {
-            bail!(
-                "received reply with invalid version: {} < our min ({})",
-                reply_header.version,
-                version::MIN
-            );
-        }
-
-        let (reply, _) = hubpack::deserialize(rest).map_err(|_| {
-            if reply_header.version > version::CURRENT {
-                anyhow!(
-                    "deserialization of body failed, \
-                        version {} > our version {}",
-                    reply_header.version,
-                    version::CURRENT
-                )
-            } else {
-                anyhow!(
-                    "deserialization of body failed, despite versions matching"
-                )
-            }
-        })?;
-
-        Ok(reply)
     }
 }
 
