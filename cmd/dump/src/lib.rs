@@ -1275,10 +1275,10 @@ fn get_dump_agent<'a>(
             .map(|f| f.contains(&"net".to_string()))
             .unwrap_or(false)
     {
-        humility::msg!("making UDP dump agent");
+        humility::msg!("using UDP dump agent");
         Ok(Box::new(UdpDumpAgent { core }))
     } else {
-        humility::msg!("making hiffy dump agent");
+        humility::msg!("using hiffy dump agent");
         Ok(Box::new(HiffyDumpAgent::new(hubris, core, subargs.timeout)?))
     }
 }
