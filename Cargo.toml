@@ -88,7 +88,7 @@ members = [
 [workspace.dependencies]
 # `git`-based deps
 hif = { git = "https://github.com/oxidecomputer/hif" }
-humpty = { git = "https://github.com/oxidecomputer/humpty" }
+humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.1" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
@@ -204,13 +204,14 @@ lzss = "0.8"
 multimap = "0.8.1"
 num-derive = "0.3"
 num-traits = "0.2"
-parse_int = "0.4.0"
 parse-size = { version = "1.0", features = ["std"]}
+parse_int = "0.4.0"
 paste = "0.1"
 path-slash = "0.1.4"
 postcard = "0.7.0"
 proc-macro2 = "1.0"
 quote = "1.0"
+rand = "0.8"
 raw-cpuid = "10.6.0"
 reedline = "0.11.0"
 regex = "1.5.5"

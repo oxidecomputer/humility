@@ -5,7 +5,7 @@
 use crate::{doppel::RpcHeader, doppel::StaticCell, idol};
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
-use humility::core::Core;
+use humility::core::{Core, NetAgent};
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
 use postcard::{take_from_bytes, to_slice};
@@ -549,13 +549,13 @@ impl<'a> HiffyContext<'a> {
                 packet.extend(&payload[0..nbytes as usize]);
 
                 // Send the packet out
-                if let Err(e) = core.send(&packet) {
+                if let Err(e) = core.send(&packet, NetAgent::UdpRpc) {
                     workspace.errors.push(e);
                     return Err(Failure::FunctionError(0));
                 }
 
                 // Try to receive a reply
-                match core.recv(buf.as_mut_slice()) {
+                match core.recv(buf.as_mut_slice(), NetAgent::UdpRpc) {
                     Ok(n) => {
                         workspace.results.push(buf[0..n].to_vec());
                         Ok(())
