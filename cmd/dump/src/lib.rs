@@ -98,7 +98,7 @@ struct DumpArgs {
     timeout: u32,
 
     /// show dump agent status
-    #[clap(long, conflicts_with = "simulation")]
+    #[clap(long, conflicts_with_all = &["simulation", "task"])]
     dump_agent_status: bool,
 
     /// force use of the dump agent when directly attached with a debug probe
@@ -110,11 +110,11 @@ struct DumpArgs {
     force_hiffy_agent: bool,
 
     /// force manual initiation, leaving target halted
-    #[clap(long, requires = "force-dump-agent")]
+    #[clap(long, requires = "force-dump-agent", conflicts_with = "task")]
     force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
-    #[clap(long, conflicts_with = "simulation")]
+    #[clap(long, conflicts_with_all = &["simulation", "task"])]
     force_read: bool,
 
     /// initialize dump state, clearing any dump at the dump agent
@@ -137,7 +137,7 @@ struct DumpArgs {
     simulate_dumper: bool,
 
     /// in addition to simulating the dumper, generate a stock dump
-    #[clap(long, requires = "simulation")]
+    #[clap(long, requires = "simulation", conflicts_with = "task")]
     stock_dumpfile: Option<String>,
 
     /// emulate in situ dumper by reading directly from target and writing
@@ -146,36 +146,24 @@ struct DumpArgs {
     emulate_dumper: bool,
 
     /// simulates a single-task dump
-    #[clap(
-        long,
-        requires = "simulate_dumper",
-        conflicts_with = "stock-dumpfile"
-    )]
+    #[clap(long, conflicts_with_all = &["area", "stock-dumpfile", "list"])]
     simulate_task_dump: Option<String>,
 
     /// dumps a single task
     #[clap(
         long,
-        conflicts_with_all = &[
-            "stock_dumpfile", "simulation", "list", "area",
-            "force_read", "force_manual_initialization",
-            "dump_agent_status"
-        ]
+        conflicts_with_all = &["simulation", "list", "area"]
     )]
     task: Option<String>,
 
-    #[clap(short, long, conflicts_with_all = &[
-        "simulate_task_dump", "simulation", "list"
-    ])]
+    #[clap(short, long, conflicts_with_all = &["simulation", "list"])]
     area: Option<usize>,
 
     /// leave the target halted
     #[clap(long, conflicts_with = "simulation")]
     leave_halted: bool,
 
-    #[clap(long, short, conflicts_with_all = &[
-        "simulate_task_dump", "simulation", "area"
-    ])]
+    #[clap(long, short, conflicts_with_all = &["simulation", "area"])]
     list: bool,
 
     dumpfile: Option<String>,
@@ -339,6 +327,9 @@ fn dump_via_agent(
     //
     let mut task = match &subargs.simulate_task_dump {
         Some(task) => {
+            if !subargs.simulate_dumper {
+                bail!("--simulate-task-dump requires --simulate-dumper");
+            }
             let ndx = match hubris.lookup_task(task) {
                 Some(HubrisTask::Task(ndx)) => ndx,
                 _ => {
