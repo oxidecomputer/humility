@@ -21,9 +21,3 @@ clap.workspace = true
 indexmap.workspace = true
 log.workspace = true
 parse_int.workspace = true
-
-[target.'cfg(not(windows))'.dependencies]
-libc.workspace = true
-
-[target.'cfg(windows)'.dependencies]
-winapi = { workspace = true, features = ["netioapi"] }

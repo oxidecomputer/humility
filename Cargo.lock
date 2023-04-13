@@ -1708,11 +1708,9 @@ dependencies = [
  "humility-idol",
  "idol",
  "indexmap",
- "libc",
  "log",
  "parse_int",
  "pmbus",
- "winapi",
 ]
 
 [[package]]
@@ -1863,11 +1861,9 @@ dependencies = [
  "humility-idol",
  "idol",
  "indexmap",
- "libc",
  "log",
  "parse_int",
  "serde",
- "winapi",
  "zerocopy",
 ]
 
