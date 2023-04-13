@@ -27,6 +27,8 @@ rust-version = "1.68"
 members = [
     "humility-core",
     "humility-cmd",
+    "humility-dump-agent",
+    "humility-net-core",
     "humility-arch-cortex",
     "cmd/apptable",
     "cmd/auxflash",
@@ -116,7 +118,9 @@ capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
 humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
+humility-dump-agent = { path = "./humility-dump-agent" }
 humility_load_derive = { path = "./load_derive" }
+humility-net-core = { path = "./humility-net-core" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-bankerase = { path = "./cmd/bankerase", package = "humility-cmd-bankerase" }

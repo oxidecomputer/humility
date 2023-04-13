@@ -103,7 +103,7 @@ pub fn attach_dump(
 pub fn attach_net(args: &Cli, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
     if let Some(ip) = &args.ip {
         let timeout = Duration::from_millis(args.timeout as u64);
-        humility::core::attach_net(ip, hubris, timeout)
+        humility_net_core::attach_net(ip, hubris, timeout)
     } else {
         bail!("must be run against a specified IP address");
     }

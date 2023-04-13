@@ -1182,6 +1182,7 @@ dependencies = [
  "hif",
  "hubpack",
  "humility-core",
+ "humility-net-core",
  "idol",
  "indexmap",
  "lazy_static",
@@ -1332,6 +1333,7 @@ dependencies = [
  "hubpack",
  "humility-cmd",
  "humility-core",
+ "humility-dump-agent",
  "humpty",
  "indexmap",
  "indicatif",
@@ -2056,13 +2058,11 @@ dependencies = [
  "indicatif",
  "libc",
  "log",
- "lzss",
  "multimap",
  "num-derive",
  "num-traits",
  "parse_int",
  "probe-rs",
- "rand",
  "regex",
  "ron 0.7.1",
  "rusb",
@@ -2089,6 +2089,32 @@ dependencies = [
  "num-derive",
  "num-traits",
  "paste",
+]
+
+[[package]]
+name = "humility-dump-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hubpack",
+ "humility-core",
+ "humpty",
+ "indexmap",
+ "indicatif",
+ "lzss",
+ "num-traits",
+ "rand",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-net-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "humility-dump-agent",
+ "humpty",
 ]
 
 [[package]]

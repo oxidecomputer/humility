@@ -72,13 +72,13 @@ use hif::*;
 use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::core::Core;
-use humility::dump::{
-    task_areas, AgentCore, DumpAgent, DumpAgentExt, DumpArea, UdpDumpAgent,
-};
 use humility::hubris::*;
 use humility_cmd::hiffy::*;
 use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_dump_agent::{
+    task_areas, DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, UdpDumpAgent,
+};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader, DumpTask};
 use indicatif::{HumanBytes, HumanDuration, ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
@@ -546,7 +546,7 @@ fn dump_via_agent(
     core: &mut dyn Core,
     subargs: &DumpArgs,
 ) -> Result<()> {
-    let mut out = AgentCore::new(HubrisFlashMap::new(hubris)?);
+    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
     let started = Some(Instant::now());
     let mut area = subargs.area.map(DumpArea::ByIndex);
 

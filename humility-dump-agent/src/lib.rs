@@ -3,14 +3,19 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! Traits and data structures for Hubris dump support
-use crate::{
+//!
+//! This crate defines the `DumpAgent` and `DumpAgentExt` traits, which allows
+//! us to execute dump-related actions.  It also includes `UdpDumpAgent`, which
+//! implements the `DumpAgent` trait via the `dump-agent` task on the target.
+
+use anyhow::{anyhow, bail, Context, Result};
+use core::mem::size_of;
+use humility::{
     arch::ARMRegister,
     core::{Core, NetAgent},
     hubris::HubrisFlashMap,
     msg,
 };
-use anyhow::{anyhow, bail, Context, Result};
-use core::mem::size_of;
 use humpty::{
     DumpAreaHeader, DumpRegister, DumpSegment, DumpSegmentData,
     DumpSegmentHeader, DumpTask,
@@ -78,14 +83,14 @@ pub enum DumpArea {
 //
 // When using the dump agent, we create our own ersatz Core
 //
-pub struct AgentCore {
+pub struct DumpAgentCore {
     flash: HubrisFlashMap,
     ram_regions: BTreeMap<u32, Vec<u8>>,
     registers: HashMap<ARMRegister, u32>,
 }
 
-impl AgentCore {
-    pub fn new(flash: HubrisFlashMap) -> AgentCore {
+impl DumpAgentCore {
+    pub fn new(flash: HubrisFlashMap) -> DumpAgentCore {
         Self {
             flash,
             ram_regions: Default::default(),
@@ -271,9 +276,9 @@ impl AgentCore {
     }
 }
 
-impl Core for AgentCore {
+impl Core for DumpAgentCore {
     fn info(&self) -> (String, Option<String>) {
-        panic!("unexpected call to AgentCore info");
+        panic!("unexpected call to DumpAgentCore info");
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
@@ -505,7 +510,7 @@ pub trait DumpAgentExt {
     fn read_dump(
         &mut self,
         area: Option<DumpArea>,
-        out: &mut AgentCore,
+        out: &mut DumpAgentCore,
         verbose: bool,
     ) -> Result<Option<DumpTask>> {
         let (base, headers, task) = {
