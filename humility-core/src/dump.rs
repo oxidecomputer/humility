@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! Traits and data structures for Hubris dump support
 use crate::{
     arch::ARMRegister,
     core::{Core, NetAgent},
@@ -25,9 +26,7 @@ use std::{
 };
 use zerocopy::FromBytes;
 
-pub fn parse_dump_header(
-    buf: &[u8],
-) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
+fn parse_dump_header(buf: &[u8]) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
     let header = DumpAreaHeader::read_from_prefix(buf)
         .ok_or_else(|| anyhow!("failed to parse dump area"))?;
 
@@ -62,7 +61,7 @@ pub fn parse_dump_header(
 }
 
 /// Calls parse_dump_header, with nicer error reporting for the specific index
-pub fn parse_dump_header_index(
+fn parse_dump_header_index(
     index: usize,
     buf: &[u8],
 ) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
