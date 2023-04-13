@@ -586,12 +586,15 @@ fn dump_task_via_agent(
 
     let task = subargs.task.as_ref().unwrap();
     let ndx = match hubris.lookup_task(task) {
-        Some(HubrisTask::Task(ndx)) => ndx,
+        Some(HubrisTask::Task(ndx)) => *ndx,
         _ => {
             bail!("invalid task \"{task}\"");
         }
     };
-    let area = agent.dump_task(*ndx)?;
+    if ndx == 0 {
+        bail!("cannot dump supervisor");
+    }
+    let area = agent.dump_task(ndx)?;
     let task = agent.read_dump(
         Some(DumpArea::ByIndex(area as usize)),
         &mut out,
