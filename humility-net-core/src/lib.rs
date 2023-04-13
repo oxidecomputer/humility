@@ -192,13 +192,8 @@ impl NetCore {
 
         // Pop the most recent dump, since we were just using it to read memory
         // and it doesn't need to take up a dump area forever.
-        let r = udp_dump.dump_remote_action(
-            humpty::udp::Request::ReinitializeDumpFrom { index: dump_index },
-        )?;
-        match r {
-            Ok(humpty::udp::Response::ReinitializeDumpFrom) => (),
-            r => bail!("unexpected response from dump agent: {r:?}"),
-        }
+        udp_dump.reinitialize_dump_from(dump_index)?;
+
         // By construction, this DumpAgentCore has exactly what it needs!
         agent_core.read_8(addr, data)?;
         Ok(())

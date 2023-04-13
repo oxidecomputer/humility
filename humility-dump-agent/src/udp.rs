@@ -16,7 +16,7 @@ impl<'a> UdpDumpAgent<'a> {
     }
 
     /// Sends a remote dump command over the network
-    pub fn dump_remote_action(
+    fn dump_remote_action(
         &mut self,
         msg: humpty::udp::Request,
     ) -> Result<Result<humpty::udp::Response, humpty::udp::Error>> {
@@ -167,6 +167,16 @@ impl<'a> DumpAgent for UdpDumpAgent<'a> {
             })?;
         match r {
             Ok(humpty::udp::Response::DumpTaskRegion(out)) => Ok(out),
+            _ => bail!("invalid response: {r:?}"),
+        }
+    }
+
+    fn reinitialize_dump_from(&mut self, index: u8) -> Result<()> {
+        let r = self.dump_remote_action(
+            humpty::udp::Request::ReinitializeDumpFrom { index },
+        )?;
+        match r {
+            Ok(humpty::udp::Response::ReinitializeDumpFrom) => Ok(()),
             _ => bail!("invalid response: {r:?}"),
         }
     }

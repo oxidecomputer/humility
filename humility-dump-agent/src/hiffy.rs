@@ -294,4 +294,21 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
             }
         }
     }
+
+    fn reinitialize_dump_from(&mut self, index: u8) -> Result<()> {
+        let op =
+            self.hubris.get_idol_command("DumpAgent.reinitialize_dump_from")?;
+        let mut ops = vec![];
+        let payload =
+            op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
+        self.context.idol_call_ops(&op, &payload, &mut ops)?;
+        ops.push(Op::Done);
+
+        let out = self.run(ops.as_slice())?;
+        assert_eq!(out.len(), 1);
+        if let Err(err) = &out[0] {
+            bail!("failed to dump task region: {}", op.strerror(*err))
+        }
+        Ok(())
+    }
 }

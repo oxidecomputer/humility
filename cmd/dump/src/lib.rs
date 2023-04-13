@@ -592,7 +592,6 @@ fn dump_task_via_agent(
         true,
     )?;
     assert!(task.is_some());
-    println!("got task {task:?}");
     hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started)?;
 
     Ok(())
