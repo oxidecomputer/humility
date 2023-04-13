@@ -5,10 +5,12 @@ edition = "2021"
 description = "SPI reading and writing"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-parse_int = { workspace = true }
-log = { workspace = true }
+hif.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+parse_int.workspace = true
+log.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true

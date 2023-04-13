@@ -6,8 +6,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 
 use humility::cli::Subcommand;
-use humility_cmd::{hiffy::*, CommandKind};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_hiffy::*;
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Read;

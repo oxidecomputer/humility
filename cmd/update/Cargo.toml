@@ -5,12 +5,15 @@ edition = "2021"
 description = "apply an update"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-anyhow = { workspace = true }
-clap = { workspace = true }
-parse_int = { workspace = true }
-log = { workspace = true }
-indicatif = { workspace = true }
-cmd-hiffy = { workspace = true }
+hif.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+parse_int.workspace = true
+log.workspace = true
+indicatif.workspace = true
+cmd-hiffy.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true

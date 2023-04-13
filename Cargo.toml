@@ -25,11 +25,14 @@ rust-version = "1.68"
 
 [workspace]
 members = [
-    "humility-core",
-    "humility-cmd",
-    "humility-dump-agent",
-    "humility-net-core",
     "humility-arch-cortex",
+    "humility-cmd",
+    "humility-core",
+    "humility-doppel",
+    "humility-dump-agent",
+    "humility-hiffy",
+    "humility-idol",
+    "humility-net-core",
     "cmd/apptable",
     "cmd/auxflash",
     "cmd/bankerase",
@@ -119,6 +122,9 @@ humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
 humility-dump-agent = { path = "./humility-dump-agent" }
+humility-doppel = { path = "./humility-doppel" }
+humility-hiffy = { path = "./humility-hiffy" }
+humility-idol = { path = "./humility-idol" }
 humility_load_derive = { path = "./load_derive" }
 humility-net-core = { path = "./humility-net-core" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }

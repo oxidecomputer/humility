@@ -97,10 +97,10 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
-use humility_cmd::hiffy::*;
-use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_hiffy::*;
+use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
 use std::collections::{HashMap, HashSet};
 

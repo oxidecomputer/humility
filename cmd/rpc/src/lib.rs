@@ -60,8 +60,6 @@ use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
-use cmd_hiffy as humility_cmd_hiffy;
-
 use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
@@ -69,9 +67,9 @@ use hubpack::SerializedSize;
 use humility::cli::Subcommand;
 use humility::net::decode_iface;
 use humility::{hubris::*, reflect};
-use humility_cmd::doppel::RpcHeader;
-use humility_cmd::{idol, CommandKind};
-use humility_cmd::{Archive, Command};
+use humility_cmd::{Archive, Command, CommandKind};
+use humility_doppel::RpcHeader;
+use humility_idol as idol;
 use serde::{Deserialize, Serialize};
 use zerocopy::{AsBytes, U16, U64};
 
@@ -453,8 +451,7 @@ impl<'a> RpcClient<'a> {
             // Check the return code from the Idol call
             let rc = u32::from_be_bytes(buf[1..5].try_into().unwrap());
             let val = if rc == 0 { Ok(buf[5..].to_vec()) } else { Err(rc) };
-            let result =
-                humility_cmd_hiffy::hiffy_decode(self.hubris, op, val)?;
+            let result = cmd_hiffy::hiffy_decode(self.hubris, op, val)?;
             Ok(result)
         }
     }
@@ -473,7 +470,7 @@ fn rpc_call(
         let mut client = RpcClient::new(hubris, ip, timeout)?;
         let result = client.call(op, args)?;
         print!("{:25} ", ip);
-        humility_cmd_hiffy::hiffy_print_result(hubris, op, result)?;
+        cmd_hiffy::hiffy_print_result(hubris, op, result)?;
     }
 
     Ok(())
@@ -485,7 +482,7 @@ fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {
-        humility_cmd_hiffy::hiffy_list(hubris, vec![])?;
+        cmd_hiffy::hiffy_list(hubris, vec![])?;
         return Ok(());
     }
 

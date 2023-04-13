@@ -1,14 +1,16 @@
 [package]
-name = "humility-cmd-diagnose"
+name = "humility-hiffy"
 version = "0.1.0"
 edition = "2021"
-description = "analyze a system to detect common problems"
 
 [dependencies]
-clap.workspace = true
 anyhow.workspace = true
+hif.workspace = true
+idol.workspace = true
 parse_int.workspace = true
+postcard.workspace = true
+zerocopy.workspace = true
 
 humility.workspace = true
-humility-cmd.workspace = true
 humility-doppel.workspace = true
+humility-idol.workspace = true

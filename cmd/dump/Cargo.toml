@@ -8,7 +8,6 @@ description = "generate Hubris dump"
 anyhow.workspace = true
 clap.workspace = true
 goblin.workspace = true
-hif.workspace = true
 hubpack.workspace = true
 humpty.workspace = true
 indexmap.workspace = true
@@ -21,6 +20,6 @@ probe-rs.workspace = true
 zerocopy.workspace = true
 zip.workspace = true
 
-humility-dump-agent.workspace = true
-humility-cmd.workspace = true
 humility.workspace = true
+humility-cmd.workspace = true
+humility-dump-agent.workspace = true

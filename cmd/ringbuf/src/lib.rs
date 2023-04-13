@@ -59,8 +59,8 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
-use humility_cmd::doppel::{Ringbuf, StaticCell};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_doppel::{Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]

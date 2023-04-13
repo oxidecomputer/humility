@@ -10,12 +10,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use core::mem::size_of;
-use humility::{
-    arch::ARMRegister,
-    core::{Core, NetAgent},
-    hubris::HubrisFlashMap,
-    msg,
-};
+use humility::{arch::ARMRegister, core::Core, hubris::HubrisFlashMap, msg};
 use humpty::{
     DumpAreaHeader, DumpRegister, DumpSegment, DumpSegmentData,
     DumpSegmentHeader, DumpTask,
@@ -23,13 +18,18 @@ use humpty::{
 use indexmap::IndexMap;
 use indicatif::{HumanBytes, HumanDuration, ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
-use rand::Rng;
 use std::{
     collections::{BTreeMap, HashMap},
     path::Path,
     time::Instant,
 };
 use zerocopy::FromBytes;
+
+mod hiffy;
+mod udp;
+
+pub use hiffy::HiffyDumpAgent;
+pub use udp::UdpDumpAgent;
 
 fn parse_dump_header(buf: &[u8]) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
     let header = DumpAreaHeader::read_from_prefix(buf)
@@ -678,141 +678,3 @@ pub fn task_areas(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-pub struct UdpDumpAgent<'a> {
-    core: &'a mut dyn Core,
-}
-
-impl<'a> UdpDumpAgent<'a> {
-    pub fn new(core: &'a mut dyn Core) -> Self {
-        Self { core }
-    }
-
-    /// Sends a remote dump command over the network
-    pub fn dump_remote_action(
-        &mut self,
-        msg: humpty::udp::Request,
-    ) -> Result<Result<humpty::udp::Response, humpty::udp::Error>> {
-        use humpty::udp::{version, Header, RequestMessage, ResponseMessage};
-        let mut rng = rand::thread_rng();
-        let header =
-            Header { version: version::CURRENT, message_id: rng.gen() };
-        let mut buf = vec![
-            0u8;
-            std::cmp::max(
-                std::mem::size_of::<RequestMessage>(),
-                std::mem::size_of::<ResponseMessage>()
-            )
-        ];
-        let size = hubpack::serialize(&mut buf, &(header, msg))
-            .context("failed to serialize message")?;
-
-        // Send the packet out
-        self.core
-            .send(&buf[..size], NetAgent::DumpAgent)
-            .context("failed to send packet")?;
-
-        // Try to receive a reply
-        let size = self
-            .core
-            .recv(buf.as_mut_slice(), NetAgent::DumpAgent)
-            .context("failed to receive packet")?;
-
-        let (reply_header, rest): (Header, _) =
-            hubpack::deserialize(&buf[..size])
-                .map_err(|_| anyhow!("deserialization of header failed"))?;
-        if reply_header.message_id != header.message_id {
-            bail!(
-                "message ID mismatch: {} != {}",
-                reply_header.message_id,
-                header.message_id
-            );
-        } else if reply_header.version < version::MIN {
-            bail!(
-                "received reply with invalid version: {} < our min ({})",
-                reply_header.version,
-                version::MIN
-            );
-        }
-
-        let (reply, _) = hubpack::deserialize(rest).map_err(|_| {
-            if reply_header.version > version::CURRENT {
-                anyhow!(
-                    "deserialization of body failed, \
-                        version {} > our version {}",
-                    reply_header.version,
-                    version::CURRENT
-                )
-            } else {
-                anyhow!(
-                    "deserialization of body failed, despite versions matching"
-                )
-            }
-        })?;
-
-        Ok(reply)
-    }
-}
-
-impl<'a> DumpAgent for UdpDumpAgent<'a> {
-    fn read_generic(
-        &mut self,
-        areas: &mut dyn Iterator<Item = (u8, u32)>,
-        cont: &mut dyn FnMut(u8, u32, &[u8]) -> Result<bool>,
-    ) -> Result<Vec<Vec<u8>>> {
-        let mut out = vec![];
-        for (index, offset) in areas {
-            let r =
-                self.dump_remote_action(humpty::udp::Request::ReadDump {
-                    index,
-                    offset,
-                })?;
-            match r {
-                Ok(humpty::udp::Response::ReadDump(d)) => {
-                    if !cont(index, offset, &d)? {
-                        break;
-                    } else {
-                        out.push(d.to_vec())
-                    }
-                }
-                Err(humpty::udp::Error::InvalidArea) => break,
-                _ => bail!("invalid reply: {r:?}"),
-            }
-        }
-        Ok(out)
-    }
-
-    fn core(&mut self) -> &mut dyn Core {
-        self.core
-    }
-
-    fn initialize_dump(&mut self) -> Result<()> {
-        let r =
-            self.dump_remote_action(humpty::udp::Request::InitializeDump)?;
-        match r {
-            Ok(humpty::udp::Response::InitializeDump) => Ok(()),
-            _ => bail!("invalid response: {r:?}"),
-        }
-    }
-
-    fn initialize_segments(&mut self, segments: &[(u32, u32)]) -> Result<()> {
-        for &(address, length) in segments {
-            let r = self.dump_remote_action(
-                humpty::udp::Request::AddDumpSegment { address, length },
-            )?;
-            match r {
-                Ok(humpty::udp::Response::AddDumpSegment) => (),
-                _ => bail!("invalid response: {r:?}"),
-            }
-        }
-        Ok(())
-    }
-
-    fn take_dump(&mut self) -> Result<()> {
-        let r = self.dump_remote_action(humpty::udp::Request::TakeDump)?;
-        match r {
-            Ok(humpty::udp::Response::TakeDump) => Ok(()),
-            _ => bail!("invalid response: {r:?}"),
-        }
-    }
-}

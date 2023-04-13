@@ -1,0 +1,14 @@
+[package]
+name = "humility-idol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+hubpack.workspace = true
+idol.workspace = true
+indexmap.workspace = true
+parse_int.workspace = true
+serde.workspace = true
+
+humility.workspace = true

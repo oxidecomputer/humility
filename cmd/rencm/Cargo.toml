@@ -5,15 +5,17 @@ edition = "2021"
 description = "query Renesas 8A3400X ClockMatrix parts"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-idt8a3xxxx = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-itertools = { workspace = true }
-parse_int = { workspace = true }
-log = { workspace = true }
-serde-xml-rs = { workspace = true }
-serde = { workspace = true }
-csv = { workspace = true }
+hif.workspace = true
+idt8a3xxxx.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+itertools.workspace = true
+parse_int.workspace = true
+log.workspace = true
+serde-xml-rs.workspace = true
+serde.workspace = true
+csv.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true

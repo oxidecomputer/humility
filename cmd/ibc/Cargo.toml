@@ -14,7 +14,8 @@ zerocopy.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
-cmd-hiffy.workspace = true
+humility-idol.workspace = true
+humility-hiffy.workspace = true
 
 hif.workspace = true
 idol.workspace = true

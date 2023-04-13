@@ -53,8 +53,9 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
-use humility_cmd::{hiffy::*, Archive, Attach, Command, Dumper, Validate};
-use humility_cmd::{idol, CommandKind};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_hiffy::*;
+use humility_idol::{self as idol};
 use std::io::Read;
 
 #[derive(Parser, Debug)]
