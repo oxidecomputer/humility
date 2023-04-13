@@ -584,7 +584,24 @@ fn dump_task_via_agent(
 
     let mut agent = get_dump_agent(hubris, core, subargs)?;
 
-    todo!()
+    let task = subargs.task.as_ref().unwrap();
+    let ndx = match hubris.lookup_task(task) {
+        Some(HubrisTask::Task(ndx)) => ndx,
+        _ => {
+            bail!("invalid task \"{task}\"");
+        }
+    };
+    let area = agent.dump_task(*ndx)?;
+    let task = agent.read_dump(
+        Some(DumpArea::ByIndex(area as usize)),
+        &mut out,
+        true,
+    )?;
+    assert!(task.is_some());
+    println!("got task {task:?}");
+    hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started)?;
+
+    Ok(())
 }
 
 fn dump_list(

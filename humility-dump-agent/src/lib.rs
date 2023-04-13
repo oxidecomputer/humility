@@ -360,6 +360,29 @@ pub trait DumpAgent {
     /// Initializes a set of segments defined as `(address, length)` tuples
     fn initialize_segments(&mut self, segments: &[(u32, u32)]) -> Result<()>;
 
+    /// Dumps a single task
+    ///
+    /// This uses using the kernel and supervisor to copy data out of the task,
+    /// so an external (or emulated) dumper is not necessary; unfortunately,
+    /// this also means that we are unable to dump the supervisor.
+    ///
+    /// Returns the area index in which the result begins.
+    fn dump_task(&mut self, task_index: u32) -> Result<u8>;
+
+    /// Dumps a sub-region of single task
+    ///
+    /// This uses using the kernel and supervisor to copy data out of the task,
+    /// so an external (or emulated) dumper is not necessary; unfortunately,
+    /// this also means that we are unable to dump the supervisor.
+    ///
+    /// Returns the area index in which the result begins.
+    fn dump_task_region(
+        &mut self,
+        task_index: u32,
+        start: u32,
+        length: u32,
+    ) -> Result<u8>;
+
     /// Kicks off a dump
     fn take_dump(&mut self) -> Result<()>;
 

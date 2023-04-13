@@ -142,4 +142,32 @@ impl<'a> DumpAgent for UdpDumpAgent<'a> {
             _ => bail!("invalid response: {r:?}"),
         }
     }
+
+    fn dump_task(&mut self, task_index: u32) -> Result<u8> {
+        let r = self.dump_remote_action(humpty::udp::Request::DumpTask {
+            task_index,
+        })?;
+        match r {
+            Ok(humpty::udp::Response::DumpTask(out)) => Ok(out),
+            _ => bail!("invalid response: {r:?}"),
+        }
+    }
+
+    fn dump_task_region(
+        &mut self,
+        task_index: u32,
+        start: u32,
+        length: u32,
+    ) -> Result<u8> {
+        let r =
+            self.dump_remote_action(humpty::udp::Request::DumpTaskRegion {
+                task_index,
+                start,
+                length,
+            })?;
+        match r {
+            Ok(humpty::udp::Response::DumpTaskRegion(out)) => Ok(out),
+            _ => bail!("invalid response: {r:?}"),
+        }
+    }
 }

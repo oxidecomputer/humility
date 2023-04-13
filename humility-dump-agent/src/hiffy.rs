@@ -242,4 +242,56 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
 
         Ok(rval)
     }
+
+    fn dump_task(&mut self, task_index: u32) -> Result<u8> {
+        let op = self.hubris.get_idol_command("DumpAgent.dump_task")?;
+        let mut ops = vec![];
+        let payload = op.payload(&[(
+            "task_index",
+            idol::IdolArgument::Scalar(task_index as u64),
+        )])?;
+        self.context.idol_call_ops(&op, &payload, &mut ops)?;
+        ops.push(Op::Done);
+
+        let out = self.run(ops.as_slice())?;
+        assert_eq!(out.len(), 1);
+        match &out[0] {
+            Ok(v) => {
+                assert_eq!(v.len(), 1);
+                Ok(v[0])
+            }
+            Err(err) => {
+                bail!("failed to dump task: {}", op.strerror(*err))
+            }
+        }
+    }
+
+    fn dump_task_region(
+        &mut self,
+        task_index: u32,
+        start: u32,
+        length: u32,
+    ) -> Result<u8> {
+        let op = self.hubris.get_idol_command("DumpAgent.dump_task_region")?;
+        let mut ops = vec![];
+        let payload = op.payload(&[
+            ("task_index", idol::IdolArgument::Scalar(task_index as u64)),
+            ("start", idol::IdolArgument::Scalar(start as u64)),
+            ("length", idol::IdolArgument::Scalar(length as u64)),
+        ])?;
+        self.context.idol_call_ops(&op, &payload, &mut ops)?;
+        ops.push(Op::Done);
+
+        let out = self.run(ops.as_slice())?;
+        assert_eq!(out.len(), 1);
+        match &out[0] {
+            Ok(v) => {
+                assert_eq!(v.len(), 1);
+                Ok(v[0])
+            }
+            Err(err) => {
+                bail!("failed to dump task region: {}", op.strerror(*err))
+            }
+        }
+    }
 }
