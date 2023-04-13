@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! Interface to the `hiffy` task, which allows execution of HIF programs
+
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::{Core, NetAgent};

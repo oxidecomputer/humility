@@ -5,8 +5,15 @@
 //! Traits and data structures for Hubris dump support
 //!
 //! This crate defines the `DumpAgent` and `DumpAgentExt` traits, which allows
-//! us to execute dump-related actions.  It also includes `UdpDumpAgent`, which
-//! implements the `DumpAgent` trait via the `dump-agent` task on the target.
+//! us to execute dump-related actions.  It also includes two implementers of
+//! the `DumpAgent` trait:
+//!
+//! - `UdpDumpAgent`, which implements the trait via the `dump-agent` task on
+//!   the target.
+//! - `HiffyDumpAgent`, which implements the trait via the `DumpAgent` Idol
+//!   interface.  Note that this implementation may _also_ use the network!
+//!   However, unlike `UdpDumpAgent`, it would be using the `udprpc` task to
+//!   execute HIF calls; our goal is to remove that task from production images.
 
 use anyhow::{anyhow, bail, Context, Result};
 use core::mem::size_of;
