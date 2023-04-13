@@ -145,11 +145,27 @@ struct DumpArgs {
     #[clap(long, group = "simulation")]
     emulate_dumper: bool,
 
-    #[clap(long, requires = "simulation", conflicts_with = "stock-dumpfile")]
+    /// simulates a single-task dump
+    #[clap(
+        long,
+        requires = "simulate_dumper",
+        conflicts_with = "stock-dumpfile"
+    )]
+    simulate_task_dump: Option<String>,
+
+    /// dumps a single task
+    #[clap(
+        long,
+        conflicts_with_all = &[
+            "stock_dumpfile", "simulation", "list", "area",
+            "force_read", "force_manual_initialization",
+            "dump_agent_status"
+        ]
+    )]
     task: Option<String>,
 
     #[clap(short, long, conflicts_with_all = &[
-        "task", "simulation", "list"
+        "simulate_task_dump", "simulation", "list"
     ])]
     area: Option<usize>,
 
@@ -158,7 +174,7 @@ struct DumpArgs {
     leave_halted: bool,
 
     #[clap(long, short, conflicts_with_all = &[
-        "task", "simulation", "area"
+        "simulate_task_dump", "simulation", "area"
     ])]
     list: bool,
 
@@ -321,7 +337,7 @@ fn dump_via_agent(
     // will discover the task when we actually read our dump headers, so
     // leave it as None for now...
     //
-    let mut task = match &subargs.task {
+    let mut task = match &subargs.simulate_task_dump {
         Some(task) => {
             let ndx = match hubris.lookup_task(task) {
                 Some(HubrisTask::Task(ndx)) => ndx,
@@ -558,6 +574,19 @@ fn dump_via_agent(
     Ok(())
 }
 
+fn dump_task_via_agent(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &DumpArgs,
+) -> Result<()> {
+    let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+    let started = Some(Instant::now());
+
+    let mut agent = get_dump_agent(hubris, core, subargs)?;
+
+    todo!()
+}
+
 fn dump_list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -632,6 +661,11 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         dump_list(hubris, core, &subargs)
     } else if subargs.dump_agent_status {
         dump_agent_status(hubris, core, &subargs)
+    } else if subargs.task.is_some() {
+        if subargs.force_dump_agent {
+            humility::msg!("--force-dump-agent is implied by --task");
+        }
+        dump_task_via_agent(hubris, core, &subargs)
     } else if core.is_net()
         || subargs.force_dump_agent
         || subargs.force_read
