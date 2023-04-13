@@ -165,17 +165,14 @@ impl NetCore {
         while aligned_length & 0b11 != 0 {
             aligned_length += 1;
         }
-        let r = udp_dump.dump_remote_action(
-            humpty::udp::Request::DumpTaskRegion {
-                task_index: task.task(),
-                start: aligned_start,
-                length: aligned_length,
-            },
-        )?;
-        let dump_index = match r {
-            Ok(humpty::udp::Response::DumpTaskRegion(addr)) => addr,
-            Ok(o) => bail!("unexpected response from dump agent: {o:?}"),
-            Err(humpty::udp::Error::DumpAreaInUse) => {
+
+        let dump_index: u8 = match udp_dump.dump_task_region(
+            task.task(),
+            aligned_start,
+            aligned_length,
+        ) {
+            Ok(addr) => addr,
+            Err(e) if e.to_string().contains("DumpAreaInUse") => {
                 bail!(
                     "out of space for dump_agent; use \
                      `humility dump --initialize-dump-agent` to free space"
