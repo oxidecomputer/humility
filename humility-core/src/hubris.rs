@@ -879,6 +879,41 @@ impl HubrisArchive {
         Some(HubrisGoff { object: self.current, goff })
     }
 
+    fn dwarf_namespace(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        depth: isize,
+        namespace: &mut Vec<(NamespaceId, isize)>,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+
+        //
+        // For a new namespace, create an entry in our namespaces vector,
+        // and push a tuple consisting of the identifer and our depth.
+        //
+        while let Some(attr) = attrs.next()? {
+            if attr.name() == gimli::constants::DW_AT_name {
+                if let Some(name) = dwarf_name(dwarf, attr.value()) {
+                    namespace.push((
+                        self.namespaces.allocate(
+                            name,
+                            namespace.last().map(|(id, _)| *id),
+                        ),
+                        depth,
+                    ));
+                }
+
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
     fn dwarf_fileline<R: gimli::Reader<Offset = usize>>(
         &mut self,
         dwarf: &gimli::Dwarf<R>,
@@ -1909,7 +1944,7 @@ impl HubrisArchive {
             let mut stack: Vec<HubrisGoff> = vec![];
 
             let mut array = None;
-            let mut namespace = vec![];
+            let mut ns = vec![];
 
             while let Some((delta, entry)) = entries.next_dfs()? {
                 depth += delta;
@@ -1918,12 +1953,12 @@ impl HubrisArchive {
                 // See if our depth has become shallower than our namespace,
                 // trimming it until it fits.
                 //
-                while let Some((_, d)) = namespace.last() {
+                while let Some((_, d)) = ns.last() {
                     if depth > *d {
                         break;
                     }
 
-                    namespace.pop();
+                    ns.pop();
                 }
 
                 let goff = self.dwarf_goff(&unit, entry);
@@ -1937,30 +1972,7 @@ impl HubrisArchive {
 
                 match entry.tag() {
                     gimli::constants::DW_TAG_namespace => {
-                        //
-                        // For a namespace tag, create an entry in our
-                        // namespaces vector, and push a tuple consisting
-                        // of the identifer and our depth.
-                        //
-                        let mut attrs = entry.attrs();
-
-                        while let Some(attr) = attrs.next()? {
-                            if attr.name() == gimli::constants::DW_AT_name {
-                                let name = dwarf_name(&dwarf, attr.value());
-
-                                if let Some(name) = name {
-                                    namespace.push((
-                                        self.namespaces.allocate(
-                                            name,
-                                            namespace.last().map(|(id, _)| *id),
-                                        ),
-                                        depth,
-                                    ));
-                                }
-
-                                break;
-                            }
-                        }
+                        self.dwarf_namespace(&dwarf, entry, depth, &mut ns)?;
                     }
 
                     gimli::constants::DW_TAG_inlined_subroutine => {
@@ -1976,8 +1988,15 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_structure_type => {
-                        let ns = namespace.last().map(|(id, _)| *id);
-                        self.dwarf_struct(&dwarf, &unit, entry, ns)?;
+                        let id = ns.last().map(|(id, _)| *id);
+                        self.dwarf_struct(&dwarf, &unit, entry, id)?;
+
+                        //
+                        // We want to also treat a structure as a namespace
+                        // to allow for the disambiguation of embedded
+                        // structures.
+                        //
+                        self.dwarf_namespace(&dwarf, entry, depth, &mut ns)?;
                     }
 
                     gimli::constants::DW_TAG_base_type => {
@@ -2012,8 +2031,8 @@ impl HubrisArchive {
                     }
 
                     gimli::constants::DW_TAG_enumeration_type => {
-                        let ns = namespace.last().map(|(id, _)| *id);
-                        self.dwarf_const_enum(&dwarf, &unit, entry, goff, ns)?;
+                        let id = ns.last().map(|(id, _)| *id);
+                        self.dwarf_const_enum(&dwarf, &unit, entry, goff, id)?;
                     }
 
                     gimli::constants::DW_TAG_enumerator => {
@@ -2028,7 +2047,7 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        let ns = namespace.last().map(|(id, _)| *id);
+                        let ns = ns.last().map(|(id, _)| *id);
                         self.dwarf_enum(&unit, entry, parent, ns)?;
 
                         //
