@@ -18,13 +18,20 @@ pub struct IdolOperation<'a> {
     pub code: u16,
     pub args: &'a HubrisStruct,
     pub ok: HubrisGoff,
-    pub error: Option<&'a HubrisEnum>,
+    pub error: IdolError<'a>,
 }
 
 #[derive(Debug)]
 pub enum IdolArgument<'a> {
     String(&'a str),
     Scalar(u64),
+}
+
+#[derive(Debug)]
+pub enum IdolError<'a> {
+    CLike(&'a HubrisEnum),
+    Complex(String),
+    None,
 }
 
 impl<'a> IdolOperation<'a> {
@@ -172,7 +179,7 @@ impl<'a> IdolOperation<'a> {
     }
 
     pub fn strerror(&self, code: u32) -> String {
-        let variant = if let Some(error) = self.error {
+        let variant = if let IdolError::CLike(error) = self.error {
             error.lookup_variant_by_tag(code as u64)
         } else {
             None
@@ -610,7 +617,7 @@ pub fn lookup_reply<'a>(
     hubris: &'a HubrisArchive,
     m: &HubrisModule,
     op: &str,
-) -> Result<(HubrisGoff, Option<&'a HubrisEnum>)> {
+) -> Result<(HubrisGoff, IdolError<'a>)> {
     let iface = m.iface.as_ref().unwrap();
     let reply = &iface
         .ops
@@ -650,19 +657,23 @@ pub fn lookup_reply<'a>(
     };
 
     match reply {
-        Reply::Result { ok, err } => match err {
-            ::idol::syntax::Error::CLike(t) => {
-                let err =
-                    m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(|| {
-                        anyhow!("failed to find error type {reply:?}")
-                    })?;
-                Ok((lookup_ok(&ok.ty.0)?, Some(err)))
-            }
-            ::idol::syntax::Error::ServerDeath => {
-                Ok((lookup_ok(&ok.ty.0)?, None))
-            }
-        },
-        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty.0)?, None)),
+        Reply::Result { ok, err } => {
+            let err = match err {
+                ::idol::syntax::Error::CLike(t) => {
+                    let t = m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(
+                        || anyhow!("failed to find error type {reply:?}"),
+                    )?;
+
+                    IdolError::CLike(t)
+                }
+                ::idol::syntax::Error::ServerDeath => IdolError::None,
+                ::idol::syntax::Error::Complex(t) => {
+                    IdolError::Complex(t.0.clone())
+                }
+            };
+            Ok((lookup_ok(&ok.ty.0)?, err))
+        }
+        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty.0)?, IdolError::None)),
     }
 }
 

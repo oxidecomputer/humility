@@ -42,7 +42,7 @@
 //! ```
 //!
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
@@ -206,35 +206,39 @@ fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
         let result = match &results[rndx] {
             Ok(val) => {
                 if let Some(variant) = ok.lookup_variant_by_tag(val[0].into()) {
-                    match variant.name.as_str() {
+                    Ok(match variant.name.as_str() {
                         "Present" => "present".yellow(),
                         "Validated" => "validated".green(),
                         _ => format!("<{}>", variant.name).cyan(),
-                    }
+                    })
                 } else {
-                    hubris.printfmt(val, op.ok, fmt)?.white()
+                    Ok(hubris.printfmt(val, op.ok, fmt)?.white())
                 }
             }
             Err(e) => {
-                match op.error.unwrap().lookup_variant_by_tag(*e as u64) {
-                    Some(variant) => match variant.name.as_str() {
-                        "NotPresent" => {
-                            if device.removable {
-                                "removed".blue()
-                            } else {
-                                "absent".red()
+                if let idol::IdolError::CLike(err) = op.error {
+                    Ok(match err.lookup_variant_by_tag(*e as u64) {
+                        Some(variant) => match variant.name.as_str() {
+                            "NotPresent" => {
+                                if device.removable {
+                                    "removed".blue()
+                                } else {
+                                    "absent".red()
+                                }
                             }
-                        }
-                        "BadValidation" => "failed".red(),
-                        "DeviceTimeout" => "timeout".red(),
-                        "DeviceError" => "error".red(),
-                        "Unavailable" => "unavailable".yellow(),
-                        _ => format!("<{}>", variant.name).red(),
-                    },
-                    None => format!("Err(0x{:x?})", e).red(),
+                            "BadValidation" => "failed".red(),
+                            "DeviceTimeout" => "timeout".red(),
+                            "DeviceError" => "error".red(),
+                            "Unavailable" => "unavailable".yellow(),
+                            _ => format!("<{}>", variant.name).red(),
+                        },
+                        None => format!("Err(0x{:x?})", e).red(),
+                    })
+                } else {
+                    Err(anyhow!("unexpected error type {:?}", op.error))
                 }
             }
-        };
+        }?;
 
         let mux = match (device.mux, device.segment) {
             (Some(m), Some(s)) => format!("{}:{}", m, s),

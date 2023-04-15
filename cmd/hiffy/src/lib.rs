@@ -130,20 +130,22 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         }
 
         match idol::lookup_reply(hubris, module, op.0) {
-            Ok((_, Some(e))) => match &op.1.reply {
+            Ok((_, idol::IdolError::CLike(e))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
                     println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
-                _ => {
-                    warn!(
-                        "mismatch on reply: expected Reply::Result, \
-                            found {:?}",
-                        op
-                    );
-                }
+                _ => warn!("mismatch on reply: found {op:?}"),
             },
-            Ok((_, None)) => match &op.1.reply {
+            Ok((_, idol::IdolError::Complex(t))) => match &op.1.reply {
+                Reply::Result { ok, .. } => {
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<error>", t);
+                }
+                _ => warn!("mismatch on reply: found {op:?}"),
+            },
+
+            Ok((_, idol::IdolError::None)) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     //
                     // This is possible if the only error is ServerDeath
@@ -359,19 +361,19 @@ pub fn hiffy_decode(
                 }
             })
         }
-        Err(e) => {
-            let variant = if let Some(error) = op.error {
-                error.lookup_variant_by_tag(e as u64)
-            } else {
-                None
-            };
-
-            if let Some(variant) = variant {
-                Err(variant.name.to_string())
-            } else {
-                Err(format!("{:x?}", e))
+        Err(e) => match op.error {
+            idol::IdolError::CLike(error) => {
+                if let Some(v) = error.lookup_variant_by_tag(e as u64) {
+                    Err(v.name.to_string())
+                } else {
+                    Err(format!("<Unknown variant {e}>"))
+                }
             }
-        }
+            idol::IdolError::Complex(ref t) => {
+                Err(format!("<Complex error: {t}>"))
+            }
+            _ => Err(format!("<Unhandled error {e:x?}>")),
+        },
     };
     Ok(r)
 }
