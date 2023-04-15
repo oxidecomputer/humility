@@ -852,7 +852,7 @@ impl<'a> HiffyContext<'a> {
                 })
             }
             Err(e) => {
-                let variant = if let Some(error) = op.error {
+                let variant = if let idol::IdolError::CLike(error) = op.error {
                     error.lookup_variant_by_tag(*e as u64)
                 } else {
                     None
