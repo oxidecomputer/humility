@@ -31,9 +31,13 @@ use std::{
 
 pub struct NetCore {
     udprpc_socket: UdpSocket,
-    dump_agent_socket: UdpSocket,
     flash: HubrisFlashMap,
-    ram: Vec<HubrisRegion>,
+
+    /// Socket to communicate with the dump agent, or `None` if it's not present
+    dump_agent_socket: Option<UdpSocket>,
+
+    /// Map of RAM regions, or `None` if the dump agent can't read RAM
+    ram: Option<Vec<HubrisRegion>>,
 }
 
 impl NetCore {
@@ -68,47 +72,78 @@ impl NetCore {
             .lookup_module(*rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?;
 
+        // We'll check to see if there's a dump agent available over UDP, which
+        // means
+        // 1) There's a task implementing the `DumpAgent` interface
+        // 2) That task has the `net` feature enabled
+
+        // Find the dump agent task name.  This is usually `dump_agent`, but that's
+        // not guaranteed; what *is* guaranteed is that it implements the DumpAgent
+        // interface.
+        let dump_agent_task =
+            hubris.lookup_module_by_iface("DumpAgent").map(|t| t.task);
+        let has_dump_agent = dump_agent_task
+            .map(|t| hubris.does_task_have_feature(t, "net").unwrap())
+            .unwrap_or(false);
+
+        //
         // See oxidecomputer/oana for standard Hubris UDP ports
-        let target = format!("[{}%{}]:11113", ip, scopeid);
-        let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
-        let dump_agent_socket = UdpSocket::bind("[::]:0")?;
-        dump_agent_socket.set_read_timeout(Some(timeout))?;
-        dump_agent_socket.connect(&dest[..])?;
+        let dump_agent_socket = if has_dump_agent {
+            let target = format!("[{}%{}]:11113", ip, scopeid);
+            let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
+            let dump_agent_socket = UdpSocket::bind("[::]:0")?;
+            dump_agent_socket.set_read_timeout(Some(timeout))?;
+            dump_agent_socket.connect(&dest[..])?;
+            Some(dump_agent_socket)
+        } else {
+            None
+        };
 
         let mut out = Self {
             udprpc_socket,
             dump_agent_socket,
             flash: HubrisFlashMap::new(hubris)?,
-            ram: vec![], // filled in below
+            ram: None, // filled in below
         };
 
-        // Surprisingly, this works: `hubris.regions` only reads data from the
-        // kernel's task table, which is in flash, so this works despite using a
-        // NetCore (which cannot read arbitrary memory).
-        let regions = hubris.regions(&mut out)?;
-        let mut ram_regions: Vec<_> = regions
-            .into_values()
-            .filter(|r| {
-                !r.attr.device
-                    && !r.attr.dma
-                    && !r.attr.execute
-                    && r.attr.read
-                    && r.attr.write
-                    && !r.tasks.is_empty()
+        // Check for the existence of the DumpAgent.dump_task_region API, which
+        // indicates that we are able to read RAM regions over the network.
+        let has_dump_task_region = hubris
+            .lookup_module_by_iface("DumpAgent")
+            .and_then(|m| {
+                m.iface.as_ref().map(|i| i.ops.contains_key("dump_task_region"))
             })
-            .collect();
+            .unwrap_or(false);
 
-        // Sort regions so we can find a target region with binary search
-        ram_regions.sort_by_key(|r| r.base);
+        if has_dump_task_region {
+            // Surprisingly, this works: `hubris.regions` only reads data from
+            // the kernel's task table, which is in flash, so this works despite
+            // using a NetCore (which cannot read arbitrary memory).
+            let regions = hubris.regions(&mut out)?;
+            let mut ram_regions: Vec<_> = regions
+                .into_values()
+                .filter(|r| {
+                    !r.attr.device
+                        && !r.attr.dma
+                        && !r.attr.execute
+                        && r.attr.read
+                        && r.attr.write
+                        && !r.tasks.is_empty()
+                })
+                .collect();
 
-        // Assert a simple invariant to detect weird images
-        for (a, b) in ram_regions.iter().zip(ram_regions.iter().skip(1)) {
-            if b.base < a.base + a.size {
-                bail!("overlapping regions: {a:x?}; {b:x?}");
+            // Sort regions so we can find a target region with binary search
+            ram_regions.sort_by_key(|r| r.base);
+
+            // Assert a simple invariant to detect weird images
+            for (a, b) in ram_regions.iter().zip(ram_regions.iter().skip(1)) {
+                if b.base < a.base + a.size {
+                    bail!("overlapping regions: {a:x?}; {b:x?}");
+                }
             }
-        }
 
-        out.ram = ram_regions;
+            out.ram = Some(ram_regions);
+        }
         Ok(out)
     }
 
@@ -143,7 +178,13 @@ impl NetCore {
 
     /// Reads data from RAM using the (UDP) dump agent as a proxy
     fn read_ram(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        let p = self.ram.partition_point(|v| v.base <= addr);
+        if self.dump_agent_socket.is_none() {
+            bail!("no dump agent available");
+        }
+        let Some(ram) = self.ram.as_ref() else {
+            bail!("dump agent cannot read RAM; is your Hubris archive too old?")
+        };
+        let p = ram.partition_point(|v| v.base <= addr);
         if p == 0 {
             bail!("address not found in RAM map");
         }
@@ -151,7 +192,7 @@ impl NetCore {
         // By construction, we know that every region in self.ram has at least
         // one task associated with it.  If this task is the supervisor, then
         // that's bad news.
-        let region = &self.ram[p - 1];
+        let region = &ram[p - 1];
         let Some(&task) = region.tasks.iter().find(|t| t.task() != 0) else {
             bail!("supervisor memory cannot be read using dump facilities");
         };
@@ -215,14 +256,22 @@ impl Core for NetCore {
 
     fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
         self.udprpc_socket.set_read_timeout(Some(timeout))?;
-        self.dump_agent_socket.set_read_timeout(Some(timeout))?;
+        if let Some(d) = self.dump_agent_socket.as_ref() {
+            d.set_read_timeout(Some(timeout))?;
+        }
         Ok(())
     }
 
     fn send(&self, buf: &[u8], target: NetAgent) -> Result<usize> {
         match target {
             NetAgent::UdpRpc => self.udprpc_socket.send(buf),
-            NetAgent::DumpAgent => self.dump_agent_socket.send(buf),
+            NetAgent::DumpAgent => {
+                if let Some(d) = self.dump_agent_socket.as_ref() {
+                    d.send(buf)
+                } else {
+                    bail!("no dump agent socket")
+                }
+            }
         }
         .map_err(anyhow::Error::from)
     }
@@ -230,7 +279,13 @@ impl Core for NetCore {
     fn recv(&self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
         match target {
             NetAgent::UdpRpc => self.udprpc_socket.recv(buf),
-            NetAgent::DumpAgent => self.dump_agent_socket.recv(buf),
+            NetAgent::DumpAgent => {
+                if let Some(d) = self.dump_agent_socket.as_ref() {
+                    d.recv(buf)
+                } else {
+                    bail!("no dump agent socket")
+                }
+            }
         }
         .map_err(anyhow::Error::from)
     }

@@ -263,7 +263,7 @@ fn emulate_task_dump_prep(
         total += size;
 
         if let Err(e) = humpty::add_dump_segment_header::<anyhow::Error>(
-            area.address,
+            area.region.address,
             *base,
             *size,
             |addr, buf, _meta| shared.borrow_mut().read_8(addr, buf),
@@ -273,7 +273,7 @@ fn emulate_task_dump_prep(
         }
     }
 
-    Ok(area.address)
+    Ok(area.region.address)
 }
 
 fn get_dump_agent<'a>(
@@ -284,21 +284,13 @@ fn get_dump_agent<'a>(
     // Find the dump agent task name.  This is usually `dump_agent`, but that's
     // not guaranteed; what *is* guaranteed is that it implements the DumpAgent
     // interface.
-    let dump_agent_task_name = (0..hubris.ntasks())
-        .map(|t| hubris.lookup_module(HubrisTask::Task(t as u32)).unwrap())
-        .filter(|t| {
-            t.iface.as_ref().map(|i| i.name == "DumpAgent").unwrap_or(false)
-        })
-        .map(|t| t.name.as_str())
-        .next();
+    let dump_agent_task =
+        hubris.lookup_module_by_iface("DumpAgent").map(|t| t.task);
 
     if core.is_net()
         && !subargs.force_hiffy_agent
-        && hubris
-            .manifest
-            .task_features
-            .get(dump_agent_task_name.unwrap_or(""))
-            .map(|f| f.contains(&"net".to_string()))
+        && dump_agent_task
+            .map(|t| hubris.does_task_have_feature(t, "net").unwrap())
             .unwrap_or(false)
     {
         humility::msg!("using UDP dump agent");
