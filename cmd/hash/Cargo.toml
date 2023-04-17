@@ -5,12 +5,14 @@ edition = "2021"
 description = "Access to the HASH block"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-clap = { workspace = true }
-sha2 = { workspace = true }
-anyhow = { workspace = true }
-parse_int = { workspace = true }
-indicatif = { workspace = true }
-log = { workspace = true }
+hif.workspace = true
+clap.workspace = true
+sha2.workspace = true
+anyhow.workspace = true
+parse_int.workspace = true
+indicatif.workspace = true
+log.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true

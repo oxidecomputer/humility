@@ -1,0 +1,22 @@
+[package]
+name = "humility-dump-agent"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+hubpack.workspace = true
+humpty.workspace = true
+indexmap.workspace = true
+indicatif.workspace = true
+num-traits.workspace = true
+rand.workspace = true
+zerocopy.workspace = true
+lzss.workspace = true
+hif.workspace = true
+
+humility.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true

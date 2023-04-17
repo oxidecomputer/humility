@@ -118,8 +118,8 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
-use humility_cmd::doppel::{self, Task, TaskDesc, TaskId, TaskState};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 

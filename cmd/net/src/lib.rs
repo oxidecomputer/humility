@@ -42,13 +42,11 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
-use cmd_hiffy as humility_cmd_hiffy;
-
 use humility::cli::Subcommand;
 use humility::reflect::*;
-use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::HubrisIdol;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_hiffy::HiffyContext;
+use humility_idol::HubrisIdol;
 
 #[derive(Parser, Debug)]
 enum NetCommand {
@@ -87,7 +85,7 @@ fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = cmd_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -149,7 +147,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = cmd_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -212,7 +210,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     let results = hiffy_context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op, r))
+        .map(move |r| cmd_hiffy::hiffy_decode(hubris, &op, r))
         .collect::<Result<Vec<Result<_, _>>>>()?;
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
@@ -271,7 +269,7 @@ fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = cmd_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -352,7 +350,7 @@ fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let op = hubris.get_idol_command("Net.management_counters")?;
 
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = cmd_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,

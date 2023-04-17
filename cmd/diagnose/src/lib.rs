@@ -20,9 +20,9 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
-use humility_cmd::doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use humility_cmd::{jefe, CommandKind};
 use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use std::num::NonZeroU32;
 use std::time::Duration;
 

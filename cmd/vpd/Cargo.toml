@@ -5,17 +5,20 @@ edition = "2021"
 description = "read or write vital product data (VPD)"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-parse_int = { workspace = true }
-indexmap = { workspace = true }
-idol = { workspace = true }
-log = { workspace = true }
-tlvc = { workspace = true }
-tlvc-text = { workspace = true }
-zerocopy = { workspace = true }
-indicatif = { workspace = true }
-colored = { workspace = true }
+hif.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+parse_int.workspace = true
+indexmap.workspace = true
+idol.workspace = true
+log.workspace = true
+tlvc.workspace = true
+tlvc-text.workspace = true
+zerocopy.workspace = true
+indicatif.workspace = true
+colored.workspace = true
+
+humility-cmd.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+humility.workspace = true

@@ -18,12 +18,12 @@
 
 use cmd_hiffy as humility_cmd_hiffy;
 
+use cmd_hiffy::HiffyLease;
 use humility::cli::Subcommand;
-use humility_cmd::hiffy::*;
-use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_cmd_hiffy::HiffyLease;
+use humility_hiffy::*;
+use humility_idol::{HubrisIdol, IdolArgument};
 
 use std::path::PathBuf;
 

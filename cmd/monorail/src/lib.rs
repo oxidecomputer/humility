@@ -174,9 +174,9 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::reflect::*;
 use humility::{hubris::*, ExecutionContext};
-use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::{HubrisIdol, IdolArgument};
 use humility_cmd::{Archive, Attach, CommandKind, Validate};
+use humility_hiffy::HiffyContext;
+use humility_idol::{HubrisIdol, IdolArgument};
 
 use anyhow::{anyhow, bail, Result};
 

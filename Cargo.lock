@@ -1085,7 +1085,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.5"
+version = "0.10.6"
 dependencies = [
  "anyhow",
  "bitfield 0.13.2",
@@ -1182,6 +1182,7 @@ dependencies = [
  "hif",
  "hubpack",
  "humility-core",
+ "humility-net-core",
  "idol",
  "indexmap",
  "lazy_static",
@@ -1214,6 +1215,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indicatif",
  "log",
@@ -1254,6 +1257,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "log",
  "parse_int",
@@ -1270,6 +1275,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
  "log",
@@ -1305,6 +1312,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+ "humility-doppel",
  "parse_int",
 ]
 
@@ -1328,10 +1336,10 @@ dependencies = [
  "anyhow",
  "clap",
  "goblin",
- "hif",
  "hubpack",
  "humility-cmd",
  "humility-core",
+ "humility-dump-agent",
  "humpty",
  "indexmap",
  "indicatif",
@@ -1340,7 +1348,6 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
- "rand",
  "zerocopy",
  "zip",
 ]
@@ -1428,6 +1435,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "parse_int",
 ]
 
@@ -1440,6 +1448,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "indicatif",
  "log",
  "parse_int",
@@ -1457,6 +1466,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
  "parse_int",
@@ -1471,6 +1482,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "indicatif",
  "log",
  "parse_int",
@@ -1485,8 +1497,9 @@ dependencies = [
  "colored",
  "hif",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "log",
  "parse_int",
@@ -1571,6 +1584,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "parse_int",
 ]
 
@@ -1606,6 +1620,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "log",
  "parse_int",
@@ -1625,6 +1641,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "parse_int",
 ]
 
@@ -1651,6 +1669,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "indexmap",
  "log",
  "parse_int",
@@ -1666,6 +1685,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
  "log",
@@ -1683,13 +1704,13 @@ dependencies = [
  "humility-cmd-hiffy",
  "humility-cmd-rpc",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
- "libc",
  "log",
  "parse_int",
  "pmbus",
- "winapi",
 ]
 
 [[package]]
@@ -1716,6 +1737,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "indicatif",
  "log",
  "parse_int",
@@ -1766,6 +1789,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "idt8a3xxxx",
  "itertools",
  "log",
@@ -1783,6 +1807,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "indicatif",
  "log",
  "num-derive",
@@ -1815,6 +1840,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
+ "humility-doppel",
  "log",
 ]
 
@@ -1830,13 +1856,14 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-doppel",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
- "libc",
  "log",
  "parse_int",
  "serde",
- "winapi",
  "zerocopy",
 ]
 
@@ -1850,6 +1877,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "parse_int",
  "raw-cpuid",
  "termimad",
@@ -1865,6 +1894,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
  "itertools",
@@ -1881,6 +1912,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "log",
  "parse_int",
 ]
@@ -1894,6 +1926,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "jep106",
  "log",
  "parse_int",
@@ -1909,6 +1942,7 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
  "log",
  "parse_int",
 ]
@@ -1943,6 +1977,7 @@ dependencies = [
  "colored",
  "humility-cmd",
  "humility-core",
+ "humility-doppel",
  "log",
  "num-traits",
  "parse_int",
@@ -1969,6 +2004,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indicatif",
  "log",
@@ -1996,6 +2033,8 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "indicatif",
  "log",
  "parse_int",
@@ -2011,6 +2050,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
  "log",
@@ -2027,6 +2068,8 @@ dependencies = [
  "hif",
  "humility-cmd",
  "humility-core",
+ "humility-hiffy",
+ "humility-idol",
  "idol",
  "indexmap",
  "indicatif",
@@ -2091,6 +2134,72 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-doppel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-dump-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "hubpack",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "humpty",
+ "indexmap",
+ "indicatif",
+ "lzss",
+ "num-traits",
+ "rand",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-hiffy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-core",
+ "humility-doppel",
+ "humility-idol",
+ "idol",
+ "parse_int",
+ "postcard",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-idol"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hubpack",
+ "humility-core",
+ "idol",
+ "indexmap",
+ "parse_int",
+ "serde",
+]
+
+[[package]]
+name = "humility-net-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "humility-dump-agent",
+ "humpty",
+]
+
+[[package]]
 name = "humility_load_derive"
 version = "0.1.0"
 dependencies = [
@@ -2101,8 +2210,8 @@ dependencies = [
 
 [[package]]
 name = "humpty"
-version = "0.1.1"
-source = "git+https://github.com/oxidecomputer/humpty#b4052d8b0c1fe555e1686b281104852d7fba5230"
+version = "0.1.2"
+source = "git+https://github.com/oxidecomputer/humpty#cbfa0ad343f9b6f085aecac706cadb7cde03581c"
 dependencies = [
  "hubpack",
  "lzss",

@@ -5,14 +5,17 @@ edition = "2021"
 description = "dashboard for Hubris sensor data"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-parse_int = { workspace = true }
-indexmap = { workspace = true }
-idol = { workspace = true }
-log = { workspace = true }
-crossterm = { workspace = true }
+hif.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+parse_int.workspace = true
+indexmap.workspace = true
+idol.workspace = true
+log.workspace = true
+crossterm.workspace = true
 tui = { workspace = true, features = ["crossterm"] }
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true

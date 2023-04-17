@@ -5,11 +5,13 @@ edition = "2021"
 description = "list Hubris tasks"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-num-traits = { workspace = true }
-log = { workspace = true }
-colored = { workspace = true }
-parse_int = { workspace = true }
+clap.workspace = true
+anyhow.workspace = true
+num-traits.workspace = true
+log.workspace = true
+colored.workspace = true
+parse_int.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-doppel.workspace = true

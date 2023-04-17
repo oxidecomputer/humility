@@ -65,8 +65,8 @@
 use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::{hiffy::*, CommandKind};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_hiffy::*;
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};

@@ -2,12 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::{doppel::RpcHeader, doppel::StaticCell, idol};
+//! Interface to the `hiffy` task, which allows execution of HIF programs
+
 use anyhow::{anyhow, bail, Context, Result};
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
+use humility_doppel::{RpcHeader, StaticCell};
+use humility_idol as idol;
 use postcard::{take_from_bytes, to_slice};
 use std::cell::RefCell;
 use std::collections::HashMap;
