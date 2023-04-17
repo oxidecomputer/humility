@@ -191,7 +191,10 @@ impl NetCore {
         )?;
 
         // Pop the most recent dump, since we were just using it to read memory
-        // and it doesn't need to take up a dump area forever.
+        // and it doesn't need to take up a dump area forever.  Note that this
+        // will also pop any dumps which have occurred (autonomously) in the
+        // meantime, but that's preferable to filling up all of dump memory with
+        // a single call to `humility ringbuf`.
         udp_dump.reinitialize_dump_from(dump_index)?;
 
         // By construction, this DumpAgentCore has exactly what it needs!
