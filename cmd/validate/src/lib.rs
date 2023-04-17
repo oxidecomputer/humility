@@ -48,10 +48,10 @@ use colored::Colorize;
 use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::i2c::I2cArgs;
-use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_hiffy::HiffyContext;
+use humility_idol::{self as idol, HubrisIdol};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]

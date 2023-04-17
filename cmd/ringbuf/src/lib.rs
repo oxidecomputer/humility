@@ -59,8 +59,8 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
-use humility_cmd::doppel::{Ringbuf, StaticCell};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_doppel::{Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -68,6 +68,9 @@ struct RingbufArgs {
     /// list variables
     #[clap(long, short)]
     list: bool,
+    /// print full errors
+    #[clap(long, short)]
+    verbose: bool,
     /// print only a single ringbuffer by substring of name
     #[clap(conflicts_with = "list")]
     name: Option<String>,
@@ -212,7 +215,11 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
         );
         if let Some(def) = def {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
-                humility::msg!("ringbuf dump failed: {}", e);
+                if subargs.verbose {
+                    humility::msg!("ringbuf dump failed: {:?}", e);
+                } else {
+                    humility::msg!("ringbuf dump failed: {}", e);
+                }
             }
         } else {
             humility::msg!("could not look up type: {:?}", v.1.goff);

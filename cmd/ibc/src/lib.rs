@@ -70,8 +70,8 @@ use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use humility::cli::Subcommand;
-use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
+use humility_idol::{self as idol, HubrisIdol};
 use zerocopy::{
     byteorder::{BigEndian, U16, U32},
     AsBytes, FromBytes,
@@ -81,8 +81,8 @@ use hif::*;
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::hiffy::HiffyContext;
 use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_hiffy::HiffyContext;
 
 #[derive(Parser, Debug)]
 #[clap(name = "ibc", about = env!("CARGO_PKG_DESCRIPTION"))]

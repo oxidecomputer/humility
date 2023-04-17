@@ -3,8 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use humility::cli::Subcommand;
-use humility_cmd::{hiffy::*, CommandKind};
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_hiffy::*;
 use std::str;
 
 use anyhow::{bail, Result};

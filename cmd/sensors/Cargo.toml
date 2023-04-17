@@ -5,13 +5,16 @@ edition = "2021"
 description = "query sensors and sensor data"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-hif = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-parse_int = { workspace = true }
-indexmap = { workspace = true }
-idol = { workspace = true }
-log = { workspace = true }
-itertools = { workspace = true }
+hif.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+parse_int.workspace = true
+indexmap.workspace = true
+idol.workspace = true
+log.workspace = true
+itertools.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true

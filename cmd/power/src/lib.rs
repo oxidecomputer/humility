@@ -13,9 +13,10 @@ use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::idol::{self, HubrisIdol};
-use humility_cmd::{hiffy::*, CommandKind};
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_hiffy::*;
+use humility_idol::{self as idol, HubrisIdol};
 use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]

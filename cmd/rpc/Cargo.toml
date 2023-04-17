@@ -5,25 +5,22 @@ edition = "2021"
 description = "execute Idol calls over a network"
 
 [dependencies]
-hubpack = { workspace = true }
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-cmd-hiffy = { workspace = true }
+humility.workspace = true
+humility-cmd.workspace = true
+humility-doppel.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+cmd-hiffy.workspace = true
 
-hif = { workspace = true }
-idol = { workspace = true }
+hubpack.workspace = true
+hif.workspace = true
+idol.workspace = true
 
-anyhow = { workspace = true }
-clap = { workspace = true }
-colored = { workspace = true }
-indexmap = { workspace = true }
-log = { workspace = true }
-parse_int = { workspace = true }
-serde = { workspace = true }
-zerocopy = { workspace = true }
-
-[target.'cfg(not(windows))'.dependencies]
-libc = { workspace = true }
-
-[target.'cfg(windows)'.dependencies]
-winapi = { workspace = true, features = ["netioapi"] }
+anyhow.workspace = true
+clap.workspace = true
+colored.workspace = true
+indexmap.workspace = true
+log.workspace = true
+parse_int.workspace = true
+serde.workspace = true
+zerocopy.workspace = true

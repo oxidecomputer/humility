@@ -2,10 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-pub mod doppel;
-pub mod hiffy;
 pub mod i2c;
-pub mod idol;
 pub mod jefe;
 pub mod stack;
 pub mod test;
@@ -103,7 +100,7 @@ pub fn attach_dump(
 pub fn attach_net(args: &Cli, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
     if let Some(ip) = &args.ip {
         let timeout = Duration::from_millis(args.timeout as u64);
-        humility::core::attach_net(ip, hubris, timeout)
+        humility_net_core::attach_net(ip, hubris, timeout)
     } else {
         bail!("must be run against a specified IP address");
     }

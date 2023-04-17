@@ -2,6 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! Tools to interface with the Idol interface description language
+//!
+//! Along with various data types, this crate defines and implements the
+//! `HubrisIdol` trait on `HubrisArchive`, which adds a `get_idol_command`
+//! function to easily look up an Idol command by name.
+
 use ::idol::syntax::{AttributedTy, Operation, RecvStrategy, Reply};
 use anyhow::{anyhow, bail, Context, Result};
 use hubpack::SerializedSize;

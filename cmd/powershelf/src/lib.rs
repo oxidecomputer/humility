@@ -18,8 +18,6 @@
 //! properties of all 6 shelves requires calling this command 6 time (with
 //! indices 0 through 5).
 
-use cmd_hiffy as humility_cmd_hiffy;
-
 use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use clap::Parser;
@@ -27,10 +25,10 @@ use hif::*;
 use humility::cli::Subcommand;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
-use humility_cmd::hiffy::*;
-use humility_cmd::idol::{self, HubrisIdol};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_hiffy::*;
+use humility_idol::{self as idol, HubrisIdol};
 
 #[derive(Parser, Debug)]
 #[clap(name = "powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -174,16 +172,13 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result = humility_cmd_hiffy::hiffy_decode(
-            hubris,
-            &idol_cmd,
-            results[ndx].clone(),
-        )?;
+        let result =
+            cmd_hiffy::hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
 
         println!(
             "{:<20} => {}",
             variant.name,
-            humility_cmd_hiffy::hiffy_format_result(hubris, result.clone())
+            cmd_hiffy::hiffy_format_result(hubris, result.clone())
         );
 
         if subargs.verbose {

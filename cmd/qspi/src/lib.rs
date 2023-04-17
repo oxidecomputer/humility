@@ -82,12 +82,11 @@
 //! this is required for erases and writes that would otherwise modify sector 0,
 //! as well as bulk erase.
 
-use cmd_hiffy as humility_cmd_hiffy;
 use humility::cli::Subcommand;
 use humility::core::Core;
-use humility_cmd::idol::{HubrisIdol, IdolArgument};
-use humility_cmd::CommandKind;
-use humility_cmd::{hiffy::*, Archive, Attach, Command, Dumper, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_hiffy::*;
+use humility_idol::{HubrisIdol, IdolArgument};
 use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs;
@@ -996,7 +995,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             1 => "Flash1",
             _ => bail!("dev_select must be 0 or 1"),
         };
-        let out = humility_cmd_hiffy::hiffy_call(
+        let out = cmd_hiffy::hiffy_call(
             hubris,
             core,
             &mut context,

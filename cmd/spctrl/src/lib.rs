@@ -45,8 +45,8 @@
 //! ```
 
 use humility::cli::Subcommand;
-use humility_cmd::{hiffy::*, CommandKind};
-use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
+use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_hiffy::*;
 
 use std::str;
 

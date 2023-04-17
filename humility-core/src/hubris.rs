@@ -326,6 +326,7 @@ impl HubrisSensorKind {
     }
 }
 
+#[derive(Clone)]
 pub struct HubrisFlashMap {
     /// Linear map of all flash memory
     pub contents: Vec<u8>,
@@ -3495,6 +3496,12 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_module_by_iface(&self, name: &str) -> Option<&HubrisModule> {
+        (0..self.ntasks())
+            .map(|t| self.lookup_module(HubrisTask::Task(t as u32)).unwrap())
+            .find(|t| t.iface.as_ref().map(|i| i.name == name).unwrap_or(false))
+    }
+
     pub fn modules(&self) -> impl Iterator<Item = &HubrisModule> {
         self.modules.values()
     }
@@ -5067,6 +5074,20 @@ impl HubrisArchive {
         }
 
         Ok(rval)
+    }
+
+    pub fn does_task_have_feature(
+        &self,
+        task: HubrisTask,
+        feature: &str,
+    ) -> Result<bool> {
+        let name = &self.lookup_module(task)?.name;
+        Ok(self
+            .manifest
+            .task_features
+            .get(name)
+            .ok_or_else(|| anyhow!("invalid task {task:?}"))?
+            .contains(&feature.to_string()))
     }
 
     pub fn lookup_peripheral(&self, name: &str) -> Result<u32> {

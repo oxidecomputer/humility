@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.5"
+version = "0.10.6"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -25,9 +25,14 @@ rust-version = "1.68"
 
 [workspace]
 members = [
-    "humility-core",
-    "humility-cmd",
     "humility-arch-cortex",
+    "humility-cmd",
+    "humility-core",
+    "humility-doppel",
+    "humility-dump-agent",
+    "humility-hiffy",
+    "humility-idol",
+    "humility-net-core",
     "cmd/apptable",
     "cmd/auxflash",
     "cmd/bankerase",
@@ -88,7 +93,7 @@ members = [
 [workspace.dependencies]
 # `git`-based deps
 hif = { git = "https://github.com/oxidecomputer/hif" }
-humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.1" }
+humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.2" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
@@ -116,7 +121,12 @@ capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
 humility = { path = "./humility-core", package = "humility-core" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
+humility-dump-agent = { path = "./humility-dump-agent" }
+humility-doppel = { path = "./humility-doppel" }
+humility-hiffy = { path = "./humility-hiffy" }
+humility-idol = { path = "./humility-idol" }
 humility_load_derive = { path = "./load_derive" }
+humility-net-core = { path = "./humility-net-core" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-bankerase = { path = "./cmd/bankerase", package = "humility-cmd-bankerase" }

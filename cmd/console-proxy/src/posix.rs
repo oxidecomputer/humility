@@ -16,14 +16,12 @@ use crossbeam_channel::{select, Sender};
 use picocom_map::RemapRules;
 use termios::Termios;
 
-use cmd_hiffy as humility_cmd_hiffy;
-
 use cmd_hiffy::HiffyLease;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
-use humility_cmd::hiffy::HiffyContext;
-use humility_cmd::idol::{HubrisIdol, IdolArgument};
+use humility_hiffy::HiffyContext;
+use humility_idol::{HubrisIdol, IdolArgument};
 
 use super::UartConsoleArgs;
 use super::UartConsoleCommand;
@@ -56,7 +54,7 @@ impl<'a> UartConsoleHandler<'a> {
     fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
-        let value = humility_cmd_hiffy::hiffy_call(
+        let value = cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -82,7 +80,7 @@ impl<'a> UartConsoleHandler<'a> {
 
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
-        let value = humility_cmd_hiffy::hiffy_call(
+        let value = cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -181,7 +179,7 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
-        let value = humility_cmd_hiffy::hiffy_call(
+        let value = cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -201,7 +199,7 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
-        let value = humility_cmd_hiffy::hiffy_call(
+        let value = cmd_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
