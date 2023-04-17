@@ -93,7 +93,7 @@ members = [
 [workspace.dependencies]
 # `git`-based deps
 hif = { git = "https://github.com/oxidecomputer/hif" }
-humpty = { git = "https://github.com/oxidecomputer/humpty", branch = "single-task-dump", version = "0.1.2" }
+humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.2" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
