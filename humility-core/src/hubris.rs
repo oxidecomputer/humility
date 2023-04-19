@@ -5086,8 +5086,8 @@ impl HubrisArchive {
             .manifest
             .task_features
             .get(name)
-            .ok_or_else(|| anyhow!("invalid task {task:?}"))?
-            .contains(&feature.to_string()))
+            .map(|f| f.contains(&feature.to_string()))
+            .unwrap_or(false))
     }
 
     pub fn lookup_peripheral(&self, name: &str) -> Result<u32> {
