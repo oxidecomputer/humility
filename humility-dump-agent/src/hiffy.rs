@@ -9,7 +9,6 @@ use humility::{core::Core, hubris::HubrisArchive};
 use humility_hiffy::HiffyContext;
 use humility_idol::{self as idol, HubrisIdol};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader};
-use std::time::Duration;
 
 /// Represents a dump agent that communicates through the `hiffy` task
 ///
@@ -113,12 +112,6 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         let op = self.hubris.get_idol_command("DumpAgent.take_dump")?;
         let mut ops = vec![];
 
-        //
-        // We are about to disappear for -- as the kids say -- a minute.  Set
-        // our timeout to be a literal minute so we don't prematurely give up.
-        //
-        self.core.set_timeout(Duration::new(60, 0))?;
-
         let rindex = if !self.core.is_net() {
             //
             // If we are connected via a dongle, we will need to be unplugged
@@ -134,7 +127,7 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
             //
             humility::msg!(
                 "dump will start in 10 seconds; unplug probe now, and \
-            reset RoT via SWD after dump is complete to re-attach"
+                 reset RoT via SWD after dump is complete to re-attach"
             );
 
             let sleep = self.context.get_function("Sleep", 1)?;
