@@ -136,6 +136,7 @@ impl<'a> DumpAgent for UdpDumpAgent<'a> {
     }
 
     fn take_dump(&mut self) -> Result<()> {
+        humility::msg!("taking dump; target will be stopped for ~20 seconds");
         let r = self.dump_remote_action(humpty::udp::Request::TakeDump)?;
         match r {
             Ok(humpty::udp::Response::TakeDump) => Ok(()),

@@ -527,6 +527,13 @@ fn dump_via_agent(
             }
 
             //
+            // We are about to disappear for -- as the kids say -- a minute.
+            // Set our timeout to be a literal minute so we don't prematurely
+            // give up.
+            //
+            agent.core().set_timeout(std::time::Duration::new(60, 0))?;
+
+            //
             // Tell the thing to take a dump
             //
             agent.take_dump()?;
