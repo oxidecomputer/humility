@@ -9,7 +9,6 @@ use humility::{core::Core, hubris::HubrisArchive};
 use humility_hiffy::HiffyContext;
 use humility_idol::{self as idol, HubrisIdol};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader};
-use std::time::Duration;
 
 /// Represents a dump agent that communicates through the `hiffy` task
 ///
