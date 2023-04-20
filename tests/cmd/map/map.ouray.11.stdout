@@ -1,41 +1,41 @@
-DESC       LOW          HIGH          SIZE ATTR  ID TASK
--          0x08000000 - 0x08000297     664 r---- -  kernel
--          0x08000298 - 0x08003f8f   15KiB r-x-- -  kernel
--          0x08003f90 - 0x08004b4f    2KiB r---- -  kernel
--          0x08004b50 - 0x08004f53    1KiB r---- -  kernel
-0x08004c10 0x08008000 - 0x0800bfff   16KiB r-x-- 0  jefe
-0x08004c30 0x0800c000 - 0x0800dfff    8KiB r-x-- 1  rcc_driver
-0x08004c50 0x0800e000 - 0x0800ffff    8KiB r-x-- 2  gpio_driver
-0x08004c70 0x08010000 - 0x08011fff    8KiB r-x-- 3  usart_driver
-0x08004c90 0x08014000 - 0x08017fff   16KiB r-x-- 4  i2c_driver
-0x08004cb0 0x08018000 - 0x0801bfff   16KiB r-x-- 5  i2c_target
-0x08004cd0 0x0801c000 - 0x0801dfff    8KiB r-x-- 6  user_leds
-0x08004cf0 0x0801e000 - 0x0801ffff    8KiB r-x-- 7  pong
-0x08004d10 0x08020000 - 0x08027fff   32KiB r-x-- 8  i2c_debug
-0x08004d30 0x08028000 - 0x0802bfff   16KiB r-x-- 9  adt7420
-0x08004d50 0x0802c000 - 0x0802dfff    8KiB r-x-- 10 max31790
-0x08004d70 0x08030000 - 0x08033fff   16KiB r-x-- 11 ds2482
-0x08004d90 0x08034000 - 0x080340ff     256 r-x-- 12 idle
--          0x20000000 - 0x20000fff    4KiB rw--- -  kernel
-0x08004c20 0x20001000 - 0x200013ff    1KiB rw--- 0  jefe
-0x08004c40 0x20001400 - 0x200017ff    1KiB rw--- 1  rcc_driver
-0x08004c60 0x20001800 - 0x20001bff    1KiB rw--- 2  gpio_driver
-0x08004c80 0x20001c00 - 0x20001fff    1KiB rw--- 3  usart_driver
-0x08004ca0 0x20002000 - 0x200027ff    2KiB rw--- 4  i2c_driver
-0x08004cc0 0x20002800 - 0x20002fff    2KiB rw--- 5  i2c_target
-0x08004ce0 0x20003000 - 0x200033ff    1KiB rw--- 6  user_leds
-0x08004d00 0x20003400 - 0x200037ff    1KiB rw--- 7  pong
-0x08004d20 0x20004000 - 0x20005fff    8KiB rw--- 8  i2c_debug
-0x08004d40 0x20008000 - 0x2000ffff   32KiB rw--- 9  adt7420
-0x08004d60 0x20010000 - 0x200107ff    2KiB rw--- 10 max31790
-0x08004d80 0x20011000 - 0x20011fff    4KiB rw--- 11 ds2482
-0x08004da0 0x20012000 - 0x200120ff     256 rw--- 12 idle
-0x08004bc0 0x40004800 - 0x40004bff    1KiB rw-d- 3  [usart3] usart_driver
-0x08004bd0 0x40005400 - 0x400057ff    1KiB rw-d- 4  [i2c1] i2c_driver
-0x08004be0 0x40005800 - 0x40005bff    1KiB rw-d- 5  [i2c2] i2c_target
-0x08004bf0 0x40005c00 - 0x40005fff    1KiB rw-d- 4  [i2c3] i2c_driver
-0x08004c00 0x58001c00 - 0x58001fff    1KiB rw-d- 4  [i2c4] i2c_driver
-0x08004b90 0x58020000 - 0x58021fff    8KiB rw-d- 2  [gpios1] gpio_driver
-0x08004ba0 0x58022000 - 0x580227ff    2KiB rw-d- 2  [gpios2] gpio_driver
-0x08004bb0 0x58022800 - 0x58022bff    1KiB rw-d- 2  [gpios3] gpio_driver
-0x08004b80 0x58024400 - 0x580247ff    1KiB rw-d- 1  [rcc] rcc_driver
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x08000297     664 r----- -  kernel
+-          0x08000298 - 0x08003f8f   15KiB r-x--- -  kernel
+-          0x08003f90 - 0x08004b4f    2KiB r----- -  kernel
+-          0x08004b50 - 0x08004f53    1KiB r----- -  kernel
+0x08004c10 0x08008000 - 0x0800bfff   16KiB r-x--- 0  jefe
+0x08004c30 0x0800c000 - 0x0800dfff    8KiB r-x--- 1  rcc_driver
+0x08004c50 0x0800e000 - 0x0800ffff    8KiB r-x--- 2  gpio_driver
+0x08004c70 0x08010000 - 0x08011fff    8KiB r-x--- 3  usart_driver
+0x08004c90 0x08014000 - 0x08017fff   16KiB r-x--- 4  i2c_driver
+0x08004cb0 0x08018000 - 0x0801bfff   16KiB r-x--- 5  i2c_target
+0x08004cd0 0x0801c000 - 0x0801dfff    8KiB r-x--- 6  user_leds
+0x08004cf0 0x0801e000 - 0x0801ffff    8KiB r-x--- 7  pong
+0x08004d10 0x08020000 - 0x08027fff   32KiB r-x--- 8  i2c_debug
+0x08004d30 0x08028000 - 0x0802bfff   16KiB r-x--- 9  adt7420
+0x08004d50 0x0802c000 - 0x0802dfff    8KiB r-x--- 10 max31790
+0x08004d70 0x08030000 - 0x08033fff   16KiB r-x--- 11 ds2482
+0x08004d90 0x08034000 - 0x080340ff     256 r-x--- 12 idle
+-          0x20000000 - 0x20000fff    4KiB rw---- -  kernel
+0x08004c20 0x20001000 - 0x200013ff    1KiB rw---- 0  jefe
+0x08004c40 0x20001400 - 0x200017ff    1KiB rw---- 1  rcc_driver
+0x08004c60 0x20001800 - 0x20001bff    1KiB rw---- 2  gpio_driver
+0x08004c80 0x20001c00 - 0x20001fff    1KiB rw---- 3  usart_driver
+0x08004ca0 0x20002000 - 0x200027ff    2KiB rw---- 4  i2c_driver
+0x08004cc0 0x20002800 - 0x20002fff    2KiB rw---- 5  i2c_target
+0x08004ce0 0x20003000 - 0x200033ff    1KiB rw---- 6  user_leds
+0x08004d00 0x20003400 - 0x200037ff    1KiB rw---- 7  pong
+0x08004d20 0x20004000 - 0x20005fff    8KiB rw---- 8  i2c_debug
+0x08004d40 0x20008000 - 0x2000ffff   32KiB rw---- 9  adt7420
+0x08004d60 0x20010000 - 0x200107ff    2KiB rw---- 10 max31790
+0x08004d80 0x20011000 - 0x20011fff    4KiB rw---- 11 ds2482
+0x08004da0 0x20012000 - 0x200120ff     256 rw---- 12 idle
+0x08004bc0 0x40004800 - 0x40004bff    1KiB rw-d-- 3  [usart3] usart_driver
+0x08004bd0 0x40005400 - 0x400057ff    1KiB rw-d-- 4  [i2c1] i2c_driver
+0x08004be0 0x40005800 - 0x40005bff    1KiB rw-d-- 5  [i2c2] i2c_target
+0x08004bf0 0x40005c00 - 0x40005fff    1KiB rw-d-- 4  [i2c3] i2c_driver
+0x08004c00 0x58001c00 - 0x58001fff    1KiB rw-d-- 4  [i2c4] i2c_driver
+0x08004b90 0x58020000 - 0x58021fff    8KiB rw-d-- 2  [gpios1] gpio_driver
+0x08004ba0 0x58022000 - 0x580227ff    2KiB rw-d-- 2  [gpios2] gpio_driver
+0x08004bb0 0x58022800 - 0x58022bff    1KiB rw-d-- 2  [gpios3] gpio_driver
+0x08004b80 0x58024400 - 0x580247ff    1KiB rw-d-- 1  [rcc] rcc_driver

@@ -124,7 +124,7 @@ impl NetCore {
                 .into_values()
                 .filter(|r| {
                     !r.attr.device
-                        && !r.attr.dma
+                        && !r.attr.external
                         && !r.attr.execute
                         && r.attr.read
                         && r.attr.write

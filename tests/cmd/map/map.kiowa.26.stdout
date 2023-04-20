@@ -1,43 +1,43 @@
-DESC       LOW          HIGH          SIZE ATTR  ID TASK
--          0x08000000 - 0x08000297     664 r---- -  kernel
--          0x08000298 - 0x0800425f   15KiB r-x-- -  kernel
--          0x08004260 - 0x0800537f    4KiB r---- -  kernel
-0x080052f8 0x08005400 - 0x0800547f     128 r-x-- 11 idle
-0x08005298 0x08005800 - 0x08005bff    1KiB r-x-- 8  pong
-0x080051a8 0x08006000 - 0x080067ff    2KiB r-x-- 1  sys
-0x08005258 0x08006800 - 0x08006fff    2KiB r-x-- 6  user_leds
-0x08005188 0x08008000 - 0x08009fff    8KiB r-x-- 0  jefe
-0x080051c8 0x0800a000 - 0x0800bfff    8KiB r-x-- 2  usart_driver
-0x080051e8 0x0800c000 - 0x0800ffff   16KiB r-x-- 3  i2c_driver
-0x08005228 0x08010000 - 0x0801ffff   64KiB r-x-- 5  net
-0x080052d8 0x08020000 - 0x08027fff   32KiB r-x-- 10 hiffy
-0x08005208 0x08028000 - 0x0802bfff   16KiB r-x-- 4  spi_driver
-0x080052b8 0x0802c000 - 0x0802ffff   16KiB r-x-- 9  udpecho
-0x08005278 0x08030000 - 0x08031fff    8KiB r-x-- 7  ping
--          0x20000000 - 0x200003ff    1KiB rw--- -  kernel
--          0x20000400 - 0x20000fff    3KiB rw--- -  kernel
-0x08005198 0x20001000 - 0x200017ff    2KiB rw--- 0  jefe
-0x080051f8 0x20001800 - 0x20001fff    2KiB rw--- 3  i2c_driver
-0x08005238 0x20002000 - 0x20003fff    8KiB rw--- 5  net
-0x080052c8 0x20004000 - 0x20005fff    8KiB rw--- 9  udpecho
-0x08005218 0x20006000 - 0x200067ff    2KiB rw--- 4  spi_driver
-0x080051b8 0x20006800 - 0x20006bff    1KiB rw--- 1  sys
-0x080051d8 0x20006c00 - 0x20006fff    1KiB rw--- 2  usart_driver
-0x08005268 0x20007000 - 0x200073ff    1KiB rw--- 6  user_leds
-0x08005288 0x20007400 - 0x200077ff    1KiB rw--- 7  ping
-0x080052a8 0x20007800 - 0x20007bff    1KiB rw--- 8  pong
-0x08005308 0x20007c00 - 0x20007cff     256 rw--- 11 idle
-0x080052e8 0x20008000 - 0x2000ffff   32KiB rw--- 10 hiffy
-0x08005248 0x30000000 - 0x30007fff   32KiB rw--m 5  net
-0x080050f8 0x40004800 - 0x40004bff    1KiB rw-d- 2  [usart3] usart_driver
-0x08005108 0x40005400 - 0x400057ff    1KiB rw-d- 3  [i2c1] i2c_driver
-0x08005118 0x40005800 - 0x40005bff    1KiB rw-d- 3  [i2c2] i2c_driver
-0x08005128 0x40005c00 - 0x40005fff    1KiB rw-d- 3  [i2c3] i2c_driver
-0x08005098 0x40013000 - 0x400133ff    1KiB rw-d- 4  [spi1] spi_driver
-0x08005158 0x40028000 - 0x40028fff    4KiB rw-d- 5  [eth] net
-0x08005168 0x40029000 - 0x400293ff    1KiB rw-d- 5  [eth_dma] net
-0x08005138 0x58001c00 - 0x58001fff    1KiB rw-d- 3  [i2c4] i2c_driver
-0x08005068 0x58020000 - 0x58021fff    8KiB rw-d- 1  [gpios1] sys
-0x08005078 0x58022000 - 0x580227ff    2KiB rw-d- 1  [gpios2] sys
-0x08005088 0x58022800 - 0x58022bff    1KiB rw-d- 1  [gpios3] sys
-0x08005058 0x58024400 - 0x580247ff    1KiB rw-d- 1  [rcc] sys
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x08000297     664 r----- -  kernel
+-          0x08000298 - 0x0800425f   15KiB r-x--- -  kernel
+-          0x08004260 - 0x0800537f    4KiB r----- -  kernel
+0x080052f8 0x08005400 - 0x0800547f     128 r-x--- 11 idle
+0x08005298 0x08005800 - 0x08005bff    1KiB r-x--- 8  pong
+0x080051a8 0x08006000 - 0x080067ff    2KiB r-x--- 1  sys
+0x08005258 0x08006800 - 0x08006fff    2KiB r-x--- 6  user_leds
+0x08005188 0x08008000 - 0x08009fff    8KiB r-x--- 0  jefe
+0x080051c8 0x0800a000 - 0x0800bfff    8KiB r-x--- 2  usart_driver
+0x080051e8 0x0800c000 - 0x0800ffff   16KiB r-x--- 3  i2c_driver
+0x08005228 0x08010000 - 0x0801ffff   64KiB r-x--- 5  net
+0x080052d8 0x08020000 - 0x08027fff   32KiB r-x--- 10 hiffy
+0x08005208 0x08028000 - 0x0802bfff   16KiB r-x--- 4  spi_driver
+0x080052b8 0x0802c000 - 0x0802ffff   16KiB r-x--- 9  udpecho
+0x08005278 0x08030000 - 0x08031fff    8KiB r-x--- 7  ping
+-          0x20000000 - 0x200003ff    1KiB rw---- -  kernel
+-          0x20000400 - 0x20000fff    3KiB rw---- -  kernel
+0x08005198 0x20001000 - 0x200017ff    2KiB rw---- 0  jefe
+0x080051f8 0x20001800 - 0x20001fff    2KiB rw---- 3  i2c_driver
+0x08005238 0x20002000 - 0x20003fff    8KiB rw---- 5  net
+0x080052c8 0x20004000 - 0x20005fff    8KiB rw---- 9  udpecho
+0x08005218 0x20006000 - 0x200067ff    2KiB rw---- 4  spi_driver
+0x080051b8 0x20006800 - 0x20006bff    1KiB rw---- 1  sys
+0x080051d8 0x20006c00 - 0x20006fff    1KiB rw---- 2  usart_driver
+0x08005268 0x20007000 - 0x200073ff    1KiB rw---- 6  user_leds
+0x08005288 0x20007400 - 0x200077ff    1KiB rw---- 7  ping
+0x080052a8 0x20007800 - 0x20007bff    1KiB rw---- 8  pong
+0x08005308 0x20007c00 - 0x20007cff     256 rw---- 11 idle
+0x080052e8 0x20008000 - 0x2000ffff   32KiB rw---- 10 hiffy
+0x08005248 0x30000000 - 0x30007fff   32KiB rw--m- 5  net
+0x080050f8 0x40004800 - 0x40004bff    1KiB rw-d-- 2  [usart3] usart_driver
+0x08005108 0x40005400 - 0x400057ff    1KiB rw-d-- 3  [i2c1] i2c_driver
+0x08005118 0x40005800 - 0x40005bff    1KiB rw-d-- 3  [i2c2] i2c_driver
+0x08005128 0x40005c00 - 0x40005fff    1KiB rw-d-- 3  [i2c3] i2c_driver
+0x08005098 0x40013000 - 0x400133ff    1KiB rw-d-- 4  [spi1] spi_driver
+0x08005158 0x40028000 - 0x40028fff    4KiB rw-d-- 5  [eth] net
+0x08005168 0x40029000 - 0x400293ff    1KiB rw-d-- 5  [eth_dma] net
+0x08005138 0x58001c00 - 0x58001fff    1KiB rw-d-- 3  [i2c4] i2c_driver
+0x08005068 0x58020000 - 0x58021fff    8KiB rw-d-- 1  [gpios1] sys
+0x08005078 0x58022000 - 0x580227ff    2KiB rw-d-- 1  [gpios2] sys
+0x08005088 0x58022800 - 0x58022bff    1KiB rw-d-- 1  [gpios3] sys
+0x08005058 0x58024400 - 0x580247ff    1KiB rw-d-- 1  [rcc] sys

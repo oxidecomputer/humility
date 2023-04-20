@@ -79,7 +79,7 @@ fn mapcmd(context: &mut humility::ExecutionContext) -> Result<()> {
     core.op_done()?;
 
     println!(
-        "{:10} {:10}   {:10} {:>7} {:5} {:2} TASK",
+        "{:10} {:10}   {:10} {:>7} {:6} {:2} TASK",
         "DESC", "LOW", "HIGH", "SIZE", "ATTR", "ID",
     );
 
@@ -95,7 +95,7 @@ fn mapcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         };
 
         println!(
-            "{:10} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{} {:2} {}",
+            "{:10} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{}{} {:2} {}",
             match region.daddr {
                 Some(daddr) => format!("0x{:08x}", daddr),
                 None => "-".to_owned(),
@@ -112,10 +112,17 @@ fn mapcmd(context: &mut humility::ExecutionContext) -> Result<()> {
             if region.attr.execute { "x" } else { "-" },
             if region.attr.device { "d" } else { "-" },
             if region.attr.dma { "m" } else { "-" },
+            if region.attr.external { "e" } else { "-" },
             region.tasks[0].id(),
             if region.attr.device {
                 if let Some(p) = hubris.lookup_peripheral_byaddr(region.base) {
                     format!("[{}] {}", p, name)
+                } else {
+                    format!("[??] {}", name)
+                }
+            } else if region.attr.external {
+                if let Some(e) = hubris.lookup_external_byaddr(region.base) {
+                    format!("[{}] {}", e, name)
                 } else {
                     format!("[??] {}", name)
                 }
