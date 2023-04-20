@@ -222,7 +222,7 @@ postcard = "0.7.0"
 proc-macro2 = "1.0"
 quote = "1.0"
 rand = "0.8"
-raw-cpuid = "10.6.0"
+raw-cpuid = { version = "11.0.0", features = ["display"] }
 reedline = "0.11.0"
 regex = "1.5.5"
 ron = "0.7"

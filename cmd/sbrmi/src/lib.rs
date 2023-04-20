@@ -102,18 +102,9 @@ use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
-use std::collections::{HashMap, HashSet};
-
-//
-// We pull in more or less verbatim the `cpuid` program from the raw-cpuid
-// crate.  Skip formatting it and running Clippy against it to minimize
-// our differences with upstream should we wish to update it over time.
-//
-#[rustfmt::skip]
-#[allow(clippy::all)]
-mod cpuid;
-
 use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -191,56 +182,22 @@ fn cpuid(
 ) -> Result<()> {
     let thread = thread.unwrap_or(0);
 
-    //
-    // We want to call into the raw_cpuid crate to pull and display CPUID
-    // information, but it unfortunately takes only a function, not a
-    // closure.  (It -- understandably -- didn't forsee the CPUID instruction
-    // being run via a sidechannel I2C interface through an intermediary
-    // operating at a distance!)  We resort to the same technique used by the
-    // Hiffy RPC engine for its client-side HIF emulation:  we create a
-    // structure to hold the pointers to things that we need, and fill it with
-    // more or less raw pointers, transmuting away all lifetimes in the
-    // process.  We dispense with some of the precaution taken in that code
-    // because this isn't callable by anyone else, and the stakes here are
-    // generally low: we're going to call into the raw_cpuid code to
-    // pretty-print the results of the proxied CPUID, and then we're going to
-    // exit.
-    //
-    struct SbrmiWorkspace {
-        hubris: Option<std::ptr::NonNull<HubrisArchive>>,
-        core: Option<std::ptr::NonNull<dyn Core>>,
-        context: Option<std::ptr::NonNull<HiffyContext<'static>>>,
-        thread: Option<u8>,
+    struct SbrmiWorkspace<'a, 'b> {
+        hubris: &'a HubrisArchive,
+        core: &'a mut dyn Core,
+        context: &'a mut HiffyContext<'b>,
+        thread: u8,
     }
-
-    thread_local! {
-        static SBRMI_WORKSPACE: RefCell<SbrmiWorkspace> =
-            RefCell::new(
-                SbrmiWorkspace {
-                    hubris: None,
-                    core: None,
-                    context: None,
-                    thread: None,
-                });
-    }
-
-    fn cb(eax: u32, ecx: u32) -> CpuIdResult {
-        SBRMI_WORKSPACE.with(|workspace| {
-            let workspace = workspace.borrow_mut();
-            let (hubris, core, context) = {
-                // Hold Matt's beer
-                unsafe {
-                    (
-                        workspace.hubris.unwrap().as_ref(),
-                        workspace.core.unwrap().as_mut(),
-                        workspace.context.unwrap().as_mut(),
-                    )
-                }
-            };
-
-            let thread = workspace.thread.unwrap();
-
-            match call_cpuid(hubris, core, context, thread, eax, ecx) {
+    impl<'a, 'b> SbrmiWorkspace<'a, 'b> {
+        fn cpuid2(&mut self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
+            match call_cpuid(
+                self.hubris,
+                self.core,
+                self.context,
+                self.thread,
+                eax,
+                ecx,
+            ) {
                 Err(e) => {
                     //
                     // We unfortunately have no ability to fail, so we
@@ -251,39 +208,29 @@ fn cpuid(
                 }
                 Ok(result) => result,
             }
-        })
+        }
     }
+    #[derive(Clone)]
+    struct WorkspaceRef<'a, 'b> {
+        cell: Arc<RefCell<SbrmiWorkspace<'a, 'b>>>,
+    }
+    impl<'a, 'b> raw_cpuid::CpuIdReader for WorkspaceRef<'a, 'b> {
+        fn cpuid2(&self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
+            let mut r = self.cell.borrow_mut();
+            r.cpuid2(eax, ecx)
+        }
+    }
+    let workspace = WorkspaceRef {
+        cell: Arc::new(RefCell::new(SbrmiWorkspace {
+            hubris,
+            core,
+            context,
+            thread,
+        })),
+    };
 
-    SBRMI_WORKSPACE.with(|workspace| {
-        let mut workspace = workspace.borrow_mut();
-
-        // Cough, cough.
-        *workspace = SbrmiWorkspace {
-            hubris: Some(std::ptr::NonNull::from(hubris)),
-            core: Some(
-                std::ptr::NonNull::new(unsafe {
-                    std::mem::transmute::<
-                        *mut (dyn Core + '_),
-                        *mut (dyn Core + 'static),
-                    >(core as *mut dyn Core)
-                })
-                .unwrap(),
-            ),
-            context: Some(
-                std::ptr::NonNull::new(unsafe {
-                    std::mem::transmute::<
-                        &mut HiffyContext<'_>,
-                        &mut HiffyContext<'static>,
-                    >(context)
-                })
-                .unwrap(),
-            ),
-            thread: Some(thread),
-        };
-    });
-
-    let cpuid = CpuId::with_cpuid_fn(cb);
-    crate::cpuid::markdown(&cpuid);
+    let cpuid = CpuId::with_cpuid_fn(workspace);
+    raw_cpuid::display::markdown(cpuid);
 
     Ok(())
 }
