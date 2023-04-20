@@ -82,13 +82,12 @@ use num_traits::FromPrimitive;
 use std::cell::RefCell;
 use std::time::Instant;
 
-#[derive(Parser, Debug)]
+#[derive(Clone, Parser, Debug)]
 #[clap(
     name = "dump", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("simulation").multiple(false)
         .required(false).requires("force-dump-agent")
 )]
-
 struct DumpArgs {
     /// sets timeout
     #[clap(
@@ -98,7 +97,7 @@ struct DumpArgs {
     timeout: u32,
 
     /// show dump agent status
-    #[clap(long, conflicts_with_all = &["simulation", "task"])]
+    #[clap(long, conflicts_with_all = &["simulation", "task", "all"])]
     dump_agent_status: bool,
 
     /// force use of the dump agent when directly attached with a debug probe
@@ -110,11 +109,11 @@ struct DumpArgs {
     force_hiffy_agent: bool,
 
     /// force manual initiation, leaving target halted
-    #[clap(long, requires = "force-dump-agent", conflicts_with = "task")]
+    #[clap(long, requires = "force-dump-agent", conflicts_with_all = &["all", "task"])]
     force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
-    #[clap(long, conflicts_with_all = &["simulation", "task"])]
+    #[clap(long, conflicts_with_all = &["simulation", "task", "all"])]
     force_read: bool,
 
     /// initialize dump state, clearing any dump at the dump agent
@@ -137,7 +136,7 @@ struct DumpArgs {
     simulate_dumper: bool,
 
     /// in addition to simulating the dumper, generate a stock dump
-    #[clap(long, requires = "simulation", conflicts_with = "task")]
+    #[clap(long, requires = "simulation", conflicts_with_all = &["task", "all"])]
     stock_dumpfile: Option<String>,
 
     /// emulate in situ dumper by reading directly from target and writing
@@ -155,6 +154,13 @@ struct DumpArgs {
         conflicts_with_all = &["simulation", "list", "area"]
     )]
     task: Option<String>,
+
+    /// extracts every available dump
+    #[clap(
+        long,
+        conflicts_with_all = &["simulation", "list", "area", "task"]
+    )]
+    all: bool,
 
     #[clap(short, long, conflicts_with_all = &["simulation", "list"])]
     area: Option<usize>,
@@ -643,6 +649,67 @@ fn dump_list(
     Ok(())
 }
 
+fn dump_all(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &DumpArgs,
+) -> Result<()> {
+    let mut agent = get_dump_agent(hubris, core, subargs)?;
+    let headers = agent.read_dump_headers(false)?;
+    if headers.is_empty() || headers[0].0.dumper == humpty::DUMPER_NONE {
+        return Ok(());
+    }
+
+    // We have a full-system dump
+    if headers[0].1.is_none() {
+        // Extract the full-system dump via the usual method
+        drop(agent);
+        let mut subargs = subargs.clone();
+        subargs.force_read = true;
+        dump_via_agent(hubris, core, &subargs)
+    } else {
+        let areas = task_areas(&headers);
+        for (area, (task, headers)) in &areas {
+            let task_name = match hubris
+                .lookup_module(HubrisTask::Task(task.id.into()))
+            {
+                Ok(module) => match headers[0].contents {
+                    humpty::DUMP_CONTENTS_SINGLETASK => module.name.to_owned(),
+                    humpty::DUMP_CONTENTS_TASKREGION => {
+                        format!("{}.region", module.name.to_owned())
+                    }
+                    c => bail!("unknown contents type: {c}"),
+                },
+                _ => "<unknown>".to_owned(),
+            };
+
+            let dumpfile = (0..)
+                .map(|i| format!("hubris.core.{task_name}.{}", i))
+                .find(|f| std::fs::File::open(f).is_err())
+                .unwrap();
+            humility::msg!("dumping {} (area {})", task_name, area);
+
+            let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
+            let started = Some(Instant::now());
+            let task = agent.read_dump(
+                Some(DumpArea::ByIndex(*area)),
+                &mut out,
+                true,
+            )?;
+            assert!(task.is_some());
+            hubris.dump(&mut out, task, Some(&dumpfile), started)?;
+        }
+
+        if !subargs.retain_state {
+            humility::msg!("resetting dump agent state");
+            agent.initialize_dump()?;
+        } else {
+            humility::msg!("retaining dump agent state");
+        }
+        Ok(())
+    }
+}
+
 fn dump_agent_status(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -666,7 +733,9 @@ fn dumpcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         bail!("can only force the dump agent when attached via debug probe");
     }
 
-    if subargs.list {
+    if subargs.all {
+        dump_all(hubris, core, &subargs)
+    } else if subargs.list {
         dump_list(hubris, core, &subargs)
     } else if subargs.dump_agent_status {
         dump_agent_status(hubris, core, &subargs)
