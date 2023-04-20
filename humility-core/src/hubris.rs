@@ -498,34 +498,6 @@ impl Namespaces {
     }
 }
 
-//
-// We want to track our extern regions, but there is a regrettable artifact:
-// XXX
-//
-#[derive(Debug)]
-enum ExternRegions {
-    Unloaded,
-    ByAddress(HashMap<u32, String>),
-    ByTask(HashSet<HubrisTask>),
-}
-
-impl ExternRegions {
-    fn lookup(&self, task: HubrisTask, address: u32, dma: bool) -> bool {
-        match self {
-            ExternRegions::ByAddress(map) => map.get(&address).is_some(),
-            ExternRegions::ByTask(set) => dma && set.get(&task).is_some(),
-            ExternRegions::Unloaded => panic!("no archive has been loaded"),
-        }
-    }
-
-    fn lookup_byaddr(&self, address: u32) -> Option<&String> {
-        match self {
-            ExternRegions::ByAddress(map) => map.get(&address),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct HubrisArchive {
     // the entire archive
@@ -692,7 +664,7 @@ impl HubrisArchive {
             unions: HashMap::new(),
             definitions: MultiMap::new(),
             namespaces: Namespaces::new(),
-            extern_regions: ExternRegions::Unloaded,
+            extern_regions: ExternRegions::new(),
         })
     }
 
@@ -3009,55 +2981,12 @@ impl HubrisArchive {
         })?;
 
         //
-        // Now that we have loaded everything, determine where our external regions are.  Regrettably, because
-        // there was a window in which we had external regions but had no way
-        // of determining them from the archive, , and which tasks have
-        // external regions. XXXX
+        // Now that we have loaded our tasks, load our extern regions.
         //
-        self.extern_regions = match archive.by_name("memory.toml") {
-            Ok(mut file) => {
-                let mut memory = String::new();
-                file.read_to_string(&mut memory)?;
-                let all_memories: IndexMap<String, Vec<HubrisConfigOutput>> =
-                    toml::from_slice(memory.as_bytes())?;
-
-                let mut map = HashMap::new();
-                let mut all_extern_regions = HashSet::new();
-
-                for (_, task) in config.tasks {
-                    if let Some(extern_regions) = task.extern_regions {
-                        for region in extern_regions {
-                            all_extern_regions.insert(region.clone());
-                        }
-                    }
-                }
-
-                for (name, memories) in all_memories {
-                    if all_extern_regions.get(&name).is_some() {
-                        for memory in memories {
-                            map.insert(memory.address, name.clone());
-                        }
-                    }
-                }
-
-                ExternRegions::ByAddress(map)
-            }
-            _ => {
-                let mut set = HashSet::new();
-
-                for (name, task) in config.tasks {
-                    if task.extern_regions.is_some() {
-                        set.insert(*self.lookup_task(&name).unwrap());
-                    }
-                }
-
-                ExternRegions::ByTask(set)
-            }
-        };
+        self.extern_regions = ExternRegions::load(self, &mut archive, &config)?;
 
         //
-        // We have loaded everything; now post-process our enums and structs
-        // to add their fully scoped names.
+        // Post-process our enums and structs to add their fully scoped names.
         //
         let mut work = vec![];
 
@@ -4350,7 +4279,7 @@ impl HubrisArchive {
                         execute: attr & EXECUTE != 0,
                         device: attr & DEVICE != 0,
                         dma,
-                        external: self.extern_regions.lookup(task, base, dma),
+                        external: self.extern_regions.external(task, base, dma),
                     },
                     tasks: vec![HubrisTask::Task(i as u32)],
                 };
@@ -6114,6 +6043,126 @@ impl HubrisPrintFormat {
 pub enum HubrisValidate {
     ArchiveMatch,
     Booted,
+}
+
+//
+// We want to track our external regions because we want to be able to identify
+// them, but this requires us knowing what addresses our external regions map
+// to.  All of this would be fine, but there exists (or existed, anyway) a
+// window of time in which external regions existed, but the archive did not
+// contain the necessary metadata to be able to perform this correlation.  To
+// reassemble this, we follow a sleazy heuristic, observing that tasks that had
+// external regions in this window of time also enabled DMA to those external
+// regions -- and only to those regions.  So if we do not have our necessary
+// metadata (specifically, the `memory.toml` file), we perform this crude
+// reconstruction.
+//
+#[derive(Debug)]
+enum ExternRegions {
+    /// We have not yet loaded any external regions
+    Unloaded,
+
+    /// We have the metadata to correlate addresses to regions
+    ByAddress(HashMap<u32, String>),
+
+    /// We only know which tasks have which regions -- not the addresses of
+    /// those regions
+    ByTask(HashSet<HubrisTask>),
+}
+
+impl ExternRegions {
+    fn new() -> Self {
+        ExternRegions::Unloaded
+    }
+
+    ///
+    /// Load external regions from the archive.  Based on the presence of
+    /// archive metadata, this will construct the necessary structures to
+    /// correlate address to external region.
+    ///
+    fn load(
+        hubris: &HubrisArchive,
+        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+        config: &HubrisConfig,
+    ) -> Result<Self> {
+        match archive.by_name("memory.toml") {
+            Ok(mut file) => {
+                let mut memory = String::new();
+                file.read_to_string(&mut memory)?;
+                let all_memories: IndexMap<String, Vec<HubrisConfigOutput>> =
+                    toml::from_slice(memory.as_bytes())?;
+
+                //
+                // We have our memory metadata but it includes all memories
+                // (not just extern regions); iterate over our tasks to find
+                // the extern regions, and then insert only those into our map.
+                //
+                let mut map = HashMap::new();
+                let mut all_extern_regions = HashSet::new();
+
+                for (_, task) in &config.tasks {
+                    if let Some(extern_regions) = &task.extern_regions {
+                        for region in extern_regions {
+                            all_extern_regions.insert(region.clone());
+                        }
+                    }
+                }
+
+                for (name, memories) in all_memories {
+                    if all_extern_regions.get(&name).is_some() {
+                        //
+                        // Note that we are inserting all memories into our
+                        // map (that is, regardless of our image name), with
+                        // the (hopefully reasonable?) assumption that a given
+                        // address can't map to two different memories across
+                        // images.
+                        //
+                        for memory in memories {
+                            map.insert(memory.address, name.clone());
+                        }
+                    }
+                }
+
+                Ok(Self::ByAddress(map))
+            }
+            _ => {
+                let mut set = HashSet::new();
+
+                for (name, task) in &config.tasks {
+                    if task.extern_regions.is_some() {
+                        set.insert(*hubris.lookup_task(name).unwrap());
+                    }
+                }
+
+                Ok(Self::ByTask(set))
+            }
+        }
+    }
+
+    ///
+    /// Returns `true` iff the specified address is in an external region.
+    /// We only require the `task` and the `dma` property in the event that
+    /// we don't have the metadata in the archive.
+    ///
+    fn external(&self, task: HubrisTask, address: u32, dma: bool) -> bool {
+        match self {
+            ExternRegions::ByAddress(map) => map.get(&address).is_some(),
+            ExternRegions::ByTask(set) => dma && set.get(&task).is_some(),
+            ExternRegions::Unloaded => panic!("no archive has been loaded"),
+        }
+    }
+
+    ///
+    /// For a given address, return the name of the external region if known.
+    /// If the address is not in an external region or the archive lacks the
+    /// necessary metadata, this will return `None`.
+    ///
+    fn lookup_byaddr(&self, address: u32) -> Option<&String> {
+        match self {
+            ExternRegions::ByAddress(map) => map.get(&address),
+            _ => None,
+        }
+    }
 }
 
 //
