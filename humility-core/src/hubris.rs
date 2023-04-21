@@ -4774,9 +4774,19 @@ impl HubrisArchive {
             Some(task) => {
                 let t = HubrisTask::Task(task.id as u32);
 
+                //
+                // In an act of selfless charity, we want to accommodate
+                // running on a Hubris that predates the functionality to
+                // allow for Jefe to dump DMA regions for a task -- which we
+                // approximate by the absence of memory metadata.
+                //
+                let exclude_dma =
+                    matches!(self.extern_regions, ExternRegions::ByTask(_));
+
                 let mut segments = regions
                     .values()
                     .filter(|&r| !r.attr.device && !r.attr.external)
+                    .filter(|&r| !exclude_dma || !r.attr.dma)
                     .filter(|&r| {
                         r.tasks.contains(&t)
                             || (include_nonwritable && !r.attr.write)
@@ -4880,21 +4890,18 @@ impl HubrisArchive {
         let filename = match dumpfile {
             Some(filename) => filename.to_owned(),
             None => {
-                let mut filename;
-                let mut i = 0;
-
-                loop {
-                    filename = format!("hubris.core.{}", i);
-
-                    if let Ok(_f) = fs::File::open(&filename) {
-                        i += 1;
-                        continue;
+                let prefix = match task {
+                    Some(task) => {
+                        let t = HubrisTask::Task(task.id as u32);
+                        format!("hubris.core.{}.", self.lookup_module(t)?.name)
                     }
+                    None => "hubris.core.".to_string(),
+                };
 
-                    break;
-                }
-
-                filename
+                (0..)
+                    .map(|i| format!("{prefix}{i}"))
+                    .find(|f| std::fs::File::open(f).is_err())
+                    .unwrap()
             }
         };
 
