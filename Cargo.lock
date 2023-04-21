@@ -1772,6 +1772,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "pmbus",
+ "zerocopy",
 ]
 
 [[package]]

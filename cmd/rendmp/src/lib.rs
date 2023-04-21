@@ -83,6 +83,8 @@ use std::io::Write;
 use std::thread;
 use std::time::{Duration, Instant};
 
+mod blackbox;
+
 #[derive(Parser, Debug)]
 #[clap(name = "rendmp", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct RendmpArgs {
