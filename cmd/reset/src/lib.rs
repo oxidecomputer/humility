@@ -56,7 +56,7 @@ fn reset(context: &mut humility::ExecutionContext) -> Result<()> {
             "There was an error when resetting. \
             The chip may be in an unknown state!"
         );
-        humility::msg!("Full error: {:x?}", r);
+        humility::msg!("Full error: {r:x?}");
     }
 
     Ok(())

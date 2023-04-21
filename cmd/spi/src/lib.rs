@@ -108,7 +108,7 @@ pub fn spi_task(
     peripheral: Option<u8>,
 ) -> Result<HubrisTask> {
     let lookup = |peripheral| {
-        let spi = format!("spi{}", peripheral);
+        let spi = format!("spi{peripheral}");
         let tasks = hubris.lookup_feature(&spi)?;
         let tasks: Vec<HubrisTask> = tasks
             .into_iter()
@@ -126,7 +126,7 @@ pub fn spi_task(
             0 => Ok(None),
             1 => Ok(Some(tasks[0])),
             _ => {
-                bail!("more than one task has {}", spi);
+                bail!("more than one task has {spi}");
             }
         }
     };
@@ -135,7 +135,7 @@ pub fn spi_task(
         match lookup(peripheral)? {
             Some(task) => task,
             None => {
-                bail!("SPI peripheral {} not found", peripheral);
+                bail!("SPI peripheral {peripheral} not found");
             }
         }
     } else {
@@ -194,7 +194,7 @@ fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
         if let Ok(device) = parse_int::parse::<u8>(&device) {
             ops.push(Op::Push(device));
         } else {
-            bail!("illegal device {}", device);
+            bail!("illegal device {device}");
         }
     } else {
         // Device 0
@@ -213,7 +213,7 @@ fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
             if let Ok(val) = parse_int::parse::<u8>(byte) {
                 arr.push(val);
             } else {
-                bail!("invalid byte {}", byte)
+                bail!("invalid byte {byte}")
             }
         }
 

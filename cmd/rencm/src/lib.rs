@@ -387,11 +387,7 @@ fn rencm_attached(
                                     jobaddr(&job),
                                 );
                             } else {
-                                bail!(
-                                    "missing result at {}: {:?}",
-                                    rndx,
-                                    results
-                                );
+                                bail!("missing result at {rndx}: {results:?}");
                             }
                         }
 
@@ -401,7 +397,7 @@ fn rencm_attached(
                     let job = match calls[rndx] {
                         Some(ndx) => work[ndx],
                         None => {
-                            bail!("spurious result at {}: {:?}", rndx, results);
+                            bail!("spurious result at {rndx}: {results:?}");
                         }
                     };
 

@@ -1119,21 +1119,16 @@ fn writes(
 
     let success = |harg, rail: &Option<u8>, cmd| {
         if let Some(rnum) = *rail {
-            humility::msg!(
-                "{}, rail {}: successfully wrote {}",
-                harg,
-                rnum,
-                cmd
-            );
+            humility::msg!("{harg}, rail {rnum}: successfully wrote {cmd}",);
         } else {
-            humility::msg!("{}: successfully wrote {}", harg, cmd);
+            humility::msg!("{harg}: successfully wrote {cmd}");
         }
     };
 
     for (harg, rail) in &hargs {
         if let Some(rnum) = rail {
             if let Err(code) = results[ndx] {
-                bail!("{}: failed to set rail {}: {}", harg, rnum, code);
+                bail!("{harg}: failed to set rail {rnum}: {code}");
             }
 
             ndx += 1;
@@ -1152,9 +1147,9 @@ fn writes(
                 WriteOp::Set | WriteOp::SetBlock(_) => match results[ndx] {
                     Err(code) => {
                         bail!(
-                                "{}: failed to set {}: {}",
-                                harg, cmd, write_func.strerror(code)
-                            )
+                            "{harg}: failed to set {cmd}: {}",
+                            write_func.strerror(code)
+                        )
                     }
                     Ok(_) => {
                         success(harg, rail, cmd);
@@ -1203,7 +1198,7 @@ fn writes(
 
         let mode = match results[ndx] {
             Err(code) => {
-                bail!("bad VOUT_MODE on {}: {}", harg, func.strerror(code));
+                bail!("bad VOUT_MODE on {harg}: {}", func.strerror(code));
             }
             Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
         };
@@ -1216,10 +1211,7 @@ fn writes(
             if let WriteOp::Modify(size, set) = op {
                 let payload = match results[ndx] {
                     Err(code) => {
-                        bail!(
-                            "failed to read {}: {}",
-                            cmd, func.strerror(code)
-                        );
+                        bail!("failed to read {cmd}: {}", func.strerror(code));
                     }
                     Ok(ref val) => val,
                 };
@@ -1228,8 +1220,8 @@ fn writes(
 
                 if payload.len() != *size {
                     bail!(
-                        "mismatch on {}: expected {}, found {}",
-                        cmd, size, payload.len()
+                        "mismatch on {cmd}: expected {size}, found {}",
+                        payload.len()
                     );
                 }
 
@@ -1270,7 +1262,7 @@ fn writes(
     for (harg, rail) in &hargs {
         if let Some(rnum) = rail {
             if let Err(code) = results[ndx] {
-                bail!("failed to set rail {} on {}: Err({})", rnum, harg, code);
+                bail!("failed to set rail {rnum} on {harg}: Err({code})");
             }
 
             ndx += 1;
@@ -1280,8 +1272,8 @@ fn writes(
             if let WriteOp::Modify(_, _) = op {
                 if let Err(code) = results[ndx] {
                     bail!(
-                        "{}: failed to write {}: {}",
-                        harg, cmd, write_func.strerror(code)
+                        "{harg}: failed to write {cmd}: {}",
+                        write_func.strerror(code)
                     );
                 } else {
                     success(harg, rail, cmd);

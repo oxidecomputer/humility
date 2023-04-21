@@ -1364,7 +1364,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored",
  "csv",
  "humility-cmd",
  "humility-core",
@@ -1468,7 +1467,6 @@ dependencies = [
  "anyhow",
  "atty",
  "clap",
- "colored",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -1980,7 +1978,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
@@ -2070,7 +2067,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored",
  "hif",
  "humility-cmd",
  "humility-core",
@@ -2161,6 +2157,7 @@ dependencies = [
  "humpty",
  "indexmap",
  "indicatif",
+ "log",
  "lzss",
  "num-traits",
  "rand",

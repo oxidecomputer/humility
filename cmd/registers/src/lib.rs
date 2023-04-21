@@ -258,7 +258,7 @@ fn registers(context: &mut humility::ExecutionContext) -> Result<()> {
             // indicate that regions can't be loadwed.)
             //
             if hubris.loaded() {
-                humility::msg!("failed to determine memory regions: {}", err);
+                humility::msg!("failed to determine memory regions: {err}");
             }
 
             BTreeMap::new()
@@ -324,8 +324,7 @@ fn registers(context: &mut humility::ExecutionContext) -> Result<()> {
                     region.tasks[0]
                 } else {
                     humility::msg!(
-                        "multiple tasks map 0x{:x}: {:?}",
-                        val,
+                        "multiple tasks map 0x{val:x}: {:?}",
                         region.tasks
                     );
                     continue;
@@ -347,14 +346,14 @@ fn registers(context: &mut humility::ExecutionContext) -> Result<()> {
                                 does the dump pre-date dumped kernel stacks?"
                             );
                         } else {
-                            humility::msg!("stack unwind failed: {:?} ", e);
+                            humility::msg!("stack unwind failed: {e:?}");
                         }
 
                         continue;
                     }
                 }
             } else {
-                humility::msg!("unknown region for SP 0x{:08x}", val);
+                humility::msg!("unknown region for SP 0x{val:08x}");
             }
         }
     }
