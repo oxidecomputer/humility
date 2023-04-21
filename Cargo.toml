@@ -57,7 +57,6 @@ members = [
     "cmd/itm",
     "cmd/jefe",
     "cmd/lpc55gpio",
-    "cmd/lpc55-pfr",
     "cmd/manifest",
     "cmd/map",
     "cmd/monorail",
@@ -96,7 +95,6 @@ hif = { git = "https://github.com/oxidecomputer/hif" }
 humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.2" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
-lpc55_areas = { git = "https://github.com/oxidecomputer/lpc55_support", rev = "a07e8d39caf27dd83c314e121755d481a3f52263" }
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
 spd = { git = "https://github.com/oxidecomputer/spd" }
 serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
@@ -147,11 +145,9 @@ cmd-hash = { path = "./cmd/hash", package = "humility-cmd-hash" }
 cmd-hiffy = { path = "./cmd/hiffy", package = "humility-cmd-hiffy" }
 cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }
 cmd-ibc = { path = "./cmd/ibc", package = "humility-cmd-ibc" }
-cmd-isp = { path = "./cmd/isp", package = "humility-cmd-isp" }
 cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
-cmd-lpc55-pfr = { path = "./cmd/lpc55-pfr", package = "humility-cmd-lpc55-pfr" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
@@ -287,11 +283,9 @@ cmd-hash = { workspace = true }
 cmd-hiffy = { workspace = true }
 cmd-i2c = { workspace = true }
 cmd-ibc = { workspace = true }
-cmd-isp = { workspace = true }
 cmd-itm = { workspace = true }
 cmd-jefe = { workspace = true }
 cmd-lpc55gpio = { workspace = true }
-cmd-lpc55-pfr = { workspace = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
