@@ -12,7 +12,6 @@ parse_int.workspace = true
 indexmap.workspace = true
 idol.workspace = true
 atty.workspace = true
-colored.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true

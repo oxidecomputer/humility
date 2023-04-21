@@ -62,7 +62,7 @@ fn bankerasecmd(context: &mut humility::ExecutionContext) -> Result<()> {
         None => bail!("no"),
     };
 
-    humility::msg!("attaching with chip set to {:x?}", chip);
+    humility::msg!("attaching with chip set to {chip:x?}");
     let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
     let core = c.as_mut();
 

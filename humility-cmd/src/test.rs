@@ -263,7 +263,7 @@ impl<'a> TestRun<'a> {
 
             TestToken::Done => {
                 let result = TestRunResult::from(tokens[1]);
-                humility::msg!("tests completed: {}", result);
+                humility::msg!("tests completed: {result}");
                 self.result = Some(result);
                 TestToken::None
             }
@@ -359,7 +359,7 @@ impl<'a> TestRun<'a> {
         writeln!(out, "==== Test results")?;
         writeln!(out, "{:#?}", self.results)?;
 
-        humility::msg!("test output dumped to {}", filename);
+        humility::msg!("test output dumped to {filename}");
 
         Ok(())
     }

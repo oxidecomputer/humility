@@ -216,9 +216,9 @@ fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
         if let Some(def) = def {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
                 if subargs.verbose {
-                    humility::msg!("ringbuf dump failed: {:?}", e);
+                    humility::msg!("ringbuf dump failed: {e:?}");
                 } else {
-                    humility::msg!("ringbuf dump failed: {}", e);
+                    humility::msg!("ringbuf dump failed: {e}");
                 }
             }
         } else {

@@ -13,4 +13,3 @@ anyhow = { workspace = true }
 csv = { workspace = true }
 parse_int = { workspace = true }
 log = { workspace = true }
-colored = { workspace = true }

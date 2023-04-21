@@ -1462,7 +1462,7 @@ pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
                 let probe = probe_rs::Probe::open(selector)?;
                 let name = probe.get_name();
 
-                crate::msg!("Opened {} via {}", vidpid, name);
+                crate::msg!("Opened {vidpid} via {name}");
                 Ok(Box::new(UnattachedCore::new(probe, name, vid, pid, serial)))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
@@ -1512,7 +1512,7 @@ pub fn attach_to_chip(
                 None => (probe.attach("armv7m")?, false),
             };
 
-            crate::msg!("attached via {}", name);
+            crate::msg!("attached via {name}");
 
             Ok(Box::new(ProbeCore::new(
                 session,
@@ -1584,7 +1584,7 @@ pub fn attach_to_chip(
                     None => (probe.attach("armv7m")?, false),
                 };
 
-                crate::msg!("attached to {} via {}", vidpid, name);
+                crate::msg!("attached to {vidpid} via {name}");
 
                 Ok(Box::new(ProbeCore::new(
                     session,
@@ -1596,7 +1596,7 @@ pub fn attach_to_chip(
                     can_flash,
                 )))
             }
-            Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
+            Err(_) => Err(anyhow!("unrecognized probe: {probe}")),
         },
     }
 }

@@ -410,9 +410,8 @@ fn dump_via_agent(
 
                 if let Some(overflow) = rval {
                     bail!(
-                        "compresion overflow at address {:#x} by {} bytes",
-                        addr,
-                        overflow,
+                        "compresion overflow at address {addr:#x} \
+                        by {overflow} bytes",
                     );
                 }
 
@@ -684,10 +683,10 @@ fn dump_all(
             };
 
             let dumpfile = (0..)
-                .map(|i| format!("hubris.core.{task_name}.{}", i))
+                .map(|i| format!("hubris.core.{task_name}.{i}"))
                 .find(|f| std::fs::File::open(f).is_err())
                 .unwrap();
-            humility::msg!("dumping {} (area {})", task_name, area);
+            humility::msg!("dumping {task_name} (area {area})");
 
             let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
             let started = Some(Instant::now());

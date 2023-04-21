@@ -4881,7 +4881,7 @@ impl HubrisArchive {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        msg!("dumping to {}", filename);
+        msg!("dumping to {filename}");
 
         file.iowrite_with(header, ctx)?;
 

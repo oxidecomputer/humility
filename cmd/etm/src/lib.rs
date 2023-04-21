@@ -105,7 +105,7 @@ fn etmcmd_probe(core: &mut dyn Core) -> Result<()> {
     }
 
     let etmccr = ETMCCR::read(core)?;
-    humility::msg!("{:#x?}", etmccr);
+    humility::msg!("{etmccr:#x?}");
 
     if !etmccr.has_etmidr() {
         warn!("ETMv1.3 and earlier not supported");
@@ -113,10 +113,10 @@ fn etmcmd_probe(core: &mut dyn Core) -> Result<()> {
     }
 
     let etmidr = ETMIDR::read(core)?;
-    humility::msg!("{:#x?}", etmidr);
+    humility::msg!("{etmidr:#x?}");
 
     let etmccer = ETMCCER::read(core)?;
-    humility::msg!("{:#x?}", etmccer);
+    humility::msg!("{etmccer:#x?}");
 
     Ok(())
 }

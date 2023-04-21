@@ -934,7 +934,7 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
         let results = context.run(core, ops.as_slice(), None)?;
 
         let crc = word_result(&results[1], "CRC")?;
-        humility::msg!("{} at {} has CRC 0x{:<08x}", d, &hargs, crc);
+        humility::msg!("{d} at {hargs} has CRC 0x{crc:<08x}");
 
         return Ok(());
     }
@@ -950,7 +950,7 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
         let results = context.run(core, ops.as_slice(), None)?;
 
         let nslots = word_result(&results[1], "available slots")?;
-        humility::msg!("{} at {} has {} slots available", d, &hargs, nslots);
+        humility::msg!("{d} at {hargs} has {nslots} slots available");
 
         return Ok(());
     }
@@ -1023,7 +1023,7 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
         }
 
         let nslots = word_result(&results[3], "available slots")?;
-        humility::msg!("{} NVM slots remain", nslots);
+        humility::msg!("{nslots} NVM slots remain");
 
         //
         // Check that the number of available slots seems sane -- and (for
@@ -1044,17 +1044,17 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
         let crc = word_result(&results[5], "CRC")?;
 
         if crc == hex.crc {
-            let msg = format!("image CRC (0x{:08x}) matches OTP CRC", crc);
+            let msg = format!("image CRC (0x{crc:08x}) matches OTP CRC");
 
             if subargs.check {
-                humility::msg!("{}", msg);
+                humility::msg!("{msg}");
                 return Ok(());
             }
 
             if !subargs.force {
-                bail!("{}; use --force to force", msg);
+                bail!("{msg}; use --force to force");
             } else {
-                humility::msg!("{}; flashing anyway", msg);
+                humility::msg!("{msg}; flashing anyway");
             }
         } else if subargs.check {
             bail!(
@@ -1067,11 +1067,11 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
         let nbytes = hex.data.iter().fold(0, |n, v| n + v.len());
 
         if subargs.dryrun {
-            humility::msg!("would flash {} bytes", nbytes);
+            humility::msg!("would flash {nbytes} bytes");
             return Ok(());
         }
 
-        humility::msg!("flashing {} bytes", nbytes);
+        humility::msg!("flashing {nbytes} bytes");
 
         let started = Instant::now();
         let bar = ProgressBar::new(nbytes as u64);
@@ -1189,7 +1189,7 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
                     Some(ref bank)
                         if *bank != RendmpBankStatus::BankUnaffected =>
                     {
-                        humility::msg!("bank {}: {}", ndx, bank);
+                        humility::msg!("bank {ndx}: {bank}");
                     }
                     _ => {}
                 }
@@ -1242,7 +1242,7 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        humility::msg!("dumping device memory to {}", filename);
+        humility::msg!("dumping device memory to {filename}");
 
         bar.set_style(ProgressStyle::default_bar().template(
             "humility: dumping device memory \

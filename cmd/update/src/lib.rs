@@ -81,10 +81,7 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
         Err(e) => bail!("Hiffy error getting block size {}", e),
     };
 
-    humility::msg!(
-        "Starting update using an update block size of {}",
-        blk_size
-    );
+    humility::msg!("Starting update using an update block size of {blk_size}");
     humility::msg!("(Erase may take a moment)");
     let binary_contents = std::fs::read(&subargs.path)?;
 
