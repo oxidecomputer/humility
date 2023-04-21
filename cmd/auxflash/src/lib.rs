@@ -282,9 +282,8 @@ impl<'a> AuxFlashHandler<'a> {
                 Ok(None) => break,
                 Err(e) => {
                     humility::msg!(
-                        "Failed to load data as TLV-C ({:?}); \
+                        "Failed to load data as TLV-C ({e:?}); \
                          skipping reflash check",
-                        e
                     );
                     break;
                 }
@@ -294,8 +293,7 @@ impl<'a> AuxFlashHandler<'a> {
             if let Ok(Some(chck_slot)) = self.slot_status(slot) {
                 if chck_data == chck_slot {
                     humility::msg!(
-                        "Slot {} is already programmed with our data",
-                        slot
+                        "Slot {slot} is already programmed with our data",
                     );
                     if force {
                         humility::msg!("Reprogramming it anyways!");
@@ -307,7 +305,7 @@ impl<'a> AuxFlashHandler<'a> {
             }
         }
 
-        humility::msg!("erasing slot {}", slot);
+        humility::msg!("erasing slot {slot}");
         self.slot_erase(slot)?;
 
         let slot_size = self.slot_size_bytes()?;
@@ -385,7 +383,7 @@ fn auxflash(context: &mut humility::ExecutionContext) -> Result<()> {
         }
         AuxFlashCommand::Erase { slot } => {
             worker.slot_erase(slot)?;
-            humility::msg!("done erasing slot {}", slot);
+            humility::msg!("done erasing slot {slot}");
         }
         AuxFlashCommand::Read { slot, output, count } => {
             let data = worker.auxflash_read(slot, count)?;

@@ -16,7 +16,6 @@ tlvc.workspace = true
 tlvc-text.workspace = true
 zerocopy.workspace = true
 indicatif.workspace = true
-colored.workspace = true
 
 humility-cmd.workspace = true
 humility-hiffy.workspace = true

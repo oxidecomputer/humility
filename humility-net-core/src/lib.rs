@@ -353,6 +353,6 @@ pub fn attach_net(
     timeout: Duration,
 ) -> Result<Box<dyn Core>> {
     let core = NetCore::new(ip, hubris, timeout)?;
-    msg!("connecting to {}", ip);
+    msg!("connecting to {ip}");
     Ok(Box::new(core))
 }

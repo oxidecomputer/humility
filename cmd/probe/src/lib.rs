@@ -116,7 +116,7 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
     let mut status = vec![];
 
     let print = |what, val| {
-        humility::msg!("{:>12} => {}", what, val);
+        humility::msg!("{what:>12} => {val}");
     };
 
     let mut statusif = |val, str: &str| {
@@ -412,7 +412,7 @@ fn probecmd(context: &mut humility::ExecutionContext) -> Result<()> {
             );
         }
         if let Some(ufsr) = cfsr.get_ufsr() {
-            humility::msg!("Usage Fault: {:#x?}", ufsr);
+            humility::msg!("Usage Fault: {ufsr:#x?}");
         }
         if let Some(mmfsr) = cfsr.get_mmfsr() {
             humility::msg!(

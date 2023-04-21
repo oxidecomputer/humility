@@ -99,9 +99,7 @@ fn dump_spd(
         let mut output = File::create(filename)?;
         output.write_all(buf)?;
         humility::msg!(
-            "wrote SPD data for address {} as binary to {}",
-            addr,
-            filename
+            "wrote SPD data for address {addr} as binary to {filename}"
         );
         return Ok(());
     }
@@ -153,7 +151,7 @@ fn dump_spd(
             let c = buf[offs + i] as char;
 
             if c.is_ascii() && !c.is_ascii_control() {
-                print!("{}", c);
+                print!("{c}");
             } else {
                 print!(".");
             }
@@ -204,9 +202,8 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
 
         if spd_data.size % SPD_SIZE != 0 {
             bail!(
-                "SPD_DATA is {} bytes; expected even multiple of {}",
+                "SPD_DATA is {} bytes; expected even multiple of {SPD_SIZE}",
                 spd_data.size,
-                SPD_SIZE
             );
         }
 
@@ -365,13 +362,13 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
                         buf.extend_from_slice(val);
                     }
                     Err(_) => {
-                        bail!("failed to read SPD: {:?}", results);
+                        bail!("failed to read SPD: {results:?}");
                     }
                 }
             }
 
             if buf.len() != SPD_SIZE {
-                bail!("bad SPD length ({} bytes): {:?}", buf.len(), results);
+                bail!("bad SPD length ({} bytes): {results:?}", buf.len());
             }
 
             dump_spd(&subargs, addr, &buf, header)?;

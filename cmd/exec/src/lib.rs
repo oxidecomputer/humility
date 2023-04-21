@@ -122,16 +122,14 @@ fn exec(context: &mut ExecutionContext) -> Result<()> {
                 .unwrap_quotes(true)
                 .collect::<Vec<_>>();
 
-            humility::msg!("{} {}: executing: '{}' ...", target, cmd, cmdline);
+            humility::msg!("{target} {cmd}: executing: '{cmdline}' ...");
 
             let status = std::process::Command::new(args[0])
                 .args(&args[1..])
                 .status()?;
 
             humility::msg!(
-                "{} {}: done ({})",
-                target,
-                cmd,
+                "{target} {cmd}: done ({})",
                 match status.code() {
                     Some(code) => format!("status code {code}"),
                     None => "terminated by signal".to_string(),

@@ -207,7 +207,7 @@ impl<'a> Vsc7448<'a> {
             .as_ref()
             .map_err(|e| anyhow!("Got error code: {}", e))?;
         if r.len() != 8 {
-            bail!("wrong length read: {:x?}", r);
+            bail!("wrong length read: {r:x?}");
         }
         Ok(u32::from_be_bytes(r[4..].try_into().unwrap()))
     }
@@ -236,7 +236,7 @@ impl<'a> Vsc7448<'a> {
     // Configures GPIOs as MIIM alternate functions (see Table 270 in VSC7448
     // datasheet for details)
     fn set_miim_gpios(&mut self, miim: u8) -> Result<()> {
-        humility::msg!("Configuring MIIM{} alt gpios", miim);
+        humility::msg!("Configuring MIIM{miim} alt gpios");
         let gpio_reg = "GPIO_ALT1[0]".parse::<TargetRegister>()?.address();
         match miim {
             0 => Ok(()),
@@ -251,11 +251,11 @@ impl<'a> Vsc7448<'a> {
             bail!("Invalid phy address {} (must be < 32)", phy.phy);
         }
         if reg >= 32 {
-            bail!("Invalid register address {} (must be < 32)", reg);
+            bail!("Invalid register address {reg} (must be < 32)");
         }
         // Switch pages every time, since it's cheap and easier than restoring
         // the page when done _or_ whenever exiting early
-        humility::msg!("Switching to page {}", page);
+        humility::msg!("Switching to page {page}");
         self.miim_write_inner(
             phy, 0,  // STANDARD
             31, // PAGE
@@ -292,12 +292,12 @@ impl<'a> Vsc7448<'a> {
             bail!("Invalid phy address {} (must be < 32)", phy.phy);
         }
         if reg >= 32 {
-            bail!("Invalid register address {} (must be < 32)", reg);
+            bail!("Invalid register address {reg} (must be < 32)");
         }
         // Switch pages every time, since it's cheap and easier than restoring
         // the page when done _or_ whenever exiting early
         if switch_page {
-            humility::msg!("Switching to page {}", page);
+            humility::msg!("Switching to page {page}");
             self.miim_write_inner(
                 phy, 0,  // STANDARD
                 31, // PAGE
@@ -340,7 +340,7 @@ fn vsc7448(context: &mut humility::ExecutionContext) -> Result<()> {
         Command::Read { reg } => {
             let reg = parse_reg_or_addr(&reg)?;
             let addr = reg.address();
-            humility::msg!("Reading {} from 0x{:x}", reg, addr);
+            humility::msg!("Reading {reg} from 0x{addr:x}");
             let value = vsc.read(addr)?;
             println!("{} => 0x{:x}", reg, value);
             if value == 0x88888888 {
@@ -354,7 +354,7 @@ fn vsc7448(context: &mut humility::ExecutionContext) -> Result<()> {
         Command::Write { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;
             let addr = reg.address();
-            humility::msg!("Writing 0x{:x} to {} at 0x{:x}", value, reg, addr);
+            humility::msg!("Writing 0x{value:x} to {reg} at 0x{addr:x}");
             pretty_print_fields(value, reg.fields());
 
             vsc.write(addr, value)?;
