@@ -327,7 +327,7 @@ fn vpd_write(
     if subargs.erase {
         humility::msg!("successfully erased VPD");
     } else {
-        humility::msg!("successfully wrote {} bytes of VPD", offset);
+        humility::msg!("successfully wrote {offset} bytes of VPD");
     }
 
     Ok(())

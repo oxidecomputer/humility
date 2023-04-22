@@ -34,25 +34,33 @@ extern crate num_derive;
 #[macro_export]
 macro_rules! msg {
     ($fmt:expr) => ({
-        eprintln!(concat!("humility: ", $fmt));
+        let s = format!($fmt);
+        eprintln!("humility: {s}");
     });
     ($fmt:expr, $($arg:tt)*) => ({
-        eprintln!(concat!("humility: ", $fmt), $($arg)*);
+        let s = format!($fmt, $($arg)*);
+        eprintln!("humility: {}", s)
     });
 }
 
 #[macro_export]
 macro_rules! warn {
     ($fmt:expr) => ({
-        use colored::Colorize;
+        use $crate::__private::Colorize;
         eprint!("humility: {}: ", "WARNING".red());
         eprintln!($fmt);
     });
     ($fmt:expr, $($arg:tt)*) => ({
-        use colored::Colorize;
+        use $crate::__private::Colorize;
         eprint!("humility: {}: ", "WARNING".red());
         eprintln!($fmt, $($arg)*);
     });
+}
+
+// Not public API. Referenced by macro-generated code
+#[doc(hidden)]
+pub mod __private {
+    pub use colored::Colorize;
 }
 
 pub struct ExecutionContext {
@@ -111,7 +119,7 @@ impl ExecutionContext {
                 let env = match Environment::from_file(env, target) {
                     Ok(e) => e,
                     Err(err) => {
-                        msg!("failed to match environment: {:?}", err);
+                        msg!("failed to match environment: {err:?}");
                         std::process::exit(1);
                     }
                 };
@@ -144,7 +152,7 @@ impl ExecutionContext {
                     cli.archive = match env.archive(&cli.archive_name) {
                         Ok(a) => Some(a),
                         Err(e) => {
-                            msg!("Failed to get archive: {}", e);
+                            msg!("Failed to get archive: {e}");
                             std::process::exit(1);
                         }
                     }
@@ -158,7 +166,7 @@ impl ExecutionContext {
                     let targets = match Environment::targets(env) {
                         Ok(targets) => targets,
                         Err(err) => {
-                            msg!("failed to parse environment: {:?}", err);
+                            msg!("failed to parse environment: {err:?}");
                             std::process::exit(1);
                         }
                     };

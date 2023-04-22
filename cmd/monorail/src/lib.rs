@@ -309,7 +309,7 @@ fn pretty_print_fields(
         } else {
             format!("{}", field.lo)
         };
-        println!("{:>5} | 0x{:<8x} | {}", range, bits, f);
+        println!("{range:>5} | 0x{bits:<8x} | {f}");
     }
 }
 
@@ -321,7 +321,7 @@ fn monorail_read(
 ) -> Result<()> {
     let reg = parse_reg_or_addr(&reg)?;
     let addr = reg.address();
-    humility::msg!("Reading {} from {:#x}", reg, addr);
+    humility::msg!("Reading {reg} from {addr:#x}");
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
     let value = humility_cmd_hiffy::hiffy_call(
@@ -337,9 +337,9 @@ fn monorail_read(
             let value = if let Value::Base(Base::U32(v)) = v {
                 v
             } else {
-                bail!("Got bad reflected value: expected U32, got {:?}", v);
+                bail!("Got bad reflected value: expected U32, got {v:?}");
             };
-            println!("{} => {:#x}", reg, value);
+            println!("{reg} => {value:#x}");
 
             // The VSC7448 is configured to return 0x88888888 if a register is
             // read too fast.  This should never happen, because the `monorail`
@@ -353,7 +353,7 @@ fn monorail_read(
             pretty_print_fields(value, reg.fields(), 0);
         }
         Err(e) => {
-            println!("Got error: {}", e);
+            println!("Got error: {e}");
         }
     }
     Ok(())
@@ -368,7 +368,7 @@ fn monorail_write(
 ) -> Result<()> {
     let reg = parse_reg_or_addr(&reg)?;
     let addr = reg.address();
-    humility::msg!("Writing {:#x} to {} at {:#x}", value, reg, addr);
+    humility::msg!("Writing {value:#x} to {reg} at {addr:#x}");
     pretty_print_fields(value, reg.fields(), 0);
 
     let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
@@ -386,11 +386,11 @@ fn monorail_write(
     match value {
         Ok(v) => {
             if !matches!(v, Value::Base(Base::U0)) {
-                bail!("Got unexpected value: expected (), got {:?}", v)
+                bail!("Got unexpected value: expected (), got {v:?}")
             }
         }
         Err(e) => {
-            println!("Got error: {}", e);
+            println!("Got error: {e}");
         }
     }
     Ok(())
@@ -419,7 +419,7 @@ fn parse_phy_register(reg: &str) -> Result<ParsedPhyRegister> {
         return Ok(ParsedPhyRegister {
             page: reg.page_addr().try_into().unwrap(),
             reg: reg.reg_addr(),
-            name: format!("{}", reg),
+            name: format!("{reg}"),
             fields: reg.fields().clone(),
         });
     }
@@ -518,11 +518,11 @@ fn monorail_phy_write(
     match value {
         Ok(v) => {
             if !matches!(v, Value::Base(Base::U0)) {
-                bail!("Got unexpected value: expected (), got {:?}", v)
+                bail!("Got unexpected value: expected (), got {v:?}")
             }
         }
         Err(e) => {
-            println!("Got error: {}", e);
+            println!("Got error: {e}");
         }
     }
     Ok(())
@@ -662,14 +662,14 @@ fn monorail_dump(
         let value = if let Ok(Value::Base(Base::U32(v))) = v {
             v
         } else {
-            bail!("Got bad reflected value: expected U32, got {:?}", v);
+            bail!("Got bad reflected value: expected U32, got {v:?}");
         };
         let addr = format!("{}", start_address as usize + i * 4);
         // XXX this is inefficient
         match parse_reg_or_addr(&addr) {
-            Ok(reg) => println!("{}    {:#010x}", reg, value),
+            Ok(reg) => println!("{reg}    {value:#010x}"),
             Err(e) => {
-                humility::msg!("skipping unknown register at {}: {}", addr, e)
+                humility::msg!("skipping unknown register at {addr}: {e}")
             }
         }
     }
@@ -795,9 +795,9 @@ fn monorail_status(
             "Up" => "up".to_owned().green(),
             "Down" => "down".to_owned().red(),
             "Error" => "err".to_owned().yellow(),
-            s => panic!("Unknown LinkStatus variant {:?}", s),
+            s => panic!("Unknown LinkStatus variant {s:?}"),
         },
-        b => panic!("Could not get bool or enum from {:?}", b),
+        b => panic!("Could not get bool or enum from {b:?}"),
     };
 
     println!("{}", "PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK".bold());
@@ -849,7 +849,7 @@ fn monorail_status(
                         "--      --     --      --      --  ".dimmed()
                     );
                 } else {
-                    println!("Got unexpected error {}", e);
+                    println!("Got unexpected error {e}");
                 }
             }
         }
@@ -873,7 +873,7 @@ fn monorail_status(
                 if e == "UnconfiguredPort" || e == "NoPhy" {
                     println!("{}", "--       --         --".dimmed());
                 } else {
-                    println!("Got unexpected error {}", e);
+                    println!("Got unexpected error {e}");
                 }
             }
         }
@@ -909,11 +909,11 @@ fn monorail_mac_table(
             }
         }
         Err(e) => {
-            bail!("Got error: {}", e);
+            bail!("Got error: {e}");
         }
     };
 
-    println!("Reading {} MAC addresses...", mac_count);
+    println!("Reading {mac_count} MAC addresses...");
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_next_mac")?;
     let send = context.get_function("Send", 4)?;
@@ -1004,7 +1004,7 @@ fn monorail_reset_counters(
         &[("port", IdolArgument::Scalar(u64::from(port)))],
         None,
     )?;
-    value.map(|_| ()).map_err(|err| anyhow!("Got error {}", err))
+    value.map(|_| ()).map_err(|err| anyhow!("Got error {err}"))
 }
 
 fn monorail_counters(
@@ -1046,18 +1046,18 @@ fn monorail_counters(
             let s = v.as_struct()?;
             let (rx_mc, rx_uc, rx_bc) = decode_count(&s["rx"]);
             let (tx_mc, tx_uc, tx_bc) = decode_count(&s["tx"]);
-            println!("{} (port {})", "Packet counters:".bold(), port);
+            println!("{} (port {port})", "Packet counters:".bold());
             println!("  Receive:");
-            println!("    Unicast:   {}", rx_uc);
-            println!("    Multicast: {}", rx_mc);
-            println!("    Broadcast:  {}", rx_bc);
+            println!("    Unicast:   {rx_uc}");
+            println!("    Multicast: {rx_mc}");
+            println!("    Broadcast:  {rx_bc}");
             println!("  Transmit:");
-            println!("    Unicast:   {}", tx_uc);
-            println!("    Multicast: {}", tx_mc);
-            println!("    Broadcast:  {}", tx_bc);
+            println!("    Unicast:   {tx_uc}");
+            println!("    Multicast: {tx_mc}");
+            println!("    Broadcast:  {tx_bc}");
         }
         Err(e) => {
-            println!("Got error: {}", e);
+            println!("Got error: {e}");
         }
     }
     Ok(())
@@ -1091,13 +1091,13 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
             let re = Regex::new(r"^([A-Z_0-9]+)(\[([0-9]+)\])?$").unwrap();
             let cap = re
                 .captures(&target)
-                .ok_or_else(|| anyhow!("Could not parse {}", target))?;
+                .ok_or_else(|| anyhow!("Could not parse {target}"))?;
             let name = &cap[1];
             let index: Option<u32> =
                 cap.get(3).map(|i| i.as_str().parse().unwrap());
             let tgt = vsc7448_info::MEMORY_MAP
                 .get(name)
-                .ok_or_else(|| anyhow!("Could not find target {}", name))?;
+                .ok_or_else(|| anyhow!("Could not find target {name}"))?;
             let tgt_name = &tgt.0;
             let start_addr: u32 = tgt
                 .1
@@ -1116,8 +1116,7 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
             let end_addr = start_addr + tgt_size * 4;
 
             println!(
-                "Dumping target {} ({:#x} -> {:#x})",
-                target, start_addr, end_addr
+                "Dumping target {target} ({start_addr:#x} -> {end_addr:#x})",
             );
             monorail_dump(hubris, core, &mut context, start_addr, end_addr)?
         }
@@ -1154,7 +1153,7 @@ fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
     match subargs.cmd {
         Command::Info { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;
-            println!("Register {}", reg);
+            println!("Register {reg}");
             println!("Register address: {:#x}", reg.address());
 
             if let Some(v) = value {
@@ -1168,13 +1167,13 @@ fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
                     } else {
                         format!("{}", field.lo)
                     };
-                    println!(" {:>5} | {}", range, f);
+                    println!(" {range:>5} | {f}");
                 }
             }
         }
         Command::Phy { cmd: PhyCommand::Info { reg } } => {
             let reg: PhyRegister = reg.parse()?;
-            println!("PHY register: {}", reg);
+            println!("PHY register: {reg}");
         }
         _ => panic!("Called monorail_get_info without info subcommand"),
     }

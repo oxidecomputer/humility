@@ -116,7 +116,7 @@ fn force_openocd(
     };
 
     let dryrun = |cmd: &std::process::Command| {
-        humility::msg!("would execute: {:?}", cmd);
+        humility::msg!("would execute: {cmd:?}");
     };
 
     let payload = match &config.program {
@@ -141,7 +141,7 @@ fn force_openocd(
     let srec = tempfile::NamedTempFile::new()?;
 
     if let Some(serial) = serial {
-        humility::msg!("specifying serial {}", serial);
+        humility::msg!("specifying serial {serial}");
 
         //
         // In OpenOCD 0.11 dev, hla_serial has been deprecated, and
@@ -178,7 +178,7 @@ fn force_openocd(
 
     if subargs.retain || subargs.dryrun {
         humility::msg!("retaining OpenOCD config as {:?}", conf.path());
-        humility::msg!("retaining srec as {}", srec_path);
+        humility::msg!("retaining srec as {srec_path}");
         conf.keep()?;
         srec.keep()?;
     }
@@ -238,15 +238,13 @@ fn validate(
                         core.run()?;
                         bail!(
                             "image IDs match, but flash contents do not match \
-                            archive contents: {}",
-                            err
+                            archive contents: {err}",
                         );
                     }
 
                     humility::msg!(
                         "image IDs match, but flash contents do not match \
-                        archive contents: {}; reflashing",
-                        err
+                        archive contents: {err}; reflashing",
                     );
                 } else {
                     core.run()?;
@@ -317,7 +315,7 @@ fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
         }
     };
 
-    humility::msg!("attaching with chip set to {:x?}", chip);
+    humility::msg!("attaching with chip set to {chip:x?}");
     let mut c = humility::core::attach_for_flashing(probe, hubris, &chip)?;
     let core = c.as_mut();
 
@@ -380,9 +378,8 @@ fn try_program_auxflash(
                 Ok(())
             }
             Err(e) => bail!(
-                "failed to program auxflash: {:?}; \
+                "failed to program auxflash: {e:?}; \
                  your system may not be functional!",
-                e
             ),
         },
         None => Ok(()),
@@ -403,15 +400,14 @@ fn program_auxflash(
     match worker.active_slot() {
         Ok(Some(i)) => {
             humility::msg!(
-                "auxiliary flash data is already loaded in slot {}; \
+                "auxiliary flash data is already loaded in slot {i}; \
                  skipping programming",
-                i
             );
             return Ok(());
         }
         Ok(None) => (),
         Err(e) => {
-            humility::msg!("Got error while checking active slot: {:?}", e);
+            humility::msg!("Got error while checking active slot: {e:?}");
         }
     };
 

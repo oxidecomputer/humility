@@ -95,7 +95,7 @@ fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
     )?;
     let v = match value {
         Ok(v) => v,
-        Err(e) => bail!("Got Hiffy error: {}", e),
+        Err(e) => bail!("Got Hiffy error: {e}"),
     };
     let v = v.as_tuple()?;
     assert_eq!(v.name(), "MacAddress");
@@ -108,7 +108,7 @@ fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
         if i > 0 {
             print!(":");
         }
-        print!("{:02x}", byte);
+        print!("{byte:02x}");
     }
     println!();
 
@@ -160,11 +160,11 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
             if let Value::Base(Base::U32(v)) = v {
                 v
             } else {
-                bail!("Got bad reflected value: expected U32, got {:?}", v);
+                bail!("Got bad reflected value: expected U32, got {v:?}");
             }
         }
         Err(e) => {
-            bail!("Got error: {}", e);
+            bail!("Got error: {e}");
         }
     };
 
@@ -176,7 +176,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
         (mac_count as u8, false)
     };
 
-    humility::msg!("Reading {} MAC addresses...", mac_count);
+    humility::msg!("Reading {mac_count} MAC addresses...");
 
     let op = hubris.get_idol_command("Net.read_ksz8463_mac")?;
     let send = hiffy_context.get_function("Send", 4)?;
@@ -230,7 +230,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
             }
         } else {
             // Log the error but keep going for other entries in the table
-            humility::msg!("Got error result: {:?}", r);
+            humility::msg!("Got error result: {r:?}");
         }
     }
     println!(" {} |        {}", "PORT".bold(), "MAC".bold());
@@ -279,7 +279,7 @@ fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
     )?;
     let v = match value {
         Ok(v) => v,
-        Err(e) => bail!("Got Hiffy error: {}", e),
+        Err(e) => bail!("Got Hiffy error: {e}"),
     };
     let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementLinkStatus");
@@ -360,7 +360,7 @@ fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
     )?;
     let v = match value {
         Ok(v) => v,
-        Err(e) => bail!("Got Hiffy error: {}", e),
+        Err(e) => bail!("Got Hiffy error: {e}"),
     };
     let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementCounters");

@@ -605,7 +605,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
 
             erase(&device, core, &mut context, &sectors)?;
         } else {
-            humility::msg!("will verify {} bytes...", filelen);
+            humility::msg!("will verify {filelen} bytes...");
         }
 
         //
@@ -704,8 +704,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
                         if r[0] != 0 {
                             let a = offset + (i as u32 * BLOCK_SIZE);
                             humility::msg!(
-                                "block at 0x{:x} failed to verify\n",
-                                a
+                                "block at 0x{a:x} failed to verify\n",
                             );
                         }
                     }

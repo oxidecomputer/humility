@@ -164,8 +164,7 @@ fn rpc_listen_one(
                 // If humility wasn't run as root, we can't listen on port 8;
                 // print a warning message instead of erroring out entirely.
                 humility::msg!(
-                    "Cannot listen on port {}; permission denied",
-                    port
+                    "Cannot listen on port {port}; permission denied",
                 );
                 return Ok(Default::default());
             } else {
@@ -299,9 +298,8 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
     let timeout = Duration::from_millis(rpc_args.timeout as u64);
     let ports = [8, 8888];
     humility::msg!(
-        "listening for {} seconds on ports {:?}...",
+        "listening for {} seconds on ports {ports:?}...",
         timeout.as_secs(),
-        ports
     );
 
     let threads = ports

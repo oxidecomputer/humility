@@ -161,7 +161,7 @@ fn tpiu_next_state(state: TPIUState, byte: u8, offset: usize) -> TPIUState {
         }
 
         TPIUState::FramingSyncing(next) if byte != sync[next] => {
-            humility::msg!("TPIU framing derailed at offset {}", offset);
+            humility::msg!("TPIU framing derailed at offset {offset}");
             TPIUState::Searching
         }
 
@@ -556,7 +556,7 @@ pub fn tpiu_ingest(
         }
     }
 
-    humility::msg!("{} valid TPIU frames", nvalid);
+    humility::msg!("{nvalid} valid TPIU frames");
 
     Ok(())
 }
