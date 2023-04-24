@@ -86,8 +86,13 @@ pub struct HubrisConfigPatches {
     features: IndexMap<String, Vec<String>>,
 }
 
+/// Deserialization `struct` for a memory region in the `memory.toml` file
+///
+/// The file contains other fields associated with each region (e.g. size, name,
+/// whether it's read / write / execute); we skip those fields because they
+/// aren't used below.
 #[derive(Clone, Debug, Deserialize)]
-struct HubrisConfigOutput {
+struct HubrisMemoryRegion {
     address: u32,
 }
 
@@ -6096,7 +6101,7 @@ impl ExternRegions {
             Ok(mut file) => {
                 let mut memory = String::new();
                 file.read_to_string(&mut memory)?;
-                let all_memories: IndexMap<String, Vec<HubrisConfigOutput>> =
+                let all_memories: IndexMap<String, Vec<HubrisMemoryRegion>> =
                     toml::from_slice(memory.as_bytes())?;
 
                 //
@@ -6116,7 +6121,7 @@ impl ExternRegions {
                 }
 
                 for (name, memories) in all_memories {
-                    if all_extern_regions.get(&name).is_some() {
+                    if all_extern_regions.contains(&name) {
                         //
                         // Note that we are inserting all memories into our
                         // map (that is, regardless of our image name), with
@@ -6153,8 +6158,8 @@ impl ExternRegions {
     ///
     fn external(&self, task: HubrisTask, address: u32, dma: bool) -> bool {
         match self {
-            ExternRegions::ByAddress(map) => map.get(&address).is_some(),
-            ExternRegions::ByTask(set) => dma && set.get(&task).is_some(),
+            ExternRegions::ByAddress(map) => map.contains_key(&address),
+            ExternRegions::ByTask(set) => dma && set.contains(&task),
             ExternRegions::Unloaded => panic!("no archive has been loaded"),
         }
     }
