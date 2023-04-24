@@ -43,7 +43,7 @@ fn format_faults_desc<T: Into<u32> + std::fmt::Binary + Copy>(
 struct Uptime(U32);
 impl Display for Uptime {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} sec", self.0.get() as f32 * 0.1)
+        f.pad(&format!("{} sec", self.0.get() as f32 * 0.1))
     }
 }
 
@@ -212,13 +212,30 @@ impl Display for StatusMfr {
         format_faults_desc(
             self.0,
             &[
-                (7, "ADCUNLOCK", "Invalid or unsupported PMBus Command was received."),
-                (6, "PSYS, IIN Sense", "A PSYS and/or sensed IIN OC warning has occurred."),
+                (
+                    7,
+                    "ADCUNLOCK",
+                    "Invalid or unsupported PMBus Command was received.",
+                ),
+                (
+                    6,
+                    "PSYS, IIN Sense",
+                    "A PSYS and/or sensed IIN OC warning has occurred.",
+                ),
                 (5, "CFP Fault", "A CFP fault has occurred."),
-                (4, "Internal Temperature Fault", "The controller internal temp has exceeded 130°C."),
+                (
+                    4,
+                    "Internal Temperature Fault",
+                    "The controller internal temp has exceeded 130°C.",
+                ),
                 (3, "BBEVENT", "A Black Box event occurred."),
                 (2, "LMSEVENT", "A Last Man Standing event has occurred."),
-                (1, "SPSFault", "An SPS overcurrent and/or over-temperature event has occurred."),
+                (
+                    1,
+                    "SPSFault",
+                    "An SPS overcurrent and/or over-temperature \
+                     event has occurred.",
+                ),
                 (0, "SVIDERROR", "Error on SVID/SVI2 interface"),
             ],
             f,
@@ -311,13 +328,35 @@ impl Display for StatusInput {
             self.0,
             &[
                 (7, "VIN_OV_FAULT", "An input overvoltage fault has occurred."),
-                (6, "VIN_OV_WARN", "An input overvoltage warning has occurred."),
-                (5, "VIN_UV_WARN", "An input undervoltage warning has occurred."),
-                (4, "VIN_UV_FAULT", "An input undervoltage fault has occurred."),
-                (3, "VIN_ON/OFF", "Disabled due to insufficient input voltage. This could be VIN or VMON."),
+                (
+                    6,
+                    "VIN_OV_WARN",
+                    "An input overvoltage warning has occurred.",
+                ),
+                (
+                    5,
+                    "VIN_UV_WARN",
+                    "An input undervoltage warning has occurred.",
+                ),
+                (
+                    4,
+                    "VIN_UV_FAULT",
+                    "An input undervoltage fault has occurred.",
+                ),
+                (
+                    3,
+                    "VIN_ON/OFF",
+                    "Disabled due to insufficient input voltage. \
+                     This could be VIN or VMON.",
+                ),
                 (2, "IIN_OC_FAULT", "An input overcurrent fault has occurred."),
-                (1, "IIN_OC_WARN", "An input overcurrent warning has occurred."),
-                (0, "Not Supported", "Not supported")],
+                (
+                    1,
+                    "IIN_OC_WARN",
+                    "An input overcurrent warning has occurred.",
+                ),
+                (0, "Not Supported", "Not supported"),
+            ],
             f,
         )
     }
@@ -328,7 +367,7 @@ impl Display for StatusInput {
 struct Temperature(u8);
 impl Display for Temperature {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} °C", self.0 as f32 * 2.0)
+        f.pad(&format!("{}°C", self.0 as f32 * 2.0))
     }
 }
 
@@ -337,7 +376,7 @@ impl Display for Temperature {
 struct VoltageIn(I16);
 impl Display for VoltageIn {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} V", self.0.get() as f32 * 0.01)
+        f.pad(&format!("{:.2} V", self.0.get() as f32 * 0.01))
     }
 }
 
@@ -346,7 +385,7 @@ impl Display for VoltageIn {
 struct VoltageOut(I16);
 impl Display for VoltageOut {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} V", self.0.get() as f32 * 0.001)
+        f.pad(&format!("{:.3} V", self.0.get() as f32 * 0.001))
     }
 }
 
@@ -355,7 +394,7 @@ impl Display for VoltageOut {
 struct CurrentOut(I16);
 impl Display for CurrentOut {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} A", self.0.get() as f32 * 0.1)
+        f.pad(&format!("{:.1} A", self.0.get() as f32 * 0.1))
     }
 }
 
@@ -364,7 +403,7 @@ impl Display for CurrentOut {
 struct CurrentIn(I16);
 impl Display for CurrentIn {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{} A", self.0.get() as f32 * 0.01)
+        f.pad(&format!("{:.2} A", self.0.get() as f32 * 0.01))
     }
 }
 
@@ -439,31 +478,8 @@ pub struct BlackboxRamGen2 {
     _reserved3: U16,
     vinsen: VoltageIn,
     _reserved4: U16,
-    phase0_temperature: Temperature,
-    phase1_temperature: Temperature,
-    phase2_temperature: Temperature,
-    phase3_temperature: Temperature,
-    phase4_temperature: Temperature,
-    phase5_temperature: Temperature,
-    phase6_temperature: Temperature,
-    phase7_temperature: Temperature,
-    phase8_temperature: Temperature,
-    phase9_temperature: Temperature,
-    phase10_temperature: Temperature,
-    phase11_temperature: Temperature,
-
-    phase0_current: CurrentOut,
-    phase1_current: CurrentOut,
-    phase2_current: CurrentOut,
-    phase3_current: CurrentOut,
-    phase4_current: CurrentOut,
-    phase5_current: CurrentOut,
-    phase6_current: CurrentOut,
-    phase7_current: CurrentOut,
-    phase8_current: CurrentOut,
-    phase9_current: CurrentOut,
-    phase10_current: CurrentOut,
-    phase11_current: CurrentOut,
+    phase_temperatures: [Temperature; 12],
+    phase_currents: [CurrentOut; 12],
 
     _reserved5: [u32; 4],
 }
@@ -509,21 +525,38 @@ impl Display for BlackboxRamGen2 {
         writeln!(f, "rail0 status input: {}", self.rail0_status_input)?;
         writeln!(f, "rail1 status input: {}", self.rail1_status_input)?;
         writeln!(f, "rail2 status input: {}", self.rail2_status_input)?;
-        writeln!(f, "rail0 read vin: {}", self.rail0_read_vin)?;
-        writeln!(f, "rail1 read vin: {}", self.rail1_read_vin)?;
-        writeln!(f, "rail2 read vin: {}", self.rail2_read_vin)?;
-        writeln!(f, "rail0 read vout: {}", self.rail0_read_vout)?;
-        writeln!(f, "rail1 read vout: {}", self.rail1_read_vout)?;
-        writeln!(f, "rail2 read vout: {}", self.rail2_read_vout)?;
-        writeln!(f, "rail0 read iin: {}", self.rail0_read_iin)?;
-        writeln!(f, "rail1 read iin: {}", self.rail1_read_iin)?;
-        writeln!(f, "rail2 read iin: {}", self.rail2_read_iin)?;
-        writeln!(f, "rail0 read iout: {}", self.rail0_read_iout)?;
-        writeln!(f, "rail1 read iout: {}", self.rail1_read_iout)?;
-        writeln!(f, "rail2 read iout: {}", self.rail2_read_iout)?;
-        writeln!(f, "rail0 read temperature: {}", self.rail0_read_temperature)?;
-        writeln!(f, "rail1 read temperature: {}", self.rail1_read_temperature)?;
-        writeln!(f, "rail2 read temperature: {}", self.rail2_read_temperature)?;
+
+        writeln!(f)?;
+        writeln!(f, "     | RAIL 0  | RAIL 1  | RAIL 2")?;
+        writeln!(f, "-----|---------|---------|----------")?;
+        writeln!(
+            f,
+            "VIN  | {:<7} | {:<7} | :{}",
+            self.rail0_read_vin, self.rail1_read_vin, self.rail2_read_vin
+        )?;
+        writeln!(
+            f,
+            "VOUT | {:<7} | {:<7} | {}",
+            self.rail0_read_vout, self.rail1_read_vout, self.rail2_read_vout
+        )?;
+        writeln!(
+            f,
+            "IIN  | {:<7} | {:<7} | {}",
+            self.rail0_read_iin, self.rail1_read_iin, self.rail2_read_iin
+        )?;
+        writeln!(
+            f,
+            "IOUT | {:<7} | {:<7} | {}",
+            self.rail0_read_iout, self.rail1_read_iout, self.rail2_read_iout
+        )?;
+        writeln!(
+            f,
+            "TEMP | {:<7} | {:<7} | {}",
+            self.rail0_read_temperature,
+            self.rail1_read_temperature,
+            self.rail2_read_temperature
+        )?;
+
         writeln!(
             f,
             "controller read temperature: {}",
@@ -531,31 +564,17 @@ impl Display for BlackboxRamGen2 {
         )?;
         writeln!(f, "vmon: {}", self.vmon)?;
         writeln!(f, "vinsen: {}", self.vinsen)?;
-        writeln!(f, "phase0 temperature: {}", self.phase0_temperature)?;
-        writeln!(f, "phase1 temperature: {}", self.phase1_temperature)?;
-        writeln!(f, "phase2 temperature: {}", self.phase2_temperature)?;
-        writeln!(f, "phase3 temperature: {}", self.phase3_temperature)?;
-        writeln!(f, "phase4 temperature: {}", self.phase4_temperature)?;
-        writeln!(f, "phase5 temperature: {}", self.phase5_temperature)?;
-        writeln!(f, "phase6 temperature: {}", self.phase6_temperature)?;
-        writeln!(f, "phase7 temperature: {}", self.phase7_temperature)?;
-        writeln!(f, "phase8 temperature: {}", self.phase8_temperature)?;
-        writeln!(f, "phase9 temperature: {}", self.phase9_temperature)?;
-        writeln!(f, "phase10 temperature: {}", self.phase10_temperature)?;
-        writeln!(f, "phase11 temperature: {}", self.phase11_temperature)?;
 
-        writeln!(f, "phase0 current: {}", self.phase0_current)?;
-        writeln!(f, "phase1 current: {}", self.phase1_current)?;
-        writeln!(f, "phase2 current: {}", self.phase2_current)?;
-        writeln!(f, "phase3 current: {}", self.phase3_current)?;
-        writeln!(f, "phase4 current: {}", self.phase4_current)?;
-        writeln!(f, "phase5 current: {}", self.phase5_current)?;
-        writeln!(f, "phase6 current: {}", self.phase6_current)?;
-        writeln!(f, "phase7 current: {}", self.phase7_current)?;
-        writeln!(f, "phase8 current: {}", self.phase8_current)?;
-        writeln!(f, "phase9 current: {}", self.phase9_current)?;
-        writeln!(f, "phase10 current: {}", self.phase10_current)?;
-        writeln!(f, "phase11 current: {}", self.phase11_current)?;
+        writeln!(f, " PHASE | TEMPERATURE | CURRENT ")?;
+        writeln!(f, "-------|-------------|----------")?;
+        for (i, (t, c)) in self
+            .phase_temperatures
+            .iter()
+            .zip(self.phase_currents.iter())
+            .enumerate()
+        {
+            writeln!(f, " {i:^6} | {t:^11} | {c}")?;
+        }
         Ok(())
     }
 }
@@ -631,50 +650,12 @@ struct BlackboxRamGen2p5 {
     rail1_read_temperature: Temperature,
     rail0_read_temperature: Temperature,
     _reserved6: [U32; 2],
-    phase0_temperature: Temperature,
-    phase1_temperature: Temperature,
-    phase2_temperature: Temperature,
-    phase3_temperature: Temperature,
-    phase4_temperature: Temperature,
-    phase5_temperature: Temperature,
-    phase6_temperature: Temperature,
-    phase7_temperature: Temperature,
-    phase8_temperature: Temperature,
-    phase9_temperature: Temperature,
-    phase10_temperature: Temperature,
-    phase11_temperature: Temperature,
-    phase12_temperature: Temperature,
-    phase13_temperature: Temperature,
-    phase14_temperature: Temperature,
-    phase15_temperature: Temperature,
-    phase16_temperature: Temperature,
-    phase17_temperature: Temperature,
-    phase18_temperature: Temperature,
-    phase19_temperature: Temperature,
-
-    phase0_current: CurrentOut,
-    phase1_current: CurrentOut,
-    phase2_current: CurrentOut,
-    phase3_current: CurrentOut,
-    phase4_current: CurrentOut,
-    phase5_current: CurrentOut,
-    phase6_current: CurrentOut,
-    phase7_current: CurrentOut,
-    phase8_current: CurrentOut,
-    phase9_current: CurrentOut,
-    phase10_current: CurrentOut,
-    phase11_current: CurrentOut,
-    phase12_current: CurrentOut,
-    phase13_current: CurrentOut,
-    phase14_current: CurrentOut,
-    phase15_current: CurrentOut,
-    phase16_current: CurrentOut,
-    phase17_current: CurrentOut,
-    phase18_current: CurrentOut,
-    phase19_current: CurrentOut,
+    phase_temperatures: [Temperature; 20],
+    phase_currents: [CurrentOut; 20],
 
     _reserved7: [u32; 6],
 }
+
 impl Display for BlackboxRamGen2p5 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f, "rail0 uptime: {}", self.rail0_uptime)?;
@@ -706,62 +687,52 @@ impl Display for BlackboxRamGen2p5 {
         )?;
         writeln!(f, "rail1 status input: {}", self.rail1_status_input)?;
         writeln!(f, "rail0 status input: {}", self.rail0_status_input)?;
-        writeln!(f, "rail1 read vin: {}", self.rail1_read_vin)?;
-        writeln!(f, "rail0 read vin: {}", self.rail0_read_vin)?;
-        writeln!(f, "rail1 read vout: {}", self.rail1_read_vout)?;
-        writeln!(f, "rail0 read vout: {}", self.rail0_read_vout)?;
-        writeln!(f, "rail1 read iin: {}", self.rail1_read_iin)?;
-        writeln!(f, "rail0 read iin: {}", self.rail0_read_iin)?;
-        writeln!(f, "rail1 read iout: {}", self.rail1_read_iout)?;
-        writeln!(f, "rail0 read iout: {}", self.rail0_read_iout)?;
+
+        writeln!(f)?;
+        writeln!(f, "     | RAIL 0  | RAIL 1")?;
+        writeln!(f, "-----|---------|-----------")?;
+        writeln!(
+            f,
+            "VIN  | {:<7} | {}",
+            self.rail0_read_vin, self.rail1_read_vin
+        )?;
+        writeln!(
+            f,
+            "VOUT | {:<7} | {}",
+            self.rail0_read_vout, self.rail1_read_vout
+        )?;
+        writeln!(
+            f,
+            "IIN  | {:<7} | {}",
+            self.rail0_read_iin, self.rail1_read_iin
+        )?;
+        writeln!(
+            f,
+            "IOUT | {:<7} | {}",
+            self.rail0_read_iout, self.rail1_read_iout
+        )?;
+        writeln!(
+            f,
+            "TEMP | {:<7} | {}",
+            self.rail0_read_temperature, self.rail1_read_temperature
+        )?;
         writeln!(
             f,
             "controller read temperature: {}",
             self.controller_read_temperature
         )?;
-        writeln!(f, "rail1 read temperature: {}", self.rail1_read_temperature)?;
-        writeln!(f, "rail0 read temperature: {}", self.rail0_read_temperature)?;
-        writeln!(f, "phase0 temperature: {}", self.phase0_temperature)?;
-        writeln!(f, "phase1 temperature: {}", self.phase1_temperature)?;
-        writeln!(f, "phase2 temperature: {}", self.phase2_temperature)?;
-        writeln!(f, "phase3 temperature: {}", self.phase3_temperature)?;
-        writeln!(f, "phase4 temperature: {}", self.phase4_temperature)?;
-        writeln!(f, "phase5 temperature: {}", self.phase5_temperature)?;
-        writeln!(f, "phase6 temperature: {}", self.phase6_temperature)?;
-        writeln!(f, "phase7 temperature: {}", self.phase7_temperature)?;
-        writeln!(f, "phase8 temperature: {}", self.phase8_temperature)?;
-        writeln!(f, "phase9 temperature: {}", self.phase9_temperature)?;
-        writeln!(f, "phase10 temperature: {}", self.phase10_temperature)?;
-        writeln!(f, "phase11 temperature: {}", self.phase11_temperature)?;
-        writeln!(f, "phase12 temperature: {}", self.phase12_temperature)?;
-        writeln!(f, "phase13 temperature: {}", self.phase13_temperature)?;
-        writeln!(f, "phase14 temperature: {}", self.phase14_temperature)?;
-        writeln!(f, "phase15 temperature: {}", self.phase15_temperature)?;
-        writeln!(f, "phase16 temperature: {}", self.phase16_temperature)?;
-        writeln!(f, "phase17 temperature: {}", self.phase17_temperature)?;
-        writeln!(f, "phase18 temperature: {}", self.phase18_temperature)?;
-        writeln!(f, "phase19 temperature: {}", self.phase19_temperature)?;
 
-        writeln!(f, "phase0 current: {}", self.phase0_current)?;
-        writeln!(f, "phase1 current: {}", self.phase1_current)?;
-        writeln!(f, "phase2 current: {}", self.phase2_current)?;
-        writeln!(f, "phase3 current: {}", self.phase3_current)?;
-        writeln!(f, "phase4 current: {}", self.phase4_current)?;
-        writeln!(f, "phase5 current: {}", self.phase5_current)?;
-        writeln!(f, "phase6 current: {}", self.phase6_current)?;
-        writeln!(f, "phase7 current: {}", self.phase7_current)?;
-        writeln!(f, "phase8 current: {}", self.phase8_current)?;
-        writeln!(f, "phase9 current: {}", self.phase9_current)?;
-        writeln!(f, "phase10 current: {}", self.phase10_current)?;
-        writeln!(f, "phase11 current: {}", self.phase11_current)?;
-        writeln!(f, "phase12 current: {}", self.phase12_current)?;
-        writeln!(f, "phase13 current: {}", self.phase13_current)?;
-        writeln!(f, "phase14 current: {}", self.phase14_current)?;
-        writeln!(f, "phase15 current: {}", self.phase15_current)?;
-        writeln!(f, "phase16 current: {}", self.phase16_current)?;
-        writeln!(f, "phase17 current: {}", self.phase17_current)?;
-        writeln!(f, "phase18 current: {}", self.phase18_current)?;
-        writeln!(f, "phase19 current: {}", self.phase19_current)?;
+        writeln!(f)?;
+        writeln!(f, " PHASE | TEMPERATURE | CURRENT ")?;
+        writeln!(f, "-------|-------------|----------")?;
+        for (i, (t, c)) in self
+            .phase_temperatures
+            .iter()
+            .zip(self.phase_currents.iter())
+            .enumerate()
+        {
+            writeln!(f, " {i:<5} | {t:<11} | {c}")?;
+        }
         Ok(())
     }
 }
