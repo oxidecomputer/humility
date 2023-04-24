@@ -611,7 +611,7 @@ impl Display for ControllerFaultGen2p5 {
 
 #[derive(Debug, FromBytes)]
 #[repr(C)]
-struct BlackboxRamGen2p5 {
+pub struct BlackboxRamGen2p5 {
     rail0_uptime: Uptime,
     rail1_uptime: Uptime,
     controller_fault: ControllerFaultGen2p5,

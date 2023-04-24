@@ -69,7 +69,7 @@ use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
@@ -83,6 +83,7 @@ use std::io::BufReader;
 use std::io::Write;
 use std::thread;
 use std::time::{Duration, Instant};
+use zerocopy::{AsBytes, FromBytes};
 
 mod blackbox;
 
@@ -784,10 +785,8 @@ fn rendmp_blackbox(
         .i2c_devices
         .iter()
         .filter(|dev| {
-            matches!(
-                dev.name.as_deref().unwrap_or(""),
-                "raa229618" | "isl68224"
-            ) && dev.address == addr
+            matches!(dev.device.as_str(), "raa229618" | "isl68224")
+                && dev.address == addr
         })
         .count();
     if n > 1 {
@@ -798,7 +797,7 @@ fn rendmp_blackbox(
     } else if n == 0 {
         bail!(
             "no RAA229618 or ISL68224 with that address; \
-             use `humility pmbus -l to list devices"
+             use `humility pmbus -l` to list devices"
         );
     }
 
@@ -811,10 +810,44 @@ fn rendmp_blackbox(
         &[("addr", IdolArgument::Scalar(u64::from(addr)))],
         None,
     )?;
+    use humility::reflect::{Base, Value};
     match value {
-        Ok(v) => {
-            println!("{v:?}");
+        Ok(Value::Enum(e)) => {
+            let contents = e
+                .contents()
+                .ok_or_else(|| anyhow!("missing contents in blackbox enum"))?;
+            let Value::Tuple(c) = contents else {
+                bail!("missing tuple in blackbox enum");
+            };
+            let Value::Array(a) = &c[0] else {
+                bail!("missing array in blackbox enum");
+            };
+            let mut data = vec![];
+            for word in a.iter() {
+                let Value::Base(Base::U32(b)) = word else {
+                    bail!("unexpected type in array: {word:?}");
+                };
+                data.extend(b.as_bytes());
+            }
+            match e.disc() {
+                "Gen2p5" => println!(
+                    "{}",
+                    blackbox::BlackboxRamGen2p5::read_from(data.as_slice())
+                        .ok_or_else(|| anyhow!(
+                            "could not load blackbox from bytes"
+                        ))?,
+                ),
+                "Gen2" => println!(
+                    "{}",
+                    blackbox::BlackboxRamGen2::read_from(data.as_slice())
+                        .ok_or_else(|| anyhow!(
+                            "could not load blackbox from bytes"
+                        ))?,
+                ),
+                v => bail!("unknown blackbox gen: {v:?}"),
+            };
         }
+        Ok(other) => bail!("unexpected value: {other:?}"),
         Err(e) => bail!("got error: {e:?}"),
     }
 
