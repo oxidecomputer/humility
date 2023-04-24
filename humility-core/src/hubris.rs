@@ -4284,7 +4284,7 @@ impl HubrisArchive {
                         execute: attr & EXECUTE != 0,
                         device: attr & DEVICE != 0,
                         dma,
-                        external: self.extern_regions.external(task, base, dma),
+                        external: self.extern_regions.external(base, task, dma),
                     },
                     tasks: vec![HubrisTask::Task(i as u32)],
                 };
@@ -6156,7 +6156,7 @@ impl ExternRegions {
     /// We only require the `task` and the `dma` property in the event that
     /// we don't have the metadata in the archive.
     ///
-    fn external(&self, task: HubrisTask, address: u32, dma: bool) -> bool {
+    fn external(&self, address: u32, task: HubrisTask, dma: bool) -> bool {
         match self {
             ExternRegions::ByAddress(map) => map.contains_key(&address),
             ExternRegions::ByTask(set) => dma && set.contains(&task),
