@@ -573,7 +573,7 @@ impl Display for BlackboxRamGen2 {
             .zip(self.phase_currents.iter())
             .enumerate()
         {
-            writeln!(f, " {i:^6} | {t:^11} | {c}")?;
+            writeln!(f, " {i:^5} | {t:^11} | {c}")?;
         }
         Ok(())
     }
