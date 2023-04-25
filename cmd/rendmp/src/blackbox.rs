@@ -15,10 +15,9 @@ fn format_faults<T: Into<u32> + std::fmt::Binary + Copy>(
     f: &mut Formatter,
 ) -> std::fmt::Result {
     let u: u32 = v.into();
-    let faults: Vec<String> = faults
+    let faults: Vec<_> = faults
         .iter()
-        .filter(|(i, _)| u & (1 << i) != 0)
-        .map(|(_, v)| v.to_string())
+        .filter_map(|&(i, v)| (u & (1 << i) != 0).then_some(v))
         .collect();
 
     let size = std::mem::size_of::<T>() * 8;
@@ -583,29 +582,22 @@ impl Display for BlackboxRamGen2 {
 struct ControllerFaultGen2p5(U32);
 impl Display for ControllerFaultGen2p5 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        let v = self.0.get();
-        let faults = [
-            (23, "open pin"),
-            (12, "MCU fault"),
-            (9, "start-up fault"),
-            (7, "controller OT fault"),
-            (6, "PLL fault"),
-            (5, "PLL fault"),
-            (4, "oscillator fault"),
-            (2, "VCCS UV fault"),
-            (1, "VCC UV fault"),
-            (0, "VCC UV fault"),
-        ];
-        let faults: Vec<String> = faults
-            .iter()
-            .filter(|(i, _)| v & (1 << i) != 0)
-            .map(|(_, v)| v.to_string())
-            .collect();
-        if faults.is_empty() {
-            write!(f, "0")
-        } else {
-            write!(f, "{}", faults.join(" | "))
-        }
+        format_faults(
+            self.0,
+            &[
+                (23, "open pin"),
+                (12, "MCU fault"),
+                (9, "start-up fault"),
+                (7, "controller OT fault"),
+                (6, "PLL fault"),
+                (5, "PLL fault"),
+                (4, "oscillator fault"),
+                (2, "VCCS UV fault"),
+                (1, "VCC UV fault"),
+                (0, "VCC UV fault"),
+            ],
+            f,
+        )
     }
 }
 
