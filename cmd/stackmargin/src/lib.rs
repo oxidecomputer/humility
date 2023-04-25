@@ -96,7 +96,7 @@ fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
 
         if core.is_net() && i == 0 {
             println!(
-                "{:2} {:18} [cannot read supervisor memory remotely]",
+                "{:2} {:18} unknown (cannot read supervisor memory remotely)",
                 i, module.name
             );
             continue;
