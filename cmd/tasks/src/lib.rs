@@ -182,7 +182,7 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
 
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
-    let ticks = hubris.ticks(core)?;
+    let ticks = if core.is_net() { None } else { Some(hubris.ticks(core)?) };
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -213,6 +213,16 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
             let offs = i as usize * task_t.size;
             let addr = base + offs as u32;
             core.read_8(addr, &mut taskblock[offs..offs + task_t.size])?;
+        } else if core.is_net() {
+            // We cannot remotely read supervisor or non-TCB memory, so we skip
+            // the supervisor and the kernel epitaph if this is a remote core.
+            core.read_8(
+                base + task_t.size as u32,
+                &mut taskblock[task_t.size..],
+            )?;
+            humility::msg!(
+                "reading tasks remotely; state may not be consistent"
+            );
         } else {
             core.read_8(base, &mut taskblock)?;
 
@@ -267,8 +277,12 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
             core.run()?;
         }
 
-        println!("system time = {}", ticks);
-
+        println!(
+            "system time = {}",
+            ticks
+                .map(|t| t.to_string())
+                .unwrap_or_else(|| "unknown".to_owned())
+        );
         println!("{:2} {:21} {:>8} {:3} {:9}",
             "ID", "TASK", "GEN", "PRI", "STATE");
 
@@ -276,7 +290,6 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
 
         for (i, addr, task_value, task) in tasks.iter() {
             let i = *i;
-            let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
 
             let module = match hubris.lookup_module(HubrisTask::Task(i)) {
                 Ok(m) => &m.name,
@@ -299,17 +312,31 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
                 found = true;
             }
 
-            let timer = task.timer.deadline.map(|deadline| {
-                (deadline.0 as i64 - ticks as i64, task.timer.to_post.0)
+            let timer = task.timer.deadline.and_then(|deadline| {
+                ticks.map(|ticks| {
+                    (deadline.0 as i64 - ticks as i64, task.timer.to_post.0)
+                })
             });
 
-            {
+            let modname = {
                 let mut modname = module.to_string();
                 if modname.len() > 20 {
                     modname.truncate(20);
                     modname.push('…');
                     any_names_truncated = true;
                 }
+                modname
+            };
+
+            // Special case for the supervisor on a net core, which we can't
+            // meaningfully process.
+            if i == 0 && core.is_net() {
+                println!(
+                    "{:2} {:21} {:>8} {:3} [cannot read supervisor memory]",
+                    i, modname, "?", task.priority.0
+                );
+                continue;
+            } else {
                 print!(
                     "{:2} {:21} {:>8} {:3} ",
                     i,
@@ -330,6 +357,7 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
             )?;
             println!();
 
+            let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
             if subargs.stack || subargs.registers {
                 let t = HubrisTask::Task(i);
                 let regs = hubris.registers(core, t)?;

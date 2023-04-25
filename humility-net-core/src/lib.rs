@@ -15,7 +15,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use humility::{
     core::{Core, NetAgent},
-    hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion},
+    hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisTask},
     msg,
     net::decode_iface,
 };
@@ -77,9 +77,9 @@ impl NetCore {
         // 1) There's a task implementing the `DumpAgent` interface
         // 2) That task has the `net` feature enabled
 
-        // Find the dump agent task name.  This is usually `dump_agent`, but that's
-        // not guaranteed; what *is* guaranteed is that it implements the DumpAgent
-        // interface.
+        // Find the dump agent task name.  This is usually `dump_agent`, but
+        // that's not guaranteed; what *is* guaranteed is that it implements the
+        // DumpAgent interface.
         let dump_agent_task =
             hubris.lookup_module_by_iface("DumpAgent").map(|t| t.task);
         let has_dump_agent = dump_agent_task
@@ -129,8 +129,35 @@ impl NetCore {
                         && r.attr.read
                         && r.attr.write
                         && !r.tasks.is_empty()
+                        && r.tasks
+                            .iter()
+                            .any(|t| matches!(t, HubrisTask::Task(..)))
                 })
                 .collect();
+
+            // Each task is _also_ allowed to read from its own block in the
+            // kernel's task table, for remote dumping.  We add those regions to
+            // our RAM map here:
+            let (base, task_count) = hubris.task_table(&mut out)?;
+            let task_t = hubris.lookup_struct_byname("Task")?;
+            for t in 0..task_count {
+                let base = base + t * task_t.size as u32;
+                ram_regions.push(HubrisRegion {
+                    daddr: None,
+                    base,
+                    // Dummy attributes
+                    attr: humility::hubris::HubrisRegionAttr {
+                        read: true,
+                        write: false,
+                        execute: false,
+                        device: false,
+                        dma: false,
+                    },
+                    size: task_t.size as u32,
+                    mapsize: task_t.size as u32,
+                    tasks: vec![HubrisTask::Task(t)],
+                })
+            }
 
             // Sort regions so we can find a target region with binary search
             ram_regions.sort_by_key(|r| r.base);
@@ -186,13 +213,16 @@ impl NetCore {
         };
         let p = ram.partition_point(|v| v.base <= addr);
         if p == 0 {
-            bail!("address not found in RAM map");
+            bail!(
+                "address not found in RAM map; \
+                 note that non-TCB kernel memory cannot be read remotely"
+            );
         }
 
         // By construction, we know that every region in self.ram has at least
         // one task associated with it.  If this task is the supervisor, then
         // that's bad news.
-        let region = &ram[p - 1];
+        let region = ram[p - 1].clone();
         let Some(&task) = region.tasks.iter().find(|t| t.task() != 0) else {
             bail!("supervisor memory cannot be read using dump facilities");
         };
@@ -205,6 +235,18 @@ impl NetCore {
         let mut aligned_length = data.len() as u32 + addr - aligned_start;
         while aligned_length & 0b11 != 0 {
             aligned_length += 1;
+        }
+
+        if aligned_start > region.base + region.size {
+            bail!(
+                "out of range: {aligned_start:x} >= {:x}",
+                region.base + region.size
+            );
+        }
+
+        let overflow = aligned_length > region.size;
+        if overflow {
+            aligned_length = region.size;
         }
 
         let dump_index: u8 = match udp_dump.dump_task_region(
@@ -239,7 +281,18 @@ impl NetCore {
         udp_dump.reinitialize_dump_from(dump_index)?;
 
         // By construction, this DumpAgentCore has exactly what it needs!
-        agent_core.read_8(addr, data)?;
+        let data_len = data.len();
+        agent_core
+            .read_8(addr, &mut data[..(region.size as usize).min(data_len)])?;
+
+        // If the buffer is larger than this region, then recurse in an attempt
+        // to keep reading data.
+        if overflow {
+            self.read_ram(
+                aligned_start + region.size,
+                &mut data[region.size as usize..],
+            )?;
+        }
         Ok(())
     }
 }
