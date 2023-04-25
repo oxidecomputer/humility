@@ -122,6 +122,14 @@ struct RendmpArgs {
     #[clap(long, group = "subcommand")]
     crc: bool,
 
+    /// reads the contents of a Renesas power converter black box
+    #[clap(long, group = "subcommand")]
+    blackbox: bool,
+
+    // NOTE: the arguments below are only valid when --flash is provided.
+    // Unfortunately, due to clap#4707, they are accepted for *any* option in
+    // the `subcommand` group; there's a check in code to enforce this
+    // constraint manually.
     /// perform dry-run of flash
     #[clap(long = "dry-run", short = 'n', requires = "flash")]
     dryrun: bool,
@@ -133,10 +141,6 @@ struct RendmpArgs {
     /// check the OTP CRC against the image CRC
     #[clap(long, short = 'C', requires = "flash")]
     check: bool,
-
-    /// reads the contents of a Renesas power converter black box
-    #[clap(long, group = "subcommand")]
-    blackbox: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -861,6 +865,17 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
 
     let subargs = RendmpArgs::try_parse_from(subargs)?;
+
+    // Workaround for clap#4707
+    if subargs.flash.is_none() {
+        if subargs.dryrun {
+            bail!("--dryrun requires --flash");
+        } else if subargs.force {
+            bail!("--force requires --flash");
+        } else if subargs.check {
+            bail!("--check requires --flash");
+        }
+    }
 
     if subargs.ingest.is_some() {
         return rendmp_ingest(&subargs);
