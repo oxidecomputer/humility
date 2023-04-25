@@ -109,7 +109,10 @@ struct DumpArgs {
     force_hiffy_agent: bool,
 
     /// force manual initiation, leaving target halted
-    #[clap(long, requires = "force-dump-agent", conflicts_with_all = &["all", "task"])]
+    #[clap(
+        long, requires = "force-dump-agent",
+        conflicts_with_all = &["all", "task"]
+    )]
     force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
@@ -136,7 +139,10 @@ struct DumpArgs {
     simulate_dumper: bool,
 
     /// in addition to simulating the dumper, generate a stock dump
-    #[clap(long, requires = "simulation", conflicts_with_all = &["task", "all"])]
+    #[clap(
+        long, requires = "simulation",
+        conflicts_with_all = &["task", "all"]
+    )]
     stock_dumpfile: Option<String>,
 
     /// emulate in situ dumper by reading directly from target and writing

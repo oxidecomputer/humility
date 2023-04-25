@@ -1,0 +1,3 @@
+humility: attached to dump
+humility: WARNING: RecvError matches more than one enum: task_net_api::RecvError as GOFF 0x00027800 (object 2), smoltcp::socket::udp::RecvError::RecvError as GOFF 0x0004e864 (object 2)
+humility: WARNING: SendError matches more than one enum: smoltcp::socket::udp::SendError as GOFF 0x00000c86 (object 2), task_net_api::SendError as GOFF 0x000277d6 (object 2)

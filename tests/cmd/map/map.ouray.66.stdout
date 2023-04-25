@@ -1,41 +1,41 @@
-DESC       LOW          HIGH          SIZE ATTR  ID TASK
--          0x00008000 - 0x000083ff    1KiB r---- -  kernel
--          0x00008400 - 0x0000d997   21KiB r-x-- -  kernel
--          0x0000d998 - 0x0000f3db    6KiB r---- -  kernel
--          0x0000f3dc - 0x0000f78b     944 r---- -  kernel
-0x0000f49c 0x00010000 - 0x00017fff   32KiB r-x-- 0  jefe
-0x0000f4bc 0x00018000 - 0x0001ffff   32KiB r-x-- 1  hiffy
-0x0000f4fc 0x00020000 - 0x00023fff   16KiB r-x-- 3  syscon_driver
-0x0000f51c 0x00024000 - 0x00027fff   16KiB r-x-- 4  gpio_driver
-0x0000f53c 0x00028000 - 0x0002bfff   16KiB r-x-- 5  user_leds
-0x0000f55c 0x0002c000 - 0x0002ffff   16KiB r-x-- 6  usart_driver
-0x0000f57c 0x00030000 - 0x00033fff   16KiB r-x-- 7  i2c_driver
-0x0000f59c 0x00034000 - 0x00037fff   16KiB r-x-- 8  rng_driver
-0x0000f5bc 0x00038000 - 0x0003bfff   16KiB r-x-- 9  spi_driver
-0x0000f5dc 0x0003c000 - 0x0003dfff    8KiB r-x-- 10 ping
-0x0000f5fc 0x0003e000 - 0x0003ffff    8KiB r-x-- 11 pong
-0x0000f61c 0x00040000 - 0x00041fff    8KiB r-x-- 12 spam
-0x0000f4dc 0x00042000 - 0x000420ff     256 r-x-- 2  idle
--          0x20004000 - 0x20004fff    4KiB rw--- -  kernel
-0x0000f4ac 0x20005000 - 0x20005fff    4KiB rwx-- 0  jefe
-0x0000f50c 0x20006000 - 0x200063ff    1KiB rwx-- 3  syscon_driver
-0x0000f52c 0x20006400 - 0x200067ff    1KiB rwx-- 4  gpio_driver
-0x0000f54c 0x20006800 - 0x20006bff    1KiB rwx-- 5  user_leds
-0x0000f56c 0x20006c00 - 0x20006fff    1KiB rwx-- 6  usart_driver
-0x0000f58c 0x20007000 - 0x200073ff    1KiB rwx-- 7  i2c_driver
-0x0000f5ac 0x20007400 - 0x200077ff    1KiB rwx-- 8  rng_driver
-0x0000f5cc 0x20007800 - 0x20007bff    1KiB rwx-- 9  spi_driver
-0x0000f5ec 0x20007c00 - 0x20007fff    1KiB rwx-- 10 ping
-0x0000f4cc 0x20008000 - 0x2000bfff   16KiB rwx-- 1  hiffy
-0x0000f60c 0x2000c000 - 0x2000c3ff    1KiB rwx-- 11 pong
-0x0000f62c 0x2000c400 - 0x2000c7ff    1KiB rwx-- 12 spam
-0x0000f4ec 0x2000c800 - 0x2000c8ff     256 rwx-- 2  idle
-0x0000f40c 0x40000000 - 0x40000fff    4KiB rw-d- 3  [syscon] syscon_driver
-0x0000f43c 0x40001000 - 0x40001fff    4KiB rw-d- 4  [iocon] gpio_driver
-0x0000f41c 0x40013000 - 0x40013fff    4KiB rw-d- 3  [anactrl] syscon_driver
-0x0000f46c 0x40020000 - 0x40020fff    4KiB rw-d- 3  [pmc] syscon_driver, rng_driver
-0x0000f48c 0x4003a000 - 0x4003afff    4KiB rw-d- 8  [rng] rng_driver
-0x0000f44c 0x40086000 - 0x40086fff    4KiB rw-d- 6  [flexcomm0] usart_driver
-0x0000f45c 0x4008a000 - 0x4008afff    4KiB rw-d- 7  [flexcomm4] i2c_driver
-0x0000f42c 0x4008c000 - 0x4008e483    9KiB rw-d- 4  [gpio] gpio_driver
-0x0000f47c 0x4009f000 - 0x4009ffff    4KiB rw-d- 9  [flexcomm8] spi_driver
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x00008000 - 0x000083ff    1KiB r----- -  kernel
+-          0x00008400 - 0x0000d997   21KiB r-x--- -  kernel
+-          0x0000d998 - 0x0000f3db    6KiB r----- -  kernel
+-          0x0000f3dc - 0x0000f78b     944 r----- -  kernel
+0x0000f49c 0x00010000 - 0x00017fff   32KiB r-x--- 0  jefe
+0x0000f4bc 0x00018000 - 0x0001ffff   32KiB r-x--- 1  hiffy
+0x0000f4fc 0x00020000 - 0x00023fff   16KiB r-x--- 3  syscon_driver
+0x0000f51c 0x00024000 - 0x00027fff   16KiB r-x--- 4  gpio_driver
+0x0000f53c 0x00028000 - 0x0002bfff   16KiB r-x--- 5  user_leds
+0x0000f55c 0x0002c000 - 0x0002ffff   16KiB r-x--- 6  usart_driver
+0x0000f57c 0x00030000 - 0x00033fff   16KiB r-x--- 7  i2c_driver
+0x0000f59c 0x00034000 - 0x00037fff   16KiB r-x--- 8  rng_driver
+0x0000f5bc 0x00038000 - 0x0003bfff   16KiB r-x--- 9  spi_driver
+0x0000f5dc 0x0003c000 - 0x0003dfff    8KiB r-x--- 10 ping
+0x0000f5fc 0x0003e000 - 0x0003ffff    8KiB r-x--- 11 pong
+0x0000f61c 0x00040000 - 0x00041fff    8KiB r-x--- 12 spam
+0x0000f4dc 0x00042000 - 0x000420ff     256 r-x--- 2  idle
+-          0x20004000 - 0x20004fff    4KiB rw---- -  kernel
+0x0000f4ac 0x20005000 - 0x20005fff    4KiB rwx--- 0  jefe
+0x0000f50c 0x20006000 - 0x200063ff    1KiB rwx--- 3  syscon_driver
+0x0000f52c 0x20006400 - 0x200067ff    1KiB rwx--- 4  gpio_driver
+0x0000f54c 0x20006800 - 0x20006bff    1KiB rwx--- 5  user_leds
+0x0000f56c 0x20006c00 - 0x20006fff    1KiB rwx--- 6  usart_driver
+0x0000f58c 0x20007000 - 0x200073ff    1KiB rwx--- 7  i2c_driver
+0x0000f5ac 0x20007400 - 0x200077ff    1KiB rwx--- 8  rng_driver
+0x0000f5cc 0x20007800 - 0x20007bff    1KiB rwx--- 9  spi_driver
+0x0000f5ec 0x20007c00 - 0x20007fff    1KiB rwx--- 10 ping
+0x0000f4cc 0x20008000 - 0x2000bfff   16KiB rwx--- 1  hiffy
+0x0000f60c 0x2000c000 - 0x2000c3ff    1KiB rwx--- 11 pong
+0x0000f62c 0x2000c400 - 0x2000c7ff    1KiB rwx--- 12 spam
+0x0000f4ec 0x2000c800 - 0x2000c8ff     256 rwx--- 2  idle
+0x0000f40c 0x40000000 - 0x40000fff    4KiB rw-d-- 3  [syscon] syscon_driver
+0x0000f43c 0x40001000 - 0x40001fff    4KiB rw-d-- 4  [iocon] gpio_driver
+0x0000f41c 0x40013000 - 0x40013fff    4KiB rw-d-- 3  [anactrl] syscon_driver
+0x0000f46c 0x40020000 - 0x40020fff    4KiB rw-d-- 3  [pmc] syscon_driver, rng_driver
+0x0000f48c 0x4003a000 - 0x4003afff    4KiB rw-d-- 8  [rng] rng_driver
+0x0000f44c 0x40086000 - 0x40086fff    4KiB rw-d-- 6  [flexcomm0] usart_driver
+0x0000f45c 0x4008a000 - 0x4008afff    4KiB rw-d-- 7  [flexcomm4] i2c_driver
+0x0000f42c 0x4008c000 - 0x4008e483    9KiB rw-d-- 4  [gpio] gpio_driver
+0x0000f47c 0x4009f000 - 0x4009ffff    4KiB rw-d-- 9  [flexcomm8] spi_driver

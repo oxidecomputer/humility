@@ -86,14 +86,26 @@ pub struct HubrisConfigPatches {
     features: IndexMap<String, Vec<String>>,
 }
 
+/// Deserialization `struct` for a memory region in the `memory.toml` file
+///
+/// The file contains other fields associated with each region (e.g. size, name,
+/// whether it's read / write / execute); we skip those fields because they
+/// aren't used below.
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisMemoryRegion {
+    address: u32,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigKernel {
     features: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 struct HubrisConfigTask {
     features: Option<Vec<String>>,
+    extern_regions: Option<Vec<String>>,
     #[serde(default)]
     notifications: Vec<String>,
     interrupts: Option<IndexMap<String, HubrisTaskInterrupt>>,
@@ -595,6 +607,9 @@ pub struct HubrisArchive {
 
     // Space of all namespaces -- but namespacesspace seems needlessly cruel
     namespaces: Namespaces,
+
+    // Extern regions in this archive
+    extern_regions: ExternRegions,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -654,6 +669,7 @@ impl HubrisArchive {
             unions: HashMap::new(),
             definitions: MultiMap::new(),
             namespaces: Namespaces::new(),
+            extern_regions: ExternRegions::new(),
         })
     }
 
@@ -2415,6 +2431,7 @@ impl HubrisArchive {
                     execute: h.p_flags & PF_X != 0,
                     device: false,
                     dma: false,
+                    external: false,
                 },
                 tasks: vec![task],
             })
@@ -2461,6 +2478,7 @@ impl HubrisArchive {
                         execute: false,
                         device: false,
                         dma: false,
+                        external: false,
                     },
                     tasks: vec![task],
                 };
@@ -2890,6 +2908,7 @@ impl HubrisArchive {
                     .extend(features.into_iter());
             }
         }
+
         let config = config; // remove mutability
 
         //
@@ -2956,7 +2975,7 @@ impl HubrisArchive {
         // fact that these are stored in task ID order in the
         // archive.
         //
-        Self::for_each_task(archive, |path, buffer| {
+        Self::for_each_task(&mut archive, |path, buffer| {
             self.load_object(
                 path.file_name().unwrap().to_str().unwrap(),
                 HubrisTask::Task(id),
@@ -2967,8 +2986,12 @@ impl HubrisArchive {
         })?;
 
         //
-        // We have loaded everything; now post-process our enums and structs
-        // to add their fully scoped names.
+        // Now that we have loaded our tasks, load our extern regions.
+        //
+        self.extern_regions = ExternRegions::load(self, &mut archive, &config)?;
+
+        //
+        // Post-process our enums and structs to add their fully scoped names.
         //
         let mut work = vec![];
 
@@ -3006,7 +3029,7 @@ impl HubrisArchive {
     }
 
     fn for_each_task<F: FnMut(&Path, &[u8]) -> Result<()>>(
-        mut archive: zip::ZipArchive<Cursor<&[u8]>>,
+        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
         mut f: F,
     ) -> Result<()> {
         for i in 0..archive.len() {
@@ -4187,6 +4210,7 @@ impl HubrisArchive {
                             execute: false,
                             device: false,
                             dma: false,
+                            external: false,
                         },
                         tasks: vec![HubrisTask::Kernel],
                     },
@@ -4242,6 +4266,9 @@ impl HubrisArchive {
                     continue;
                 }
 
+                let task = HubrisTask::Task(i as u32);
+                let dma = attr & DMA != 0;
+
                 let region = HubrisRegion {
                     daddr: Some(*daddr),
                     base,
@@ -4256,7 +4283,8 @@ impl HubrisArchive {
                         write: attr & WRITE != 0,
                         execute: attr & EXECUTE != 0,
                         device: attr & DEVICE != 0,
-                        dma: attr & DMA != 0,
+                        dma,
+                        external: self.extern_regions.external(base, task, dma),
                     },
                     tasks: vec![HubrisTask::Task(i as u32)],
                 };
@@ -4744,16 +4772,26 @@ impl HubrisArchive {
         Ok(match task {
             None => regions
                 .values()
-                .filter(|&r| !r.attr.device && !r.attr.dma)
+                .filter(|&r| !r.attr.device && !r.attr.external)
                 .filter(|&r| include_nonwritable || r.attr.write)
                 .map(|r| (r.base, r.size))
                 .collect::<Vec<_>>(),
             Some(task) => {
                 let t = HubrisTask::Task(task.id as u32);
 
+                //
+                // In an act of selfless charity, we want to accommodate
+                // running on a Hubris that predates the functionality to
+                // allow for Jefe to dump DMA regions for a task -- which we
+                // approximate by the absence of memory metadata.
+                //
+                let exclude_dma =
+                    matches!(self.extern_regions, ExternRegions::ByTask(_));
+
                 let mut segments = regions
                     .values()
-                    .filter(|&r| !r.attr.device && !r.attr.dma)
+                    .filter(|&r| !r.attr.device && !r.attr.external)
+                    .filter(|&r| !exclude_dma || !r.attr.dma)
                     .filter(|&r| {
                         r.tasks.contains(&t)
                             || (include_nonwritable && !r.attr.write)
@@ -4857,21 +4895,18 @@ impl HubrisArchive {
         let filename = match dumpfile {
             Some(filename) => filename.to_owned(),
             None => {
-                let mut filename;
-                let mut i = 0;
-
-                loop {
-                    filename = format!("hubris.core.{}", i);
-
-                    if let Ok(_f) = fs::File::open(&filename) {
-                        i += 1;
-                        continue;
+                let prefix = match task {
+                    Some(task) => {
+                        let t = HubrisTask::Task(task.id as u32);
+                        format!("hubris.core.{}.", self.lookup_module(t)?.name)
                     }
+                    None => "hubris.core.".to_string(),
+                };
 
-                    break;
-                }
-
-                filename
+                (0..)
+                    .map(|i| format!("{prefix}{i}"))
+                    .find(|f| std::fs::File::open(f).is_err())
+                    .unwrap()
             }
         };
 
@@ -5040,8 +5075,8 @@ impl HubrisArchive {
         let _ = self.extract_file_to("img/stage0", &p.join("stage0"));
 
         let cursor = Cursor::new(self.archive.as_slice());
-        let archive = zip::ZipArchive::new(cursor)?;
-        Self::for_each_task(archive, |path, buffer| {
+        let mut archive = zip::ZipArchive::new(cursor)?;
+        Self::for_each_task(&mut archive, |path, buffer| {
             let file_name = p.join(path.file_name().unwrap());
             std::fs::write(file_name, buffer)?;
             Ok(())
@@ -5109,6 +5144,10 @@ impl HubrisArchive {
 
     pub fn lookup_peripheral_byaddr(&self, addr: u32) -> Option<&String> {
         self.manifest.peripherals_byaddr.get(&addr)
+    }
+
+    pub fn lookup_external_byaddr(&self, addr: u32) -> Option<&String> {
+        self.extern_regions.lookup_byaddr(addr)
     }
 
     pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
@@ -5496,6 +5535,7 @@ pub struct HubrisRegionAttr {
     pub execute: bool,
     pub device: bool,
     pub dma: bool,
+    pub external: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -6015,6 +6055,126 @@ impl HubrisPrintFormat {
 pub enum HubrisValidate {
     ArchiveMatch,
     Booted,
+}
+
+//
+// We want to track our external regions because we want to be able to identify
+// them, but this requires us knowing what addresses our external regions map
+// to.  All of this would be fine, but there exists (or existed, anyway) a
+// window of time in which external regions existed, but the archive did not
+// contain the necessary metadata to be able to perform this correlation.  To
+// reassemble this, we follow a sleazy heuristic, observing that tasks that had
+// external regions in this window of time also enabled DMA to those external
+// regions -- and only to those regions.  So if we do not have our necessary
+// metadata (specifically, the `memory.toml` file), we perform this crude
+// reconstruction.
+//
+#[derive(Debug)]
+enum ExternRegions {
+    /// We have not yet loaded any external regions
+    Unloaded,
+
+    /// We have the metadata to correlate addresses to regions
+    ByAddress(HashMap<u32, String>),
+
+    /// We only know which tasks have which regions -- not the addresses of
+    /// those regions
+    ByTask(HashSet<HubrisTask>),
+}
+
+impl ExternRegions {
+    fn new() -> Self {
+        ExternRegions::Unloaded
+    }
+
+    ///
+    /// Load external regions from the archive.  Based on the presence of
+    /// archive metadata, this will construct the necessary structures to
+    /// correlate address to external region.
+    ///
+    fn load(
+        hubris: &HubrisArchive,
+        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+        config: &HubrisConfig,
+    ) -> Result<Self> {
+        match archive.by_name("memory.toml") {
+            Ok(mut file) => {
+                let mut memory = String::new();
+                file.read_to_string(&mut memory)?;
+                let all_memories: IndexMap<String, Vec<HubrisMemoryRegion>> =
+                    toml::from_slice(memory.as_bytes())?;
+
+                //
+                // We have our memory metadata but it includes all memories
+                // (not just extern regions); iterate over our tasks to find
+                // the extern regions, and then insert only those into our map.
+                //
+                let mut map = HashMap::new();
+                let mut all_extern_regions = HashSet::new();
+
+                for (_, task) in &config.tasks {
+                    if let Some(extern_regions) = &task.extern_regions {
+                        for region in extern_regions {
+                            all_extern_regions.insert(region.clone());
+                        }
+                    }
+                }
+
+                for (name, memories) in all_memories {
+                    if all_extern_regions.contains(&name) {
+                        //
+                        // Note that we are inserting all memories into our
+                        // map (that is, regardless of our image name), with
+                        // the (hopefully reasonable?) assumption that a given
+                        // address can't map to two different memories across
+                        // images.
+                        //
+                        for memory in memories {
+                            map.insert(memory.address, name.clone());
+                        }
+                    }
+                }
+
+                Ok(Self::ByAddress(map))
+            }
+            _ => {
+                let mut set = HashSet::new();
+
+                for (name, task) in &config.tasks {
+                    if task.extern_regions.is_some() {
+                        set.insert(*hubris.lookup_task(name).unwrap());
+                    }
+                }
+
+                Ok(Self::ByTask(set))
+            }
+        }
+    }
+
+    ///
+    /// Returns `true` iff the specified address is in an external region.
+    /// We only require the `task` and the `dma` property in the event that
+    /// we don't have the metadata in the archive.
+    ///
+    fn external(&self, address: u32, task: HubrisTask, dma: bool) -> bool {
+        match self {
+            ExternRegions::ByAddress(map) => map.contains_key(&address),
+            ExternRegions::ByTask(set) => dma && set.contains(&task),
+            ExternRegions::Unloaded => panic!("no archive has been loaded"),
+        }
+    }
+
+    ///
+    /// For a given address, return the name of the external region if known.
+    /// If the address is not in an external region or the archive lacks the
+    /// necessary metadata, this will return `None`.
+    ///
+    fn lookup_byaddr(&self, address: u32) -> Option<&String> {
+        match self {
+            ExternRegions::ByAddress(map) => map.get(&address),
+            _ => None,
+        }
+    }
 }
 
 //
