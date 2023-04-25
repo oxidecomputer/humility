@@ -14,7 +14,10 @@ log.workspace = true
 parse_int.workspace = true
 num-traits.workspace = true
 num-derive.workspace = true
+zerocopy.workspace = true
 
-humility.workspace = true
-humility-hiffy.workspace = true
+cmd-hiffy.workspace = true
 humility-cmd.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+humility.workspace = true
