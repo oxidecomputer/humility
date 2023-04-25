@@ -572,7 +572,7 @@ ID TASK                       GEN PRI STATE
    stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: [HubrisStackFrame { cfa: 200080a0, sym: None, registers: {R0: 9c24412e, R1: f1eb77d8, R2: baddcafe, R3: baddcafe, R4: 3a, R5: 0, R6: 4, R7: 0, R8: 4, R9: 200080a8, R10: 2, R11: 0, R12: 5, SP: 200080a0, LR: 33a, PC: 3a, PSR: 3}, inlined: None }]
 
 Caused by:
-    address (0x4) below range (HubrisRegion { daddr: Some(8005198), base: 20008000, size: 8000, mapsize: 8000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false }, tasks: [Task(9)] }) 
+    address (0x4) below range (HubrisRegion { daddr: Some(8005198), base: 20008000, size: 8000, mapsize: 8000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false, external: false }, tasks: [Task(9)] }) 
    |
    +--->   R0 = 0x9c24412e   R1 = 0xf1eb77d8   R2 = 0xbaddcafe   R3 = 0xbaddcafe
    |       R4 = 0x00050001   R5 = 0x2000809c   R6 = 0x00000004   R7 = 0x20008098

@@ -1,20 +1,20 @@
-DESC       LOW          HIGH          SIZE ATTR  ID TASK
--          0x08000000 - 0x0800010b     268 r---- -  kernel
--          0x0800010c - 0x08003b33   14KiB r-x-- -  kernel
--          0x08003b34 - 0x08004553    2KiB r---- -  kernel
--          0x08004558 - 0x0800467f     296 rw--- -  kernel
-0x0800453c 0x08004680 - 0x080046ff     128 r-x-- 3  idle
-0x0800450c 0x08004800 - 0x08004fff    2KiB r-x-- 1  sys
-0x080044f4 0x08005000 - 0x08005fff    4KiB r-x-- 0  jefe
-0x08004524 0x08006000 - 0x080067ff    2KiB r-x-- 2  usart_driver
-0x080044dc 0x1fff0000 - 0x1fffffff   64KiB rw-d- 1  [system_flash] sys
--          0x20000000 - 0x2000027f     640 rw--- -  kernel
--          0x20000280 - 0x20000283       4 rw--- -  kernel
--          0x20000288 - 0x2000065f     984 rw--- -  kernel
-0x08004548 0x20000680 - 0x200006bf      64 rw--- 3  idle
-0x08004518 0x20000700 - 0x200007ff     256 rw--- 1  sys
-0x08004500 0x20000800 - 0x200009ff     512 rw--- 0  jefe
-0x08004530 0x20000a00 - 0x20000aff     256 rw--- 2  usart_driver
-0x080044e8 0x40013800 - 0x40013bff    1KiB rw-d- 2  [usart1] usart_driver
-0x080044d0 0x40021000 - 0x400213ff    1KiB rw-d- 1  [rcc] sys
-0x080044c4 0x50000000 - 0x50001fff    8KiB rw-d- 1  [gpio] sys
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x0800010b     268 r----- -  kernel
+-          0x0800010c - 0x08003b33   14KiB r-x--- -  kernel
+-          0x08003b34 - 0x08004553    2KiB r----- -  kernel
+-          0x08004558 - 0x0800467f     296 rw---- -  kernel
+0x0800453c 0x08004680 - 0x080046ff     128 r-x--- 3  idle
+0x0800450c 0x08004800 - 0x08004fff    2KiB r-x--- 1  sys
+0x080044f4 0x08005000 - 0x08005fff    4KiB r-x--- 0  jefe
+0x08004524 0x08006000 - 0x080067ff    2KiB r-x--- 2  usart_driver
+0x080044dc 0x1fff0000 - 0x1fffffff   64KiB rw-d-- 1  [system_flash] sys
+-          0x20000000 - 0x2000027f     640 rw---- -  kernel
+-          0x20000280 - 0x20000283       4 rw---- -  kernel
+-          0x20000288 - 0x2000065f     984 rw---- -  kernel
+0x08004548 0x20000680 - 0x200006bf      64 rw---- 3  idle
+0x08004518 0x20000700 - 0x200007ff     256 rw---- 1  sys
+0x08004500 0x20000800 - 0x200009ff     512 rw---- 0  jefe
+0x08004530 0x20000a00 - 0x20000aff     256 rw---- 2  usart_driver
+0x080044e8 0x40013800 - 0x40013bff    1KiB rw-d-- 2  [usart1] usart_driver
+0x080044d0 0x40021000 - 0x400213ff    1KiB rw-d-- 1  [rcc] sys
+0x080044c4 0x50000000 - 0x50001fff    8KiB rw-d-- 1  [gpio] sys

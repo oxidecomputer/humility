@@ -1,26 +1,26 @@
-DESC       LOW          HIGH          SIZE ATTR  ID TASK
--          0x08000000 - 0x080001a7     424 r---- -  kernel
--          0x080001a8 - 0x08003d6b   14KiB r-x-- -  kernel
--          0x08003d6c - 0x080048a7    2KiB r---- -  kernel
--          0x080048a8 - 0x08004ae3     572 r---- -  kernel
-0x08004918 0x08010000 - 0x08017fff   32KiB r-x-- 0  jefe
-0x08004938 0x08018000 - 0x08019fff    8KiB r-x-- 1  rcc_driver
-0x08004958 0x0801c000 - 0x0801ffff   16KiB r-x-- 2  usart_driver
-0x08004978 0x08020000 - 0x08023fff   16KiB r-x-- 3  user_leds
-0x08004998 0x08024000 - 0x08025fff    8KiB r-x-- 4  ping
-0x080049b8 0x08026000 - 0x08027fff    8KiB r-x-- 5  pong
-0x080049d8 0x08028000 - 0x0802ffff   32KiB r-x-- 6  hiffy
-0x080049f8 0x08030000 - 0x080300ff     256 r-x-- 7  idle
--          0x20000000 - 0x20000fff    4KiB rw--- -  kernel
-0x08004928 0x20001000 - 0x200017ff    2KiB rwx-- 0  jefe
-0x08004948 0x20001800 - 0x20001bff    1KiB rwx-- 1  rcc_driver
-0x08004968 0x20001c00 - 0x20001fff    1KiB rwx-- 2  usart_driver
-0x08004988 0x20002000 - 0x200023ff    1KiB rwx-- 3  user_leds
-0x080049a8 0x20002400 - 0x200025ff     512 rwx-- 4  ping
-0x080049c8 0x20002800 - 0x20002bff    1KiB rwx-- 5  pong
-0x080049e8 0x20004000 - 0x20005fff    8KiB rwx-- 6  hiffy
-0x08004a08 0x20006000 - 0x200060ff     256 rwx-- 7  idle
-0x080048d8 0x40004400 - 0x400047ff    1KiB rw-d- 2  [usart2] usart_driver
-0x080048f8 0x40020000 - 0x400203ff    1KiB rw-d- 2  [gpioa] usart_driver
-0x08004908 0x40020c00 - 0x40020fff    1KiB rw-d- 3  [gpiod] user_leds
-0x080048e8 0x40023800 - 0x40023bff    1KiB rw-d- 1  [rcc] rcc_driver
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x080001a7     424 r----- -  kernel
+-          0x080001a8 - 0x08003d6b   14KiB r-x--- -  kernel
+-          0x08003d6c - 0x080048a7    2KiB r----- -  kernel
+-          0x080048a8 - 0x08004ae3     572 r----- -  kernel
+0x08004918 0x08010000 - 0x08017fff   32KiB r-x--- 0  jefe
+0x08004938 0x08018000 - 0x08019fff    8KiB r-x--- 1  rcc_driver
+0x08004958 0x0801c000 - 0x0801ffff   16KiB r-x--- 2  usart_driver
+0x08004978 0x08020000 - 0x08023fff   16KiB r-x--- 3  user_leds
+0x08004998 0x08024000 - 0x08025fff    8KiB r-x--- 4  ping
+0x080049b8 0x08026000 - 0x08027fff    8KiB r-x--- 5  pong
+0x080049d8 0x08028000 - 0x0802ffff   32KiB r-x--- 6  hiffy
+0x080049f8 0x08030000 - 0x080300ff     256 r-x--- 7  idle
+-          0x20000000 - 0x20000fff    4KiB rw---- -  kernel
+0x08004928 0x20001000 - 0x200017ff    2KiB rwx--- 0  jefe
+0x08004948 0x20001800 - 0x20001bff    1KiB rwx--- 1  rcc_driver
+0x08004968 0x20001c00 - 0x20001fff    1KiB rwx--- 2  usart_driver
+0x08004988 0x20002000 - 0x200023ff    1KiB rwx--- 3  user_leds
+0x080049a8 0x20002400 - 0x200025ff     512 rwx--- 4  ping
+0x080049c8 0x20002800 - 0x20002bff    1KiB rwx--- 5  pong
+0x080049e8 0x20004000 - 0x20005fff    8KiB rwx--- 6  hiffy
+0x08004a08 0x20006000 - 0x200060ff     256 rwx--- 7  idle
+0x080048d8 0x40004400 - 0x400047ff    1KiB rw-d-- 2  [usart2] usart_driver
+0x080048f8 0x40020000 - 0x400203ff    1KiB rw-d-- 2  [gpioa] usart_driver
+0x08004908 0x40020c00 - 0x40020fff    1KiB rw-d-- 3  [gpiod] user_leds
+0x080048e8 0x40023800 - 0x40023bff    1KiB rw-d-- 1  [rcc] rcc_driver
