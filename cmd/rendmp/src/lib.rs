@@ -61,14 +61,77 @@
 //! humility: image CRC (0x841f35a5) matches OTP CRC
 //! ```
 //!
+//! The Renesas voltage regulators include a black box which stores fault
+//! information.  This can be queried using the `--blackbox` subcommand,
+//! specifying a device (I2C) address to pick a specific power converter:
+//!
+//! ```console
+//! % humility rendmp --blackbox --device=0x5b
+//! humility: attached to 0483:374f:000C001F4D46500F20373033 via ST-Link V3
+//! rail0 uptime: 0 sec
+//! rail1 uptime: 0 sec
+//! controller fault: 0
+//! rail0 fault: 00000000000000000000000000000000 ()
+//! rail1 fault: 00000000000000000000000000000000 ()
+//! phase fault uc: 00000000000000000000000000000000 ()
+//! phase fault oc: 00000000000000000000000000000000 ()
+//! adc fault uc: 00000000000000000000000000000000 ()
+//! adc fault oc: 00000000000000000000000000000000 ()
+//! rail0 status: 0000000000000000 ()
+//! rail1 status: 0000000000000000 ()
+//! status cml: 00000000 ()
+//! status mfr: 00000000 ()
+//! rail1 status vout: 00000000 ()
+//! rail0 status vout: 00000000 ()
+//! rail1 status iout: 00000000 ()
+//! rail0 status iout: 00000000 ()
+//! rail1 status temperature: 00000000 ()
+//! rail0 status temperature: 00000000 ()
+//! rail1 status input: 00000000 ()
+//! rail0 status input: 00000000 ()
+//!
+//!      | RAIL 0  | RAIL 1
+//! -----|---------|-----------
+//! VIN  | 0.00 V  | 0.00 V
+//! VOUT | 0.000 V | 0.000 V
+//! IIN  | 0.00 A  | 0.00 A
+//! IOUT | 0.0 A   | 0.0 A
+//! TEMP | 0°C     | 0°C
+//! controller read temperature: 0°C
+//!
+//!  PHASE | TEMPERATURE | CURRENT
+//! -------|-------------|----------
+//!  0     | 0°C         | 0.0 A
+//!  1     | 0°C         | 0.0 A
+//!  2     | 0°C         | 0.0 A
+//!  3     | 0°C         | 0.0 A
+//!  4     | 0°C         | 0.0 A
+//!  5     | 0°C         | 0.0 A
+//!  6     | 0°C         | 0.0 A
+//!  7     | 0°C         | 0.0 A
+//!  8     | 0°C         | 0.0 A
+//!  9     | 0°C         | 0.0 A
+//!  10    | 0°C         | 0.0 A
+//!  11    | 0°C         | 0.0 A
+//!  12    | 0°C         | 0.0 A
+//!  13    | 0°C         | 0.0 A
+//!  14    | 0°C         | 0.0 A
+//!  15    | 0°C         | 0.0 A
+//!  16    | 0°C         | 0.0 A
+//!  17    | 0°C         | 0.0 A
+//!  18    | 0°C         | 0.0 A
+//!  19    | 0°C         | 0.0 A
+//! ```
+//! (In the example above, there have been no faults so the blackbox is empty)
 
 use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
+use humility_idol::{HubrisIdol, IdolArgument};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
@@ -82,9 +145,14 @@ use std::io::BufReader;
 use std::io::Write;
 use std::thread;
 use std::time::{Duration, Instant};
+use zerocopy::{AsBytes, FromBytes};
+
+mod blackbox;
 
 #[derive(Parser, Debug)]
-#[clap(name = "rendmp", about = env!("CARGO_PKG_DESCRIPTION"))]
+#[clap(name = "rendmp", about = env!("CARGO_PKG_DESCRIPTION"),
+    group = clap::ArgGroup::new("subcommand").multiple(false)
+)]
 struct RendmpArgs {
     /// sets timeout
     #[clap(
@@ -92,6 +160,60 @@ struct RendmpArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
+
+    #[clap(flatten)]
+    dev: DeviceIdentity,
+
+    /// dump all device memory
+    #[clap(long, group = "subcommand")]
+    dump: bool,
+
+    /// ingest a Power Navigator text file
+    #[clap(long, short, value_name = "filename", group = "subcommand")]
+    ingest: Option<String>,
+
+    /// flash a Power Navigator HEX image
+    #[clap(long, short, value_name = "filename", group = "subcommand")]
+    flash: Option<String>,
+
+    /// display the number of NVM slots remaining
+    #[clap(long, short, group = "subcommand")]
+    slots: bool,
+
+    /// display the current flash CRC
+    #[clap(long, group = "subcommand")]
+    crc: bool,
+
+    /// reads the contents of a Renesas power converter black box
+    #[clap(long, group = "subcommand")]
+    blackbox: bool,
+
+    // NOTE: the arguments below are only valid when --flash is provided.
+    // Unfortunately, due to clap#4707, they are accepted for *any* option in
+    // the `subcommand` group; there's a check in code to enforce this
+    // constraint manually.
+    /// perform dry-run of flash
+    #[clap(long = "dry-run", short = 'n', requires = "flash")]
+    dryrun: bool,
+
+    /// force flashing, even if the CRCs in the image and OTP match
+    #[clap(long, short = 'F', requires = "flash")]
+    force: bool,
+
+    /// check the OTP CRC against the image CRC
+    #[clap(long, short = 'C', requires = "flash")]
+    check: bool,
+}
+
+#[derive(Parser, Debug)]
+struct DeviceIdentity {
+    /// specifies a device by rail name
+    #[clap(long, short = 'r', value_name = "rail")]
+    rail: Option<String>,
+
+    /// specifies a PMBus driver
+    #[clap(long, short = 'D')]
+    driver: Option<String>,
 
     /// specifies an I2C bus by name
     #[clap(long, short, value_name = "bus",
@@ -116,64 +238,6 @@ struct RendmpArgs {
     /// specifies an I2C device address
     #[clap(long, short = 'd', value_name = "address")]
     device: Option<String>,
-
-    /// specifies a device by rail name
-    #[clap(long, short = 'r', value_name = "rail")]
-    rail: Option<String>,
-
-    /// specifies a PMBus driver
-    #[clap(long, short = 'D')]
-    driver: Option<String>,
-
-    /// dump all device memory
-    #[clap(long)]
-    dump: bool,
-
-    /// ingest a Power Navigator text file
-    #[clap(
-        long,
-        short = 'i',
-        value_name = "filename",
-        conflicts_with_all = &["bus", "device"],
-    )]
-    ingest: Option<String>,
-
-    /// flash a Power Navigator HEX image
-    #[clap(
-        long,
-        short = 'f',
-        value_name = "filename",
-        conflicts_with_all = &["ingest", "dump", "slots", "crc"],
-    )]
-    flash: Option<String>,
-
-    /// display the number of NVM slots remaining
-    #[clap(long, short, conflicts_with_all = &["ingest", "dump", "flash"])]
-    slots: bool,
-
-    /// display the current flash CRC
-    #[clap(
-        long, conflicts_with_all = &["slots", "ingest", "dump", "flash"]
-    )]
-    crc: bool,
-
-    /// perform dry-run of flash
-    #[clap(
-        long = "dry-run", short = 'n', requires = "flash",
-        conflicts_with_all = &["slots", "crc", "ingest", "dump"]
-    )]
-    dryrun: bool,
-
-    /// force flashing, even if the CRCs in the image and OTP match
-    #[clap(
-        long, short = 'F', requires = "flash",
-        conflicts_with_all = &["slots", "crc", "ingest", "dump"]
-    )]
-    force: bool,
-
-    /// check the OTP CRC against the image CRC
-    #[clap(long, short = 'C', requires = "flash")]
-    check: bool,
 }
 
 #[derive(Copy, Clone, Debug, FromPrimitive)]
@@ -664,7 +728,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     let mut allcmds = HashMap::new();
     let mut packets = vec![];
 
-    let device = if let Some(driver) = &subargs.driver {
+    let device = if let Some(driver) = &subargs.dev.driver {
         match pmbus::Device::from_str(driver) {
             Some(device) => device,
             None => {
@@ -771,6 +835,91 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
+fn rendmp_blackbox(
+    subargs: RendmpArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let Some(addr) = subargs.dev.device else {
+        bail!("must specify I2C address with --device for blackbox reading");
+    };
+    let addr: u8 =
+        parse_int::parse(&addr).context("failed to parse address")?;
+    let n = hubris
+        .manifest
+        .i2c_devices
+        .iter()
+        .filter(|dev| {
+            matches!(dev.device.as_str(), "raa229618" | "isl68224")
+                && dev.address == addr
+        })
+        .count();
+    if n > 1 {
+        bail!(
+            "there are multiple devices with this address; \
+             this should not be possible on an Oxide board"
+        )
+    } else if n == 0 {
+        bail!(
+            "no RAA229618 or ISL68224 with that address; \
+             use `humility pmbus -l` to list devices"
+        );
+    }
+
+    let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
+    let value = cmd_hiffy::hiffy_call(
+        hubris,
+        core,
+        context,
+        &op,
+        &[("addr", IdolArgument::Scalar(u64::from(addr)))],
+        None,
+    )?;
+    use humility::reflect::{Base, Value};
+    match value {
+        Ok(Value::Enum(e)) => {
+            let contents = e
+                .contents()
+                .ok_or_else(|| anyhow!("missing contents in blackbox enum"))?;
+            let Value::Tuple(c) = contents else {
+                bail!("missing tuple in blackbox enum");
+            };
+            let Value::Array(a) = &c[0] else {
+                bail!("missing array in blackbox enum");
+            };
+            let mut data = vec![];
+            for word in a.iter() {
+                let Value::Base(Base::U32(b)) = word else {
+                    bail!("unexpected type in array: {word:?}");
+                };
+                data.extend(b.as_bytes());
+            }
+            match e.disc() {
+                "Gen2p5" => println!(
+                    "{}",
+                    blackbox::BlackboxRamGen2p5::read_from(data.as_slice())
+                        .ok_or_else(|| anyhow!(
+                            "could not load blackbox from bytes"
+                        ))?,
+                ),
+                "Gen2" => println!(
+                    "{}",
+                    blackbox::BlackboxRamGen2::read_from(data.as_slice())
+                        .ok_or_else(|| anyhow!(
+                            "could not load blackbox from bytes"
+                        ))?,
+                ),
+                v => bail!("unknown blackbox gen: {v:?}"),
+            };
+        }
+        Ok(other) => bail!("unexpected value: {other:?}"),
+        Err(e) => bail!("got error: {e:?}"),
+    }
+
+    Ok(())
+}
+
 fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
@@ -779,15 +928,32 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let subargs = RendmpArgs::try_parse_from(subargs)?;
 
+    // Workaround for clap#4707
+    if subargs.flash.is_none() {
+        if subargs.dryrun {
+            bail!("--dryrun requires --flash");
+        } else if subargs.force {
+            bail!("--force requires --flash");
+        } else if subargs.check {
+            bail!("--check requires --flash");
+        }
+    }
+
     if subargs.ingest.is_some() {
         return rendmp_ingest(&subargs);
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    if subargs.blackbox {
+        // Early exit for the blackbox subcommand, which uses Idol operations
+        // and not raw I2C.
+        return rendmp_blackbox(subargs, hubris, core, &mut context);
+    }
+
     let i2c_read = context.get_function("I2cRead", 7)?;
     let i2c_write = context.get_function("I2cWrite", 8)?;
 
-    let hargs = match (&subargs.rail, &subargs.device) {
+    let hargs = match (&subargs.dev.rail, &subargs.dev.device) {
         (Some(rail), None) => {
             let mut found = None;
 
@@ -820,15 +986,15 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
 
         (_, _) => I2cArgs::parse(
             hubris,
-            &subargs.bus,
-            subargs.controller,
-            &subargs.port,
-            &subargs.mux,
-            &subargs.device,
+            &subargs.dev.bus,
+            subargs.dev.controller,
+            &subargs.dev.port,
+            &subargs.dev.mux,
+            &subargs.dev.device,
         )?,
     };
 
-    let device = if let Some(driver) = &subargs.driver {
+    let device = if let Some(driver) = &subargs.dev.driver {
         match pmbus::Device::from_str(driver) {
             Some(device) => device,
             None => {

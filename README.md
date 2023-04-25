@@ -1906,6 +1906,68 @@ humility: 27 NVM slots remain
 humility: image CRC (0x841f35a5) matches OTP CRC
 ```
 
+The Renesas voltage regulators include a black box which stores fault
+information.  This can be queried using the `--blackbox` subcommand,
+specifying a device (I2C) address to pick a specific power converter:
+
+```console
+% humility rendmp --blackbox --device=0x5b
+humility: attached to 0483:374f:000C001F4D46500F20373033 via ST-Link V3
+rail0 uptime: 0 sec
+rail1 uptime: 0 sec
+controller fault: 0
+rail0 fault: 00000000000000000000000000000000 ()
+rail1 fault: 00000000000000000000000000000000 ()
+phase fault uc: 00000000000000000000000000000000 ()
+phase fault oc: 00000000000000000000000000000000 ()
+adc fault uc: 00000000000000000000000000000000 ()
+adc fault oc: 00000000000000000000000000000000 ()
+rail0 status: 0000000000000000 ()
+rail1 status: 0000000000000000 ()
+status cml: 00000000 ()
+status mfr: 00000000 ()
+rail1 status vout: 00000000 ()
+rail0 status vout: 00000000 ()
+rail1 status iout: 00000000 ()
+rail0 status iout: 00000000 ()
+rail1 status temperature: 00000000 ()
+rail0 status temperature: 00000000 ()
+rail1 status input: 00000000 ()
+rail0 status input: 00000000 ()
+
+     | RAIL 0  | RAIL 1
+-----|---------|-----------
+VIN  | 0.00 V  | 0.00 V
+VOUT | 0.000 V | 0.000 V
+IIN  | 0.00 A  | 0.00 A
+IOUT | 0.0 A   | 0.0 A
+TEMP | 0°C     | 0°C
+controller read temperature: 0°C
+
+ PHASE | TEMPERATURE | CURRENT
+-------|-------------|----------
+ 0     | 0°C         | 0.0 A
+ 1     | 0°C         | 0.0 A
+ 2     | 0°C         | 0.0 A
+ 3     | 0°C         | 0.0 A
+ 4     | 0°C         | 0.0 A
+ 5     | 0°C         | 0.0 A
+ 6     | 0°C         | 0.0 A
+ 7     | 0°C         | 0.0 A
+ 8     | 0°C         | 0.0 A
+ 9     | 0°C         | 0.0 A
+ 10    | 0°C         | 0.0 A
+ 11    | 0°C         | 0.0 A
+ 12    | 0°C         | 0.0 A
+ 13    | 0°C         | 0.0 A
+ 14    | 0°C         | 0.0 A
+ 15    | 0°C         | 0.0 A
+ 16    | 0°C         | 0.0 A
+ 17    | 0°C         | 0.0 A
+ 18    | 0°C         | 0.0 A
+ 19    | 0°C         | 0.0 A
+```
+(In the example above, there have been no faults so the blackbox is empty)
 
 
 ### `humility repl`
