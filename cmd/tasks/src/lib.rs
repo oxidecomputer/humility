@@ -312,11 +312,17 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
                 found = true;
             }
 
-            let timer = task.timer.deadline.and_then(|deadline| {
-                ticks.map(|ticks| {
-                    (deadline.0 as i64 - ticks as i64, task.timer.to_post.0)
-                })
-            });
+            let timer = match (task.timer.deadline, ticks) {
+                (Some(deadline), Some(ticks)) => Some(Deadline::Relative {
+                    dt: deadline.0 as i64 - ticks as i64,
+                    notif: task.timer.to_post.0,
+                }),
+                (Some(deadline), None) => Some(Deadline::Absolute {
+                    t: deadline.0,
+                    notif: task.timer.to_post.0,
+                }),
+                (None, _) => None,
+            };
 
             let modname = {
                 let mut modname = module.to_string();
@@ -415,6 +421,12 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+#[derive(Copy, Clone, Debug)]
+enum Deadline {
+    Absolute { t: u64, notif: u32 },
+    Relative { dt: i64, notif: u32 },
+}
+
 #[allow(clippy::too_many_arguments)]
 fn explain_state(
     hubris: &HubrisArchive,
@@ -424,7 +436,7 @@ fn explain_state(
     ts: TaskState,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
-    timer: Option<(i64, u32)>,
+    timer: Option<Deadline>,
 ) -> Result<()> {
     match ts {
         TaskState::Healthy(ss) => {
@@ -456,7 +468,7 @@ fn explain_sched_state(
     regs: &HashMap<(u32, ARMRegister), u32>,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
-    timer: Option<(i64, u32)>,
+    timer: Option<Deadline>,
     e: doppel::SchedState,
 ) -> Result<()> {
     use doppel::SchedState;
@@ -605,13 +617,13 @@ fn explain_recv(
     src: Option<TaskId>,
     notmask: u32,
     irqs: Option<&Vec<(u32, u32)>>,
-    timer: Option<(i64, u32)>,
+    timer: Option<Deadline>,
 ) {
     // Come up with a description for each notification bit.
     struct NoteInfo {
         irqs: Vec<u32>,
-        timer: Option<i64>,
-        bit: usize,
+        timer: Option<Deadline>,
+        bit: u32,
     }
     let mut note_types = vec![];
     for i in 0..32 {
@@ -624,16 +636,16 @@ fn explain_recv(
         // bit.
         let irqnums = if let Some(irqs) = irqs {
             irqs.iter()
-                .filter(|&&(m, _)| m == bitmask)
+                .filter(|&&(m, _)| m == i)
                 .map(|&(_, n)| n)
                 .collect::<Vec<_>>()
         } else {
             vec![]
         };
-        let timer_assoc =
-            timer.and_then(
-                |(ts, mask)| if mask & bitmask != 0 { Some(ts) } else { None },
-            );
+        let timer_assoc = timer.filter(|t| match t {
+            Deadline::Absolute { notif, .. }
+            | Deadline::Relative { notif, .. } => notif & bitmask != 0,
+        });
         note_types.push(NoteInfo { irqs: irqnums, timer: timer_assoc, bit: i });
     }
 
@@ -660,8 +672,8 @@ fn explain_recv(
     } else {
         None
     };
-    let notification_name = |s: usize| -> Option<&str> {
-        notification_names.and_then(|n| n.get(s)).map(|s| s.as_str())
+    let notification_name = |s: u32| -> Option<&str> {
+        notification_names.and_then(|n| n.get(s as usize)).map(|s| s.as_str())
     };
 
     // Display notification bits, along with meaning where we can.
@@ -678,7 +690,15 @@ fn explain_recv(
                 print!("(");
                 let mut first = true;
                 if let Some(ts) = nt.timer {
-                    print!("{}T{:+}", if !first { "/" } else { "" }, ts);
+                    print!("{}T", if !first { "/" } else { "" });
+                    match ts {
+                        Deadline::Relative { dt, .. } => {
+                            print!("{dt:+}");
+                        }
+                        Deadline::Absolute { t, .. } => {
+                            print!("={t:}");
+                        }
+                    }
                     first = false;
                 }
                 for irq in &nt.irqs {
