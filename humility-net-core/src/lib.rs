@@ -152,6 +152,7 @@ impl NetCore {
                         execute: false,
                         device: false,
                         dma: false,
+                        external: false,
                     },
                     size: task_t.size as u32,
                     mapsize: task_t.size as u32,
