@@ -2831,7 +2831,7 @@ impl HubrisArchive {
                             .iter()
                             .position(|n| n == name)
                         {
-                            Some(i) => i.try_into().unwrap(),
+                            Some(i) => 1 << i,
                             None => bail!(
                                 "could not find notification '{name}' \
                                  (options are {:?})",

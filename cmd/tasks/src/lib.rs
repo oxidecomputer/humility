@@ -636,7 +636,7 @@ fn explain_recv(
         // bit.
         let irqnums = if let Some(irqs) = irqs {
             irqs.iter()
-                .filter(|&&(m, _)| m == i)
+                .filter(|&&(m, _)| m == bitmask)
                 .map(|&(_, n)| n)
                 .collect::<Vec<_>>()
         } else {
