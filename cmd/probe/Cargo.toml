@@ -7,9 +7,7 @@ description = "probe for any attached devices"
 [dependencies]
 clap.workspace = true
 anyhow.workspace = true
-log.workspace = true
 num-traits.workspace = true
-colored.workspace = true
 
 humility.workspace = true
 humility-arch-arm.workspace = true

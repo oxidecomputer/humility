@@ -8,16 +8,12 @@ description = "SP/host console uart proxy"
 anyhow.workspace = true
 clap.workspace = true
 crossbeam-channel.workspace = true
-log.workspace = true
 parse_int.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
-
-hif.workspace = true
-idol.workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 termios.workspace = true

@@ -11,7 +11,6 @@ sha2.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
 indicatif.workspace = true
-log.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true

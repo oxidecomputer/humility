@@ -10,7 +10,6 @@ pmbus.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 indicatif.workspace = true
-log.workspace = true
 parse_int.workspace = true
 num-traits.workspace = true
 num-derive.workspace = true

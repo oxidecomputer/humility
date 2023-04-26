@@ -9,10 +9,10 @@ humility.workspace = true
 humility-cmd.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
-pmbus.workspace = true
 
 hif.workspace = true
 idol.workspace = true
+pmbus.workspace = true
 
 anyhow.workspace = true
 clap.workspace = true

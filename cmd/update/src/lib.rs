@@ -29,8 +29,6 @@ use clap::{CommandFactory, Parser};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(name = "update", about = "Write a software update")]
 struct UpdateArgs {

@@ -9,9 +9,7 @@ hif.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
-indexmap.workspace = true
 idol.workspace = true
-log.workspace = true
 crossterm.workspace = true
 tui = { workspace = true, features = ["crossterm"] }
 

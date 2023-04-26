@@ -11,7 +11,6 @@ anyhow.workspace = true
 parse_int.workspace = true
 indexmap.workspace = true
 idol.workspace = true
-log.workspace = true
 tlvc.workspace = true
 tlvc-text.workspace = true
 zerocopy.workspace = true

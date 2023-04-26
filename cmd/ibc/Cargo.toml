@@ -8,7 +8,6 @@ description = "interface to the BMR491 power regulator"
 anyhow.workspace = true
 clap.workspace = true
 colored.workspace = true
-log.workspace = true
 parse_int.workspace = true
 zerocopy.workspace = true
 

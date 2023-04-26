@@ -16,8 +16,6 @@ use hif::*;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-extern crate log;
-
 #[derive(Parser, Debug)]
 #[clap(
     name = "hash", about = env!("CARGO_PKG_DESCRIPTION"),
