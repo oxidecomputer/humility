@@ -67,10 +67,10 @@
 
 use anyhow::{bail, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
-use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
+use humility_arch_arm::ARMRegister;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_dump_agent::{
     task_areas, DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea,

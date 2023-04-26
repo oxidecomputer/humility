@@ -29,9 +29,9 @@
 
 use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::core::Core;
+use humility_arch_arm::ARMRegister;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;

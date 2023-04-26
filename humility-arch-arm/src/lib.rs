@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use anyhow::{bail, Result};
+use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
 

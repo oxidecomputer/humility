@@ -88,9 +88,9 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
 use humility::cli::Subcommand;
 use humility::hubris::HubrisValidate;
+use humility_arch_arm::ARMRegister;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::debug::*;

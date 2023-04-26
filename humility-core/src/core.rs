@@ -7,8 +7,8 @@ use probe_rs::{flashing, Probe};
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 
-use crate::arch::ARMRegister;
 use crate::hubris::*;
+use humility_arch_arm::ARMRegister;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -238,7 +238,7 @@ impl ProbeCore {
             serial_number,
             unhalted_reads,
             halted: 0,
-            unhalted_read: crate::arch::unhalted_read_regions(),
+            unhalted_read: humility_arch_arm::unhalted_read_regions(),
             can_flash,
         }
     }

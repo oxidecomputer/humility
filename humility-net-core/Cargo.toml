@@ -11,3 +11,4 @@ humpty.workspace = true
 
 humility.workspace = true
 humility-dump-agent.workspace = true
+humility-arch-arm.workspace = true

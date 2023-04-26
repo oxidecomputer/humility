@@ -14,6 +14,7 @@ gimli.workspace = true
 goblin.workspace = true
 hubpack.workspace = true
 humility_load_derive.workspace = true
+humility-arch-arm.workspace = true
 humpty.workspace = true
 idol.workspace = true
 indexmap.workspace = true

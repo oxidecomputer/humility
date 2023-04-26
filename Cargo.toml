@@ -25,6 +25,7 @@ rust-version = "1.68"
 
 [workspace]
 members = [
+    "humility-arch-arm",
     "humility-arch-cortex",
     "humility-cmd",
     "humility-core",
@@ -117,6 +118,7 @@ capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
 
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
+humility-arch-arm = { path = "./humility-arch-arm" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
 humility-dump-agent = { path = "./humility-dump-agent" }

@@ -1175,6 +1175,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-arch-arm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "capstone",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
 name = "humility-cmd"
 version = "0.1.0"
 dependencies = [
@@ -1183,6 +1193,7 @@ dependencies = [
  "colored",
  "hif",
  "hubpack",
+ "humility-arch-arm",
  "humility-core",
  "humility-net-core",
  "idol",
@@ -1339,6 +1350,7 @@ dependencies = [
  "clap",
  "goblin",
  "hubpack",
+ "humility-arch-arm",
  "humility-cmd",
  "humility-core",
  "humility-dump-agent",
@@ -1678,6 +1690,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "humility-arch-arm",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1731,6 +1744,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-arch-arm",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1924,6 +1938,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-arch-arm",
  "humility-cmd",
  "humility-core",
  "parse_int",
@@ -1935,6 +1950,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-arch-arm",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
@@ -2052,6 +2068,7 @@ dependencies = [
  "gimli 0.22.0",
  "goblin",
  "hubpack",
+ "humility-arch-arm",
  "humility_load_derive",
  "humpty",
  "idol",
@@ -2108,6 +2125,7 @@ dependencies = [
  "anyhow",
  "hif",
  "hubpack",
+ "humility-arch-arm",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
@@ -2154,6 +2172,7 @@ name = "humility-net-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "humility-arch-arm",
  "humility-core",
  "humility-dump-agent",
  "humpty",

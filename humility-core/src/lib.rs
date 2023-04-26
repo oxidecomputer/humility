@@ -8,16 +8,12 @@ use cli::Cli;
 use env::Environment;
 use hubris::HubrisArchive;
 
-pub mod arch;
 pub mod cli;
 pub mod core;
 pub mod env;
 pub mod hubris;
 pub mod net;
 pub mod reflect;
-
-#[macro_use]
-extern crate num_derive;
 
 /// Give messages to the user.
 ///

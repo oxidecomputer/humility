@@ -131,9 +131,9 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::arch::{ARMRegister, ARMRegisterField};
 use humility::cli::Subcommand;
 use humility::hubris::*;
+use humility_arch_arm::{ARMRegister, ARMRegisterField};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
