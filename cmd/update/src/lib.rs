@@ -16,9 +16,6 @@
 //! ```
 //!
 
-use cmd_hiffy as humility_cmd_hiffy;
-
-use cmd_hiffy::HiffyLease;
 use humility::cli::Subcommand;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
@@ -67,25 +64,19 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
     let finish = hubris.get_idol_command("Update.finish_image_update")?;
     let block_size = hubris.get_idol_command("Update.block_size")?;
 
-    let blk_size = match humility_cmd_hiffy::hiffy_call(
-        hubris,
-        core,
-        &mut context,
-        &block_size,
-        &[],
-        None,
-    )? {
-        Ok(v) => v.as_base()?.as_u32().ok_or_else(|| {
-            anyhow::anyhow!("Couldn't get a u32 for block size")
-        })?,
-        Err(e) => bail!("Hiffy error getting block size {}", e),
-    };
+    let blk_size =
+        match hiffy_call(hubris, core, &mut context, &block_size, &[], None)? {
+            Ok(v) => v.as_base()?.as_u32().ok_or_else(|| {
+                anyhow::anyhow!("Couldn't get a u32 for block size")
+            })?,
+            Err(e) => bail!("Hiffy error getting block size {}", e),
+        };
 
     humility::msg!("Starting update using an update block size of {blk_size}");
     humility::msg!("(Erase may take a moment)");
     let binary_contents = std::fs::read(&subargs.path)?;
 
-    match humility_cmd_hiffy::hiffy_call(
+    match hiffy_call(
         hubris,
         core,
         &mut context,
@@ -105,7 +96,7 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
     for (i, c) in binary_contents.chunks(blk_size as usize).enumerate() {
         bar.set_position((i * (blk_size as usize)) as u64);
 
-        match humility_cmd_hiffy::hiffy_call(
+        match hiffy_call(
             hubris,
             core,
             &mut context,
@@ -124,14 +115,7 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
     } else {
         humility::msg!("Comitting update");
 
-        match humility_cmd_hiffy::hiffy_call(
-            hubris,
-            core,
-            &mut context,
-            &finish,
-            &[],
-            None,
-        )? {
+        match hiffy_call(hubris, core, &mut context, &finish, &[], None)? {
             Ok(_) => (),
             Err(e) => bail!("Hiffy error committing update {}", e),
         }

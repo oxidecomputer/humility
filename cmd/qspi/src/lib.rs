@@ -994,7 +994,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             1 => "Flash1",
             _ => bail!("dev_select must be 0 or 1"),
         };
-        let out = cmd_hiffy::hiffy_call(
+        let out = hiffy_call(
             hubris,
             core,
             &mut context,

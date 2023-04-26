@@ -449,7 +449,7 @@ impl<'a> RpcClient<'a> {
             // Check the return code from the Idol call
             let rc = u32::from_be_bytes(buf[1..5].try_into().unwrap());
             let val = if rc == 0 { Ok(buf[5..].to_vec()) } else { Err(rc) };
-            let result = cmd_hiffy::hiffy_decode(self.hubris, op, val)?;
+            let result = humility_hiffy::hiffy_decode(self.hubris, op, val)?;
             Ok(result)
         }
     }
@@ -468,7 +468,7 @@ fn rpc_call(
         let mut client = RpcClient::new(hubris, ip, timeout)?;
         let result = client.call(op, args)?;
         print!("{:25} ", ip);
-        cmd_hiffy::hiffy_print_result(hubris, op, result)?;
+        humility_hiffy::hiffy_print_result(hubris, op, result)?;
     }
 
     Ok(())

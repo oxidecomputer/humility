@@ -5,7 +5,6 @@ edition = "2021"
 description = "QSPI status, reading and writing"
 
 [dependencies]
-cmd-hiffy.workspace = true
 hif.workspace = true
 clap.workspace = true
 anyhow.workspace = true

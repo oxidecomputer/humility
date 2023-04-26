@@ -868,7 +868,7 @@ fn rendmp_blackbox(
     }
 
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
-    let value = cmd_hiffy::hiffy_call(
+    let value = hiffy_call(
         hubris,
         core,
         context,

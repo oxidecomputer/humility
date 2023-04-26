@@ -5,8 +5,6 @@ edition = "2021"
 description = "manipulate auxiliary flash"
 
 [dependencies]
-cmd-hiffy.workspace = true
-
 hif.workspace = true
 idol.workspace = true
 tlvc.workspace = true

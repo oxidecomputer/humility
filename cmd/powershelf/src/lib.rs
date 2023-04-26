@@ -172,13 +172,12 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result =
-            cmd_hiffy::hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
+        let result = hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
 
         println!(
             "{:<20} => {}",
             variant.name,
-            cmd_hiffy::hiffy_format_result(hubris, result.clone())
+            hiffy_format_result(hubris, result.clone())
         );
 
         if subargs.verbose {

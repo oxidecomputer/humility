@@ -5,8 +5,6 @@ edition = "2021"
 description = "read and write to the Tofino SPI EEPROM"
 
 [dependencies]
-cmd-hiffy.workspace = true
-
 hif.workspace = true
 idol.workspace = true
 
