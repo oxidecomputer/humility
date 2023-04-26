@@ -1748,6 +1748,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+ "humility-stack",
  "num-traits",
 ]
 
@@ -1954,6 +1955,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "humility-stack",
  "log",
  "num-traits",
  "parse_int",
@@ -2176,6 +2178,14 @@ dependencies = [
  "humility-core",
  "humility-dump-agent",
  "humpty",
+]
+
+[[package]]
+name = "humility-stack"
+version = "0.1.0"
+dependencies = [
+ "humility-arch-arm",
+ "humility-core",
 ]
 
 [[package]]

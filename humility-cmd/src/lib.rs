@@ -4,7 +4,6 @@
 
 pub mod i2c;
 pub mod jefe;
-pub mod stack;
 pub mod test;
 
 use anyhow::{bail, Result};

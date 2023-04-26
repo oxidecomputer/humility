@@ -290,7 +290,7 @@ fn registers(context: &mut humility::ExecutionContext) -> Result<()> {
         regs.insert(reg, val);
     }
 
-    let printer = humility_cmd::stack::StackPrinter {
+    let printer = humility_stack::StackPrinter {
         indent: 8,
         line: subargs.line,
         ..Default::default()

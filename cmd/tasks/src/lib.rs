@@ -191,7 +191,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut found = false;
 
-    let printer = humility_cmd::stack::StackPrinter {
+    let printer = humility_stack::StackPrinter {
         indent: 3,
         line: subargs.line,
         additional: subargs.registers || subargs.verbose,

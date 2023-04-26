@@ -15,3 +15,4 @@ humility.workspace = true
 humility-arch-arm.workspace = true
 humility-cmd.workspace = true
 humility-doppel.workspace = true
+humility-stack.workspace = true
