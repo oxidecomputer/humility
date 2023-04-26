@@ -21,7 +21,10 @@
 //! entered ISP mode!
 //! ```
 
+use std::{fs::File, path::PathBuf};
+
 use anyhow::{bail, Context, Result};
+use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
@@ -49,12 +52,12 @@ const ACK_TOKEN: u32 = 0xa5a5;
 pub enum DMCommand {
     //StartDM = 0x1,
     BulkErase = 0x3,
-    //ExitDM = 0x4,
+    ExitDM = 0x4,
     ISPMode = 0x5,
     //FAMode = 0x6,
     StartDebug = 0x7,
-    //DebugChallenge = 0x10,
-    //DebugResponse = 0x11,
+    DebugChallenge = 0x10,
+    DebugResponse = 0x11,
 }
 
 #[derive(Parser, Debug)]
@@ -65,6 +68,10 @@ enum DebugMailboxCmd {
     Debug,
     /// Force the device into ISP mode
     Isp,
+    /// Get a Debug Authentication Challenge
+    AuthChallenge { out: PathBuf },
+    /// Send a Debug Authentication Response
+    AuthResponse { dar: PathBuf },
 }
 
 fn poll_raw_ap_register(
@@ -291,6 +298,41 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
                 write_req(&mut iface, &dm_port, DMCommand::ISPMode, &[0x1])?;
 
             println!("entered ISP mode!");
+        }
+        DebugMailboxCmd::AuthChallenge { out } => {
+            alive(&mut iface, &dm_port, true)?;
+
+            let challenge_bytes = write_req(
+                &mut iface,
+                &dm_port,
+                DMCommand::DebugChallenge,
+                &[],
+            )?;
+
+            let mut out_file = File::create(out)?;
+            for word in challenge_bytes {
+                out_file.write_u32::<LittleEndian>(word)?;
+            }
+        }
+        DebugMailboxCmd::AuthResponse { dar } => {
+            alive(&mut iface, &dm_port, false)?;
+
+            let dar_bytes = std::fs::read(dar)?;
+            if dar_bytes.len() % 4 != 0 {
+                bail!("Debug Authentication Response is not an even number of words (bytes: {}", dar_bytes.len());
+            }
+
+            let mut dar_words = vec![0u32; dar_bytes.len() / 4];
+            LittleEndian::read_u32_into(&dar_bytes, &mut dar_words);
+
+            let _ = write_req(
+                &mut iface,
+                &dm_port,
+                DMCommand::DebugResponse,
+                dar_words.as_slice(),
+            )?;
+
+            let _ = write_req(&mut iface, &dm_port, DMCommand::ExitDM, &[])?;
         }
     };
 

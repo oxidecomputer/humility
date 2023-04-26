@@ -1286,6 +1286,7 @@ name = "humility-cmd-debugmailbox"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "byteorder",
  "clap",
  "humility-cli",
  "humility-cmd",
