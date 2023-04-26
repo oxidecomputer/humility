@@ -82,8 +82,8 @@
 //! this is required for erases and writes that would otherwise modify sector 0,
 //! as well as bulk erase.
 
-use humility_cli::{ExecutionContext, Subcommand};
 use humility::core::Core;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
