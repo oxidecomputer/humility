@@ -3,7 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub mod i2c;
-pub mod jefe;
 pub mod test;
 
 use anyhow::{bail, Result};

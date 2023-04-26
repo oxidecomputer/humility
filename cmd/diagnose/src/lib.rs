@@ -20,7 +20,7 @@ use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
-use humility_cmd::{jefe, CommandKind};
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use std::num::NonZeroU32;
@@ -310,10 +310,10 @@ fn diagnose(context: &mut humility::ExecutionContext) -> Result<()> {
         core.run()?;
         for &(name, i) in &tasks_worth_holding {
             println!("- {}", name);
-            jefe::send_request(
+            humility_jefe::send_request(
                 hubris,
                 core,
-                jefe::JefeRequest::Hold,
+                humility_jefe::JefeRequest::Hold,
                 i,
                 subargs.timeout,
             )?;

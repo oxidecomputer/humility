@@ -1315,6 +1315,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "humility-jefe",
  "parse_int",
 ]
 
@@ -1530,7 +1531,7 @@ dependencies = [
  "clap",
  "humility-cmd",
  "humility-core",
- "log",
+ "humility-jefe",
  "parse_int",
 ]
 
@@ -1826,7 +1827,6 @@ dependencies = [
  "humility-idol",
  "idol",
  "indexmap",
- "log",
  "parse_int",
  "serde",
  "zerocopy",
@@ -2123,7 +2123,6 @@ dependencies = [
  "humpty",
  "indexmap",
  "indicatif",
- "log",
  "lzss",
  "num-traits",
  "rand",
@@ -2156,6 +2155,14 @@ dependencies = [
  "indexmap",
  "parse_int",
  "serde",
+]
+
+[[package]]
+name = "humility-jefe"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
 ]
 
 [[package]]

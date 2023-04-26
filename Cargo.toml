@@ -33,6 +33,7 @@ members = [
     "humility-dump-agent",
     "humility-hiffy",
     "humility-idol",
+    "humility-jefe",
     "humility-net-core",
     "humility-stack",
     "cmd/apptable",
@@ -126,6 +127,7 @@ humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
 humility-hiffy = { path = "./humility-hiffy" }
 humility-idol = { path = "./humility-idol" }
+humility-jefe = { path = "./humility-jefe" }
 humility_load_derive = { path = "./load_derive" }
 humility-net-core = { path = "./humility-net-core" }
 humility-stack = { path = "./humility-stack" }

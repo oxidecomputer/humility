@@ -16,7 +16,6 @@ rand.workspace = true
 zerocopy.workspace = true
 lzss.workspace = true
 hif.workspace = true
-log.workspace = true
 
 humility.workspace = true
 humility-hiffy.workspace = true

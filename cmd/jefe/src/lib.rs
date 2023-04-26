@@ -98,8 +98,8 @@ use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::jefe::{send_request, JefeRequest};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_jefe::{send_request, JefeRequest};
 use std::num::NonZeroU32;
 
 #[derive(Parser, Debug)]

@@ -20,7 +20,6 @@ anyhow.workspace = true
 clap.workspace = true
 colored.workspace = true
 indexmap.workspace = true
-log.workspace = true
 parse_int.workspace = true
 serde.workspace = true
 zerocopy.workspace = true
