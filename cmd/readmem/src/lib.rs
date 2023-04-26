@@ -117,8 +117,8 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use std::convert::TryInto;
 
@@ -162,7 +162,7 @@ struct ReadmemArgs {
     length: Option<u64>,
 }
 
-fn readmem(context: &mut humility::ExecutionContext) -> Result<()> {
+fn readmem(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

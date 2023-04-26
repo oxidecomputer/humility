@@ -9,13 +9,12 @@ hif.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
-indexmap.workspace = true
 idol.workspace = true
-log.workspace = true
 crossterm.workspace = true
 tui = { workspace = true, features = ["crossterm"] }
 
 humility.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true

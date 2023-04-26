@@ -82,8 +82,8 @@
 //! this is required for erases and writes that would otherwise modify sector 0,
 //! as well as bulk erase.
 
-use humility::cli::Subcommand;
 use humility::core::Core;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -474,7 +474,7 @@ fn write(
     }
 }
 
-fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
+fn qspi(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -994,7 +994,7 @@ fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
             1 => "Flash1",
             _ => bail!("dev_select must be 0 or 1"),
         };
-        let out = cmd_hiffy::hiffy_call(
+        let out = hiffy_call(
             hubris,
             core,
             &mut context,

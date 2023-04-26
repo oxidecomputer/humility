@@ -16,7 +16,7 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 
 #[derive(Parser, Debug)]
@@ -45,7 +45,7 @@ struct FlashArgs {
     len: u32,
 }
 
-fn bankerasecmd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn bankerasecmd(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
     let subargs = FlashArgs::try_parse_from(subargs)?;

@@ -55,10 +55,10 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{Ringbuf, StaticCell};
 
@@ -144,7 +144,7 @@ fn taskname<'a>(
 // this allow is meant for the header println! in the body but you cannot apply
 // an attribute to a macro invoction, so we have to put it here instead.
 #[allow(clippy::print_literal)]
-fn ringbuf(context: &mut humility::ExecutionContext) -> Result<()> {
+fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

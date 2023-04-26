@@ -46,11 +46,11 @@ use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
-use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::i2c::I2cArgs;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
+use humility_i2c::I2cArgs;
 use humility_idol::{self as idol, HubrisIdol};
 
 #[derive(Parser, Debug)]
@@ -131,7 +131,7 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
 
     Ok(())
 }
-fn validate(context: &mut humility::ExecutionContext) -> Result<()> {
+fn validate(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ValidateArgs::try_parse_from(subargs)?;

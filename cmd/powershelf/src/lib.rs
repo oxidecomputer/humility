@@ -5,12 +5,7 @@
 //! ## `humility powershelf`
 //!
 //! `humility powershelf` allows for remotely dumping the state of the PSC
-//! power shelves, via the same network mechanism as `humility rpc`.
-//!
-//! This command has the same requirements as `humility rpc` and uses the same
-//! underlying mechanisms: the Hubris `udprpc` task should be listening on port
-//! 8 and the matching Hubris archive is required. See the `humility rpc`
-//! documentation for more details.
+//! power shelves.
 //!
 //! This command is currently hard-coded to support only the MWOCP68, and it
 //! dumps 50+ properties described in the ACAN-114 application note. It will
@@ -22,9 +17,9 @@ use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use clap::Parser;
 use hif::*;
-use humility::cli::Subcommand;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_hiffy::*;
@@ -136,7 +131,7 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
     }
 }
 
-fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
+fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -172,13 +167,12 @@ fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result =
-            cmd_hiffy::hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
+        let result = hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
 
         println!(
             "{:<20} => {}",
             variant.name,
-            cmd_hiffy::hiffy_format_result(hubris, result.clone())
+            hiffy_format_result(hubris, result.clone())
         );
 
         if subargs.verbose {

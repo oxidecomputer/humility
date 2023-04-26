@@ -5,18 +5,13 @@ edition = "2021"
 description = "read and write to the Tofino SPI EEPROM"
 
 [dependencies]
-cmd-hiffy.workspace = true
-
-hif.workspace = true
-idol.workspace = true
-
 anyhow.workspace = true
 clap.workspace = true
 indicatif.workspace = true
-log.workspace = true
 parse_int.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true

@@ -5,7 +5,9 @@ edition = "2021"
 description = "read and display a specified Hubris variable"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
+clap.workspace = true
+anyhow.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true

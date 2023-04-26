@@ -5,7 +5,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use sha2::{Digest, Sha256};
@@ -15,8 +15,6 @@ use std::io::Read;
 use hif::*;
 
 use indicatif::{ProgressBar, ProgressStyle};
-
-extern crate log;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -99,7 +97,7 @@ struct HashArgs {
     long: bool,
 }
 
-fn hash(context: &mut humility::ExecutionContext) -> Result<()> {
+fn hash(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 

@@ -5,9 +5,13 @@ edition = "2021"
 description = "print Hubris registers"
 
 [dependencies]
-humility = { workspace = true }
-humility-cortex = { workspace = true }
-humility-cmd = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-num-traits = { workspace = true }
+clap.workspace = true
+anyhow.workspace = true
+num-traits.workspace = true
+
+humility.workspace = true
+humility-arch-arm.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true
+humility-cortex.workspace = true
+humility-stack.workspace = true

@@ -1383,12 +1383,7 @@ temperature (if measured).
 ### `humility powershelf`
 
 `humility powershelf` allows for remotely dumping the state of the PSC
-power shelves, via the same network mechanism as `humility rpc`.
-
-This command has the same requirements as `humility rpc` and uses the same
-underlying mechanisms: the Hubris `udprpc` task should be listening on port
-8 and the matching Hubris archive is required. See the `humility rpc`
-documentation for more details.
+power shelves.
 
 This command is currently hard-coded to support only the MWOCP68, and it
 dumps 50+ properties described in the ACAN-114 application note. It will

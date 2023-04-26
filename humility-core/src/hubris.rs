@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::arch::{presyscall_pushes, ARMRegister};
 use capstone::prelude::*;
+use humility_arch_arm::{presyscall_pushes, ARMRegister};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::io::prelude::*;
@@ -4430,7 +4430,7 @@ impl HubrisArchive {
         // plus any needed re-alignment.
         //
         let adjust = (nregs_frame as u32) * 4
-            + crate::arch::exception_stack_realign(&rval);
+            + humility_arch_arm::exception_stack_realign(&rval);
 
         rval.insert(ARMRegister::SP, sp + adjust);
 

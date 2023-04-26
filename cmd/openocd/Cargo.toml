@@ -5,8 +5,8 @@ edition = "2021"
 description = "Run OpenOCD for the given archive"
 
 [dependencies]
-humility = { workspace = true }
 humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 ctrlc = { workspace = true }

@@ -48,14 +48,12 @@
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use hif::*;
-use humility::cli::Subcommand;
-use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
-use humility_idol::{self as idol};
+use humility_idol as idol;
 use std::io::Read;
 
 #[derive(Parser, Debug)]
@@ -107,12 +105,6 @@ struct HiffyArgs {
     /// filter for list output
     #[clap(use_value_delimiter = true)]
     filter: Vec<String>,
-}
-
-#[derive(Debug)]
-pub enum HiffyLease<'a> {
-    Read(&'a mut [u8]),
-    Write(&'a [u8]),
 }
 
 pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
@@ -206,218 +198,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-/// Check that the given operation and provided leases are compatible, bailing
-/// with a user-friendly message if that's not the case.
-fn check_lease(
-    op: &idol::IdolOperation,
-    lease: Option<&HiffyLease>,
-) -> Result<()> {
-    match lease {
-        None => match op.operation.leases.len() {
-            0 => (),
-            1 => match (
-                op.operation.leases[0].read,
-                op.operation.leases[0].write,
-            ) {
-                (true, false) => {
-                    bail!(
-                        "this operation reads from a lease. \
-                         Use `-i` to specify the data source"
-                    );
-                }
-                (false, true) => {
-                    bail!(
-                        "this operation writes to a lease. \
-                         Use `-n` to specify how much data you want back."
-                    );
-                }
-                _ => {
-                    bail!(
-                        "cannot call a hiffy operation that uses a R/W \
-                         (or nR/nW) lease"
-                    )
-                }
-            },
-            _ => bail!(
-                "`humility hiffy` cannot call operations that use \
-                 > 1 leases"
-            ),
-        },
-        Some(HiffyLease::Read(..)) => {
-            if op.operation.leases.len() != 1
-                || op.operation.leases[0].read
-                || !op.operation.leases[0].write
-            {
-                bail!(
-                    "`humility hiffy --input ...` can only call functions that \
-                     take a single, read-only lease"
-                );
-            }
-        }
-        Some(HiffyLease::Write(..)) => {
-            if op.operation.leases.len() != 1
-                || !op.operation.leases[0].read
-                || op.operation.leases[0].write
-            {
-                bail!(
-                    "`humility hiffy --num ...` can only call functions that \
-                     take a single, read-only lease"
-                );
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Executes a Hiffy call, printing the output to the terminal
-///
-/// Returns an outer error if Hiffy communication fails, or an inner error
-/// if the Hiffy call returns an error code (formatted as a String).
-pub fn hiffy_call(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    args: &[(&str, idol::IdolArgument)],
-    lease: Option<HiffyLease>,
-) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    check_lease(op, lease.as_ref())?;
-
-    let mut ops = vec![];
-
-    let payload = op.payload(args)?;
-    match lease.as_ref() {
-        None => context.idol_call_ops(op, &payload, &mut ops)?,
-        // Read/Write is flipped when passing through the Idol operation;
-        // HiffyLease::Read/Write is from the perspective of the host, but
-        // idol_call_ops_read/write is from the perspective of the called
-        // function.
-        Some(HiffyLease::Read(n)) => context.idol_call_ops_write(
-            op,
-            &payload,
-            &mut ops,
-            n.len().try_into().unwrap(),
-        )?,
-        Some(HiffyLease::Write(d)) => context.idol_call_ops_read(
-            op,
-            &payload,
-            &mut ops,
-            d.len().try_into().unwrap(),
-        )?,
-    }
-    ops.push(Op::Done);
-
-    let data = lease.as_ref().and_then(|lease| {
-        if let HiffyLease::Write(d) = *lease {
-            Some(d)
-        } else {
-            None
-        }
-    });
-    let mut results = context.run(core, ops.as_slice(), data)?;
-
-    if results.len() != 1 {
-        bail!("unexpected results length: {:?}", results);
-    }
-
-    let mut v: Result<Vec<u8>, u32> = results.pop().unwrap();
-
-    // If this is a Read operation, steal extra data from the returned stack
-    // and copy it into the incoming HiffyLease::Read argument
-    let out = match lease {
-        Some(HiffyLease::Read(data)) => {
-            let ok_size = hubris.typesize(op.ok)?;
-            if let Ok(v) = v.as_mut() {
-                let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
-                data.copy_from_slice(&extra_data);
-            }
-
-            // Shoehorn that extra data in, assuming decoding worked.
-            hiffy_decode(hubris, op, v)?
-        }
-        _ => hiffy_decode(hubris, op, v)?,
-    };
-    Ok(out)
-}
-
-/// Decodes a value returned from [hiffy_call] or equivalent.
-///
-/// Returns an outer error if decoding fails, or an inner error if the Hiffy
-/// call returns an error code (formatted as a String).
-pub fn hiffy_decode(
-    hubris: &HubrisArchive,
-    op: &idol::IdolOperation,
-    val: Result<Vec<u8>, u32>,
-) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    let r = match val {
-        Ok(val) => {
-            let ty = hubris.lookup_type(op.ok).unwrap();
-            Ok(match op.operation.encoding {
-                ::idol::syntax::Encoding::Zerocopy => {
-                    humility::reflect::load_value(hubris, &val, ty, 0)?
-                }
-                ::idol::syntax::Encoding::Ssmarshal
-                | ::idol::syntax::Encoding::Hubpack => {
-                    humility::reflect::deserialize_value(hubris, &val, ty)?.0
-                }
-            })
-        }
-        Err(e) => match op.error {
-            idol::IdolError::CLike(error) => {
-                if let Some(v) = error.lookup_variant_by_tag(e as u64) {
-                    Err(v.name.to_string())
-                } else {
-                    Err(format!("<Unknown variant {e}>"))
-                }
-            }
-            idol::IdolError::Complex(ref t) => {
-                Err(format!("<Complex error: {t}>"))
-            }
-            _ => Err(format!("<Unhandled error {e:x?}>")),
-        },
-    };
-    Ok(r)
-}
-
-pub fn hiffy_format_result(
-    hubris: &HubrisArchive,
-    result: std::result::Result<humility::reflect::Value, String>,
-) -> String {
-    let fmt = HubrisPrintFormat {
-        newline: false,
-        hex: true,
-        ..HubrisPrintFormat::default()
-    };
-    match result {
-        Ok(val) => {
-            use humility::reflect::Format;
-            let mut dumped = vec![];
-            val.format(hubris, fmt, &mut dumped).unwrap();
-
-            std::str::from_utf8(&dumped).unwrap().to_string()
-        }
-        Err(e) => {
-            format!("Err({})", e)
-        }
-    }
-}
-
-pub fn hiffy_print_result(
-    hubris: &HubrisArchive,
-    op: &idol::IdolOperation,
-    result: std::result::Result<humility::reflect::Value, String>,
-) -> Result<()> {
-    println!(
-        "{}.{}() => {}",
-        op.name.0,
-        op.name.1,
-        hiffy_format_result(hubris, result)
-    );
-
-    Ok(())
-}
-
-fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
+fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

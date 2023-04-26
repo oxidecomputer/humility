@@ -8,15 +8,14 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
-use cmd_hiffy::HiffyLease;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_hiffy::HiffyContext;
+use humility_hiffy::{HiffyContext, HiffyLease};
 use humility_idol::{HubrisIdol, IdolArgument};
 
 // Limited to 128 bytes due to the write buffer in the EEPROM
@@ -86,7 +85,7 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
-            let value = cmd_hiffy::hiffy_call(
+            let value = humility_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -122,7 +121,7 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {
             let offset = i * WRITE_CHUNK_SIZE;
-            let value = cmd_hiffy::hiffy_call(
+            let value = humility_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -147,7 +146,7 @@ impl<'a> EepromHandler<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn eeprom(context: &mut humility::ExecutionContext) -> Result<()> {
+fn eeprom(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = EepromArgs::try_parse_from(subargs)?;

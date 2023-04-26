@@ -16,11 +16,10 @@ use crossbeam_channel::{select, Sender};
 use picocom_map::RemapRules;
 use termios::Termios;
 
-use cmd_hiffy::HiffyLease;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
-use humility_hiffy::HiffyContext;
+use humility_cli::{ExecutionContext, Subcommand};
+use humility_hiffy::{HiffyContext, HiffyLease};
 use humility_idol::{HubrisIdol, IdolArgument};
 
 use super::UartConsoleArgs;
@@ -54,7 +53,7 @@ impl<'a> UartConsoleHandler<'a> {
     fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -80,7 +79,7 @@ impl<'a> UartConsoleHandler<'a> {
 
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -179,7 +178,7 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -199,7 +198,7 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -310,9 +309,7 @@ impl UnrawTermiosGuard {
     }
 }
 
-pub(super) fn console_proxy(
-    context: &mut humility::ExecutionContext,
-) -> Result<()> {
+pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = UartConsoleArgs::try_parse_from(subargs)?;

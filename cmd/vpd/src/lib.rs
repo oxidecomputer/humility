@@ -89,10 +89,10 @@
 use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 use humility_hiffy::*;
@@ -452,7 +452,7 @@ fn vpd_read(
     Ok(())
 }
 
-fn vpd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn vpd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = VpdArgs::try_parse_from(subargs)?;

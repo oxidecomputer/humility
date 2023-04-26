@@ -103,9 +103,10 @@
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
+use humility_log::msg;
 
 use std::collections::HashMap;
 use std::fs;
@@ -218,7 +219,7 @@ pub struct I2cArgs {
 
 fn i2c_done(
     subargs: &I2cArgs,
-    hargs: &humility_cmd::i2c::I2cArgs,
+    hargs: &humility_i2c::I2cArgs,
     results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
 ) -> Result<()> {
@@ -438,7 +439,7 @@ fn i2c_done(
     Ok(())
 }
 
-fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
+fn i2c(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -473,7 +474,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let func = context.get_function(fname, args)?;
 
-    let hargs = humility_cmd::i2c::I2cArgs::parse(
+    let hargs = humility_i2c::I2cArgs::parse(
         hubris,
         &subargs.bus,
         subargs.controller,
@@ -530,7 +531,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
             let len = fs::metadata(filename.clone())?.len() as u32;
 
             if len > u16::MAX.into() {
-                humility::msg!("file will be clamped at {}", u16::MAX);
+                msg!("file will be clamped at {}", u16::MAX);
                 u16::MAX
             } else {
                 len as u16
@@ -652,7 +653,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
 
         bar.finish_and_clear();
 
-        humility::msg!(
+        msg!(
             "flashed {} in {}",
             HumanBytes(filelen as u64),
             HumanDuration(started.elapsed())

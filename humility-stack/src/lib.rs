@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility::arch::ARMRegister;
 use humility::hubris::*;
+use humility_arch_arm::ARMRegister;
 
 #[derive(Debug, Default)]
 pub struct StackPrinter {
