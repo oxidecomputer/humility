@@ -3,9 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use humility::cli::Subcommand;
-use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
+use humility_i2c::I2cArgs;
 use std::fs::File;
 use std::io::Write;
 use std::str;

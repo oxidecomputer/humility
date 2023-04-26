@@ -218,7 +218,7 @@ pub struct I2cArgs {
 
 fn i2c_done(
     subargs: &I2cArgs,
-    hargs: &humility_cmd::i2c::I2cArgs,
+    hargs: &humility_i2c::I2cArgs,
     results: &[Result<Vec<u8>, u32>],
     func: &HiffyFunction,
 ) -> Result<()> {
@@ -473,7 +473,7 @@ fn i2c(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let func = context.get_function(fname, args)?;
 
-    let hargs = humility_cmd::i2c::I2cArgs::parse(
+    let hargs = humility_i2c::I2cArgs::parse(
         hubris,
         &subargs.bus,
         subargs.controller,

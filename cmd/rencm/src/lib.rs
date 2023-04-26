@@ -11,11 +11,11 @@
 use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::i2c::I2cArgs;
 use humility_cmd::{
     attach, Archive, Attach, Command, CommandKind, Dumper, Validate,
 };
 use humility_hiffy::*;
+use humility_i2c::I2cArgs;
 
 use itertools::Itertools;
 

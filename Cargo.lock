@@ -1485,6 +1485,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "indicatif",
  "log",
  "parse_int",
@@ -1630,6 +1631,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "indexmap",
  "log",
  "parse_int",
@@ -1753,6 +1755,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "idt8a3xxxx",
  "itertools",
  "log",
@@ -1772,6 +1775,7 @@ dependencies = [
  "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "humility-idol",
  "indicatif",
  "log",
@@ -1892,6 +1896,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "jep106",
  "log",
  "parse_int",
@@ -1956,6 +1961,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -2018,6 +2024,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "humility-idol",
  "idol",
  "indexmap",
@@ -2142,6 +2149,15 @@ dependencies = [
  "parse_int",
  "postcard",
  "zerocopy",
+]
+
+[[package]]
+name = "humility-i2c"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "parse_int",
 ]
 
 [[package]]

@@ -20,4 +20,5 @@ cmd-hiffy.workspace = true
 humility-cmd.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
+humility-i2c.workspace = true
 humility.workspace = true

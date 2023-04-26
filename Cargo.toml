@@ -32,6 +32,7 @@ members = [
     "humility-doppel",
     "humility-dump-agent",
     "humility-hiffy",
+    "humility-i2c",
     "humility-idol",
     "humility-jefe",
     "humility-net-core",
@@ -126,6 +127,7 @@ humility-cmd = { path = "./humility-cmd" }
 humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
 humility-hiffy = { path = "./humility-hiffy" }
+humility-i2c = { path = "./humility-i2c" }
 humility-idol = { path = "./humility-idol" }
 humility-jefe = { path = "./humility-jefe" }
 humility_load_derive = { path = "./load_derive" }
