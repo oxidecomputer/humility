@@ -121,13 +121,16 @@ fn poll_raw_ap_register(
 fn alive<'a>(
     probe: &mut Box<dyn ArmProbeInterface + 'a>,
     addr: &ApAddress,
+    reset: bool,
 ) -> Result<()> {
-    probe.write_raw_ap_register(*addr, CSW, 0x21)?;
+    if reset {
+        probe.write_raw_ap_register(*addr, CSW, 0x21)?;
+        println!("Resetting chip via SYSREQRESET!");
+    }
 
     let _ = poll_raw_ap_register(probe, addr, CSW, |csw| Ok(csw == 0), 1000)
         .context("Waiting for debugmailbox to be ready for requests")?;
 
-    println!("Reset chip successfully!");
     Ok(())
 }
 
@@ -271,16 +274,18 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
         println!("Looks like a plausible debug mailbox");
     }
 
-    alive(&mut iface, &dm_port)?;
-
     match subargs.cmd {
         DebugMailboxCmd::Debug => {
+            alive(&mut iface, &dm_port, false)?;
+
             let _ =
                 write_req(&mut iface, &dm_port, DMCommand::StartDebug, &[])?;
 
             println!("entering debug");
         }
         DebugMailboxCmd::Isp => {
+            alive(&mut iface, &dm_port, true)?;
+
             // The argument here 0x1 = UART.
             let _ =
                 write_req(&mut iface, &dm_port, DMCommand::ISPMode, &[0x1])?;
