@@ -63,13 +63,14 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct MapArgs {}
 
-fn mapcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     core.op_start()?;
 

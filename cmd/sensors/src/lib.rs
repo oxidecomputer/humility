@@ -26,9 +26,9 @@
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -371,7 +371,7 @@ fn print(
     Ok(())
 }
 
-fn sensors(context: &mut humility::ExecutionContext) -> Result<()> {
+fn sensors(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

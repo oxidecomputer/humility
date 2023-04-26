@@ -113,11 +113,11 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
+use humility_arch_arm::ARMRegister;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
@@ -173,7 +173,7 @@ fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
 }
 
 #[rustfmt::skip::macros(println)]
-fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
+fn tasks(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -191,7 +191,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut found = false;
 
-    let printer = humility_cmd::stack::StackPrinter {
+    let printer = humility_stack::StackPrinter {
         indent: 3,
         line: subargs.line,
         additional: subargs.registers || subargs.verbose,

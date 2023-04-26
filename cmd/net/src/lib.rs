@@ -42,8 +42,8 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
-use humility::cli::Subcommand;
 use humility::reflect::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -74,7 +74,7 @@ struct NetArgs {
     cmd: NetCommand,
 }
 
-fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_ip(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -85,7 +85,7 @@ fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
-    let value = cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -133,7 +133,7 @@ pub fn mac_to_ip6(mac: [u8; 6]) -> String {
     out
 }
 
-fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -147,7 +147,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let value = cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -210,7 +210,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     let results = hiffy_context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| cmd_hiffy::hiffy_decode(hubris, &op, r))
+        .map(move |r| humility_hiffy::hiffy_decode(hubris, &op, r))
         .collect::<Result<Vec<Result<_, _>>>>()?;
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
@@ -258,7 +258,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_status(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -269,7 +269,7 @@ fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
-    let value = cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -339,7 +339,7 @@ fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_counters(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -350,7 +350,7 @@ fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let op = hubris.get_idol_command("Net.management_counters")?;
 
-    let value = cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         &mut hiffy_context,
@@ -469,7 +469,7 @@ fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 

@@ -124,11 +124,11 @@
 //! ```
 //! (In the example above, there have been no faults so the blackbox is empty)
 
-use humility::cli::Subcommand;
 use humility::hubris::*;
-use humility_cmd::i2c::I2cArgs;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
+use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolArgument};
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -868,7 +868,7 @@ fn rendmp_blackbox(
     }
 
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
-    let value = cmd_hiffy::hiffy_call(
+    let value = hiffy_call(
         hubris,
         core,
         context,
@@ -920,7 +920,7 @@ fn rendmp_blackbox(
     Ok(())
 }
 
-fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
+fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
 

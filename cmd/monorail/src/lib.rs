@@ -168,12 +168,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
-use cmd_hiffy as humility_cmd_hiffy;
-
-use humility::cli::Subcommand;
 use humility::core::Core;
+use humility::hubris::*;
 use humility::reflect::*;
-use humility::{hubris::*, ExecutionContext};
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -324,7 +322,7 @@ fn monorail_read(
     humility::msg!("Reading {reg} from {addr:#x}");
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,
@@ -372,7 +370,7 @@ fn monorail_write(
     pretty_print_fields(value, reg.fields(), 0);
 
     let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,
@@ -459,7 +457,7 @@ fn monorail_phy_read(
     let reg = parse_phy_register(&reg)?;
     println!("Reading from port {} PHY, register {}", port, reg.name);
     let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,
@@ -502,7 +500,7 @@ fn monorail_phy_write(
     );
     pretty_print_fields(value as u32, &reg.fields, 0);
     let op = hubris.get_idol_command("Monorail.write_phy_reg")?;
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,
@@ -655,7 +653,7 @@ fn monorail_dump(
         let results = context.run(core, ops.as_slice(), None)?;
         results
             .into_iter()
-            .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_read, r))
+            .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_read, r))
             .collect::<Result<Vec<Result<_, _>>>>()?
     };
     for (i, v) in results.iter().enumerate() {
@@ -735,11 +733,11 @@ fn monorail_status(
 
         let port_results = port_results
             .into_iter()
-            .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_port, r))
+            .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_port, r))
             .collect::<Result<Vec<Result<_, _>>>>()?;
         let phy_results = phy_results
             .into_iter()
-            .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op_phy, r))
+            .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_phy, r))
             .collect::<Result<Vec<Result<_, _>>>>()?;
 
         // Decode the port and phy status values into reflect::Value
@@ -892,7 +890,7 @@ fn monorail_mac_table(
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,
@@ -944,7 +942,7 @@ fn monorail_mac_table(
     let results = context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| humility_cmd_hiffy::hiffy_decode(hubris, &op, r))
+        .map(move |r| humility_hiffy::hiffy_decode(hubris, &op, r))
         .collect::<Result<Vec<Result<_, _>>>>()?;
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
@@ -996,7 +994,7 @@ fn monorail_reset_counters(
     port: u8,
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.reset_port_counters")?;
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,
@@ -1014,7 +1012,7 @@ fn monorail_counters(
     port: u8,
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.get_port_counters")?;
-    let value = humility_cmd_hiffy::hiffy_call(
+    let value = humility_hiffy::hiffy_call(
         hubris,
         core,
         context,

@@ -9,9 +9,8 @@ cargo_metadata = { workspace = true }
 anyhow = { workspace = true }
 
 [dependencies]
-humility = { workspace = true }
 humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 termimad = { workspace = true }
-lazy_static = { workspace = true }

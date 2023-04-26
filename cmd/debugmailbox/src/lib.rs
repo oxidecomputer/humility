@@ -23,7 +23,7 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
     architecture::arm::{ApAddress, ArmProbeInterface, DpAddress},
@@ -206,7 +206,7 @@ fn read_return<'a>(
     bail!("Timed out reading return!");
 }
 
-fn debugmailboxcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = DebugMailboxArgs::try_parse_from(subargs)?;
 

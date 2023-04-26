@@ -14,12 +14,12 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use humility::{
-    arch::ARMRegister,
     core::{Core, NetAgent},
     hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion},
     msg,
     net::decode_iface,
 };
+use humility_arch_arm::ARMRegister;
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, UdpDumpAgent,
 };

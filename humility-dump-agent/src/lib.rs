@@ -17,7 +17,8 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use core::mem::size_of;
-use humility::{arch::ARMRegister, core::Core, hubris::HubrisFlashMap, msg};
+use humility::{core::Core, hubris::HubrisFlashMap, msg};
+use humility_arch_arm::ARMRegister;
 use humpty::{
     DumpAreaHeader, DumpRegister, DumpSegment, DumpSegmentData,
     DumpSegmentHeader, DumpTask,

@@ -5,8 +5,11 @@ edition = "2021"
 description = "run Hubristest suite and parse results"
 
 [dependencies]
-humility = { workspace = true }
-humility-cortex = { workspace = true }
-humility-cmd = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
+colored.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+
+humility.workspace = true
+humility-cortex.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true

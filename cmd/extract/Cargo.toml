@@ -5,8 +5,10 @@ edition = "2021"
 description = "extract all or part of a Hubris archive"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-anyhow = { workspace = true }
-clap = { workspace = true }
-zip = { workspace = true }
+anyhow.workspace = true
+clap.workspace = true
+zip.workspace = true
+
+humility-cli.workspace = true
+humility-cmd.workspace = true
+humility-log.workspace = true

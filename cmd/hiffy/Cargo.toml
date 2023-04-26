@@ -5,15 +5,17 @@ edition = "2021"
 description = "manipulate HIF execution"
 
 [dependencies]
-hif.workspace = true
-clap.workspace = true
 anyhow.workspace = true
-parse_int.workspace = true
-indexmap.workspace = true
-idol.workspace = true
 atty.workspace = true
+clap.workspace = true
+indexmap.workspace = true
+parse_int.workspace = true
+
+hif.workspace = true
+idol.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true

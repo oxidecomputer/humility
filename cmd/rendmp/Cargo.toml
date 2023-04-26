@@ -10,14 +10,14 @@ pmbus.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 indicatif.workspace = true
-log.workspace = true
 parse_int.workspace = true
 num-traits.workspace = true
 num-derive.workspace = true
 zerocopy.workspace = true
 
-cmd-hiffy.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
+humility-i2c.workspace = true
 humility.workspace = true

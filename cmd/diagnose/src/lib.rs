@@ -16,11 +16,11 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
-use humility_cmd::{jefe, CommandKind};
+use humility_cli::{ExecutionContext, Subcommand};
+use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use std::num::NonZeroU32;
@@ -83,7 +83,7 @@ fn section(title: &str) {
     println!("\n--- {} ---\n", title);
 }
 
-fn diagnose(context: &mut humility::ExecutionContext) -> Result<()> {
+fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -310,10 +310,10 @@ fn diagnose(context: &mut humility::ExecutionContext) -> Result<()> {
         core.run()?;
         for &(name, i) in &tasks_worth_holding {
             println!("- {}", name);
-            jefe::send_request(
+            humility_jefe::send_request(
                 hubris,
                 core,
-                jefe::JefeRequest::Hold,
+                humility_jefe::JefeRequest::Hold,
                 i,
                 subargs.timeout,
             )?;

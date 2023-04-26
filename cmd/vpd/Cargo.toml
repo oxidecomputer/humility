@@ -11,13 +11,13 @@ anyhow.workspace = true
 parse_int.workspace = true
 indexmap.workspace = true
 idol.workspace = true
-log.workspace = true
 tlvc.workspace = true
 tlvc-text.workspace = true
 zerocopy.workspace = true
 indicatif.workspace = true
 
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true
 humility.workspace = true

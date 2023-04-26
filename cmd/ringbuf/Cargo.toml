@@ -7,8 +7,8 @@ description = "read and display a specified ring buffer"
 [dependencies]
 clap.workspace = true
 anyhow.workspace = true
-log.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-doppel.workspace = true

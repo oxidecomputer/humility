@@ -7,5 +7,6 @@ description = "print memory map, with association of regions to tasks"
 [dependencies]
 humility = { workspace = true }
 humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
