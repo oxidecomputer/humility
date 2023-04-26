@@ -1191,20 +1191,9 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
- "hif",
- "hubpack",
- "humility-arch-arm",
  "humility-core",
  "humility-net-core",
- "idol",
- "indexmap",
- "lazy_static",
- "log",
  "parse_int",
- "postcard",
- "serde",
- "serde_json",
- "zerocopy",
 ]
 
 [[package]]
