@@ -42,8 +42,8 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
-use humility::cli::Subcommand;
 use humility::reflect::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -74,7 +74,7 @@ struct NetArgs {
     cmd: NetCommand,
 }
 
-fn net_ip(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_ip(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -133,7 +133,7 @@ pub fn mac_to_ip6(mac: [u8; 6]) -> String {
     out
 }
 
-fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -258,7 +258,7 @@ fn net_mac_table(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_status(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -339,7 +339,7 @@ fn net_status(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net_counters(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -469,7 +469,7 @@ fn net_counters(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net(context: &mut humility::ExecutionContext) -> Result<()> {
+fn net(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 

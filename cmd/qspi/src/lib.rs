@@ -82,7 +82,7 @@
 //! this is required for erases and writes that would otherwise modify sector 0,
 //! as well as bulk erase.
 
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility::core::Core;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
@@ -474,7 +474,7 @@ fn write(
     }
 }
 
-fn qspi(context: &mut humility::ExecutionContext) -> Result<()> {
+fn qspi(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

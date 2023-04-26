@@ -96,8 +96,8 @@
 
 use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_jefe::{send_request, JefeRequest};
 use std::num::NonZeroU32;
@@ -131,7 +131,7 @@ struct JefeArgs {
     task: String,
 }
 
-fn jefe(context: &mut humility::ExecutionContext) -> Result<()> {
+fn jefe(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

@@ -12,5 +12,6 @@ num-traits.workspace = true
 humility.workspace = true
 humility-arch-arm.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-cortex.workspace = true
 humility-stack.workspace = true

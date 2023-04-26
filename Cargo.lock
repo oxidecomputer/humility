@@ -1091,6 +1091,7 @@ dependencies = [
  "env_logger",
  "fallible-iterator",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
@@ -1176,11 +1177,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-core",
+ "indexmap",
+ "parse_int",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "humility-cmd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-core",
  "humility-net-core",
 ]
@@ -1191,6 +1206,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1203,6 +1219,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1220,6 +1237,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1236,6 +1254,7 @@ dependencies = [
  "anyhow",
  "clap",
  "crossbeam-channel",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1252,6 +1271,7 @@ dependencies = [
  "clap",
  "crossterm 0.20.0",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1267,8 +1287,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-cortex",
  "parse_int",
  "probe-rs",
@@ -1280,6 +1300,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
@@ -1294,8 +1315,8 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "termimad 0.21.1",
 ]
 
@@ -1308,6 +1329,7 @@ dependencies = [
  "goblin",
  "hubpack",
  "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-dump-agent",
@@ -1330,6 +1352,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1343,8 +1366,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
+ "humility-log",
  "serde_json",
  "splitty",
 ]
@@ -1355,8 +1379,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
+ "humility-log",
  "zip",
 ]
 
@@ -1367,6 +1392,7 @@ dependencies = [
  "anyhow",
  "clap",
  "goblin",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-auxflash",
  "humility-core",
@@ -1387,9 +1413,9 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrlc",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-openocd",
- "humility-core",
  "tempfile",
 ]
 
@@ -1400,8 +1426,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "parse_int",
 ]
@@ -1413,6 +1439,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1429,6 +1456,7 @@ dependencies = [
  "atty",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1445,10 +1473,11 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "humility-i2c",
+ "humility-log",
  "indicatif",
  "parse_int",
 ]
@@ -1461,6 +1490,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1478,6 +1508,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1490,6 +1521,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-jefe",
@@ -1503,8 +1535,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "parse_int",
 ]
@@ -1515,6 +1547,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "serde_json",
@@ -1526,6 +1559,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1538,6 +1572,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1558,6 +1593,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1572,8 +1608,8 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrlc",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "regex",
  "tempfile",
 ]
@@ -1586,6 +1622,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1602,6 +1639,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1619,6 +1657,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1637,6 +1676,7 @@ dependencies = [
  "anyhow",
  "clap",
  "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1650,6 +1690,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1666,6 +1707,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "parse-size",
@@ -1678,6 +1720,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1689,6 +1732,7 @@ dependencies = [
  "anyhow",
  "clap",
  "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1704,6 +1748,7 @@ dependencies = [
  "clap",
  "csv",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1722,6 +1767,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1745,6 +1791,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1755,6 +1802,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
@@ -1769,6 +1817,7 @@ dependencies = [
  "colored",
  "hif",
  "hubpack",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
@@ -1790,6 +1839,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1807,6 +1857,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1823,8 +1874,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "parse_int",
 ]
@@ -1836,10 +1887,11 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "humility-i2c",
+ "humility-log",
  "jep106",
  "parse_int",
  "spd",
@@ -1852,6 +1904,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1864,6 +1917,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1875,6 +1929,7 @@ dependencies = [
  "anyhow",
  "clap",
  "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "parse_int",
@@ -1887,6 +1942,7 @@ dependencies = [
  "anyhow",
  "clap",
  "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
@@ -1903,6 +1959,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1914,6 +1971,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1928,6 +1986,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1939,10 +1998,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "humility-idol",
+ "humility-log",
  "indicatif",
  "parse_int",
 ]
@@ -1955,6 +2015,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1971,6 +2032,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1992,12 +2054,12 @@ dependencies = [
  "bitfield",
  "capstone",
  "clap",
- "colored",
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
  "hubpack",
  "humility-arch-arm",
+ "humility-log",
  "humility_load_derive",
  "humpty",
  "idol",
@@ -2110,6 +2172,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "humility-core",
+]
+
+[[package]]
+name = "humility-log"
+version = "0.1.0"
+dependencies = [
+ "colored",
+ "log",
 ]
 
 [[package]]

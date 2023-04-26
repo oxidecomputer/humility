@@ -48,9 +48,9 @@
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility::warn;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_idol as idol;
@@ -198,7 +198,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn hiffy(context: &mut humility::ExecutionContext) -> Result<()> {
+fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

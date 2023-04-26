@@ -14,4 +14,5 @@ indicatif.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true

@@ -131,9 +131,9 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::hubris::*;
 use humility_arch_arm::{ARMRegister, ARMRegisterField};
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
@@ -232,7 +232,7 @@ fn print_reg(reg: ARMRegister, val: u32, fields: &[ARMRegisterField]) {
     println!();
 }
 
-fn registers(context: &mut humility::ExecutionContext) -> Result<()> {
+fn registers(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RegistersArgs::try_parse_from(subargs)?;

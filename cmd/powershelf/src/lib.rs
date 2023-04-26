@@ -17,9 +17,9 @@ use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use clap::Parser;
 use hif::*;
-use humility::cli::Subcommand;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_hiffy::*;
@@ -131,7 +131,7 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
     }
 }
 
-fn powershelf_run(context: &mut humility::ExecutionContext) -> Result<()> {
+fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

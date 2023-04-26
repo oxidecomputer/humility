@@ -32,8 +32,8 @@
 //! ```
 //!
 
-use humility::cli::Subcommand;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 
@@ -170,7 +170,7 @@ pub fn spi_task(
     Ok(task)
 }
 
-fn spi(context: &mut humility::ExecutionContext) -> Result<()> {
+fn spi(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

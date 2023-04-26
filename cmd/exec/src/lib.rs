@@ -23,9 +23,9 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
-use humility::ExecutionContext;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
+use humility_log::msg;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -122,13 +122,13 @@ fn exec(context: &mut ExecutionContext) -> Result<()> {
                 .unwrap_quotes(true)
                 .collect::<Vec<_>>();
 
-            humility::msg!("{target} {cmd}: executing: '{cmdline}' ...");
+            msg!("{target} {cmd}: executing: '{cmdline}' ...");
 
             let status = std::process::Command::new(args[0])
                 .args(&args[1..])
                 .status()?;
 
-            humility::msg!(
+            msg!(
                 "{target} {cmd}: done ({})",
                 match status.code() {
                     Some(code) => format!("status code {code}"),

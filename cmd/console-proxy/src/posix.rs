@@ -16,9 +16,9 @@ use crossbeam_channel::{select, Sender};
 use picocom_map::RemapRules;
 use termios::Termios;
 
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_hiffy::{HiffyContext, HiffyLease};
 use humility_idol::{HubrisIdol, IdolArgument};
 
@@ -309,9 +309,7 @@ impl UnrawTermiosGuard {
     }
 }
 
-pub(super) fn console_proxy(
-    context: &mut humility::ExecutionContext,
-) -> Result<()> {
+pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = UartConsoleArgs::try_parse_from(subargs)?;

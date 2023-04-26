@@ -12,7 +12,7 @@
 use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -369,7 +369,7 @@ impl<'a> AuxFlashHandler<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn auxflash(context: &mut humility::ExecutionContext) -> Result<()> {
+fn auxflash(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = AuxFlashArgs::try_parse_from(subargs)?;

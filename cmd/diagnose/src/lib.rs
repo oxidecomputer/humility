@@ -16,10 +16,10 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
@@ -83,7 +83,7 @@ fn section(title: &str) {
     println!("\n--- {} ---\n", title);
 }
 
-fn diagnose(context: &mut humility::ExecutionContext) -> Result<()> {
+fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();

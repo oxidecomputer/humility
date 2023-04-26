@@ -168,10 +168,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto;
 
-use humility::cli::Subcommand;
 use humility::core::Core;
+use humility::hubris::*;
 use humility::reflect::*;
-use humility::{hubris::*, ExecutionContext};
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};

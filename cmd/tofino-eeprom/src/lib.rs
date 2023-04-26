@@ -8,7 +8,7 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -146,7 +146,7 @@ impl<'a> EepromHandler<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn eeprom(context: &mut humility::ExecutionContext) -> Result<()> {
+fn eeprom(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = EepromArgs::try_parse_from(subargs)?;

@@ -20,7 +20,7 @@ use posix::console_proxy;
 
 #[cfg(windows)]
 fn console_proxy(
-    _context: &mut humility::ExecutionContext,
+    _context: &mut humility_cli::ExecutionContext,
 ) -> anyhow::Result<()> {
     anyhow::bail!("the console-proxy subcommand is not available on Windows")
 }

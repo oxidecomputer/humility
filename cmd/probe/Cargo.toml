@@ -13,3 +13,4 @@ humility.workspace = true
 humility-arch-arm.workspace = true
 humility-cortex.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true

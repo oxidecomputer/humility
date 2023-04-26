@@ -9,3 +9,4 @@ clap.workspace = true
 
 humility.workspace = true
 humility-net-core.workspace = true
+humility-cli.workspace = true

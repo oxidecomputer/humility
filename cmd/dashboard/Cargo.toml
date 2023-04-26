@@ -15,5 +15,6 @@ tui = { workspace = true, features = ["crossterm"] }
 
 humility.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true

@@ -12,3 +12,4 @@ anyhow.workspace = true
 humility.workspace = true
 humility-cortex.workspace = true
 humility-cmd.workspace = true
+humility-cli.workspace = true

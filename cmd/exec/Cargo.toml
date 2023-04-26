@@ -5,9 +5,11 @@ edition = "2021"
 description = "execute command within context of an environment"
 
 [dependencies]
-humility = { workspace = true }
-humility-cmd = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-splitty = { workspace = true }
-serde_json = { workspace = true }
+clap.workspace = true
+anyhow.workspace = true
+splitty.workspace = true
+serde_json.workspace = true
+
+humility-log.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true

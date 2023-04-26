@@ -4,9 +4,9 @@
 
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
-use humility::cli::Cli;
 use humility::core::Core;
 use humility::hubris::*;
+use humility_cli::Cli;
 use std::time::Duration;
 
 #[allow(dead_code)]
@@ -43,7 +43,7 @@ pub struct Command {
     pub app: ClapCommand<'static>,
     pub name: &'static str,
     pub kind: CommandKind,
-    pub run: fn(&mut humility::ExecutionContext) -> Result<()>,
+    pub run: fn(&mut humility_cli::ExecutionContext) -> Result<()>,
 }
 
 impl Command {
@@ -102,10 +102,10 @@ pub fn attach_net(args: &Cli, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
 }
 
 pub fn attach(
-    context: &mut humility::ExecutionContext,
+    context: &mut humility_cli::ExecutionContext,
     attach: Attach,
     validate: Validate,
-    mut run: impl FnMut(&mut humility::ExecutionContext) -> Result<()>,
+    mut run: impl FnMut(&mut humility_cli::ExecutionContext) -> Result<()>,
 ) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
 

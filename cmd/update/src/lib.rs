@@ -16,11 +16,12 @@
 //! ```
 //!
 
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
+use humility_log::msg;
 
 use std::path::PathBuf;
 
@@ -49,7 +50,7 @@ struct UpdateArgs {
     path: PathBuf,
 }
 
-fn update(context: &mut humility::ExecutionContext) -> Result<()> {
+fn update(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -70,8 +71,8 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
             Err(e) => bail!("Hiffy error getting block size {}", e),
         };
 
-    humility::msg!("Starting update using an update block size of {blk_size}");
-    humility::msg!("(Erase may take a moment)");
+    msg!("Starting update using an update block size of {blk_size}");
+    msg!("(Erase may take a moment)");
     let binary_contents = std::fs::read(&subargs.path)?;
 
     match hiffy_call(
@@ -109,16 +110,16 @@ fn update(context: &mut humility::ExecutionContext) -> Result<()> {
 
     bar.finish_and_clear();
     if subargs.skip_commit {
-        humility::msg!("Not committing update");
+        msg!("Not committing update");
     } else {
-        humility::msg!("Comitting update");
+        msg!("Comitting update");
 
         match hiffy_call(hubris, core, &mut context, &finish, &[], None)? {
             Ok(_) => (),
             Err(e) => bail!("Hiffy error committing update {}", e),
         }
     }
-    humility::msg!("Update done.");
+    msg!("Update done.");
     Ok(())
 }
 

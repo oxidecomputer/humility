@@ -43,8 +43,8 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashSet;
 
@@ -57,7 +57,7 @@ struct ManifestArgs {
 }
 
 #[allow(clippy::print_literal)]
-fn manifestcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
     let manifest = &hubris.manifest;
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();

@@ -7,5 +7,6 @@ description = "Reset the chip using external pins"
 [dependencies]
 humility = { workspace = true }
 humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

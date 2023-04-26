@@ -64,9 +64,9 @@ use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
-use humility::cli::Subcommand;
 use humility::net::decode_iface;
 use humility::{hubris::*, reflect};
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use humility_doppel::RpcHeader;
 use humility_idol as idol;
@@ -474,7 +474,7 @@ fn rpc_call(
     Ok(())
 }
 
-fn rpc_run(context: &mut humility::ExecutionContext) -> Result<()> {
+fn rpc_run(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RpcArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
