@@ -841,9 +841,25 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
-// Constants used in our blackbox and open-pin commands
-const ISL_DEV_NAME: &str = "isl68224";
-const RAA_DEV_NAME: &str = "raa229618";
+/// A device which supports open-pin detection and other advanced debug
+#[derive(Debug, Copy, Clone)]
+enum SupportedDevice {
+    ISL68221,
+    RAA229618,
+}
+
+impl std::fmt::Display for SupportedDevice {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SupportedDevice::ISL68221 => "ISL68221",
+                SupportedDevice::RAA229618 => "RAA229618",
+            }
+        )
+    }
+}
 
 /// Checks that the address provided is valid
 ///
@@ -854,7 +870,10 @@ const RAA_DEV_NAME: &str = "raa229618";
 fn check_addr<'a>(
     subargs: &'a RendmpArgs,
     hubris: &'a HubrisArchive,
-) -> Result<(u8, &'a str)> {
+) -> Result<(u8, SupportedDevice)> {
+    const ISL_DEV_NAME: &str = "isl68224";
+    const RAA_DEV_NAME: &str = "raa229618";
+
     let Some(addr) = &subargs.dev.device else {
         bail!("must specify I2C address with --device");
     };
@@ -875,7 +894,13 @@ fn check_addr<'a>(
              this should not be possible on an Oxide board"
         )
     }
-    Ok((addr, dev.device.as_str()))
+    let dev = match dev.device.as_str() {
+        ISL_DEV_NAME => SupportedDevice::ISL68221,
+        RAA_DEV_NAME => SupportedDevice::RAA229618,
+        _ => unreachable!(), // checked above
+    };
+
+    Ok((addr, dev))
 }
 
 fn rendmp_blackbox(
@@ -945,16 +970,16 @@ fn rendmp_open_pin(
 ) -> Result<()> {
     let (addr, dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
+
     let regs: &'static [u16] = match dev {
-        ISL_DEV_NAME => &[
+        SupportedDevice::ISL68221 => &[
             0x00BD, // open-pin
             0xE925, // mask
         ],
-        RAA_DEV_NAME => &[
+        SupportedDevice::RAA229618 => &[
             0x00BE, 0x00BF, // open-pin
             0xE904, 0xE905, // mask
         ],
-        _ => panic!("wrong device ({dev})"),
     };
     let mut ops = vec![];
     for r in regs {
@@ -980,7 +1005,7 @@ fn rendmp_open_pin(
     // Register decoding was determined with a mix of Power Navigator
     // experiments and discussion with Renesas.
     let (open, mask, phases) = match dev {
-        ISL_DEV_NAME => {
+        SupportedDevice::ISL68221 => {
             let (open, mask) = (values[0] as u64, values[1] as u64);
             let mut phases = vec![];
             for phase in 0..6 {
@@ -991,7 +1016,7 @@ fn rendmp_open_pin(
             }
             (open, mask, phases)
         }
-        RAA_DEV_NAME => {
+        SupportedDevice::RAA229618 => {
             let open = values[0] as u64 | (values[1] as u64) << 32;
             let mask = values[2] as u64 | (values[3] as u64) << 32;
             let mut phases = vec![];
@@ -1003,14 +1028,19 @@ fn rendmp_open_pin(
             }
             (open, mask, phases)
         }
-        _ => unreachable!(), // checked above
     };
-    println!("Open pin check for {} at {addr:#x}", dev.to_uppercase());
+    println!("Open pin check for {dev} at {addr:#x}");
     println!(" {} | {}", "PHASE".bold(), "STATE".bold());
     println!("-------|-------");
-    for (name, bit) in phases {
-        let is_open = (open & mask & (0b11 << bit)) != 0;
-        let is_mask = mask & (0b11 << bit) == 0;
+    for (name, bit_offset) in phases {
+        // Each phase is represented by two-bit values in the open and mask
+        // registers.  We ignore bits in the open register that aren't set in
+        // the mask register:
+        let is_open = (open & mask & (0b11 << bit_offset)) != 0;
+
+        // If there are no bits set in the mask register, then the phase isn't
+        // used at all, so we'll print that instead.
+        let is_mask = mask & (0b11 << bit_offset) == 0;
         print!(" {name:<5} | ");
         if is_mask {
             println!("{}", "N/A (masked)".dimmed());
