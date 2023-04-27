@@ -188,6 +188,10 @@ struct RendmpArgs {
     #[clap(long, group = "subcommand")]
     blackbox: bool,
 
+    /// checks for open pins on the given converter
+    #[clap(long, group = "subcommand")]
+    open_pin: bool,
+
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
     // the `subcommand` group; there's a check in code to enforce this
@@ -835,38 +839,46 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
+/// Checks that the address provided is valid
+///
+/// This checks that the address uniquely points to an RAA229618 or ISL68224.
+/// In theory, this is not guaranteed; we could build a board that has chips on
+/// multiple I2C buses.  In practice, however, we have maintained unique
+/// addresses for power chips on all of our boards.
+fn check_addr<'a>(
+    subargs: &'a RendmpArgs,
+    hubris: &'a HubrisArchive,
+) -> Result<(u8, &'a str)> {
+    let Some(addr) = &subargs.dev.device else {
+        bail!("must specify I2C address with --device");
+    };
+    let addr: u8 = parse_int::parse(addr).context("failed to parse address")?;
+    let mut iter = hubris.manifest.i2c_devices.iter().filter(|dev| {
+        matches!(dev.device.as_str(), "raa229618" | "isl68224")
+            && dev.address == addr
+    });
+    let Some(dev) = iter.next() else {
+        bail!(
+            "no RAA229618 or ISL68224 with address {addr}; \
+             use `humility pmbus -l` to list devices"
+        );
+    };
+    if iter.next().is_some() {
+        bail!(
+            "there are multiple devices with address {addr}; \
+             this should not be possible on an Oxide board"
+        )
+    }
+    Ok((addr, dev.device.as_str()))
+}
+
 fn rendmp_blackbox(
     subargs: RendmpArgs,
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &mut HiffyContext,
 ) -> Result<()> {
-    let Some(addr) = subargs.dev.device else {
-        bail!("must specify I2C address with --device for blackbox reading");
-    };
-    let addr: u8 =
-        parse_int::parse(&addr).context("failed to parse address")?;
-    let n = hubris
-        .manifest
-        .i2c_devices
-        .iter()
-        .filter(|dev| {
-            matches!(dev.device.as_str(), "raa229618" | "isl68224")
-                && dev.address == addr
-        })
-        .count();
-    if n > 1 {
-        bail!(
-            "there are multiple devices with this address; \
-             this should not be possible on an Oxide board"
-        )
-    } else if n == 0 {
-        bail!(
-            "no RAA229618 or ISL68224 with that address; \
-             use `humility pmbus -l` to list devices"
-        );
-    }
-
+    let (addr, _dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
     let value = hiffy_call(
         hubris,
@@ -920,6 +932,40 @@ fn rendmp_blackbox(
     Ok(())
 }
 
+fn rendmp_open_pin(
+    subargs: RendmpArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let (addr, dev) = check_addr(&subargs, hubris)?;
+    let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
+    let regs: &'static [u16] = match dev {
+        "isl68224" => &[
+            0x00BD, // open-pin
+            0xE925, // mask
+        ],
+        "raa229618" => &[
+            0x00BE, 0x00BF, // open-pin
+            0xE904, 0xE905, // mask
+        ],
+        _ => panic!("wrong device ({dev})"),
+    };
+    let mut ops = vec![];
+    for r in regs {
+        let payload = op.payload(&[
+            ("addr", IdolArgument::Scalar(addr as u64)),
+            ("reg", IdolArgument::Scalar(*r as u64)),
+        ])?;
+        context.idol_call_ops(&op, &payload, &mut ops)?;
+    }
+    ops.push(hif::Op::Done);
+    let results = context.run(core, ops.as_slice(), None)?;
+    println!("results: {results:?}");
+
+    Ok(())
+}
+
 fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
@@ -945,9 +991,9 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     if subargs.blackbox {
-        // Early exit for the blackbox subcommand, which uses Idol operations
-        // and not raw I2C.
         return rendmp_blackbox(subargs, hubris, core, &mut context);
+    } else if subargs.open_pin {
+        return rendmp_open_pin(subargs, hubris, core, &mut context);
     }
 
     let i2c_read = context.get_function("I2cRead", 7)?;
