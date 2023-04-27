@@ -867,9 +867,9 @@ impl std::fmt::Display for SupportedDevice {
 /// In theory, this is not guaranteed; we could build a board that has chips on
 /// multiple I2C buses.  In practice, however, we have maintained unique
 /// addresses for power chips on all of our boards.
-fn check_addr<'a>(
-    subargs: &'a RendmpArgs,
-    hubris: &'a HubrisArchive,
+fn check_addr(
+    subargs: &RendmpArgs,
+    hubris: &HubrisArchive,
 ) -> Result<(u8, SupportedDevice)> {
     const ISL_DEV_NAME: &str = "isl68224";
     const RAA_DEV_NAME: &str = "raa229618";
