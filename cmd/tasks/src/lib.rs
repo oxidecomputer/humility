@@ -281,7 +281,7 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
             "system time = {}",
             ticks
                 .map(|t| t.to_string())
-                .unwrap_or_else(|| "unknown".to_owned())
+                .unwrap_or_else(|| "unavailable-via-net".to_owned())
         );
         println!("{:2} {:21} {:>8} {:3} {:9}",
             "ID", "TASK", "GEN", "PRI", "STATE");
