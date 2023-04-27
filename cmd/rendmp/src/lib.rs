@@ -125,6 +125,7 @@
 //! (In the example above, there have been no faults so the blackbox is empty)
 
 use humility::hubris::*;
+use humility::reflect::{Base, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
@@ -133,6 +134,7 @@ use humility_idol::{HubrisIdol, IdolArgument};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
+use colored::Colorize;
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -839,6 +841,10 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
+// Constants used in our blackbox and open-pin commands
+const ISL_DEV_NAME: &str = "isl68224";
+const RAA_DEV_NAME: &str = "raa229618";
+
 /// Checks that the address provided is valid
 ///
 /// This checks that the address uniquely points to an RAA229618 or ISL68224.
@@ -854,7 +860,7 @@ fn check_addr<'a>(
     };
     let addr: u8 = parse_int::parse(addr).context("failed to parse address")?;
     let mut iter = hubris.manifest.i2c_devices.iter().filter(|dev| {
-        matches!(dev.device.as_str(), "raa229618" | "isl68224")
+        matches!(dev.device.as_str(), RAA_DEV_NAME | ISL_DEV_NAME)
             && dev.address == addr
     });
     let Some(dev) = iter.next() else {
@@ -888,7 +894,6 @@ fn rendmp_blackbox(
         &[("addr", IdolArgument::Scalar(u64::from(addr)))],
         None,
     )?;
-    use humility::reflect::{Base, Value};
     match value {
         Ok(Value::Enum(e)) => {
             let contents = e
@@ -941,11 +946,11 @@ fn rendmp_open_pin(
     let (addr, dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
     let regs: &'static [u16] = match dev {
-        "isl68224" => &[
+        ISL_DEV_NAME => &[
             0x00BD, // open-pin
             0xE925, // mask
         ],
-        "raa229618" => &[
+        RAA_DEV_NAME => &[
             0x00BE, 0x00BF, // open-pin
             0xE904, 0xE905, // mask
         ],
@@ -961,7 +966,69 @@ fn rendmp_open_pin(
     }
     ops.push(hif::Op::Done);
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("results: {results:?}");
+
+    // Decode Hiffy results
+    let mut values = vec![];
+    for r in results {
+        match hiffy_decode(hubris, &op, r)? {
+            Err(e) => bail!("hiffy error: {e}"),
+            Ok(Value::Base(Base::U32(b))) => values.push(b),
+            v => bail!("unexpected type in result: {v:?}"),
+        }
+    }
+
+    // Tuple of (phase name, is_open, is_mask)
+    let mut data = vec![];
+
+    // Register decoding was determined with a mix of Power Navigator
+    // experiments and discussion with Renesas.
+    let (open, mask, phases) = match dev {
+        ISL_DEV_NAME => {
+            let (open, mask) = (values[0] as u64, values[1] as u64);
+            let mut phases = vec![];
+            for phase in 0..6 {
+                phases.push((phase.to_string(), phase * 2 + 6));
+            }
+            for i in 0..3 {
+                data.push((format!("VSEN{i}"), i * 2 + 24));
+            }
+            (open, mask, phases)
+        }
+        RAA_DEV_NAME => {
+            let open = values[0] as u64 | (values[1] as u64) << 32;
+            let mask = values[2] as u64 | (values[3] as u64) << 32;
+            let mut phases = vec![];
+            for phase in 0..20 {
+                data.push((phase.to_string(), phase * 2));
+            }
+            for i in 0..2 {
+                phases.push((format!("VSEN{i}"), i * 2 + 40));
+            }
+            (open, mask, phases)
+        }
+        _ => unreachable!(), // checked above
+    };
+    println!("PHASE | OPEN | MASK");
+    println!("------|------|-----");
+    for (name, bit) in phases {
+        let is_open = open & 0b11 << bit != 0;
+        let is_mask = mask & 0b11 << bit != 0;
+        println!(
+            "{name:<5} | {:<4} | {}",
+            if is_open {
+                if !is_mask {
+                    "yes".red()
+                } else {
+                    "yes".dimmed()
+                }
+            } else if is_mask {
+                "no".dimmed()
+            } else {
+                "no".green()
+            },
+            if is_mask { "yes".dimmed() } else { "no".into() }
+        );
+    }
 
     Ok(())
 }
