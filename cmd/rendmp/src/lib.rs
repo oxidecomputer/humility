@@ -1006,7 +1006,7 @@ fn rendmp_open_pin(
         _ => unreachable!(), // checked above
     };
     println!("Open pin check for {} at {addr:#x}", dev.to_uppercase());
-    println!(" PHASE | STATE");
+    println!(" {} | {}", "PHASE".bold(), "STATE".bold());
     println!("-------|-------");
     for (name, bit) in phases {
         let is_open = (open & mask & (0b11 << bit)) != 0;
