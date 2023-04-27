@@ -125,6 +125,7 @@
 //! (In the example above, there have been no faults so the blackbox is empty)
 
 use humility::hubris::*;
+use humility::reflect::{Base, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
@@ -133,6 +134,7 @@ use humility_idol::{HubrisIdol, IdolArgument};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
+use colored::Colorize;
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -187,6 +189,10 @@ struct RendmpArgs {
     /// reads the contents of a Renesas power converter black box
     #[clap(long, group = "subcommand")]
     blackbox: bool,
+
+    /// checks for open pins on the given converter
+    #[clap(long, group = "subcommand")]
+    open_pin: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
@@ -835,38 +841,75 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
     Ok(())
 }
 
+/// A device which supports open-pin detection and other advanced debug
+#[derive(Debug, Copy, Clone)]
+enum SupportedDevice {
+    ISL68221,
+    RAA229618,
+}
+
+impl std::fmt::Display for SupportedDevice {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SupportedDevice::ISL68221 => "ISL68221",
+                SupportedDevice::RAA229618 => "RAA229618",
+            }
+        )
+    }
+}
+
+/// Checks that the address provided is valid
+///
+/// This checks that the address uniquely points to an RAA229618 or ISL68224.
+/// In theory, this is not guaranteed; we could build a board that has chips on
+/// multiple I2C buses.  In practice, however, we have maintained unique
+/// addresses for power chips on all of our boards.
+fn check_addr(
+    subargs: &RendmpArgs,
+    hubris: &HubrisArchive,
+) -> Result<(u8, SupportedDevice)> {
+    const ISL_DEV_NAME: &str = "isl68224";
+    const RAA_DEV_NAME: &str = "raa229618";
+
+    let Some(addr) = &subargs.dev.device else {
+        bail!("must specify I2C address with --device");
+    };
+    let addr: u8 = parse_int::parse(addr).context("failed to parse address")?;
+    let mut iter = hubris.manifest.i2c_devices.iter().filter(|dev| {
+        matches!(dev.device.as_str(), RAA_DEV_NAME | ISL_DEV_NAME)
+            && dev.address == addr
+    });
+    let Some(dev) = iter.next() else {
+        bail!(
+            "no RAA229618 or ISL68224 with address {addr}; \
+             use `humility pmbus -l` to list devices"
+        );
+    };
+    if iter.next().is_some() {
+        bail!(
+            "there are multiple devices with address {addr}; \
+             this should not be possible on an Oxide board"
+        )
+    }
+    let dev = match dev.device.as_str() {
+        ISL_DEV_NAME => SupportedDevice::ISL68221,
+        RAA_DEV_NAME => SupportedDevice::RAA229618,
+        _ => unreachable!(), // checked above
+    };
+
+    Ok((addr, dev))
+}
+
 fn rendmp_blackbox(
     subargs: RendmpArgs,
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &mut HiffyContext,
 ) -> Result<()> {
-    let Some(addr) = subargs.dev.device else {
-        bail!("must specify I2C address with --device for blackbox reading");
-    };
-    let addr: u8 =
-        parse_int::parse(&addr).context("failed to parse address")?;
-    let n = hubris
-        .manifest
-        .i2c_devices
-        .iter()
-        .filter(|dev| {
-            matches!(dev.device.as_str(), "raa229618" | "isl68224")
-                && dev.address == addr
-        })
-        .count();
-    if n > 1 {
-        bail!(
-            "there are multiple devices with this address; \
-             this should not be possible on an Oxide board"
-        )
-    } else if n == 0 {
-        bail!(
-            "no RAA229618 or ISL68224 with that address; \
-             use `humility pmbus -l` to list devices"
-        );
-    }
-
+    let (addr, _dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
     let value = hiffy_call(
         hubris,
@@ -876,7 +919,6 @@ fn rendmp_blackbox(
         &[("addr", IdolArgument::Scalar(u64::from(addr)))],
         None,
     )?;
-    use humility::reflect::{Base, Value};
     match value {
         Ok(Value::Enum(e)) => {
             let contents = e
@@ -920,6 +962,98 @@ fn rendmp_blackbox(
     Ok(())
 }
 
+fn rendmp_open_pin(
+    subargs: RendmpArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let (addr, dev) = check_addr(&subargs, hubris)?;
+    let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
+
+    let regs: &'static [u16] = match dev {
+        SupportedDevice::ISL68221 => &[
+            0x00BD, // open-pin
+            0xE925, // mask
+        ],
+        SupportedDevice::RAA229618 => &[
+            0x00BE, 0x00BF, // open-pin
+            0xE904, 0xE905, // mask
+        ],
+    };
+    let mut ops = vec![];
+    for r in regs {
+        let payload = op.payload(&[
+            ("addr", IdolArgument::Scalar(addr as u64)),
+            ("reg", IdolArgument::Scalar(*r as u64)),
+        ])?;
+        context.idol_call_ops(&op, &payload, &mut ops)?;
+    }
+    ops.push(hif::Op::Done);
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    // Decode Hiffy results
+    let mut values = vec![];
+    for r in results {
+        match hiffy_decode(hubris, &op, r)? {
+            Err(e) => bail!("hiffy error: {e}"),
+            Ok(Value::Base(Base::U32(b))) => values.push(b),
+            v => bail!("unexpected type in result: {v:?}"),
+        }
+    }
+
+    // Register decoding was determined with a mix of Power Navigator
+    // experiments and discussion with Renesas.
+    let (open, mask, phases) = match dev {
+        SupportedDevice::ISL68221 => {
+            let (open, mask) = (values[0] as u64, values[1] as u64);
+            let mut phases = vec![];
+            for phase in 0..6 {
+                phases.push((phase.to_string(), phase * 2 + 6));
+            }
+            for i in 0..3 {
+                phases.push((format!("VSEN{i}"), i * 2 + 24));
+            }
+            (open, mask, phases)
+        }
+        SupportedDevice::RAA229618 => {
+            let open = values[0] as u64 | (values[1] as u64) << 32;
+            let mask = values[2] as u64 | (values[3] as u64) << 32;
+            let mut phases = vec![];
+            for phase in 0..20 {
+                phases.push((phase.to_string(), phase * 2));
+            }
+            for i in 0..2 {
+                phases.push((format!("VSEN{i}"), i * 2 + 40));
+            }
+            (open, mask, phases)
+        }
+    };
+    println!("Open pin check for {dev} at {addr:#x}");
+    println!(" {} | {}", "PHASE".bold(), "STATE".bold());
+    println!("-------|-------");
+    for (name, bit_offset) in phases {
+        // Each phase is represented by two-bit values in the open and mask
+        // registers.  We ignore bits in the open register that aren't set in
+        // the mask register:
+        let is_open = (open & mask & (0b11 << bit_offset)) != 0;
+
+        // If there are no bits set in the mask register, then the phase isn't
+        // used at all, so we'll print that instead.
+        let is_mask = mask & (0b11 << bit_offset) == 0;
+        print!(" {name:<5} | ");
+        if is_mask {
+            println!("{}", "N/A (masked)".dimmed());
+        } else if is_open {
+            println!("{}", "open".red());
+        } else {
+            println!("{}", "okay".green());
+        }
+    }
+
+    Ok(())
+}
+
 fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
@@ -945,9 +1079,9 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     if subargs.blackbox {
-        // Early exit for the blackbox subcommand, which uses Idol operations
-        // and not raw I2C.
         return rendmp_blackbox(subargs, hubris, core, &mut context);
+    } else if subargs.open_pin {
+        return rendmp_open_pin(subargs, hubris, core, &mut context);
     }
 
     let i2c_read = context.get_function("I2cRead", 7)?;
