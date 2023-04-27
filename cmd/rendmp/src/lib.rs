@@ -977,9 +977,6 @@ fn rendmp_open_pin(
         }
     }
 
-    // Tuple of (phase name, is_open, is_mask)
-    let mut data = vec![];
-
     // Register decoding was determined with a mix of Power Navigator
     // experiments and discussion with Renesas.
     let (open, mask, phases) = match dev {
@@ -990,7 +987,7 @@ fn rendmp_open_pin(
                 phases.push((phase.to_string(), phase * 2 + 6));
             }
             for i in 0..3 {
-                data.push((format!("VSEN{i}"), i * 2 + 24));
+                phases.push((format!("VSEN{i}"), i * 2 + 24));
             }
             (open, mask, phases)
         }
@@ -999,7 +996,7 @@ fn rendmp_open_pin(
             let mask = values[2] as u64 | (values[3] as u64) << 32;
             let mut phases = vec![];
             for phase in 0..20 {
-                data.push((phase.to_string(), phase * 2));
+                phases.push((phase.to_string(), phase * 2));
             }
             for i in 0..2 {
                 phases.push((format!("VSEN{i}"), i * 2 + 40));
