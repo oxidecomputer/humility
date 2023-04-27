@@ -15,7 +15,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use humility::{
     core::{Core, NetAgent},
-    hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion},
+    hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisTask},
     msg,
     net::decode_iface,
 };
@@ -77,9 +77,9 @@ impl NetCore {
         // 1) There's a task implementing the `DumpAgent` interface
         // 2) That task has the `net` feature enabled
 
-        // Find the dump agent task name.  This is usually `dump_agent`, but that's
-        // not guaranteed; what *is* guaranteed is that it implements the DumpAgent
-        // interface.
+        // Find the dump agent task name.  This is usually `dump_agent`, but
+        // that's not guaranteed; what *is* guaranteed is that it implements the
+        // DumpAgent interface.
         let dump_agent_task =
             hubris.lookup_module_by_iface("DumpAgent").map(|t| t.task);
         let has_dump_agent = dump_agent_task
@@ -129,8 +129,36 @@ impl NetCore {
                         && r.attr.read
                         && r.attr.write
                         && !r.tasks.is_empty()
+                        && r.tasks
+                            .iter()
+                            .any(|t| matches!(t, HubrisTask::Task(..)))
                 })
                 .collect();
+
+            // Each task is _also_ allowed to read from its own block in the
+            // kernel's task table, for remote dumping.  We add those regions to
+            // our RAM map here:
+            let (base, task_count) = hubris.task_table(&mut out)?;
+            let task_t = hubris.lookup_struct_byname("Task")?;
+            for t in 0..task_count {
+                let base = base + t * task_t.size as u32;
+                ram_regions.push(HubrisRegion {
+                    daddr: None,
+                    base,
+                    // Dummy attributes
+                    attr: humility::hubris::HubrisRegionAttr {
+                        read: true,
+                        write: false,
+                        execute: false,
+                        device: false,
+                        dma: false,
+                        external: false,
+                    },
+                    size: task_t.size as u32,
+                    mapsize: task_t.size as u32,
+                    tasks: vec![HubrisTask::Task(t)],
+                })
+            }
 
             // Sort regions so we can find a target region with binary search
             ram_regions.sort_by_key(|r| r.base);
@@ -181,65 +209,106 @@ impl NetCore {
         if self.dump_agent_socket.is_none() {
             bail!("no dump agent available");
         }
-        let Some(ram) = self.ram.as_ref() else {
+        let Some(ram) = self.ram.clone() else {
             bail!("dump agent cannot read RAM; is your Hubris archive too old?")
-        };
-        let p = ram.partition_point(|v| v.base <= addr);
-        if p == 0 {
-            bail!("address not found in RAM map");
-        }
-
-        // By construction, we know that every region in self.ram has at least
-        // one task associated with it.  If this task is the supervisor, then
-        // that's bad news.
-        let region = &ram[p - 1];
-        let Some(&task) = region.tasks.iter().find(|t| t.task() != 0) else {
-            bail!("supervisor memory cannot be read using dump facilities");
         };
 
         let mut agent_core = DumpAgentCore::new(self.flash.clone());
         let mut udp_dump = UdpDumpAgent::new(self);
+        let mut aligned_start = addr & !0b11;
 
-        // Send a request to dump this specific region of memory within the task
-        let aligned_start = addr & !0b11;
-        let mut aligned_length = data.len() as u32 + addr - aligned_start;
-        while aligned_length & 0b11 != 0 {
-            aligned_length += 1;
-        }
-
-        let dump_index: u8 = match udp_dump.dump_task_region(
-            task.task(),
-            aligned_start,
-            aligned_length,
-        ) {
-            Ok(addr) => addr,
-            Err(e) if e.to_string().contains("DumpAreaInUse") => {
+        // Bytes remaining is signed, which is non-intuitive; because we can
+        // only read aligned chunks of memory, we may read more than our
+        // requested size, which would make `remaining` negative.
+        let mut remaining = (data.len() as u32 + addr - aligned_start) as isize;
+        while remaining > 0 {
+            let p = ram.partition_point(|v| v.base <= aligned_start);
+            if p == 0 {
                 bail!(
-                    "out of space for dump_agent; use \
-                     `humility dump --initialize-dump-agent` to free space"
-                )
+                    "address not found in RAM map; \
+                     note that non-TCB kernel memory cannot be read remotely"
+                );
             }
-            Err(e) => {
-                bail!("dump agent failed: {e:?}")
+
+            // By construction, we know that every region in self.ram has at
+            // least one task associated with it.  If this task is the
+            // supervisor, then that's bad news.
+            let region = ram[p - 1].clone();
+            let Some(&task) = region.tasks.iter().find(|t| t.task() != 0) else {
+                bail!("supervisor memory cannot be read using dump facilities");
+            };
+
+            if aligned_start > region.base + region.size {
+                bail!(
+                    "out of range: {aligned_start:x} >= {:x}",
+                    region.base + region.size
+                );
             }
-        };
 
-        // We're going to collect just this region into an ersatz DumpAgentCore
-        (&mut udp_dump as &mut dyn DumpAgent).read_dump(
-            Some(DumpArea::ByIndex(dump_index as usize)),
-            &mut agent_core,
-            false,
-        )?;
+            // The read size is clamped by the region and remaining bytes
+            let mut read_size = (remaining as u32).min(region.size);
 
-        // Pop the most recent dump, since we were just using it to read memory
-        // and it doesn't need to take up a dump area forever.  Note that this
-        // will also pop any dumps which have occurred (autonomously) in the
-        // meantime, but that's preferable to filling up all of dump memory with
-        // a single call to `humility ringbuf`.
-        udp_dump.reinitialize_dump_from(dump_index)?;
+            // In addition, it must be a multiple of 4 bytes for alignment
+            while read_size & 0b11 != 0 {
+                read_size += 1;
+            }
+
+            // Read this chunk of memory remotely
+            let dump_index: u8 = match udp_dump.dump_task_region(
+                task.task(),
+                aligned_start,
+                read_size,
+            ) {
+                Ok(addr) => addr,
+                Err(e) if e.to_string().contains("DumpAreaInUse") => {
+                    bail!(
+                        "out of space for dump_agent; use \
+                         `humility dump --initialize-dump-agent` to free space"
+                    )
+                }
+                Err(e) => {
+                    bail!("dump agent failed: {e:?}")
+                }
+            };
+
+            // Collect this region into our ersatz DumpAgentCore
+            //
+            // Note that we don't bail out early here, because we need to do
+            // cleanup before returning.
+            let a = (&mut udp_dump as &mut dyn DumpAgent).read_dump(
+                Some(DumpArea::ByIndex(dump_index as usize)),
+                &mut agent_core,
+                false,
+            );
+
+            // Pop the most recent dump, since we were just using it to read
+            // memory and it doesn't need to take up a dump area forever.  Note
+            // that this will also pop any dumps which have occurred
+            // (autonomously) in the meantime, but that's preferable to filling
+            // up all of dump memory with a single call to `humility ringbuf`.
+            let b = udp_dump.reinitialize_dump_from(dump_index);
+
+            // Examine the error codes
+            match (a, b) {
+                (Err(a), Ok(..)) => return Err(a),
+                (Err(a), Err(b)) => {
+                    humility::warn!(
+                        "error {b} while reinitializing dump \
+                         after a previous error"
+                    );
+                    return Err(a);
+                }
+                (Ok(..), Err(b)) => return Err(b),
+                (Ok(..), Ok(..)) => (),
+            }
+
+            aligned_start += read_size;
+            remaining -= read_size as isize;
+        }
 
         // By construction, this DumpAgentCore has exactly what it needs!
         agent_core.read_8(addr, data)?;
+
         Ok(())
     }
 }

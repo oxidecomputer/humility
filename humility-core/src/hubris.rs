@@ -2831,7 +2831,7 @@ impl HubrisArchive {
                             .iter()
                             .position(|n| n == name)
                         {
-                            Some(i) => i.try_into().unwrap(),
+                            Some(i) => 1 << i,
                             None => bail!(
                                 "could not find notification '{name}' \
                                  (options are {:?})",
@@ -3594,9 +3594,10 @@ impl HubrisArchive {
     ) -> Result<Option<HubrisTask>> {
         //
         // If this is a dump and it only contains a single task, there is
-        // no current task.
+        // no current task.  If this is an online task, then we can't read
+        // kernel memory remotely, so we can't tell.
         //
-        if self.task_dump.is_some() {
+        if self.task_dump.is_some() || core.is_net() {
             return Ok(None);
         }
 
