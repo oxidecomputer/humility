@@ -1005,26 +1005,19 @@ fn rendmp_open_pin(
         }
         _ => unreachable!(), // checked above
     };
-    println!("PHASE | OPEN | MASK");
-    println!("------|------|-----");
+    println!(" PHASE | OPEN");
+    println!("-------|-------");
     for (name, bit) in phases {
-        let is_open = open & 0b11 << bit != 0;
-        let is_mask = mask & 0b11 << bit != 0;
-        println!(
-            "{name:<5} | {:<4} | {}",
-            if is_open {
-                if !is_mask {
-                    "yes".red()
-                } else {
-                    "yes".dimmed()
-                }
-            } else if is_mask {
-                "no".dimmed()
-            } else {
-                "no".green()
-            },
-            if is_mask { "yes".dimmed() } else { "no".into() }
-        );
+        let is_open = (open & mask & (0b11 << bit)) != 0;
+        let is_mask = mask & (0b11 << bit) == 0;
+        print!(" {name:<5} | ");
+        if is_mask {
+            println!("{}", "N/A (masked)".dimmed());
+        } else if is_open {
+            println!("{}", "yes".red());
+        } else {
+            println!("{}", "no".green());
+        }
     }
 
     Ok(())
