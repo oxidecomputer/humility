@@ -960,7 +960,7 @@ fn rendmp(context: &mut humility::ExecutionContext) -> Result<()> {
             for device in &hubris.manifest.i2c_devices {
                 if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
                     for r in rails {
-                        if rail == r {
+                        if rail == &r.name {
                             found = match found {
                                 Some(_) => {
                                     bail!("multiple devices match {}", rail);

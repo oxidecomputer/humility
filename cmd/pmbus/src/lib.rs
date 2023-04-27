@@ -779,7 +779,7 @@ fn summarize(
             subargs,
             device,
             driver,
-            rail,
+            &rail.name,
             calls,
             &results[base..base + calls.len()],
             func,
@@ -808,7 +808,7 @@ fn find_rail<'a>(
     for device in &hubris.manifest.i2c_devices {
         if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
             for (rnum, r) in rails.iter().enumerate() {
-                if rail == r {
+                if rail == r.name {
                     found = match found {
                         Some(_) => {
                             bail!("multiple devices match {}", rail);
@@ -1314,7 +1314,11 @@ fn pmbus(context: &mut humility::ExecutionContext) -> Result<()> {
                     mux,
                     device.address,
                     device.device,
-                    rails.join(", "),
+                    rails
+                        .iter()
+                        .map(|r| r.name.clone())
+                        .collect::<Vec<_>>()
+                        .join(", "),
                 )
             }
         }
@@ -1503,10 +1507,17 @@ fn pmbus(context: &mut humility::ExecutionContext) -> Result<()> {
                 }
                 rnum as usize
             }
-            _ => match rails.iter().position(|r| r == rail) {
+            _ => match rails.iter().position(|r| &r.name == rail) {
                 Some(rnum) => rnum,
                 None => {
-                    bail!("invalid rail; expected one of: {}", rails.join(", "))
+                    bail!(
+                        "invalid rail; expected one of: {}",
+                        rails
+                            .iter()
+                            .map(|r| r.name.clone())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
                 }
             },
         };

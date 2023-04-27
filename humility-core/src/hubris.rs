@@ -139,6 +139,10 @@ struct HubrisConfigI2cController {
     target: Option<bool>,
 }
 
+///
+/// This is a legacy way of expressing PMBus devices that is no longer
+/// present in new archives -- but we retain our ability to read it.
+///
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct HubrisConfigI2cPmbus {
     rails: Option<Vec<String>>,
@@ -147,6 +151,7 @@ struct HubrisConfigI2cPmbus {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct HubrisConfigI2cPower {
     rails: Option<Vec<String>>,
+    phases: Option<Vec<Vec<u8>>>,
     #[serde(default = "HubrisConfigI2cPower::default_pmbus")]
     pmbus: bool,
 
@@ -266,10 +271,57 @@ pub struct HubrisI2cBus {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct HubrisPmbusRail {
+    pub name: String,
+    pub phases: Option<Vec<u8>>,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub enum HubrisI2cDeviceClass {
-    Pmbus { rails: Vec<String> },
+    Pmbus { rails: Vec<HubrisPmbusRail> },
     Unspecified,
     Unknown,
+}
+
+impl HubrisI2cDeviceClass {
+    fn from(device: &HubrisConfigI2cDevice) -> Self {
+        fn rails_phases(
+            rails: &Option<Vec<String>>,
+            phases: &Option<Vec<Vec<u8>>>,
+        ) -> Vec<HubrisPmbusRail> {
+            match (rails, phases) {
+                (Some(rails), None) => rails
+                    .iter()
+                    .map(|r| HubrisPmbusRail { name: r.clone(), phases: None })
+                    .collect::<_>(),
+                (Some(r), Some(p)) => r
+                    .iter()
+                    .zip(p.iter())
+                    .map(|(r, p)| HubrisPmbusRail {
+                        name: r.clone(),
+                        phases: Some(p.clone()),
+                    })
+                    .collect::<_>(),
+                _ => vec![],
+            }
+        }
+
+        if let Some(pmbus) = &device.pmbus {
+            HubrisI2cDeviceClass::Pmbus {
+                rails: rails_phases(&pmbus.rails, &None),
+            }
+        } else if let Some(power) = &device.power {
+            if power.pmbus {
+                HubrisI2cDeviceClass::Pmbus {
+                    rails: rails_phases(&power.rails, &power.phases),
+                }
+            } else {
+                HubrisI2cDeviceClass::Unspecified
+            }
+        } else {
+            HubrisI2cDeviceClass::Unspecified
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -2731,29 +2783,7 @@ impl HubrisArchive {
                     segment: device.segment,
                     address: device.address,
                     description: device.description.clone(),
-                    class: match &device.pmbus {
-                        Some(pmbus) => HubrisI2cDeviceClass::Pmbus {
-                            rails: match &pmbus.rails {
-                                Some(rails) => rails.to_vec(),
-                                None => vec![],
-                            },
-                        },
-                        None => match &device.power {
-                            Some(power) => {
-                                if power.pmbus {
-                                    HubrisI2cDeviceClass::Pmbus {
-                                        rails: match &power.rails {
-                                            Some(rails) => rails.to_vec(),
-                                            None => vec![],
-                                        },
-                                    }
-                                } else {
-                                    HubrisI2cDeviceClass::Unspecified
-                                }
-                            }
-                            None => HubrisI2cDeviceClass::Unspecified,
-                        },
-                    },
+                    class: HubrisI2cDeviceClass::from(device),
                     removable: device.removable.unwrap_or(false),
                 });
             }

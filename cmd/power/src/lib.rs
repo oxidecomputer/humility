@@ -12,6 +12,7 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::cli::Subcommand;
+use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
@@ -28,15 +29,84 @@ struct PowerArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
+
+    /// get phase current where available
+    #[clap(long)]
+    phase_current: bool,
 }
 
 struct Device<'a> {
     name: &'a str,
+    rail: Option<usize>,
     voltage: Option<usize>,
     current: Option<usize>,
     input_voltage: Option<usize>,
     input_current: Option<usize>,
     temperature: Option<usize>,
+    phases: Option<&'a Vec<u8>>,
+    phase_currents: Option<Vec<Option<f32>>>,
+}
+
+fn phase_currents(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    context: &mut HiffyContext,
+    devices: &mut BTreeMap<(&String, HubrisSensorDevice), Device>,
+) -> Result<()> {
+    let op = hubris.get_idol_command("Power.phase_current")?;
+    let ok = hubris.lookup_basetype(op.ok)?;
+    let mut ops = vec![];
+
+    if ok.encoding != HubrisEncoding::Float {
+        bail!("expected return value of phase_current() to be a float");
+    }
+
+    if ok.size != 4 {
+        bail!("expected return value of phase_current() to be an f32");
+    }
+
+    for device in devices.values() {
+        if let Some(phases) = device.phases {
+            let id = match device.rail {
+                Some(id) => id,
+                None => {
+                    bail!("{} does not have a voltage sensor?", device.name);
+                }
+            };
+
+            for (phase, _) in phases.iter().enumerate() {
+                let payload = op.payload(&[
+                    ("rail", idol::IdolArgument::Scalar(id as u64)),
+                    ("phase", idol::IdolArgument::Scalar(phase as u64)),
+                ])?;
+                context.idol_call_ops(&op, &payload, &mut ops)?;
+            }
+        }
+    }
+
+    ops.push(Op::Done);
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    let mut ndx = 0;
+
+    for device in devices.values_mut() {
+        if let Some(phases) = device.phases {
+            let mut phase_currents = vec![];
+
+            for _ in phases.iter() {
+                phase_currents.push(match &results[ndx] {
+                    Ok(val) => Some(f32::from_le_bytes(val[0..4].try_into()?)),
+                    _ => None,
+                });
+
+                ndx += 1;
+            }
+
+            device.phase_currents = Some(phase_currents);
+        }
+    }
+
+    Ok(())
 }
 
 fn power(context: &mut humility::ExecutionContext) -> Result<()> {
@@ -71,17 +141,34 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
     //
     for s in hubris.manifest.sensors.iter() {
         if s.kind == HubrisSensorKind::Voltage {
+            let mut phases = None;
+
+            if let HubrisSensorDevice::I2c(i) = &s.device {
+                let d = &hubris.manifest.i2c_devices[*i];
+
+                if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class {
+                    if let Some(r) = rails.iter().find(|&r| r.name == s.name) {
+                        if let Some(p) = &r.phases {
+                            phases = Some(p);
+                        }
+                    }
+                }
+            }
+
             let key = (&s.name, s.device.clone());
             if devices
                 .insert(
                     key,
                     Device {
                         name: &s.name,
+                        rail: None,
                         voltage: None,
                         current: None,
                         input_voltage: None,
                         input_current: None,
                         temperature: None,
+                        phases,
+                        phase_currents: None,
                     },
                 )
                 .is_some()
@@ -100,6 +187,7 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
                     device.current = Some(ndx);
                 }
                 HubrisSensorKind::Voltage => {
+                    device.rail = Some(i);
                     device.voltage = Some(ndx);
                 }
                 HubrisSensorKind::InputCurrent => {
@@ -137,6 +225,13 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
         }
     }
 
+    //
+    // If we have been asked for phase currents, we'll get those now.
+    //
+    if subargs.phase_current {
+        phase_currents(&hubris, core, &mut context, &mut devices)?;
+    }
+
     println!(
         "{:25} {:>8} {:>8} {:>8} {:>8} {:>8}",
         "RAIL", "VOUT", "IOUT", "VIN", "IIN", "TEMP"
@@ -164,11 +259,28 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
 
         p(d.voltage);
         p(d.current);
+
         p(d.input_voltage);
         p(d.input_current);
         p(d.temperature);
 
         println!();
+
+        if let Some(phase_currents) = &d.phase_currents {
+            let mut indent = "  +-->  ";
+            println!("  |");
+
+            for (index, value) in phase_currents.iter().enumerate() {
+                let name = format!("phase-{index}");
+
+                if let Some(value) = value {
+                    println!("{indent}{name:20}{value:>15.2}");
+                } else {
+                    println!("{indent}{name:20}{:>15}", "-");
+                }
+                indent = "        ";
+            }
+        }
     }
 
     Ok(())
