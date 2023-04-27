@@ -742,6 +742,9 @@ mod test {
 
     #[test]
     fn test_blackbox_load() {
+        // These are examples of real blackbox data, shown here to test the
+        // formatting.  Run `cargo test -phumility-cmd-rendmp -- --nocapture`
+        // to see how they look.
         let d: [u8; 176] = [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
