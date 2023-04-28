@@ -2074,6 +2074,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
+ "rayon",
  "regex",
  "ron 0.7.1",
  "rusb",

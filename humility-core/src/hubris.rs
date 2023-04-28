@@ -3056,22 +3056,33 @@ impl HubrisArchive {
         archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
         mut f: F,
     ) -> Result<()> {
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i)?;
-            let path = Path::new(file.name());
-            let pieces = path.iter().collect::<Vec<_>>();
+        use rayon::prelude::*;
+        let files = (0..archive.len())
+            .into_par_iter()
+            .map(|i| {
+                // ZipArchive is cheap to clone since the backing is cheap
+                let mut archive = archive.clone();
+                let mut file = archive.by_index(i)?;
+                let path = Path::new(file.name());
+                let pieces = path.iter().collect::<Vec<_>>();
 
-            //
-            // If the second-to-last element of our path is "task", we have a
-            // winner!
-            //
-            if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
-                continue;
-            }
+                //
+                // If the second-to-last element of our path is "task", we have
+                // a winner!
+                //
+                if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
+                    return Ok(None);
+                }
 
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)?;
-            f(Path::new(file.name()), &buffer)?;
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)?;
+                Ok(Some((file.name().to_owned(), buffer)))
+            })
+            .filter_map(|f| f.transpose())
+            .collect::<Result<Vec<(String, Vec<u8>)>, anyhow::Error>>()?;
+
+        for (file_name, buffer) in files {
+            f(Path::new(&file_name), &buffer)?;
         }
         Ok(())
     }
