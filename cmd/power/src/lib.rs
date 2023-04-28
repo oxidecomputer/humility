@@ -226,10 +226,10 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 
     //
-    // If we have been asked for phase currents, we'll get those now.
+    // If we have been asked for phase currents, we'll get all of those now.
     //
     if subargs.phase_current {
-        phase_currents(&hubris, core, &mut context, &mut devices)?;
+        phase_currents(hubris, core, &mut context, &mut devices)?;
     }
 
     println!(
@@ -243,7 +243,7 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
         match what {
             Some(ndx) => {
                 if let Some(value) = rval[ndx] {
-                    print!("{:>8.2}", value);
+                    print!("{:>8.3}", value);
                 } else {
                     print!("{:>8}", "-");
                 }
@@ -267,19 +267,16 @@ fn power(context: &mut humility::ExecutionContext) -> Result<()> {
         println!();
 
         if let Some(phase_currents) = &d.phase_currents {
-            let mut indent = "  +-->  ";
-            println!("  |");
-
             for (index, value) in phase_currents.iter().enumerate() {
                 let name = format!("phase-{index}");
 
                 if let Some(value) = value {
-                    println!("{indent}{name:20}{value:>15.2}");
+                    println!("   {name:25}{value:>15.3}");
                 } else {
-                    println!("{indent}{name:20}{:>15}", "-");
+                    println!("   {name:25}{:>15}", "-");
                 }
-                indent = "        ";
             }
+            println!();
         }
     }
 
