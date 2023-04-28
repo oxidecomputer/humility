@@ -3675,6 +3675,11 @@ impl HubrisArchive {
     }
 }
 
+/// Loader for a single ELF file
+///
+/// This duplicates many member variables from `HubrisArchive`; this `struct` is
+/// meant to be used for parallel loading, after which point everything is
+/// merged using `HubrisArchive::merge`.
 struct HubrisObjectLoader {
     current: u32,
 
