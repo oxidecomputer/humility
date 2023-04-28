@@ -1253,13 +1253,10 @@ impl HubrisArchive {
             .into_iter()
             .enumerate()
             .par_bridge()
-            .map(|(id, object)| {
-                let mut loader = HubrisObjectLoader::new(self.current)?;
-                loader.load_object(
-                    &object.0,
-                    HubrisTask::Task(id.try_into().unwrap()),
-                    &object.1,
-                )?;
+            .map(|(id, (name, buf))| {
+                let id: u32 = id.try_into().unwrap();
+                let mut loader = HubrisObjectLoader::new(self.current + id)?;
+                loader.load_object(&name, HubrisTask::Task(id), &buf)?;
                 Ok(loader)
             })
             .collect::<Result<Vec<_>>>()?;
