@@ -1216,24 +1216,57 @@ impl HubrisArchive {
         loader.load_object("kernel", HubrisTask::Kernel, &buffer)?;
         self.merge(loader)?;
 
-        let mut id = 0;
-
         //
         // And now we need to find the tasks.  Note that we depend on the
         // fact that these are stored in task ID order in the
         // archive.
         //
-        Self::for_each_task(&mut archive, |path, buffer| {
-            let mut loader = HubrisObjectLoader::new(self.current)?;
-            loader.load_object(
-                path.file_name().unwrap().to_str().unwrap(),
-                HubrisTask::Task(id),
-                buffer,
-            )?;
+        use rayon::prelude::*;
+        let objects = (0..archive.len())
+            .into_par_iter()
+            .map(|i| -> Result<Option<(String, Vec<u8>)>> {
+                // ZipArchive is cheap to clone since the backing is cheap
+                let mut archive = archive.clone();
+                let mut file = archive.by_index(i)?;
+                let path = Path::new(file.name());
+                let pieces = path.iter().collect::<Vec<_>>();
+
+                //
+                // If the second-to-last element of our path is "task", we have
+                // a winner!
+                //
+                if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
+                    return Ok(None);
+                }
+
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)?;
+                let filename = Path::new(file.name());
+                Ok(Some((
+                    filename.file_name().unwrap().to_str().unwrap().to_owned(),
+                    buffer,
+                )))
+            })
+            .filter_map(|f| f.transpose())
+            .collect::<Result<Vec<_>>>()?;
+        let files = objects
+            .into_iter()
+            .enumerate()
+            .par_bridge()
+            .map(|(id, object)| {
+                let mut loader = HubrisObjectLoader::new(self.current)?;
+                loader.load_object(
+                    &object.0,
+                    HubrisTask::Task(id.try_into().unwrap()),
+                    &object.1,
+                )?;
+                Ok(loader)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        for loader in files {
             self.merge(loader)?;
-            id += 1;
-            Ok(())
-        })?;
+        }
 
         //
         // Now that we have loaded our tasks, load our extern regions.
@@ -3669,9 +3702,6 @@ struct HubrisObjectLoader {
     // app table
     apptable: Option<(u32, Vec<u8>)>,
 
-    // Capstone library handle
-    cs: capstone::Capstone,
-
     // Instructions: address to bytes/target tuple. The target will be None if
     // the instruction did not decode as some kind of jump/branch/call.
     instrs: HashMap<u32, (Vec<u8>, Option<HubrisTarget>)>,
@@ -3736,21 +3766,7 @@ struct HubrisObjectLoader {
 
 impl HubrisObjectLoader {
     fn new(current: u32) -> Result<Self> {
-        //
-        // Initialize Capstone, being sure to specify not only our
-        // architecture but also that we are disassembling Thumb-2 --
-        // and (importantly) to allow M-profile instructions.
-        //
-        let mut cs = Capstone::new()
-            .arm()
-            .mode(arch::arm::ArchMode::Thumb)
-            .extra_mode(std::iter::once(arch::arm::ArchExtraMode::MClass))
-            .detail(true)
-            .build()
-            .map_err(|e| anyhow!("failed to initialize disassembler: {e:?}"))?;
-        cs.set_skipdata(true).expect("failed to set skipdata");
         Ok(Self {
-            cs,
             current,
             apptable: None,
             imageid: None,
@@ -3788,6 +3804,20 @@ impl HubrisObjectLoader {
         task: HubrisTask,
         buffer: &[u8],
     ) -> Result<()> {
+        //
+        // Initialize Capstone, being sure to specify not only our
+        // architecture but also that we are disassembling Thumb-2 --
+        // and (importantly) to allow M-profile instructions.
+        //
+        let mut cs = Capstone::new()
+            .arm()
+            .mode(arch::arm::ArchMode::Thumb)
+            .extra_mode(std::iter::once(arch::arm::ArchExtraMode::MClass))
+            .detail(true)
+            .build()
+            .map_err(|e| anyhow!("failed to initialize disassembler: {e:?}"))?;
+        cs.set_skipdata(true).expect("failed to set skipdata");
+
         use goblin::elf::section_header;
 
         let mut heapbss = (None, None);
@@ -3929,7 +3959,7 @@ impl HubrisObjectLoader {
                     },
                 )?;
 
-                self.load_function(object, task, name, val, t)?;
+                self.load_function(object, task, name, val, t, &cs)?;
             }
         }
 
@@ -4039,8 +4069,9 @@ impl HubrisObjectLoader {
         func: &str,
         addr: u32,
         buffer: &[u8],
+        cs: &Capstone,
     ) -> Result<()> {
-        let instrs = match self.cs.disasm_all(buffer, addr.into()) {
+        let instrs = match cs.disasm_all(buffer, addr.into()) {
             Ok(instrs) => instrs,
             Err(err) => {
                 bail!(
@@ -4071,7 +4102,7 @@ impl HubrisObjectLoader {
 
             last = (addr, b.len());
 
-            let target = self.instr_branch_target(instr);
+            let target = self.instr_branch_target(cs, instr);
             self.instrs.insert(addr, (b.to_vec(), target));
 
             const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
@@ -4086,7 +4117,7 @@ impl HubrisObjectLoader {
                 if task != HubrisTask::Kernel {
                     self.syscall_pushes.insert(
                         addr + b.len() as u32,
-                        Some(presyscall_pushes(&self.cs, &instrs[0..ndx])?),
+                        Some(presyscall_pushes(cs, &instrs[0..ndx])?),
                     );
                 }
             }
@@ -4388,9 +4419,10 @@ impl HubrisObjectLoader {
 
     fn instr_branch_target(
         &self,
+        cs: &Capstone,
         instr: &capstone::Insn,
     ) -> Option<HubrisTarget> {
-        let detail = self.cs.insn_detail(instr).ok()?;
+        let detail = cs.insn_detail(instr).ok()?;
 
         let mut jump = false;
         let mut call = false;
