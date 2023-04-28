@@ -1697,7 +1697,6 @@ impl HubrisArchive {
             usize,
         >,
         goff: HubrisGoff,
-        namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut discr = None;
@@ -1730,7 +1729,7 @@ impl HubrisArchive {
                 discriminant: discr.map(HubrisDiscriminant::Expected),
                 tag: None,
                 variants: Vec::new(),
-                namespace,
+                namespace: union.namespace,
             },
         );
 
@@ -2064,8 +2063,7 @@ impl HubrisArchive {
                         }
 
                         let parent = stack[depth as usize - 1];
-                        let ns = ns.last().map(|(id, _)| *id);
-                        self.dwarf_enum(&unit, entry, parent, ns)?;
+                        self.dwarf_enum(&unit, entry, parent)?;
 
                         //
                         // The discriminant is a (grand)child member; we need
