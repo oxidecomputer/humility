@@ -1,0 +1,187 @@
+     version => hubris build archive v8
+     git rev => f752656e7e7d28ae9e6d67201b5097c61abd4848
+    image id => [61, 18, 2d, 66, 2f, f, 86, 4f]
+       board => sidecar-b
+        name => sidecar-b
+      target => thumbv7em-none-eabihf
+    features => dump
+  total size => 1025K
+ kernel size => 28K
+       tasks => 26
+                ID OBJ TASK                SIZE FEATURES
+                 0  26 idle                0.1K 
+                 1   2 sys                 2.0K h753
+                 2   9 udpbroadcast        8.1K vlan
+                 3  14 sensor             10.6K itm
+                 4   1 jefe               16.3K itm, dump
+                 5  17 transceivers       66.6K vlan
+                 6   5 net                177.4K mgmt, h753, sidecar, vlan, vpd-mac, use-spi-core, spi3
+                 7   6 control_plane_agent 132.7K sidecar, vlan, auxflash
+                 8  11 monorail           128.7K mgmt, sidecar, vlan, use-spi-core, h753, spi2
+                 9  19 sequencer          65.4K 
+                10   4 auxflash           32.1K h753
+                11   7 sprot              35.4K sink_test, use-spi-core, h753, spi4
+                12  13 hiffy              56.6K h753, stm32h7, itm, i2c, gpio, sprot
+                13  15 ecp5_mainboard     33.4K mainboard, use-spi-core, h753, spi5
+                14  16 ecp5_front_io      33.4K front_io, use-spi-core, h753, spi1
+                15  20 thermal            32.8K itm, sidecar
+                16  21 power              32.8K itm, sidecar
+                17   3 update_server      16.1K 
+                18   8 udpecho            16.1K vlan
+                19  10 udprpc             16.1K vlan
+                20  12 i2c_driver         16.1K h753, itm
+                21  22 validate           16.1K 
+                22  23 ignition           16.5K sequencer
+                23  25 dump_agent         18.6K net, vlan
+                24  18 packrat             8.8K 
+                25  24 vpd                 8.1K 
+   i2c buses => 4 controllers, 9 buses
+                C PORT MODE NAME          DESCRIPTION
+                1 B1   init northeast0    Northeast Corridor 0
+                1 B2   init northeast1    Northeast Corridor 1
+                2 F    init front_io      Front I/O Board
+                2 H    init frontgps      Front I/O GPS
+                3 C    init northwest0    Northwest Corridor 0
+                3 H    init northwest1    Northwest Corridor 1
+                4 D    init south2        South Bend 2
+                4 F    init south0        South Bend 0
+                4 H    init south1        South Bend 1
+ i2c devices => 37 devices
+                 ID C  P  MUX ADDR DEVICE        DESCRIPTION
+                  0  1 B1 -   0x10 adm1272       Fan 1 hot swap controller
+                  1  1 B1 -   0x23 max31790      Fan 0/1 controller
+                  2  1 B1 -   0x49 tmp117        North-northeast temperature sensor
+                  3  1 B1 -   0x63 raa229618     TF2 VDD rail
+                  4  1 B1 -   0x70 pca9545       Northeast fan mux
+                  5  1 B2 -   0x13 adm1272       Fan 0 hot swap controller
+                  6  1 B2 -   0x1a tps546b24a    V3P3_SYS rail
+                  7  1 B2 -   0x48 tmp117        Northeast temperature sensor
+                  8  3 C  -   0x16 adm1272       54V hot swap controller
+                  9  3 C  -   0x19 tps546b24a    V5P0_SYS rail
+                 10  3 C  -   0x48 tmp117        North-northwest temperature sensor
+                 11  3 C  -   0x4c tmp451        TF2 temperature sensor
+                 12  3 C  -   0x60 raa229618     TF2 VDDA rail
+                 13  3 C  -   0x67 bmr491        Intermediate bus converter
+                 14  3 H  -   0x13 adm1272       Fan 2 hot swap controller
+                 15  3 H  -   0x10 adm1272       Fan 3 hot swap controller
+                 16  3 H  -   0x49 tmp117        Northwest temperature sensor
+                 17  3 H  -   0x20 max31790      Fan 2/3 controller
+                 18  3 H  -   0x70 pca9545       Northwest fan mux
+                 19  4 F  -   0x62 isl68224      VDD[A]18 rail
+                 20  4 F  -   0x54 ltc4282       Front I/O hotswap controller
+                 21  4 F  -   0x58 idt8a34001    Clock generator
+                 22  4 F  -   0x4a tmp117        South temperature sensor
+                 23  4 F  -   0x48 tmp117        Southeast temperature sensor
+                 24  4 F  -   0x49 tmp117        Southwest temperature sensor
+                 25  4 H  -   0x1b tps546b24a    V1P0_SYS rail
+                 26  4 H  -   0x1c tps546b24a    V1P8_SYS rail
+                 27  4 H  -   0x4c tmp451        VSC7448 temperature sensor
+                 28  4 D  -   0x50 at24csw080    Mainboard FRUID
+                 29  1 B1 1:2 0x50 at24csw080    Fan 0 FRUID
+                 30  1 B1 1:1 0x50 at24csw080    Fan 1 FRUID
+                 31  3 H  1:2 0x50 at24csw080    Fan 2 FRUID
+                 32  3 H  1:1 0x50 at24csw080    Fan 3 FRUID
+                 33  2 F  -   0x50 at24csw080    Front IO board FRUID
+                 34  2 F  -   0x73 pca9538       Front IO GPIO expander
+                 35  2 F  -   0x0a pca9956b      Front IO LED driver (left)
+                 36  2 F  -   0x0b pca9956b      Front IO LED driver (right)
+   aux flash => 33554432 bytes (32 MiB), 16 slots (2 MiB/slot)
+     sensors => 97 sensors
+                 ID NAME                    DEVICE      KIND
+                  0 V54_FAN1                i2c id=0    temp
+                  1 V54_FAN1                i2c id=0    current
+                  2 V54_FAN1                i2c id=0    voltage
+                  3 East                    i2c id=1    speed
+                  4 East#1                  i2c id=1    speed
+                  5 East#2                  i2c id=1    speed
+                  6 East#3                  i2c id=1    speed
+                  7 NNE                     i2c id=2    temp
+                  8 V0P8_TF2_VDD_CORE       i2c id=3    temp
+                  9 V0P8_TF2_VDD_CORE       i2c id=3    current
+                 10 V0P8_TF2_VDD_CORE       i2c id=3    voltage
+                 11 V54_FAN0                i2c id=5    temp
+                 12 V54_FAN0                i2c id=5    current
+                 13 V54_FAN0                i2c id=5    voltage
+                 14 V3P3_SYS                i2c id=6    temp
+                 15 V3P3_SYS                i2c id=6    current
+                 16 V3P3_SYS                i2c id=6    voltage
+                 17 Northeast               i2c id=7    temp
+                 18 V54_HSC                 i2c id=8    temp
+                 19 V54_HSC                 i2c id=8    current
+                 20 V54_HSC                 i2c id=8    voltage
+                 21 V5P0_SYS                i2c id=9    temp
+                 22 V5P0_SYS                i2c id=9    current
+                 23 V5P0_SYS                i2c id=9    voltage
+                 24 NNW                     i2c id=10   temp
+                 25 tf2                     i2c id=11   temp
+                 26 V1P5_TF2_VDDA           i2c id=12   temp
+                 27 V0P9_TF2_VDDT           i2c id=12   temp
+                 28 V1P5_TF2_VDDA           i2c id=12   current
+                 29 V0P9_TF2_VDDT           i2c id=12   current
+                 30 V1P5_TF2_VDDA           i2c id=12   voltage
+                 31 V0P9_TF2_VDDT           i2c id=12   voltage
+                 32 V12P0_SYS               i2c id=13   temp
+                 33 V12P0_SYS               i2c id=13   power
+                 34 V12P0_SYS               i2c id=13   current
+                 35 V12P0_SYS               i2c id=13   voltage
+                 36 V54_FAN2                i2c id=14   temp
+                 37 V54_FAN2                i2c id=14   current
+                 38 V54_FAN2                i2c id=14   voltage
+                 39 V54_FAN3                i2c id=15   temp
+                 40 V54_FAN3                i2c id=15   current
+                 41 V54_FAN3                i2c id=15   voltage
+                 42 Northwest               i2c id=16   temp
+                 43 West                    i2c id=17   speed
+                 44 West#1                  i2c id=17   speed
+                 45 West#2                  i2c id=17   speed
+                 46 West#3                  i2c id=17   speed
+                 47 V1P8_TF2_VDDA           i2c id=19   temp
+                 48 V1P8_TF2_VDD            i2c id=19   temp
+                 49 V1P8_TF2_VDDA           i2c id=19   current
+                 50 V1P8_TF2_VDD            i2c id=19   current
+                 51 V1P8_TF2_VDDA           i2c id=19   voltage
+                 52 V1P8_TF2_VDD            i2c id=19   voltage
+                 53 V12P0_FRONT_IO          i2c id=20   current
+                 54 V12P0_FRONT_IO          i2c id=20   voltage
+                 55 South                   i2c id=22   temp
+                 56 Southeast               i2c id=23   temp
+                 57 Southwest               i2c id=24   temp
+                 58 V1P0_MGMT               i2c id=25   temp
+                 59 V1P0_MGMT               i2c id=25   current
+                 60 V1P0_MGMT               i2c id=25   voltage
+                 61 V1P8_SYS                i2c id=26   temp
+                 62 V1P8_SYS                i2c id=26   current
+                 63 V1P8_SYS                i2c id=26   voltage
+                 64 vsc7448                 i2c id=27   temp
+                 65 xcvr0                   qsfp        temp
+                 66 xcvr1                   qsfp        temp
+                 67 xcvr2                   qsfp        temp
+                 68 xcvr3                   qsfp        temp
+                 69 xcvr4                   qsfp        temp
+                 70 xcvr5                   qsfp        temp
+                 71 xcvr6                   qsfp        temp
+                 72 xcvr7                   qsfp        temp
+                 73 xcvr8                   qsfp        temp
+                 74 xcvr9                   qsfp        temp
+                 75 xcvr10                  qsfp        temp
+                 76 xcvr11                  qsfp        temp
+                 77 xcvr12                  qsfp        temp
+                 78 xcvr13                  qsfp        temp
+                 79 xcvr14                  qsfp        temp
+                 80 xcvr15                  qsfp        temp
+                 81 xcvr16                  qsfp        temp
+                 82 xcvr17                  qsfp        temp
+                 83 xcvr18                  qsfp        temp
+                 84 xcvr19                  qsfp        temp
+                 85 xcvr20                  qsfp        temp
+                 86 xcvr21                  qsfp        temp
+                 87 xcvr22                  qsfp        temp
+                 88 xcvr23                  qsfp        temp
+                 89 xcvr24                  qsfp        temp
+                 90 xcvr25                  qsfp        temp
+                 91 xcvr26                  qsfp        temp
+                 92 xcvr27                  qsfp        temp
+                 93 xcvr28                  qsfp        temp
+                 94 xcvr29                  qsfp        temp
+                 95 xcvr30                  qsfp        temp
+                 96 xcvr31                  qsfp        temp

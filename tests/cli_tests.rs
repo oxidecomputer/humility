@@ -2,83 +2,104 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::fmt::Write;
 use std::fs::{self, File};
 use std::path::Path;
 
+#[derive(PartialEq)]
+enum Kind {
+    Postmortem,
+    Archive,
+    All,
+}
+
+impl Kind {
+    fn path(&self) -> &'static str {
+        match self {
+            Kind::Postmortem => "cores",
+            Kind::Archive => "archives",
+            Kind::All => panic!(),
+        }
+    }
+
+    fn prefix(&self) -> &'static str {
+        match self {
+            Kind::Postmortem => "hubris.core.",
+            Kind::Archive => "build-",
+            Kind::All => panic!(),
+        }
+    }
+
+    fn options(&self) -> &'static str {
+        match self {
+            Kind::Postmortem => "-d",
+            Kind::Archive => "-p archive -a",
+            Kind::All => panic!(),
+        }
+    }
+}
+
 struct Test {
+    kind: Kind,
     name: &'static str,
     cmd: &'static str,
     arg: Option<&'static str>,
 }
 
 impl Test {
-    fn basic(name: &'static str) -> Self {
-        Test { name, cmd: name, arg: None }
+    fn basic(kind: Kind, name: &'static str) -> Self {
+        Test { kind, name, cmd: name, arg: None }
     }
 
     fn witharg(
+        kind: Kind,
         name: &'static str,
         cmd: &'static str,
         arg: &'static str,
     ) -> Self {
-        Test { name, cmd, arg: Some(arg) }
+        Test { kind, name, cmd, arg: Some(arg) }
     }
 }
 
-fn make_tests() -> Result<()> {
-    let postmortem = [
-        Test::witharg("extract", "extract", "app.toml"),
-        Test::witharg("extract-list", "extract", "--list"),
-        Test::witharg("hiffy-list", "hiffy", "--list"),
-        Test::basic("manifest"),
-        Test::basic("spd"),
-        Test::basic("map"),
-        Test::basic("registers"),
-        Test::witharg("registers-s", "registers", "-s"),
-        Test::basic("ringbuf"),
-        Test::witharg("ringbuf-arg", "ringbuf", "i2c"),
-        Test::witharg("readvar-list", "readvar", "-l"),
-        Test::witharg("readvar-ticks", "readvar", "TICKS"),
-        Test::basic("stackmargin"),
-        Test::basic("tasks"),
-        Test::witharg("tasks-slvr", "tasks", "-slvr"),
-    ];
+fn make_tests(tests: &[Test], kind: Kind) -> Result<()> {
+    let path = format!("./tests/cmd/{}", kind.path());
+    let dir = Path::new(&path);
+    let mut input = vec![];
 
-    let mut cores = vec![];
-
-    let dir = Path::new("./tests/cmd/cores");
-
-    for entry in fs::read_dir(dir)? {
+    for entry in
+        fs::read_dir(dir).with_context(|| format!("couldn't read {path}"))?
+    {
         let entry = entry?;
 
         let path = entry.path();
 
         if let Some(f) = path.file_name() {
             if let Some(s) = f.to_str() {
-                let prefix = "hubris.core.";
-
-                if let Some(name) = s.strip_prefix(&prefix) {
-                    cores.push((name.to_string(), s.to_string()));
+                if let Some(name) = s.strip_prefix(&kind.prefix()) {
+                    input.push((name.to_string(), s.to_string()));
                 }
             }
         }
     }
 
-    for test in &postmortem {
+    for test in tests {
         let dirpath = format!("./tests/cmd/{}", test.name);
         let dir = Path::new(&dirpath);
 
         fs::create_dir_all(dir)?;
 
-        for (core, filename) in &cores {
-            let base = format!("{}.{}", test.name, core);
-            let toml = format!("{}.toml", base);
-            let stdout = format!("{}.stdout", base);
-            let stderr = format!("{}.stderr", base);
-            let succeeds = format!("{}.stdout.succeeds", base);
-            let fails = format!("{}.stderr.fails", base);
+        if test.kind != Kind::All && test.kind != kind {
+            continue;
+        }
+
+        for (input, filename) in &input {
+            let base = format!("{}.{input}", test.name);
+            let toml = format!("{base}.toml");
+            let stdout = format!("{base}.stdout");
+            let stderr = format!("{base}.stderr");
+            let succeeds = format!("{base}.stdout.succeeds");
+            let fails = format!("{base}.stderr.fails");
 
             let testcase = dir.join(toml);
             let succeeds = dir.join(succeeds);
@@ -89,7 +110,7 @@ fn make_tests() -> Result<()> {
                 let mut contents = String::new();
 
                 let testcmd = if let Some(arg) = test.arg {
-                    format!("{} {}", test.cmd, arg)
+                    format!("{} {arg}", test.cmd)
                 } else {
                     format!("{}", test.cmd)
                 };
@@ -102,11 +123,12 @@ fn make_tests() -> Result<()> {
 # should be checked in.  Should it ever be regenerated, simply delete
 # it and re-run "cargo test"
 #
-fs.base = "../cores"
+fs.base = "../{}"
 bin.name = "humility"
-args = "-d {} {}"
+args = "{} {filename} {testcmd}"
 "##,
-                    filename, testcmd,
+                    kind.path(),
+                    kind.options(),
                 )?;
 
                 let stderr = dir.join(stderr);
@@ -119,7 +141,7 @@ args = "-d {} {}"
                     fs::remove_file(fails)?;
                     true
                 } else {
-                    core.ends_with(".fails")
+                    input.ends_with(".fails")
                 };
 
                 if fails {
@@ -138,9 +160,40 @@ args = "-d {} {}"
     Ok(())
 }
 
+fn make_all_tests() -> Result<()> {
+    let tests = [
+        Test::witharg(Kind::All, "extract", "extract", "app.toml"),
+        Test::witharg(Kind::All, "extract-list", "extract", "--list"),
+        Test::witharg(Kind::All, "hiffy-list", "hiffy", "--list"),
+        Test::basic(Kind::All, "manifest"),
+        Test::basic(Kind::Postmortem, "spd"),
+        Test::basic(Kind::All, "map"),
+        Test::basic(Kind::Postmortem, "registers"),
+        Test::witharg(Kind::Postmortem, "registers-s", "registers", "-s"),
+        Test::basic(Kind::Postmortem, "ringbuf"),
+        Test::witharg(Kind::Postmortem, "ringbuf-arg", "ringbuf", "i2c"),
+        Test::witharg(Kind::All, "readvar-list", "readvar", "-l"),
+        Test::witharg(Kind::Postmortem, "readvar-ticks", "readvar", "TICKS"),
+        Test::witharg(
+            Kind::Archive,
+            "readvar-tasks",
+            "readvar",
+            "HUBRIS_TASK_DESCS",
+        ),
+        Test::basic(Kind::Postmortem, "stackmargin"),
+        Test::basic(Kind::Postmortem, "tasks"),
+        Test::witharg(Kind::Postmortem, "tasks-slvr", "tasks", "-slvr"),
+    ];
+
+    make_tests(&tests, Kind::Postmortem)?;
+    make_tests(&tests, Kind::Archive)?;
+
+    Ok(())
+}
+
 #[test]
 fn cli_tests() {
-    if let Err(err) = make_tests() {
+    if let Err(err) = make_all_tests() {
         panic!("make_tests() failed: {:?}", err);
     }
 

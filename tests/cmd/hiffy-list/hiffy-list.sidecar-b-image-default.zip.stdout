@@ -1,0 +1,1141 @@
+INTERFACE                    TASK
+Jefe                         jefe
+  |
+  +--> Jefe.get_state
+  |       <ok>                        u32
+  |
+  +--> Jefe.set_state
+  |       state                       u32
+  |       <ok>                        ()
+  |
+  +--> Jefe.request_reset
+  |       <ok>                        ()
+  |
+  +--> Jefe.get_reset_reason
+  |       <ok>                        ResetReason
+  |
+  +--> Jefe.set_reset_reason
+  |       reason                      ResetReason
+  |       <ok>                        ()
+  |
+  +--> Jefe.reinitialize_dump_areas
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.get_dump_area
+  |       index                       u8
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.claim_dump_area
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task
+  |       task_index                  u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task_region
+  |       task_index                  u32
+  |       address                     u32
+  |       length                      u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.reinitialize_dump_from
+          index                       u8
+          <ok>                        ()
+          <error>                     DumpAgentError
+  
+INTERFACE                    TASK
+Sys                          sys
+  |
+  +--> Sys.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.leave_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.gpio_configure_raw
+  |       port                        Port
+  |       pins                        u16
+  |       packed_attributes           u16
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_set_reset
+  |       port                        Port
+  |       set_pins                    u16
+  |       reset_pins                  u16
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_read_input
+  |       port                        Port
+  |       <ok>                        u16
+  |
+  +--> Sys.gpio_toggle
+  |       port                        Port
+  |       pins                        u16
+  |       <ok>                        ()
+  |
+  +--> Sys.read_uid
+          <ok>                        [u32; 3]
+  
+INTERFACE                    TASK
+Update                       update_server
+  |
+  +--> Update.block_size
+  |       <ok>                        usize
+  |       <error>                     UpdateError
+  |
+  +--> Update.prep_image_update
+  |       image_type                  UpdateTarget
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.write_one_block
+  |       block_num                   usize
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.abort_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.finish_image_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.current_version
+  |       <ok>                        ImageVersion
+  |
+  +--> Update.status
+  |       <ok>                        drv_update_api::UpdateStatus
+  |
+  +--> Update.read_image_caboose
+  |       name                        [u8; 4]
+  |       <ok>                        u32
+  |       <error>                     CabooseError
+  |
+  +--> Update.switch_default_image
+  |       slot                        SlotId
+  |       duration                    SwitchDuration
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.reset
+          <ok>                        ()
+          <error>                     UpdateError
+  
+INTERFACE                    TASK
+AuxFlash                     auxflash
+  |
+  +--> AuxFlash.read_id
+  |       <ok>                        AuxFlashId
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.slot_count
+  |       <ok>                        u32
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.slot_size
+  |       <ok>                        u32
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.read_status
+  |       <ok>                        u8
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.erase_slot
+  |       slot                        u32
+  |       <ok>                        ()
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.slot_sector_erase
+  |       slot                        u32
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.read_slot_chck
+  |       slot                        u32
+  |       <ok>                        AuxFlashChecksum
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.write_slot_with_offset
+  |       slot                        u32
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.read_slot_with_offset
+  |       slot                        u32
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.scan_and_get_active_slot
+  |       <ok>                        u32
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.get_active_slot
+  |       <ok>                        u32
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.ensure_redundancy
+  |       <ok>                        ()
+  |       <error>                     AuxFlashError
+  |
+  +--> AuxFlash.get_blob_by_tag
+          name                        [u8; 4]
+          <ok>                        AuxFlashBlob
+          <error>                     AuxFlashError
+  
+INTERFACE                    TASK
+Net                          net
+  |
+  +--> Net.recv_packet
+  |       socket                      SocketName
+  |       large_payload_behavior      LargePayloadBehavior
+  |
+  +--> Net.send_packet
+  |       socket                      SocketName
+  |       metadata                    UdpMetadata
+  |
+  +--> Net.smi_read
+  |       phy                         u8
+  |       register                    u8
+  |       <ok>                        u16
+  |
+  +--> Net.smi_write
+  |       phy                         u8
+  |       register                    u8
+  |       value                       u16
+  |       <ok>                        ()
+  |
+  +--> Net.read_phy_reg
+  |       port                        u8
+  |       page                        u16
+  |       reg                         u8
+  |       <ok>                        u16
+  |       <error>                     PhyError
+  |
+  +--> Net.write_phy_reg
+  |       port                        u8
+  |       page                        u16
+  |       reg                         u8
+  |       value                       u16
+  |       <ok>                        ()
+  |       <error>                     PhyError
+  |
+  +--> Net.read_ksz8463_mac_count
+  |       <ok>                        usize
+  |       <error>                     KszError
+  |
+  +--> Net.read_ksz8463_mac
+  |       i                           u16
+  |       <ok>                        KszMacTableEntry
+  |       <error>                     KszError
+  |
+  +--> Net.read_ksz8463_reg
+  |       reg                         u16
+  |       <ok>                        u16
+  |       <error>                     KszError
+  |
+  +--> Net.get_mac_address
+  |       <ok>                        MacAddress
+  |
+  +--> Net.get_spare_mac_addresses
+  |       <ok>                        MacAddressBlock
+  |
+  +--> Net.management_link_status
+  |       <ok>                        ManagementLinkStatus
+  |       <error>                     MgmtError
+  |
+  +--> Net.management_counters
+          <ok>                        ManagementCounters
+          <error>                     MgmtError
+  
+INTERFACE                    TASK
+ControlPlaneAgent            control_plane_agent
+  |
+  +--> ControlPlaneAgent.fetch_host_phase2_data
+  |       image_hash                  [u8; 32]
+  |       offset                      u64
+  |       notification_bit            u8
+  |       <ok>                        ()
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.get_host_phase2_data
+  |       image_hash                  [u8; 32]
+  |       offset                      u64
+  |       <ok>                        usize
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.get_startup_options
+  |       <ok>                        HostStartupOptions
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.set_startup_options
+  |       startup_options             u64
+  |       <ok>                        ()
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.identity
+  |       <ok>                        VpdIdentity
+  |
+  +--> ControlPlaneAgent.get_uart_client
+  |       <ok>                        UartClient
+  |
+  +--> ControlPlaneAgent.get_installinator_image_id
+  |       <ok>                        usize
+  |
+  +--> ControlPlaneAgent.set_humility_uart_client
+  |       attach                      bool
+  |       <ok>                        ()
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.uart_read
+  |       <ok>                        usize
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.uart_write
+          <ok>                        usize
+          <error>                     ControlPlaneAgentError
+  
+INTERFACE                    TASK
+SpRot                        sprot
+  |
+  +--> SpRot.status
+  |       <ok>                        SprotStatus
+  |       <error>                     SprotError
+  |
+  +--> SpRot.io_stats
+  |       <ok>                        SprotIoStats
+  |       <error>                     SprotError
+  |
+  +--> SpRot.rot_state
+  |       <ok>                        RotState
+  |       <error>                     SprotError
+  |
+  +--> SpRot.pulse_cs
+  |       delay                       u16
+  |       <ok>                        PulseStatus
+  |       <error>                     SprotError
+  |
+  +--> SpRot.block_size
+  |       <ok>                        u32
+  |       <error>                     SprotError
+  |
+  +--> SpRot.prep_image_update
+  |       target                      UpdateTarget
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.write_one_block
+  |       block_num                   u32
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.abort_update
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.finish_image_update
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.switch_default_image
+  |       slot                        SlotId
+  |       duration                    SwitchDuration
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.reset
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.dump
+          address                     u32
+          <ok>                        ()
+          <error>                     DumpOrSprotError
+  
+INTERFACE                    TASK
+Monorail                     monorail
+  |
+  +--> Monorail.get_port_status
+  |       port                        u8
+  |
+  +--> Monorail.get_port_counters
+  |       port                        u8
+  |       <ok>                        PortCounters
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.reset_port_counters
+  |       port                        u8
+  |       <ok>                        ()
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.get_phy_status
+  |       port                        u8
+  |       <ok>                        PhyStatus
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_phy_reg
+  |       port                        u8
+  |       page                        u16
+  |       reg                         u8
+  |       <ok>                        u16
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.write_phy_reg
+  |       port                        u8
+  |       page                        u16
+  |       reg                         u8
+  |       value                       u16
+  |       <ok>                        ()
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc7448_reg
+  |       addr                        u32
+  |       <ok>                        u32
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.write_vsc7448_reg
+  |       addr                        u32
+  |       value                       u32
+  |       <ok>                        ()
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc8504_sd6g_patch
+  |       <ok>                        TeslaSerdes6gPatch
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc8504_sd6g_ob_config
+  |       <ok>                        TeslaSerdes6gObConfig
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.write_vsc8504_sd6g_ob_config
+  |       ob_post0                    u8
+  |       ob_post1                    u8
+  |       ob_prec                     u8
+  |       ob_sr_h                     bool
+  |       ob_sr                       u8
+  |       <ok>                        ()
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc8562_sd6g_ob_cfg
+  |       <ok>                        Sd6gObCfg
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.write_vsc8562_sd6g_ob_cfg
+  |       ob_ena1v_mode               u8
+  |       ob_pol                      u8
+  |       ob_post0                    u8
+  |       ob_post1                    u8
+  |       ob_sr_h                     u8
+  |       ob_resistor_ctr             u8
+  |       ob_sr                       u8
+  |       <ok>                        ()
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc8562_sd6g_ob_cfg1
+  |       <ok>                        Sd6gObCfg1
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.write_vsc8562_sd6g_ob_cfg1
+  |       ob_ena_cas                  u8
+  |       ob_lev                      u8
+  |       <ok>                        ()
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc7448_mac_count
+  |       <ok>                        usize
+  |       <error>                     MonorailError
+  |
+  +--> Monorail.read_vsc7448_next_mac
+          <ok>                        MacTableEntry
+          <error>                     MonorailError
+  
+INTERFACE                    TASK
+Sensor                       sensor
+  |
+  +--> Sensor.get
+  |       id                          SensorId
+  |       <ok>                        f32
+  |       <error>                     SensorError
+  |
+  +--> Sensor.get_reading
+  |       id                          SensorId
+  |       <ok>                        Reading
+  |       <error>                     SensorError
+  |
+  +--> Sensor.post
+  |       id                          SensorId
+  |       value                       f32
+  |       timestamp                   u64
+  |       <ok>                        ()
+  |       <error>                     SensorError
+  |
+  +--> Sensor.nodata
+  |       id                          SensorId
+  |       nodata                      NoData
+  |       timestamp                   u64
+  |       <ok>                        ()
+  |       <error>                     SensorError
+  |
+  +--> Sensor.get_nerrors
+          id                          SensorId
+          <ok>                        u32
+          <error>                     SensorError
+  
+INTERFACE                    TASK
+Fpga                         ecp5_mainboard
+  |
+  +--> Fpga.device_enabled
+  |       device_index                u8
+  |       <ok>                        bool
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.set_device_enabled
+  |       device_index                u8
+  |       enabled                     bool
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.reset_device
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.device_state
+  |       device_index                u8
+  |       <ok>                        DeviceState
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.device_id
+  |       device_index                u8
+  |       <ok>                        u32
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.start_bitstream_load
+  |       device_index                u8
+  |       bitstream_type              BitstreamType
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.continue_bitstream_load
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.finish_bitstream_load
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_enabled
+  |       device_index                u8
+  |       <ok>                        bool
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.set_user_design_enabled
+  |       device_index                u8
+  |       enabled                     bool
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.reset_user_design
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_read
+  |       device_index                u8
+  |       addr                        u16
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_write
+  |       device_index                u8
+  |       op                          WriteOp
+  |       addr                        u16
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_read_reg
+  |       device_index                u8
+  |       addr                        u16
+  |       <ok>                        u8
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_write_reg
+  |       device_index                u8
+  |       op                          WriteOp
+  |       addr                        u16
+  |       value                       u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.lock
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.release
+          <ok>                        ()
+          <error>                     FpgaError
+  
+INTERFACE                    TASK
+Fpga                         ecp5_front_io
+  |
+  +--> Fpga.device_enabled
+  |       device_index                u8
+  |       <ok>                        bool
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.set_device_enabled
+  |       device_index                u8
+  |       enabled                     bool
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.reset_device
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.device_state
+  |       device_index                u8
+  |       <ok>                        DeviceState
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.device_id
+  |       device_index                u8
+  |       <ok>                        u32
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.start_bitstream_load
+  |       device_index                u8
+  |       bitstream_type              BitstreamType
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.continue_bitstream_load
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.finish_bitstream_load
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_enabled
+  |       device_index                u8
+  |       <ok>                        bool
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.set_user_design_enabled
+  |       device_index                u8
+  |       enabled                     bool
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.reset_user_design
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_read
+  |       device_index                u8
+  |       addr                        u16
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_write
+  |       device_index                u8
+  |       op                          WriteOp
+  |       addr                        u16
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_read_reg
+  |       device_index                u8
+  |       addr                        u16
+  |       <ok>                        u8
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.user_design_write_reg
+  |       device_index                u8
+  |       op                          WriteOp
+  |       addr                        u16
+  |       value                       u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.lock
+  |       device_index                u8
+  |       <ok>                        ()
+  |       <error>                     FpgaError
+  |
+  +--> Fpga.release
+          <ok>                        ()
+          <error>                     FpgaError
+  
+INTERFACE                    TASK
+Transceivers                 transceivers
+  |
+  +--> Transceivers.get_module_status
+  |       <ok>                        ModuleStatus
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.port_enable_power
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.port_disable_power
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.port_assert_reset
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.port_deassert_reset
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.port_assert_lpmode
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.port_deassert_lpmode
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.clear_power_fault
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.setup_i2c_read
+  |       reg                         u8
+  |       num_bytes                   u8
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.setup_i2c_write
+  |       reg                         u8
+  |       num_bytes                   u8
+  |       logical_port_mask           u32
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.get_i2c_read_buffer
+  |       logical_port                u8
+  |       <ok>                        ()
+  |       <error>                     TransceiversError
+  |
+  +--> Transceivers.set_i2c_write_buffer
+          <ok>                        ()
+          <error>                     TransceiversError
+  
+INTERFACE                    TASK
+Packrat                      packrat
+  |
+  +--> Packrat.get_mac_address_block
+  |       <ok>                        MacAddressBlock
+  |       <error>                     CacheGetError
+  |
+  +--> Packrat.set_mac_address_block
+  |       macs                        MacAddressBlock
+  |       <ok>                        ()
+  |       <error>                     CacheSetError
+  |
+  +--> Packrat.get_identity
+  |       <ok>                        VpdIdentity
+  |       <error>                     CacheGetError
+  |
+  +--> Packrat.set_identity
+  |       macs                        VpdIdentity
+  |       <ok>                        ()
+  |       <error>                     CacheSetError
+  |
+  +--> Packrat.get_next_boot_host_startup_options
+  |       <ok>                        HostStartupOptions
+  |
+  +--> Packrat.set_next_boot_host_startup_options
+  |       startup_options             HostStartupOptions
+  |       <ok>                        ()
+  |
+  +--> Packrat.set_spd_eeprom
+  |       index                       u8
+  |       page1                       bool
+  |       offset                      u8
+  |       <ok>                        ()
+  |
+  +--> Packrat.get_spd_present
+  |       index                       usize
+  |       <ok>                        bool
+  |
+  +--> Packrat.get_spd_data
+          index                       usize
+          <ok>                        u8
+  
+INTERFACE                    TASK
+Sequencer                    sequencer
+  |
+  +--> Sequencer.tofino_seq_policy
+  |       <ok>                        TofinoSequencerPolicy
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_tofino_seq_policy
+  |       policy                      TofinoSequencerPolicy
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_seq_state
+  |       <ok>                        TofinoSeqState
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_seq_error
+  |       <ok>                        TofinoSeqError
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_seq_error_step
+  |       <ok>                        TofinoSeqStep
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.clear_tofino_seq_error
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_power_rails
+  |       <ok>                        [u8; 6]
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_pcie_hotplug_ctrl
+  |       <ok>                        u8
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_tofino_pcie_hotplug_ctrl
+  |       mask                        u8
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.clear_tofino_pcie_hotplug_ctrl
+  |       mask                        u8
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_pcie_hotplug_status
+  |       <ok>                        u8
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_pcie_reset
+  |       <ok>                        TofinoPcieReset
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_tofino_pcie_reset
+  |       reset                       TofinoPcieReset
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.is_clock_config_loaded
+  |       <ok>                        bool
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.load_clock_config
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.front_io_board_present
+  |       <ok>                        bool
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.front_io_phy_ready
+  |       <ok>                        bool
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_debug_port_state
+  |       <ok>                        DebugPortState
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_tofino_debug_port_state
+  |       state                       DebugPortState
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_read_direct
+  |       segment                     DirectBarSegment
+  |       offset                      u32
+  |       <ok>                        u32
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.tofino_write_direct
+  |       segment                     DirectBarSegment
+  |       offset                      u32
+  |       value                       u32
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.spi_eeprom_idcode
+  |       <ok>                        u32
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.spi_eeprom_status
+  |       <ok>                        u8
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.read_spi_eeprom_bytes
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.write_spi_eeprom_bytes
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.mainboard_controller_ready
+          <ok>                        bool
+          <error>                     SeqError
+  
+INTERFACE                    TASK
+Thermal                      thermal
+  |
+  +--> Thermal.set_mode_manual
+  |       initial_pwm                 u8
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_mode_auto
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_mode
+  |       <ok>                        ThermalMode
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_auto_state
+  |       <ok>                        ThermalAutoState
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_fan_pwm
+  |       index                       u8
+  |       pwm                         u8
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.disable_watchdog
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.enable_watchdog
+  |       timeout_s                   u8
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_pid
+  |       z                           f32
+  |       p                           f32
+  |       i                           f32
+  |       d                           f32
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_margin
+  |       <ok>                        f32
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_margin
+  |       margin                      f32
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.update_dynamic_input
+  |       index                       usize
+  |       model                       ThermalProperties
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.remove_dynamic_input
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_runtime
+          <ok>                        u64
+          <error>                     ThermalError
+  
+INTERFACE                    TASK
+Power                        power
+  |
+  +--> Power.pmbus_read
+  |       dev                         Device
+  |       rail                        u8
+  |       index                       u32
+  |       op                          Operation
+  |       <ok>                        PmbusValue
+  |       <error>                     ResponseCode
+  |
+  +--> Power.read_mode
+  |       dev                         Device
+  |       rail                        u8
+  |       index                       u32
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_event_log_read
+  |       index                       u8
+  |       <ok>                        Bmr491Event
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_max_fault_event_index
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_max_lifecycle_event_index
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.rendmp_blackbox_dump
+  |       addr                        u8
+  |       <ok>                        RenesasBlackbox
+  |       <error>                     ResponseCode
+  |
+  +--> Power.rendmp_dma_read
+          addr                        u8
+          reg                         u16
+          <ok>                        u32
+          <error>                     ResponseCode
+  
+INTERFACE                    TASK
+Validate                     validate
+  |
+  +--> Validate.validate_i2c
+  |       index                       u32
+  |       <ok>                        ValidateOk
+  |       <error>                     ValidateError
+  |
+  +--> Validate.selected_mux_segment
+          index                       u32
+          <ok>                        Option<MuxSegment>
+          <error>                     ValidateError
+  
+INTERFACE                    TASK
+Ignition                     ignition
+  |
+  +--> Ignition.port_count
+  |
+  +--> Ignition.presence_summary
+  |
+  +--> Ignition.port_state
+  |       port                        u8
+  |
+  +--> Ignition.counters
+  |       port                        u8
+  |
+  +--> Ignition.transceiver_events
+  |       port                        u8
+  |       txr                         TransceiverSelect
+  |
+  +--> Ignition.clear_transceiver_events
+  |       port                        u8
+  |       txr                         TransceiverSelect
+  |
+  +--> Ignition.link_events
+  |       port                        u8
+  |
+  +--> Ignition.send_request
+  |       port                        u8
+  |       request                     Request
+  |
+  +--> Ignition.all_port_state
+  |
+  +--> Ignition.all_link_events
+  
+INTERFACE                    TASK
+Vpd                          vpd
+  |
+  +--> Vpd.read_tmp117_eeprom
+  |       index                       u8
+  |       <ok>                        [u8; 6]
+  |       <error>                     VpdError
+  |
+  +--> Vpd.read
+  |       index                       u8
+  |       offset                      u16
+  |       <ok>                        [u8; 16]
+  |       <error>                     VpdError
+  |
+  +--> Vpd.write
+          index                       u8
+          offset                      u16
+          contents                    u8
+          <ok>                        ()
+          <error>                     VpdError
+  
+INTERFACE                    TASK
+DumpAgent                    dump_agent
+  |
+  +--> DumpAgent.read_dump
+  |       index                       u8
+  |       offset                      u32
+  |       <ok>                        [u8; DUMP_READ_SIZE]
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.get_dump_area
+  |       index                       u8
+  |       <ok>                        DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.initialize_dump
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.add_dump_segment
+  |       address                     u32
+  |       length                      u32
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.take_dump
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.dump_task
+  |       task_index                  u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.dump_task_region
+  |       task_index                  u32
+  |       start                       u32
+  |       length                      u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.reinitialize_dump_from
+          index                       u8
+          <ok>                        ()
+          <error>                     DumpAgentError
+  
