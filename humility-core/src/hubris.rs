@@ -1600,7 +1600,12 @@ impl HubrisArchive {
         while let Some(attr) = attrs.next()? {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
+                    let value = attr.value();
+                    if let gimli::AttributeValue::String(s) = value {
+                        name = s.to_string().ok();
+                    } else {
+                        name = dwarf_name(dwarf, value);
+                    }
                 }
 
                 gimli::constants::DW_AT_type => {
@@ -1616,6 +1621,8 @@ impl HubrisArchive {
                 _ => {}
             }
         }
+
+        let name = name.or(Some("<anonymous>"));
 
         if let (Some(name), Some(dgoff), Some(size)) = (name, dgoff, size) {
             self.enums.insert(
@@ -1832,7 +1839,12 @@ impl HubrisArchive {
         while let Some(attr) = attrs.next()? {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
+                    let value = attr.value();
+                    if let gimli::AttributeValue::String(s) = value {
+                        name = s.to_string().ok();
+                    } else {
+                        name = dwarf_name(dwarf, value);
+                    }
                 }
 
                 gimli::constants::DW_AT_data_member_location => {
@@ -1848,6 +1860,8 @@ impl HubrisArchive {
                 _ => {}
             }
         }
+
+        name = name.or(Some("<anonymous>"));
 
         if let Some(pstruct) = self.structs.get_mut(&parent) {
             if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
@@ -6219,6 +6233,11 @@ fn dwarf_name<'a>(
 ) -> Option<&'a str> {
     match value {
         gimli::AttributeValue::DebugStrRef(strref) => {
+            let dstring = dwarf.debug_str.get_str(strref).ok()?;
+            let ddstring = str::from_utf8(dstring.slice()).ok()?;
+            Some(ddstring)
+        }
+        gimli::AttributeValue::DebugStrRefSup(strref) => {
             let dstring = dwarf.debug_str.get_str(strref).ok()?;
             let ddstring = str::from_utf8(dstring.slice()).ok()?;
             Some(ddstring)
