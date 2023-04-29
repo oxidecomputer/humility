@@ -23,6 +23,7 @@ use std::rc::Rc;
 use std::str;
 use std::time::Duration;
 use std::time::Instant;
+use thiserror::Error;
 
 use goblin::elf::Elf;
 
@@ -49,6 +50,10 @@ pub trait Core {
     }
 
     fn is_net(&self) -> bool {
+        false
+    }
+
+    fn is_archive(&self) -> bool {
         false
     }
 
@@ -1362,6 +1367,112 @@ impl Core for DumpCore {
     }
 }
 
+pub struct ArchiveCore {
+    flash: HubrisFlashMap,
+}
+
+impl ArchiveCore {
+    fn new(hubris: &HubrisArchive) -> Result<ArchiveCore> {
+        Ok(Self { flash: HubrisFlashMap::new(hubris)? })
+    }
+
+    fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        if let Some((&base, &(size, offset))) =
+            self.flash.regions.range(..=addr).rev().next()
+        {
+            if base <= addr && base + size > addr {
+                let start = (addr - base) as usize;
+                let roffs = offset + start;
+
+                if start + data.len() <= size as usize {
+                    data.copy_from_slice(
+                        &self.flash.contents[roffs..roffs + data.len()],
+                    );
+
+                    return Ok(());
+                }
+
+                let len = (size as usize) - start;
+                data[..len]
+                    .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
+
+                return self.read(addr + len as u32, &mut data[len..]);
+            }
+        }
+
+        bail!(
+            "{addr:#x} is not in flash and therefore can't \
+            be read via just an archive; did you mean to plug in a probe?"
+        );
+    }
+}
+
+impl Core for ArchiveCore {
+    fn is_archive(&self) -> bool {
+        true
+    }
+
+    fn info(&self) -> (String, Option<String>) {
+        ("archive".to_string(), None)
+    }
+
+    fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
+        self.read(addr, data)
+    }
+
+    fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
+        bail!("cannot read register {} from an archive", reg);
+    }
+
+    fn write_reg(&mut self, reg: ARMRegister, _value: u32) -> Result<()> {
+        bail!("cannot write register {} to an archive", reg);
+    }
+
+    fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
+        bail!("cannot write a word to an archive");
+    }
+
+    fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
+        bail!("cannot write a byte to an archive");
+    }
+
+    fn halt(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn step(&mut self) -> Result<()> {
+        bail!("can't step an archive");
+    }
+
+    fn init_swv(&mut self) -> Result<()> {
+        bail!("cannot enable SWV with an archive");
+    }
+
+    fn read_swv(&mut self) -> Result<Vec<u8>> {
+        bail!("cannot read SWV with an archive");
+    }
+
+    fn load(&mut self, _path: &Path) -> Result<()> {
+        bail!("cannot load flash to an archive");
+    }
+
+    fn reset(&mut self) -> Result<()> {
+        bail!("cannot reset an archive");
+    }
+
+    fn reset_and_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("cannot reset an archive");
+    }
+
+    fn wait_for_halt(&mut self, _dur: std::time::Duration) -> Result<()> {
+        bail!("cannot wait for halt of an archive");
+    }
+}
+
 /// Something that you can talk to on the network
 ///
 /// `control-plane-agent` is deliberately skipped, because it's best talked to
@@ -1369,6 +1480,12 @@ impl Core for DumpCore {
 pub enum NetAgent {
     UdpRpc,
     DumpAgent,
+}
+
+#[derive(Error, Debug)]
+pub enum ProbeError {
+    #[error("no debug probe found; is it plugged in?")]
+    NoProbeFound,
 }
 
 fn parse_probe(probe: &str) -> (&str, Option<usize>) {
@@ -1394,7 +1511,7 @@ fn get_usb_probe(index: Option<usize>) -> Result<probe_rs::DebugProbeInfo> {
     let probes = Probe::list_all();
 
     if probes.is_empty() {
-        bail!("no debug probe found; is it plugged in?");
+        return Err(ProbeError::NoProbeFound.into());
     }
 
     if let Some(index) = index {
@@ -1622,5 +1739,11 @@ pub fn attach_dump(
 ) -> Result<Box<dyn Core>> {
     let core = DumpCore::new(dump, hubris)?;
     crate::msg!("attached to dump");
+    Ok(Box::new(core))
+}
+
+pub fn attach_archive(hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
+    let core = ArchiveCore::new(hubris)?;
+    crate::msg!("attached to archive");
     Ok(Box::new(core))
 }

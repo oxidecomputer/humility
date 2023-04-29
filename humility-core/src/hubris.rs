@@ -2594,10 +2594,10 @@ impl HubrisArchive {
             if let Some(names) = &d.sensors.as_ref().unwrap().names {
                 if idx >= names.len() {
                     bail!(
-                            "name array is too short ({}) for sensor index ({})",
-                            names.len(),
-                            idx
-                        );
+                        "name array is too short ({}) for sensor index ({})",
+                        names.len(),
+                        idx
+                    );
                 } else {
                     Ok(names[idx].clone())
                 }
@@ -3595,7 +3595,7 @@ impl HubrisArchive {
         // no current task.  If this is an online task, then we can't read
         // kernel memory remotely, so we can't tell.
         //
-        if self.task_dump.is_some() || core.is_net() {
+        if self.task_dump.is_some() || core.is_net() || core.is_archive() {
             return Ok(None);
         }
 
@@ -3699,7 +3699,7 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        if core.is_net() {
+        if core.is_net() || core.is_archive() {
             return Ok(());
         }
 

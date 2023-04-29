@@ -249,6 +249,7 @@ syn = "1.0"
 tempfile = "3.3"
 termimad = "0.21"
 termios = "0.3" # not usable on windows!
+thiserror = "1.0"
 toml = "0.5"
 trycmd = "0.13.2"
 tui = { version = "0.16", default-features = false }
