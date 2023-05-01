@@ -1,0 +1,189 @@
+INTERFACE                    TASK
+Jefe                         jefe
+  |
+  +--> Jefe.get_state
+  |       <ok>                        u32
+  |
+  +--> Jefe.set_state
+  |       state                       u32
+  |       <ok>                        ()
+  |
+  +--> Jefe.request_reset
+  |       <ok>                        ()
+  |
+  +--> Jefe.get_reset_reason
+  |       <ok>                        ResetReason
+  |
+  +--> Jefe.set_reset_reason
+  |       reason                      ResetReason
+  |       <ok>                        ()
+  |
+  +--> Jefe.reinitialize_dump_areas
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.get_dump_area
+  |       index                       u8
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.claim_dump_area
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task
+  |       task_index                  u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task_region
+  |       task_index                  u32
+  |       address                     u32
+  |       length                      u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.reinitialize_dump_from
+          index                       u8
+          <ok>                        ()
+          <error>                     DumpAgentError
+  
+INTERFACE                    TASK
+Update                       update_server
+  |
+  +--> Update.block_size
+  |       <ok>                        usize
+  |       <error>                     UpdateError
+  |
+  +--> Update.prep_image_update
+  |       image_type                  UpdateTarget
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.write_one_block
+  |       block_num                   usize
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.abort_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.finish_image_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.current_version
+  |       <ok>                        ImageVersion
+  |
+  +--> Update.status
+  |       <ok>                        drv_update_api::UpdateStatus
+  |
+  +--> Update.read_image_caboose
+  |       name                        [u8; 4]
+  |       <ok>                        u32
+  |       <error>                     CabooseError
+  |
+  +--> Update.switch_default_image
+  |       slot                        SlotId
+  |       duration                    SwitchDuration
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.reset
+          <ok>                        ()
+          <error>                     UpdateError
+  
+INTERFACE                    TASK
+Syscon                       syscon_driver
+  |
+  +--> Syscon.enable_clock
+  |       peripheral                  Peripheral
+  |       <ok>                        ()
+  |
+  +--> Syscon.disable_clock
+  |       peripheral                  Peripheral
+  |       <ok>                        ()
+  |
+  +--> Syscon.enter_reset
+  |       peripheral                  Peripheral
+  |       <ok>                        ()
+  |
+  +--> Syscon.leave_reset
+          peripheral                  Peripheral
+          <ok>                        ()
+  
+INTERFACE                    TASK
+Pins                         gpio_driver
+  |
+  +--> Pins.iocon_configure_raw
+  |       pin                         Pin
+  |       conf                        u32
+  |       <ok>                        ()
+  |
+  +--> Pins.set_dir
+  |       pin                         Pin
+  |       dir                         Direction
+  |       <ok>                        ()
+  |
+  +--> Pins.set_val
+  |       pin                         Pin
+  |       val                         Value
+  |       <ok>                        ()
+  |
+  +--> Pins.read_val
+  |       pin                         Pin
+  |       <ok>                        Value
+  |
+  +--> Pins.toggle
+          pin                         Pin
+          <ok>                        ()
+  
+INTERFACE                    TASK
+SpCtrl                       swd
+  |
+  +--> SpCtrl.read
+  |       addr                        u32
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.write
+  |       addr                        u32
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.setup
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.read_transaction_start
+  |       start                       u32
+  |       end                         u32
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.read_transaction
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.halt
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.resume
+  |       <ok>                        ()
+  |       <error>                     SpCtrlError
+  |
+  +--> SpCtrl.read_core_register
+          register                    u16
+          <ok>                        u32
+          <error>                     SpCtrlError
+  
+INTERFACE                    TASK
+Dumper                       dumper
+  |
+  +--> Dumper.dump
+          address                     u32
+          <ok>                        ()
+          <error>                     DumperError
+  
