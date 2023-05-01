@@ -34,8 +34,10 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use humility::cli::{Cli, Subcommand};
 use humility::{core::Core, hubris::*};
+use humility_cli::{
+    Cli, {ExecutionContext, Subcommand},
+};
 use humility_cmd::{Archive, Command, CommandKind};
 use path_slash::PathExt;
 use std::io::Write;
@@ -279,7 +281,7 @@ fn validate(
     Ok(())
 }
 
-fn flashcmd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
     let subargs = FlashArgs::try_parse_from(subargs)?;

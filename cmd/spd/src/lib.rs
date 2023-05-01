@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility::cli::Subcommand;
-use humility_cmd::i2c::I2cArgs;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
+use humility_i2c::I2cArgs;
+use humility_log::msg;
 use std::fs::File;
 use std::io::Write;
 use std::str;
@@ -98,9 +99,7 @@ fn dump_spd(
     if let Some(filename) = &subargs.output {
         let mut output = File::create(filename)?;
         output.write_all(buf)?;
-        humility::msg!(
-            "wrote SPD data for address {addr} as binary to {filename}"
-        );
+        msg!("wrote SPD data for address {addr} as binary to {filename}");
         return Ok(());
     }
 
@@ -175,7 +174,7 @@ fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
     ops.push(Op::DropN(4));
 }
 
-fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn spd(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
@@ -231,7 +230,7 @@ fn spd(context: &mut humility::ExecutionContext) -> Result<()> {
         }
 
         if header {
-            humility::msg!("all SPD data is empty");
+            msg!("all SPD data is empty");
         }
 
         return Ok(());

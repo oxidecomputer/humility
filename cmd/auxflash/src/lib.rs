@@ -12,15 +12,14 @@
 use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
-use cmd_hiffy::HiffyLease;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_hiffy::HiffyContext;
+use humility_hiffy::{HiffyContext, HiffyLease};
 use humility_idol::{HubrisIdol, IdolArgument};
 
 const DEFAULT_SLOT_SIZE_BYTES: usize = 2 * 1024 * 1024;
@@ -96,7 +95,7 @@ impl<'a> AuxFlashHandler<'a> {
 
     pub fn slot_count(&mut self) -> Result<u32> {
         let op = self.hubris.get_idol_command("AuxFlash.slot_count")?;
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -117,7 +116,7 @@ impl<'a> AuxFlashHandler<'a> {
         let op = self
             .hubris
             .get_idol_command("AuxFlash.scan_and_get_active_slot")?;
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -138,7 +137,7 @@ impl<'a> AuxFlashHandler<'a> {
 
     fn slot_erase(&mut self, slot: u32) -> Result<()> {
         let op = self.hubris.get_idol_command("AuxFlash.erase_slot")?;
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -154,7 +153,7 @@ impl<'a> AuxFlashHandler<'a> {
 
     pub fn slot_status(&mut self, slot: u32) -> Result<Option<[u8; 32]>> {
         let op = self.hubris.get_idol_command("AuxFlash.read_slot_chck")?;
-        let value = cmd_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call(
             self.hubris,
             self.core,
             &mut self.context,
@@ -233,7 +232,7 @@ impl<'a> AuxFlashHandler<'a> {
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
-            let value = cmd_hiffy::hiffy_call(
+            let value = humility_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -327,7 +326,7 @@ impl<'a> AuxFlashHandler<'a> {
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(self.context.data_size()).enumerate() {
             let offset = i * self.context.data_size();
-            let value = cmd_hiffy::hiffy_call(
+            let value = humility_hiffy::hiffy_call(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -370,7 +369,7 @@ impl<'a> AuxFlashHandler<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn auxflash(context: &mut humility::ExecutionContext) -> Result<()> {
+fn auxflash(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = AuxFlashArgs::try_parse_from(subargs)?;

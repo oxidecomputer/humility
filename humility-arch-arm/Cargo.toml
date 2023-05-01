@@ -1,0 +1,10 @@
+[package]
+name = "humility-arch-arm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+capstone.workspace = true
+num-traits.workspace = true
+num-derive.workspace = true

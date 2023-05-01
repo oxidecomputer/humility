@@ -113,11 +113,11 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use humility::arch::ARMRegister;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
+use humility_arch_arm::ARMRegister;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
@@ -173,7 +173,7 @@ fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
 }
 
 #[rustfmt::skip::macros(println)]
-fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
+fn tasks(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -182,7 +182,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
-    let ticks = hubris.ticks(core)?;
+    let ticks = if core.is_net() { None } else { Some(hubris.ticks(core)?) };
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -191,7 +191,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
     let mut found = false;
 
-    let printer = humility_cmd::stack::StackPrinter {
+    let printer = humility_stack::StackPrinter {
         indent: 3,
         line: subargs.line,
         additional: subargs.registers || subargs.verbose,
@@ -213,6 +213,16 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
             let offs = i as usize * task_t.size;
             let addr = base + offs as u32;
             core.read_8(addr, &mut taskblock[offs..offs + task_t.size])?;
+        } else if core.is_net() {
+            // We cannot remotely read supervisor or non-TCB memory, so we skip
+            // the supervisor and the kernel epitaph if this is a remote core.
+            core.read_8(
+                base + task_t.size as u32,
+                &mut taskblock[task_t.size..],
+            )?;
+            humility::msg!(
+                "reading tasks remotely; state may not be consistent"
+            );
         } else {
             core.read_8(base, &mut taskblock)?;
 
@@ -267,8 +277,12 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
             core.run()?;
         }
 
-        println!("system time = {}", ticks);
-
+        println!(
+            "system time = {}",
+            ticks
+                .map(|t| t.to_string())
+                .unwrap_or_else(|| "unavailable-via-net".to_owned())
+        );
         println!("{:2} {:21} {:>8} {:3} {:9}",
             "ID", "TASK", "GEN", "PRI", "STATE");
 
@@ -276,7 +290,6 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
 
         for (i, addr, task_value, task) in tasks.iter() {
             let i = *i;
-            let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
 
             let module = match hubris.lookup_module(HubrisTask::Task(i)) {
                 Ok(m) => &m.name,
@@ -299,17 +312,37 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
                 found = true;
             }
 
-            let timer = task.timer.deadline.map(|deadline| {
-                (deadline.0 as i64 - ticks as i64, task.timer.to_post.0)
-            });
+            let timer = match (task.timer.deadline, ticks) {
+                (Some(deadline), Some(ticks)) => Some(Deadline::Relative {
+                    dt: deadline.0 as i64 - ticks as i64,
+                    notif: task.timer.to_post.0,
+                }),
+                (Some(deadline), None) => Some(Deadline::Absolute {
+                    t: deadline.0,
+                    notif: task.timer.to_post.0,
+                }),
+                (None, _) => None,
+            };
 
-            {
+            let modname = {
                 let mut modname = module.to_string();
                 if modname.len() > 20 {
                     modname.truncate(20);
                     modname.push('…');
                     any_names_truncated = true;
                 }
+                modname
+            };
+
+            // Special case for the supervisor on a net core, which we can't
+            // meaningfully process.
+            if i == 0 && core.is_net() {
+                println!(
+                    "{:2} {:21} {:>8} {:3} [cannot read supervisor memory]",
+                    i, modname, "?", task.priority.0
+                );
+                continue;
+            } else {
                 print!(
                     "{:2} {:21} {:>8} {:3} ",
                     i,
@@ -330,6 +363,7 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
             )?;
             println!();
 
+            let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
             if subargs.stack || subargs.registers {
                 let t = HubrisTask::Task(i);
                 let regs = hubris.registers(core, t)?;
@@ -387,6 +421,12 @@ fn tasks(context: &mut humility::ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+#[derive(Copy, Clone, Debug)]
+enum Deadline {
+    Absolute { t: u64, notif: u32 },
+    Relative { dt: i64, notif: u32 },
+}
+
 #[allow(clippy::too_many_arguments)]
 fn explain_state(
     hubris: &HubrisArchive,
@@ -396,7 +436,7 @@ fn explain_state(
     ts: TaskState,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
-    timer: Option<(i64, u32)>,
+    timer: Option<Deadline>,
 ) -> Result<()> {
     match ts {
         TaskState::Healthy(ss) => {
@@ -428,7 +468,7 @@ fn explain_sched_state(
     regs: &HashMap<(u32, ARMRegister), u32>,
     current: bool,
     irqs: Option<&Vec<(u32, u32)>>,
-    timer: Option<(i64, u32)>,
+    timer: Option<Deadline>,
     e: doppel::SchedState,
 ) -> Result<()> {
     use doppel::SchedState;
@@ -577,13 +617,13 @@ fn explain_recv(
     src: Option<TaskId>,
     notmask: u32,
     irqs: Option<&Vec<(u32, u32)>>,
-    timer: Option<(i64, u32)>,
+    timer: Option<Deadline>,
 ) {
     // Come up with a description for each notification bit.
     struct NoteInfo {
         irqs: Vec<u32>,
-        timer: Option<i64>,
-        bit: usize,
+        timer: Option<Deadline>,
+        bit: u32,
     }
     let mut note_types = vec![];
     for i in 0..32 {
@@ -602,10 +642,10 @@ fn explain_recv(
         } else {
             vec![]
         };
-        let timer_assoc =
-            timer.and_then(
-                |(ts, mask)| if mask & bitmask != 0 { Some(ts) } else { None },
-            );
+        let timer_assoc = timer.filter(|t| match t {
+            Deadline::Absolute { notif, .. }
+            | Deadline::Relative { notif, .. } => notif & bitmask != 0,
+        });
         note_types.push(NoteInfo { irqs: irqnums, timer: timer_assoc, bit: i });
     }
 
@@ -632,8 +672,8 @@ fn explain_recv(
     } else {
         None
     };
-    let notification_name = |s: usize| -> Option<&str> {
-        notification_names.and_then(|n| n.get(s)).map(|s| s.as_str())
+    let notification_name = |s: u32| -> Option<&str> {
+        notification_names.and_then(|n| n.get(s as usize)).map(|s| s.as_str())
     };
 
     // Display notification bits, along with meaning where we can.
@@ -650,7 +690,15 @@ fn explain_recv(
                 print!("(");
                 let mut first = true;
                 if let Some(ts) = nt.timer {
-                    print!("{}T{:+}", if !first { "/" } else { "" }, ts);
+                    print!("{}T", if !first { "/" } else { "" });
+                    match ts {
+                        Deadline::Relative { dt, .. } => {
+                            print!("{dt:+}");
+                        }
+                        Deadline::Absolute { t, .. } => {
+                            print!("={t:}");
+                        }
+                    }
                     first = false;
                 }
                 for irq in &nt.irqs {

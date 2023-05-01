@@ -359,7 +359,7 @@ version = "3.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea0c8bce528c4be4da13ea6fead8965e95b6073585a2f05204bd8f4119f82a65"
 dependencies = [
- "heck 0.4.1",
+ "heck",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -984,15 +984,6 @@ dependencies = [
 
 [[package]]
 name = "heck"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
-name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
@@ -1089,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.10"
+version = "0.10.15"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1100,6 +1091,7 @@ dependencies = [
  "env_logger",
  "fallible-iterator",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
@@ -1175,25 +1167,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-arch-arm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "capstone",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
+name = "humility-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-core",
+ "indexmap",
+ "parse_int",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "humility-cmd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored",
- "hif",
- "hubpack",
+ "humility-cli",
  "humility-core",
  "humility-net-core",
- "idol",
- "indexmap",
- "lazy_static",
- "log",
- "parse_int",
- "postcard",
- "serde",
- "serde_json",
- "zerocopy",
 ]
 
 [[package]]
@@ -1202,6 +1206,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1214,8 +1219,8 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
@@ -1232,19 +1237,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "goblin",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
  "ihex",
- "log",
- "num-traits",
  "parse_int",
  "path-slash",
- "regex",
- "ron 0.7.1",
- "serde",
- "srec",
  "tempfile",
 ]
 
@@ -1255,14 +1254,11 @@ dependencies = [
  "anyhow",
  "clap",
  "crossbeam-channel",
- "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
- "idol",
- "log",
  "parse_int",
  "termios",
 ]
@@ -1275,13 +1271,12 @@ dependencies = [
  "clap",
  "crossterm 0.20.0",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
  "idol",
- "indexmap",
- "log",
  "parse_int",
  "tui",
 ]
@@ -1293,17 +1288,11 @@ dependencies = [
  "anyhow",
  "byteorder",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-cortex",
- "log",
- "num-derive",
- "num-traits",
  "parse_int",
  "probe-rs",
- "strum 0.22.0",
- "strum_macros 0.22.0",
- "zerocopy",
 ]
 
 [[package]]
@@ -1312,9 +1301,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "humility-jefe",
  "parse_int",
 ]
 
@@ -1325,9 +1316,8 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
- "lazy_static",
  "termimad 0.21.1",
 ]
 
@@ -1339,6 +1329,8 @@ dependencies = [
  "clap",
  "goblin",
  "hubpack",
+ "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-dump-agent",
@@ -1361,6 +1353,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1374,8 +1367,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
+ "humility-log",
  "serde_json",
  "splitty",
 ]
@@ -1386,8 +1380,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
+ "humility-log",
  "zip",
 ]
 
@@ -1398,18 +1393,16 @@ dependencies = [
  "anyhow",
  "clap",
  "goblin",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-auxflash",
  "humility-core",
  "humility-cortex",
  "ihex",
- "log",
  "num-traits",
  "parse_int",
  "path-slash",
- "regex",
  "ron 0.7.1",
- "serde",
  "srec",
  "tempfile",
 ]
@@ -1421,9 +1414,9 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrlc",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-openocd",
- "humility-core",
  "tempfile",
 ]
 
@@ -1434,8 +1427,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "parse_int",
 ]
@@ -1447,11 +1440,11 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
  "indicatif",
- "log",
  "parse_int",
  "sha2",
 ]
@@ -1464,6 +1457,7 @@ dependencies = [
  "atty",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1480,11 +1474,12 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
+ "humility-i2c",
+ "humility-log",
  "indicatif",
- "log",
  "parse_int",
 ]
 
@@ -1496,12 +1491,12 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
  "idol",
- "log",
  "parse_int",
  "pmbus",
  "zerocopy",
@@ -1514,10 +1509,10 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
- "log",
  "parse_int",
 ]
 
@@ -1527,9 +1522,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
- "log",
+ "humility-jefe",
  "parse_int",
 ]
 
@@ -1540,8 +1536,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
  "parse_int",
 ]
@@ -1552,6 +1548,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "serde_json",
@@ -1563,6 +1560,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1575,8 +1573,8 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
@@ -1596,8 +1594,8 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
@@ -1611,8 +1609,8 @@ dependencies = [
  "anyhow",
  "clap",
  "ctrlc",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "regex",
  "tempfile",
 ]
@@ -1625,11 +1623,12 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "indexmap",
- "log",
  "parse_int",
  "pmbus",
 ]
@@ -1641,6 +1640,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1658,9 +1658,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
- "humility-cmd-rpc",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
@@ -1677,11 +1676,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored",
+ "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
- "log",
  "num-traits",
 ]
 
@@ -1692,8 +1691,8 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
@@ -1709,6 +1708,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "parse-size",
@@ -1721,6 +1721,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1731,9 +1732,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+ "humility-stack",
  "num-traits",
 ]
 
@@ -1745,12 +1749,13 @@ dependencies = [
  "clap",
  "csv",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "idt8a3xxxx",
  "itertools",
- "log",
  "parse_int",
  "serde",
  "serde-xml-rs",
@@ -1762,14 +1767,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "humility-idol",
  "indicatif",
- "log",
  "num-derive",
  "num-traits",
  "parse_int",
@@ -1787,10 +1793,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
- "log",
- "num-traits",
 ]
 
 [[package]]
@@ -1799,10 +1804,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
- "log",
 ]
 
 [[package]]
@@ -1814,6 +1819,7 @@ dependencies = [
  "colored",
  "hif",
  "hubpack",
+ "humility-cli",
  "humility-cmd",
  "humility-cmd-hiffy",
  "humility-core",
@@ -1822,7 +1828,6 @@ dependencies = [
  "humility-idol",
  "idol",
  "indexmap",
- "log",
  "parse_int",
  "serde",
  "zerocopy",
@@ -1836,6 +1841,7 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -1853,14 +1859,13 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
- "idol",
  "indexmap",
  "itertools",
- "log",
  "parse_int",
 ]
 
@@ -1871,10 +1876,9 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
- "log",
  "parse_int",
 ]
 
@@ -1885,11 +1889,12 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-core",
  "humility-hiffy",
+ "humility-i2c",
+ "humility-log",
  "jep106",
- "log",
  "parse_int",
  "spd",
 ]
@@ -1901,10 +1906,10 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
- "log",
  "parse_int",
 ]
 
@@ -1914,6 +1919,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
 ]
@@ -1924,6 +1930,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "parse_int",
@@ -1935,9 +1943,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-arch-arm",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "humility-stack",
  "log",
  "num-traits",
  "parse_int",
@@ -1949,6 +1960,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "colored",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1960,15 +1973,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
- "idol",
  "indicatif",
- "log",
  "parse_int",
 ]
 
@@ -1978,6 +1988,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-cortex",
@@ -1989,14 +2000,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "hif",
+ "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
- "humility-core",
  "humility-hiffy",
  "humility-idol",
+ "humility-log",
  "indicatif",
- "log",
  "parse_int",
 ]
 
@@ -2008,13 +2017,13 @@ dependencies = [
  "clap",
  "colored",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
+ "humility-i2c",
  "humility-idol",
  "idol",
- "indexmap",
- "log",
  "parse_int",
 ]
 
@@ -2025,6 +2034,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hif",
+ "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-hiffy",
@@ -2032,7 +2042,6 @@ dependencies = [
  "idol",
  "indexmap",
  "indicatif",
- "log",
  "parse_int",
  "tlvc",
  "tlvc-text",
@@ -2047,11 +2056,12 @@ dependencies = [
  "bitfield",
  "capstone",
  "clap",
- "colored",
  "fallible-iterator",
  "gimli 0.22.0",
  "goblin",
  "hubpack",
+ "humility-arch-arm",
+ "humility-log",
  "humility_load_derive",
  "humpty",
  "idol",
@@ -2064,6 +2074,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
+ "rayon",
  "regex",
  "ron 0.7.1",
  "rusb",
@@ -2071,6 +2082,7 @@ dependencies = [
  "scroll",
  "serde",
  "serde_json",
+ "thiserror",
  "toml 0.5.11",
  "winapi",
  "zerocopy",
@@ -2108,13 +2120,13 @@ dependencies = [
  "anyhow",
  "hif",
  "hubpack",
+ "humility-arch-arm",
  "humility-core",
  "humility-hiffy",
  "humility-idol",
  "humpty",
  "indexmap",
  "indicatif",
- "log",
  "lzss",
  "num-traits",
  "rand",
@@ -2137,6 +2149,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-i2c"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "parse_int",
+]
+
+[[package]]
 name = "humility-idol"
 version = "0.1.0"
 dependencies = [
@@ -2150,13 +2171,38 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-net-core"
+name = "humility-jefe"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "humility-core",
+]
+
+[[package]]
+name = "humility-log"
+version = "0.1.0"
+dependencies = [
+ "colored",
+ "log",
+]
+
+[[package]]
+name = "humility-net-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-arch-arm",
+ "humility-core",
  "humility-dump-agent",
  "humpty",
+]
+
+[[package]]
+name = "humility-stack"
+version = "0.1.0"
+dependencies = [
+ "humility-arch-arm",
+ "humility-core",
 ]
 
 [[package]]
@@ -3027,8 +3073,8 @@ dependencies = [
  "nu-ansi-term",
  "serde",
  "strip-ansi-escapes",
- "strum 0.24.1",
- "strum_macros 0.24.3",
+ "strum",
+ "strum_macros",
  "thiserror",
  "unicode-segmentation",
  "unicode-width",
@@ -3457,27 +3503,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "strum"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7ac893c7d471c8a21f31cfe213ec4f6d9afeed25537c772e08ef3f005f8729e"
-
-[[package]]
-name = "strum"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
-
-[[package]]
-name = "strum_macros"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "339f799d8b549e3744c7ac7feb216383e4005d94bdb22561b3ab8f3b808ae9fb"
-dependencies = [
- "heck 0.3.3",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
 
 [[package]]
 name = "strum_macros"
@@ -3485,7 +3513,7 @@ version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e385be0d24f186b4ce2f9982191e7101bb737312ad61c1f2f984f34bcf85d59"
 dependencies = [
- "heck 0.4.1",
+ "heck",
  "proc-macro2",
  "quote",
  "rustversion",

@@ -8,5 +8,6 @@ description = "trace Hubris operations"
 humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

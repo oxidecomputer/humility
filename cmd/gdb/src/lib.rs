@@ -21,7 +21,7 @@ use std::process::{Command, Stdio};
 
 use cmd_openocd::get_probe_serial;
 
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command as HumilityCmd, CommandKind};
 
 use anyhow::{bail, Context, Result};
@@ -49,7 +49,7 @@ struct GdbArgs {
     serial: Option<String>,
 }
 
-fn gdb(context: &mut humility::ExecutionContext) -> Result<()> {
+fn gdb(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 

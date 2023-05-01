@@ -26,9 +26,9 @@ use crossterm::{
     },
 };
 use hif::*;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -735,7 +735,7 @@ fn run_dashboard<B: Backend>(
     }
 }
 
-fn dashboard(context: &mut humility::ExecutionContext) -> Result<()> {
+fn dashboard(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 

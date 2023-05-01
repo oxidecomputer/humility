@@ -12,7 +12,7 @@
 
 use std::process;
 
-use humility::cli::{Cli, Subcommand};
+use humility_cli::{Cli, ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 
 use anyhow::{bail, Context, Result};
@@ -84,7 +84,7 @@ pub fn get_probe_serial(
     }
 }
 
-fn openocd(context: &mut humility::ExecutionContext) -> Result<()> {
+fn openocd(context: &mut ExecutionContext) -> Result<()> {
     if context.cli.probe.is_some() {
         bail!("Cannot specify --probe with `openocd` subcommand");
     }

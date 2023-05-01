@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use crate::arch::{presyscall_pushes, ARMRegister};
 use capstone::prelude::*;
+use humility_arch_arm::{presyscall_pushes, ARMRegister};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::io::prelude::*;
 
 use std::borrow::Cow;
-use std::collections::{btree_map, BTreeMap, HashMap, HashSet};
+use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
@@ -434,6 +434,32 @@ impl HubrisFlashMap {
 
         Ok(Self { contents, regions })
     }
+
+    pub fn read(&self, addr: u32, data: &mut [u8]) -> Option<()> {
+        if let Some((&base, &(size, offset))) =
+            self.regions.range(..=addr).rev().next()
+        {
+            if base <= addr && base + size > addr {
+                let start = (addr - base) as usize;
+                let roffs = offset + start;
+
+                if start + data.len() <= size as usize {
+                    data.copy_from_slice(
+                        &self.contents[roffs..roffs + data.len()],
+                    );
+
+                    return Some(());
+                }
+
+                let len = (size as usize) - start;
+                data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
+
+                return self.read(addr + len as u32, &mut data[len..]);
+            }
+        }
+
+        None
+    }
 }
 
 //
@@ -578,9 +604,6 @@ pub struct HubrisArchive {
     // non-None if a dump of a single task
     task_dump: Option<DumpTask>,
 
-    // Capstone library handle
-    cs: capstone::Capstone,
-
     // Instructions: address to bytes/target tuple. The target will be None if
     // the instruction did not decode as some kind of jump/branch/call.
     instrs: HashMap<u32, (Vec<u8>, Option<HubrisTarget>)>,
@@ -667,33 +690,12 @@ pub struct HubrisArchive {
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
-        //
-        // Initialize Capstone, being sure to specify not only our
-        // architecture but also that we are disassembling Thumb-2 --
-        // and (importantly) to allow M-profile instructions.
-        //
-        let cs = Capstone::new()
-            .arm()
-            .mode(arch::arm::ArchMode::Thumb)
-            .extra_mode(std::iter::once(arch::arm::ArchExtraMode::MClass))
-            .detail(true)
-            .build();
-
         Ok(Self {
             archive: Vec::new(),
             apptable: None,
             imageid: None,
             manifest: Default::default(),
             loaded: BTreeMap::new(),
-            cs: match cs {
-                Ok(mut cs) => {
-                    cs.set_skipdata(true).expect("failed to set skipdata");
-                    cs
-                }
-                Err(err) => {
-                    bail!("failed to initialize disassembler: {}", err);
-                }
-            },
             current: 0,
             task_dump: None,
             instrs: HashMap::new(),
@@ -810,1762 +812,6 @@ impl HubrisArchive {
         inlined
     }
 
-    fn instr_branch_target(
-        &self,
-        instr: &capstone::Insn,
-    ) -> Option<HubrisTarget> {
-        let detail = self.cs.insn_detail(instr).ok()?;
-
-        let mut jump = false;
-        let mut call = false;
-        let mut brel = None;
-
-        const BREL: u8 = InsnGroupType::CS_GRP_BRANCH_RELATIVE as u8;
-        const JUMP: u8 = InsnGroupType::CS_GRP_JUMP as u8;
-        const CALL: u8 = InsnGroupType::CS_GRP_CALL as u8;
-        const ARM_REG_PC: u16 = arch::arm::ArmReg::ARM_REG_PC as u16;
-        const ARM_REG_LR: u16 = arch::arm::ArmReg::ARM_REG_LR as u16;
-        const ARM_INSN_POP: u32 = arch::arm::ArmInsn::ARM_INS_POP as u32;
-
-        for g in detail.groups() {
-            match g {
-                InsnGroupId(BREL) => {
-                    let arch = detail.arch_detail();
-                    let ops = arch.operands();
-
-                    let op = ops.last().unwrap_or_else(|| {
-                        panic!("missing operand!");
-                    });
-
-                    if let arch::ArchOperand::ArmOperand(op) = op {
-                        if let arch::arm::ArmOperandType::Imm(a) = op.op_type {
-                            brel = Some(a as u32);
-                        }
-                    }
-                }
-
-                InsnGroupId(JUMP) => {
-                    jump = true;
-                }
-
-                InsnGroupId(CALL) => {
-                    call = true;
-                }
-                _ => {}
-            }
-        }
-
-        if let Some(addr) = brel {
-            if call {
-                return Some(HubrisTarget::Call(addr));
-            } else {
-                return Some(HubrisTarget::Direct(addr));
-            }
-        }
-
-        if call {
-            return Some(HubrisTarget::IndirectCall);
-        }
-
-        //
-        // If this is a JUMP that isn't a CALL, check to see if one of
-        // its operands is LR -- in which case it's a return (or could be
-        // a return).
-        //
-        if jump {
-            for op in detail.arch_detail().operands() {
-                if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
-                        op.op_type
-                    {
-                        return Some(HubrisTarget::Return);
-                    }
-                }
-            }
-
-            return Some(HubrisTarget::Indirect);
-        }
-
-        //
-        // Capstone doesn't have a group denoting returns (they are control
-        // transfers, but not considered in the JUMP group), so explicitly
-        // look for a pop instruction that writes to the PC.
-        //
-        if let InsnId(ARM_INSN_POP) = instr.id() {
-            for op in detail.arch_detail().operands() {
-                if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
-                        op.op_type
-                    {
-                        return Some(HubrisTarget::Return);
-                    }
-                }
-            }
-        }
-
-        None
-    }
-
-    fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
-        &self,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> HubrisGoff {
-        let goff = match entry.offset().to_unit_section_offset(unit) {
-            gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
-            gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
-        };
-
-        HubrisGoff { object: self.current, goff }
-    }
-
-    fn dwarf_value_goff<R: gimli::Reader<Offset = usize>>(
-        &self,
-        unit: &gimli::Unit<R>,
-        value: &gimli::AttributeValue<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Option<HubrisGoff> {
-        let goff = match value {
-            gimli::AttributeValue::UnitRef(offs) => {
-                match offs.to_unit_section_offset(unit) {
-                    gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
-                    gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
-                }
-            }
-
-            gimli::AttributeValue::DebugInfoRef(offs) => offs.0,
-
-            _ => {
-                return None;
-            }
-        };
-
-        Some(HubrisGoff { object: self.current, goff })
-    }
-
-    fn dwarf_namespace(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        depth: isize,
-        namespace: &mut Vec<(NamespaceId, isize)>,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-
-        //
-        // For a new namespace, create an entry in our namespaces vector,
-        // and push a tuple consisting of the identifer and our depth.
-        //
-        while let Some(attr) = attrs.next()? {
-            if attr.name() == gimli::constants::DW_AT_name {
-                if let Some(name) = dwarf_name(dwarf, attr.value()) {
-                    namespace.push((
-                        self.namespaces.allocate(
-                            name,
-                            namespace.last().map(|(id, _)| *id),
-                        ),
-                        depth,
-                    ));
-                }
-
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_fileline<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<R>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let mut file = None;
-        let mut line = None;
-
-        let goff = self.dwarf_goff(unit, entry);
-
-        while let Some(attr) = attrs.next()? {
-            match (attr.name(), attr.value()) {
-                (
-                    gimli::constants::DW_AT_decl_file,
-                    gimli::AttributeValue::FileIndex(value),
-                ) => {
-                    file = Some(value);
-                }
-                (
-                    gimli::constants::DW_AT_decl_line,
-                    gimli::AttributeValue::Udata(value),
-                ) => {
-                    line = Some(value);
-                }
-                _ => {}
-            }
-        }
-
-        if let (Some(file), Some(line)) = (file, line) {
-            let header = match &unit.line_program {
-                Some(program) => program.header(),
-                None => return Ok(()),
-            };
-
-            let file = match header.file(file) {
-                Some(header) => header,
-                None => {
-                    bail!("no header at {}", goff);
-                }
-            };
-
-            let mut comp = None;
-            let directory;
-            if let Some(dir) = file.directory(header) {
-                let dir = dwarf.attr_string(unit, dir)?;
-                let dir = dir.to_string_lossy()?;
-
-                if !dir.starts_with('/') {
-                    if let Some(comp_dir) = &unit.comp_dir {
-                        comp = Some(comp_dir.to_string_lossy()?.into_owned());
-                    }
-                }
-
-                directory = Some(dir.into_owned())
-            } else {
-                directory = None
-            }
-
-            let s = dwarf.attr_string(unit, file.path_name())?;
-            let file = s.to_string_lossy()?.into_owned();
-
-            self.src.insert(
-                goff,
-                HubrisSrc { file, directory, comp_directory: comp, line },
-            );
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_inlined<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<R>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        depth: isize,
-    ) -> Result<()> {
-        //
-        // Iterate over our attributes looking for addresses
-        //
-        let mut attrs = entry.attrs();
-        let mut low: Option<u64> = None;
-        let mut high: Option<u64> = None;
-        let mut origin: Option<HubrisGoff> = None;
-
-        let goff = self.dwarf_goff(unit, entry);
-
-        while let Some(attr) = attrs.next()? {
-            match (attr.name(), attr.value()) {
-                (
-                    gimli::constants::DW_AT_low_pc,
-                    gimli::AttributeValue::Addr(addr),
-                ) => {
-                    low = Some(addr);
-                }
-                (
-                    gimli::constants::DW_AT_high_pc,
-                    gimli::AttributeValue::Udata(data),
-                ) => {
-                    high = Some(data);
-                }
-                (gimli::constants::DW_AT_abstract_origin, _) => {
-                    origin = self.dwarf_value_goff(unit, &attr.value());
-                }
-                _ => {}
-            }
-        }
-
-        let origin = match (low, high, origin) {
-            (Some(addr), Some(len), Some(origin)) => {
-                // If we've got the low and high defined, we'll just go ahead
-                // and terminate here.
-                self.inlined
-                    .insert((addr as u32, depth), (len as u32, goff, origin));
-
-                return Ok(());
-            }
-            (None, None, Some(o)) => {
-                // Otherwise, unwrap origin so it can be used below.
-                o
-            }
-            _ => {
-                bail!("missing origin or high or low for {}", goff);
-            }
-        };
-
-        let mut attrs = entry.attrs();
-        while let Some(attr) = attrs.next()? {
-            if let (
-                gimli::constants::DW_AT_ranges,
-                gimli::AttributeValue::RangeListsRef(r),
-            ) = (attr.name(), attr.value())
-            {
-                let raw_ranges = dwarf.ranges.raw_ranges(r, unit.encoding())?;
-                let raw_ranges: Vec<_> = raw_ranges.collect()?;
-
-                for r in raw_ranges {
-                    if let gimli::RawRngListEntry::AddressOrOffsetPair {
-                        begin,
-                        end,
-                    } = r
-                    {
-                        let begin = begin as u32;
-                        let end = end as u32;
-
-                        self.inlined.insert(
-                            (begin, depth),
-                            (end - begin, goff, origin),
-                        );
-                    }
-                }
-
-                return Ok(());
-            }
-        }
-
-        Err(anyhow!("missing address range for {}", goff))
-    }
-
-    fn dwarf_subprogram<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Result<()> {
-        let mut name = None;
-        let mut linkage_name = None;
-        let mut addr = None;
-        let mut len = None;
-
-        let goff = self.dwarf_goff(unit, entry);
-
-        // Iterate over the attributes in the DIE.
-        let mut attrs = entry.attrs();
-        while let Some(attr) = attrs.next()? {
-            match (attr.name(), attr.value()) {
-                (
-                    gimli::constants::DW_AT_low_pc,
-                    gimli::AttributeValue::Addr(value),
-                ) => {
-                    addr = Some(value);
-                }
-                (
-                    gimli::constants::DW_AT_high_pc,
-                    gimli::AttributeValue::Udata(value),
-                ) => {
-                    len = Some(value);
-                }
-                (gimli::constants::DW_AT_linkage_name, _) => {
-                    linkage_name = dwarf_name(dwarf, attr.value());
-                }
-                (gimli::constants::DW_AT_name, _) => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-                _ => {}
-            }
-        }
-
-        if let Some(name) = name {
-            let demangled_name = if let Some(ln) = linkage_name {
-                demangle_name(ln)
-            } else {
-                name.to_string()
-            };
-
-            self.subprograms.insert(goff, demangled_name.clone());
-
-            match (addr, len) {
-                (Some(addr), Some(len)) if addr != 0 => {
-                    self.dsyms.insert(
-                        addr as u32,
-                        HubrisSymbol {
-                            name: name.to_string(),
-                            demangled_name,
-                            size: len as u32,
-                            addr: addr as u32,
-                            goff,
-                        },
-                    );
-                }
-                _ => {}
-            }
-        } else {
-            log::trace!("no name found for {}", goff);
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let goff = self.dwarf_goff(unit, entry);
-        let mut size = None;
-        let mut encoding = None;
-        let mut name = None;
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_byte_size => {
-                    if let gimli::AttributeValue::Udata(value) = attr.value() {
-                        size = Some(value as usize)
-                    }
-                }
-                gimli::constants::DW_AT_encoding => {
-                    if let gimli::AttributeValue::Encoding(en) = attr.value() {
-                        encoding = Some(match en {
-                            gimli::constants::DW_ATE_signed => {
-                                HubrisEncoding::Signed
-                            }
-
-                            gimli::constants::DW_ATE_unsigned => {
-                                HubrisEncoding::Unsigned
-                            }
-
-                            gimli::constants::DW_ATE_float => {
-                                HubrisEncoding::Float
-                            }
-
-                            gimli::constants::DW_ATE_boolean => {
-                                HubrisEncoding::Bool
-                            }
-
-                            _ => HubrisEncoding::Unknown,
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if let (Some(size), Some(encoding)) = (size, encoding) {
-            self.basetypes.insert(goff, HubrisBasetype { encoding, size });
-        }
-
-        if let Some(name) = name {
-            self.basetypes_byname.insert(String::from(name), goff);
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_ptrtype<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let goff = self.dwarf_goff(unit, entry);
-        let mut underlying = None;
-        let mut name = None;
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_type => {
-                    underlying = self.dwarf_value_goff(unit, &attr.value());
-                }
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-                _ => {}
-            }
-        }
-
-        let name = name.unwrap_or("<UNNAMED>").to_string();
-
-        if let Some(underlying) = underlying {
-            self.ptrtypes.insert(goff, (name, underlying));
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_array<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        parent: HubrisGoff,
-        array: Option<HubrisGoff>,
-    ) -> Result<()> {
-        let goff = self.dwarf_goff(unit, entry);
-
-        let array = match array {
-            Some(array) => array,
-            None => bail!("missing array type for subrange type {}", goff),
-        };
-
-        let count_attr = entry
-            .attrs()
-            .find(|attr| Ok(attr.name() == gimli::constants::DW_AT_count))?;
-        let count = count_attr.and_then(|a| a.udata_value());
-
-        if let Some(count) = count {
-            self.arrays.insert(
-                parent,
-                HubrisArray { goff: array, count: count as usize },
-            );
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_variable<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let goff = self.dwarf_goff(unit, entry);
-        let mut name = None;
-        let mut linkage_name = None;
-        let mut external = None;
-        let mut tgoff = None;
-        let mut dwarf_location = None;
-
-        'attrloop: while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_external => {
-                    if let gimli::AttributeValue::Flag(val) = attr.value() {
-                        external = Some(val);
-                    }
-                }
-
-                gimli::constants::DW_AT_linkage_name => {
-                    linkage_name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_type => {
-                    tgoff = self.dwarf_value_goff(unit, &attr.value());
-                }
-                gimli::constants::DW_AT_location => {
-                    if let Some(e) = attr.exprloc_value() {
-                        let mut eval = e.evaluation(unit.encoding());
-                        let mut result = match eval.evaluate() {
-                            Ok(r) => r,
-                            Err(e) => {
-                                warn!(
-                                    "AT_location evaluation failed \
-                                    for entry {:?}: {}",
-                                    name, e
-                                );
-
-                                continue;
-                            }
-                        };
-                        // Loop to nudge forward the evaluation of the expression,
-                        // if required.
-                        let eval_result = loop {
-                            match result {
-                                gimli::EvaluationResult::Complete => break Some(eval.result()),
-                                gimli::EvaluationResult::RequiresRelocatedAddress(a) => {
-                                    result = match eval.resume_with_relocated_address(a) {
-                                        Ok(r) => r,
-                                        Err(e) => {
-                                            warn!(
-                                                "AT_location failed \
-                                                after resume: {}", e
-                                            );
-                                            break None;
-                                        }
-                                    };
-                                }
-                                x => {
-                                    log::debug!(
-                                        "unsupported eval result: {:?}", x
-                                    );
-                                    break None;
-                                }
-                            }
-                        };
-                        let eval_result = if let Some(e) = eval_result {
-                            e
-                        } else {
-                            // Could not evaluate, abort this attr.
-                            continue;
-                        };
-
-                        // Yay! Now we need to see if the pieces that resulted
-                        // are useful to us. In this case, "variable" means
-                        // static variable, and so we're only interested if it
-                        // consists of a contiguous range of pieces at absolute
-                        // addresses.
-                        if eval_result.iter().any(|piece| {
-                            !matches!(
-                                piece.location,
-                                gimli::read::Location::Address { .. }
-                            )
-                        }) {
-                            // Some portion of this variable is not
-                            // in static memory. Ignore it.
-                            continue;
-                        }
-                        if eval_result
-                            .iter()
-                            .any(|piece| piece.size_in_bits.is_none())
-                        {
-                            // Some portion of this variable does
-                            // not have a fixed size. Ignore it.
-                            continue;
-                        }
-                        // Sort the address/size information from
-                        // the pieces so we can easily determine
-                        // whether they're contiguous.
-                        let mut ranges = eval_result
-                            .into_iter()
-                            .map(|piece| match piece.location {
-                                gimli::read::Location::Address { address } => {
-                                    (address, piece.size_in_bits.unwrap())
-                                }
-                                _ => unreachable!(),
-                            })
-                            .collect::<Vec<_>>();
-                        ranges.sort_by_key(|&(addr, _size)| addr);
-                        let base_addr = if let Some((a, _s)) = ranges.first() {
-                            *a
-                        } else {
-                            // ranges list wound up being empty.
-                            continue;
-                        };
-                        let mut next_addr = base_addr;
-                        for &(a, s) in &ranges {
-                            if a != next_addr {
-                                // Discontiguous.
-                                continue 'attrloop;
-                            }
-                            next_addr = a + s / 8;
-                        }
-
-                        dwarf_location = Some((
-                            base_addr as u32,
-                            (next_addr - base_addr) as u32,
-                        ));
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if external.is_none() && linkage_name.is_none() {
-            return Ok(());
-        }
-
-        if let (Some(name), Some(tgoff)) = (name, tgoff) {
-            let linkage = linkage_name.unwrap_or(name);
-
-            if let Some(syms) = self.esyms_byname.get_vec(linkage) {
-                for &(addr, size) in syms {
-                    if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr)
-                    {
-                        e.insert(HubrisSymbol {
-                            name: String::from(name),
-                            demangled_name: demangle_name(name),
-                            size,
-                            addr,
-                            goff,
-                        });
-                        self.variables.insert(
-                            String::from(name),
-                            HubrisVariable {
-                                goff: tgoff,
-                                addr,
-                                size: size as usize,
-                            },
-                        );
-                        // Note: alternate format (#) removes trailing hash.
-                        // This makes duplicates possible, but, we already
-                        // handle duplicates in unqualified names, and the
-                        // hashes are gross.
-                        let qname =
-                            format!("{:#}", rustc_demangle::demangle(linkage));
-                        self.qualified_variables.insert(
-                            qname,
-                            HubrisVariable {
-                                goff: tgoff,
-                                addr,
-                                size: size as usize,
-                            },
-                        );
-                    }
-                }
-            } else if let Some((addr, size)) = dwarf_location {
-                log::debug!(
-                    "Symbol {} missing from ELF info, using DWARF as fallback.",
-                    linkage
-                );
-                if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr) {
-                    e.insert(HubrisSymbol {
-                        name: String::from(name),
-                        demangled_name: demangle_name(name),
-                        size,
-                        addr,
-                        goff,
-                    });
-                    self.variables.insert(
-                        String::from(name),
-                        HubrisVariable {
-                            goff: tgoff,
-                            addr,
-                            size: size as usize,
-                        },
-                    );
-                    // Note: alternate format (#) removes trailing hash.
-                    // This makes duplicates possible, but, we already
-                    // handle duplicates in unqualified names, and the
-                    // hashes are gross.
-                    let qname =
-                        format!("{:#}", rustc_demangle::demangle(linkage));
-                    self.qualified_variables.insert(
-                        qname,
-                        HubrisVariable {
-                            goff: tgoff,
-                            addr,
-                            size: size as usize,
-                        },
-                    );
-                }
-            } else {
-                self.definitions.insert(String::from(name), tgoff);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_struct<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        namespace: Option<NamespaceId>,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let goff = self.dwarf_goff(unit, entry);
-        let mut name = None;
-        let mut size = None;
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_byte_size => {
-                    if let gimli::AttributeValue::Udata(value) = attr.value() {
-                        size = Some(value as usize)
-                    }
-                }
-
-                _ => {}
-            }
-        }
-
-        if let (Some(name), Some(size)) = (name, size) {
-            self.structs.insert(
-                goff,
-                HubrisStruct {
-                    name: name.to_string(),
-                    size,
-                    goff,
-                    members: Vec::new(),
-                    namespace,
-                },
-            );
-
-            self.structs_byname.insert(name.to_string(), goff);
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_const_enum<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        goff: HubrisGoff,
-        namespace: Option<NamespaceId>,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let mut name = None;
-        let mut size = None;
-        let mut dgoff = None;
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_type => {
-                    dgoff = self.dwarf_value_goff(unit, &attr.value());
-                }
-
-                gimli::constants::DW_AT_byte_size => {
-                    if let gimli::AttributeValue::Udata(value) = attr.value() {
-                        size = Some(value as usize)
-                    }
-                }
-
-                _ => {}
-            }
-        }
-
-        if let (Some(name), Some(dgoff), Some(size)) = (name, dgoff, size) {
-            self.enums.insert(
-                goff,
-                HubrisEnum {
-                    name: name.to_string(),
-                    goff,
-                    size,
-                    discriminant: Some(HubrisDiscriminant::Value(dgoff, 0)),
-                    tag: None,
-                    variants: Vec::new(),
-                    namespace,
-                },
-            );
-
-            self.enums_byname.insert(name.to_string(), goff);
-            Ok(())
-        } else {
-            Err(anyhow!("missing enum on variant {}", goff))
-        }
-    }
-
-    fn dwarf_enum_variant<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        parent: HubrisGoff,
-    ) -> Result<()> {
-        let goff = self.dwarf_goff(unit, entry);
-        let mut attrs = entry.attrs();
-        let mut value = None;
-        let mut name = None;
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_const_value => {
-                    value = attr.value().udata_value();
-
-                    if value.is_none() {
-                        bail!("bad discriminant on const enum {}", parent);
-                    }
-                }
-
-                _ => {}
-            }
-        }
-
-        if let (Some(name), Some(value)) = (name, value) {
-            if let Some(union) = self.enums.get_mut(&parent) {
-                union.variants.push(HubrisEnumVariant {
-                    name: name.to_string(),
-                    offset: 0,
-                    goff: None,
-                    tag: Some(value),
-                });
-
-                Ok(())
-            } else {
-                Err(anyhow!("missing enum for variant {}", goff))
-            }
-        } else {
-            Err(anyhow!("incomplete const enum variant {}", goff))
-        }
-    }
-
-    fn dwarf_enum<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        goff: HubrisGoff,
-        namespace: Option<NamespaceId>,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let mut discr = None;
-
-        //
-        // If we have an enum, we need to first remove it from our
-        // structures, putting back any duplicate names that isn't
-        // this enum.
-        //
-        let union = self.structs.remove(&goff).ok_or_else(|| {
-            anyhow!("goff {:?} not present in structs map", goff)
-        })?;
-        self.structs_byname
-            .get_vec_mut(&union.name)
-            .expect("structs vs structs_byname inconsistency")
-            .retain(|&g| g != goff);
-
-        while let Some(attr) = attrs.next()? {
-            if attr.name() == gimli::constants::DW_AT_discr {
-                discr = self.dwarf_value_goff(unit, &attr.value());
-            }
-        }
-
-        self.enums.insert(
-            goff,
-            HubrisEnum {
-                name: union.name.clone(),
-                goff,
-                size: union.size,
-                discriminant: discr.map(HubrisDiscriminant::Expected),
-                tag: None,
-                variants: Vec::new(),
-                namespace,
-            },
-        );
-
-        self.enums_byname.insert(union.name, goff);
-
-        Ok(())
-    }
-
-    fn dwarf_variant<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        parent: HubrisGoff,
-    ) -> Result<()> {
-        let goff = self.dwarf_goff(unit, entry);
-        let mut attrs = entry.attrs();
-        let mut value = None;
-
-        while let Some(attr) = attrs.next()? {
-            if attr.name() == gimli::constants::DW_AT_discr_value {
-                value = attr.value().udata_value();
-
-                if value.is_none() {
-                    bail!("bad discriminant on union {}", parent);
-                }
-            }
-        }
-
-        if let Some(union) = self.enums.get_mut(&parent) {
-            union.tag = value;
-            Ok(())
-        } else {
-            Err(anyhow!("missing enum on variant {}", goff))
-        }
-    }
-
-    fn dwarf_union<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let goff = self.dwarf_goff(unit, entry);
-        let mut size = None;
-        let mut name = None;
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_byte_size => {
-                    if let gimli::AttributeValue::Udata(value) = attr.value() {
-                        size = Some(value as usize)
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if let (Some(name), Some(size)) = (name, size) {
-            self.unions.insert(
-                goff,
-                HubrisUnion {
-                    name: name.to_string(),
-                    goff,
-                    size,
-                    variants: Vec::new(),
-                },
-            );
-        }
-
-        Ok(())
-    }
-
-    fn dwarf_member<R: gimli::Reader<Offset = usize>>(
-        &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
-        parent: HubrisGoff,
-    ) -> Result<()> {
-        let mut attrs = entry.attrs();
-        let mut name = None;
-        let mut offset = None;
-        let mut goff = None;
-        let member = self.dwarf_goff(unit, entry);
-
-        while let Some(attr) = attrs.next()? {
-            match attr.name() {
-                gimli::constants::DW_AT_name => {
-                    name = dwarf_name(dwarf, attr.value());
-                }
-
-                gimli::constants::DW_AT_data_member_location => {
-                    if let gimli::AttributeValue::Udata(value) = attr.value() {
-                        offset = Some(value as usize)
-                    }
-                }
-
-                gimli::constants::DW_AT_type => {
-                    goff = self.dwarf_value_goff(unit, &attr.value());
-                }
-
-                _ => {}
-            }
-        }
-
-        if let Some(pstruct) = self.structs.get_mut(&parent) {
-            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
-                pstruct.members.push(HubrisStructMember {
-                    name: n.to_string(),
-                    offset: offs,
-                    goff: g,
-                });
-            } else {
-                bail!("member {} is incomplete", member);
-            }
-        } else if let Some(union) = self.enums.get_mut(&parent) {
-            if let Some(HubrisDiscriminant::Expected(expect)) =
-                union.discriminant
-            {
-                if member != expect {
-                    bail!("enum {}: expected discriminant {}, found {}",
-                        union.goff, expect, member);
-                }
-
-                if let (Some(offs), Some(g)) = (offset, goff) {
-                    union.discriminant =
-                        Some(HubrisDiscriminant::Value(g, offs));
-                    return Ok(());
-                }
-
-                bail!("enum {}: incomplete discriminant", union.goff);
-            }
-
-            //
-            // We have an enum variant; add it to our variants.
-            //
-            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
-                union.variants.push(HubrisEnumVariant {
-                    name: n.to_string(),
-                    offset: offs,
-                    goff: Some(g),
-                    tag: union.tag,
-                });
-
-                union.tag = None;
-            } else {
-                bail!("enum variant {} is incomplete", member);
-            }
-        } else if let Some(union) = self.unions.get_mut(&parent) {
-            //
-            // This is possible because of Rust's (unsafe-only) support for
-            // C-style unions.  We track these because some structures are
-            // implemented in terms of them (in particular, MaybeUninit).
-            //
-            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
-                union.variants.push(HubrisEnumVariant {
-                    name: n.to_string(),
-                    offset: offs,
-                    goff: Some(g),
-                    tag: None,
-                });
-            } else {
-                bail!("union {} is incomplete", parent);
-            }
-        } else {
-            log::trace!("no struct/enum found for {}", parent);
-        }
-
-        Ok(())
-    }
-
-    fn load_object_dwarf(
-        &mut self,
-        buffer: &[u8],
-        elf: &goblin::elf::Elf,
-    ) -> Result<()> {
-        // Load all of the sections. This "load" operation just gets the data in
-        // RAM -- since we've already loaded the Elf file, this can't fail.
-        let dwarf = gimli::Dwarf::<&[u8]>::load(
-            // Load the normal DWARF section(s) from our Elf image.
-            |id| {
-                let sec_result = elf.section_headers.iter().find(|sh| {
-                    if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                        name == id.name()
-                    } else {
-                        false
-                    }
-                });
-                if let Some(sec) = sec_result {
-                    let offset = sec.sh_offset as usize;
-                    let size = sec.sh_size as usize;
-                    buffer.get(offset..offset + size).ok_or_else(|| {
-                        anyhow!("bad offset/size for ELF section {}", id.name())
-                    })
-                } else {
-                    Ok(&[])
-                }
-            },
-            // We don't have a supplemental object file.
-            |_| Ok(&[]),
-        )?;
-
-        // Borrow all sections wrapped in EndianSlices
-        let dwarf = dwarf.borrow(|section| {
-            gimli::EndianSlice::new(section, gimli::LittleEndian)
-        });
-
-        // Iterate over the compilation units.
-        let mut iter = dwarf.units();
-        while let Some(header) = iter.next()? {
-            let unit = dwarf.unit(header)?;
-            let mut entries = unit.entries();
-            let mut depth = 0;
-            let mut stack: Vec<HubrisGoff> = vec![];
-
-            let mut array = None;
-            let mut ns = vec![];
-
-            while let Some((delta, entry)) = entries.next_dfs()? {
-                depth += delta;
-
-                //
-                // See if our depth has become shallower than our namespace,
-                // trimming it until it fits.
-                //
-                while let Some((_, d)) = ns.last() {
-                    if depth > *d {
-                        break;
-                    }
-
-                    ns.pop();
-                }
-
-                let goff = self.dwarf_goff(&unit, entry);
-                self.dwarf_fileline(&dwarf, &unit, entry)?;
-
-                if depth as usize >= stack.len() {
-                    stack.push(goff);
-                } else {
-                    stack[depth as usize] = goff;
-                }
-
-                match entry.tag() {
-                    gimli::constants::DW_TAG_namespace => {
-                        self.dwarf_namespace(&dwarf, entry, depth, &mut ns)?;
-                    }
-
-                    gimli::constants::DW_TAG_inlined_subroutine => {
-                        self.dwarf_inlined(&dwarf, &unit, entry, depth)?;
-                    }
-
-                    gimli::constants::DW_TAG_subprogram => {
-                        self.dwarf_subprogram(&dwarf, &unit, entry)?;
-                    }
-
-                    gimli::constants::DW_TAG_variable => {
-                        self.dwarf_variable(&dwarf, &unit, entry)?;
-                    }
-
-                    gimli::constants::DW_TAG_structure_type => {
-                        let id = ns.last().map(|(id, _)| *id);
-                        self.dwarf_struct(&dwarf, &unit, entry, id)?;
-
-                        //
-                        // We want to also treat a structure as a namespace
-                        // to allow for the disambiguation of embedded
-                        // structures.
-                        //
-                        self.dwarf_namespace(&dwarf, entry, depth, &mut ns)?;
-                    }
-
-                    gimli::constants::DW_TAG_base_type => {
-                        self.dwarf_basetype(&dwarf, &unit, entry)?;
-                    }
-
-                    gimli::constants::DW_TAG_pointer_type => {
-                        self.dwarf_ptrtype(&dwarf, &unit, entry)?;
-                    }
-
-                    gimli::constants::DW_TAG_array_type => {
-                        let mut attrs = entry.attrs();
-
-                        while let Some(attr) = attrs.next()? {
-                            if attr.name() != gimli::constants::DW_AT_type {
-                                continue;
-                            }
-
-                            array = self.dwarf_value_goff(&unit, &attr.value());
-                            break;
-                        }
-                    }
-
-                    gimli::constants::DW_TAG_subrange_type => {
-                        if depth == 0 {
-                            bail!("no array for subrange {}", goff);
-                        }
-
-                        let parent = stack[depth as usize - 1];
-                        self.dwarf_array(&unit, entry, parent, array)?;
-                        array = None;
-                    }
-
-                    gimli::constants::DW_TAG_enumeration_type => {
-                        let id = ns.last().map(|(id, _)| *id);
-                        self.dwarf_const_enum(&dwarf, &unit, entry, goff, id)?;
-                    }
-
-                    gimli::constants::DW_TAG_enumerator => {
-                        let parent = stack[depth as usize - 1];
-
-                        self.dwarf_enum_variant(&dwarf, &unit, entry, parent)?;
-                    }
-
-                    gimli::constants::DW_TAG_variant_part => {
-                        if depth == 0 {
-                            bail!("no enum for variant {}", goff);
-                        }
-
-                        let parent = stack[depth as usize - 1];
-                        let ns = ns.last().map(|(id, _)| *id);
-                        self.dwarf_enum(&unit, entry, parent, ns)?;
-
-                        //
-                        // The discriminant is a (grand)child member; we need
-                        // to duplicate our parent's goff so our child can
-                        // find it.
-                        //
-                        stack[depth as usize] = parent;
-                    }
-
-                    gimli::constants::DW_TAG_variant => {
-                        if depth == 0 {
-                            bail!("no enum for variant {}", goff);
-                        }
-
-                        let parent = stack[depth as usize - 1];
-                        self.dwarf_variant(&unit, entry, parent)?;
-
-                        //
-                        // Our discriminant is still below us as a child
-                        // member, so, as in the DW_TAG_variant_part case
-                        // (which is our parent), we need to copy our parent
-                        // down.
-                        //
-                        stack[depth as usize] = parent;
-                    }
-
-                    gimli::constants::DW_TAG_member => {
-                        if depth == 0 {
-                            bail!("no parent for member {}", goff);
-                        }
-
-                        let parent = stack[depth as usize - 1];
-                        self.dwarf_member(&dwarf, &unit, entry, parent)?;
-                    }
-
-                    gimli::constants::DW_TAG_union_type => {
-                        self.dwarf_union(&dwarf, &unit, entry)?;
-                    }
-
-                    _ => {}
-                }
-            }
-
-            if let Some(array) = array {
-                bail!("missing subrange for array {}", array);
-            }
-        }
-
-        self.current += 1;
-
-        Ok(())
-    }
-
-    fn load_object_frames(
-        &mut self,
-        task: HubrisTask,
-        buffer: &[u8],
-        elf: &goblin::elf::Elf,
-    ) -> Result<()> {
-        let id = gimli::SectionId::DebugFrame.name();
-
-        let sh = elf
-            .section_headers
-            .iter()
-            .find(|sh| {
-                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                    name == id
-                } else {
-                    false
-                }
-            })
-            .ok_or_else(|| anyhow!("couldn't find {}", id))?;
-
-        let offs = sh.sh_offset as usize;
-        let size = sh.sh_size as usize;
-
-        let buf = buffer
-            .get(offs..offs + size)
-            .ok_or_else(|| anyhow!("bad offset/size for ELF section {}", id))?;
-        self.frames.insert(task, buf.to_vec());
-
-        Ok(())
-    }
-
-    fn load_object_idolatry(
-        &mut self,
-        object: &str,
-        buffer: &[u8],
-        elf: &goblin::elf::Elf,
-    ) -> Result<Option<Interface>> {
-        //
-        // If we have an idolatry definition, load that.
-        //
-        let idol = elf.section_headers.iter().find(|sh| {
-            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                name == ".idolatry"
-            } else {
-                false
-            }
-        });
-
-        if let Some(idol) = idol {
-            let offset = idol.sh_offset as usize;
-            let size = idol.sh_size as usize;
-
-            if size == 0 {
-                return Ok(None);
-            }
-
-            let section = buffer
-                .get(offset..offset + size)
-                .ok_or_else(|| anyhow!("bad offset/size for .idolatry"))?;
-
-            let s = str::from_utf8(section).context("bad .idolatry string")?;
-
-            match Interface::from_str(s) {
-                Ok(interface) => Ok(Some(interface)),
-                Err(err) => {
-                    warn!("failed to load Idol definition for {object}: {err}");
-                    log::debug!("failed Idol for {object} ({err:?}): {s}");
-                    Ok(None)
-                }
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn load_function(
-        &mut self,
-        object: &str,
-        task: HubrisTask,
-        func: &str,
-        addr: u32,
-        buffer: &[u8],
-    ) -> Result<()> {
-        let instrs = match self.cs.disasm_all(buffer, addr.into()) {
-            Ok(instrs) => instrs,
-            Err(err) => {
-                bail!(
-                    "failed to disassemble {} (addr 0x{:08x}, {}): {}",
-                    func, addr, buffer.len(), err
-                );
-            }
-        };
-
-        let mut last: (u32, usize) = (0, 0);
-
-        for (ndx, instr) in instrs.iter().enumerate() {
-            let addr: u32 = instr.address() as u32;
-
-            if self.instrs.contains_key(&addr) {
-                //
-                // This is possible because functions can have multiple symbol
-                // table entries; if we have seen this instruction before,
-                // we'll split.
-                //
-                return Ok(());
-            }
-
-            let b = instr.bytes();
-
-            last = (addr, b.len());
-
-            let target = self.instr_branch_target(instr);
-            self.instrs.insert(addr, (b.to_vec(), target));
-
-            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
-
-            //
-            // If we encounter a syscall instruction, we need to analyze
-            // its containing function to determine the hand-written pushes
-            // before any system call in order to be able to successfully
-            // unwind the stack.
-            //
-            if let InsnId(ARM_INSN_SVC) = instr.id() {
-                if task != HubrisTask::Kernel {
-                    self.syscall_pushes.insert(
-                        addr + b.len() as u32,
-                        Some(presyscall_pushes(&self.cs, &instrs[0..ndx])?),
-                    );
-                }
-            }
-        }
-
-        //
-        // Regrettably, if Capstone flies off the rails while disassembling,
-        // it won't flag an error -- it will simply stop short.  Check to see
-        // if we are in this case and explicitly fail.
-        //
-        if last.0 + last.1 as u32 != addr + buffer.len() as u32 {
-            bail!(
-                "short disassembly for {}: \
-                stopped at 0x{:x}, expected to go to 0x{:x}",
-                object, last.0, addr + buffer.len() as u32
-            );
-        }
-
-        Ok(())
-    }
-
-    fn load_object(
-        &mut self,
-        object: &str,
-        task: HubrisTask,
-        buffer: &[u8],
-    ) -> Result<()> {
-        use goblin::elf::section_header;
-
-        let mut heapbss = (None, None);
-        let mut kstack = (None, None);
-
-        let elf = Elf::parse(buffer).map_err(|e| {
-            anyhow!("unrecognized ELF object: {}: {}", object, e)
-        })?;
-
-        let arm = elf.header.e_machine == goblin::elf::header::EM_ARM;
-
-        if !arm {
-            bail!("{} not an ARM ELF object", object);
-        }
-
-        let text = elf.section_headers.iter().find(|sh| {
-            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                name == ".text"
-            } else {
-                false
-            }
-        });
-
-        let textsec = match text {
-            None => {
-                bail!("couldn't find text in ELF object \"{}\"", object);
-            }
-            Some(sec) => sec,
-        };
-
-        let allocs = elf
-            .section_headers
-            .iter()
-            .enumerate()
-            .filter(|(_, sh)| {
-                (sh.sh_flags as u32) & section_header::SHF_ALLOC != 0
-            })
-            .map(|(ndx, _)| ndx)
-            .collect::<HashSet<_>>();
-
-        let offset = textsec.sh_offset as u32;
-        let textsize = textsec.sh_size as u32;
-        let current = self.current;
-
-        log::trace!("loading {} as object {}", object, self.current);
-
-        for sym in elf.syms.iter() {
-            if sym.st_name == 0 {
-                continue;
-            }
-
-            let name = match elf.strtab.get(sym.st_name) {
-                Some(n) => n?,
-                None => {
-                    bail!("bad symbol in {}: {}", object, sym.st_name);
-                }
-            };
-
-            //
-            // We track from the start of our BSS to the end of our heap
-            //
-            if name == "__sbss" {
-                heapbss.0 = Some(sym.st_value as u32);
-            }
-
-            if name == "__eheap" {
-                heapbss.1 = Some(sym.st_value as u32);
-            }
-
-            //
-            // If this is the kernel, keep track of _stack_base and _stack_start
-            // if/when we encounter them
-            //
-            if task == HubrisTask::Kernel
-                && sym.st_shndx == section_header::SHN_ABS as usize
-            {
-                if name == "_stack_base" {
-                    kstack.0 = Some(sym.st_value as u32);
-                }
-
-                if name == "_stack_start" {
-                    kstack.1 = Some(sym.st_value as u32);
-                }
-            }
-
-            //
-            // If this is a zero-sized symbol or not against an allocated
-            // section (e.g., .idolatry), we don't want to keep track of it.
-            //
-            if sym.st_size == 0 || allocs.get(&sym.st_shndx).is_none() {
-                continue;
-            }
-
-            //
-            // On ARM, we must explicitly clear the low bit of the symbol
-            // table, which exists only to indicate a function that contains
-            // Thumb instructions (which is of course every function on a
-            // microprocessor that executes only Thumb instructions).
-            //
-            assert!(arm);
-
-            let val = if sym.is_function() {
-                sym.st_value as u32 & !1
-            } else {
-                sym.st_value as u32
-            };
-
-            let dem = format!("{:#}", demangle(name));
-
-            //
-            // The HUBRIS_IMAGE_ID is a special symbol that denotes an ID
-            // more or less unique to the image.  If we are the kernel and
-            // we encounter this symbol, set our ID.
-            //
-            if task == HubrisTask::Kernel && name == "HUBRIS_IMAGE_ID" {
-                let sec = &elf.section_headers[sym.st_shndx];
-                let offset = sec.sh_offset as u32;
-                let o = ((val - sec.sh_addr as u32) + offset) as usize;
-                let id = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
-                    || anyhow!("bad offset/size for {}: {:?}", name, sym),
-                )?;
-
-                self.imageid = Some((val, id.to_vec()));
-            }
-
-            self.esyms_byname
-                .insert(name.to_string(), (val, sym.st_size as u32));
-            self.esyms.insert(val, (dem, sym.st_size as u32));
-
-            if sym.is_function() {
-                let o = ((val - textsec.sh_addr as u32) + offset) as usize;
-                let t = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
-                    || {
-                        anyhow!("bad offset/size for {}: 0x{:x}, size {}",
-                        name, val, sym.st_size)
-                    },
-                )?;
-
-                self.load_function(object, task, name, val, t)?;
-            }
-        }
-
-        use goblin::elf::program_header::{PF_R, PF_W, PF_X};
-
-        elf.program_headers
-            .iter()
-            .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
-            .map(|h| HubrisRegion {
-                daddr: None,
-                base: h.p_vaddr as u32,
-                size: h.p_memsz as u32,
-                mapsize: h.p_memsz as u32,
-                attr: HubrisRegionAttr {
-                    read: h.p_flags & PF_R != 0,
-                    write: h.p_flags & PF_W != 0,
-                    execute: h.p_flags & PF_X != 0,
-                    device: false,
-                    dma: false,
-                    external: false,
-                },
-                tasks: vec![task],
-            })
-            .for_each(|region| {
-                self.loaded.insert(region.base, region);
-            });
-
-        let memsz = elf.program_headers.iter().fold(0, |ttl, hdr| {
-            if hdr.p_type == goblin::elf::program_header::PT_LOAD {
-                ttl + hdr.p_memsz
-            } else {
-                ttl
-            }
-        });
-
-        if task == HubrisTask::Kernel {
-            let apptable = elf.section_headers.iter().find(|sh| {
-                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                    name == ".hubris_app_table"
-                } else {
-                    false
-                }
-            });
-
-            if let Some(sec) = apptable {
-                let base = sec.sh_offset as usize;
-                let len = sec.sh_size as usize;
-
-                self.apptable = Some((
-                    sec.sh_addr as u32,
-                    buffer[base..base + len].to_vec(),
-                ));
-            }
-
-            if let (Some(base), Some(start)) = kstack {
-                let region = HubrisRegion {
-                    daddr: None,
-                    base,
-                    size: start - base,
-                    mapsize: start - base,
-                    attr: HubrisRegionAttr {
-                        read: true,
-                        write: true,
-                        execute: false,
-                        device: false,
-                        dma: false,
-                        external: false,
-                    },
-                    tasks: vec![task],
-                };
-
-                self.loaded.insert(region.base, region);
-            }
-        }
-
-        self.load_object_dwarf(buffer, &elf)
-            .context(format!("{}: failed to load DWARF", object))?;
-
-        self.load_object_frames(task, buffer, &elf)
-            .context(format!("{}: failed to load debug frames", object))?;
-
-        let iface = self.load_object_idolatry(object, buffer, &elf)?;
-
-        self.modules.insert(
-            textsec.sh_addr as u32,
-            HubrisModule {
-                name: String::from(object),
-                object: current,
-                textbase: (textsec.sh_addr as u32),
-                textsize,
-                memsize: memsz as u32,
-                heapbss,
-                task,
-                iface,
-            },
-        );
-
-        self.tasks.insert(object.to_string(), task);
-
-        Ok(())
-    }
-
     fn load_sensor_config(
         &mut self,
         sensor: &HubrisConfigSensor,
@@ -2648,10 +894,10 @@ impl HubrisArchive {
             if let Some(names) = &d.sensors.as_ref().unwrap().names {
                 if idx >= names.len() {
                     bail!(
-                            "name array is too short ({}) for sensor index ({})",
-                            names.len(),
-                            idx
-                        );
+                        "name array is too short ({}) for sensor index ({})",
+                        names.len(),
+                        idx
+                    );
                 } else {
                     Ok(names[idx].clone())
                 }
@@ -2861,7 +1107,7 @@ impl HubrisArchive {
                             .iter()
                             .position(|n| n == name)
                         {
-                            Some(i) => i.try_into().unwrap(),
+                            Some(i) => 1 << i,
                             None => bail!(
                                 "could not find notification '{name}' \
                                  (options are {:?})",
@@ -2996,24 +1242,72 @@ impl HubrisArchive {
         //
         let mut buffer = Vec::new();
         byname!("elf/kernel")?.read_to_end(&mut buffer)?;
-        self.load_object("kernel", HubrisTask::Kernel, &buffer)?;
-
-        let mut id = 0;
+        let mut loader = HubrisObjectLoader::new(self.current)?;
+        loader.load_object("kernel", HubrisTask::Kernel, &buffer)?;
+        self.merge(loader)?;
 
         //
-        // And now we need to find the tasks.  Note that we depend on the
-        // fact that these are stored in task ID order in the
-        // archive.
+        // Find and unzip tasks in parallel.  Note that into_par_iter discards
+        // ordering, so we store an additional index as the first element in the
+        // resulting tuple for later sorting.
         //
-        Self::for_each_task(&mut archive, |path, buffer| {
-            self.load_object(
-                path.file_name().unwrap().to_str().unwrap(),
-                HubrisTask::Task(id),
-                buffer,
-            )?;
-            id += 1;
-            Ok(())
-        })?;
+        use rayon::prelude::*;
+        let mut objects = (0..archive.len())
+            .into_par_iter()
+            .map(|i| -> Result<Option<(usize, String, Vec<u8>)>> {
+                // ZipArchive is cheap to clone since the backing is cheap
+                let mut archive = archive.clone();
+                let mut file = archive.by_index(i)?;
+                let path = Path::new(file.name());
+                let pieces = path.iter().collect::<Vec<_>>();
+
+                //
+                // If the second-to-last element of our path is "task", we have
+                // a winner!
+                //
+                if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
+                    return Ok(None);
+                }
+
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)?;
+                let filename = Path::new(file.name());
+                Ok(Some((
+                    i,
+                    filename.file_name().unwrap().to_str().unwrap().to_owned(),
+                    buffer,
+                )))
+            })
+            .filter_map(|f| f.transpose())
+            .collect::<Result<Vec<_>>>()?;
+
+        //
+        // Sort by file index then convert from file index -> task index.
+        //
+        // This depends on the fact that tasks are stored in task ID order in
+        // the archive!
+        //
+        objects.sort();
+        for (i, o) in objects.iter_mut().enumerate() {
+            o.0 = i;
+        }
+
+        // Load each task using a HubrisObjectLoader, which can run
+        // independently in a thread.
+        let files = objects
+            .into_par_iter()
+            .map(|(id, name, buf)| {
+                let id: u32 = id.try_into().unwrap();
+                let mut loader = HubrisObjectLoader::new(self.current + id)?;
+                loader.load_object(&name, HubrisTask::Task(id), &buf)?;
+                Ok(loader)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        for loader in files {
+            self.merge(loader)?;
+        }
+        assert_eq!(self.current as usize, self.tasks.len());
 
         //
         // Now that we have loaded our tasks, load our extern regions.
@@ -3023,14 +1317,14 @@ impl HubrisArchive {
         //
         // Post-process our enums and structs to add their fully scoped names.
         //
-        let mut work = vec![];
+        let mut work = BTreeSet::new();
 
         for (name, enums) in self.enums_byname.iter_all() {
             for goff in enums.iter() {
                 let n = self.enums.get(goff).unwrap().namespace;
 
                 if let Some(full) = self.namespaces.to_full_name(n, name)? {
-                    work.push((full, *goff));
+                    work.insert((full, *goff));
                 }
             }
         }
@@ -3039,14 +1333,14 @@ impl HubrisArchive {
             self.enums_byname.insert(name.clone(), *goff);
         }
 
-        let mut work = vec![];
+        let mut work = BTreeSet::new();
 
         for (name, structs) in self.structs_byname.iter_all() {
             for goff in structs.iter() {
                 let n = self.structs.get(goff).unwrap().namespace;
 
                 if let Some(full) = self.namespaces.to_full_name(n, name)? {
-                    work.push((full, *goff));
+                    work.insert((full, *goff));
                 }
             }
         }
@@ -3062,23 +1356,95 @@ impl HubrisArchive {
         archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
         mut f: F,
     ) -> Result<()> {
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i)?;
-            let path = Path::new(file.name());
-            let pieces = path.iter().collect::<Vec<_>>();
+        use rayon::prelude::*;
+        let files = (0..archive.len())
+            .into_par_iter()
+            .map(|i| {
+                // ZipArchive is cheap to clone since the backing is cheap
+                let mut archive = archive.clone();
+                let mut file = archive.by_index(i)?;
+                let path = Path::new(file.name());
+                let pieces = path.iter().collect::<Vec<_>>();
 
-            //
-            // If the second-to-last element of our path is "task", we have a
-            // winner!
-            //
-            if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
-                continue;
-            }
+                //
+                // If the second-to-last element of our path is "task", we have
+                // a winner!
+                //
+                if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
+                    return Ok(None);
+                }
 
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)?;
-            f(Path::new(file.name()), &buffer)?;
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)?;
+                Ok(Some((file.name().to_owned(), buffer)))
+            })
+            .filter_map(|f| f.transpose())
+            .collect::<Result<Vec<(String, Vec<u8>)>, anyhow::Error>>()?;
+
+        for (file_name, buffer) in files {
+            f(Path::new(&file_name), &buffer)?;
         }
+        Ok(())
+    }
+
+    fn merge(&mut self, loader: HubrisObjectLoader) -> Result<()> {
+        if loader.imageid.is_some() {
+            self.imageid = loader.imageid;
+        }
+        if loader.apptable.is_some() {
+            self.apptable = loader.apptable;
+        }
+        self.esyms_byname.extend(loader.esyms_byname);
+
+        self.esyms.extend(loader.esyms);
+        self.tasks.extend(loader.tasks);
+        self.modules.extend(loader.modules);
+        self.frames.extend(loader.frames);
+        self.loaded.extend(loader.loaded);
+        self.instrs.extend(loader.instrs);
+        self.syscall_pushes.extend(loader.syscall_pushes);
+        self.unions.extend(loader.unions);
+        self.src.extend(loader.src);
+        self.enums_byname.extend(loader.enums_byname);
+        self.structs_byname.extend(loader.structs_byname);
+        self.arrays.extend(loader.arrays);
+        self.basetypes.extend(loader.basetypes);
+        self.basetypes_byname.extend(loader.basetypes_byname);
+        self.ptrtypes.extend(loader.ptrtypes);
+        self.inlined.extend(loader.inlined);
+        self.subprograms.extend(loader.subprograms);
+        self.dsyms.extend(loader.dsyms);
+        self.variables.extend(loader.variables);
+        self.qualified_variables.extend(loader.qualified_variables);
+        self.definitions.extend(loader.definitions);
+
+        // Namespaces need to be shifted when merging into the global namespaces
+        // vec.  This change applies to the `namespace` member in structs and
+        // enums, as well as the `namespaces` table itself.
+        let ns_offset = self.namespaces.0.len();
+
+        self.namespaces.0.extend(loader.namespaces.0.into_iter().map(
+            |mut v| {
+                if let Some(n) = &mut v.parent {
+                    n.0 += ns_offset;
+                }
+                v
+            },
+        ));
+        self.structs.extend(loader.structs.into_iter().map(|(goff, mut s)| {
+            if let Some(n) = &mut s.namespace {
+                n.0 += ns_offset;
+            }
+            (goff, s)
+        }));
+        self.enums.extend(loader.enums.into_iter().map(|(goff, mut s)| {
+            if let Some(n) = &mut s.namespace {
+                n.0 += ns_offset;
+            }
+            (goff, s)
+        }));
+
+        self.current += 1;
         Ok(())
     }
 
@@ -3362,7 +1728,9 @@ impl HubrisArchive {
 
         let contents = fs::read(kernel)?;
 
-        self.load_object("kernel", HubrisTask::Kernel, &contents)?;
+        let mut loader = HubrisObjectLoader::new(self.current)?;
+        loader.load_object("kernel", HubrisTask::Kernel, &contents)?;
+        self.merge(loader)?;
 
         Ok(())
     }
@@ -3402,7 +1770,7 @@ impl HubrisArchive {
     }
 
     ///
-    /// Looks up the specfied structure.  This returns a Result and not an
+    /// Looks up the specified structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be
     /// present, and be present exactly once.  If needed structures begin
     /// having their names duplicated in modules, we may need to support
@@ -3624,9 +1992,10 @@ impl HubrisArchive {
     ) -> Result<Option<HubrisTask>> {
         //
         // If this is a dump and it only contains a single task, there is
-        // no current task.
+        // no current task.  If this is an online task, then we can't read
+        // kernel memory remotely, so we can't tell.
         //
-        if self.task_dump.is_some() {
+        if self.task_dump.is_some() || core.is_net() || core.is_archive() {
             return Ok(None);
         }
 
@@ -3730,7 +2099,7 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        if core.is_net() {
+        if core.is_net() || core.is_archive() {
             return Ok(());
         }
 
@@ -4460,7 +2829,7 @@ impl HubrisArchive {
         // plus any needed re-alignment.
         //
         let adjust = (nregs_frame as u32) * 4
-            + crate::arch::exception_stack_realign(&rval);
+            + humility_arch_arm::exception_stack_realign(&rval);
 
         rval.insert(ARMRegister::SP, sp + adjust);
 
@@ -5367,6 +3736,1915 @@ impl HubrisArchive {
             (HubrisType::Ptr(l), HubrisType::Ptr(r)) => self.differ(l, r),
             _ => Ok(true),
         }
+    }
+}
+
+/// Loader for a single ELF file
+///
+/// This duplicates many member variables from `HubrisArchive`; this `struct` is
+/// meant to be used for parallel loading, after which point everything is
+/// merged using `HubrisArchive::merge`.
+struct HubrisObjectLoader {
+    current: u32,
+
+    // image ID
+    imageid: Option<(u32, Vec<u8>)>,
+
+    // ELF symbols: name to value/length
+    esyms_byname: MultiMap<String, (u32, u32)>,
+
+    // ELF symbols: address to name/length tuple
+    esyms: BTreeMap<u32, (String, u32)>,
+
+    // Tasks: name of task to ID
+    tasks: HashMap<String, HubrisTask>,
+
+    // Modules: text address to module
+    modules: BTreeMap<u32, HubrisModule>,
+
+    // DWARF call frame debugging sections: task to raw bytes
+    frames: HashMap<HubrisTask, Vec<u8>>,
+
+    // loaded regions
+    loaded: BTreeMap<u32, HubrisRegion>,
+
+    // app table
+    apptable: Option<(u32, Vec<u8>)>,
+
+    // Instructions: address to bytes/target tuple. The target will be None if
+    // the instruction did not decode as some kind of jump/branch/call.
+    instrs: HashMap<u32, (Vec<u8>, Option<HubrisTarget>)>,
+
+    // Manual stack pushes before a syscall
+    syscall_pushes: HashMap<u32, Option<Vec<ARMRegister>>>,
+
+    // Unions: goff to union
+    unions: HashMap<HubrisGoff, HubrisUnion>,
+
+    // Enums: goff to enum
+    enums: HashMap<HubrisGoff, HubrisEnum>,
+
+    // Structures: goff to struct
+    structs: HashMap<HubrisGoff, HubrisStruct>,
+
+    // DWARF source code: goff to file/line
+    src: HashMap<HubrisGoff, HubrisSrc>,
+
+    // Enums: name to goff
+    enums_byname: MultiMap<String, HubrisGoff>,
+
+    // Structures: name to goff
+    structs_byname: MultiMap<String, HubrisGoff>,
+
+    // Arrays: goff to array
+    arrays: HashMap<HubrisGoff, HubrisArray>,
+
+    // Base types: goff to size
+    basetypes: HashMap<HubrisGoff, HubrisBasetype>,
+
+    // Base types: name to goff
+    basetypes_byname: HashMap<String, HubrisGoff>,
+
+    // Base types: goff to underlying type
+    ptrtypes: HashMap<HubrisGoff, (String, HubrisGoff)>,
+
+    // Space of all namespaces -- but namespacesspace seems needlessly cruel
+    namespaces: Namespaces,
+
+    // Inlined: address/nesting tuple to length/goff/origin tuple
+    inlined: BTreeMap<(u32, isize), (u32, HubrisGoff, HubrisGoff)>,
+
+    // Subprograms: goff to demangled name
+    subprograms: HashMap<HubrisGoff, String>,
+
+    // DWARF symbols: address to HubrisSymbol
+    dsyms: BTreeMap<u32, HubrisSymbol>,
+
+    // Variables: name to goff/address/size tuple. Note that variables declared
+    // in different modules will appear to have the same name here. Consider
+    // using qualified_variables instead.
+    variables: MultiMap<String, HubrisVariable>,
+
+    // Qualified Variables: fully qualified Rust demangled name to
+    // goff/address/size tuple.
+    qualified_variables: MultiMap<String, HubrisVariable>,
+
+    // Definitions: name to goff
+    definitions: MultiMap<String, HubrisGoff>,
+}
+
+impl HubrisObjectLoader {
+    fn new(current: u32) -> Result<Self> {
+        Ok(Self {
+            current,
+            apptable: None,
+            imageid: None,
+            arrays: HashMap::new(),
+            variables: MultiMap::new(),
+            basetypes: HashMap::new(),
+            basetypes_byname: HashMap::new(),
+            esyms: BTreeMap::new(),
+            esyms_byname: MultiMap::new(),
+            tasks: HashMap::new(),
+            dsyms: BTreeMap::new(),
+            modules: BTreeMap::new(),
+            definitions: MultiMap::new(),
+            enums: HashMap::new(),
+            enums_byname: MultiMap::new(),
+            frames: HashMap::new(),
+            inlined: BTreeMap::new(),
+            instrs: HashMap::new(),
+            loaded: BTreeMap::new(),
+            ptrtypes: HashMap::new(),
+            unions: HashMap::new(),
+            namespaces: Namespaces::new(),
+            qualified_variables: MultiMap::new(),
+            src: HashMap::new(),
+            structs: HashMap::new(),
+            structs_byname: MultiMap::new(),
+            subprograms: HashMap::new(),
+            syscall_pushes: HashMap::new(),
+        })
+    }
+
+    fn load_object(
+        &mut self,
+        object: &str,
+        task: HubrisTask,
+        buffer: &[u8],
+    ) -> Result<()> {
+        //
+        // Initialize Capstone, being sure to specify not only our
+        // architecture but also that we are disassembling Thumb-2 --
+        // and (importantly) to allow M-profile instructions.
+        //
+        let mut cs = Capstone::new()
+            .arm()
+            .mode(arch::arm::ArchMode::Thumb)
+            .extra_mode(std::iter::once(arch::arm::ArchExtraMode::MClass))
+            .detail(true)
+            .build()
+            .map_err(|e| anyhow!("failed to initialize disassembler: {e:?}"))?;
+        cs.set_skipdata(true).expect("failed to set skipdata");
+
+        use goblin::elf::section_header;
+
+        let mut heapbss = (None, None);
+        let mut kstack = (None, None);
+
+        let elf = Elf::parse(buffer).map_err(|e| {
+            anyhow!("unrecognized ELF object: {}: {}", object, e)
+        })?;
+
+        let arm = elf.header.e_machine == goblin::elf::header::EM_ARM;
+
+        if !arm {
+            bail!("{} not an ARM ELF object", object);
+        }
+
+        let text = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".text"
+            } else {
+                false
+            }
+        });
+
+        let textsec = match text {
+            None => {
+                bail!("couldn't find text in ELF object \"{}\"", object);
+            }
+            Some(sec) => sec,
+        };
+
+        let allocs = elf
+            .section_headers
+            .iter()
+            .enumerate()
+            .filter(|(_, sh)| {
+                (sh.sh_flags as u32) & section_header::SHF_ALLOC != 0
+            })
+            .map(|(ndx, _)| ndx)
+            .collect::<HashSet<_>>();
+
+        let offset = textsec.sh_offset as u32;
+        let textsize = textsec.sh_size as u32;
+
+        log::trace!("loading {} as object {}", object, self.current);
+
+        for sym in elf.syms.iter() {
+            if sym.st_name == 0 {
+                continue;
+            }
+
+            let name = match elf.strtab.get(sym.st_name) {
+                Some(n) => n?,
+                None => {
+                    bail!("bad symbol in {}: {}", object, sym.st_name);
+                }
+            };
+
+            //
+            // We track from the start of our BSS to the end of our heap
+            //
+            if name == "__sbss" {
+                heapbss.0 = Some(sym.st_value as u32);
+            }
+
+            if name == "__eheap" {
+                heapbss.1 = Some(sym.st_value as u32);
+            }
+
+            //
+            // If this is the kernel, keep track of _stack_base and _stack_start
+            // if/when we encounter them
+            //
+            if task == HubrisTask::Kernel
+                && sym.st_shndx == section_header::SHN_ABS as usize
+            {
+                if name == "_stack_base" {
+                    kstack.0 = Some(sym.st_value as u32);
+                }
+
+                if name == "_stack_start" {
+                    kstack.1 = Some(sym.st_value as u32);
+                }
+            }
+
+            //
+            // If this is a zero-sized symbol or not against an allocated
+            // section (e.g., .idolatry), we don't want to keep track of it.
+            //
+            if sym.st_size == 0 || allocs.get(&sym.st_shndx).is_none() {
+                continue;
+            }
+
+            //
+            // On ARM, we must explicitly clear the low bit of the symbol
+            // table, which exists only to indicate a function that contains
+            // Thumb instructions (which is of course every function on a
+            // microprocessor that executes only Thumb instructions).
+            //
+            assert!(arm);
+
+            let val = if sym.is_function() {
+                sym.st_value as u32 & !1
+            } else {
+                sym.st_value as u32
+            };
+
+            let dem = format!("{:#}", demangle(name));
+
+            //
+            // The HUBRIS_IMAGE_ID is a special symbol that denotes an ID
+            // more or less unique to the image.  If we are the kernel and
+            // we encounter this symbol, set our ID.
+            //
+            if task == HubrisTask::Kernel && name == "HUBRIS_IMAGE_ID" {
+                let sec = &elf.section_headers[sym.st_shndx];
+                let offset = sec.sh_offset as u32;
+                let o = ((val - sec.sh_addr as u32) + offset) as usize;
+                let id = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
+                    || anyhow!("bad offset/size for {}: {:?}", name, sym),
+                )?;
+
+                self.imageid = Some((val, id.to_vec()));
+            }
+
+            self.esyms_byname
+                .insert(name.to_string(), (val, sym.st_size as u32));
+            self.esyms.insert(val, (dem, sym.st_size as u32));
+
+            if sym.is_function() {
+                let o = ((val - textsec.sh_addr as u32) + offset) as usize;
+                let t = buffer.get(o..o + (sym.st_size as usize)).ok_or_else(
+                    || {
+                        anyhow!(
+                            "bad offset/size for {}: 0x{:x}, size {}",
+                            name,
+                            val,
+                            sym.st_size
+                        )
+                    },
+                )?;
+
+                self.load_function(object, task, name, val, t, &cs)?;
+            }
+        }
+
+        use goblin::elf::program_header::{PF_R, PF_W, PF_X};
+
+        elf.program_headers
+            .iter()
+            .filter(|h| h.p_type == goblin::elf::program_header::PT_LOAD)
+            .map(|h| HubrisRegion {
+                daddr: None,
+                base: h.p_vaddr as u32,
+                size: h.p_memsz as u32,
+                mapsize: h.p_memsz as u32,
+                attr: HubrisRegionAttr {
+                    read: h.p_flags & PF_R != 0,
+                    write: h.p_flags & PF_W != 0,
+                    execute: h.p_flags & PF_X != 0,
+                    device: false,
+                    dma: false,
+                    external: false,
+                },
+                tasks: vec![task],
+            })
+            .for_each(|region| {
+                self.loaded.insert(region.base, region);
+            });
+
+        let memsz = elf.program_headers.iter().fold(0, |ttl, hdr| {
+            if hdr.p_type == goblin::elf::program_header::PT_LOAD {
+                ttl + hdr.p_memsz
+            } else {
+                ttl
+            }
+        });
+
+        if task == HubrisTask::Kernel {
+            let apptable = elf.section_headers.iter().find(|sh| {
+                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                    name == ".hubris_app_table"
+                } else {
+                    false
+                }
+            });
+
+            if let Some(sec) = apptable {
+                let base = sec.sh_offset as usize;
+                let len = sec.sh_size as usize;
+
+                self.apptable = Some((
+                    sec.sh_addr as u32,
+                    buffer[base..base + len].to_vec(),
+                ));
+            }
+
+            if let (Some(base), Some(start)) = kstack {
+                let region = HubrisRegion {
+                    daddr: None,
+                    base,
+                    size: start - base,
+                    mapsize: start - base,
+                    attr: HubrisRegionAttr {
+                        read: true,
+                        write: true,
+                        execute: false,
+                        device: false,
+                        dma: false,
+                        external: false,
+                    },
+                    tasks: vec![task],
+                };
+
+                self.loaded.insert(region.base, region);
+            }
+        }
+
+        self.load_object_dwarf(buffer, &elf)
+            .context(format!("{}: failed to load DWARF", object))?;
+
+        self.load_object_frames(task, buffer, &elf)
+            .context(format!("{}: failed to load debug frames", object))?;
+
+        let iface = self.load_object_idolatry(object, buffer, &elf)?;
+
+        self.modules.insert(
+            textsec.sh_addr as u32,
+            HubrisModule {
+                name: String::from(object),
+                object: self.current,
+                textbase: (textsec.sh_addr as u32),
+                textsize,
+                memsize: memsz as u32,
+                heapbss,
+                task,
+                iface,
+            },
+        );
+
+        self.tasks.insert(object.to_string(), task);
+
+        Ok(())
+    }
+
+    fn load_function(
+        &mut self,
+        object: &str,
+        task: HubrisTask,
+        func: &str,
+        addr: u32,
+        buffer: &[u8],
+        cs: &Capstone,
+    ) -> Result<()> {
+        let instrs = match cs.disasm_all(buffer, addr.into()) {
+            Ok(instrs) => instrs,
+            Err(err) => {
+                bail!(
+                    "failed to disassemble {} (addr 0x{:08x}, {}): {}",
+                    func,
+                    addr,
+                    buffer.len(),
+                    err
+                );
+            }
+        };
+
+        let mut last: (u32, usize) = (0, 0);
+
+        for (ndx, instr) in instrs.iter().enumerate() {
+            let addr: u32 = instr.address() as u32;
+
+            if self.instrs.contains_key(&addr) {
+                //
+                // This is possible because functions can have multiple symbol
+                // table entries; if we have seen this instruction before,
+                // we'll split.
+                //
+                return Ok(());
+            }
+
+            let b = instr.bytes();
+
+            last = (addr, b.len());
+
+            let target = self.instr_branch_target(cs, instr);
+            self.instrs.insert(addr, (b.to_vec(), target));
+
+            const ARM_INSN_SVC: u32 = arch::arm::ArmInsn::ARM_INS_SVC as u32;
+
+            //
+            // If we encounter a syscall instruction, we need to analyze
+            // its containing function to determine the hand-written pushes
+            // before any system call in order to be able to successfully
+            // unwind the stack.
+            //
+            if let InsnId(ARM_INSN_SVC) = instr.id() {
+                if task != HubrisTask::Kernel {
+                    self.syscall_pushes.insert(
+                        addr + b.len() as u32,
+                        Some(presyscall_pushes(cs, &instrs[0..ndx])?),
+                    );
+                }
+            }
+        }
+
+        //
+        // Regrettably, if Capstone flies off the rails while disassembling,
+        // it won't flag an error -- it will simply stop short.  Check to see
+        // if we are in this case and explicitly fail.
+        //
+        if last.0 + last.1 as u32 != addr + buffer.len() as u32 {
+            bail!(
+                "short disassembly for {}: \
+                stopped at 0x{:x}, expected to go to 0x{:x}",
+                object,
+                last.0,
+                addr + buffer.len() as u32
+            );
+        }
+
+        Ok(())
+    }
+
+    fn load_object_dwarf(
+        &mut self,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<()> {
+        // Load all of the sections. This "load" operation just gets the data in
+        // RAM -- since we've already loaded the Elf file, this can't fail.
+        let dwarf = gimli::Dwarf::<&[u8]>::load(
+            // Load the normal DWARF section(s) from our Elf image.
+            |id| {
+                let sec_result = elf.section_headers.iter().find(|sh| {
+                    if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                        name == id.name()
+                    } else {
+                        false
+                    }
+                });
+                if let Some(sec) = sec_result {
+                    let offset = sec.sh_offset as usize;
+                    let size = sec.sh_size as usize;
+                    buffer.get(offset..offset + size).ok_or_else(|| {
+                        anyhow!("bad offset/size for ELF section {}", id.name())
+                    })
+                } else {
+                    Ok(&[])
+                }
+            },
+            // We don't have a supplemental object file.
+            |_| Ok(&[]),
+        )?;
+
+        // Borrow all sections wrapped in EndianSlices
+        let dwarf = dwarf.borrow(|section| {
+            gimli::EndianSlice::new(section, gimli::LittleEndian)
+        });
+
+        // Iterate over the compilation units.
+        let mut iter = dwarf.units();
+        while let Some(header) = iter.next()? {
+            let unit = dwarf.unit(header)?;
+            let mut entries = unit.entries();
+            let mut depth = 0;
+            let mut stack: Vec<HubrisGoff> = vec![];
+
+            let mut array = None;
+            let mut ns = vec![];
+
+            while let Some((delta, entry)) = entries.next_dfs()? {
+                depth += delta;
+
+                //
+                // See if our depth has become shallower than our namespace,
+                // trimming it until it fits.
+                //
+                while let Some((_, d)) = ns.last() {
+                    if depth > *d {
+                        break;
+                    }
+
+                    ns.pop();
+                }
+
+                let goff = self.dwarf_goff(&unit, entry);
+                self.dwarf_fileline(&dwarf, &unit, entry)?;
+
+                if depth as usize >= stack.len() {
+                    stack.push(goff);
+                } else {
+                    stack[depth as usize] = goff;
+                }
+
+                match entry.tag() {
+                    gimli::constants::DW_TAG_namespace => {
+                        self.dwarf_namespace(&dwarf, entry, depth, &mut ns)?;
+                    }
+
+                    gimli::constants::DW_TAG_inlined_subroutine => {
+                        self.dwarf_inlined(&dwarf, &unit, entry, depth)?;
+                    }
+
+                    gimli::constants::DW_TAG_subprogram => {
+                        self.dwarf_subprogram(&dwarf, &unit, entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_variable => {
+                        self.dwarf_variable(&dwarf, &unit, entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_structure_type => {
+                        let id = ns.last().map(|(id, _)| *id);
+                        self.dwarf_struct(&dwarf, &unit, entry, id)?;
+
+                        //
+                        // We want to also treat a structure as a namespace
+                        // to allow for the disambiguation of embedded
+                        // structures.
+                        //
+                        self.dwarf_namespace(&dwarf, entry, depth, &mut ns)?;
+                    }
+
+                    gimli::constants::DW_TAG_base_type => {
+                        self.dwarf_basetype(&dwarf, &unit, entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_pointer_type => {
+                        self.dwarf_ptrtype(&dwarf, &unit, entry)?;
+                    }
+
+                    gimli::constants::DW_TAG_array_type => {
+                        let mut attrs = entry.attrs();
+
+                        while let Some(attr) = attrs.next()? {
+                            if attr.name() != gimli::constants::DW_AT_type {
+                                continue;
+                            }
+
+                            array = self.dwarf_value_goff(&unit, &attr.value());
+                            break;
+                        }
+                    }
+
+                    gimli::constants::DW_TAG_subrange_type => {
+                        if depth == 0 {
+                            bail!("no array for subrange {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_array(&unit, entry, parent, array)?;
+                        array = None;
+                    }
+
+                    gimli::constants::DW_TAG_enumeration_type => {
+                        let id = ns.last().map(|(id, _)| *id);
+                        self.dwarf_const_enum(&dwarf, &unit, entry, goff, id)?;
+                    }
+
+                    gimli::constants::DW_TAG_enumerator => {
+                        let parent = stack[depth as usize - 1];
+
+                        self.dwarf_enum_variant(&dwarf, &unit, entry, parent)?;
+                    }
+
+                    gimli::constants::DW_TAG_variant_part => {
+                        if depth == 0 {
+                            bail!("no enum for variant {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_enum(&unit, entry, parent)?;
+
+                        //
+                        // The discriminant is a (grand)child member; we need
+                        // to duplicate our parent's goff so our child can
+                        // find it.
+                        //
+                        stack[depth as usize] = parent;
+                    }
+
+                    gimli::constants::DW_TAG_variant => {
+                        if depth == 0 {
+                            bail!("no enum for variant {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_variant(&unit, entry, parent)?;
+
+                        //
+                        // Our discriminant is still below us as a child
+                        // member, so, as in the DW_TAG_variant_part case
+                        // (which is our parent), we need to copy our parent
+                        // down.
+                        //
+                        stack[depth as usize] = parent;
+                    }
+
+                    gimli::constants::DW_TAG_member => {
+                        if depth == 0 {
+                            bail!("no parent for member {}", goff);
+                        }
+
+                        let parent = stack[depth as usize - 1];
+                        self.dwarf_member(&dwarf, &unit, entry, parent)?;
+                    }
+
+                    gimli::constants::DW_TAG_union_type => {
+                        self.dwarf_union(&dwarf, &unit, entry)?;
+                    }
+
+                    _ => {}
+                }
+            }
+
+            if let Some(array) = array {
+                bail!("missing subrange for array {}", array);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn load_object_frames(
+        &mut self,
+        task: HubrisTask,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<()> {
+        let id = gimli::SectionId::DebugFrame.name();
+
+        let sh = elf
+            .section_headers
+            .iter()
+            .find(|sh| {
+                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                    name == id
+                } else {
+                    false
+                }
+            })
+            .ok_or_else(|| anyhow!("couldn't find {}", id))?;
+
+        let offs = sh.sh_offset as usize;
+        let size = sh.sh_size as usize;
+
+        let buf = buffer
+            .get(offs..offs + size)
+            .ok_or_else(|| anyhow!("bad offset/size for ELF section {}", id))?;
+        self.frames.insert(task, buf.to_vec());
+
+        Ok(())
+    }
+
+    fn load_object_idolatry(
+        &mut self,
+        object: &str,
+        buffer: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<Option<Interface>> {
+        //
+        // If we have an idolatry definition, load that.
+        //
+        let idol = elf.section_headers.iter().find(|sh| {
+            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                name == ".idolatry"
+            } else {
+                false
+            }
+        });
+
+        if let Some(idol) = idol {
+            let offset = idol.sh_offset as usize;
+            let size = idol.sh_size as usize;
+
+            if size == 0 {
+                return Ok(None);
+            }
+
+            let section = buffer
+                .get(offset..offset + size)
+                .ok_or_else(|| anyhow!("bad offset/size for .idolatry"))?;
+
+            let s = str::from_utf8(section).context("bad .idolatry string")?;
+
+            match Interface::from_str(s) {
+                Ok(interface) => Ok(Some(interface)),
+                Err(err) => {
+                    warn!("failed to load Idol definition for {object}: {err}");
+                    log::debug!("failed Idol for {object} ({err:?}): {s}");
+                    Ok(None)
+                }
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn instr_branch_target(
+        &self,
+        cs: &Capstone,
+        instr: &capstone::Insn,
+    ) -> Option<HubrisTarget> {
+        let detail = cs.insn_detail(instr).ok()?;
+
+        let mut jump = false;
+        let mut call = false;
+        let mut brel = None;
+
+        const BREL: u8 = InsnGroupType::CS_GRP_BRANCH_RELATIVE as u8;
+        const JUMP: u8 = InsnGroupType::CS_GRP_JUMP as u8;
+        const CALL: u8 = InsnGroupType::CS_GRP_CALL as u8;
+        const ARM_REG_PC: u16 = arch::arm::ArmReg::ARM_REG_PC as u16;
+        const ARM_REG_LR: u16 = arch::arm::ArmReg::ARM_REG_LR as u16;
+        const ARM_INSN_POP: u32 = arch::arm::ArmInsn::ARM_INS_POP as u32;
+
+        for g in detail.groups() {
+            match g {
+                InsnGroupId(BREL) => {
+                    let arch = detail.arch_detail();
+                    let ops = arch.operands();
+
+                    let op = ops.last().unwrap_or_else(|| {
+                        panic!("missing operand!");
+                    });
+
+                    if let arch::ArchOperand::ArmOperand(op) = op {
+                        if let arch::arm::ArmOperandType::Imm(a) = op.op_type {
+                            brel = Some(a as u32);
+                        }
+                    }
+                }
+
+                InsnGroupId(JUMP) => {
+                    jump = true;
+                }
+
+                InsnGroupId(CALL) => {
+                    call = true;
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(addr) = brel {
+            if call {
+                return Some(HubrisTarget::Call(addr));
+            } else {
+                return Some(HubrisTarget::Direct(addr));
+            }
+        }
+
+        if call {
+            return Some(HubrisTarget::IndirectCall);
+        }
+
+        //
+        // If this is a JUMP that isn't a CALL, check to see if one of
+        // its operands is LR -- in which case it's a return (or could be
+        // a return).
+        //
+        if jump {
+            for op in detail.arch_detail().operands() {
+                if let arch::ArchOperand::ArmOperand(op) = op {
+                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
+                        op.op_type
+                    {
+                        return Some(HubrisTarget::Return);
+                    }
+                }
+            }
+
+            return Some(HubrisTarget::Indirect);
+        }
+
+        //
+        // Capstone doesn't have a group denoting returns (they are control
+        // transfers, but not considered in the JUMP group), so explicitly
+        // look for a pop instruction that writes to the PC.
+        //
+        if let InsnId(ARM_INSN_POP) = instr.id() {
+            for op in detail.arch_detail().operands() {
+                if let arch::ArchOperand::ArmOperand(op) = op {
+                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
+                        op.op_type
+                    {
+                        return Some(HubrisTarget::Return);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
+        &self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> HubrisGoff {
+        let goff = match entry.offset().to_unit_section_offset(unit) {
+            gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
+            gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
+        };
+
+        HubrisGoff { object: self.current, goff }
+    }
+
+    fn dwarf_union<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut size = None;
+        let mut name = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(size)) = (name, size) {
+            self.unions.insert(
+                goff,
+                HubrisUnion {
+                    name: name.to_string(),
+                    goff,
+                    size,
+                    variants: Vec::new(),
+                },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_member<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let mut name = None;
+        let mut offset = None;
+        let mut goff = None;
+        let member = self.dwarf_goff(unit, entry);
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_data_member_location => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        offset = Some(value as usize)
+                    }
+                }
+
+                gimli::constants::DW_AT_type => {
+                    goff = self.dwarf_value_goff(unit, &attr.value());
+                }
+
+                _ => {}
+            }
+        }
+
+        if let Some(pstruct) = self.structs.get_mut(&parent) {
+            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
+                pstruct.members.push(HubrisStructMember {
+                    name: n.to_string(),
+                    offset: offs,
+                    goff: g,
+                });
+            } else {
+                bail!("member {} is incomplete", member);
+            }
+        } else if let Some(union) = self.enums.get_mut(&parent) {
+            if let Some(HubrisDiscriminant::Expected(expect)) =
+                union.discriminant
+            {
+                if member != expect {
+                    bail!(
+                        "enum {}: expected discriminant {}, found {}",
+                        union.goff,
+                        expect,
+                        member
+                    );
+                }
+
+                if let (Some(offs), Some(g)) = (offset, goff) {
+                    union.discriminant =
+                        Some(HubrisDiscriminant::Value(g, offs));
+                    return Ok(());
+                }
+
+                bail!("enum {}: incomplete discriminant", union.goff);
+            }
+
+            //
+            // We have an enum variant; add it to our variants.
+            //
+            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
+                union.variants.push(HubrisEnumVariant {
+                    name: n.to_string(),
+                    offset: offs,
+                    goff: Some(g),
+                    tag: union.tag,
+                });
+
+                union.tag = None;
+            } else {
+                bail!("enum variant {} is incomplete", member);
+            }
+        } else if let Some(union) = self.unions.get_mut(&parent) {
+            //
+            // This is possible because of Rust's (unsafe-only) support for
+            // C-style unions.  We track these because some structures are
+            // implemented in terms of them (in particular, MaybeUninit).
+            //
+            if let (Some(n), Some(offs), Some(g)) = (name, offset, goff) {
+                union.variants.push(HubrisEnumVariant {
+                    name: n.to_string(),
+                    offset: offs,
+                    goff: Some(g),
+                    tag: None,
+                });
+            } else {
+                bail!("union {} is incomplete", parent);
+            }
+        } else {
+            log::trace!("no struct/enum found for {}", parent);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_value_goff<R: gimli::Reader<Offset = usize>>(
+        &self,
+        unit: &gimli::Unit<R>,
+        value: &gimli::AttributeValue<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Option<HubrisGoff> {
+        let goff = match value {
+            gimli::AttributeValue::UnitRef(offs) => {
+                match offs.to_unit_section_offset(unit) {
+                    gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
+                    gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
+                }
+            }
+
+            gimli::AttributeValue::DebugInfoRef(offs) => offs.0,
+
+            _ => {
+                return None;
+            }
+        };
+
+        Some(HubrisGoff { object: self.current, goff })
+    }
+
+    fn dwarf_variant<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+    ) -> Result<()> {
+        let goff = self.dwarf_goff(unit, entry);
+        let mut attrs = entry.attrs();
+        let mut value = None;
+
+        while let Some(attr) = attrs.next()? {
+            if attr.name() == gimli::constants::DW_AT_discr_value {
+                value = attr.value().udata_value();
+
+                if value.is_none() {
+                    bail!("bad discriminant on union {}", parent);
+                }
+            }
+        }
+
+        if let Some(union) = self.enums.get_mut(&parent) {
+            union.tag = value;
+            Ok(())
+        } else {
+            Err(anyhow!("missing enum on variant {}", goff))
+        }
+    }
+
+    fn dwarf_enum<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        goff: HubrisGoff,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let mut discr = None;
+
+        //
+        // If we have an enum, we need to first remove it from our
+        // structures, putting back any duplicate names that isn't
+        // this enum.
+        //
+        let union = self.structs.remove(&goff).ok_or_else(|| {
+            anyhow!("goff {:?} not present in structs map", goff)
+        })?;
+        self.structs_byname
+            .get_vec_mut(&union.name)
+            .expect("structs vs structs_byname inconsistency")
+            .retain(|&g| g != goff);
+
+        while let Some(attr) = attrs.next()? {
+            if attr.name() == gimli::constants::DW_AT_discr {
+                discr = self.dwarf_value_goff(unit, &attr.value());
+            }
+        }
+
+        self.enums.insert(
+            goff,
+            HubrisEnum {
+                name: union.name.clone(),
+                goff,
+                size: union.size,
+                discriminant: discr.map(HubrisDiscriminant::Expected),
+                tag: None,
+                variants: Vec::new(),
+                namespace: union.namespace,
+            },
+        );
+
+        self.enums_byname.insert(union.name, goff);
+
+        Ok(())
+    }
+
+    fn dwarf_enum_variant<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+    ) -> Result<()> {
+        let goff = self.dwarf_goff(unit, entry);
+        let mut attrs = entry.attrs();
+        let mut value = None;
+        let mut name = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_const_value => {
+                    value = attr.value().udata_value();
+
+                    if value.is_none() {
+                        bail!("bad discriminant on const enum {}", parent);
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(value)) = (name, value) {
+            if let Some(union) = self.enums.get_mut(&parent) {
+                union.variants.push(HubrisEnumVariant {
+                    name: name.to_string(),
+                    offset: 0,
+                    goff: None,
+                    tag: Some(value),
+                });
+
+                Ok(())
+            } else {
+                Err(anyhow!("missing enum for variant {}", goff))
+            }
+        } else {
+            Err(anyhow!("incomplete const enum variant {}", goff))
+        }
+    }
+
+    fn dwarf_const_enum<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        goff: HubrisGoff,
+        namespace: Option<NamespaceId>,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let mut name = None;
+        let mut size = None;
+        let mut dgoff = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_type => {
+                    dgoff = self.dwarf_value_goff(unit, &attr.value());
+                }
+
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(dgoff), Some(size)) = (name, dgoff, size) {
+            self.enums.insert(
+                goff,
+                HubrisEnum {
+                    name: name.to_string(),
+                    goff,
+                    size,
+                    discriminant: Some(HubrisDiscriminant::Value(dgoff, 0)),
+                    tag: None,
+                    variants: Vec::new(),
+                    namespace,
+                },
+            );
+
+            self.enums_byname.insert(name.to_string(), goff);
+            Ok(())
+        } else {
+            Err(anyhow!("missing enum on variant {}", goff))
+        }
+    }
+
+    fn dwarf_array<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        parent: HubrisGoff,
+        array: Option<HubrisGoff>,
+    ) -> Result<()> {
+        let goff = self.dwarf_goff(unit, entry);
+
+        let array = match array {
+            Some(array) => array,
+            None => bail!("missing array type for subrange type {}", goff),
+        };
+
+        let count_attr = entry
+            .attrs()
+            .find(|attr| Ok(attr.name() == gimli::constants::DW_AT_count))?;
+        let count = count_attr.and_then(|a| a.udata_value());
+
+        if let Some(count) = count {
+            self.arrays.insert(
+                parent,
+                HubrisArray { goff: array, count: count as usize },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut size = None;
+        let mut encoding = None;
+        let mut name = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+                gimli::constants::DW_AT_encoding => {
+                    if let gimli::AttributeValue::Encoding(en) = attr.value() {
+                        encoding = Some(match en {
+                            gimli::constants::DW_ATE_signed => {
+                                HubrisEncoding::Signed
+                            }
+
+                            gimli::constants::DW_ATE_unsigned => {
+                                HubrisEncoding::Unsigned
+                            }
+
+                            gimli::constants::DW_ATE_float => {
+                                HubrisEncoding::Float
+                            }
+
+                            gimli::constants::DW_ATE_boolean => {
+                                HubrisEncoding::Bool
+                            }
+
+                            _ => HubrisEncoding::Unknown,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(size), Some(encoding)) = (size, encoding) {
+            self.basetypes.insert(goff, HubrisBasetype { encoding, size });
+        }
+
+        if let Some(name) = name {
+            self.basetypes_byname.insert(String::from(name), goff);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_ptrtype<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut underlying = None;
+        let mut name = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_type => {
+                    underlying = self.dwarf_value_goff(unit, &attr.value());
+                }
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        let name = name.unwrap_or("<UNNAMED>").to_string();
+
+        if let Some(underlying) = underlying {
+            self.ptrtypes.insert(goff, (name, underlying));
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_namespace(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        depth: isize,
+        namespace: &mut Vec<(NamespaceId, isize)>,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+
+        //
+        // For a new namespace, create an entry in our namespaces vector,
+        // and push a tuple consisting of the identifer and our depth.
+        //
+        while let Some(attr) = attrs.next()? {
+            if attr.name() == gimli::constants::DW_AT_name {
+                if let Some(name) = dwarf_name(dwarf, attr.value()) {
+                    namespace.push((
+                        self.namespaces.allocate(
+                            name,
+                            namespace.last().map(|(id, _)| *id),
+                        ),
+                        depth,
+                    ));
+                }
+
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_fileline<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<R>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let mut file = None;
+        let mut line = None;
+
+        let goff = self.dwarf_goff(unit, entry);
+
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_decl_file,
+                    gimli::AttributeValue::FileIndex(value),
+                ) => {
+                    file = Some(value);
+                }
+                (
+                    gimli::constants::DW_AT_decl_line,
+                    gimli::AttributeValue::Udata(value),
+                ) => {
+                    line = Some(value);
+                }
+                _ => {}
+            }
+        }
+
+        if let (Some(file), Some(line)) = (file, line) {
+            let header = match &unit.line_program {
+                Some(program) => program.header(),
+                None => return Ok(()),
+            };
+
+            let file = match header.file(file) {
+                Some(header) => header,
+                None => {
+                    bail!("no header at {}", goff);
+                }
+            };
+
+            let mut comp = None;
+            let directory;
+            if let Some(dir) = file.directory(header) {
+                let dir = dwarf.attr_string(unit, dir)?;
+                let dir = dir.to_string_lossy()?;
+
+                if !dir.starts_with('/') {
+                    if let Some(comp_dir) = &unit.comp_dir {
+                        comp = Some(comp_dir.to_string_lossy()?.into_owned());
+                    }
+                }
+
+                directory = Some(dir.into_owned())
+            } else {
+                directory = None
+            }
+
+            let s = dwarf.attr_string(unit, file.path_name())?;
+            let file = s.to_string_lossy()?.into_owned();
+
+            self.src.insert(
+                goff,
+                HubrisSrc { file, directory, comp_directory: comp, line },
+            );
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_struct<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        namespace: Option<NamespaceId>,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut name = None;
+        let mut size = None;
+
+        while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_byte_size => {
+                    if let gimli::AttributeValue::Udata(value) = attr.value() {
+                        size = Some(value as usize)
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        if let (Some(name), Some(size)) = (name, size) {
+            self.structs.insert(
+                goff,
+                HubrisStruct {
+                    name: name.to_string(),
+                    size,
+                    goff,
+                    members: Vec::new(),
+                    namespace,
+                },
+            );
+
+            self.structs_byname.insert(name.to_string(), goff);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_inlined<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<R>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+        depth: isize,
+    ) -> Result<()> {
+        //
+        // Iterate over our attributes looking for addresses
+        //
+        let mut attrs = entry.attrs();
+        let mut low: Option<u64> = None;
+        let mut high: Option<u64> = None;
+        let mut origin: Option<HubrisGoff> = None;
+
+        let goff = self.dwarf_goff(unit, entry);
+
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_low_pc,
+                    gimli::AttributeValue::Addr(addr),
+                ) => {
+                    low = Some(addr);
+                }
+                (
+                    gimli::constants::DW_AT_high_pc,
+                    gimli::AttributeValue::Udata(data),
+                ) => {
+                    high = Some(data);
+                }
+                (gimli::constants::DW_AT_abstract_origin, _) => {
+                    origin = self.dwarf_value_goff(unit, &attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        let origin = match (low, high, origin) {
+            (Some(addr), Some(len), Some(origin)) => {
+                // If we've got the low and high defined, we'll just go ahead
+                // and terminate here.
+                self.inlined
+                    .insert((addr as u32, depth), (len as u32, goff, origin));
+
+                return Ok(());
+            }
+            (None, None, Some(o)) => {
+                // Otherwise, unwrap origin so it can be used below.
+                o
+            }
+            _ => {
+                bail!("missing origin or high or low for {}", goff);
+            }
+        };
+
+        let mut attrs = entry.attrs();
+        while let Some(attr) = attrs.next()? {
+            if let (
+                gimli::constants::DW_AT_ranges,
+                gimli::AttributeValue::RangeListsRef(r),
+            ) = (attr.name(), attr.value())
+            {
+                let raw_ranges = dwarf.ranges.raw_ranges(r, unit.encoding())?;
+                let raw_ranges: Vec<_> = raw_ranges.collect()?;
+
+                for r in raw_ranges {
+                    if let gimli::RawRngListEntry::AddressOrOffsetPair {
+                        begin,
+                        end,
+                    } = r
+                    {
+                        let begin = begin as u32;
+                        let end = end as u32;
+
+                        self.inlined.insert(
+                            (begin, depth),
+                            (end - begin, goff, origin),
+                        );
+                    }
+                }
+
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("missing address range for {}", goff))
+    }
+
+    fn dwarf_subprogram<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut name = None;
+        let mut linkage_name = None;
+        let mut addr = None;
+        let mut len = None;
+
+        let goff = self.dwarf_goff(unit, entry);
+
+        // Iterate over the attributes in the DIE.
+        let mut attrs = entry.attrs();
+        while let Some(attr) = attrs.next()? {
+            match (attr.name(), attr.value()) {
+                (
+                    gimli::constants::DW_AT_low_pc,
+                    gimli::AttributeValue::Addr(value),
+                ) => {
+                    addr = Some(value);
+                }
+                (
+                    gimli::constants::DW_AT_high_pc,
+                    gimli::AttributeValue::Udata(value),
+                ) => {
+                    len = Some(value);
+                }
+                (gimli::constants::DW_AT_linkage_name, _) => {
+                    linkage_name = dwarf_name(dwarf, attr.value());
+                }
+                (gimli::constants::DW_AT_name, _) => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(name) = name {
+            let demangled_name = if let Some(ln) = linkage_name {
+                demangle_name(ln)
+            } else {
+                name.to_string()
+            };
+
+            self.subprograms.insert(goff, demangled_name.clone());
+
+            match (addr, len) {
+                (Some(addr), Some(len)) if addr != 0 => {
+                    self.dsyms.insert(
+                        addr as u32,
+                        HubrisSymbol {
+                            name: name.to_string(),
+                            demangled_name,
+                            size: len as u32,
+                            addr: addr as u32,
+                            goff,
+                        },
+                    );
+                }
+                _ => {}
+            }
+        } else {
+            log::trace!("no name found for {}", goff);
+        }
+
+        Ok(())
+    }
+
+    fn dwarf_variable<R: gimli::Reader<Offset = usize>>(
+        &mut self,
+        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        unit: &gimli::Unit<R>,
+        entry: &gimli::DebuggingInformationEntry<
+            gimli::EndianSlice<gimli::LittleEndian>,
+            usize,
+        >,
+    ) -> Result<()> {
+        let mut attrs = entry.attrs();
+        let goff = self.dwarf_goff(unit, entry);
+        let mut name = None;
+        let mut linkage_name = None;
+        let mut external = None;
+        let mut tgoff = None;
+        let mut dwarf_location = None;
+
+        'attrloop: while let Some(attr) = attrs.next()? {
+            match attr.name() {
+                gimli::constants::DW_AT_name => {
+                    name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_external => {
+                    if let gimli::AttributeValue::Flag(val) = attr.value() {
+                        external = Some(val);
+                    }
+                }
+
+                gimli::constants::DW_AT_linkage_name => {
+                    linkage_name = dwarf_name(dwarf, attr.value());
+                }
+
+                gimli::constants::DW_AT_type => {
+                    tgoff = self.dwarf_value_goff(unit, &attr.value());
+                }
+                gimli::constants::DW_AT_location => {
+                    if let Some(e) = attr.exprloc_value() {
+                        let mut eval = e.evaluation(unit.encoding());
+                        let mut result = match eval.evaluate() {
+                            Ok(r) => r,
+                            Err(e) => {
+                                warn!(
+                                    "AT_location evaluation failed \
+                                    for entry {:?}: {}",
+                                    name, e
+                                );
+
+                                continue;
+                            }
+                        };
+                        // Loop to nudge forward the evaluation of the expression,
+                        // if required.
+                        let eval_result = loop {
+                            match result {
+                                gimli::EvaluationResult::Complete => break Some(eval.result()),
+                                gimli::EvaluationResult::RequiresRelocatedAddress(a) => {
+                                    result = match eval.resume_with_relocated_address(a) {
+                                        Ok(r) => r,
+                                        Err(e) => {
+                                            warn!(
+                                                "AT_location failed \
+                                                after resume: {}", e
+                                            );
+                                            break None;
+                                        }
+                                    };
+                                }
+                                x => {
+                                    log::debug!(
+                                        "unsupported eval result: {:?}", x
+                                    );
+                                    break None;
+                                }
+                            }
+                        };
+                        let eval_result = if let Some(e) = eval_result {
+                            e
+                        } else {
+                            // Could not evaluate, abort this attr.
+                            continue;
+                        };
+
+                        // Yay! Now we need to see if the pieces that resulted
+                        // are useful to us. In this case, "variable" means
+                        // static variable, and so we're only interested if it
+                        // consists of a contiguous range of pieces at absolute
+                        // addresses.
+                        if eval_result.iter().any(|piece| {
+                            !matches!(
+                                piece.location,
+                                gimli::read::Location::Address { .. }
+                            )
+                        }) {
+                            // Some portion of this variable is not
+                            // in static memory. Ignore it.
+                            continue;
+                        }
+                        if eval_result
+                            .iter()
+                            .any(|piece| piece.size_in_bits.is_none())
+                        {
+                            // Some portion of this variable does
+                            // not have a fixed size. Ignore it.
+                            continue;
+                        }
+                        // Sort the address/size information from
+                        // the pieces so we can easily determine
+                        // whether they're contiguous.
+                        let mut ranges = eval_result
+                            .into_iter()
+                            .map(|piece| match piece.location {
+                                gimli::read::Location::Address { address } => {
+                                    (address, piece.size_in_bits.unwrap())
+                                }
+                                _ => unreachable!(),
+                            })
+                            .collect::<Vec<_>>();
+                        ranges.sort_by_key(|&(addr, _size)| addr);
+                        let base_addr = if let Some((a, _s)) = ranges.first() {
+                            *a
+                        } else {
+                            // ranges list wound up being empty.
+                            continue;
+                        };
+                        let mut next_addr = base_addr;
+                        for &(a, s) in &ranges {
+                            if a != next_addr {
+                                // Discontiguous.
+                                continue 'attrloop;
+                            }
+                            next_addr = a + s / 8;
+                        }
+
+                        dwarf_location = Some((
+                            base_addr as u32,
+                            (next_addr - base_addr) as u32,
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if external.is_none() && linkage_name.is_none() {
+            return Ok(());
+        }
+
+        if let (Some(name), Some(tgoff)) = (name, tgoff) {
+            let linkage = linkage_name.unwrap_or(name);
+
+            if let Some(syms) = self.esyms_byname.get_vec(linkage) {
+                for &(addr, size) in syms {
+                    if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr)
+                    {
+                        e.insert(HubrisSymbol {
+                            name: String::from(name),
+                            demangled_name: demangle_name(name),
+                            size,
+                            addr,
+                            goff,
+                        });
+                        self.variables.insert(
+                            String::from(name),
+                            HubrisVariable {
+                                goff: tgoff,
+                                addr,
+                                size: size as usize,
+                            },
+                        );
+                        // Note: alternate format (#) removes trailing hash.
+                        // This makes duplicates possible, but, we already
+                        // handle duplicates in unqualified names, and the
+                        // hashes are gross.
+                        let qname =
+                            format!("{:#}", rustc_demangle::demangle(linkage));
+                        self.qualified_variables.insert(
+                            qname,
+                            HubrisVariable {
+                                goff: tgoff,
+                                addr,
+                                size: size as usize,
+                            },
+                        );
+                    }
+                }
+            } else if let Some((addr, size)) = dwarf_location {
+                log::debug!(
+                    "Symbol {} missing from ELF info, using DWARF as fallback.",
+                    linkage
+                );
+                if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr) {
+                    e.insert(HubrisSymbol {
+                        name: String::from(name),
+                        demangled_name: demangle_name(name),
+                        size,
+                        addr,
+                        goff,
+                    });
+                    self.variables.insert(
+                        String::from(name),
+                        HubrisVariable {
+                            goff: tgoff,
+                            addr,
+                            size: size as usize,
+                        },
+                    );
+                    // Note: alternate format (#) removes trailing hash.
+                    // This makes duplicates possible, but, we already
+                    // handle duplicates in unqualified names, and the
+                    // hashes are gross.
+                    let qname =
+                        format!("{:#}", rustc_demangle::demangle(linkage));
+                    self.qualified_variables.insert(
+                        qname,
+                        HubrisVariable {
+                            goff: tgoff,
+                            addr,
+                            size: size as usize,
+                        },
+                    );
+                }
+            } else {
+                self.definitions.insert(String::from(name), tgoff);
+            }
+        }
+
+        Ok(())
     }
 }
 

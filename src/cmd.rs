@@ -4,8 +4,8 @@
 
 use anyhow::{bail, Context, Result};
 use clap::Command as ClapCommand;
-use humility::cli::Subcommand;
 use humility::hubris::*;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashMap;
 
@@ -40,7 +40,7 @@ pub fn init(
 }
 
 pub fn subcommand(
-    context: &mut humility::ExecutionContext,
+    context: &mut ExecutionContext,
     commands: &HashMap<&'static str, Command>,
 ) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();

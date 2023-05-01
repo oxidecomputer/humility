@@ -634,7 +634,7 @@ pub fn lookup_reply<'a>(
     let lookup_ok_err = |ok| {
         m.lookup_enum_byname(hubris, ok)?;
         m.lookup_struct_byname(hubris, ok)?;
-        bail!("no type for {}.{op}", iface.name);
+        bail!("couldn't find type {ok} for {}.{op}", iface.name);
     };
 
     let lookup_ok = |ok| {

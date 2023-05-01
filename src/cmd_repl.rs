@@ -11,7 +11,7 @@ use std::{borrow::Cow, collections::HashMap};
 use anyhow::Result;
 use clap::Command as ClapCommand;
 use clap::CommandFactory;
-use humility::cli::Cli;
+use humility_cli::{Cli, ExecutionContext};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 
@@ -69,7 +69,7 @@ impl reedline::Prompt for Prompt {
     }
 }
 
-fn repl(context: &mut humility::ExecutionContext) -> Result<()> {
+fn repl(context: &mut ExecutionContext) -> Result<()> {
     context.is_interactive = true;
 
     // hardcoding to 100 entries for now. Even though this is called
@@ -127,10 +127,7 @@ fn repl(context: &mut humility::ExecutionContext) -> Result<()> {
     }
 }
 
-fn eval(
-    context: &mut humility::ExecutionContext,
-    user_input: &str,
-) -> Result<String> {
+fn eval(context: &mut ExecutionContext, user_input: &str) -> Result<String> {
     let mut input = vec!["humility"];
     input.extend(user_input.split(' '));
 

@@ -2,16 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-pub mod i2c;
-pub mod jefe;
-pub mod stack;
-pub mod test;
-
 use anyhow::{bail, Result};
 use clap::Command as ClapCommand;
-use humility::cli::Cli;
 use humility::core::Core;
 use humility::hubris::*;
+use humility_cli::Cli;
 use std::time::Duration;
 
 #[allow(dead_code)]
@@ -48,7 +43,7 @@ pub struct Command {
     pub app: ClapCommand<'static>,
     pub name: &'static str,
     pub kind: CommandKind,
-    pub run: fn(&mut humility::ExecutionContext) -> Result<()>,
+    pub run: fn(&mut humility_cli::ExecutionContext) -> Result<()>,
 }
 
 impl Command {
@@ -107,10 +102,10 @@ pub fn attach_net(args: &Cli, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
 }
 
 pub fn attach(
-    context: &mut humility::ExecutionContext,
+    context: &mut humility_cli::ExecutionContext,
     attach: Attach,
     validate: Validate,
-    mut run: impl FnMut(&mut humility::ExecutionContext) -> Result<()>,
+    mut run: impl FnMut(&mut humility_cli::ExecutionContext) -> Result<()>,
 ) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
 
@@ -125,8 +120,38 @@ pub fn attach(
                 //
                 if context.cli.dump.is_some() {
                     attach_dump(&context.cli, hubris)
+                } else if context.cli.probe == Some("archive".to_string()) {
+                    //
+                    // If our probe is set to the special "archive" token, we
+                    // will always attach as an archive.  This allows for
+                    // commands to be run against an archive even on a machine
+                    // that has probes attached.
+                    //
+                    humility::core::attach_archive(hubris)
                 } else {
-                    attach_live(&context.cli, hubris)
+                    use humility::core::ProbeError;
+
+                    match attach_live(&context.cli, hubris) {
+                        Ok(core) => Ok(core),
+                        Err(err) if context.cli.probe.is_none() => {
+                            if let Some(ProbeError::NoProbeFound) =
+                                err.downcast_ref::<ProbeError>()
+                            {
+                                //
+                                // We don't have a dump, we don't seem to
+                                // be plugged into anything and the user
+                                // didn't indicate a probe.  In this case,
+                                // we will attach to the archive itself,
+                                // hopefully violating the principle of least
+                                // surprise!
+                                //
+                                humility::core::attach_archive(hubris)
+                            } else {
+                                Err(err)
+                            }
+                        }
+                        Err(err) => Err(err),
+                    }
                 }
             }
         }?);

@@ -11,8 +11,9 @@ clap.workspace = true
 anyhow.workspace = true
 jep106.workspace = true
 parse_int.workspace = true
-log.workspace = true
 
-humility.workspace = true
+humility-cli.workspace = true
 humility-cmd.workspace = true
 humility-hiffy.workspace = true
+humility-i2c.workspace = true
+humility-log.workspace = true

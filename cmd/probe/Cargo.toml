@@ -5,11 +5,12 @@ edition = "2021"
 description = "probe for any attached devices"
 
 [dependencies]
-humility = { workspace = true }
-humility-cortex = { workspace = true }
-humility-cmd = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-log = { workspace = true }
-num-traits = { workspace = true }
-colored = { workspace = true }
+clap.workspace = true
+anyhow.workspace = true
+num-traits.workspace = true
+
+humility.workspace = true
+humility-arch-arm.workspace = true
+humility-cortex.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true

@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.10"
+version = "0.10.15"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -25,14 +25,20 @@ rust-version = "1.68"
 
 [workspace]
 members = [
+    "humility-arch-arm",
     "humility-arch-cortex",
     "humility-cmd",
+    "humility-cli",
     "humility-core",
     "humility-doppel",
     "humility-dump-agent",
     "humility-hiffy",
+    "humility-i2c",
     "humility-idol",
+    "humility-jefe",
+    "humility-log",
     "humility-net-core",
+    "humility-stack",
     "cmd/apptable",
     "cmd/auxflash",
     "cmd/bankerase",
@@ -117,14 +123,20 @@ capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
 
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
+humility-arch-arm = { path = "./humility-arch-arm" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd" }
+humility-cli = { path = "./humility-cli" }
 humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
 humility-hiffy = { path = "./humility-hiffy" }
+humility-i2c = { path = "./humility-i2c" }
 humility-idol = { path = "./humility-idol" }
+humility-jefe = { path = "./humility-jefe" }
 humility_load_derive = { path = "./load_derive" }
+humility-log = { path = "./humility-log" }
 humility-net-core = { path = "./humility-net-core" }
+humility-stack = { path = "./humility-stack" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-bankerase = { path = "./cmd/bankerase", package = "humility-cmd-bankerase" }
@@ -219,6 +231,7 @@ proc-macro2 = "1.0"
 quote = "1.0"
 rand = "0.8"
 raw-cpuid = { version = "11.0.0", features = ["display"] }
+rayon = "1.7"
 reedline = "0.11.0"
 regex = "1.5.5"
 ron = "0.7"
@@ -237,6 +250,7 @@ syn = "1.0"
 tempfile = "3.3"
 termimad = "0.21"
 termios = "0.3" # not usable on windows!
+thiserror = "1.0"
 toml = "0.5"
 trycmd = "0.13.2"
 tui = { version = "0.16", default-features = false }
@@ -263,6 +277,7 @@ spd = { workspace = true }
 humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-bankerase = { workspace = true }

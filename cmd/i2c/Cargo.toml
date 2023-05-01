@@ -5,13 +5,15 @@ edition = "2021"
 description = "scan for and read I2C devices"
 
 [dependencies]
-hif.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
 indicatif.workspace = true
-log.workspace = true
 
-humility.workspace = true
+hif.workspace = true
+
+humility-cli.workspace = true
 humility-cmd.workspace = true
 humility-hiffy.workspace = true
+humility-i2c.workspace = true
+humility-log.workspace = true

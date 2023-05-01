@@ -30,6 +30,7 @@
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use std::convert::TryInto;
 
@@ -38,7 +39,7 @@ use std::convert::TryInto;
 struct StackmarginArgs {}
 
 #[rustfmt::skip::macros(println, bail)]
-fn stackmargin(context: &mut humility::ExecutionContext) -> Result<()> {
+fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
@@ -56,6 +57,11 @@ fn stackmargin(context: &mut humility::ExecutionContext) -> Result<()> {
         let offs = i as usize * task.size;
         let addr = base + offs as u32;
         core.read_8(addr, &mut taskblock[offs..offs + task.size])?;
+    } else if core.is_net() {
+        humility::msg!(
+            "skipping supervisor because we are reading over the network"
+        );
+        core.read_8(base + task.size as u32, &mut taskblock[task.size..])?;
     } else {
         core.read_8(base, &mut taskblock)?;
     }
@@ -86,11 +92,20 @@ fn stackmargin(context: &mut humility::ExecutionContext) -> Result<()> {
             }
         }
 
+        let module = hubris.lookup_module(HubrisTask::Task(i))?;
+
+        if core.is_net() && i == 0 {
+            println!(
+                "{:2} {:18} unknown (cannot read supervisor memory remotely)",
+                i, module.name
+            );
+            continue;
+        }
+
         let offs = i as usize * task.size;
         let daddr = taskblock32(offs + descriptor as usize);
         let initial = core.read_word_32(daddr + initial_stack)?;
 
-        let module = hubris.lookup_module(HubrisTask::Task(i))?;
         let region = find(initial)?;
 
         if region.tasks.len() != 1 || region.tasks[0] != module.task {

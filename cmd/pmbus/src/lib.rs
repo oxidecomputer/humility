@@ -3,12 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use colored::Colorize;
-use humility::cli::Subcommand;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::i2c::I2cArgs;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
+use humility_i2c::I2cArgs;
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
@@ -1288,7 +1288,7 @@ fn writes(
 }
 
 #[allow(clippy::print_literal)]
-fn pmbus(context: &mut humility::ExecutionContext) -> Result<()> {
+fn pmbus(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     let subargs = PmbusArgs::try_parse_from(subargs)?;

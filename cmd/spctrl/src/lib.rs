@@ -44,7 +44,7 @@
 //! 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 //! ```
 
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 
@@ -88,7 +88,7 @@ struct SpCtrlArgs {
     word: bool,
 }
 
-fn spctrl(context: &mut humility::ExecutionContext) -> Result<()> {
+fn spctrl(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = SpCtrlArgs::try_parse_from(subargs)?;

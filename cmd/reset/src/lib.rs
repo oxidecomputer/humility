@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
-use humility::cli::Subcommand;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 
 #[derive(Parser, Debug)]
@@ -23,7 +23,7 @@ struct ResetArgs {
     halt: bool,
 }
 
-fn reset(context: &mut humility::ExecutionContext) -> Result<()> {
+fn reset(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ResetArgs::try_parse_from(subargs)?;
 

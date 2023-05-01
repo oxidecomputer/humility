@@ -82,7 +82,8 @@ The debug probe to use is specified to Humility via the `-p` option
 which can have the following values:
 
 - `auto` (default): Automatically determine how to attach to the
-  microcontroller.
+  microcontroller.  If there is no probe found, this will default
+  to `archive`.
 
 - `usb`: Attach directly via USB to a debug probe.  When multiple probes
   are plugged in via USB, a probe index must be specified as a suffix
@@ -113,13 +114,20 @@ which can have the following values:
   a halt. To recover from this condition, send an explicit ^C to the
   running GDB and continue from the resulting stop.
 
+- `archive`: Do not attach to a probe at all, but rather use the specified
+  Hubris archive as the target.  Those commands that operate only by reading
+  flash (e.g., `humility map`) can operate in this mode, but those that
+  operate by reading RAM (e.g., `humility tasks`) will fail.  Commands that
+  operate on either (e.g., `humility readmem` or `humility readvar`) will
+  succeed or fail depending on their input.
+
 ### Archive
 
 Many Humility commands require the complete Hubris archive.  This is a ZIP
 archive created by the build process, and includes all binaries as well as the
 `app.toml` file used to configure the Hubris archive.  The archive can be
 found in the `target` for Hubris, and will end with (`.zip`), e.g.:
-`/path/to/hubris/target/demo-stm32h743-nucleo/dist/build-demo-stm32h743-nucleo.zip`.
+`/path/to/hurbis/target/demo-stm32h753-nucleo/dist/default/build-demo-stm32h753-nucleo.zip`.
 The Hubris archive is specified via the `-a` option or the `HUMILITY_ARCHIVE`
 environment variable.
 
@@ -1383,12 +1391,7 @@ temperature (if measured).
 ### `humility powershelf`
 
 `humility powershelf` allows for remotely dumping the state of the PSC
-power shelves, via the same network mechanism as `humility rpc`.
-
-This command has the same requirements as `humility rpc` and uses the same
-underlying mechanisms: the Hubris `udprpc` task should be listening on port
-8 and the matching Hubris archive is required. See the `humility rpc`
-documentation for more details.
+power shelves.
 
 This command is currently hard-coded to support only the MWOCP68, and it
 dumps 50+ properties described in the ACAN-114 application note. It will
