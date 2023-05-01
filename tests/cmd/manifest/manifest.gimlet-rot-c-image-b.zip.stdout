@@ -1,0 +1,22 @@
+     version => hubris build archive v8
+     git rev => 3ef17a63208abb04104d2ba5554734a5bcbdcba5-dirty
+    image id => [4b, 40, 5d, 50, a4, 61, c0, d]
+       board => gimlet-rot-c
+        name => gimlet-rot-c
+       image => b
+      target => thumbv8m.main-none-eabihf
+    features => dice-self
+  total size => 179K
+ kernel size => 52K
+       tasks => 10
+                ID OBJ TASK                SIZE FEATURES
+                 0   3 idle                0.1K 
+                 1   6 gpio_driver         5.3K 
+                 2   5 syscon_driver       5.9K 
+                 3   1 jefe                7.4K itm
+                 4   9 dumper             10.2K 
+                 5   4 update_server      15.6K 
+                 6  10 sp_measure         11.9K 
+                 7   8 swd                12.9K 
+                 8   2 hiffy              26.4K lpc55, gpio, spctrl, update
+                 9   7 sprot              31.5K spi0

@@ -3,6 +3,7 @@
     image id => [d0, b4, 39, bf, 67, ad, 82, 60]
        board => stm32g070
         name => demo-stm32g070-nucleo
+       image => <unknown>
       target => thumbv6m-none-eabi
     features => g070
   total size => 26K

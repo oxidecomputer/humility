@@ -1,0 +1,39 @@
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x00050000 - 0x0005017f     384 r----- -  kernel
+-          0x00050180 - 0x00059bb7   38KiB r-x--- -  kernel
+-          0x00059bb8 - 0x0005c9eb   11KiB r----- -  kernel
+-          0x0005c9f0 - 0x0005c9ff      16 rw---- -  kernel
+0x0005b9c4 0x0005ca00 - 0x0005ca5f      96 r-x--- 2  idle
+0x0005ba18 0x0005ca60 - 0x0005deff    5KiB r-x--- 5  gpio_driver
+0x0005ba00 0x0005df00 - 0x0005f61f    5KiB r-x--- 4  syscon_driver
+0x0005b994 0x0005f620 - 0x0006133f    7KiB r-x--- 0  jefe
+0x0005ba60 0x00061340 - 0x00063bbf   10KiB r-x--- 8  dumper
+0x0005b9dc 0x00063bc0 - 0x000669bf   11KiB r-x--- 3  update_server
+0x0005ba78 0x000669c0 - 0x000698ff   11KiB r-x--- 9  sp_measure
+0x0005ba48 0x00069900 - 0x0006cc3f   12KiB r-x--- 7  swd
+0x0005b9ac 0x0006cc40 - 0x00071b7f   19KiB r-x--- 1  hiffy
+0x0005ba30 0x00071b80 - 0x00078d1f   28KiB r-x--- 6  sprot
+0x0005b928 0x03000000 - 0x0300ffff   64KiB rw-d-- 6  [bootrom] sprot
+-          0x20004000 - 0x200043ff    1KiB rw---- -  kernel
+-          0x20004400 - 0x20004403       4 rw---- -  kernel
+-          0x20004408 - 0x20004fff    2KiB rw---- -  kernel
+0x0005ba54 0x20005000 - 0x20005c7f    3KiB rw---- 7  swd
+0x0005b9d0 0x20005c80 - 0x20005d7f     256 rw---- 2  idle
+0x0005ba0c 0x20005d80 - 0x200061ff    1KiB rw---- 4  syscon_driver
+0x0005ba24 0x20006200 - 0x2000667f    1KiB rw---- 5  gpio_driver
+0x0005b9a0 0x20006680 - 0x20006cdf    1KiB rw---- 0  jefe
+0x0005b9e8 0x20006ce0 - 0x2000755f    2KiB rw---- 3  update_server
+0x0005ba84 0x20007560 - 0x20007f7f    2KiB rw---- 9  sp_measure
+0x0005ba6c 0x20007f80 - 0x20008bbf    3KiB rw---- 8  dumper
+0x0005b9b8 0x20008bc0 - 0x2000b47f   10KiB rw---- 1  hiffy
+0x0005ba3c 0x2000b480 - 0x2001011f   19KiB rw---- 6  sprot
+0x0005b988 0x40000000 - 0x40000fff    4KiB rw-d-- 4  [syscon] syscon_driver
+0x0005b970 0x40001000 - 0x40001fff    4KiB rw-d-- 5  [iocon] gpio_driver, swd
+0x0005b91c 0x40013000 - 0x40013fff    4KiB rw-d-- 4  [anactrl] syscon_driver
+0x0005b97c 0x40020000 - 0x40020fff    4KiB rw-d-- 4  [pmc] syscon_driver
+0x0005b934 0x40034000 - 0x40034fff    4KiB rw-d-- 3  [flash_controller] update_server
+0x0005b958 0x4008c000 - 0x4008e483    9KiB rw-d-- 5  [gpio] gpio_driver
+0x0005b940 0x40096000 - 0x40096fff    4KiB rw-d-- 7  [flexcomm5] swd
+0x0005b94c 0x4009f000 - 0x4009ffff    4KiB rw-d-- 6  [flexcomm8] sprot
+0x0005b964 0x400a4000 - 0x400a4fff    4KiB rw-d-- 3  [hash_crypt] update_server
+0x0005b9f4 0x40102000 - 0x40102fff    4KiB r---m- 3  update_server

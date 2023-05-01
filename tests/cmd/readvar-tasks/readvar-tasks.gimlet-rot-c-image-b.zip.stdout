@@ -1,0 +1,192 @@
+kern::startup::HUBRIS_TASK_DESCS (0x0005b758) = [
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b994 (&kern::descs::RegionDesc),
+            0x5b9a0 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x5f621,
+        initial_stack: 0x20006c80,
+        priority: 0x0,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x0
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b9ac (&kern::descs::RegionDesc),
+            0x5b9b8 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x6cc41,
+        initial_stack: 0x200093c0,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x1
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b9c4 (&kern::descs::RegionDesc),
+            0x5b9d0 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x5ca01,
+        initial_stack: 0x20005d80,
+        priority: 0x7,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x2
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b9dc (&kern::descs::RegionDesc),
+            0x5b9e8 (&kern::descs::RegionDesc),
+            0x5b9f4 (&kern::descs::RegionDesc),
+            0x5b934 (&kern::descs::RegionDesc),
+            0x5b964 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x63bc1,
+        initial_stack: 0x200074e0,
+        priority: 0x3,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x3
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5ba00 (&kern::descs::RegionDesc),
+            0x5ba0c (&kern::descs::RegionDesc),
+            0x5b91c (&kern::descs::RegionDesc),
+            0x5b97c (&kern::descs::RegionDesc),
+            0x5b988 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x5df01,
+        initial_stack: 0x20006180,
+        priority: 0x2,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x4
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5ba18 (&kern::descs::RegionDesc),
+            0x5ba24 (&kern::descs::RegionDesc),
+            0x5b958 (&kern::descs::RegionDesc),
+            0x5b970 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x5ca61,
+        initial_stack: 0x20006600,
+        priority: 0x3,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x5
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5ba30 (&kern::descs::RegionDesc),
+            0x5ba3c (&kern::descs::RegionDesc),
+            0x5b928 (&kern::descs::RegionDesc),
+            0x5b94c (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x71b81,
+        initial_stack: 0x2000f480,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x6
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5ba48 (&kern::descs::RegionDesc),
+            0x5ba54 (&kern::descs::RegionDesc),
+            0x5b940 (&kern::descs::RegionDesc),
+            0x5b970 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x69901,
+        initial_stack: 0x200053e8,
+        priority: 0x4,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x7
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5ba60 (&kern::descs::RegionDesc),
+            0x5ba6c (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x61341,
+        initial_stack: 0x200089a8,
+        priority: 0x5,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x8
+    },
+    TaskDesc {
+        regions: [
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5ba78 (&kern::descs::RegionDesc),
+            0x5ba84 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc),
+            0x5b910 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x669c1,
+        initial_stack: 0x20007d60,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x0
+        },
+        index: 0x9
+    }
+]

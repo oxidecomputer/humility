@@ -3,6 +3,7 @@
     image id => [64, dc, 4, 49, 54, 2, 18, f6]
        board => gimlet-b
         name => gimlet-b-lab
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => 
   total size => 803K
