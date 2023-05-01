@@ -3,6 +3,7 @@
     image id => [cf, eb, 61, 2b, a0, 4e, bb, be]
        board => nucleo-h753zi
         name => demo-stm32h753-nucleo
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => h753, itm
   total size => 342K

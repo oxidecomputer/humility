@@ -3,6 +3,7 @@
     image id => [d6, 75, 7e, 7c, f1, 5d, 47, 12]
        board => stm32g0b1
         name => demo-stm32g0b1-nucleo
+       image => <unknown>
       target => thumbv6m-none-eabi
     features => g0b1, panic-halt
   total size => 43K

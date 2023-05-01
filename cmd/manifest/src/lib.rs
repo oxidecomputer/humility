@@ -75,21 +75,8 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 
     let size = |task| hubris.lookup_module(task).unwrap().memsize;
 
-    print(
-        "version",
-        match &manifest.version {
-            Some(s) => s,
-            None => "<unknown>",
-        },
-    );
-
-    print(
-        "git rev",
-        match &manifest.gitrev {
-            Some(s) => s,
-            None => "<unknown>",
-        },
-    );
+    print("version", manifest.version.as_deref().unwrap_or("<unknown>"));
+    print("git rev", manifest.gitrev.as_deref().unwrap_or("<unknown>"));
 
     println!(
         "{:>12} => {}",
@@ -102,30 +89,10 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         },
     );
 
-    print(
-        "board",
-        match &manifest.board {
-            Some(s) => s,
-            None => "<unknown>",
-        },
-    );
-
-    print(
-        "name",
-        match &manifest.name {
-            Some(s) => s,
-            None => "<unknown>",
-        },
-    );
-
-    print(
-        "target",
-        match &manifest.target {
-            Some(s) => s,
-            None => "<unknown>",
-        },
-    );
-
+    print("board", manifest.board.as_deref().unwrap_or("<unknown>"));
+    print("name", manifest.name.as_deref().unwrap_or("<unknown>"));
+    print("image", manifest.image.as_deref().unwrap_or("<unknown>"));
+    print("target", manifest.target.as_deref().unwrap_or("<unknown>"));
     print("features", &manifest.features.join(", "));
 
     let ttl = hubris.modules().fold(0, |ttl, m| ttl + m.memsize);

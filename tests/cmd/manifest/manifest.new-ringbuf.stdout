@@ -3,6 +3,7 @@
     image id => [b6, 6d, 98, 7c, 94, fe, 22, 39]
        board => sidecar-a
         name => sidecar-a
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => itm
   total size => 911K

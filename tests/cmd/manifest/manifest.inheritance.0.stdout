@@ -3,6 +3,7 @@
     image id => [c2, e5, f4, 60, 74, 31, bd, 3c]
        board => stm32g070
         name => app-g070-is-renamed
+       image => <unknown>
       target => thumbv6m-none-eabi
     features => g070, panic-halt
   total size => 16K
