@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.14"
+version = "0.10.15"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -231,6 +231,7 @@ proc-macro2 = "1.0"
 quote = "1.0"
 rand = "0.8"
 raw-cpuid = { version = "11.0.0", features = ["display"] }
+rayon = "1.7"
 reedline = "0.11.0"
 regex = "1.5.5"
 ron = "0.7"

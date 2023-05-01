@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.14"
+version = "0.10.15"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -2074,6 +2074,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "probe-rs",
+ "rayon",
  "regex",
  "ron 0.7.1",
  "rusb",
