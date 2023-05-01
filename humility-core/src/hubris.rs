@@ -1217,14 +1217,14 @@ impl HubrisArchive {
         self.merge(loader)?;
 
         //
-        // And now we need to find the tasks.  Note that we depend on the
-        // fact that these are stored in task ID order in the
-        // archive.
+        // Find and unzip tasks in parallel.  Note that into_par_iter discards
+        // ordering, so we store an additional index as the first element in the
+        // resulting tuple for later sorting.
         //
         use rayon::prelude::*;
-        let objects = (0..archive.len())
+        let mut objects = (0..archive.len())
             .into_par_iter()
-            .map(|i| -> Result<Option<(String, Vec<u8>)>> {
+            .map(|i| -> Result<Option<(usize, String, Vec<u8>)>> {
                 // ZipArchive is cheap to clone since the backing is cheap
                 let mut archive = archive.clone();
                 let mut file = archive.by_index(i)?;
@@ -1243,17 +1243,30 @@ impl HubrisArchive {
                 file.read_to_end(&mut buffer)?;
                 let filename = Path::new(file.name());
                 Ok(Some((
+                    i,
                     filename.file_name().unwrap().to_str().unwrap().to_owned(),
                     buffer,
                 )))
             })
             .filter_map(|f| f.transpose())
             .collect::<Result<Vec<_>>>()?;
+
+        //
+        // Sort by file index then convert from file index -> task index.
+        //
+        // This depends on the fact that tasks are stored in task ID order in
+        // the archive!
+        //
+        objects.sort();
+        for (i, o) in objects.iter_mut().enumerate() {
+            o.0 = i;
+        }
+
+        // Load each task using a HubrisObjectLoader, which can run
+        // independently in a thread.
         let files = objects
-            .into_iter()
-            .enumerate()
-            .par_bridge()
-            .map(|(id, (name, buf))| {
+            .into_par_iter()
+            .map(|(id, name, buf)| {
                 let id: u32 = id.try_into().unwrap();
                 let mut loader = HubrisObjectLoader::new(self.current + id)?;
                 loader.load_object(&name, HubrisTask::Task(id), &buf)?;
@@ -1264,6 +1277,7 @@ impl HubrisArchive {
         for loader in files {
             self.merge(loader)?;
         }
+        assert_eq!(self.current as usize, self.tasks.len());
 
         //
         // Now that we have loaded our tasks, load our extern regions.
@@ -1703,7 +1717,7 @@ impl HubrisArchive {
     }
 
     ///
-    /// Looks up the specfied structure.  This returns a Result and not an
+    /// Looks up the specified structure.  This returns a Result and not an
     /// Option because the assumption is that the structure is needed to be
     /// present, and be present exactly once.  If needed structures begin
     /// having their names duplicated in modules, we may need to support
