@@ -3,6 +3,7 @@
     image id => <none>
        board => stm32g0b1
         name => demo-stm32g0b1-nucleo
+       image => <unknown>
       target => thumbv6m-none-eabi
     features => g0b1, log-none
   total size => 80K

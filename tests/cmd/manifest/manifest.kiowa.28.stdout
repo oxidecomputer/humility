@@ -3,6 +3,7 @@
     image id => [8b, 2b, 2c, 71, 24, 1e, 62, ba]
        board => gimlet-1
         name => gimlet
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => itm
   total size => 213K

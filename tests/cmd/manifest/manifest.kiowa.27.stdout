@@ -3,6 +3,7 @@
     image id => [a, 69, 13, dd, 32, 1f, 2b, 99]
        board => lpcxpresso55s69
         name => lpc55xpresso
+       image => <unknown>
       target => thumbv8m.main-none-eabihf
     features => itm
   total size => 88K

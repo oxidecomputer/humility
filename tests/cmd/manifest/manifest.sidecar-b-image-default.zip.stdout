@@ -3,6 +3,7 @@
     image id => [61, 18, 2d, 66, 2f, f, 86, 4f]
        board => sidecar-b
         name => sidecar-b
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => dump
   total size => 1025K
