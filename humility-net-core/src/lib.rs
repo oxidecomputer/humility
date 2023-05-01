@@ -176,32 +176,13 @@ impl NetCore {
     }
 
     fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if let Some((&base, &(size, offset))) =
-            self.flash.regions.range(..=addr).rev().next()
-        {
-            if base <= addr && base + size > addr {
-                let start = (addr - base) as usize;
-                let roffs = offset + start;
-
-                if start + data.len() <= size as usize {
-                    data.copy_from_slice(
-                        &self.flash.contents[roffs..roffs + data.len()],
-                    );
-
-                    return Ok(());
-                }
-
-                let len = (size as usize) - start;
-                data[..len]
-                    .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
-
-                return self.read(addr + len as u32, &mut data[len..]);
-            }
+        if self.flash.read(addr, data).is_some() {
+            Ok(())
+        } else {
+            self.read_ram(addr, data).context(format!(
+                "0x{addr:0x} can't be read via the archive or over the network"
+            ))
         }
-
-        self.read_ram(addr, data).context(format!(
-            "0x{addr:0x} can't be read via the archive or over the network"
-        ))
     }
 
     /// Reads data from RAM using the (UDP) dump agent as a proxy

@@ -120,8 +120,38 @@ pub fn attach(
                 //
                 if context.cli.dump.is_some() {
                     attach_dump(&context.cli, hubris)
+                } else if context.cli.probe == Some("archive".to_string()) {
+                    //
+                    // If our probe is set to the special "archive" token, we
+                    // will always attach as an archive.  This allows for
+                    // commands to be run against an archive even on a machine
+                    // that has probes attached.
+                    //
+                    humility::core::attach_archive(hubris)
                 } else {
-                    attach_live(&context.cli, hubris)
+                    use humility::core::ProbeError;
+
+                    match attach_live(&context.cli, hubris) {
+                        Ok(core) => Ok(core),
+                        Err(err) if context.cli.probe.is_none() => {
+                            if let Some(ProbeError::NoProbeFound) =
+                                err.downcast_ref::<ProbeError>()
+                            {
+                                //
+                                // We don't have a dump, we don't seem to
+                                // be plugged into anything and the user
+                                // didn't indicate a probe.  In this case,
+                                // we will attach to the archive itself,
+                                // hopefully violating the principle of least
+                                // surprise!
+                                //
+                                humility::core::attach_archive(hubris)
+                            } else {
+                                Err(err)
+                            }
+                        }
+                        Err(err) => Err(err),
+                    }
                 }
             }
         }?);
