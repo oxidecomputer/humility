@@ -1377,33 +1377,13 @@ impl ArchiveCore {
     }
 
     fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if let Some((&base, &(size, offset))) =
-            self.flash.regions.range(..=addr).rev().next()
-        {
-            if base <= addr && base + size > addr {
-                let start = (addr - base) as usize;
-                let roffs = offset + start;
-
-                if start + data.len() <= size as usize {
-                    data.copy_from_slice(
-                        &self.flash.contents[roffs..roffs + data.len()],
-                    );
-
-                    return Ok(());
-                }
-
-                let len = (size as usize) - start;
-                data[..len]
-                    .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
-
-                return self.read(addr + len as u32, &mut data[len..]);
-            }
-        }
-
-        bail!(
-            "{addr:#x} is not in flash and therefore can't \
-            be read via just an archive; did you mean to plug in a probe?"
-        );
+        self.flash.read(addr, data).ok_or_else(|| {
+            anyhow!(
+                "{addr:#x} is not in flash and therefore can't \
+                be read from just an archive; did you mean to plug in a \
+                probe or connect via the network?"
+            )
+        })
     }
 }
 

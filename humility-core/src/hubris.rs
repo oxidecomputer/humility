@@ -382,6 +382,32 @@ impl HubrisFlashMap {
 
         Ok(Self { contents, regions })
     }
+
+    pub fn read(&self, addr: u32, data: &mut [u8]) -> Option<()> {
+        if let Some((&base, &(size, offset))) =
+            self.regions.range(..=addr).rev().next()
+        {
+            if base <= addr && base + size > addr {
+                let start = (addr - base) as usize;
+                let roffs = offset + start;
+
+                if start + data.len() <= size as usize {
+                    data.copy_from_slice(
+                        &self.contents[roffs..roffs + data.len()],
+                    );
+
+                    return Some(());
+                }
+
+                let len = (size as usize) - start;
+                data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
+
+                return self.read(addr + len as u32, &mut data[len..]);
+            }
+        }
+
+        None
+    }
 }
 
 //

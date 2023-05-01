@@ -115,39 +115,9 @@ impl DumpAgentCore {
     }
 
     fn read_flash(&self, addr: u32, data: &mut [u8]) -> Result<()> {
-        if let Some((&base, &(size, offset))) =
-            self.flash.regions.range(..=addr).rev().next()
-        {
-            if base > addr || base + size <= addr {
-                //
-                // It's not here, and we have already tried RAM...
-                //
-                bail!("address 0x{:08x} not found", addr);
-            }
-
-            let start = (addr - base) as usize;
-            let roffs = offset + start;
-
-            if start + data.len() <= size as usize {
-                //
-                // This flash region wholly contains our desired region; copy
-                // it and leave.
-                //
-                data.copy_from_slice(
-                    &self.flash.contents[roffs..roffs + data.len()],
-                );
-
-                return Ok(());
-            }
-
-            let len = (size as usize) - start;
-            data[..len]
-                .copy_from_slice(&self.flash.contents[roffs..roffs + len]);
-
-            self.read_flash(addr + len as u32, &mut data[len..])
-        } else {
-            bail!("address 0x{:08x} not found", addr);
-        }
+        self.flash
+            .read(addr, data)
+            .ok_or_else(|| anyhow!("address 0x{:08x} not found", addr))
     }
 
     fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
