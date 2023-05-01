@@ -1,0 +1,85 @@
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x080002e7     744 r----- -  kernel
+-          0x080002e8 - 0x08004977   17KiB r-x--- -  kernel
+-          0x08004978 - 0x08005fe3    5KiB r----- -  kernel
+-          0x08005fe8 - 0x08006017      48 rw---- -  kernel
+0x08005fcc 0x08006080 - 0x080060ff     128 r-x--- 25 idle
+0x08005d50 0x08006800 - 0x08006fff    2KiB r-x--- 1  sys
+0x08005e10 0x08008000 - 0x08009fff    8KiB r-x--- 8  udpbroadcast
+0x08005e88 0x0800a000 - 0x0800bfff    8KiB r-x--- 13 sensor
+0x08005d14 0x0800c000 - 0x0800ffff   16KiB r-x--- 0  jefe
+0x08005ed0 0x08010000 - 0x0801ffff   64KiB r-x--- 16 transceivers
+0x08005da4 0x08020000 - 0x0803ffff  128KiB r-x--- 4  net
+0x08005dc8 0x08040000 - 0x0805ffff  128KiB r-x--- 5  control_plane_agent
+0x08005e40 0x08060000 - 0x0807ffff  128KiB r-x--- 10 monorail
+0x08005f00 0x08080000 - 0x0808ffff   64KiB r-x--- 18 sequencer
+0x08005d8c 0x08090000 - 0x08097fff   32KiB r-x--- 3  auxflash
+0x08005de0 0x08098000 - 0x0809ffff   32KiB r-x--- 6  sprot
+0x08005e70 0x080a0000 - 0x080a7fff   32KiB r-x--- 12 hiffy
+0x08005ea0 0x080a8000 - 0x080affff   32KiB r-x--- 14 ecp5_mainboard
+0x08005eb8 0x080b0000 - 0x080b7fff   32KiB r-x--- 15 ecp5_front_io
+0x08005f18 0x080b8000 - 0x080bffff   32KiB r-x--- 19 thermal
+0x08005f30 0x080c0000 - 0x080c7fff   32KiB r-x--- 20 power
+0x08005d74 0x080c8000 - 0x080cbfff   16KiB r-x--- 2  update_server
+0x08005df8 0x080cc000 - 0x080cffff   16KiB r-x--- 7  udpecho
+0x08005e28 0x080d0000 - 0x080d3fff   16KiB r-x--- 9  udprpc
+0x08005e58 0x080d4000 - 0x080d7fff   16KiB r-x--- 11 i2c_driver
+0x08005f48 0x080d8000 - 0x080dbfff   16KiB r-x--- 21 validate
+0x08005f60 0x080dc000 - 0x080dffff   16KiB r-x--- 22 ignition
+0x08005f90 0x080e0000 - 0x080e3fff   16KiB r-x--- 24 dump_agent
+0x08005ee8 0x080e4000 - 0x080e5fff    8KiB r-x--- 17 packrat
+0x08005f78 0x080e6000 - 0x080e7fff    8KiB r-x--- 23 vpd
+0x08005c24 0x080e8000 - 0x080e80ff     256 r----- 5  control_plane_agent
+0x08005d68 0x08100000 - 0x081fffff 1024KiB rw--me 2  [bank2] update_server
+0x08005cfc 0x1ff00000 - 0x1ff1ffff  128KiB rw-d-- 1  [system_flash] sys
+-          0x24000000 - 0x240003ff    1KiB rw---- -  kernel
+-          0x24000400 - 0x24000403       4 rw---- -  kernel
+-          0x24000408 - 0x2400186f    5KiB rw---- -  kernel
+0x08005fd8 0x24001900 - 0x240019ff     256 rw---- 25 idle
+0x08005d5c 0x24001c00 - 0x24001fff    1KiB rw---- 1  sys
+0x08005e04 0x24002000 - 0x24003fff    8KiB rw---- 7  udpecho
+0x08005dd4 0x24004000 - 0x24007fff   16KiB rw---- 5  control_plane_agent
+0x08005dec 0x24008000 - 0x2400ffff   32KiB rw---- 6  sprot
+0x08005db0 0x24010000 - 0x2401ffff   64KiB rw---- 4  net
+0x08005e7c 0x24020000 - 0x24027fff   32KiB rw---- 12 hiffy
+0x08005f24 0x24028000 - 0x2402bfff   16KiB rw---- 19 thermal
+0x08005e1c 0x2402c000 - 0x2402dfff    8KiB rw---- 8  udpbroadcast
+0x08005e34 0x2402e000 - 0x2402ffff    8KiB rw---- 9  udprpc
+0x08005e4c 0x24030000 - 0x24031fff    8KiB rw---- 10 monorail
+0x08005eac 0x24032000 - 0x24033fff    8KiB rw---- 14 ecp5_mainboard
+0x08005ec4 0x24034000 - 0x24035fff    8KiB rw---- 15 ecp5_front_io
+0x08005edc 0x24036000 - 0x24037fff    8KiB rw---- 16 transceivers
+0x08005f0c 0x24038000 - 0x24039fff    8KiB rw---- 18 sequencer
+0x08005f9c 0x2403a000 - 0x2403bfff    8KiB rw---- 24 dump_agent
+0x08005d80 0x2403c000 - 0x2403cfff    4KiB rw---- 2  update_server
+0x08005d98 0x2403d000 - 0x2403dfff    4KiB rw---- 3  auxflash
+0x08005e94 0x2403e000 - 0x2403efff    4KiB rw---- 13 sensor
+0x08005f3c 0x2403f000 - 0x2403ffff    4KiB rw---- 20 power
+0x08005f54 0x24040000 - 0x24040fff    4KiB rw---- 21 validate
+0x08005f6c 0x24041000 - 0x24041fff    4KiB rw---- 22 ignition
+0x08005d20 0x24042000 - 0x240427ff    2KiB rw---- 0  jefe
+0x08005e64 0x24042800 - 0x24042fff    2KiB rw---- 11 i2c_driver
+0x08005ef4 0x24043000 - 0x240437ff    2KiB rw---- 17 packrat
+0x08005f84 0x24043800 - 0x24043bff    1KiB rw---- 23 vpd
+0x08005dbc 0x30000000 - 0x30003fff   16KiB rw--m- 4  net
+0x08005d2c 0x30020000 - 0x3003ffff  128KiB rw--me 0  [sram2] jefe, dump_agent
+0x08005d38 0x30040000 - 0x30047fff   32KiB rw--me 0  [sram3] jefe, dump_agent
+0x08005d44 0x38000000 - 0x3800ffff   64KiB rw--me 0  [sram4] jefe, dump_agent
+0x08005ccc 0x40003800 - 0x40003bff    1KiB rw-d-- 10 [spi2] monorail
+0x08005cd8 0x40003c00 - 0x40003fff    1KiB rw-d-- 4  [spi3] net
+0x08005c78 0x40005400 - 0x400057ff    1KiB rw-d-- 11 [i2c1] i2c_driver
+0x08005c84 0x40005800 - 0x40005bff    1KiB rw-d-- 11 [i2c2] i2c_driver
+0x08005c90 0x40005c00 - 0x40005fff    1KiB rw-d-- 11 [i2c3] i2c_driver
+0x08005cc0 0x40013000 - 0x400133ff    1KiB rw-d-- 15 [spi1] ecp5_front_io
+0x08005ce4 0x40013400 - 0x400137ff    1KiB rw-d-- 6  [spi4] sprot
+0x08005d08 0x40014400 - 0x400147ff    1KiB rw-d-- 4  [tim16] net
+0x08005cf0 0x40015000 - 0x400153ff    1KiB rw-d-- 14 [spi5] ecp5_mainboard
+0x08005c30 0x40028000 - 0x40028fff    4KiB rw-d-- 4  [eth] net
+0x08005c3c 0x40029000 - 0x400293ff    1KiB rw-d-- 4  [eth_dma] net
+0x08005c48 0x52002000 - 0x52003fff    8KiB rw-d-- 2  [flash_controller] update_server
+0x08005ca8 0x52005000 - 0x52005fff    4KiB rw-d-- 3  [quadspi] auxflash
+0x08005c9c 0x58001c00 - 0x58001fff    1KiB rw-d-- 11 [i2c4] i2c_driver
+0x08005c54 0x58020000 - 0x58021fff    8KiB rw-d-- 1  [gpios1] sys
+0x08005c60 0x58022000 - 0x580227ff    2KiB rw-d-- 1  [gpios2] sys
+0x08005c6c 0x58022800 - 0x58022bff    1KiB rw-d-- 1  [gpios3] sys
+0x08005cb4 0x58024400 - 0x580247ff    1KiB rw-d-- 1  [rcc] sys

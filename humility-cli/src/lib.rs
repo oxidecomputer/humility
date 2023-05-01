@@ -35,12 +35,13 @@ pub struct Cli {
     #[clap(long, short = 'V')]
     pub version: bool,
 
-    /// If a system has multiple debug probes attached, the specific probe
-    /// to use.  If specifying a USB probe, its index can be used (e.g.,
+    /// If a system has multiple debug probes attached, the specific probe to
+    /// use.  If specifying a USB probe, its index can be used (e.g.,
     /// "usb-0"); if specifying an exact probe, this is of the form
-    /// "vid:pid[:serial]". This may also be set via the HUMILITY_PROBE
-    /// environment variable. Run "humility doc" for more information on
-    /// probes.
+    /// "vid:pid[:serial]". If set to "archive", the archive is used rather
+    /// than any attached debug probe. This may also be set via the
+    /// HUMILITY_PROBE environment variable. Run "humility doc" for more
+    /// information on probes.
     #[clap(long, short, group = "hubris")]
     pub probe: Option<String>,
 

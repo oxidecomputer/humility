@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.13"
+version = "0.10.14"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -249,6 +249,7 @@ syn = "1.0"
 tempfile = "3.3"
 termimad = "0.21"
 termios = "0.3" # not usable on windows!
+thiserror = "1.0"
 toml = "0.5"
 trycmd = "0.13.2"
 tui = { version = "0.16", default-features = false }
