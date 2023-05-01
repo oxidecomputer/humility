@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::io::prelude::*;
 
 use std::borrow::Cow;
-use std::collections::{btree_map, BTreeMap, HashMap, HashSet};
+use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
@@ -1287,14 +1287,14 @@ impl HubrisArchive {
         //
         // Post-process our enums and structs to add their fully scoped names.
         //
-        let mut work = vec![];
+        let mut work = BTreeSet::new();
 
         for (name, enums) in self.enums_byname.iter_all() {
             for goff in enums.iter() {
                 let n = self.enums.get(goff).unwrap().namespace;
 
                 if let Some(full) = self.namespaces.to_full_name(n, name)? {
-                    work.push((full, *goff));
+                    work.insert((full, *goff));
                 }
             }
         }
@@ -1303,14 +1303,14 @@ impl HubrisArchive {
             self.enums_byname.insert(name.clone(), *goff);
         }
 
-        let mut work = vec![];
+        let mut work = BTreeSet::new();
 
         for (name, structs) in self.structs_byname.iter_all() {
             for goff in structs.iter() {
                 let n = self.structs.get(goff).unwrap().namespace;
 
                 if let Some(full) = self.namespaces.to_full_name(n, name)? {
-                    work.push((full, *goff));
+                    work.insert((full, *goff));
                 }
             }
         }
