@@ -1374,8 +1374,6 @@ impl HubrisArchive {
         self.instrs.extend(loader.instrs);
         self.syscall_pushes.extend(loader.syscall_pushes);
         self.unions.extend(loader.unions);
-        self.enums.extend(loader.enums);
-        self.structs.extend(loader.structs);
         self.src.extend(loader.src);
         self.enums_byname.extend(loader.enums_byname);
         self.structs_byname.extend(loader.structs_byname);
@@ -1383,13 +1381,38 @@ impl HubrisArchive {
         self.basetypes.extend(loader.basetypes);
         self.basetypes_byname.extend(loader.basetypes_byname);
         self.ptrtypes.extend(loader.ptrtypes);
-        self.namespaces.0.extend(loader.namespaces.0);
         self.inlined.extend(loader.inlined);
         self.subprograms.extend(loader.subprograms);
         self.dsyms.extend(loader.dsyms);
         self.variables.extend(loader.variables);
         self.qualified_variables.extend(loader.qualified_variables);
         self.definitions.extend(loader.definitions);
+
+        // Namespaces need to be shifted when merging into the global namespaces
+        // vec.  This change applies to the `namespace` member in structs and
+        // enums, as well as the `namespaces` table itself.
+        let ns_offset = self.namespaces.0.len();
+
+        self.namespaces.0.extend(loader.namespaces.0.into_iter().map(
+            |mut v| {
+                if let Some(n) = &mut v.parent {
+                    n.0 += ns_offset;
+                }
+                v
+            },
+        ));
+        self.structs.extend(loader.structs.into_iter().map(|(goff, mut s)| {
+            if let Some(n) = &mut s.namespace {
+                n.0 += ns_offset;
+            }
+            (goff, s)
+        }));
+        self.enums.extend(loader.enums.into_iter().map(|(goff, mut s)| {
+            if let Some(n) = &mut s.namespace {
+                n.0 += ns_offset;
+            }
+            (goff, s)
+        }));
 
         self.current += 1;
         Ok(())
