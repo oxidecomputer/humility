@@ -47,6 +47,7 @@ pub struct HubrisManifest {
     pub gitrev: Option<String>,
     pub features: Vec<String>,
     pub board: Option<String>,
+    pub image: Option<String>,
     pub name: Option<String>,
     pub target: Option<String>,
     pub task_features: HashMap<String, Vec<String>>,
@@ -1158,8 +1159,16 @@ impl HubrisArchive {
 
         if let Ok(mut file) = archive.by_name("git-rev") {
             let mut gitrev = String::new();
-            file.read_to_string(&mut gitrev)?;
+            file.read_to_string(&mut gitrev)
+                .context("failed reading `git-rev`")?;
             manifest.gitrev = Some(gitrev);
+        }
+
+        if let Ok(mut file) = archive.by_name("image-name") {
+            let mut image = String::new();
+            file.read_to_string(&mut image)
+                .context("failed reading `image-name`")?;
+            manifest.image = Some(image);
         }
 
         let mut app = String::new();

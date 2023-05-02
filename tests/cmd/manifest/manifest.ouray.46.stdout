@@ -3,6 +3,7 @@
     image id => <none>
        board => gemini-bu-1
         name => tests-gemini-bu
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => itm
   total size => 72K

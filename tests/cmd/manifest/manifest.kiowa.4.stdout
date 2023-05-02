@@ -3,6 +3,7 @@
     image id => <none>
        board => stm32h7b3i-dk
         name => demo-stm32h7b3
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => itm, h7b3
   total size => 98K

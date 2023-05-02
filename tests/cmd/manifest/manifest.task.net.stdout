@@ -3,6 +3,7 @@
     image id => [7, 3a, b7, 28, 41, 42, 69, 92]
        board => gimlet-c
         name => gimlet-c-lab
+       image => <unknown>
       target => thumbv7em-none-eabihf
     features => dump
   total size => 837K
