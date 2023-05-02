@@ -4,9 +4,15 @@
 
 //! ## `humility power`
 //!
-//! `humility power` displays the values associated with devices that
-//! can measure voltage, displaying voltage, current (if measured) and
-//! temperature (if measured).
+//! `humility power` displays the values associated with power rails,
+//! displaying output voltage, output current, input voltate, input current,
+//! and temperature.  Not all measurements are available for all rails; if a
+//! measurement is not provided for a given rail, "-" is printed.  If a rail
+//! can provide a given measurement, but that measurement is unavailable (say,
+//! due to being in a power state whereby the rail is not powered), "x" is
+//! displayed.  Some rails can determine current by output phase; to display
+//! these, use the `--phase-current` option.
+//!
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
@@ -233,9 +239,12 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
     }
 
     println!(
-        "{:25} {:>8} {:>8} {:>8} {:>8} {:>8}",
+        "{:30} {:>8} {:>8} {:>8} {:>8} {:>8}",
         "RAIL", "VOUT", "IOUT", "VIN", "IIN", "TEMP"
     );
+
+    let no = "-";
+    let err = "x";
 
     let p = |what| {
         print!(" ");
@@ -243,19 +252,19 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
         match what {
             Some(ndx) => {
                 if let Some(value) = rval[ndx] {
-                    print!("{:>8.3}", value);
+                    print!("{value:>8.3}");
                 } else {
-                    print!("{:>8}", "-");
+                    print!("{err:>8}");
                 }
             }
             None => {
-                print!("{:8}", "");
+                print!("{no:>8}");
             }
         }
     };
 
     for d in devices.values() {
-        print!("{:25}", d.name);
+        print!("{:30}", d.name);
 
         p(d.voltage);
         p(d.current);
@@ -267,16 +276,23 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
         println!();
 
         if let Some(phase_currents) = &d.phase_currents {
-            for (index, value) in phase_currents.iter().enumerate() {
-                let name = format!("phase-{index}");
+            if phase_currents.len() > 1 {
+                for (index, value) in phase_currents.iter().enumerate() {
+                    let name = format!("{}.phase-{index}", d.name);
 
-                if let Some(value) = value {
-                    println!("   {name:25}{value:>15.3}");
-                } else {
-                    println!("   {name:25}{:>15}", "-");
+                    if let Some(value) = value {
+                        print!("{name:30} {no:>8} {value:>8.3}");
+                    } else {
+                        print!("{name:30} {no:>8} {no:>8}");
+                    }
+
+                    for _ in 0..3 {
+                        print!(" {no:>8}");
+                    }
+
+                    println!();
                 }
             }
-            println!();
         }
     }
 

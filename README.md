@@ -1383,9 +1383,15 @@ No documentation yet for `humility pmbus`; pull requests welcome!
 
 ### `humility power`
 
-`humility power` displays the values associated with devices that
-can measure voltage, displaying voltage, current (if measured) and
-temperature (if measured).
+`humility power` displays the values associated with power rails,
+displaying output voltage, output current, input voltate, input current,
+and temperature.  Not all measurements are available for all rails; if a
+measurement is not provided for a given rail, "-" is printed.  If a rail
+can provide a given measurement, but that measurement is unavailable (say,
+due to being in a power state whereby the rail is not powered), "x" is
+displayed.  Some rails can determine current by output phase; to display
+these, use the `--phase-current` option.
+
 
 
 ### `humility powershelf`
