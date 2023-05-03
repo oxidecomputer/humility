@@ -1587,25 +1587,26 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
         bail!("can only list PMBus devices on a dump");
     }
 
-    let mut worker = I2cWorker::new(hubris, core, subargs.timeout)?;
+    let mut worker: Box<dyn PmbusWorker> =
+        Box::new(I2cWorker::new(hubris, core, subargs.timeout)?);
 
     if subargs.summarize {
-        summarize(&subargs, hubris, &mut worker)?;
+        summarize(&subargs, hubris, worker.as_mut())?;
         return Ok(());
     }
 
     if subargs.writes.is_some() {
-        writes(&subargs, hubris, &mut worker)?;
+        writes(&subargs, hubris, worker.as_mut())?;
         return Ok(());
     }
 
-    pmbus_main(&subargs, hubris, &mut worker)
+    pmbus_main(&subargs, hubris, worker.as_mut())
 }
 
 fn pmbus_main(
     subargs: &PmbusArgs,
     hubris: &HubrisArchive,
-    worker: &dyn PmbusWorker,
+    worker: &mut dyn PmbusWorker,
 ) -> Result<()> {
     let hargs = match (&subargs.rail, &subargs.device) {
         (Some(rails), None) => {
@@ -1850,13 +1851,13 @@ fn pmbus_main(
 
         device.command(cmds[i], |cmd| {
             r = print_result(
-                &subargs,
+                subargs,
                 device,
                 cmds[i],
                 getmode,
                 cmd,
                 &results[i],
-                &worker,
+                worker,
             );
         });
 
