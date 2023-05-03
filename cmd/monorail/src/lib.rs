@@ -21,8 +21,8 @@
 //! want to execute a read by register name:
 //!
 //!```console
-//! matt@niles ~ () $ export HUMILITY_TARGET=sidecar
-//! matt@niles ~ (sidecar) $ pfexec humility monorail read DEV1G[0]:DEV_RST_CTRL
+//! $ export HUMILITY_TARGET=sidecar
+//! $ humility monorail read DEV1G[0]:DEV_RST_CTRL
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
 //! DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
@@ -45,7 +45,7 @@
 //!
 //! It's also possible to execute reads by raw address:
 //! ```console
-//! matt@niles ~ (sidecar) $ pfexec humility monorail read 0x71040000
+//! $ humility monorail read 0x71040000
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
 //! DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
@@ -66,7 +66,7 @@
 //! This command is offline, meaning it does not require an attached system.
 //!
 //! ```console
-//! matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG
+//! $ humility monorail info HW_QSGMII_CFG
 //! Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
 //! Register address: 0x71460170
 //!   bits |    field
@@ -79,7 +79,7 @@
 //! If you provide a value as the final argument, it will decode the register
 //! and pretty-print a table:
 //! ```console
-//! matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG 0x2000
+//! $ humility monorail info HW_QSGMII_CFG 0x2000
 //! Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
 //! Register address: 0x71460170
 //! Register value: 0x2000
@@ -95,7 +95,7 @@
 //! their PHY (if present).  The `-p` argument allows you to specify a subset of
 //! ports, e.g.
 //! ```console
-//! matt@niles ~ (sidecar) $ pfexec humility monorail status -p40,41,42,43,44,45
+//! $ humility monorail status -p40,41,42,43,44,45
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK
 //! -----|-------------------------------------|-------------------------------
@@ -105,13 +105,13 @@
 //!  43  | QSGMII  100M   1G_19   6G_14   up   | VSC8504  down      down
 //!  44  | QSGMII  1G     1G_20   6G_15   up   | VSC8562  up        up
 //!  45  | QSGMII  1G     1G_21   6G_15   up   | VSC8562  up        up
-//!  ```
+//! ```
 //!
 //! #### `humility monorail dump`
 //! Dumps an entire top-level target on the VSC7448, e.g. `DEV1G[0]`
-//! ```console
 //!
-//! matt@niles ~ (sidecar) $ h monorail dump DEV1G[0]
+//! ```console
+//! $ humility monorail dump DEV1G[0]
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! Dumping target DEV1G[0] (0x71040000 -> 0x710400a0)
 //! DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL    0x00100000
@@ -121,7 +121,7 @@
 //! DEV1G[0]:DEV_CFG_STATUS:EEE_CFG    0x0011940a
 //! DEV1G[0]:DEV_CFG_STATUS:PTP_CFG    0x00400000
 //! DEV1G[0]:DEV_CFG_STATUS:PTP_EVENTS    0x00000000
-//! ...etc
+//! ...
 //! ```
 //!
 //! This subcommand is rather fragile; large targets may overflow the HIF return
@@ -131,7 +131,7 @@
 //! Prints the MAC table of the VSC7448 switch.  This table shows which MAC
 //! addresses have be learned on each port.
 //! ```console
-//! matt@niles ~ (sidecar) $ pfexec ./humility monorail mac
+//! $ humility monorail mac
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! Reading 3 MAC addresses...
 //!  PORT |        MAC
@@ -144,7 +144,7 @@
 //! #### `humility monorail counters`
 //! Prints or resets (with `-r`) counters for a port on the VSC7448.
 //! ```console
-//! matt@niles ~ (sidecar) $ pfexec humility monorail counters -p48
+//! $ humility monorail counters -p48
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! Packet counters: (port 48)
 //!   Receive:

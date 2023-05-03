@@ -791,12 +791,8 @@ fn sensor_ops(
 
     let ok = hubris.lookup_basetype(op.ok)?;
 
-    if ok.encoding != HubrisEncoding::Float {
-        bail!("expected return value of read_sensor() to be a float");
-    }
-
-    if ok.size != 4 {
-        bail!("expected return value of read_sensor() to be an f32");
+    if (ok.encoding, ok.size) != (HubrisEncoding::Float, 4) {
+        bail!("expected return value of Sensor.get() to be a float");
     }
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {

@@ -283,7 +283,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility tofino-eeprom](#humility-tofino-eeprom): read and write to the Tofino SPI EEPROM
-- [humility trace](#humility-trace): trace Hubris operations
 - [humility update](#humility-update): apply an update
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
@@ -380,7 +379,7 @@ the command name -- and run `humility --help` to list all commands.
 core file:
 
 ```console
-% humility dump
+$ humility dump
 humility: attached via ST-Link
 humility: core halted
 humility: dumping to hubris.core.0
@@ -391,7 +390,7 @@ humility: core resumed
 A dump file name may also be specified:
 
 ```console
-% humility dump hubris.core.`date +%s`
+$ humility dump hubris.core.`date +%s`
 humility: attached via ST-Link
 humility: core halted
 humility: dumping to hubris.core.1600718079
@@ -404,7 +403,7 @@ The resulting dump can be used with many commands (including `manifest`,
 as the debugged MCU, e.g.:
 
 ```console
-% humility -d hubris.core.0 tasks
+$ humility -d hubris.core.0 tasks
 humility: attached to dump
 system time = 94529
 ID TASK                       GEN PRI STATE
@@ -440,7 +439,10 @@ ID TASK                       GEN PRI STATE
 
 ### `humility etm`
 
-No documentation yet for `humility etm`; pull requests welcome!
+Enables and operates upon the Embedded Trace Macrocell (ETM) found in
+some ARM Cortex-M parts.
+
+
 
 ### `humility exec`
 
@@ -469,7 +471,7 @@ dump.  By default, the contents of the file are sent to standard output,
 e.g.:
 
 ```console
-% humility -a /path/to/my/hubris-archive.zip extract README.TXT
+$ humility -a /path/to/my/hubris-archive.zip extract README.TXT
 humility: extracting README.TXT to stdout
 This is a build archive containing firmware build artifacts.
 
@@ -486,7 +488,7 @@ This is a build archive containing firmware build artifacts.
 To list all of the files in an archive, use the `--list` (`-l`) option:
 
 ```console
-% humility -a /path/to/my/hubris-archive.zip extract --list
+$ humility -a /path/to/my/hubris-archive.zip extract --list
         SIZE NAME
          462 README.TXT
           46 git-rev
@@ -527,7 +529,7 @@ Note that the file specified is treated as a substring; if the substring
 matches exactly one file, it will be extracted:
 
 ```console
-% humility -d ./hubris.core.79 extract map
+$ humility -d ./hubris.core.79 extract map
 humility: extracting info/map.txt to stdout
 ADDRESS  END          SIZE FILE
 08000000 08000298      298 target/demo-stm32h753-nucleo/dist/kernel
@@ -578,7 +580,7 @@ If the substring matches more than one file, the command will fail and
 the matching files will be displayed:
 
 ```console
-% humility -d ./hubris.core.79 extract toml
+$ humility -d ./hubris.core.79 extract toml
 humility extract failed: "toml" matches multiple files: app.toml, stm32h7.toml
 ```
 
@@ -656,7 +658,7 @@ the desired command.  For example, to toggle the state on pin 14 on
 port B:
 
 ```console
-% humility gpio --toggle --pins B:14
+$ humility gpio --toggle --pins B:14
 humility: attached via ST-Link V3
 [Ok([])]
 ```
@@ -664,7 +666,7 @@ humility: attached via ST-Link V3
 To set pins B:0, B:14 and E:1:
 
 ```console
-% humility gpio --set --pins B:0,B:14,E:1
+$ humility gpio --set --pins B:0,B:14,E:1
 humility: attached via ST-Link V3
 [Ok([]), Ok([]), Ok([])]
 ```
@@ -672,7 +674,7 @@ humility: attached via ST-Link V3
 To reset pin E:1:
 
 ```console
-% humility gpio --reset --pins E:1
+$ humility gpio --reset --pins E:1
 humility: attached via ST-Link V3
 [Ok([])]
 ```
@@ -682,7 +684,7 @@ humility: attached via ST-Link V3
 To get input values for a particular pin:
 
 ```console
-% humility gpio --input --pins B:0,B:14,E:1
+$ humility gpio --input --pins B:0,B:14,E:1
 humility: attached via ST-Link V3
 B:0  = 1
 B:14 = 1
@@ -692,7 +694,7 @@ E:1  = 0
 To get input values for all pins, leave the pin unspecified:
 
 ```console
-% humility gpio --input
+$ humility gpio --input
 humility: attached via ST-Link V3
 Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 -----------------------------------------------------------------------
@@ -723,14 +725,25 @@ colon-delimited 5-tuple consisting of:
 For example, to configure pin 5 on port A as a push-pull output:
 
 ```console
-% humility gpio -c Output:PushPull:High:None:AF0 -p A:5
+$ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
 ```
 
 
 
 ### `humility hash`
 
-No documentation yet for `humility hash`; pull requests welcome!
+Uses the `hash` task to hash sequences. The following are all equivalent:
+
+```console
+$ humility hash --digest -s abc
+$ humility hash --digest -x 61,62,63
+$ echo -n abc > abc.txt ; humility hash --digest -f abc.txt
+$ hash -i --update -s 'a' ; hash --update -s 'bc' ; hash --finalize
+```
+
+Note that `--update` can also take a filename as a parameter.
+
+
 
 ### `humility hiffy`
 
@@ -740,7 +753,7 @@ Hubris, use the `-l` (`--list`) option, optionally specifying a filter
 for tasks or interface names if so desired:
 
 ```console
-% humility hiffy -l user_leds
+$ humility hiffy -l user_leds
 humility: attached via ST-Link
 INTERFACE                    TASK
 UserLeds                     user_leds
@@ -766,7 +779,7 @@ use `-c` (`--call`), using `-a` (`--arguments`) to indicate any arguments,
 e.g.:
 
 ```console
-% humility hiffy -c UserLeds.led_toggle -a index=0
+$ humility hiffy -c UserLeds.led_toggle -a index=0
 humility: attached via ST-Link
 UserLeds.led_toggle() = ()
 ```
@@ -788,7 +801,7 @@ For example, on a Gimletlet, here is a scan of controller I2C3, revealing
 one device at address `0x48`:
 
 ```console
-% humility i2c -s -c 3
+$ humility i2c -s -c 3
 humility: attached via ST-Link
 
 Device scan on controller I2C3:
@@ -809,7 +822,7 @@ ADDR     0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
 To scan that device, specify its address via `-d`:
 
 ```console
-% humility i2c -s -c 3 -d 0x48
+$ humility i2c -s -c 3 -d 0x48
 humility: attached via ST-Link
 
 Register scan for device 0x48 on I2C3:
@@ -839,7 +852,7 @@ ADDR  0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xa 0xb 0xc 0xd 0xe 0xf
 register, elide `-s` and specify the register of interest via `-r`:
 
 ```console
-% humility i2c -c 3 -d 0x48 -r 0xb
+$ humility i2c -c 3 -d 0x48 -r 0xb
 humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0xb = 0xcb
 ```
@@ -849,7 +862,7 @@ value to write, e.g. (for the ADT7420), the MSB of the T<sub>HIGH</sub>
 register:
 
 ```console
-% humility i2c -c 3 -d 0x48 -r 0x4 -w 0x1f
+$ humility i2c -c 3 -d 0x48 -r 0x4 -w 0x1f
 humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0x4 = 0x1f
 ```
@@ -859,7 +872,7 @@ silently discarded by the device; it can be useful to read the register
 after writing it to confirm that the value is as expected:
 
 ```console
-% humility i2c -c 3 -d 0x48 -r 0x4
+$ humility i2c -c 3 -d 0x48 -r 0x4
 humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0x4 = 0x1f
 ```
@@ -868,7 +881,7 @@ To determine the last mux and segment to be enabled on a particular
 controller/port, use `--lastmux` (`-l`):
 
 ```console
-% humility i2c -b front --lastmux
+$ humility i2c -b front --lastmux
 humility: attached via ST-Link V3
 last selected mux/segment for I2C2, port F: mux 3, segment 2
 ```
@@ -889,7 +902,7 @@ loss.
 
 Here's an example:
 ```console
-matt@igor ~ (sn5) $ pfexec ./humility -tsn5 ibc black-box
+$ humility -tsn5 ibc black-box
 humility: attached to 0483:374e:001B00083156501320323443 via ST-Link V3
 FAULT EVENT
   EVENT_INDEX:        0
@@ -959,7 +972,7 @@ enable ITM and attach to the connected device.  For example, if running
 with the `ping` task, one will see messages from `jefe` restarting it:
 
 ```console
-% humility -a /path/to/my/hubris-archive.zip itm -ea
+$ humility -a /path/to/my/hubris-archive.zip itm -ea
 humility: attached via ST-Link
 humility: core halted
 humility: core resumed
@@ -982,7 +995,7 @@ disposition on a particular task, so that the task will not automatically
 restart on fault.  This is done with the `-H`/`--hold` option:
 
 ```console
-% humility jefe --hold ping
+$ humility jefe --hold ping
 humility: attached via ST-Link
 humility: successfully changed disposition for ping
 ```
@@ -992,7 +1005,7 @@ table inside `jefe`. When the task next faults, it will not be restarted,
 e.g.:
 
 ```console
-% humility tasks ping
+$ humility tasks ping
 humility: attached via ST-Link
 system time = 26597
 ID TASK                 GEN PRI STATE
@@ -1003,7 +1016,7 @@ This can be particularly useful to couple with either `humility dump` or
 `humility tasks -sl`:
 
 ```console
-% humility tasks -sl ping
+$ humility tasks -sl ping
 humility: attached via ST-Link
 system time = 103879
 ID TASK                 GEN PRI STATE
@@ -1022,7 +1035,7 @@ To change the disposition of a task (back) to be restarted, use the
 `--release`/`-r` flag:
 
 ```console
-% humility jefe --release ping
+$ humility jefe --release ping
 humility: attached via ST-Link
 humility: successfully changed disposition for ping
 ```
@@ -1043,10 +1056,10 @@ The injected fault has a dedicated type to make clear that the fault
 originated outside of the task:
 
 ```console
-% humility jefe --fault pong
+$ humility jefe --fault pong
 humility: attached via ST-Link
 humility: successfully changed disposition for pong
-% humility tasks pong
+$ humility tasks pong
 humility: attached via ST-Link
 system time = 191227
 ID TASK                 GEN PRI STATE
@@ -1066,7 +1079,9 @@ normal, or `--start`/`-s` to run it once but catch the next fault.
 
 ### `humility lpc55gpio`
 
-No documentation yet for `humility lpc55gpio`; pull requests welcome!
+The LPC55-equivalent of `humility gpio`.
+
+
 
 ### `humility manifest`
 
@@ -1077,7 +1092,7 @@ for each task, as well as any device toplogy information present in
 the archive, e.g.:
 
 ```console
-% humility manifest
+$ humility manifest
      version => hubris build archive v1.0.0
      git rev => 753a57169eba699e73ee59e0cf5345eb1d6e1ae2-dirty
        board => nucleo-h743zi2
@@ -1121,7 +1136,7 @@ will indicate that a task has been restarted -- and the log message from
 `jefe` will indicate the specific address, e.g.:
 
 ```console
-% humility itm -ea
+$ humility itm -ea
 humility: attached via OpenOCD
 humility: core halted
 humility: core resumed
@@ -1137,7 +1152,7 @@ run the `humility map` command, which shows the memory regions that have
 been mapped into tasks, in address order:
 
 ```console
-% humility -a ~/hubris/target/demo/dist/build-demo.zip map
+$ humility -a ~/hubris/target/demo/dist/build-demo.zip map
 humility: attached via OpenOCD
 DESC       LOW          HIGH          SIZE ATTR   ID TASK
 0x08004864 0x08010000 - 0x08017fff   32KiB r-x---  0 jefe
@@ -1187,8 +1202,8 @@ IC.  Registers can be specified in a few ways, but most of the time, you'll
 want to execute a read by register name:
 
 ```console
-matt@niles ~ () $ export HUMILITY_TARGET=sidecar
-matt@niles ~ (sidecar) $ pfexec humility monorail read DEV1G[0]:DEV_RST_CTRL
+$ export HUMILITY_TARGET=sidecar
+$ humility monorail read DEV1G[0]:DEV_RST_CTRL
 humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
 DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
@@ -1211,7 +1226,7 @@ which is automatically generated from Microchip's C SDK header files.
 
 It's also possible to execute reads by raw address:
 ```console
-matt@niles ~ (sidecar) $ pfexec humility monorail read 0x71040000
+$ humility monorail read 0x71040000
 humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 humility: Reading DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL from 0x71040000
 DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL => 0x100000
@@ -1232,7 +1247,7 @@ The `info` subcommand looks up info on a register in the VSC7448 switch IC.
 This command is offline, meaning it does not require an attached system.
 
 ```console
-matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG
+$ humility monorail info HW_QSGMII_CFG
 Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
 Register address: 0x71460170
   bits |    field
@@ -1245,7 +1260,7 @@ Register address: 0x71460170
 If you provide a value as the final argument, it will decode the register
 and pretty-print a table:
 ```console
-matt@niles ~ (sidecar) $ pfexec humility monorail info HW_QSGMII_CFG 0x2000
+$ humility monorail info HW_QSGMII_CFG 0x2000
 Register HSIO:HW_CFGSTAT:HW_QSGMII_CFG
 Register address: 0x71460170
 Register value: 0x2000
@@ -1261,7 +1276,7 @@ Prints a table showing the status of every port in the system, along with
 their PHY (if present).  The `-p` argument allows you to specify a subset of
 ports, e.g.
 ```console
-matt@niles ~ (sidecar) $ pfexec humility monorail status -p40,41,42,43,44,45
+$ humility monorail status -p40,41,42,43,44,45
 humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK
 -----|-------------------------------------|-------------------------------
@@ -1271,13 +1286,13 @@ PORT | MODE    SPEED  DEV     SERDES  LINK |   PHY    MAC LINK  MEDIA LINK
  43  | QSGMII  100M   1G_19   6G_14   up   | VSC8504  down      down
  44  | QSGMII  1G     1G_20   6G_15   up   | VSC8562  up        up
  45  | QSGMII  1G     1G_21   6G_15   up   | VSC8562  up        up
- ```
+```
 
-#### `humility monorail dump`
+##### `humility monorail dump`
 Dumps an entire top-level target on the VSC7448, e.g. `DEV1G[0]`
-```console
 
-matt@niles ~ (sidecar) $ h monorail dump DEV1G[0]
+```console
+$ humility monorail dump DEV1G[0]
 humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 Dumping target DEV1G[0] (0x71040000 -> 0x710400a0)
 DEV1G[0]:DEV_CFG_STATUS:DEV_RST_CTRL    0x00100000
@@ -1287,7 +1302,7 @@ DEV1G[0]:DEV_CFG_STATUS:DEV_PORT_PROTECT    0x00000000
 DEV1G[0]:DEV_CFG_STATUS:EEE_CFG    0x0011940a
 DEV1G[0]:DEV_CFG_STATUS:PTP_CFG    0x00400000
 DEV1G[0]:DEV_CFG_STATUS:PTP_EVENTS    0x00000000
-...etc
+...
 ```
 
 This subcommand is rather fragile; large targets may overflow the HIF return
@@ -1297,7 +1312,7 @@ stack, and it's possible to access invalid registers.
 Prints the MAC table of the VSC7448 switch.  This table shows which MAC
 addresses have be learned on each port.
 ```console
-matt@niles ~ (sidecar) $ pfexec ./humility monorail mac
+$ humility monorail mac
 humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 Reading 3 MAC addresses...
  PORT |        MAC
@@ -1310,7 +1325,7 @@ Reading 3 MAC addresses...
 ##### `humility monorail counters`
 Prints or resets (with `-r`) counters for a port on the VSC7448.
 ```console
-matt@niles ~ (sidecar) $ pfexec humility monorail counters -p48
+$ humility monorail counters -p48
 humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 Packet counters: (port 48)
   Receive:
@@ -1379,13 +1394,187 @@ will both run OpenOCD and run a foreground GDB that is connected to it.
 
 ### `humility pmbus`
 
-No documentation yet for `humility pmbus`; pull requests welcome!
+Operates on PMBus devices in the system.  To list all PMBus devices, use
+`--list` (`-l`):
+
+```console
+$ humility pmbus --list
+C P  MUX ADDR DEVICE        RAILS
+3 H  -   0x24 tps546b24a    V3P3_SP_A2
+3 H  -   0x26 tps546b24a    V3P3_SYS_A0
+3 H  -   0x27 tps546b24a    V5_SYS_A2
+3 H  -   0x29 tps546b24a    V1P8_SYS_A2
+3 H  -   0x5a raa229618     VDD_VCORE, VDD_MEM_ABCD
+3 H  -   0x5b raa229618     VDDCR_SOC, VDD_MEM_EFGH
+3 H  -   0x5c isl68224      VPP_ABCD, VPP_EFGH, V1P8_SP3
+4 F  -   0x10 adm1272       V54_FAN
+4 F  -   0x14 adm1272       V54_HS_OUTPUT
+4 F  -   0x25 tps546b24a    V0P96_NIC_VDD_A0HP
+4 F  -   0x67 bmr491        V12_SYS_A2
+```
+
+To query a particular device, specify the device by its I2C identity
+(controller/port, segment, address):
+
+```console
+$ humility pmbus -d 0x67 -c 4 -p f
+0x01 OPERATION                 0x84
+0x02 ON_OFF_CONFIG             0x18
+0x10 WRITE_PROTECT             0x00
+0x19 CAPABILITY                0xb0
+0x20 VOUT_MODE                 0x15
+0x21 VOUT_COMMAND              0x6000 = 12.000V
+0x22 VOUT_TRIM                 0x0000 = 0.000V
+0x23 VOUT_CAL_OFFSET           0xffb4 = 31.963V
+0x24 VOUT_MAX                  0x7333 = 14.400V
+0x25 VOUT_MARGIN_HIGH          0x699a = 13.200V
+0x26 VOUT_MARGIN_LOW           0x5666 = 10.800V
+0x27 VOUT_TRANSITION_RATE      0x9b02 = 0.094V/ms
+0x28 VOUT_DROOP                0xe800 = 0.000mV/A
+...
+```
+
+In the unusual case that a device is unknown to the system (that is, it does
+not appear in `humliity manifest`), you can force a particular PMBus driver
+by using `--driver` (`-D`).
+
+For the common case of devices known to the system, you can specify a device
+by name if it matches a single device in the system (e.g., `humility pmbus
+-d bmr491`).  In lieu of specifying a device, you can specify a rail via
+`--rail` (`-r`), e.g.:
+
+```console
+$ humility pmbus --rail VDD_MEM_EFGH
+humility: attached via ST-Link V3
+0x00 PAGE                      0x01 = 1
+0x01 OPERATION                 0x48
+0x02 ON_OFF_CONFIG             0x16
+0x04 PHASE                     0x00 = 0
+0x07 ZONE_CONFIG               0xfefe
+0x08 ZONE_ACTIVE               0x0000
+0x10 WRITE_PROTECT             0x00
+0x19 CAPABILITY                0xd4
+0x20 VOUT_MODE                 0x40
+0x21 VOUT_COMMAND              0x04ce = 1.230V
+0x22 VOUT_TRIM                 0x0000 = 0.000V
+0x23 VOUT_CAL_OFFSET           0x0000 = 0.000V
+0x24 VOUT_MAX                  0x05dc = 1.500V
+0x25 VOUT_MARGIN_HIGH          0x03b1 = 0.945V
+0x26 VOUT_MARGIN_LOW           0x0357 = 0.855V
+0x27 VOUT_TRANSITION_RATE      0x09c4 = 0.025V/μs
+0x28 VOUT_DROOP                0x0014 = 0.200mV/A
+...
+```
+
+You can specify a command (or commands) to run with `--command` (`-C`);
+this can be useful when paired with the `--verbose` (`-v`) flag to
+deconstruct a particular command result:
+
+```console
+$ humility pmbus -r VDD_MEM_ABCD --command STATUS_WORD --verbose
+humility: attached via ST-Link V3
+0x79 STATUS_WORD               0x0000
+     |
+     | b15    0b0 = no fault                 <= OutputVoltageFault
+     | b14    0b0 = no fault                 <= OutputCurrentFault
+     | b13    0b0 = no fault                 <= InputFault
+     | b12    0b0 = no fault                 <= ManufacturerFault
+     | b11    0b0 = POWER_GOOD set           <= PowerGoodStatus
+     | b10    0b0 = no fault                 <= FanFault
+     | b9     0b0 = no fault                 <= OtherFault
+     | b8     0b0 = no fault                 <= UnknownFault
+     | b7     0b0 = no fault                 <= Busy
+     | b6     0b0 = power is not off         <= Off
+     | b5     0b0 = no fault                 <= OutputOvervoltageFault
+     | b4     0b0 = no fault                 <= OutputOvercurrentFault
+     | b3     0b0 = no fault                 <= InputUndervoltageFault
+     | b2     0b0 = no fault                 <= TemperatureFault
+     | b1     0b0 = no fault                 <= CMLFault
+     | b0     0b0 = no fault                 <= NoneOfTheAbove
+     +-----------------------------------------------------------------------
+```
+
+You can also write a PMBus command with `--write` (`-w`), which allows for
+for particular fields to be written, e.g.:
+
+```console
+$ humility pmbus -r VDD_VCORE -w OPERATION.MarginFaultResponse=ActUpon
+humility: attached via ST-Link V3
+humility: I2C3, port H, dev 0x5a, rail 0: successfully wrote OPERATION
+```
+
+It should go without saying that this should be done carefully!
+
+To get specific help on what fields may be written and the legal values for
+those fields, use `--commandhelp` (`-H`):
+
+```console
+$ humility pmbus -r VDD_VCORE --commandhelp OPERATION
+0x01 OPERATION
+     | b7     OnOffState                     <= On/off state
+     |        0b0 = Off                      <- output off
+     |        0b1 = On                       <- output on
+     | b6     TurnOffBehavior                <= Power down behavior
+     |        0b0 = Clear                    <- powers down immediately
+     |        0b1 = Set                      <- powers down based on TOFF_DELAY
+     | b5:4   VoltageCommandSource           <= Source of output voltage
+     |        0b00 = VOUT_COMMAND            <- set by VOUT_COMMAND
+     |        0b01 = VOUT_MARGIN_LOW         <- set by VOUT_MARGIN_LOW
+     |        0b10 = VOUT_MARGIN_HIGH        <- set by VOUT_MARGIN_HIGH
+     |        0b11 = AVS_VOUT_COMMAND        <- set by AVSBus
+     | b3:2   MarginFaultResponse            <= Margin fault response
+     |        0b01 = Ignore                  <- ignore margin faults
+     |        0b10 = ActUpon                 <- act upon margin faults
+     | b1     TransitionControl              <= Transition control
+     |        0b0 = Clear                    <- not set
+     |        0b1 = Set                      <- set
+     +-----------------------------------------------------------------------
+```
+
+To get a summary of all PMBus rails in the system, use `--summarize` (`-s`):
+
+```console
+$ humility pmbus --summarize
+humility: attached via ST-Link V3
+DEVICE      RAIL               PG? #FLT       VIN      VOUT      IOUT    TEMP_1
+tps546b24a  V3P3_SP_A2           Y    0   11.969V    3.311V    0.404A  33.500°C
+tps546b24a  V3P3_SYS_A0          Y    0   11.969V    3.309V    1.457A  36.250°C
+tps546b24a  V5_SYS_A2            Y    0   11.969V    4.982V    0.518A  36.000°C
+tps546b24a  V1P8_SYS_A2          Y    0   11.984V    1.797V    3.316A  34.750°C
+raa229618   VDD_VCORE            Y    0   11.990V    1.181V   53.200A  40.000°C
+raa229618   VDD_MEM_ABCD         Y    0   11.990V    1.224V   28.600A  41.000°C
+raa229618   VDDCR_SOC            Y    0   11.950V    0.890V   18.200A  42.000°C
+raa229618   VDD_MEM_EFGH         Y    0   11.950V    1.223V   27.400A  43.000°C
+isl68224    VPP_ABCD             Y    0   11.950V    2.500V    0.400A  40.000°C
+isl68224    VPP_EFGH             Y    0   11.950V    2.499V    0.500A  30.000°C
+isl68224    V1P8_SP3             Y    0   11.950V    1.796V    1.600A   0.000°C
+adm1272     V54_FAN              Y    4    0x088c    0x088c    0x0810  30.452°C
+adm1272     V54_HS_OUTPUT        Y    4    0x088c    0x088b    0x092e  30.690°C
+tps546b24a  V0P96_NIC_VDD_A0HP   Y    0   11.984V    0.955V    3.074A  37.500°C
+bmr491      V12_SYS_A2           Y    1   53.625V   11.995V   19.250A  35.750°C
+```
+
+Note that for some devices, it is not possible to get accurate voltage and
+current readings from `pmbus` alone, as knowledge of how the device is
+integrated into a larger system is required to interpret raw values.  For
+these devices, the raw value is provided (as in the `adm1272` output,
+above); to get the interpreted value, use `humility power` instead (which
+has the added advantage of displaying all power rails in the systemn, not
+just PMBus devices.)
+
+
 
 ### `humility power`
 
-`humility power` displays the values associated with devices that
-can measure voltage, displaying voltage, current (if measured) and
-temperature (if measured).
+`humility power` displays the values associated with power rails,
+displaying output voltage, output current, input voltate, input current,
+and temperature.  Not all measurements are available for all rails; if a
+measurement is not provided for a given rail, "-" is printed.  If a rail
+can provide a given measurement, but that measurement is unavailable (say,
+due to being in a power state whereby the rail is not powered), "x" is
+displayed.  Some rails can determine current by output phase; to display
+these, use the `--phase-current` option.
+
 
 
 ### `humility powershelf`
@@ -1406,7 +1595,7 @@ indices 0 through 5).
 can, e.g.:
 
 ```console
-% humility probe
+$ humility probe
 humility: attached via ST-Link
 humility:        probe => STLink V3, VID 0483, PID 374e
 humility: probe serial => 003700303137511139383538
@@ -1452,7 +1641,7 @@ If provided a Hubris archive, `humility probe` will display any register
 contents symbolically, e.g.:
 
 ```console
-% humility -a ~/hubris/target/demo/dist/build-demo.zip probe
+$ humility -a ~/hubris/target/demo/dist/build-demo.zip probe
 humility: attached via ST-Link
 humility:        probe => STLink V2-1, VID 0483, PID 374b
 humility: probe serial => 066DFF383032534E43132614
@@ -1492,7 +1681,7 @@ flash in Hubris.  To read the device identifier, use the `--id` (`-i`)
 option:
 
 ```console
-% humility qspi -i
+$ humility qspi -i
 humility: attached via ST-Link V3
 DeviceIdData {
     manufacturer_id: Micron(0x20)
@@ -1515,7 +1704,7 @@ DeviceIdData {
 To write an image from a file, use the `--writefile` (`-W`) option:
 
 ```console
-% humility -W ./milan-spew-115k2-2dpc-0.4.1-dataeye.bin
+$ humility -W ./milan-spew-115k2-2dpc-0.4.1-dataeye.bin
 humility: attached via ST-Link V3
 humility: erasing 16777216 bytes...
 humility: ... done
@@ -1527,7 +1716,7 @@ that differ.  To perform a differential write, use the `--diffwrite` (`-D`)
 option:
 
 ```console
-% humility qspi -D ./milan-spew-115k2-2dpc-0.4.1.bin
+$ humility qspi -D ./milan-spew-115k2-2dpc-0.4.1.bin
 humility: attached via ST-Link V3
 humility: erasing 65536 bytes...
 humility: ... done
@@ -1540,7 +1729,7 @@ via `--address` (`-a`) and the number of bytes via `--nbytes` (`-n`).
 For example, to read 128 bytes from address 0x120000:
 
 ```console
-% humility qspi -r -a 0x120000 -n 128
+$ humility qspi -r -a 0x120000 -n 128
              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 0x00120000 | 24 50 53 50 ee 7a 31 28 10 00 00 00 20 cd 48 20 | $PSP.z1(.... .H
 0x00120010 | 00 00 00 00 40 04 00 00 00 30 12 00 00 00 00 00 | ....@....0......
@@ -1555,7 +1744,7 @@ For example, to read 128 bytes from address 0x120000:
 To get the SHA256 hash for that same region:
 
 ```console
-% humility qspi -H -a 0x120000 -n 128
+$ humility qspi -H -a 0x120000 -n 128
 humility: attached via ST-Link V3
 120000..000080: 4d07112733efe240f990fad785726c52de4335d6c5c30a33e60096d4c2576742
 ```
@@ -1571,7 +1760,7 @@ as well as bulk erase.
 `humility readmem` allows one to read a specified range of memory:
 
 ```console
-% humility readmem 0x00011b00
+$ humility readmem 0x00011b00
 humility: attached via DAPLink
 humility: reading at 0x11b00 for 256 bytes
              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
@@ -1686,7 +1875,7 @@ humility: attached via DAPLink
 To list all such variables, use the `-l` option:
 
 ```console
-% humility readvar -l
+$ humility readvar -l
 humility: MODULE             VARIABLE                       ADDR       SIZE
 humility: kernel             CORE_PERIPHERALS               0x20000000 1
 humility: kernel             CURRENT_TASK_PTR               0x20000018 4
@@ -1706,7 +1895,7 @@ humility: adt7420            TEMPS_BYSECOND                 0x20008000 14408
 To read a variable, specify it:
 
 ```console
-% humility readvar CURRENT_TASK_PTR
+$ humility readvar CURRENT_TASK_PTR
 humility: attached via ST-Link
 CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
         pointer: 0x20000558 (*const kern::task::Task)
@@ -1721,7 +1910,7 @@ CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
 or a dump, e.g.:
 
 ```console
-% humility registers
+$ humility registers
 humility: attached via ST-Link V3
    R0 = 0x00000000
    R1 = 0x0000000a
@@ -1770,7 +1959,7 @@ If an archive is provided or if displaying registers from a dump, the
 symbol that corresponds to register's value (if any) is displayed, e.g.:
 
 ```console
-% humility -d ./hubris.core.81 registers
+$ humility -d ./hubris.core.81 registers
 humility: attached to dump
    R0 = 0x00000000
    R1 = 0x0000000a
@@ -1817,7 +2006,7 @@ humility: attached to dump
 To display a stack backtrace, use the `--stack` (`-s`) option:
 
 ```console
-% humility -d ./hubris.core.81 registers --stack
+$ humility -d ./hubris.core.81 registers --stack
 humility: attached to dump
    R0 = 0x00000000
 ...
@@ -1863,7 +2052,7 @@ To view the number of NVM OTP slots that remain, use the `--slots`
 option:
 
 ```console
-% humility rendmp -b mid -d 0x5a --slots
+$ humility rendmp -b mid -d 0x5a --slots
 humility: attached via ST-Link V3
 humility: RAA229618 at I2C3, port H, dev 0x5a has 28 slots available
 ```
@@ -1872,7 +2061,7 @@ To determine the OTP CRC, use the `--crc` option.  Note that an
 entirely unprogrammed part generally has a CRC of 0:
 
 ```console
-% humility rendmp -b mid -d 0x5a --crc
+$ humility rendmp -b mid -d 0x5a --crc
 humility: attached via ST-Link V3
 humility: RAA229618 at I2C3, port H, dev 0x5a has CRC 0x00000000
 ```
@@ -1883,7 +2072,7 @@ Renesas PowerNavigator.  Note that this file specifies the address
 of the device; mismatches are not permitted, e.g.:
 
 ```console
-% humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
+$ humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
 humility: attached via ST-Link V3
 humility rendmp failed: image specifies address to be 0x5a; can't flash 0x5b
 ```
@@ -1891,7 +2080,7 @@ humility rendmp failed: image specifies address to be 0x5a; can't flash 0x5b
 Specify the proper device to flash:
 
 ```console
-% humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
+$ humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
 humility: attached via ST-Link V3
 humility: 28 NVM slots remain
 humility: flashing 2871 bytes
@@ -1903,7 +2092,7 @@ humility: flashed successfully after 246 ms; power cycle to load new configurati
 To check a configuration, specify the image and the `--check` option:
 
 ```console
-% humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
+$ humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
 humility: attached via ST-Link V3
 humility: 27 NVM slots remain
 humility: image CRC (0x841f35a5) matches OTP CRC
@@ -1914,7 +2103,7 @@ information.  This can be queried using the `--blackbox` subcommand,
 specifying a device (I2C) address to pick a specific power converter:
 
 ```console
-% humility rendmp --blackbox --device=0x5b
+$ humility rendmp --blackbox --device=0x5b
 humility: attached to 0483:374f:000C001F4D46500F20373033 via ST-Link V3
 rail0 uptime: 0 sec
 rail1 uptime: 0 sec
@@ -2040,7 +2229,7 @@ or using software reset with the appropriate flag
 via the `ringbuf!` macro in the Hubris `ringbuf` crate).  e.g.:
 
 ```console
-% humility -d ./hubris.core.5 ringbuf
+$ humility -d ./hubris.core.5 ringbuf
 ADDR        NDX LINE  GEN    COUNT PAYLOAD
 0x2000a288  552   92    1        5 (21.5, 70.69999694824219)
 0x2000a298  553   92    1        1 (21.4375, 70.58749389648438)
@@ -2068,7 +2257,7 @@ to display every ring buffer that has `i2c` in the name or the
 containing task:
 
 ```console
-% humility -d ./hubris.core.76 ringbuf ksz
+$ humility -d ./hubris.core.76 ringbuf ksz
 humility: attached to dump
 humility: ring buffer ksz8463::__RINGBUF in net:
  NDX LINE      GEN    COUNT PAYLOAD
@@ -2103,7 +2292,7 @@ Function calls are handled identically to the `humility hiffy` subcommand,
 except that an `--ip` address is required:
 
 ```console
-% rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
+$ humility rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
 UserLeds.led_on() = ()
 ```
 
@@ -2113,14 +2302,14 @@ You may need to configure an IPv6 network for `humility rpc` to work. On
 illumos, it looks like this:
 
 ```console
-% pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
+$ pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 ```
 
 To listen for compatible devices on your network, run `humility rpc
 --listen`
 
 ```console
-% humility rpc --listen
+$ humility rpc --listen
 humility: listening... (ctrl-C to stop, or timeout in 5s)
 MAC               IPv6                      COMPAT PART        REV SERIAL
 a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066
@@ -2258,13 +2447,13 @@ counts are also displayed.
 You must run `humility spctrl init` before any other commands
 
 ```console
-% humility spctrl init
+$ humility spctrl init
 [Ok([])]
 ```
 
 You can read/write memory on the SP via the RoT
 ```console
-% humility spctrl -W read 0x08000000 64
+$ humility spctrl -W read 0x08000000 64
 humility: attached via CMSIS-DAP
                    \/        4        8        c
 0x08000000 | 20000400 08000299 08003b6d 08004271 | ... ....m;..qB..
@@ -2272,7 +2461,7 @@ humility: attached via CMSIS-DAP
 0x08000020 | 00000000 00000000 00000000 0800398b | .............9..
 0x08000030 | 08003b6d 00000000 08003aa9 080039dd | m;.......:...9..
 
-% humility spctrl -W read 0x00000000 64
+$ humility spctrl -W read 0x00000000 64
 humility: attached via CMSIS-DAP
                    \/        4        8        c
 0x00000000 | 3d0fbf49 991373d9 9107611c f6d84242 | I..=.s...a..BB..
@@ -2280,11 +2469,11 @@ humility: attached via CMSIS-DAP
 0x00000020 | b2d2639e faf8049b e202de8c 2ae12025 | .c..........% .*
 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 
-% humility spctrl -W write 0x00000000 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88
+$ humility spctrl -W write 0x00000000 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88
 humility: attached via CMSIS-DAP
 [Ok([])]
 
-% humility spctrl -W read 0x00000000 64
+$ humility spctrl -W read 0x00000000 64
 humility: attached via CMSIS-DAP
                    \/        4        8        c
 0x00000000 | 44332211 88776655 9107611c f6d84242 | ."3DUfw..a..BB..
@@ -2296,7 +2485,108 @@ humility: attached via CMSIS-DAP
 
 ### `humility spd`
 
-No documentation yet for `humility spd`; pull requests welcome!
+Scan for and read devices implementing Serial Presence Detect (SPD).
+When run without arguments, `humility spd` will display the SPD data
+as gathered and cached by the system:
+
+```console
+$ humility spd
+humility: attached via ST-Link V3
+ADDR MANUFACTURER              PART                 WEEK YEAR
+   0 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   1 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   2 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   3 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   4 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   5 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   6 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   7 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   8 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   9 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  10 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  11 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  12 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  13 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  14 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  15 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+```
+
+This performs no I2C reads, and because it operates on cached data,
+can be run postmortem.
+
+To force an I2C read of a given SPD device, specify the desired bus
+in terms of either a named bus or controller/port/mux:
+
+```console
+% humility spd -b mid
+humility: attached via ST-Link V3
+ADDR MANUFACTURER              PART                 WEEK YEAR
+   0 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   1 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   2 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   3 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   4 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   5 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   6 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   7 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+```
+
+Note that a given bus can have up to 8 DIMMs on it.
+
+To dump the entire contents of one more SPDs, use the `--verbose` (`-v`)
+option:
+
+```console
+% humility spd --bus mid --address 5 --verbose
+humility: attached via ST-Link V3
+ADDR MANUFACTURER              PART                 WEEK YEAR
+   5 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   |
+   +---->    00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
+    0x000 |  23 12 0c 01 86 31 00 08 00 60 00 03 08 0b 80 00 | #....1...`......
+    0x010 |  00 00 05 0d f8 ff 02 00 6e 6e 6e 11 00 6e f0 0a | ........nnn..n..
+    0x020 |  20 08 00 05 00 50 14 28 28 00 78 00 14 3c 00 00 |  ....P.((.x..<..
+    0x030 |  00 00 00 00 00 00 00 00 00 00 00 00 16 16 15 16 | ................
+    0x040 |  03 16 03 16 03 16 03 16 0d 16 16 16 16 16 00 00 | ................
+    0x050 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x060 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x070 |  00 00 00 00 00 00 9c 00 00 00 00 00 e7 00 fd a3 | ................
+    0x080 |  31 11 61 19 00 86 9d 22 01 65 45 00 00 00 00 00 | 1.a....".eE.....
+    0x090 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0a0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0b0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0c0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0d0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0e0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0f0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 b8 ce | ................
+    0x100 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x110 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x120 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x130 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x140 |  80 2c 06 21 44 32 52 c5 7e 33 36 41 53 46 38 47 | .,.!D2R.~36ASF8G
+    0x150 |  37 32 50 5a 2d 33 47 32 45 31 20 20 20 31 80 2c | 72PZ-3G2E1   1.,
+    0x160 |  45 4a 41 41 42 4a 35 50 30 30 31 00 00 00 00 00 | EJAABJ5P001.....
+    0x170 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x180 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x190 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1a0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1b0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1c0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1d0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1e0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1f0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+```
+
+To dump a given SPD to a file, additionally provide the `--output` (`-o`)
+option and specify a desired output file:
+
+```console
+% humility spd --bus mid --address 5 --output spd.5.out
+humility: attached via ST-Link V3
+humility: wrote SPD data for address 5 as binary to spd.5.out
+```
+
+
 
 ### `humility spi`
 
@@ -2319,7 +2609,7 @@ For example, to write the byte sequence `0x1`, `0x0`, `0x0` and then read
 32 bytes (discarding the first three) from device 0 on SPI2:
 
 ```console
-% humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
+$ humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
 humility: attached to 0483:374e:003C00174741500520383733 via ST-Link V3
 humility: SPI master is spi2_driver
              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
@@ -2337,7 +2627,7 @@ word that does not contain the uninitialized pattern (`0xbaddcafe`),
 from which it infers maximum depth, and therefore margin:
 
 ```console
-% humility -d ./hubris.core.10 stackmargin
+$ humility -d ./hubris.core.10 stackmargin
 humility: attached to dump
 ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
  0 jefe               0x20001000       1024        768        256
@@ -2386,7 +2676,7 @@ humility stmsecure bank-swap
 `humility tasks` offers a ps-like view of a system, e.g.:
 
 ```console
-% humility tasks
+$ humility tasks
 humility: attached via ST-Link
 system time = 1764993
 ID TASK                 GEN PRI STATE
@@ -2407,7 +2697,7 @@ ID TASK                 GEN PRI STATE
 To see every field in each task, you can use the `-v` flag:
 
 ```console
-% humility -d hubris.core.4 tasks -v
+$ humility -d hubris.core.4 tasks -v
 humility: attached to dump
 system time = 1791860
 ID TASK                 GEN PRI STATE
@@ -2440,7 +2730,7 @@ ID TASK                 GEN PRI STATE
 To see a task's registers, use the `-r` flag:
 
 ```console
-% humility tasks -r user_leds
+$ humility tasks -r user_leds
 humility: attached via ST-Link
 system time = 1990498
 ID TASK                 GEN PRI STATE
@@ -2455,7 +2745,7 @@ ID TASK                 GEN PRI STATE
 To see a task's stack backtrace, use the `-s` flag:
 
 ```console
-% humility tasks -s user_leds
+$ humility tasks -s user_leds
 humility: attached via ST-Link
 system time = 2021382
 ID TASK                 GEN PRI STATE
@@ -2471,7 +2761,7 @@ To additionally see line number information on a stack backtrace, also provide
 `-l` flag:
 
 ```console
-% humility tasks -sl user_leds
+$ humility tasks -sl user_leds
 humility: attached via ST-Link
 system time = 2049587
 ID TASK                 GEN PRI STATE
@@ -2602,10 +2892,6 @@ allowing these transient failures to be differentiated from deeper issues.
 Tools to interact with the Tofino EEPROM
 
 
-### `humility trace`
-
-No documentation yet for `humility trace`; pull requests welcome!
-
 ### `humility update`
 
 Writes a binary to the specified update target as defined in Hubris
@@ -2629,7 +2915,7 @@ view all devices, use the `--list` option; to validate them, run
 without any additional arguments:
 
 ```console
-% humility validate
+$ humility validate
 humility: attached via ST-Link V3
 ID VALIDATION   C P  MUX ADDR DEVICE        DESCRIPTION
  0 removed      2 F  -   0x48 tmp117        Southwest temperature sensor
@@ -2668,7 +2954,7 @@ Reads from (or writes to) EEPROMs that contain vital product data (VPD).
 To list all eligible devices, use `--list`:
 
 ```console
-% humility vpd --list
+$ humility vpd --list
 humility: attached via ST-Link V3
 ID  C P  MUX ADDR DEVICE        DESCRIPTION
  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
@@ -2680,7 +2966,7 @@ To read from a device, specify it by either id (`--id`) or by some
 (case-insensitive) substring of its description (`--device`):
 
 ```console
-% humility vpd --read --id 0
+$ humility vpd --read --id 0
 humility: attached via ST-Link V3
 [
    ("FRU0", [
@@ -2694,7 +2980,7 @@ humility: attached via ST-Link V3
 In this example, this could also be phrased as:
 
 ```console
-% humility vpd --read --device sharkfin
+$ humility vpd --read --device sharkfin
 humility: attached via ST-Link V3
 [
    ("FRU0", [
@@ -2708,7 +2994,7 @@ humility: attached via ST-Link V3
 You can also use the `--raw` flag to `--read` to see the raw bytes:
 
 ```console
-% humility vpd --read -i 10 --raw
+$ humility vpd --read -i 10 --raw
 humility: attached via ST-Link V3
             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 0x00000000 | 46 52 55 30 4c 00 00 00 fd c6 3b db 42 41 52 43 | FRU0L.....;.BARC
@@ -2723,7 +3009,7 @@ Note that this will fail if the description matches more than one
 device, e.g.:
 
 ```console
-% humility vpd --read --device fan
+$ humility vpd --read --device fan
 humility: attached via ST-Link V3
 humility vpd failed: multiple devices match description "fan"
 ```
@@ -2732,12 +3018,12 @@ To write VPD data, pass a filename of a file that contains a RON
 description of a valid TLV-C payload, e.g.:
 
 ```console
-% cat vpd.in
+$ cat vpd.in
 [("BARC", [
    ("FOOB", [ [8, 6, 7, 5, 3, 0, 9] ]),
    ("QUUX", []),
 ])]
-% humility vpd --write ./vpd.in --device sharkfin
+$ humility vpd --write ./vpd.in --device sharkfin
 humility: attached via ST-Link V3
 humility: successfully wrote 56 bytes of VPD
 ```

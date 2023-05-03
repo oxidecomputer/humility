@@ -15,7 +15,7 @@
 //! option:
 //!
 //! ```console
-//! % humility rendmp -b mid -d 0x5a --slots
+//! $ humility rendmp -b mid -d 0x5a --slots
 //! humility: attached via ST-Link V3
 //! humility: RAA229618 at I2C3, port H, dev 0x5a has 28 slots available
 //! ```
@@ -24,7 +24,7 @@
 //! entirely unprogrammed part generally has a CRC of 0:
 //!
 //! ```console
-//! % humility rendmp -b mid -d 0x5a --crc
+//! $ humility rendmp -b mid -d 0x5a --crc
 //! humility: attached via ST-Link V3
 //! humility: RAA229618 at I2C3, port H, dev 0x5a has CRC 0x00000000
 //! ```
@@ -35,7 +35,7 @@
 //! of the device; mismatches are not permitted, e.g.:
 //!
 //! ```console
-//! % humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
+//! $ humility rendmp -b mid -d 0x5b --flash ./raa229618-0x5a.hex
 //! humility: attached via ST-Link V3
 //! humility rendmp failed: image specifies address to be 0x5a; can't flash 0x5b
 //! ```
@@ -43,7 +43,7 @@
 //! Specify the proper device to flash:
 //!
 //! ```console
-//! % humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
+//! $ humility rendmp -b mid -d 0x5a --flash ./raa229618-0x5a.hex
 //! humility: attached via ST-Link V3
 //! humility: 28 NVM slots remain
 //! humility: flashing 2871 bytes
@@ -55,7 +55,7 @@
 //! To check a configuration, specify the image and the `--check` option:
 //!
 //! ```console
-//! % humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
+//! $ humility rendmp -b mid -d 0x5c -f ./isl68224-0x5c.hex --check
 //! humility: attached via ST-Link V3
 //! humility: 27 NVM slots remain
 //! humility: image CRC (0x841f35a5) matches OTP CRC
@@ -66,7 +66,7 @@
 //! specifying a device (I2C) address to pick a specific power converter:
 //!
 //! ```console
-//! % humility rendmp --blackbox --device=0x5b
+//! $ humility rendmp --blackbox --device=0x5b
 //! humility: attached to 0483:374f:000C001F4D46500F20373033 via ST-Link V3
 //! rail0 uptime: 0 sec
 //! rail1 uptime: 0 sec
@@ -1094,7 +1094,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
             for device in &hubris.manifest.i2c_devices {
                 if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
                     for r in rails {
-                        if rail == r {
+                        if rail == &r.name {
                             found = match found {
                                 Some(_) => {
                                     bail!("multiple devices match {}", rail);

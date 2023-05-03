@@ -8,7 +8,7 @@
 //! To list all such variables, use the `-l` option:
 //!
 //! ```console
-//! % humility readvar -l
+//! $ humility readvar -l
 //! humility: MODULE             VARIABLE                       ADDR       SIZE
 //! humility: kernel             CORE_PERIPHERALS               0x20000000 1
 //! humility: kernel             CURRENT_TASK_PTR               0x20000018 4
@@ -28,7 +28,7 @@
 //! To read a variable, specify it:
 //!
 //! ```console
-//! % humility readvar CURRENT_TASK_PTR
+//! $ humility readvar CURRENT_TASK_PTR
 //! humility: attached via ST-Link
 //! CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
 //!         pointer: 0x20000558 (*const kern::task::Task)

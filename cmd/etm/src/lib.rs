@@ -2,6 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility etm`
+//!
+//! Enables and operates upon the Embedded Trace Macrocell (ETM) found in
+//! some ARM Cortex-M parts.
+//!
+
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;

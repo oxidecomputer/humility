@@ -23,7 +23,7 @@
 //! 32 bytes (discarding the first three) from device 0 on SPI2:
 //!
 //! ```console
-//! % humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
+//! $ humility spi -p 2 --nbytes 32 --write 0x1,0x0,0x0 --read --discard 3
 //! humility: attached to 0483:374e:003C00174741500520383733 via ST-Link V3
 //! humility: SPI master is spi2_driver
 //!              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f

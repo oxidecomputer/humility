@@ -10,7 +10,7 @@
 //! without any additional arguments:
 //!
 //! ```console
-//! % humility validate
+//! $ humility validate
 //! humility: attached via ST-Link V3
 //! ID VALIDATION   C P  MUX ADDR DEVICE        DESCRIPTION
 //!  0 removed      2 F  -   0x48 tmp117        Southwest temperature sensor

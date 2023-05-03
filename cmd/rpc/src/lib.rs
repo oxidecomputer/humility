@@ -19,7 +19,7 @@
 //! except that an `--ip` address is required:
 //!
 //! ```console
-//! % rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
+//! $ humility rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
 //! UserLeds.led_on() = ()
 //! ```
 //!
@@ -29,14 +29,14 @@
 //! illumos, it looks like this:
 //!
 //! ```console
-//! % pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
+//! $ pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 //! ```
 //!
 //! To listen for compatible devices on your network, run `humility rpc
 //! --listen`
 //!
 //! ```console
-//! % humility rpc --listen
+//! $ humility rpc --listen
 //! humility: listening... (ctrl-C to stop, or timeout in 5s)
 //! MAC               IPv6                      COMPAT PART        REV SERIAL
 //! a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066

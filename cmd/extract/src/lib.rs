@@ -9,7 +9,7 @@
 //! e.g.:
 //!
 //! ```console
-//! % humility -a /path/to/my/hubris-archive.zip extract README.TXT
+//! $ humility -a /path/to/my/hubris-archive.zip extract README.TXT
 //! humility: extracting README.TXT to stdout
 //! This is a build archive containing firmware build artifacts.
 //!
@@ -26,7 +26,7 @@
 //! To list all of the files in an archive, use the `--list` (`-l`) option:
 //!
 //! ```console
-//! % humility -a /path/to/my/hubris-archive.zip extract --list
+//! $ humility -a /path/to/my/hubris-archive.zip extract --list
 //!         SIZE NAME
 //!          462 README.TXT
 //!           46 git-rev
@@ -67,7 +67,7 @@
 //! matches exactly one file, it will be extracted:
 //!
 //! ```console
-//! % humility -d ./hubris.core.79 extract map
+//! $ humility -d ./hubris.core.79 extract map
 //! humility: extracting info/map.txt to stdout
 //! ADDRESS  END          SIZE FILE
 //! 08000000 08000298      298 target/demo-stm32h753-nucleo/dist/kernel
@@ -118,7 +118,7 @@
 //! the matching files will be displayed:
 //!
 //! ```console
-//! % humility -d ./hubris.core.79 extract toml
+//! $ humility -d ./hubris.core.79 extract toml
 //! humility extract failed: "toml" matches multiple files: app.toml, stm32h7.toml
 //! ```
 //!

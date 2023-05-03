@@ -14,7 +14,7 @@
 //! one device at address `0x48`:
 //!
 //! ```console
-//! % humility i2c -s -c 3
+//! $ humility i2c -s -c 3
 //! humility: attached via ST-Link
 //!
 //! Device scan on controller I2C3:
@@ -35,7 +35,7 @@
 //! To scan that device, specify its address via `-d`:
 //!
 //! ```console
-//! % humility i2c -s -c 3 -d 0x48
+//! $ humility i2c -s -c 3 -d 0x48
 //! humility: attached via ST-Link
 //!
 //! Register scan for device 0x48 on I2C3:
@@ -65,7 +65,7 @@
 //! register, elide `-s` and specify the register of interest via `-r`:
 //!
 //! ```console
-//! % humility i2c -c 3 -d 0x48 -r 0xb
+//! $ humility i2c -c 3 -d 0x48 -r 0xb
 //! humility: attached via ST-Link
 //! Controller I2C3, device 0x48, register 0xb = 0xcb
 //! ```
@@ -75,7 +75,7 @@
 //! register:
 //!
 //! ```console
-//! % humility i2c -c 3 -d 0x48 -r 0x4 -w 0x1f
+//! $ humility i2c -c 3 -d 0x48 -r 0x4 -w 0x1f
 //! humility: attached via ST-Link
 //! Controller I2C3, device 0x48, register 0x4 = 0x1f
 //! ```
@@ -85,7 +85,7 @@
 //! after writing it to confirm that the value is as expected:
 //!
 //! ```console
-//! % humility i2c -c 3 -d 0x48 -r 0x4
+//! $ humility i2c -c 3 -d 0x48 -r 0x4
 //! humility: attached via ST-Link
 //! Controller I2C3, device 0x48, register 0x4 = 0x1f
 //! ```
@@ -94,7 +94,7 @@
 //! controller/port, use `--lastmux` (`-l`):
 //!
 //! ```console
-//! % humility i2c -b front --lastmux
+//! $ humility i2c -b front --lastmux
 //! humility: attached via ST-Link V3
 //! last selected mux/segment for I2C2, port F: mux 3, segment 2
 //! ```
