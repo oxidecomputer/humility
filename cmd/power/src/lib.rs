@@ -275,7 +275,7 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
                     if let Some(value) = value {
                         print!("{name:30} {no:>8} {value:>8.3}");
                     } else {
-                        print!("{name:30} {no:>8} {no:>8}");
+                        print!("{name:30} {no:>8} {err:>8}");
                     }
 
                     for _ in 0..3 {

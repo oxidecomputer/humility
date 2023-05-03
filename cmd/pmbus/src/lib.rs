@@ -47,7 +47,7 @@
 //! In the unusual case that a device is unknown to the system (that is, it does
 //! not appear in `humliity manifest`), you can force a particular PMBus driver
 //! by using `--driver` (`-D`).
-//! 
+//!
 //! For the common case of devices known to the system, you can specify a device
 //! by name if it matches a single device in the system (e.g., `humility pmbus
 //! -d bmr491`).  In lieu of specifying a device, you can specify a rail via
