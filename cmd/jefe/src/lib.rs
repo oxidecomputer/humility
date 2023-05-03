@@ -13,7 +13,7 @@
 //! restart on fault.  This is done with the `-H`/`--hold` option:
 //!
 //! ```console
-//! % humility jefe --hold ping
+//! $ humility jefe --hold ping
 //! humility: attached via ST-Link
 //! humility: successfully changed disposition for ping
 //! ```
@@ -23,7 +23,7 @@
 //! e.g.:
 //!
 //! ```console
-//! % humility tasks ping
+//! $ humility tasks ping
 //! humility: attached via ST-Link
 //! system time = 26597
 //! ID TASK                 GEN PRI STATE    
@@ -34,7 +34,7 @@
 //! `humility tasks -sl`:
 //!
 //! ```console
-//! % humility tasks -sl ping
+//! $ humility tasks -sl ping
 //! humility: attached via ST-Link
 //! system time = 103879
 //! ID TASK                 GEN PRI STATE    
@@ -53,7 +53,7 @@
 //! `--release`/`-r` flag:
 //!
 //! ```console
-//! % humility jefe --release ping
+//! $ humility jefe --release ping
 //! humility: attached via ST-Link
 //! humility: successfully changed disposition for ping
 //! ```
@@ -74,10 +74,10 @@
 //! originated outside of the task:
 //!
 //! ```console
-//! % humility jefe --fault pong
+//! $ humility jefe --fault pong
 //! humility: attached via ST-Link
 //! humility: successfully changed disposition for pong
-//! % humility tasks pong
+//! $ humility tasks pong
 //! humility: attached via ST-Link
 //! system time = 191227
 //! ID TASK                 GEN PRI STATE    

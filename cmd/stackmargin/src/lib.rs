@@ -10,7 +10,7 @@
 //! from which it infers maximum depth, and therefore margin:
 //!
 //! ```console
-//! % humility -d ./hubris.core.10 stackmargin
+//! $ humility -d ./hubris.core.10 stackmargin
 //! humility: attached to dump
 //! ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
 //!  0 jefe               0x20001000       1024        768        256

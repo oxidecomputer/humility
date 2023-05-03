@@ -8,7 +8,7 @@
 //! To list all eligible devices, use `--list`:
 //!
 //! ```console
-//! % humility vpd --list
+//! $ humility vpd --list
 //! humility: attached via ST-Link V3
 //! ID  C P  MUX ADDR DEVICE        DESCRIPTION
 //!  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
@@ -20,7 +20,7 @@
 //! (case-insensitive) substring of its description (`--device`):
 //!
 //! ```console
-//! % humility vpd --read --id 0
+//! $ humility vpd --read --id 0
 //! humility: attached via ST-Link V3
 //! [
 //!    ("FRU0", [
@@ -34,7 +34,7 @@
 //! In this example, this could also be phrased as:
 //!
 //! ```console
-//! % humility vpd --read --device sharkfin
+//! $ humility vpd --read --device sharkfin
 //! humility: attached via ST-Link V3
 //! [
 //!    ("FRU0", [
@@ -48,7 +48,7 @@
 //! You can also use the `--raw` flag to `--read` to see the raw bytes:
 //!
 //! ```console
-//! % humility vpd --read -i 10 --raw
+//! $ humility vpd --read -i 10 --raw
 //! humility: attached via ST-Link V3
 //!             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 //! 0x00000000 | 46 52 55 30 4c 00 00 00 fd c6 3b db 42 41 52 43 | FRU0L.....;.BARC
@@ -63,7 +63,7 @@
 //! device, e.g.:
 //!
 //! ```console
-//! % humility vpd --read --device fan
+//! $ humility vpd --read --device fan
 //! humility: attached via ST-Link V3
 //! humility vpd failed: multiple devices match description "fan"
 //! ```
@@ -72,12 +72,12 @@
 //! description of a valid TLV-C payload, e.g.:
 //!
 //! ```console
-//! % cat vpd.in
+//! $ cat vpd.in
 //! [("BARC", [
 //!    ("FOOB", [ [8, 6, 7, 5, 3, 0, 9] ]),
 //!    ("QUUX", []),
 //! ])]
-//! % humility vpd --write ./vpd.in --device sharkfin
+//! $ humility vpd --write ./vpd.in --device sharkfin
 //! humility: attached via ST-Link V3
 //! humility: successfully wrote 56 bytes of VPD
 //! ```

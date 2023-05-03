@@ -21,7 +21,7 @@
 //! with the `ping` task, one will see messages from `jefe` restarting it:
 //!
 //! ```console
-//! % humility -a /path/to/my/hubris-archive.zip itm -ea
+//! $ humility -a /path/to/my/hubris-archive.zip itm -ea
 //! humility: attached via ST-Link
 //! humility: core halted
 //! humility: core resumed

@@ -8,7 +8,7 @@
 //! can, e.g.:
 //!
 //! ```console
-//! % humility probe
+//! $ humility probe
 //! humility: attached via ST-Link
 //! humility:        probe => STLink V3, VID 0483, PID 374e
 //! humility: probe serial => 003700303137511139383538
@@ -54,7 +54,7 @@
 //! contents symbolically, e.g.:
 //!
 //! ```console
-//! % humility -a ~/hubris/target/demo/dist/build-demo.zip probe
+//! $ humility -a ~/hubris/target/demo/dist/build-demo.zip probe
 //! humility: attached via ST-Link
 //! humility:        probe => STLink V2-1, VID 0483, PID 374b
 //! humility: probe serial => 066DFF383032534E43132614

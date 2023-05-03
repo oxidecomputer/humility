@@ -8,7 +8,7 @@
 //! or a dump, e.g.:
 //!
 //! ```console
-//! % humility registers
+//! $ humility registers
 //! humility: attached via ST-Link V3
 //!    R0 = 0x00000000
 //!    R1 = 0x0000000a
@@ -57,7 +57,7 @@
 //! symbol that corresponds to register's value (if any) is displayed, e.g.:
 //!
 //! ```console
-//! % humility -d ./hubris.core.81 registers
+//! $ humility -d ./hubris.core.81 registers
 //! humility: attached to dump
 //!    R0 = 0x00000000
 //!    R1 = 0x0000000a
@@ -104,7 +104,7 @@
 //! To display a stack backtrace, use the `--stack` (`-s`) option:
 //!
 //! ```console
-//! % humility -d ./hubris.core.81 registers --stack
+//! $ humility -d ./hubris.core.81 registers --stack
 //! humility: attached to dump
 //!    R0 = 0x00000000
 //! ...

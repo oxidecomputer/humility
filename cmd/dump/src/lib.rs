@@ -8,7 +8,7 @@
 //! core file:
 //!
 //! ```console
-//! % humility dump
+//! $ humility dump
 //! humility: attached via ST-Link
 //! humility: core halted
 //! humility: dumping to hubris.core.0
@@ -19,7 +19,7 @@
 //! A dump file name may also be specified:
 //!
 //! ```console
-//! % humility dump hubris.core.`date +%s`
+//! $ humility dump hubris.core.`date +%s`
 //! humility: attached via ST-Link
 //! humility: core halted
 //! humility: dumping to hubris.core.1600718079
@@ -32,7 +32,7 @@
 //! as the debugged MCU, e.g.:
 //!
 //! ```console
-//! % humility -d hubris.core.0 tasks
+//! $ humility -d hubris.core.0 tasks
 //! humility: attached to dump
 //! system time = 94529
 //! ID TASK                       GEN PRI STATE    

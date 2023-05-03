@@ -8,7 +8,7 @@
 //! via the `ringbuf!` macro in the Hubris `ringbuf` crate).  e.g.:
 //!
 //! ```console
-//! % humility -d ./hubris.core.5 ringbuf
+//! $ humility -d ./hubris.core.5 ringbuf
 //! ADDR        NDX LINE  GEN    COUNT PAYLOAD
 //! 0x2000a288  552   92    1        5 (21.5, 70.69999694824219)
 //! 0x2000a298  553   92    1        1 (21.4375, 70.58749389648438)
@@ -36,7 +36,7 @@
 //! containing task:
 //!
 //! ```console
-//! % humility -d ./hubris.core.76 ringbuf ksz
+//! $ humility -d ./hubris.core.76 ringbuf ksz
 //! humility: attached to dump
 //! humility: ring buffer ksz8463::__RINGBUF in net:
 //!  NDX LINE      GEN    COUNT PAYLOAD

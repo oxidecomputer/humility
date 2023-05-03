@@ -81,15 +81,7 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
         let header = format!("### `humility {}`\n", cmd);
 
         if contents.stdout.len() == 1 {
-            output.write_all(&header.as_bytes()[1..])?;
-            writeln!(
-                output,
-                r##"
-Welp, no additional documentation for {} -- but there obviously should be!
-Mind opening an issue on that if one isn't open already?
-"##,
-                cmd
-            )?;
+            bail!("no documentation for {cmd}");
         } else {
             if !contents.stdout.starts_with(header.as_bytes()) {
                 bail!("malformed documentation for {}", cmd);

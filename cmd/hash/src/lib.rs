@@ -2,6 +2,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+//! ## `humility hash`
+//!
+//! Uses the `hash` task to hash sequences. The following are all equivalent:
+//!
+//! ```console
+//! $ humility hash --digest -s abc
+//! $ humility hash --digest -x 61,62,63
+//! $ echo -n abc > abc.txt ; humility hash --digest -f abc.txt
+//! $ hash -i --update -s 'a' ; hash --update -s 'bc' ; hash --finalize
+//! ```
+//!
+//! Note that `--update` can also take a filename as a parameter.
+//!
+
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 
@@ -23,25 +37,6 @@ use indicatif::{ProgressBar, ProgressStyle};
     group = ArgGroup::new("data").multiple(false)
 )]
 struct HashArgs {
-    /// Legal sequences:
-    ///
-    ///   ... hash --digest -s abc # which is equivalent to
-    ///
-    ///   ... hash --digest -x 61,62,63 # which is equivalent to
-    ///
-    ///   echo -n abc > abc.txt
-    ///   ... hash --digest -f abc.txt
-    ///
-    ///   ... hash -i --update -s 'a'
-    ///   ... hash --update -s 'bc'
-    ///   ... hash --finalize
-    ///
-    ///   ... hash --init
-    ///   ... hash --update -f /etc/issue
-    ///   ... hash --update -f /etc/issue.net
-    ///   ... hash --finalize
-    ///
-
     /// Initialize the hash block and optionally provide a length.
     #[clap(long, short)] // not in group "command" to allow -i update
     init: bool,

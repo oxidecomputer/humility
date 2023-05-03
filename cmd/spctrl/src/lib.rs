@@ -9,13 +9,13 @@
 //! You must run `humility spctrl init` before any other commands
 //!
 //! ```console
-//! % humility spctrl init
+//! $ humility spctrl init
 //! [Ok([])]
 //! ```
 //!
 //! You can read/write memory on the SP via the RoT
 //! ```console
-//! % humility spctrl -W read 0x08000000 64
+//! $ humility spctrl -W read 0x08000000 64
 //! humility: attached via CMSIS-DAP
 //!                    \/        4        8        c
 //! 0x08000000 | 20000400 08000299 08003b6d 08004271 | ... ....m;..qB..
@@ -23,7 +23,7 @@
 //! 0x08000020 | 00000000 00000000 00000000 0800398b | .............9..
 //! 0x08000030 | 08003b6d 00000000 08003aa9 080039dd | m;.......:...9..
 //!
-//! % humility spctrl -W read 0x00000000 64
+//! $ humility spctrl -W read 0x00000000 64
 //! humility: attached via CMSIS-DAP
 //!                    \/        4        8        c
 //! 0x00000000 | 3d0fbf49 991373d9 9107611c f6d84242 | I..=.s...a..BB..
@@ -31,11 +31,11 @@
 //! 0x00000020 | b2d2639e faf8049b e202de8c 2ae12025 | .c..........% .*
 //! 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 //!
-//! % humility spctrl -W write 0x00000000 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88
+//! $ humility spctrl -W write 0x00000000 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88
 //! humility: attached via CMSIS-DAP
 //! [Ok([])]
 //!
-//! % humility spctrl -W read 0x00000000 64
+//! $ humility spctrl -W read 0x00000000 64
 //! humility: attached via CMSIS-DAP
 //!                    \/        4        8        c
 //! 0x00000000 | 44332211 88776655 9107611c f6d84242 | ."3DUfw..a..BB..

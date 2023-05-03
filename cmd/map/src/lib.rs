@@ -15,7 +15,7 @@
 //! `jefe` will indicate the specific address, e.g.:
 //!
 //! ```console
-//! % humility itm -ea
+//! $ humility itm -ea
 //! humility: attached via OpenOCD
 //! humility: core halted
 //! humility: core resumed
@@ -31,7 +31,7 @@
 //! been mapped into tasks, in address order:
 //!
 //! ```console
-//! % humility -a ~/hubris/target/demo/dist/build-demo.zip map
+//! $ humility -a ~/hubris/target/demo/dist/build-demo.zip map
 //! humility: attached via OpenOCD
 //! DESC       LOW          HIGH          SIZE ATTR   ID TASK
 //! 0x08004864 0x08010000 - 0x08017fff   32KiB r-x---  0 jefe

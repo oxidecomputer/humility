@@ -16,7 +16,7 @@
 //!
 //! Here's an example:
 //! ```console
-//! matt@igor ~ (sn5) $ pfexec ./humility -tsn5 ibc black-box
+//! $ humility -tsn5 ibc black-box
 //! humility: attached to 0483:374e:001B00083156501320323443 via ST-Link V3
 //! FAULT EVENT
 //!   EVENT_INDEX:        0

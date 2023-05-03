@@ -9,7 +9,7 @@
 //! option:
 //!
 //! ```console
-//! % humility qspi -i
+//! $ humility qspi -i
 //! humility: attached via ST-Link V3
 //! DeviceIdData {
 //!     manufacturer_id: Micron(0x20)
@@ -32,7 +32,7 @@
 //! To write an image from a file, use the `--writefile` (`-W`) option:
 //!
 //! ```console
-//! % humility -W ./milan-spew-115k2-2dpc-0.4.1-dataeye.bin
+//! $ humility -W ./milan-spew-115k2-2dpc-0.4.1-dataeye.bin
 //! humility: attached via ST-Link V3
 //! humility: erasing 16777216 bytes...
 //! humility: ... done
@@ -44,7 +44,7 @@
 //! option:
 //!
 //! ```console
-//! % humility qspi -D ./milan-spew-115k2-2dpc-0.4.1.bin
+//! $ humility qspi -D ./milan-spew-115k2-2dpc-0.4.1.bin
 //! humility: attached via ST-Link V3
 //! humility: erasing 65536 bytes...
 //! humility: ... done
@@ -57,7 +57,7 @@
 //! For example, to read 128 bytes from address 0x120000:
 //!
 //! ```console
-//! % humility qspi -r -a 0x120000 -n 128
+//! $ humility qspi -r -a 0x120000 -n 128
 //!              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
 //! 0x00120000 | 24 50 53 50 ee 7a 31 28 10 00 00 00 20 cd 48 20 | $PSP.z1(.... .H
 //! 0x00120010 | 00 00 00 00 40 04 00 00 00 30 12 00 00 00 00 00 | ....@....0......
@@ -72,7 +72,7 @@
 //! To get the SHA256 hash for that same region:
 //!
 //! ```console
-//! % humility qspi -H -a 0x120000 -n 128
+//! $ humility qspi -H -a 0x120000 -n 128
 //! humility: attached via ST-Link V3
 //! 120000..000080: 4d07112733efe240f990fad785726c52de4335d6c5c30a33e60096d4c2576742
 //! ```

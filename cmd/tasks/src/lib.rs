@@ -7,7 +7,7 @@
 //! `humility tasks` offers a ps-like view of a system, e.g.:
 //!
 //! ```console
-//! % humility tasks
+//! $ humility tasks
 //! humility: attached via ST-Link
 //! system time = 1764993
 //! ID TASK                 GEN PRI STATE    
@@ -28,7 +28,7 @@
 //! To see every field in each task, you can use the `-v` flag:
 //!
 //! ```console
-//! % humility -d hubris.core.4 tasks -v
+//! $ humility -d hubris.core.4 tasks -v
 //! humility: attached to dump
 //! system time = 1791860
 //! ID TASK                 GEN PRI STATE    
@@ -61,7 +61,7 @@
 //! To see a task's registers, use the `-r` flag:
 //!
 //! ```console
-//! % humility tasks -r user_leds
+//! $ humility tasks -r user_leds
 //! humility: attached via ST-Link
 //! system time = 1990498
 //! ID TASK                 GEN PRI STATE    
@@ -76,7 +76,7 @@
 //! To see a task's stack backtrace, use the `-s` flag:
 //!
 //! ```console
-//! % humility tasks -s user_leds
+//! $ humility tasks -s user_leds
 //! humility: attached via ST-Link
 //! system time = 2021382
 //! ID TASK                 GEN PRI STATE    
@@ -92,7 +92,7 @@
 //! `-l` flag:
 //!
 //! ```console
-//! % humility tasks -sl user_leds
+//! $ humility tasks -sl user_leds
 //! humility: attached via ST-Link
 //! system time = 2049587
 //! ID TASK                 GEN PRI STATE    

@@ -10,7 +10,7 @@
 //! for tasks or interface names if so desired:
 //!
 //! ```console
-//! % humility hiffy -l user_leds
+//! $ humility hiffy -l user_leds
 //! humility: attached via ST-Link
 //! INTERFACE                    TASK
 //! UserLeds                     user_leds
@@ -36,7 +36,7 @@
 //! e.g.:
 //!
 //! ```console
-//! % humility hiffy -c UserLeds.led_toggle -a index=0
+//! $ humility hiffy -c UserLeds.led_toggle -a index=0
 //! humility: attached via ST-Link
 //! UserLeds.led_toggle() = ()
 //! ```
