@@ -11,7 +11,7 @@
 //! the archive, e.g.:
 //!
 //! ```console
-//! % humility manifest
+//! $ humility manifest
 //!      version => hubris build archive v1.0.0
 //!      git rev => 753a57169eba699e73ee59e0cf5345eb1d6e1ae2-dirty
 //!        board => nucleo-h743zi2

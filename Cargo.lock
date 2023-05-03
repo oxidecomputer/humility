@@ -1143,7 +1143,6 @@ dependencies = [
  "humility-cmd-tasks",
  "humility-cmd-test",
  "humility-cmd-tofino-eeprom",
- "humility-cmd-trace",
  "humility-cmd-update",
  "humility-cmd-validate",
  "humility-cmd-vpd",
@@ -1980,18 +1979,6 @@ dependencies = [
  "humility-idol",
  "indicatif",
  "parse_int",
-]
-
-[[package]]
-name = "humility-cmd-trace"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "humility-cli",
- "humility-cmd",
- "humility-core",
- "humility-cortex",
 ]
 
 [[package]]

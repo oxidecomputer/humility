@@ -63,12 +63,8 @@ fn phase_currents(
     let ok = hubris.lookup_basetype(op.ok)?;
     let mut ops = vec![];
 
-    if ok.encoding != HubrisEncoding::Float {
+    if (ok.encoding, ok.size) != (HubrisEncoding::Float, 4) {
         bail!("expected return value of phase_current() to be a float");
-    }
-
-    if ok.size != 4 {
-        bail!("expected return value of phase_current() to be an f32");
     }
 
     for device in devices.values() {
@@ -128,12 +124,8 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
 
     let ok = hubris.lookup_basetype(op.ok)?;
 
-    if ok.encoding != HubrisEncoding::Float {
-        bail!("expected return value of read_sensors() to be a float");
-    }
-
-    if ok.size != 4 {
-        bail!("expected return value of read_sensors() to be an f32");
+    if (ok.encoding, ok.size) != (HubrisEncoding::Float, 4) {
+        bail!("expected return value of Sensor.get() to be a float");
     }
 
     if hubris.manifest.sensors.is_empty() {

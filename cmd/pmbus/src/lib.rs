@@ -8,7 +8,7 @@
 //! `--list` (`-l`):
 //!
 //! ```console
-//! % humility pmbus --list
+//! $ humility pmbus --list
 //! C P  MUX ADDR DEVICE        RAILS
 //! 3 H  -   0x24 tps546b24a    V3P3_SP_A2
 //! 3 H  -   0x26 tps546b24a    V3P3_SYS_A0
@@ -27,7 +27,7 @@
 //! (controller/port, segment, address):
 //!
 //! ```console
-//! % humility pmbus -d 0x67 -c 4 -p f
+//! $ humility pmbus -d 0x67 -c 4 -p f
 //! 0x01 OPERATION                 0x84
 //! 0x02 ON_OFF_CONFIG             0x18
 //! 0x10 WRITE_PROTECT             0x00
@@ -54,7 +54,7 @@
 //! `--rail` (`-r`), e.g.:
 //!
 //! ```console
-//! % humility pmbus --rail VDD_MEM_EFGH
+//! $ humility pmbus --rail VDD_MEM_EFGH
 //! humility: attached via ST-Link V3
 //! 0x00 PAGE                      0x01 = 1
 //! 0x01 OPERATION                 0x48
@@ -81,7 +81,7 @@
 //! deconstruct a particular command result:
 //!
 //! ```console
-//! % humility pmbus -r VDD_MEM_ABCD --command STATUS_WORD --verbose
+//! $ humility pmbus -r VDD_MEM_ABCD --command STATUS_WORD --verbose
 //! humility: attached via ST-Link V3
 //! 0x79 STATUS_WORD               0x0000
 //!      |
@@ -108,7 +108,7 @@
 //! for particular fields to be written, e.g.:
 //!
 //! ```console
-//! % humility pmbus -r VDD_VCORE -w OPERATION.MarginFaultResponse=ActUpon
+//! $ humility pmbus -r VDD_VCORE -w OPERATION.MarginFaultResponse=ActUpon
 //! humility: attached via ST-Link V3
 //! humility: I2C3, port H, dev 0x5a, rail 0: successfully wrote OPERATION
 //! ```
@@ -119,7 +119,7 @@
 //! those fields, use `--commandhelp` (`-H`):
 //!
 //! ```console
-//! % humility pmbus -r VDD_VCORE --commandhelp OPERATION
+//! $ humility pmbus -r VDD_VCORE --commandhelp OPERATION
 //! 0x01 OPERATION
 //!      | b7     OnOffState                     <= On/off state
 //!      |        0b0 = Off                      <- output off
@@ -144,7 +144,7 @@
 //! To get a summary of all PMBus rails in the system, use `--summarize` (`-s`):
 //!
 //! ```console
-//! % humility pmbus --summarize
+//! $ humility pmbus --summarize
 //! humility: attached via ST-Link V3
 //! DEVICE      RAIL               PG? #FLT       VIN      VOUT      IOUT    TEMP_1
 //! tps546b24a  V3P3_SP_A2           Y    0   11.969V    3.311V    0.404A  33.500°C

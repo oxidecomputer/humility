@@ -170,12 +170,8 @@ fn print(
 
     let ok = hubris.lookup_basetype(op.ok)?;
 
-    if ok.encoding != HubrisEncoding::Float {
-        bail!("expected return value of read_sensors() to be a float");
-    }
-
-    if ok.size != 4 {
-        bail!("expected return value of read_sensors() to be an f32");
+    if (ok.encoding, ok.size) != (HubrisEncoding::Float, 4) {
+        bail!("expected return value of Sensor.get() to be a float");
     }
 
     if hubris.manifest.sensors.is_empty() {
@@ -226,12 +222,8 @@ fn print(
     if let Ok(errop) = hubris.get_idol_command("Sensor.get_nerrors") {
         let ok = hubris.lookup_basetype(errop.ok)?;
 
-        if ok.encoding != HubrisEncoding::Unsigned {
-            bail!("expected return value of nerrors() to be unsigned");
-        }
-
-        if ok.size != nerrbits / 8 {
-            bail!("expected return value of nerrors() to be a u32");
+        if (ok.encoding, ok.size) != (HubrisEncoding::Unsigned, nerrbits / 8) {
+            bail!("expected return value of get_nerrors() to be a u32");
         }
 
         for s in sensors.chunks(100) {

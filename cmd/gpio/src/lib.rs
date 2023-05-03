@@ -21,7 +21,7 @@
 //! port B:
 //!
 //! ```console
-//! % humility gpio --toggle --pins B:14
+//! $ humility gpio --toggle --pins B:14
 //! humility: attached via ST-Link V3
 //! [Ok([])]
 //! ```
@@ -29,7 +29,7 @@
 //! To set pins B:0, B:14 and E:1:
 //!
 //! ```console
-//! % humility gpio --set --pins B:0,B:14,E:1
+//! $ humility gpio --set --pins B:0,B:14,E:1
 //! humility: attached via ST-Link V3
 //! [Ok([]), Ok([]), Ok([])]
 //! ```
@@ -37,7 +37,7 @@
 //! To reset pin E:1:
 //!
 //! ```console
-//! % humility gpio --reset --pins E:1
+//! $ humility gpio --reset --pins E:1
 //! humility: attached via ST-Link V3
 //! [Ok([])]
 //! ```
@@ -47,7 +47,7 @@
 //! To get input values for a particular pin:
 //!
 //! ```console
-//! % humility gpio --input --pins B:0,B:14,E:1
+//! $ humility gpio --input --pins B:0,B:14,E:1
 //! humility: attached via ST-Link V3
 //! B:0  = 1
 //! B:14 = 1
@@ -57,7 +57,7 @@
 //! To get input values for all pins, leave the pin unspecified:
 //!
 //! ```console
-//! % humility gpio --input
+//! $ humility gpio --input
 //! humility: attached via ST-Link V3
 //! Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 //! -----------------------------------------------------------------------
@@ -88,7 +88,7 @@
 //! For example, to configure pin 5 on port A as a push-pull output:
 //!
 //! ```console
-//! % humility gpio -c Output:PushPull:High:None:AF0 -p A:5
+//! $ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
 //! ```
 //!
 

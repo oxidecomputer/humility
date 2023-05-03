@@ -7,7 +7,7 @@
 //! `humility readmem` allows one to read a specified range of memory:
 //!
 //! ```console
-//! % humility readmem 0x00011b00
+//! $ humility readmem 0x00011b00
 //! humility: attached via DAPLink
 //! humility: reading at 0x11b00 for 256 bytes
 //!              \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
