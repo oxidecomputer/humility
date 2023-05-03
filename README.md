@@ -1379,7 +1379,175 @@ will both run OpenOCD and run a foreground GDB that is connected to it.
 
 ### `humility pmbus`
 
-No documentation yet for `humility pmbus`; pull requests welcome!
+Operates on PMBus devices in the system.  To list all PMBus devices, use
+`--list` (`-l`):
+
+```console
+% humility pmbus --list
+C P  MUX ADDR DEVICE        RAILS
+3 H  -   0x24 tps546b24a    V3P3_SP_A2
+3 H  -   0x26 tps546b24a    V3P3_SYS_A0
+3 H  -   0x27 tps546b24a    V5_SYS_A2
+3 H  -   0x29 tps546b24a    V1P8_SYS_A2
+3 H  -   0x5a raa229618     VDD_VCORE, VDD_MEM_ABCD
+3 H  -   0x5b raa229618     VDDCR_SOC, VDD_MEM_EFGH
+3 H  -   0x5c isl68224      VPP_ABCD, VPP_EFGH, V1P8_SP3
+4 F  -   0x10 adm1272       V54_FAN
+4 F  -   0x14 adm1272       V54_HS_OUTPUT
+4 F  -   0x25 tps546b24a    V0P96_NIC_VDD_A0HP
+4 F  -   0x67 bmr491        V12_SYS_A2
+```
+
+To query a particular device, specify the device by its I2C identity
+(controller/port, segment, address):
+
+```console
+% humility pmbus -d 0x67 -c 4 -p f
+0x01 OPERATION                 0x84
+0x02 ON_OFF_CONFIG             0x18
+0x10 WRITE_PROTECT             0x00
+0x19 CAPABILITY                0xb0
+0x20 VOUT_MODE                 0x15
+0x21 VOUT_COMMAND              0x6000 = 12.000V
+0x22 VOUT_TRIM                 0x0000 = 0.000V
+0x23 VOUT_CAL_OFFSET           0xffb4 = 31.963V
+0x24 VOUT_MAX                  0x7333 = 14.400V
+0x25 VOUT_MARGIN_HIGH          0x699a = 13.200V
+0x26 VOUT_MARGIN_LOW           0x5666 = 10.800V
+0x27 VOUT_TRANSITION_RATE      0x9b02 = 0.094V/ms
+0x28 VOUT_DROOP                0xe800 = 0.000mV/A
+...
+```
+
+In the unusual case that a device is unknown to the system (that is, it does
+not appear in `humliity manifest`), you can force a particular PMBus driver
+by using `--driver` (`-D`).
+
+For the common case of devices known to the system, you can specify a device
+by name if it matches a single device in the system (e.g., `humility pmbus
+-d bmr491`).  In lieu of specifying a device, you can specify a rail via
+`--rail` (`-r`), e.g.:
+
+```console
+% humility pmbus --rail VDD_MEM_EFGH
+humility: attached via ST-Link V3
+0x00 PAGE                      0x01 = 1
+0x01 OPERATION                 0x48
+0x02 ON_OFF_CONFIG             0x16
+0x04 PHASE                     0x00 = 0
+0x07 ZONE_CONFIG               0xfefe
+0x08 ZONE_ACTIVE               0x0000
+0x10 WRITE_PROTECT             0x00
+0x19 CAPABILITY                0xd4
+0x20 VOUT_MODE                 0x40
+0x21 VOUT_COMMAND              0x04ce = 1.230V
+0x22 VOUT_TRIM                 0x0000 = 0.000V
+0x23 VOUT_CAL_OFFSET           0x0000 = 0.000V
+0x24 VOUT_MAX                  0x05dc = 1.500V
+0x25 VOUT_MARGIN_HIGH          0x03b1 = 0.945V
+0x26 VOUT_MARGIN_LOW           0x0357 = 0.855V
+0x27 VOUT_TRANSITION_RATE      0x09c4 = 0.025V/μs
+0x28 VOUT_DROOP                0x0014 = 0.200mV/A
+...
+```
+
+You can specify a command (or commands) to run with `--command` (`-C`);
+this can be useful when paired with the `--verbose` (`-v`) flag to
+deconstruct a particular command result:
+
+```console
+% humility pmbus -r VDD_MEM_ABCD --command STATUS_WORD --verbose
+humility: attached via ST-Link V3
+0x79 STATUS_WORD               0x0000
+     |
+     | b15    0b0 = no fault                 <= OutputVoltageFault
+     | b14    0b0 = no fault                 <= OutputCurrentFault
+     | b13    0b0 = no fault                 <= InputFault
+     | b12    0b0 = no fault                 <= ManufacturerFault
+     | b11    0b0 = POWER_GOOD set           <= PowerGoodStatus
+     | b10    0b0 = no fault                 <= FanFault
+     | b9     0b0 = no fault                 <= OtherFault
+     | b8     0b0 = no fault                 <= UnknownFault
+     | b7     0b0 = no fault                 <= Busy
+     | b6     0b0 = power is not off         <= Off
+     | b5     0b0 = no fault                 <= OutputOvervoltageFault
+     | b4     0b0 = no fault                 <= OutputOvercurrentFault
+     | b3     0b0 = no fault                 <= InputUndervoltageFault
+     | b2     0b0 = no fault                 <= TemperatureFault
+     | b1     0b0 = no fault                 <= CMLFault
+     | b0     0b0 = no fault                 <= NoneOfTheAbove
+     +-----------------------------------------------------------------------
+```
+
+You can also write a PMBus command with `--write` (`-w`), which allows for
+for particular fields to be written, e.g.:
+
+```console
+% humility pmbus -r VDD_VCORE -w OPERATION.MarginFaultResponse=ActUpon
+humility: attached via ST-Link V3
+humility: I2C3, port H, dev 0x5a, rail 0: successfully wrote OPERATION
+```
+
+It should go without saying that this should be done carefully!
+
+To get specific help on what fields may be written and the legal values for
+those fields, use `--commandhelp` (`-H`):
+
+```console
+% humility pmbus -r VDD_VCORE --commandhelp OPERATION
+0x01 OPERATION
+     | b7     OnOffState                     <= On/off state
+     |        0b0 = Off                      <- output off
+     |        0b1 = On                       <- output on
+     | b6     TurnOffBehavior                <= Power down behavior
+     |        0b0 = Clear                    <- powers down immediately
+     |        0b1 = Set                      <- powers down based on TOFF_DELAY
+     | b5:4   VoltageCommandSource           <= Source of output voltage
+     |        0b00 = VOUT_COMMAND            <- set by VOUT_COMMAND
+     |        0b01 = VOUT_MARGIN_LOW         <- set by VOUT_MARGIN_LOW
+     |        0b10 = VOUT_MARGIN_HIGH        <- set by VOUT_MARGIN_HIGH
+     |        0b11 = AVS_VOUT_COMMAND        <- set by AVSBus
+     | b3:2   MarginFaultResponse            <= Margin fault response
+     |        0b01 = Ignore                  <- ignore margin faults
+     |        0b10 = ActUpon                 <- act upon margin faults
+     | b1     TransitionControl              <= Transition control
+     |        0b0 = Clear                    <- not set
+     |        0b1 = Set                      <- set
+     +-----------------------------------------------------------------------
+```
+
+To get a summary of all PMBus rails in the system, use `--summarize` (`-s`):
+
+```console
+% humility pmbus --summarize
+humility: attached via ST-Link V3
+DEVICE      RAIL               PG? #FLT       VIN      VOUT      IOUT    TEMP_1
+tps546b24a  V3P3_SP_A2           Y    0   11.969V    3.311V    0.404A  33.500°C
+tps546b24a  V3P3_SYS_A0          Y    0   11.969V    3.309V    1.457A  36.250°C
+tps546b24a  V5_SYS_A2            Y    0   11.969V    4.982V    0.518A  36.000°C
+tps546b24a  V1P8_SYS_A2          Y    0   11.984V    1.797V    3.316A  34.750°C
+raa229618   VDD_VCORE            Y    0   11.990V    1.181V   53.200A  40.000°C
+raa229618   VDD_MEM_ABCD         Y    0   11.990V    1.224V   28.600A  41.000°C
+raa229618   VDDCR_SOC            Y    0   11.950V    0.890V   18.200A  42.000°C
+raa229618   VDD_MEM_EFGH         Y    0   11.950V    1.223V   27.400A  43.000°C
+isl68224    VPP_ABCD             Y    0   11.950V    2.500V    0.400A  40.000°C
+isl68224    VPP_EFGH             Y    0   11.950V    2.499V    0.500A  30.000°C
+isl68224    V1P8_SP3             Y    0   11.950V    1.796V    1.600A   0.000°C
+adm1272     V54_FAN              Y    4    0x088c    0x088c    0x0810  30.452°C
+adm1272     V54_HS_OUTPUT        Y    4    0x088c    0x088b    0x092e  30.690°C
+tps546b24a  V0P96_NIC_VDD_A0HP   Y    0   11.984V    0.955V    3.074A  37.500°C
+bmr491      V12_SYS_A2           Y    1   53.625V   11.995V   19.250A  35.750°C
+```
+
+Note that for some devices, it is not possible to get accurate voltage and
+current readings from `pmbus` alone, as knowledge of how the device is
+integrated into a larger system is required to interpret raw values.  For
+these devices, the raw value is provided (as in the `adm1272` output,
+above); to get the interpreted value, use `humility power` instead (which
+has the added advantage of displaying all power rails in the systemn, not
+just PMBus devices.)
+
+
 
 ### `humility power`
 

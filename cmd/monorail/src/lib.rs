@@ -105,12 +105,12 @@
 //!  43  | QSGMII  100M   1G_19   6G_14   up   | VSC8504  down      down
 //!  44  | QSGMII  1G     1G_20   6G_15   up   | VSC8562  up        up
 //!  45  | QSGMII  1G     1G_21   6G_15   up   | VSC8562  up        up
-//!  ```
+//! ```
 //!
 //! #### `humility monorail dump`
 //! Dumps an entire top-level target on the VSC7448, e.g. `DEV1G[0]`
-//! ```console
 //!
+//! ```console
 //! matt@niles ~ (sidecar) $ h monorail dump DEV1G[0]
 //! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
 //! Dumping target DEV1G[0] (0x71040000 -> 0x710400a0)
