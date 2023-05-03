@@ -283,7 +283,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility tasks](#humility-tasks): list Hubris tasks
 - [humility test](#humility-test): run Hubristest suite and parse results
 - [humility tofino-eeprom](#humility-tofino-eeprom): read and write to the Tofino SPI EEPROM
-- [humility trace](#humility-trace): trace Hubris operations
 - [humility update](#humility-update): apply an update
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
@@ -440,7 +439,10 @@ ID TASK                       GEN PRI STATE
 
 ### `humility etm`
 
-No documentation yet for `humility etm`; pull requests welcome!
+Enables and operates upon the Embedded Trace Macrocell (ETM) found in
+some ARM Cortex-M parts.
+
+
 
 ### `humility exec`
 
@@ -730,7 +732,18 @@ $ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
 
 ### `humility hash`
 
-No documentation yet for `humility hash`; pull requests welcome!
+Uses the `hash` task to hash sequences. The following are all equivalent:
+
+```console
+$ humility hash --digest -s abc
+$ humility hash --digest -x 61,62,63
+$ echo -n abc > abc.txt ; humility hash --digest -f abc.txt
+$ hash -i --update -s 'a' ; hash --update -s 'bc' ; hash --finalize
+```
+
+Note that `--update` can also take a filename as a parameter.
+
+
 
 ### `humility hiffy`
 
@@ -1066,7 +1079,9 @@ normal, or `--start`/`-s` to run it once but catch the next fault.
 
 ### `humility lpc55gpio`
 
-No documentation yet for `humility lpc55gpio`; pull requests welcome!
+The LPC55-equivalent of `humility gpio`.
+
+
 
 ### `humility manifest`
 
@@ -2470,7 +2485,108 @@ humility: attached via CMSIS-DAP
 
 ### `humility spd`
 
-No documentation yet for `humility spd`; pull requests welcome!
+Scan for and read devices implementing Serial Presence Detect (SPD).
+When run without arguments, `humility spd` will display the SPD data
+as gathered and cached by the system:
+
+```console
+$ humility spd
+humility: attached via ST-Link V3
+ADDR MANUFACTURER              PART                 WEEK YEAR
+   0 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   1 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   2 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   3 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   4 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   5 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   6 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   7 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   8 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   9 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  10 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  11 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  12 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  13 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  14 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+  15 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+```
+
+This performs no I2C reads, and because it operates on cached data,
+can be run postmortem.
+
+To force an I2C read of a given SPD device, specify the desired bus
+in terms of either a named bus or controller/port/mux:
+
+```console
+% humility spd -b mid
+humility: attached via ST-Link V3
+ADDR MANUFACTURER              PART                 WEEK YEAR
+   0 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   1 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   2 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   3 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   4 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   5 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   6 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   7 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+```
+
+Note that a given bus can have up to 8 DIMMs on it.
+
+To dump the entire contents of one more SPDs, use the `--verbose` (`-v`)
+option:
+
+```console
+% humility spd --bus mid --address 5 --verbose
+humility: attached via ST-Link V3
+ADDR MANUFACTURER              PART                 WEEK YEAR
+   5 Micron Technology         36ASF8G72PZ-3G2E1      44 2021
+   |
+   +---->    00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
+    0x000 |  23 12 0c 01 86 31 00 08 00 60 00 03 08 0b 80 00 | #....1...`......
+    0x010 |  00 00 05 0d f8 ff 02 00 6e 6e 6e 11 00 6e f0 0a | ........nnn..n..
+    0x020 |  20 08 00 05 00 50 14 28 28 00 78 00 14 3c 00 00 |  ....P.((.x..<..
+    0x030 |  00 00 00 00 00 00 00 00 00 00 00 00 16 16 15 16 | ................
+    0x040 |  03 16 03 16 03 16 03 16 0d 16 16 16 16 16 00 00 | ................
+    0x050 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x060 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x070 |  00 00 00 00 00 00 9c 00 00 00 00 00 e7 00 fd a3 | ................
+    0x080 |  31 11 61 19 00 86 9d 22 01 65 45 00 00 00 00 00 | 1.a....".eE.....
+    0x090 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0a0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0b0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0c0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0d0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0e0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x0f0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 b8 ce | ................
+    0x100 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x110 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x120 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x130 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x140 |  80 2c 06 21 44 32 52 c5 7e 33 36 41 53 46 38 47 | .,.!D2R.~36ASF8G
+    0x150 |  37 32 50 5a 2d 33 47 32 45 31 20 20 20 31 80 2c | 72PZ-3G2E1   1.,
+    0x160 |  45 4a 41 41 42 4a 35 50 30 30 31 00 00 00 00 00 | EJAABJ5P001.....
+    0x170 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x180 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x190 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1a0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1b0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1c0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1d0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1e0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+    0x1f0 |  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+```
+
+To dump a given SPD to a file, additionally provide the `--output` (`-o`)
+option and specify a desired output file:
+
+```console
+% humility spd --bus mid --address 5 --output spd.5.out
+humility: attached via ST-Link V3
+humility: wrote SPD data for address 5 as binary to spd.5.out
+```
+
+
 
 ### `humility spi`
 
@@ -2775,10 +2891,6 @@ allowing these transient failures to be differentiated from deeper issues.
 
 Tools to interact with the Tofino EEPROM
 
-
-### `humility trace`
-
-No documentation yet for `humility trace`; pull requests welcome!
 
 ### `humility update`
 
