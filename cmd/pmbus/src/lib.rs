@@ -986,6 +986,9 @@ fn find_rail<'a>(
 enum WriteOp {
     Modify(usize, Vec<(Bitpos, Replacement)>),
     SetBlock(Vec<u8>),
+    SetByte(u8),
+    SetWord([u8; 2]),
+    SetWord32([u8; 4]),
     Set,
 }
 
@@ -1238,7 +1241,11 @@ fn writes(
                 WriteOp::Modify(_, _) => {
                     additional = true;
                 }
-                WriteOp::Set | WriteOp::SetBlock(_) => match results[ndx] {
+                WriteOp::Set
+                | WriteOp::SetBlock(..)
+                | WriteOp::SetByte(..)
+                | WriteOp::SetWord(..)
+                | WriteOp::SetWord32(..) => match results[ndx] {
                     Err(code) => {
                         bail!(
                             "{harg}: failed to set {cmd}: {}",
@@ -1312,7 +1319,15 @@ fn writes(
                 let v = r.unwrap()?;
                 assert_eq!(*size, v.len());
 
-                worker.write(code, &WriteOp::SetBlock(v));
+                worker.write(
+                    code,
+                    &match size {
+                        1 => WriteOp::SetByte(v[0]),
+                        2 => WriteOp::SetWord(v[..2].try_into().unwrap()),
+                        4 => WriteOp::SetWord32(v[..4].try_into().unwrap()),
+                        _ => bail!("invalid modify size: {size}"),
+                    },
+                )
             }
 
             ndx += 1;
@@ -1495,6 +1510,31 @@ impl PmbusWorker for I2cWorker<'_> {
                 self.ops.push(Op::Push(1));
                 self.ops.push(Op::Call(self.write_func.id));
                 self.ops.push(Op::DropN(3));
+            }
+            WriteOp::SetByte(b) => {
+                self.ops.push(Op::Push(code));
+                self.ops.push(Op::Push(*b));
+                self.ops.push(Op::Push(1));
+                self.ops.push(Op::Call(self.write_func.id));
+                self.ops.push(Op::DropN(3));
+            }
+            WriteOp::SetWord(w) => {
+                self.ops.push(Op::Push(code));
+                for b in w {
+                    self.ops.push(Op::Push(*b));
+                }
+                self.ops.push(Op::Push(w.len() as u8));
+                self.ops.push(Op::Call(self.write_func.id));
+                self.ops.push(Op::DropN(2 + w.len() as u8));
+            }
+            WriteOp::SetWord32(w) => {
+                self.ops.push(Op::Push(code));
+                for b in w {
+                    self.ops.push(Op::Push(*b));
+                }
+                self.ops.push(Op::Push(w.len() as u8));
+                self.ops.push(Op::Call(self.write_func.id));
+                self.ops.push(Op::DropN(2 + w.len() as u8));
             }
             _ => todo!(),
         }
