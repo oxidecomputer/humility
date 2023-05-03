@@ -1599,6 +1599,14 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
+    pmbus_main(&subargs, hubris, &mut worker)
+}
+
+fn pmbus_main(
+    subargs: &PmbusArgs,
+    hubris: &HubrisArchive,
+    worker: &dyn PmbusWorker,
+) -> Result<()> {
     let hargs = match (&subargs.rail, &subargs.device) {
         (Some(rails), None) => {
             if rails.len() > 1 {
