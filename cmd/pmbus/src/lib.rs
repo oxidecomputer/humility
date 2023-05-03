@@ -515,7 +515,7 @@ fn summarize_rail(
 ) -> Result<()> {
     let mut base = 0;
 
-    print!("{:13} {:16}", device.device, rail);
+    print!("{:11} {rail:18}", device.device);
 
     if calls[base] == CommandCode::PAGE as u8 {
         //
@@ -759,7 +759,7 @@ fn summarize(
     let mut base = 0;
 
     print!(
-        "{:13} {:16} {:3} {:4}",
+        "{:11} {:18} {:3} {:4}",
         "DEVICE".bold(),
         "RAIL".bold(),
         "PG?".bold(),
