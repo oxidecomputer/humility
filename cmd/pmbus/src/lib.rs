@@ -1727,6 +1727,7 @@ impl PmbusWorker for IdolWorker<'_> {
             .ok_or_else(|| anyhow!("could not find device matching {harg:?}"))?
             .0;
         self.dev_index = Some(dev_index);
+        self.rail_index = None;
         Ok(())
     }
 
@@ -1740,11 +1741,14 @@ impl PmbusWorker for IdolWorker<'_> {
     }
 
     fn read(&mut self, code: u8, op: pmbus::Operation) {
-        let index = IdolArgument::Scalar(
-            self.rail_index.unwrap_or_else(|| self.find_rail(0)) as u64,
-        );
+        let (index, has_rail) = match self.rail_index {
+            None => (self.find_rail(0), false),
+            Some(r) => (r, true),
+        };
+        let index = IdolArgument::Scalar(index as u64);
+        let has_rail = IdolArgument::Scalar(has_rail as u64);
         let code = IdolArgument::Scalar(code as u64);
-        let args = [("index", index), ("op", code)];
+        let args = [("index", index), ("has_rail", has_rail), ("op", code)];
         match op {
             pmbus::Operation::ReadBlock => {
                 let payload = self.read_block.payload(&args).unwrap();
@@ -1779,9 +1783,15 @@ impl PmbusWorker for IdolWorker<'_> {
     }
 
     fn write(&mut self, code: u8, op: &WriteOp) {
-        let index = IdolArgument::Scalar(self.rail_index.unwrap() as u64);
+        let (index, has_rail) = match self.rail_index {
+            None => (self.find_rail(0), false),
+            Some(r) => (r, true),
+        };
+        let index = IdolArgument::Scalar(index as u64);
+        let has_rail = IdolArgument::Scalar(has_rail as u64);
         let code = IdolArgument::Scalar(code as u64);
-        let mut args = vec![("index", index), ("op", code)];
+        let mut args =
+            vec![("index", index), ("has_rail", has_rail), ("op", code)];
         match op {
             WriteOp::SetByte(b) => {
                 args.push(("data", IdolArgument::Scalar(*b as u64)));
