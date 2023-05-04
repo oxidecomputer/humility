@@ -1720,6 +1720,7 @@ impl PmbusWorker for IdolWorker<'_> {
             .find(|(_i, dev)| {
                 &dev.port == harg.port
                     && dev.controller == harg.controller
+                    && Some(dev.address) == harg.address
                     && dev.mux.and_then(|mux| dev.segment.map(|s| (mux, s)))
                         == harg.mux
             })
