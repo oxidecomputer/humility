@@ -180,14 +180,15 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
+use humility_idol::{HubrisIdol, IdolArgument, IdolOperation};
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indexmap::IndexMap;
 use pmbus::commands::*;
 use pmbus::*;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
 
 #[derive(Parser, Debug)]
@@ -281,6 +282,17 @@ struct PmbusArgs {
     /// specifies a rail within the specified device
     #[clap(long, short = 'r', value_name = "rail", use_value_delimiter = true)]
     rail: Option<Vec<String>>,
+
+    /// agent to use when executing PMBus operations
+    #[clap(long, arg_enum, default_value_t=Agent::Auto)]
+    agent: Agent,
+}
+
+#[derive(clap::ArgEnum, Clone, Debug)]
+enum Agent {
+    Auto,
+    Idol,
+    I2c,
 }
 
 fn all_commands(
@@ -987,8 +999,8 @@ enum WriteOp {
     Modify(usize, Vec<(Bitpos, Replacement)>),
     SetBlock(Vec<u8>),
     SetByte(u8),
-    SetWord([u8; 2]),
-    SetWord32([u8; 4]),
+    SetWord(u16),
+    SetWord32(u32),
     Set,
 }
 
@@ -1323,8 +1335,12 @@ fn writes(
                     code,
                     &match size {
                         1 => WriteOp::SetByte(v[0]),
-                        2 => WriteOp::SetWord(v[..2].try_into().unwrap()),
-                        4 => WriteOp::SetWord32(v[..4].try_into().unwrap()),
+                        2 => WriteOp::SetWord(u16::from_le_bytes(
+                            v[..2].try_into().unwrap(),
+                        )),
+                        4 => WriteOp::SetWord32(u32::from_le_bytes(
+                            v[..4].try_into().unwrap(),
+                        )),
                         _ => bail!("invalid modify size: {size}"),
                     },
                 )
@@ -1371,6 +1387,7 @@ fn writes(
     Ok(())
 }
 
+/// Functions necessary to perform PMBus work
 trait PmbusWorker {
     /// Called to set up function calls to point to the given device
     ///
@@ -1520,25 +1537,316 @@ impl PmbusWorker for I2cWorker<'_> {
             }
             WriteOp::SetWord(w) => {
                 self.ops.push(Op::Push(code));
-                for b in w {
-                    self.ops.push(Op::Push(*b));
+                for b in w.to_le_bytes() {
+                    self.ops.push(Op::Push(b));
                 }
-                self.ops.push(Op::Push(w.len() as u8));
+                self.ops.push(Op::Push(2));
                 self.ops.push(Op::Call(self.write_func.id));
-                self.ops.push(Op::DropN(2 + w.len() as u8));
+                self.ops.push(Op::DropN(4));
             }
             WriteOp::SetWord32(w) => {
                 self.ops.push(Op::Push(code));
-                for b in w {
-                    self.ops.push(Op::Push(*b));
+                for b in w.to_le_bytes() {
+                    self.ops.push(Op::Push(b));
                 }
-                self.ops.push(Op::Push(w.len() as u8));
+                self.ops.push(Op::Push(6));
                 self.ops.push(Op::Call(self.write_func.id));
-                self.ops.push(Op::DropN(2 + w.len() as u8));
+                self.ops.push(Op::DropN(6));
             }
-            _ => todo!(),
+            op => panic!("invalid op {op:?}"),
         }
-        todo!()
+    }
+}
+
+/// PMBus worker which uses Idol APIs
+struct IdolWorker<'a> {
+    hubris: &'a HubrisArchive,
+    core: &'a mut dyn Core,
+    context: HiffyContext<'a>,
+    ops: Vec<Op>,
+
+    write_set: IdolOperation<'a>,
+    write_byte: IdolOperation<'a>,
+    write_word: IdolOperation<'a>,
+    write_word32: IdolOperation<'a>,
+
+    read_byte: IdolOperation<'a>,
+    read_word: IdolOperation<'a>,
+    read_word32: IdolOperation<'a>,
+    read_block: IdolOperation<'a>,
+
+    command_is_block_read: Vec<bool>,
+
+    /// Index of the selected device within `HubrisManifest::i2c_devices`
+    dev_index: Option<usize>,
+
+    /// Index of the specific rail within this archive's `CONTROLLER_CONFIG`
+    rail_index: Option<u32>,
+
+    sensor_id_to_index: BTreeMap<u32, usize>,
+}
+
+impl<'a> IdolWorker<'a> {
+    fn new(
+        hubris: &'a HubrisArchive,
+        core: &'a mut dyn Core,
+        timeout: u32,
+    ) -> Result<Self> {
+        let context = HiffyContext::new(hubris, core, timeout)?;
+        let write_set = hubris.get_idol_command("Power.raw_pmbus_set")?;
+        let write_byte =
+            hubris.get_idol_command("Power.raw_pmbus_write_byte")?;
+        let write_word =
+            hubris.get_idol_command("Power.raw_pmbus_write_word")?;
+        let write_word32 =
+            hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
+        let read_byte = hubris.get_idol_command("Power.raw_pmbus_read_byte")?;
+        let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
+        let read_word32 =
+            hubris.get_idol_command("Power.raw_pmbus_read_word32")?;
+        let read_block =
+            hubris.get_idol_command("Power.raw_pmbus_read_block")?;
+
+        // Read CONTROLLER_CONFIG from the core, which we'll use to compute
+        // indices for rails when using raw PMBus functions.
+        let (_name, var) = hubris
+            .qualified_variables()
+            .find(|&(n, _v)| n == "task_power::bsp::CONTROLLER_CONFIG")
+            .ok_or_else(|| anyhow!("could not find CONTROLLER_CONFIG"))?;
+        let mut buf: Vec<u8> = vec![0u8; var.size];
+        core.halt()?;
+        core.read_8(var.addr, buf.as_mut_slice())?;
+        core.run()?;
+        let controller_config = humility::reflect::load_value(
+            hubris,
+            &buf,
+            hubris.lookup_type(var.goff)?,
+            0,
+        )?;
+
+        // Destructure CONTROLLER_CONFIG to build a map of voltage sensor IDs
+        // (which we can easily compute) to index in the CONTROLLER_CONFIG
+        // array.
+        use humility::reflect::{Base, Value};
+        let Value::Array(array) = controller_config else {
+            bail!("invalid shape for CONTROLLER_CONFIG: {controller_config:?}");
+        };
+        let mut sensor_id_to_index = BTreeMap::new();
+        for (i, cfg) in array.iter().enumerate() {
+            let Value::Struct(s) = cfg else {
+                bail!("invalid shape for CONTROLLER_CONFIG[{i}]: {cfg:?}");
+            };
+            let v = &s["voltage"];
+            let Value::Tuple(t) = v else {
+                bail!("could not get 'voltage': {v:?}");
+            };
+            let Value::Base(b) = &t[0] else {
+                bail!("could not get sensor ID from 'voltage': {v:?}");
+            };
+            let Base::U32(sensor_id) = b else {
+                bail!("bad sensor id type: {b:?}");
+            };
+            sensor_id_to_index.insert(*sensor_id, i);
+        }
+
+        Ok(Self {
+            hubris,
+            core,
+            context,
+            ops: vec![],
+            command_is_block_read: vec![],
+            write_set,
+            write_byte,
+            write_word,
+            write_word32,
+            read_byte,
+            read_word,
+            read_word32,
+            read_block,
+            dev_index: None,
+            rail_index: None,
+            sensor_id_to_index,
+        })
+    }
+}
+
+impl PmbusWorker for IdolWorker<'_> {
+    fn begin_device(&mut self, harg: &I2cArgs) -> Result<()> {
+        assert!(self.dev_index.is_none());
+        // Do a reverse search through our I2C devices to pick one out that has
+        // the correct port + controller + mux
+        let dev_index = self
+            .hubris
+            .manifest
+            .i2c_devices
+            .iter()
+            .enumerate()
+            .find(|(_i, dev)| {
+                &dev.port == harg.port
+                    && dev.controller == harg.controller
+                    && dev.mux.and_then(|mux| dev.segment.map(|s| (mux, s)))
+                        == harg.mux
+            })
+            .ok_or_else(|| anyhow!("could not find device matching {harg:?}"))?
+            .0;
+        self.dev_index = Some(dev_index);
+        Ok(())
+    }
+
+    fn end_device(&mut self) {
+        self.dev_index = None;
+        self.rail_index = None;
+    }
+
+    fn select_rail(&mut self, rail: u8) {
+        // Okay, this is the fun part.
+        //
+        // We've got an I2C device, which is uniquely defined with
+        // `self.dev_index` as an index into the archive's `i2c_devices`.
+        //
+        // What we *need* is an index into the SP's `CONTROLLER_CONFIG`, which
+        // is a data structure defining a bunch of rails.
+        //
+        // When constructing this struct, we previously built a map from a
+        // voltage SensorId to an index in CONTROLLER_CONFIG.  We'll use that
+        // map here to get our index.
+        let device = self.dev_index.expect("cannot select rail without device");
+
+        // Each rail has a single Voltage sensor, and they are in order; this
+        // means we can pick the nth voltage sensor as our target SensorId.
+        let sensor_id = self
+            .hubris
+            .manifest
+            .sensors
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                s.device == HubrisSensorDevice::I2c(device)
+                    && s.kind == HubrisSensorKind::Voltage
+            })
+            .nth(rail as usize)
+            .expect("could not get sensor id")
+            .0;
+
+        let rail_index = self
+            .sensor_id_to_index
+            .get(&(sensor_id as u32))
+            .expect("could not get rail");
+        self.rail_index = Some(*rail_index as u32);
+    }
+
+    fn read(&mut self, code: u8, op: pmbus::Operation) {
+        let index = IdolArgument::Scalar(self.rail_index.unwrap() as u64);
+        let code = IdolArgument::Scalar(code as u64);
+        let args = [("index", index), ("op", code)];
+        match op {
+            pmbus::Operation::ReadBlock => {
+                let payload = self.read_block.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.read_block, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(true);
+            }
+            pmbus::Operation::ReadByte => {
+                let payload = self.read_byte.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.read_byte, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            pmbus::Operation::ReadWord => {
+                let payload = self.read_word.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.read_word, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            pmbus::Operation::ReadWord32 => {
+                let payload = self.read_word32.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.read_word32, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            _ => panic!("not a read operation: {op:?}"),
+        };
+    }
+
+    fn write(&mut self, code: u8, op: &WriteOp) {
+        let index = IdolArgument::Scalar(self.rail_index.unwrap() as u64);
+        let code = IdolArgument::Scalar(code as u64);
+        let mut args = vec![("index", index), ("op", code)];
+        match op {
+            WriteOp::SetByte(b) => {
+                args.push(("data", IdolArgument::Scalar(*b as u64)));
+                let payload = self.write_byte.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.write_byte, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            WriteOp::Set => {
+                let payload = self.write_set.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.write_set, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            WriteOp::SetWord(b) => {
+                args.push(("data", IdolArgument::Scalar(*b as u64)));
+                let payload = self.write_word.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.write_word, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            WriteOp::SetWord32(b) => {
+                args.push(("data", IdolArgument::Scalar(*b as u64)));
+                let payload = self.write_word32.payload(&args).unwrap();
+                self.context
+                    .idol_call_ops(&self.write_word32, &payload, &mut self.ops)
+                    .unwrap();
+                self.command_is_block_read.push(false);
+            }
+            WriteOp::SetBlock(..) => {
+                unimplemented!("cannot encode argument for SetBlock");
+            }
+            op => panic!("not a write op: {op:?}"),
+        };
+    }
+
+    fn decode_read_err(&self, code: u32) -> String {
+        // All read operations share an error code
+        self.read_byte.strerror(code)
+    }
+
+    fn decode_write_err(&self, code: u32) -> String {
+        // All write operations share an error code
+        self.write_byte.strerror(code)
+    }
+
+    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, u32>>> {
+        self.ops.push(Op::Done);
+        let ops = std::mem::take(&mut self.ops);
+        let mut out = self.context.run(self.core, &ops, None)?;
+
+        // Block reads return a RawPmbusBlock, which is an active length
+        // followed by a max-length array.  We convert from that type to a raw
+        // data array here.
+        //
+        // Everything else is deserialized as-is, so we don't need to do
+        // anything fancy to post-process it.
+        for out in out
+            .iter_mut()
+            .zip(std::mem::take(&mut self.command_is_block_read))
+            .filter(|(_, b)| *b)
+            .filter_map(|(o, _)| o.as_mut().ok())
+        {
+            let len = out[0] as usize;
+            out.remove(0);
+            out.resize(len, 0u8);
+        }
+        Ok(out)
     }
 }
 
@@ -1587,8 +1895,20 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
         bail!("can only list PMBus devices on a dump");
     }
 
-    let mut worker: Box<dyn PmbusWorker> =
-        Box::new(I2cWorker::new(hubris, core, subargs.timeout)?);
+    let timeout = subargs.timeout;
+    let mut worker: Box<dyn PmbusWorker> = match subargs.agent {
+        Agent::Auto => {
+            if core.is_net() {
+                Box::new(IdolWorker::new(hubris, core, timeout)?)
+            } else if let Ok(a) = IdolWorker::new(hubris, core, timeout) {
+                Box::new(a)
+            } else {
+                Box::new(I2cWorker::new(hubris, core, timeout)?)
+            }
+        }
+        Agent::I2c => Box::new(I2cWorker::new(hubris, core, timeout)?),
+        Agent::Idol => Box::new(IdolWorker::new(hubris, core, timeout)?),
+    };
 
     if subargs.summarize {
         summarize(&subargs, hubris, worker.as_mut())?;
