@@ -1668,6 +1668,42 @@ impl<'a> IdolWorker<'a> {
             sensor_id_to_index,
         })
     }
+
+    fn find_rail(&self, rail: u8) -> u32 {
+        // Okay, this is the fun part.
+        //
+        // We've got an I2C device, which is uniquely defined with
+        // `self.dev_index` as an index into the archive's `i2c_devices`.
+        //
+        // What we *need* is an index into the SP's `CONTROLLER_CONFIG`, which
+        // is a data structure defining a bunch of rails.
+        //
+        // When constructing this struct, we previously built a map from a
+        // voltage SensorId to an index in CONTROLLER_CONFIG.  We'll use that
+        // map here to get our index.
+        let device = self.dev_index.expect("cannot select rail without device");
+
+        // Each rail has a single Voltage sensor, and they are in order; this
+        // means we can pick the nth voltage sensor as our target SensorId.
+        let sensor_id = self
+            .hubris
+            .manifest
+            .sensors
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                s.device == HubrisSensorDevice::I2c(device)
+                    && s.kind == HubrisSensorKind::Voltage
+            })
+            .nth(rail as usize)
+            .expect("could not get sensor id")
+            .0;
+
+        *self
+            .sensor_id_to_index
+            .get(&(sensor_id as u32))
+            .expect("could not get rail") as u32
+    }
 }
 
 impl PmbusWorker for IdolWorker<'_> {
@@ -1699,44 +1735,13 @@ impl PmbusWorker for IdolWorker<'_> {
     }
 
     fn select_rail(&mut self, rail: u8) {
-        // Okay, this is the fun part.
-        //
-        // We've got an I2C device, which is uniquely defined with
-        // `self.dev_index` as an index into the archive's `i2c_devices`.
-        //
-        // What we *need* is an index into the SP's `CONTROLLER_CONFIG`, which
-        // is a data structure defining a bunch of rails.
-        //
-        // When constructing this struct, we previously built a map from a
-        // voltage SensorId to an index in CONTROLLER_CONFIG.  We'll use that
-        // map here to get our index.
-        let device = self.dev_index.expect("cannot select rail without device");
-
-        // Each rail has a single Voltage sensor, and they are in order; this
-        // means we can pick the nth voltage sensor as our target SensorId.
-        let sensor_id = self
-            .hubris
-            .manifest
-            .sensors
-            .iter()
-            .enumerate()
-            .filter(|(_, s)| {
-                s.device == HubrisSensorDevice::I2c(device)
-                    && s.kind == HubrisSensorKind::Voltage
-            })
-            .nth(rail as usize)
-            .expect("could not get sensor id")
-            .0;
-
-        let rail_index = self
-            .sensor_id_to_index
-            .get(&(sensor_id as u32))
-            .expect("could not get rail");
-        self.rail_index = Some(*rail_index as u32);
+        self.rail_index = Some(self.find_rail(rail));
     }
 
     fn read(&mut self, code: u8, op: pmbus::Operation) {
-        let index = IdolArgument::Scalar(self.rail_index.unwrap() as u64);
+        let index = IdolArgument::Scalar(
+            self.rail_index.unwrap_or_else(|| self.find_rail(0)) as u64,
+        );
         let code = IdolArgument::Scalar(code as u64);
         let args = [("index", index), ("op", code)];
         match op {
