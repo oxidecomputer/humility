@@ -1896,6 +1896,8 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
     }
 
     let timeout = subargs.timeout;
+
+    // Pick an implementation based on our flags and core state
     let mut worker: Box<dyn PmbusWorker> = match subargs.agent {
         Agent::Auto => {
             if core.is_net() {
@@ -1906,7 +1908,13 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
                 Box::new(I2cWorker::new(hubris, core, timeout)?)
             }
         }
-        Agent::I2c => Box::new(I2cWorker::new(hubris, core, timeout)?),
+        Agent::I2c => {
+            if core.is_net() {
+                bail!("cannot use I2C agent over the network");
+            } else {
+                Box::new(I2cWorker::new(hubris, core, timeout)?)
+            }
+        }
         Agent::Idol => Box::new(IdolWorker::new(hubris, core, timeout)?),
     };
 
