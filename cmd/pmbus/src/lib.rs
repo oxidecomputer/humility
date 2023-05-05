@@ -1887,7 +1887,7 @@ impl PmbusWorker for IdolWorker<'_> {
         // Inject synthetic rail selection results into the result array, since
         // that's expected by the caller.
         let mut out_with_rail = vec![];
-        assert_eq!(out.len(), self.command_is_block_read.len());
+        assert_eq!(out.len(), self.command_has_rail.len());
         for (out, b) in
             out.into_iter().zip(std::mem::take(&mut self.command_has_rail))
         {
