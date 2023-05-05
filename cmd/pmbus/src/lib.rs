@@ -1575,7 +1575,19 @@ struct IdolWorker<'a> {
     read_word32: IdolOperation<'a>,
     read_block: IdolOperation<'a>,
 
+    /// Records whether each command (a single Idol operation) is a block read.
+    ///
+    /// Block read operations are serialized in a special way and must be
+    /// post-processed afterwards to end up in the form expected by the caller.
     command_is_block_read: Vec<bool>,
+
+    /// Records whether each command sets the rail.
+    ///
+    /// The Idol implementation sets the rail intrinsically as part of each
+    /// command, but the caller expects a separate rail selection in the result
+    /// array; we track this and inject synthetic results where needed.
+    command_has_rail: Vec<bool>,
+    just_set_rail: bool,
 
     /// Index of the selected device within `HubrisManifest::i2c_devices`
     dev_index: Option<usize>,
@@ -1654,7 +1666,6 @@ impl<'a> IdolWorker<'a> {
             core,
             context,
             ops: vec![],
-            command_is_block_read: vec![],
             write_set,
             write_byte,
             write_word,
@@ -1666,6 +1677,10 @@ impl<'a> IdolWorker<'a> {
             dev_index: None,
             rail_index: None,
             sensor_id_to_index,
+
+            command_is_block_read: vec![],
+            command_has_rail: vec![],
+            just_set_rail: false,
         })
     }
 
@@ -1738,6 +1753,7 @@ impl PmbusWorker for IdolWorker<'_> {
 
     fn select_rail(&mut self, rail: u8) {
         self.rail_index = Some(self.find_rail(rail));
+        self.just_set_rail = true;
     }
 
     fn read(&mut self, code: u8, op: pmbus::Operation) {
@@ -1780,6 +1796,8 @@ impl PmbusWorker for IdolWorker<'_> {
             }
             _ => panic!("not a read operation: {op:?}"),
         };
+        self.command_has_rail.push(self.just_set_rail);
+        self.just_set_rail = false;
     }
 
     fn write(&mut self, code: u8, op: &WriteOp) {
@@ -1829,6 +1847,8 @@ impl PmbusWorker for IdolWorker<'_> {
             }
             op => panic!("not a write op: {op:?}"),
         };
+        self.command_has_rail.push(self.just_set_rail);
+        self.just_set_rail = false;
     }
 
     fn decode_read_err(&self, code: u32) -> String {
@@ -1852,6 +1872,7 @@ impl PmbusWorker for IdolWorker<'_> {
         //
         // Everything else is deserialized as-is, so we don't need to do
         // anything fancy to post-process it.
+        assert_eq!(out.len(), self.command_has_rail.len());
         for out in out
             .iter_mut()
             .zip(std::mem::take(&mut self.command_is_block_read))
@@ -1862,7 +1883,20 @@ impl PmbusWorker for IdolWorker<'_> {
             out.remove(0);
             out.resize(len, 0u8);
         }
-        Ok(out)
+
+        // Inject synthetic rail selection results into the result array, since
+        // that's expected by the caller.
+        let mut out_with_rail = vec![];
+        assert_eq!(out.len(), self.command_is_block_read.len());
+        for (out, b) in
+            out.into_iter().zip(std::mem::take(&mut self.command_has_rail))
+        {
+            if b {
+                out_with_rail.push(Ok(vec![0]));
+            }
+            out_with_rail.push(out);
+        }
+        Ok(out_with_rail)
     }
 }
 
