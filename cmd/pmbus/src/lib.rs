@@ -174,8 +174,8 @@
 //!
 
 use colored::Colorize;
-use humility::core::Core;
 use humility::hubris::*;
+use humility::{core::Core, warn};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
@@ -1952,8 +1952,6 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
         Agent::Auto => {
             if core.is_net() {
                 Box::new(IdolWorker::new(hubris, core, timeout)?)
-            } else if let Ok(a) = IdolWorker::new(hubris, core, timeout) {
-                Box::new(a)
             } else {
                 Box::new(I2cWorker::new(hubris, core, timeout)?)
             }
@@ -1965,7 +1963,15 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
                 Box::new(I2cWorker::new(hubris, core, timeout)?)
             }
         }
-        Agent::Idol => Box::new(IdolWorker::new(hubris, core, timeout)?),
+        Agent::Idol => {
+            if !core.is_net() {
+                warn!(
+                    "idol interface may use too much rstack when connected \
+                     via debugger; consider using the i2c core instead"
+                );
+            }
+            Box::new(IdolWorker::new(hubris, core, timeout)?)
+        }
     };
 
     if subargs.summarize {
