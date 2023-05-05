@@ -256,7 +256,7 @@ pub struct HubrisConfigSensorSensor {
     sensors: BTreeMap<String, usize>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Eq, PartialEq)]
 pub struct HubrisI2cPort {
     pub name: String,
     pub index: u8,
