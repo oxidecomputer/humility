@@ -1435,7 +1435,7 @@ $ humility pmbus -d 0x67 -c 4 -p f
 ```
 
 In the unusual case that a device is unknown to the system (that is, it does
-not appear in `humliity manifest`), you can force a particular PMBus driver
+not appear in `humility manifest`), you can force a particular PMBus driver
 by using `--driver` (`-D`).
 
 For the common case of devices known to the system, you can specify a device
@@ -1562,6 +1562,20 @@ above); to get the interpreted value, use `humility power` instead (which
 has the added advantage of displaying all power rails in the systemn, not
 just PMBus devices.)
 
+`humility pmbus` can use two different mechanisms to perform PMBus actions,
+selected by the `--agent` command-line argument.
+
+- `--agent=i2c` uses direct construction and execution of raw I2C commands.
+  This only works when connected to the target via a debugger.
+- `--agent=idol` uses Idol operations, which can be executed over the
+  network.  This could also be used (in theory) when connected with a
+  debugger; in practice, the Idol operations have a larger encoding compared
+  to raw I2C operations, so the HIF program may not fit.
+- `--agent=auto` (the default) selects `i2c` if we're connected with a
+  debugger or `idol` if we're connected over the network.
+
+In practice, allowing `humility pmbus` to select the agent is almost always
+what you want.
 
 
 ### `humility power`

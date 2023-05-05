@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.17"
+version = "0.10.18"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1627,6 +1627,7 @@ dependencies = [
  "humility-core",
  "humility-hiffy",
  "humility-i2c",
+ "humility-idol",
  "indexmap",
  "parse_int",
  "pmbus",

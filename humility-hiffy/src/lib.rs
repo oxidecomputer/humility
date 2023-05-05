@@ -1132,8 +1132,7 @@ impl<'a> HiffyContext<'a> {
         }
 
         if core.is_net() {
-            let results = self.rpc_results.clone();
-            self.rpc_results = Vec::new();
+            let results = std::mem::take(&mut self.rpc_results);
             self.state = State::ResultsConsumed;
             return Ok(results);
         }
