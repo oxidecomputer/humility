@@ -908,17 +908,17 @@ fn summarize(
                 //
                 for &(code, _) in &commands {
                     driver.command(code, |cmd| {
-                        let op = match cmd.read_op() {
-                            v @ (pmbus::Operation::ReadByte
-                            | pmbus::Operation::ReadWord
-                            | pmbus::Operation::ReadWord32
-                            | pmbus::Operation::ReadBlock) => v,
-                            _ => {
-                                return;
-                            }
-                        };
-                        worker.read(code, op);
-                        calls.push(code);
+                        let op = cmd.read_op();
+                        if matches!(
+                            op,
+                            pmbus::Operation::ReadByte
+                                | pmbus::Operation::ReadWord
+                                | pmbus::Operation::ReadWord32
+                                | pmbus::Operation::ReadBlock
+                        ) {
+                            worker.read(code, op);
+                            calls.push(code);
+                        }
                     });
                 }
 
@@ -2177,22 +2177,21 @@ fn pmbus_main(
     }
 
     let mut addcmd = |cmd: &dyn pmbus::Command, code| {
-        let op = match cmd.read_op() {
-            v @ (pmbus::Operation::ReadByte
-            | pmbus::Operation::ReadWord
-            | pmbus::Operation::ReadWord32
-            | pmbus::Operation::ReadBlock) => v,
-            _ => {
-                return;
+        let op = cmd.read_op();
+        if matches!(
+            op,
+            pmbus::Operation::ReadByte
+                | pmbus::Operation::ReadWord
+                | pmbus::Operation::ReadWord32
+                | pmbus::Operation::ReadBlock
+        ) {
+            if subargs.dryrun {
+                println!("0x{:02x} {:?}", code, cmd);
             }
-        };
 
-        if subargs.dryrun {
-            println!("0x{:02x} {:?}", code, cmd);
+            worker.read(code, op);
+            cmds.push(code);
         }
-
-        worker.read(code, op);
-        cmds.push(code);
     };
 
     let vout = pmbus::commands::CommandCode::VOUT_MODE as u8;
