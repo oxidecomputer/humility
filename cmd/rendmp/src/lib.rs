@@ -140,7 +140,7 @@ use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -193,6 +193,10 @@ struct RendmpArgs {
     /// checks for open pins on the given converter
     #[clap(long, group = "subcommand")]
     open_pin: bool,
+
+    /// checks for open pins on the given converter
+    #[clap(long, group = "subcommand")]
+    phase_check: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
@@ -305,6 +309,17 @@ enum RendmpGenTwoFive {
 enum RendmpDevice {
     RendmpGenTwo(RendmpGenTwo),
     RendmpGenTwoFive(RendmpGenTwoFive),
+}
+
+/// Results of the open-pin register
+#[derive(Copy, Clone, Debug)]
+enum PinState {
+    /// The phase is disabled, so we ignore its state
+    Masked,
+    /// There are no issues with this phase
+    Good,
+    /// The phase is open, which indicates an error
+    Open,
 }
 
 impl std::fmt::Display for RendmpDevice {
@@ -842,10 +857,46 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 }
 
 /// A device which supports open-pin detection and other advanced debug
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum SupportedDevice {
     ISL68221,
     RAA229618,
+}
+
+impl SupportedDevice {
+    /// Number of rails supported by this device
+    fn rails(&self) -> usize {
+        match self {
+            SupportedDevice::ISL68221 => 3,
+            SupportedDevice::RAA229618 => 2,
+        }
+    }
+
+    /// Returns a list of phases and their numbering
+    fn phases(&self) -> Vec<(String, u32)> {
+        match &self {
+            SupportedDevice::ISL68221 => {
+                let mut phases = vec![];
+                for phase in 0..6 {
+                    phases.push((phase.to_string(), phase + 3));
+                }
+                for i in 0..3 {
+                    phases.push((format!("VSEN{i}"), i + 12));
+                }
+                phases
+            }
+            SupportedDevice::RAA229618 => {
+                let mut phases = vec![];
+                for phase in 0..20 {
+                    phases.push((phase.to_string(), phase));
+                }
+                for i in 0..2 {
+                    phases.push((format!("VSEN{i}"), i + 20));
+                }
+                phases
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for SupportedDevice {
@@ -962,12 +1013,13 @@ fn rendmp_blackbox(
     Ok(())
 }
 
-fn rendmp_open_pin(
+/// Reads and decodes open-pin registers on the selected device
+fn get_pin_states(
     subargs: RendmpArgs,
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &mut HiffyContext,
-) -> Result<()> {
+) -> Result<BTreeMap<String, PinState>> {
     let (addr, dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
 
@@ -1002,40 +1054,24 @@ fn rendmp_open_pin(
         }
     }
 
+    let phases = dev.phases();
+
     // Register decoding was determined with a mix of Power Navigator
     // experiments and discussion with Renesas.
-    let (open, mask, phases) = match dev {
-        SupportedDevice::ISL68221 => {
-            let (open, mask) = (values[0] as u64, values[1] as u64);
-            let mut phases = vec![];
-            for phase in 0..6 {
-                phases.push((phase.to_string(), phase * 2 + 6));
-            }
-            for i in 0..3 {
-                phases.push((format!("VSEN{i}"), i * 2 + 24));
-            }
-            (open, mask, phases)
-        }
+    let (open, mask) = match dev {
+        SupportedDevice::ISL68221 => (values[0] as u64, values[1] as u64),
         SupportedDevice::RAA229618 => {
             let open = values[0] as u64 | (values[1] as u64) << 32;
             let mask = values[2] as u64 | (values[3] as u64) << 32;
-            let mut phases = vec![];
-            for phase in 0..20 {
-                phases.push((phase.to_string(), phase * 2));
-            }
-            for i in 0..2 {
-                phases.push((format!("VSEN{i}"), i * 2 + 40));
-            }
-            (open, mask, phases)
+            (open, mask)
         }
     };
-    println!("Open pin check for {dev} at {addr:#x}");
-    println!(" {} | {}", "PHASE".bold(), "STATE".bold());
-    println!("-------|-------");
-    for (name, bit_offset) in phases {
+    let mut out = BTreeMap::new();
+    for (name, n) in phases {
         // Each phase is represented by two-bit values in the open and mask
         // registers.  We ignore bits in the open register that aren't set in
         // the mask register:
+        let bit_offset = n * 2;
         let is_open = (open & mask & (0b11 << bit_offset)) != 0;
 
         // If there are no bits set in the mask register, then the phase isn't
@@ -1043,14 +1079,303 @@ fn rendmp_open_pin(
         let is_mask = mask & (0b11 << bit_offset) == 0;
         print!(" {name:<5} | ");
         if is_mask {
-            println!("{}", "N/A (masked)".dimmed());
+            out.insert(name, PinState::Masked);
         } else if is_open {
-            println!("{}", "open".red());
+            out.insert(name, PinState::Open);
         } else {
-            println!("{}", "okay".green());
+            out.insert(name, PinState::Good);
         }
     }
 
+    Ok(out)
+}
+
+fn rendmp_open_pin(
+    subargs: RendmpArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let (addr, dev) = check_addr(&subargs, hubris)?;
+    let phases = dev.phases();
+    let out = get_pin_states(subargs, hubris, core, context)?;
+    println!("Open pin check for {dev} at {addr:#x}");
+    println!(" {} | {}", "PHASE".bold(), "STATE".bold());
+    println!("-------|-------");
+    for (name, _) in &phases {
+        match out[name] {
+            PinState::Masked => println!("{}", "N/A (masked)".dimmed()),
+            PinState::Open => println!("{}", "open".red()),
+            PinState::Good => println!("{}", "okay".green()),
+        }
+    }
+    Ok(())
+}
+
+fn rendmp_phase_check(
+    subargs: RendmpArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    // Make sure we're in A2 before doing anything
+    let power_state_op = hubris
+        .get_idol_command("Sequencer.tofino_seq_state")
+        .or_else(|_| hubris.get_idol_command("Sequencer.get_state"))
+        .context("could not get power state HIF operation")?;
+    let r = hiffy_call(hubris, core, context, &power_state_op, &[], None)?;
+    if let Err(e) = r {
+        bail!("power state check got an error: {e}");
+    }
+    if hiffy_format_result(hubris, r) != "A2" {
+        bail!("must be in A2 when checking phases");
+    }
+
+    // Pick out the target device
+    let (addr, dev) = check_addr(&subargs, hubris)?;
+
+    // Read pin states so that we don't try to enable a phase with an open-pin
+    // failure; this will
+    let pin_states = get_pin_states(subargs, hubris, core, context)?;
+
+    // Filter out VGEN phases
+    let phases: Vec<_> = dev
+        .phases()
+        .into_iter()
+        .filter(|(p, _b)| p.parse::<usize>().is_ok())
+        .collect();
+
+    let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
+    let write_dma = hubris.get_idol_command("Power.rendmp_dma_write")?;
+    let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
+    let write_word = hubris.get_idol_command("Power.raw_pmbus_write_word")?;
+
+    let mut ops = vec![];
+
+    let dev_index = hubris
+        .manifest
+        .i2c_devices
+        .iter()
+        .enumerate()
+        .find(|(_i, dev)| dev.address == addr)
+        .ok_or_else(|| anyhow!("could not find device at addr {addr:?}"))?
+        .0;
+    let sensor_ids: Vec<_> = hubris
+        .manifest
+        .sensors
+        .iter()
+        .enumerate()
+        .filter(|(_i, s)| {
+            s.device == HubrisSensorDevice::I2c(dev_index)
+                && s.kind == HubrisSensorKind::Voltage
+        })
+        .map(|(i, _s)| i as u32)
+        .collect();
+
+    let sensor_id_map = humility_pmbus::sensor_id_map(hubris, core)?;
+
+    for rail in 0..dev.rails() {
+        // Set the PWM register for this rail
+        let reg = 0xEA31 + rail * 0x80;
+        let payload = write_dma.payload(&[
+            ("addr", IdolArgument::Scalar(addr as u64)),
+            ("reg", IdolArgument::Scalar(reg as u64)),
+            ("data", IdolArgument::Scalar(0x133)),
+        ])?;
+        context.idol_call_ops(&write_dma, &payload, &mut ops)?;
+
+        // Read 0xEA0D / 0xEA8D / 0xEB0D (we'll modify-write them later)
+        let reg = 0xEA0D + rail * 0x80;
+        let payload = read_dma.payload(&[
+            ("addr", IdolArgument::Scalar(addr as u64)),
+            ("reg", IdolArgument::Scalar(reg as u64)),
+        ])?;
+        context.idol_call_ops(&read_dma, &payload, &mut ops)?;
+
+        // This rail's voltage sensor is the n'th voltage sensor among voltage
+        // sensors that match the target device.  Convert from voltage sensor
+        // index to device index for use in Power.read/write_* APIs.
+        let index = *sensor_id_map.get(&sensor_ids[rail]).ok_or_else(|| {
+            anyhow!("could not get device index in CONTROLLER_CONFIG")
+        })? as u64;
+
+        {
+            // Read LOOPCFG; this will be modified and written back later
+            use pmbus::commands::raa229618::CommandCode;
+            let payload = read_word.payload(&[
+                ("index", IdolArgument::Scalar(index)),
+                ("has_rail", IdolArgument::Scalar(true as u64)),
+                ("op", IdolArgument::Scalar(CommandCode::LOOPCFG as u64)),
+            ])?;
+            context.idol_call_ops(&read_word, &payload, &mut ops)?;
+
+            // Read PEAK_OCUC_COUNT; this will be modified and written back later
+            let payload = read_word.payload(&[
+                ("index", IdolArgument::Scalar(index)),
+                ("has_rail", IdolArgument::Scalar(true as u64)),
+                (
+                    "op",
+                    IdolArgument::Scalar(CommandCode::PEAK_OCUC_COUNT as u64),
+                ),
+            ])?;
+            context.idol_call_ops(&read_word, &payload, &mut ops)?;
+        }
+
+        // Set PMBus command codes 0xD0 and 0xD1 to 0x8000 (disable VMon)
+        match dev {
+            SupportedDevice::ISL68221 => {
+                use pmbus::commands::isl68224::CommandCode;
+                let payload = write_word.payload(&[
+                    ("index", IdolArgument::Scalar(index)),
+                    ("has_rail", IdolArgument::Scalar(true as u64)),
+                    ("op", IdolArgument::Scalar(CommandCode::VMON_ON as u64)),
+                    ("data", IdolArgument::Scalar(0x8000)),
+                ])?;
+                context.idol_call_ops(&write_word, &payload, &mut ops)?;
+                let payload = write_word.payload(&[
+                    ("index", IdolArgument::Scalar(index)),
+                    ("has_rail", IdolArgument::Scalar(true as u64)),
+                    ("op", IdolArgument::Scalar(CommandCode::VMON_OFF as u64)),
+                    ("data", IdolArgument::Scalar(0x8000)),
+                ])?;
+                context.idol_call_ops(&write_word, &payload, &mut ops)?;
+            }
+            SupportedDevice::RAA229618 => {
+                use pmbus::commands::raa229618::CommandCode;
+                let payload = write_word.payload(&[
+                    ("index", IdolArgument::Scalar(index)),
+                    ("has_rail", IdolArgument::Scalar(true as u64)),
+                    ("op", IdolArgument::Scalar(CommandCode::VIN_ON as u64)),
+                    ("data", IdolArgument::Scalar(0x8000)),
+                ])?;
+                context.idol_call_ops(&write_word, &payload, &mut ops)?;
+
+                let payload = write_word.payload(&[
+                    ("index", IdolArgument::Scalar(index)),
+                    ("has_rail", IdolArgument::Scalar(true as u64)),
+                    ("op", IdolArgument::Scalar(CommandCode::VIN_OFF as u64)),
+                    ("data", IdolArgument::Scalar(0x8000)),
+                ])?;
+                context.idol_call_ops(&write_word, &payload, &mut ops)?;
+
+                let reg = 0xEA5B + rail * 0x80;
+                let payload = read_dma.payload(&[
+                    ("addr", IdolArgument::Scalar(addr as u64)),
+                    ("reg", IdolArgument::Scalar(reg as u64)),
+                ])?;
+                context.idol_call_ops(&read_word, &payload, &mut ops)?;
+            }
+        }
+    }
+
+    ops.push(Op::Done);
+    let results = context.run(core, &ops, None)?;
+
+    // Now, we're going to walk through the results, doing the modify-write
+    // portion of various register changes.
+    ops.clear();
+    let mut iter = results.iter();
+    let mut ctrl = vec![];
+    for rail in 0..dev.rails() {
+        if let Err(e) = iter.next().unwrap() {
+            bail!(
+                "failed to write PWM register for rail {rail}: {:?}",
+                write_dma.strerror(*e)
+            );
+        }
+        // EA0D / EA8D / EB0D
+        match iter.next().unwrap() {
+            Ok(v) => {
+                ctrl.push(u32::from_le_bytes(v.as_slice().try_into().unwrap()))
+            }
+            Err(e) => bail!(
+                "failed to read EA0D for rail {rail}: {:?}",
+                read_dma.strerror(*e)
+            ),
+        };
+
+        let loopcfg = match iter.next().unwrap() {
+            Ok(v) => u16::from_le_bytes(v.as_slice().try_into().unwrap()),
+            Err(e) => bail!(
+                "failed to read LOOPCFG for rail {rail}: {}",
+                read_word.strerror(*e)
+            ),
+        };
+        // TODO: do something with loopcfg
+
+        let peak_ocuc_count = match iter.next().unwrap() {
+            Ok(v) => u16::from_le_bytes(v.as_slice().try_into().unwrap()),
+            Err(e) => bail!(
+                "failed to read PEAK_OCUC_COUNT for rail {rail}: {}",
+                read_word.strerror(*e)
+            ),
+        };
+        // TODO: do something with peak_ocuc_count
+
+        match dev {
+            SupportedDevice::ISL68221 => {
+                if let Err(e) = iter.next().unwrap() {
+                    bail!(
+                        "failed to set VMON_ON for {rail}: {}",
+                        write_word.strerror(*e)
+                    );
+                }
+                if let Err(e) = iter.next().unwrap() {
+                    bail!(
+                        "failed to set VMON_OFF for {rail}: {}",
+                        write_word.strerror(*e)
+                    );
+                }
+                // TODO
+            }
+            SupportedDevice::RAA229618 => {
+                if let Err(e) = iter.next().unwrap() {
+                    bail!(
+                        "failed to set VIN_ON for {rail}: {}",
+                        write_word.strerror(*e)
+                    );
+                }
+                if let Err(e) = iter.next().unwrap() {
+                    bail!(
+                        "failed to set VIN_OFF for {rail}: {}",
+                        write_word.strerror(*e)
+                    );
+                }
+
+                let reg_ea5b = match iter.next().unwrap() {
+                    Ok(v) => {
+                        u32::from_le_bytes(v.as_slice().try_into().unwrap())
+                    }
+                    Err(e) => bail!(
+                        "failed to read EA5B for rail {rail}: {}",
+                        read_dma.strerror(*e)
+                    ),
+                };
+                // TODO something with reg_ea5b
+            }
+        }
+    }
+
+    // Disable all phases
+    // Do the modify-write section of the read-modify-write operations
+
+    // At this point, we know that we're in A2.  We're going to start by
+    // disabling all phases, then enable them one by one in fixed-PWM mode.
+    for (phase, i) in phases {
+        match pin_states[&phase] {
+            PinState::Open => {
+                println!("skipping open phase {phase}")
+            }
+            PinState::Masked => {
+                println!("skipping masked phase {phase}")
+            }
+            PinState::Good => {
+                todo!()
+            }
+        }
+    }
+
+    // Let's get phase data first
     Ok(())
 }
 
@@ -1082,6 +1407,8 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         return rendmp_blackbox(subargs, hubris, core, &mut context);
     } else if subargs.open_pin {
         return rendmp_open_pin(subargs, hubris, core, &mut context);
+    } else if subargs.phase_check {
+        return rendmp_phase_check(subargs, hubris, core, &mut context);
     }
 
     let i2c_read = context.get_function("I2cRead", 7)?;
