@@ -130,7 +130,7 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
-use humility_idol::{HubrisIdol, IdolArgument};
+use humility_idol::HubrisIdol;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
@@ -1104,11 +1104,11 @@ fn rendmp_open_pin(
     Ok(())
 }
 
-fn rendmp_phase_check(
+fn rendmp_phase_check<'a>(
     subargs: RendmpArgs,
-    hubris: &HubrisArchive,
-    core: &mut dyn humility::core::Core,
-    context: &mut HiffyContext,
+    hubris: &'a HubrisArchive,
+    core: &'a mut dyn humility::core::Core,
+    context: &'a mut HiffyContext<'a>,
 ) -> Result<()> {
     // Make sure we're in A2 before doing anything
     let power_state_op = hubris
@@ -1137,13 +1137,149 @@ fn rendmp_phase_check(
         .filter(|(p, _b)| p.parse::<usize>().is_ok())
         .collect();
 
-    let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
-    let write_dma = hubris.get_idol_command("Power.rendmp_dma_write")?;
-    let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
-    let read_word32 = hubris.get_idol_command("Power.raw_pmbus_read_word32")?;
-    let write_word = hubris.get_idol_command("Power.raw_pmbus_write_word")?;
-    let write_word32 =
-        hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
+    use humility_idol::IdolOperation;
+    struct Worker<'a> {
+        read_dma: IdolOperation<'a>,
+        write_dma: IdolOperation<'a>,
+        read_word: IdolOperation<'a>,
+        write_word: IdolOperation<'a>,
+        write_word32: IdolOperation<'a>,
+
+        context: &'a mut HiffyContext<'a>,
+
+        ops: Vec<hif::Op>,
+    }
+    impl<'a> Worker<'a> {
+        fn new(
+            hubris: &'a HubrisArchive,
+            context: &'a mut HiffyContext<'a>,
+        ) -> Result<Self> {
+            let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
+            let write_dma =
+                hubris.get_idol_command("Power.rendmp_dma_write")?;
+            let read_word =
+                hubris.get_idol_command("Power.raw_pmbus_read_word")?;
+            let write_word =
+                hubris.get_idol_command("Power.raw_pmbus_write_word")?;
+            let write_word32 =
+                hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
+
+            Ok(Self {
+                read_dma,
+                write_dma,
+                read_word,
+                write_word,
+                write_word32,
+                ops: vec![],
+                context,
+            })
+        }
+
+        fn write_dma(
+            &mut self,
+            i2c_addr: u8,
+            reg: u16,
+            data: u32,
+        ) -> Result<()> {
+            let payload = self.write_dma.payload(&[
+                ("addr", i2c_addr.into()),
+                ("reg", reg.into()),
+                ("data", data.into()),
+            ])?;
+            self.context.idol_call_ops(
+                &self.write_dma,
+                &payload,
+                &mut self.ops,
+            )?;
+            Ok(())
+        }
+
+        fn read_dma(&mut self, i2c_addr: u8, dma_reg: u16) -> Result<()> {
+            let payload = self.read_dma.payload(&[
+                ("addr", i2c_addr.into()),
+                ("reg", dma_reg.into()),
+            ])?;
+            self.context.idol_call_ops(
+                &self.read_dma,
+                &payload,
+                &mut self.ops,
+            )?;
+            Ok(())
+        }
+
+        fn read_word(
+            &mut self,
+            index: u32,
+            has_rail: bool,
+            op: u8,
+        ) -> Result<()> {
+            let payload = self.read_word.payload(&[
+                ("index", index.into()),
+                ("has_rail", has_rail.into()),
+                ("op", op.into()),
+            ])?;
+            self.context.idol_call_ops(
+                &self.read_word,
+                &payload,
+                &mut self.ops,
+            )?;
+            Ok(())
+        }
+
+        fn write_word(
+            &mut self,
+            index: u32,
+            has_rail: bool,
+            op: u8,
+            data: u16,
+        ) -> Result<()> {
+            let payload = self.write_word.payload(&[
+                ("index", index.into()),
+                ("has_rail", has_rail.into()),
+                ("op", op.into()),
+                ("data", data.into()),
+            ])?;
+            self.context.idol_call_ops(
+                &self.write_word,
+                &payload,
+                &mut self.ops,
+            )?;
+            Ok(())
+        }
+
+        fn write_word32(
+            &mut self,
+            index: u32,
+            has_rail: bool,
+            op: u8,
+            data: u32,
+        ) -> Result<()> {
+            let payload = self.write_word32.payload(&[
+                ("index", index.into()),
+                ("has_rail", has_rail.into()),
+                ("op", op.into()),
+                ("data", data.into()),
+            ])?;
+            self.context.idol_call_ops(
+                &self.write_word32,
+                &payload,
+                &mut self.ops,
+            )?;
+            Ok(())
+        }
+
+        fn run(
+            &mut self,
+            core: &mut dyn humility::core::Core,
+        ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+            let mut ops = std::mem::take(&mut self.ops);
+            ops.push(Op::Done);
+            self.context.run(core, &ops, None)
+            // TODO: decode error messages here
+        }
+    }
+
+    let mut worker = Worker::new(hubris, context)?;
 
     let sensor_id_map = humility_pmbus::sensor_id_map(hubris, core)?;
     let dev_index = hubris
@@ -1187,83 +1323,58 @@ fn rendmp_phase_check(
     // cases, we can unconditionally write to a DMA register or PMBus operation;
     // in other cases, we'll need to read back a value, modify it locally, then
     // write in a second HIF program later.
-    let mut ops = vec![];
     for (rail, &index) in rail_indexes.iter().enumerate() {
         // Set the PWM register for this rail
-        let reg: u32 = (0xEA31 + rail * 0x80) as u32;
-        let payload = write_dma.payload(&[
-            ("addr", addr.into()),
-            ("reg", reg.into()),
-            ("data", 0x133u32.into()),
-        ])?;
-        context.idol_call_ops(&write_dma, &payload, &mut ops)?;
+        let reg = (0xEA31 + rail * 0x80) as u16;
+        worker.write_dma(addr, reg, 0x133)?;
 
         // Read 0xEA0D / 0xEA8D / 0xEB0D (we'll modify-write them later)
-        let reg = (0xEA0D + rail * 0x80) as u32;
-        let payload =
-            read_dma.payload(&[("addr", addr.into()), ("reg", reg.into())])?;
-        context.idol_call_ops(&read_dma, &payload, &mut ops)?;
+        let reg = (0xEA0D + rail * 0x80) as u16;
+        worker.read_dma(addr, reg)?;
 
         use pmbus::commands::raa229618::CommandCode::{
             LOOPCFG, PEAK_OCUC_COUNT,
         };
-        // Read LOOPCFG; this will be modified and written back later
-        let payload = read_word.payload(&[
-            ("index", index.into()),
-            ("has_rail", true.into()),
-            ("op", (LOOPCFG as u8).into()),
-        ])?;
-        context.idol_call_ops(&read_word32, &payload, &mut ops)?;
 
-        // Read PEAK_OCUC_COUNT; this will be modified and written back later
-        let payload = read_word.payload(&[
-            ("index", index.into()),
-            ("has_rail", true.into()),
-            ("op", (PEAK_OCUC_COUNT as u8).into()),
-        ])?;
-        context.idol_call_ops(&read_word, &payload, &mut ops)?;
+        // Read LOOPCFG and PEAK_OCUC_COUNT; they will be modified and written
+        // back later
+        worker.read_word(index, true, LOOPCFG as u8)?;
+        worker.read_word(index, true, PEAK_OCUC_COUNT as u8)?;
 
         // Set PMBus command codes 0xD0 and 0xD1 to 0x8000 (disable VMon)
         match dev {
             SupportedDevice::ISL68221 => {
                 use pmbus::commands::isl68224::CommandCode;
-                let payload = write_word.payload(&[
-                    ("index", index.into()),
-                    ("has_rail", true.into()),
-                    ("op", (CommandCode::VMON_ON as u8).into()),
-                    ("data", 0x8000u32.into()),
-                ])?;
-                context.idol_call_ops(&write_word, &payload, &mut ops)?;
-                let payload = write_word.payload(&[
-                    ("index", index.into()),
-                    ("has_rail", true.into()),
-                    ("op", (CommandCode::VMON_OFF as u8).into()),
-                    ("data", 0x8000u32.into()),
-                ])?;
-                context.idol_call_ops(&write_word, &payload, &mut ops)?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VMON_ON as u8,
+                    0x8000,
+                )?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VMON_OFF as u8,
+                    0x8000,
+                )?;
             }
             SupportedDevice::RAA229618 => {
                 use pmbus::commands::raa229618::CommandCode;
-                let payload = write_word.payload(&[
-                    ("index", index.into()),
-                    ("has_rail", true.into()),
-                    ("op", (CommandCode::VIN_ON as u8).into()),
-                    ("data", 0x8000u16.into()),
-                ])?;
-                context.idol_call_ops(&write_word, &payload, &mut ops)?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VIN_ON as u8,
+                    0x8000,
+                )?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VIN_OFF as u8,
+                    0x8000,
+                )?;
 
-                let payload = write_word.payload(&[
-                    ("index", index.into()),
-                    ("has_rail", true.into()),
-                    ("op", (CommandCode::VIN_OFF as u8).into()),
-                    ("data", 0x8000u16.into()),
-                ])?;
-                context.idol_call_ops(&write_word, &payload, &mut ops)?;
-
-                let reg = (0xEA5B + rail * 0x80) as u32;
-                let payload = read_dma
-                    .payload(&[("addr", addr.into()), ("reg", reg.into())])?;
-                context.idol_call_ops(&read_dma, &payload, &mut ops)?;
+                let reg = (0xEA5B + rail * 0x80) as u16;
+                worker.read_dma(addr, reg)?;
             }
         }
     }
@@ -1273,33 +1384,24 @@ fn rendmp_phase_check(
         SupportedDevice::ISL68221 => 0xE952,
         SupportedDevice::RAA229618 => 0xE932,
     };
-    let payload = read_dma
-        .payload(&[("addr", addr.into()), ("reg", disable_fault_reg.into())])?;
-    context.idol_call_ops(&read_dma, &payload, &mut ops)?;
+    worker.read_dma(addr, disable_fault_reg)?;
 
     // Disable all rails
     const RAIL_ENABLE_REG: u16 = 0xE9C2;
-    let payload = write_dma.payload(&[
-        ("addr", addr.into()),
-        ("reg", RAIL_ENABLE_REG.into()),
-        ("data", 0u32.into()),
-    ])?;
-    context.idol_call_ops(&write_dma, &payload, &mut ops)?;
+    worker.write_dma(addr, RAIL_ENABLE_REG, 0)?;
 
-    ops.push(Op::Done);
-    let results = context.run(core, &ops, None)?;
+    let results = worker.run(core)?;
 
     ////////////////////////////////////////////////////////////////////////////
     // Now, we're going to walk through the results, doing the modify-write
     // portion of various register changes.
-    ops.clear();
     let mut iter = results.iter();
     let mut ctrl = vec![];
     for (rail, &index) in rail_indexes.iter().enumerate() {
         if let Err(e) = iter.next().unwrap() {
             bail!(
                 "failed to write PWM register for rail {rail}: {:?}",
-                write_dma.strerror(*e)
+                worker.write_dma.strerror(*e)
             );
         }
         // EA0D / EA8D / EB0D
@@ -1309,7 +1411,7 @@ fn rendmp_phase_check(
             }
             Err(e) => bail!(
                 "failed to read EA0D for rail {rail}: {:?}",
-                read_dma.strerror(*e)
+                worker.read_dma.strerror(*e)
             ),
         };
 
@@ -1318,7 +1420,7 @@ fn rendmp_phase_check(
             Ok(v) => u32::from_le_bytes(v.as_slice().try_into().unwrap()),
             Err(e) => bail!(
                 "failed to read LOOPCFG for rail {rail}: {}",
-                read_word.strerror(*e)
+                worker.read_word.strerror(*e)
             ),
         };
         loopcfg &= !(
@@ -1332,45 +1434,38 @@ fn rendmp_phase_check(
             | (1 << 28)
         );
         use pmbus::commands::raa229618::CommandCode::LOOPCFG;
-        let payload = write_word32.payload(&[
-            ("index", index.into()),
-            ("has_rail", true.into()),
-            ("op", (LOOPCFG as u8).into()),
-            ("data", loopcfg.into()),
-        ])?;
-        context.idol_call_ops(&read_dma, &payload, &mut ops)?;
+        worker.write_word32(index, true, LOOPCFG as u8, loopcfg)?;
 
         // Modify PEAK_OCUC_COUNT (E9h) and write it back
         let mut peak_ocuc_count = match iter.next().unwrap() {
             Ok(v) => u16::from_le_bytes(v.as_slice().try_into().unwrap()),
             Err(e) => bail!(
                 "failed to read PEAK_OCUC_COUNT for rail {rail}: {}",
-                read_word.strerror(*e)
+                worker.read_word.strerror(*e)
             ),
         };
         // Clear bits 8:15 to disable undercurrent faults
         peak_ocuc_count &= !(0xFF << 8);
         use pmbus::commands::raa229618::CommandCode::PEAK_OCUC_COUNT;
-        let payload = write_word32.payload(&[
-            ("index", index.into()),
-            ("has_rail", true.into()),
-            ("op", (PEAK_OCUC_COUNT as u64).into()),
-            ("data", peak_ocuc_count.into()),
-        ])?;
-        context.idol_call_ops(&read_dma, &payload, &mut ops)?;
+        worker.write_word(
+            index,
+            true,
+            PEAK_OCUC_COUNT as u8,
+            peak_ocuc_count,
+        )?;
 
         match dev {
             SupportedDevice::ISL68221 => {
                 if let Err(e) = iter.next().unwrap() {
                     bail!(
                         "failed to set VMON_ON for {rail}: {}",
-                        write_word.strerror(*e)
+                        worker.write_word.strerror(*e)
                     );
                 }
                 if let Err(e) = iter.next().unwrap() {
                     bail!(
                         "failed to set VMON_OFF for {rail}: {}",
-                        write_word.strerror(*e)
+                        worker.write_word.strerror(*e)
                     );
                 }
             }
@@ -1378,13 +1473,13 @@ fn rendmp_phase_check(
                 if let Err(e) = iter.next().unwrap() {
                     bail!(
                         "failed to set VIN_ON for {rail}: {}",
-                        write_word.strerror(*e)
+                        worker.write_word.strerror(*e)
                     );
                 }
                 if let Err(e) = iter.next().unwrap() {
                     bail!(
                         "failed to set VIN_OFF for {rail}: {}",
-                        write_word.strerror(*e)
+                        worker.write_word.strerror(*e)
                     );
                 }
 
@@ -1394,18 +1489,13 @@ fn rendmp_phase_check(
                         u32::from_le_bytes(v.as_slice().try_into().unwrap())
                     }
                     Err(e) => bail!(
-                        "failed to read EA5B for rail {rail}: {}",
-                        read_dma.strerror(*e)
+                        "worker.failed to read EA5B for rail {rail}: {}",
+                        worker.read_dma.strerror(*e)
                     ),
                 };
                 reg_ea5b &= !1; // clear bit 0
-                let reg = (0xEA5B + rail * 0x80) as u32;
-                let payload = write_dma.payload(&[
-                    ("addr", addr.into()),
-                    ("reg", reg.into()),
-                    ("data", reg_ea5b.into()),
-                ])?;
-                context.idol_call_ops(&write_dma, &payload, &mut ops)?;
+                let reg = (0xEA5B + rail * 0x80) as u16;
+                worker.write_dma(addr, reg, reg_ea5b)?;
             }
         }
     }
@@ -1415,26 +1505,20 @@ fn rendmp_phase_check(
         Err(e) => {
             bail!(
                 "failed to read {disable_fault_reg:x}: {}",
-                read_dma.strerror(*e)
+                worker.read_dma.strerror(*e)
             )
         }
     };
     // clear bits 0:3 and 17:18;
     // this disables all input and output voltage faults.
     data &= !(0b1111 | (0b11 << 17));
-    let payload = write_dma.payload(&[
-        ("addr", addr.into()),
-        ("reg", disable_fault_reg.into()),
-        ("data", data.into()),
-    ])?;
-    context.idol_call_ops(&write_dma, &payload, &mut ops)?;
+    worker.write_dma(addr, disable_fault_reg, data)?;
 
     if let Some(i) = iter.next() {
         bail!("expected iterator to be done; got {i:?} instead");
     }
 
-    ops.push(Op::Done);
-    let results = context.run(core, &ops, None)?;
+    let results = worker.run(core)?;
 
     ////////////////////////////////////////////////////////////////////////////
 
