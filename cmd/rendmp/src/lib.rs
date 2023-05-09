@@ -1142,6 +1142,7 @@ fn rendmp_phase_check<'a>(
         read_dma: IdolOperation<'a>,
         write_dma: IdolOperation<'a>,
         read_word: IdolOperation<'a>,
+        read_word32: IdolOperation<'a>,
         write_word: IdolOperation<'a>,
         write_word32: IdolOperation<'a>,
 
@@ -1159,6 +1160,8 @@ fn rendmp_phase_check<'a>(
                 hubris.get_idol_command("Power.rendmp_dma_write")?;
             let read_word =
                 hubris.get_idol_command("Power.raw_pmbus_read_word")?;
+            let read_word32 =
+                hubris.get_idol_command("Power.raw_pmbus_read32_word")?;
             let write_word =
                 hubris.get_idol_command("Power.raw_pmbus_write_word")?;
             let write_word32 =
@@ -1168,6 +1171,7 @@ fn rendmp_phase_check<'a>(
                 read_dma,
                 write_dma,
                 read_word,
+                read_word32,
                 write_word,
                 write_word32,
                 ops: vec![],
@@ -1241,6 +1245,25 @@ fn rendmp_phase_check<'a>(
             ])?;
             self.context.idol_call_ops(
                 &self.write_word,
+                &payload,
+                &mut self.ops,
+            )?;
+            Ok(())
+        }
+
+        fn read_word32(
+            &mut self,
+            index: u32,
+            has_rail: bool,
+            op: u8,
+        ) -> Result<()> {
+            let payload = self.read_word32.payload(&[
+                ("index", index.into()),
+                ("has_rail", has_rail.into()),
+                ("op", op.into()),
+            ])?;
+            self.context.idol_call_ops(
+                &self.read_word32,
                 &payload,
                 &mut self.ops,
             )?;
@@ -1338,7 +1361,7 @@ fn rendmp_phase_check<'a>(
 
         // Read LOOPCFG and PEAK_OCUC_COUNT; they will be modified and written
         // back later
-        worker.read_word(index, true, LOOPCFG as u8)?;
+        worker.read_word32(index, true, LOOPCFG as u8)?;
         worker.read_word(index, true, PEAK_OCUC_COUNT as u8)?;
 
         // Set PMBus command codes 0xD0 and 0xD1 to 0x8000 (disable VMon)
