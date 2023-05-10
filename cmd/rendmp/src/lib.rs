@@ -313,7 +313,7 @@ enum RendmpDevice {
 }
 
 /// Results of the open-pin register
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum PinState {
     /// The phase is disabled, so we ignore its state
     Masked,
@@ -860,7 +860,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 /// A device which supports open-pin detection and other advanced debug
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum SupportedDevice {
-    ISL68221,
+    ISL68224,
     RAA229618,
 }
 
@@ -868,7 +868,7 @@ impl SupportedDevice {
     /// Number of rails supported by this device
     fn rails(&self) -> usize {
         match self {
-            SupportedDevice::ISL68221 => 3,
+            SupportedDevice::ISL68224 => 3,
             SupportedDevice::RAA229618 => 2,
         }
     }
@@ -876,7 +876,7 @@ impl SupportedDevice {
     /// Returns a list of phases and their numbering
     fn phases(&self) -> Vec<(String, u32)> {
         match &self {
-            SupportedDevice::ISL68221 => {
+            SupportedDevice::ISL68224 => {
                 let mut phases = vec![];
                 for phase in 0..6 {
                     phases.push((phase.to_string(), phase + 3));
@@ -906,7 +906,7 @@ impl std::fmt::Display for SupportedDevice {
             f,
             "{}",
             match self {
-                SupportedDevice::ISL68221 => "ISL68221",
+                SupportedDevice::ISL68224 => "ISL68221",
                 SupportedDevice::RAA229618 => "RAA229618",
             }
         )
@@ -947,7 +947,7 @@ fn check_addr(
         )
     }
     let dev = match dev.device.as_str() {
-        ISL_DEV_NAME => SupportedDevice::ISL68221,
+        ISL_DEV_NAME => SupportedDevice::ISL68224,
         RAA_DEV_NAME => SupportedDevice::RAA229618,
         _ => unreachable!(), // checked above
     };
@@ -1019,7 +1019,7 @@ fn get_pin_states(
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
 
     let regs: &'static [u16] = match dev {
-        SupportedDevice::ISL68221 => &[
+        SupportedDevice::ISL68224 => &[
             0x00BD, // open-pin
             0xE925, // mask
         ],
@@ -1052,7 +1052,7 @@ fn get_pin_states(
     // Register decoding was determined with a mix of Power Navigator
     // experiments and discussion with Renesas.
     let (open, mask) = match dev {
-        SupportedDevice::ISL68221 => (values[0] as u64, values[1] as u64),
+        SupportedDevice::ISL68224 => (values[0] as u64, values[1] as u64),
         SupportedDevice::RAA229618 => {
             let open = values[0] as u64 | (values[1] as u64) << 32;
             let mask = values[2] as u64 | (values[3] as u64) << 32;
@@ -1109,6 +1109,7 @@ fn rendmp_open_pin(
 enum Call {
     ReadDma(u32),
     WriteDma,
+    ReadByte(u8),
     ReadWord(u16),
     ReadWord32(u32),
     WriteByte,
@@ -1158,6 +1159,13 @@ impl Call {
             bail!("unexpected call result {self:?}; expected WriteWord")
         }
     }
+    fn expect_read_byte(&self) -> Result<u8> {
+        if let Call::ReadByte(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected Byte")
+        }
+    }
     fn expect_write_byte(&self) -> Result<()> {
         if let Call::WriteByte = self {
             Ok(())
@@ -1173,8 +1181,11 @@ struct HifWorker<'a, 'b> {
 
     read_dma: IdolOperation<'a>,
     write_dma: IdolOperation<'a>,
+
+    read_byte: IdolOperation<'a>,
     read_word: IdolOperation<'a>,
     read_word32: IdolOperation<'a>,
+
     write_byte: IdolOperation<'a>,
     write_word: IdolOperation<'a>,
     write_word32: IdolOperation<'a>,
@@ -1194,6 +1205,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
     ) -> Result<Self> {
         let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
         let write_dma = hubris.get_idol_command("Power.rendmp_dma_write")?;
+        let read_byte = hubris.get_idol_command("Power.raw_pmbus_read_byte")?;
         let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
         let read_word32 =
             hubris.get_idol_command("Power.raw_pmbus_read32_word")?;
@@ -1246,6 +1258,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
 
             read_dma,
             write_dma,
+            read_byte,
             read_word,
             read_word32,
             write_byte,
@@ -1309,6 +1322,17 @@ impl<'a, 'b> HifWorker<'a, 'b> {
             &mut self.ops,
         )?;
         self.calls.push(Call::WriteWord);
+        Ok(())
+    }
+
+    fn read_byte(&mut self, index: u32, has_rail: bool, op: u8) -> Result<()> {
+        let payload = self.read_byte.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+        ])?;
+        self.context.idol_call_ops(&self.read_byte, &payload, &mut self.ops)?;
+        self.calls.push(Call::ReadByte(0));
         Ok(())
     }
 
@@ -1393,6 +1417,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
             let op = match call {
                 Call::ReadDma(..) => &self.read_dma,
                 Call::WriteDma => &self.write_dma,
+                Call::ReadByte(..) => &self.read_byte,
                 Call::ReadWord(..) => &self.read_word,
                 Call::ReadWord32(..) => &self.read_word32,
                 Call::WriteWord => &self.write_word,
@@ -1407,6 +1432,9 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                     match (v, call) {
                         (Base::U32(v), Call::ReadDma(..)) => {
                             out.push(Ok(Call::ReadDma(*v)))
+                        }
+                        (Base::U8(v), Call::ReadByte(..)) => {
+                            out.push(Ok(Call::ReadByte(*v)))
                         }
                         (Base::U16(v), Call::ReadWord(..)) => {
                             out.push(Ok(Call::ReadWord(*v)))
@@ -1503,7 +1531,7 @@ fn rendmp_phase_check<'a>(
 
         // Set PMBus command codes 0xD0 and 0xD1 to 0x8000 (disable VMon)
         match dev {
-            SupportedDevice::ISL68221 => {
+            SupportedDevice::ISL68224 => {
                 use pmbus::commands::isl68224::CommandCode;
                 worker.write_word(
                     index,
@@ -1541,7 +1569,7 @@ fn rendmp_phase_check<'a>(
     // Read a device-specific DMA registers, which we'll modify to disable
     // faults when we write it back
     let disable_fault_reg: u16 = match dev {
-        SupportedDevice::ISL68221 => 0xE952,
+        SupportedDevice::ISL68224 => 0xE952,
         SupportedDevice::RAA229618 => 0xE932,
     };
     worker.read_dma(addr, disable_fault_reg)?;
@@ -1604,7 +1632,7 @@ fn rendmp_phase_check<'a>(
         )?;
 
         match dev {
-            SupportedDevice::ISL68221 => {
+            SupportedDevice::ISL68224 => {
                 if let Err(e) = next()? {
                     bail!("failed to set VMON_ON for {rail}: {e}",);
                 }
@@ -1706,18 +1734,11 @@ fn rendmp_phase_check<'a>(
     // - Wait a little while
     // - Measure current + voltage
     // - Disable rails
-
-    for (phase_name, i) in phases {
-        match pin_states[&phase_name] {
-            PinState::Open => {
-                println!("skipping open phase {phase_name}");
-                continue;
-            }
-            PinState::Masked => {
-                println!("skipping masked phase {phase_name}");
-                continue;
-            }
-            PinState::Good => (),
+    use pmbus::commands::raa229618::CommandCode::VOUT_MODE;
+    worker.read_byte(rail_indexes[0], false, VOUT_MODE as u8)?;
+    for (phase_name, i) in &phases {
+        if pin_states[phase_name] != PinState::Good {
+            continue;
         }
 
         // Enable this phase
@@ -1732,19 +1753,114 @@ fn rendmp_phase_check<'a>(
         // Small busy loop
         worker.ops.push(Op::Push32(1000));
         worker.ops.push(Op::Push32(0));
-        worker.ops.push(Op::Label(hif::Target(i as u8)));
+        worker.ops.push(Op::Label(hif::Target(*i as u8)));
         worker.ops.push(Op::Push(1));
         worker.ops.push(Op::Add);
-        worker.ops.push(Op::BranchLessThan(hif::Target(i as u8)));
+        worker.ops.push(Op::BranchLessThan(hif::Target(*i as u8)));
         worker.ops.push(Op::DropN(2));
 
-        // TODO: read current and voltage
+        // Read current and voltage from all rails
+        for rail_index in rail_indexes.iter() {
+            worker.read_word(
+                *rail_index,
+                true,
+                pmbus::CommandCode::READ_VOUT as u8,
+            )?;
+            worker.read_word(
+                *rail_index,
+                true,
+                pmbus::CommandCode::READ_IOUT as u8,
+            )?;
+        }
 
         // Disable all rails by writing the original control value
         for (j, c) in ctrl.iter().enumerate() {
             let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
             worker.write_dma(addr, ctrl_addr, *c)?;
         }
+    }
+
+    let results = worker.run(core)?;
+    let mut iter = results.iter();
+    let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
+
+    let vout_mode = match next()? {
+        Ok(v) => v.expect_read_byte()?,
+        Err(e) => bail!("failed to read VOUT_MODE: {e}"),
+    };
+    let vout_mode = || pmbus::commands::VOUT_MODE::CommandData(vout_mode);
+    for (phase_name, _i) in &phases {
+        print!("{phase_name} ");
+        match pin_states[phase_name] {
+            PinState::Open => {
+                println!("[skipping open phase]");
+                continue;
+            }
+            PinState::Masked => {
+                println!("[skipping masked phase]");
+                continue;
+            }
+            PinState::Good => (),
+        }
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!("failed to enable phase {phase_name}: {e}"),
+        }
+        for (j, _) in ctrl.iter().enumerate() {
+            match next()? {
+                Ok(v) => v.expect_write_dma()?,
+                Err(e) => {
+                    bail!("failed to enable rail {j} for {phase_name}: {e}")
+                }
+            }
+        }
+        // The busy loop occured here!
+
+        // Now, we parse the data for each rail
+        for (j, _) in ctrl.iter().enumerate() {
+            let read_vout = match next()? {
+                Ok(v) => v.expect_read_word()?,
+                Err(e) => bail!("failed to READ_VOUT: {e}"),
+            };
+            let read_iout = match next()? {
+                Ok(v) => v.expect_read_word()?,
+                Err(e) => bail!("failed to READ_IOUT: {e}"),
+            };
+            let device = match dev {
+                SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
+                SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
+            };
+
+            println!("vout for rail {j}:");
+            device
+                .interpret(
+                    pmbus::CommandCode::READ_VOUT as u8,
+                    read_vout.as_bytes(),
+                    vout_mode,
+                    |field, value| println!("  {field:?} => {value:?}"),
+                )
+                .map_err(|e| anyhow!("could not interpret READ_VOUT: {e:?}"))?;
+            println!("iout for rail {j}:");
+            device
+                .interpret(
+                    pmbus::CommandCode::READ_IOUT as u8,
+                    read_iout.as_bytes(),
+                    vout_mode,
+                    |field, value| println!("  {field:?} => {value:?}"),
+                )
+                .map_err(|e| anyhow!("could not interpret READ_IOUT: {e:?}"))?;
+        }
+
+        for (j, _) in ctrl.iter().enumerate() {
+            match next()? {
+                Ok(v) => v.expect_write_dma()?,
+                Err(e) => bail!("could not disable rail {j}: {e}"),
+            }
+        }
+    }
+
+    if let Some(i) = iter.next() {
+        bail!("expected iterator to be done; got {i:?} instead");
     }
 
     Ok(())
