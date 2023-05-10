@@ -1137,8 +1137,64 @@ fn rendmp_phase_check<'a>(
         .filter(|(p, _b)| p.parse::<usize>().is_ok())
         .collect();
 
+    #[derive(Copy, Clone, Debug)]
+    enum Call {
+        ReadDma(u32),
+        WriteDma,
+        ReadWord(u16),
+        WriteWord,
+        ReadWord32(u32),
+        WriteWord32,
+    }
+    impl Call {
+        fn expect_read_dma(&self) -> Result<u32> {
+            if let Call::ReadDma(v) = self {
+                Ok(*v)
+            } else {
+                bail!("unexpected call result {self:?}; expected ReadDma")
+            }
+        }
+        fn expect_write_dma(&self) -> Result<()> {
+            if let Call::WriteDma = self {
+                Ok(())
+            } else {
+                bail!("unexpected call result {self:?}; expected WriteDma")
+            }
+        }
+        fn expect_read_word32(&self) -> Result<u32> {
+            if let Call::ReadWord32(v) = self {
+                Ok(*v)
+            } else {
+                bail!("unexpected call result {self:?}; expected ReadWord32")
+            }
+        }
+        fn expect_write_word32(&self) -> Result<()> {
+            if let Call::WriteWord32 = self {
+                Ok(())
+            } else {
+                bail!("unexpected call result {self:?}; expected WriteWord32")
+            }
+        }
+        fn expect_read_word(&self) -> Result<u16> {
+            if let Call::ReadWord(v) = self {
+                Ok(*v)
+            } else {
+                bail!("unexpected call result {self:?}; expected ReadWord")
+            }
+        }
+        fn expect_write_word(&self) -> Result<()> {
+            if let Call::WriteWord = self {
+                Ok(())
+            } else {
+                bail!("unexpected call result {self:?}; expected WriteWord")
+            }
+        }
+    }
     use humility_idol::IdolOperation;
     struct Worker<'a> {
+        hubris: &'a HubrisArchive,
+        context: &'a mut HiffyContext<'a>,
+
         read_dma: IdolOperation<'a>,
         write_dma: IdolOperation<'a>,
         read_word: IdolOperation<'a>,
@@ -1146,9 +1202,8 @@ fn rendmp_phase_check<'a>(
         write_word: IdolOperation<'a>,
         write_word32: IdolOperation<'a>,
 
-        context: &'a mut HiffyContext<'a>,
-
         ops: Vec<hif::Op>,
+        calls: Vec<Call>,
     }
     impl<'a> Worker<'a> {
         fn new(
@@ -1168,6 +1223,9 @@ fn rendmp_phase_check<'a>(
                 hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
 
             Ok(Self {
+                hubris,
+                context,
+
                 read_dma,
                 write_dma,
                 read_word,
@@ -1175,7 +1233,7 @@ fn rendmp_phase_check<'a>(
                 write_word,
                 write_word32,
                 ops: vec![],
-                context,
+                calls: vec![],
             })
         }
 
@@ -1195,6 +1253,7 @@ fn rendmp_phase_check<'a>(
                 &payload,
                 &mut self.ops,
             )?;
+            self.calls.push(Call::WriteDma);
             Ok(())
         }
 
@@ -1208,6 +1267,7 @@ fn rendmp_phase_check<'a>(
                 &payload,
                 &mut self.ops,
             )?;
+            self.calls.push(Call::ReadDma(0));
             Ok(())
         }
 
@@ -1227,6 +1287,7 @@ fn rendmp_phase_check<'a>(
                 &payload,
                 &mut self.ops,
             )?;
+            self.calls.push(Call::ReadWord(0));
             Ok(())
         }
 
@@ -1248,6 +1309,7 @@ fn rendmp_phase_check<'a>(
                 &payload,
                 &mut self.ops,
             )?;
+            self.calls.push(Call::WriteWord);
             Ok(())
         }
 
@@ -1267,6 +1329,7 @@ fn rendmp_phase_check<'a>(
                 &payload,
                 &mut self.ops,
             )?;
+            self.calls.push(Call::ReadWord32(0));
             Ok(())
         }
 
@@ -1288,17 +1351,67 @@ fn rendmp_phase_check<'a>(
                 &payload,
                 &mut self.ops,
             )?;
+            self.calls.push(Call::WriteWord32);
             Ok(())
         }
 
         fn run(
             &mut self,
             core: &mut dyn humility::core::Core,
-        ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+        ) -> Result<Vec<Result<Call, String>>> {
             let mut ops = std::mem::take(&mut self.ops);
             ops.push(Op::Done);
-            self.context.run(core, &ops, None)
+            let r = self.context.run(core, &ops, None)?;
             // TODO: decode error messages here
+            if r.len() != self.calls.len() {
+                bail!("mismatched result lengths");
+            }
+            let mut out = vec![];
+            for (value, call) in
+                r.into_iter().zip(std::mem::take(&mut self.calls))
+            {
+                let op = match call {
+                    Call::ReadDma(..) => &self.read_dma,
+                    Call::WriteDma => &self.write_dma,
+                    Call::ReadWord(..) => &self.read_word,
+                    Call::ReadWord32(..) => &self.read_word32,
+                    Call::WriteWord => &self.write_word,
+                    Call::WriteWord32 => &self.write_word32,
+                };
+                let v = hiffy_decode(self.hubris, op, value)
+                    .context("failed to decode {op:?} result")?;
+                match v {
+                    Ok(v) => {
+                        let v =
+                            v.as_base().context("expected Base, got {v:?}")?;
+                        match (v, call) {
+                            (Base::U32(v), Call::ReadDma(..)) => {
+                                out.push(Ok(Call::ReadDma(*v)))
+                            }
+                            (Base::U16(v), Call::ReadWord(..)) => {
+                                out.push(Ok(Call::ReadWord(*v)))
+                            }
+                            (Base::U32(v), Call::ReadWord32(..)) => {
+                                out.push(Ok(Call::ReadWord32(*v)))
+                            }
+                            (Base::U0, Call::WriteDma) => {
+                                out.push(Ok(Call::WriteDma))
+                            }
+                            (Base::U0, Call::WriteWord) => {
+                                out.push(Ok(Call::WriteWord))
+                            }
+                            (Base::U0, Call::WriteWord32) => {
+                                out.push(Ok(Call::WriteWord32))
+                            }
+                            (base, op) => {
+                                bail!("got unexpected result {base} for {op:?}")
+                            }
+                        }
+                    }
+                    Err(e) => out.push(Err(e)),
+                }
+            }
+            Ok(out)
         }
     }
 
@@ -1410,8 +1523,8 @@ fn rendmp_phase_check<'a>(
     worker.read_dma(addr, disable_fault_reg)?;
 
     // Disable all rails
-    const RAIL_ENABLE_REG: u16 = 0xE9C2;
-    worker.write_dma(addr, RAIL_ENABLE_REG, 0)?;
+    const PHASE_ENABLE_REG: u16 = 0xE9C2;
+    worker.write_dma(addr, PHASE_ENABLE_REG, 0)?;
 
     let results = worker.run(core)?;
 
@@ -1419,32 +1532,22 @@ fn rendmp_phase_check<'a>(
     // Now, we're going to walk through the results, doing the modify-write
     // portion of various register changes.
     let mut iter = results.iter();
+    let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
     let mut ctrl = vec![];
     for (rail, &index) in rail_indexes.iter().enumerate() {
-        if let Err(e) = iter.next().unwrap() {
-            bail!(
-                "failed to write PWM register for rail {rail}: {:?}",
-                worker.write_dma.strerror(*e)
-            );
+        if let Err(e) = next()? {
+            bail!("failed to write PWM register for rail {rail}: {e}");
         }
         // EA0D / EA8D / EB0D
-        match iter.next().unwrap() {
-            Ok(v) => {
-                ctrl.push(u32::from_le_bytes(v.as_slice().try_into().unwrap()))
-            }
-            Err(e) => bail!(
-                "failed to read EA0D for rail {rail}: {:?}",
-                worker.read_dma.strerror(*e)
-            ),
+        match next()? {
+            Ok(v) => ctrl.push(v.expect_read_dma()?),
+            Err(e) => bail!("failed to read EA0D for rail {rail}: {e}"),
         };
 
         // Modify LOOPCFG (F0h) and write it back
-        let mut loopcfg = match iter.next().unwrap() {
-            Ok(v) => u32::from_le_bytes(v.as_slice().try_into().unwrap()),
-            Err(e) => bail!(
-                "failed to read LOOPCFG for rail {rail}: {}",
-                worker.read_word.strerror(*e)
-            ),
+        let mut loopcfg = match next()? {
+            Ok(v) => v.expect_read_word32()?,
+            Err(e) => bail!("failed to read LOOPCFG for rail {rail}: {e}"),
         };
         loopcfg &= !(
             // Disable APD
@@ -1460,12 +1563,11 @@ fn rendmp_phase_check<'a>(
         worker.write_word32(index, true, LOOPCFG as u8, loopcfg)?;
 
         // Modify PEAK_OCUC_COUNT (E9h) and write it back
-        let mut peak_ocuc_count = match iter.next().unwrap() {
-            Ok(v) => u16::from_le_bytes(v.as_slice().try_into().unwrap()),
-            Err(e) => bail!(
-                "failed to read PEAK_OCUC_COUNT for rail {rail}: {}",
-                worker.read_word.strerror(*e)
-            ),
+        let mut peak_ocuc_count = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => {
+                bail!("failed to read PEAK_OCUC_COUNT for rail {rail}: {e}",)
+            }
         };
         // Clear bits 8:15 to disable undercurrent faults
         peak_ocuc_count &= !(0xFF << 8);
@@ -1479,42 +1581,27 @@ fn rendmp_phase_check<'a>(
 
         match dev {
             SupportedDevice::ISL68221 => {
-                if let Err(e) = iter.next().unwrap() {
-                    bail!(
-                        "failed to set VMON_ON for {rail}: {}",
-                        worker.write_word.strerror(*e)
-                    );
+                if let Err(e) = next()? {
+                    bail!("failed to set VMON_ON for {rail}: {e}",);
                 }
-                if let Err(e) = iter.next().unwrap() {
-                    bail!(
-                        "failed to set VMON_OFF for {rail}: {}",
-                        worker.write_word.strerror(*e)
-                    );
+                if let Err(e) = next()? {
+                    bail!("failed to set VMON_OFF for {rail}: {e}",);
                 }
             }
             SupportedDevice::RAA229618 => {
-                if let Err(e) = iter.next().unwrap() {
-                    bail!(
-                        "failed to set VIN_ON for {rail}: {}",
-                        worker.write_word.strerror(*e)
-                    );
+                if let Err(e) = next()? {
+                    bail!("failed to set VIN_ON for {rail}: {e}",);
                 }
-                if let Err(e) = iter.next().unwrap() {
-                    bail!(
-                        "failed to set VIN_OFF for {rail}: {}",
-                        worker.write_word.strerror(*e)
-                    );
+                if let Err(e) = next()? {
+                    bail!("failed to set VIN_OFF for {rail}: {e}",);
                 }
 
                 // Clear bit 0 of DMA register EA5B and write it back
-                let mut reg_ea5b = match iter.next().unwrap() {
-                    Ok(v) => {
-                        u32::from_le_bytes(v.as_slice().try_into().unwrap())
+                let mut reg_ea5b = match next()? {
+                    Ok(v) => v.expect_read_dma()?,
+                    Err(e) => {
+                        bail!("worker.failed to read EA5B for rail {rail}: {e}")
                     }
-                    Err(e) => bail!(
-                        "worker.failed to read EA5B for rail {rail}: {}",
-                        worker.read_dma.strerror(*e)
-                    ),
                 };
                 reg_ea5b &= !1; // clear bit 0
                 let reg = (0xEA5B + rail * 0x80) as u16;
@@ -1523,25 +1610,64 @@ fn rendmp_phase_check<'a>(
         }
     }
 
-    let mut data = match iter.next().unwrap() {
-        Ok(v) => u32::from_le_bytes(v.as_slice().try_into().unwrap()),
-        Err(e) => {
-            bail!(
-                "failed to read {disable_fault_reg:x}: {}",
-                worker.read_dma.strerror(*e)
-            )
-        }
+    let mut disable_fault_value = match next()? {
+        Ok(v) => v.expect_read_dma()?,
+        Err(e) => bail!("failed to read {disable_fault_reg:x}: {e}"),
     };
     // clear bits 0:3 and 17:18;
     // this disables all input and output voltage faults.
-    data &= !(0b1111 | (0b11 << 17));
-    worker.write_dma(addr, disable_fault_reg, data)?;
+    disable_fault_value &= !(0b1111 | (0b11 << 17));
+    worker.write_dma(addr, disable_fault_reg, disable_fault_value)?;
+
+    match next()? {
+        Ok(v) => v.expect_write_dma()?,
+        Err(e) => {
+            bail!("failed to disable all phases: {e}")
+        }
+    }
 
     if let Some(i) = iter.next() {
         bail!("expected iterator to be done; got {i:?} instead");
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Check the results of the modify-write portion of register changes
     let results = worker.run(core)?;
+    let mut iter = results.iter();
+    let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
+    for (rail, ..) in rail_indexes.iter().enumerate() {
+        match next()? {
+            Ok(v) => v.expect_write_word32()?,
+            Err(e) => {
+                bail!("failed to modify LOOPCFG for rail {rail}: {e}")
+            }
+        }
+        match next()? {
+            Ok(v) => v.expect_write_word()?,
+            Err(e) => {
+                bail!("failed to modify PEAK_OCUC_COUNT for rail {rail}: {e}")
+            }
+        }
+        if dev == SupportedDevice::RAA229618 {
+            match next()? {
+                Ok(v) => v.expect_write_dma()?,
+                Err(e) => {
+                    bail!("failed to modify EA5B for rail {rail}: {e}")
+                }
+            }
+        }
+    }
+
+    match next()? {
+        Ok(v) => v.expect_write_dma()?,
+        Err(e) => {
+            bail!("failed to disable faults: {e}")
+        }
+    }
+
+    if let Some(i) = iter.next() {
+        bail!("expected iterator to be done; got {i:?} instead");
+    }
 
     ////////////////////////////////////////////////////////////////////////////
 
