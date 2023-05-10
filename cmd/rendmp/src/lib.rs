@@ -126,11 +126,12 @@
 
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
+use humility::warn;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
-use humility_idol::HubrisIdol;
+use humility_idol::{HubrisIdol, IdolOperation};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
@@ -1009,12 +1010,12 @@ fn rendmp_blackbox(
 
 /// Reads and decodes open-pin registers on the selected device
 fn get_pin_states(
-    subargs: RendmpArgs,
+    subargs: &RendmpArgs,
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &mut HiffyContext,
 ) -> Result<BTreeMap<String, PinState>> {
-    let (addr, dev) = check_addr(&subargs, hubris)?;
+    let (addr, dev) = check_addr(subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
 
     let regs: &'static [u16] = match dev {
@@ -1083,12 +1084,12 @@ fn get_pin_states(
 }
 
 fn rendmp_open_pin(
-    subargs: RendmpArgs,
+    subargs: &RendmpArgs,
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &mut HiffyContext,
 ) -> Result<()> {
-    let (addr, dev) = check_addr(&subargs, hubris)?;
+    let (addr, dev) = check_addr(subargs, hubris)?;
     let phases = dev.phases();
     let out = get_pin_states(subargs, hubris, core, context)?;
     println!("Open pin check for {dev} at {addr:#x}");
@@ -1104,11 +1105,344 @@ fn rendmp_open_pin(
     Ok(())
 }
 
-fn rendmp_phase_check<'a>(
-    subargs: RendmpArgs,
+#[derive(Copy, Clone, Debug)]
+enum Call {
+    ReadDma(u32),
+    WriteDma,
+    ReadWord(u16),
+    ReadWord32(u32),
+    WriteByte,
+    WriteWord,
+    WriteWord32,
+}
+impl Call {
+    fn expect_read_dma(&self) -> Result<u32> {
+        if let Call::ReadDma(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected ReadDma")
+        }
+    }
+    fn expect_write_dma(&self) -> Result<()> {
+        if let Call::WriteDma = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteDma")
+        }
+    }
+    fn expect_read_word32(&self) -> Result<u32> {
+        if let Call::ReadWord32(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected ReadWord32")
+        }
+    }
+    fn expect_write_word32(&self) -> Result<()> {
+        if let Call::WriteWord32 = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteWord32")
+        }
+    }
+    fn expect_read_word(&self) -> Result<u16> {
+        if let Call::ReadWord(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected ReadWord")
+        }
+    }
+    fn expect_write_word(&self) -> Result<()> {
+        if let Call::WriteWord = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteWord")
+        }
+    }
+    fn expect_write_byte(&self) -> Result<()> {
+        if let Call::WriteByte = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteByte")
+        }
+    }
+}
+
+struct HifWorker<'a, 'b> {
     hubris: &'a HubrisArchive,
-    core: &'a mut dyn humility::core::Core,
-    context: &'a mut HiffyContext<'a>,
+    context: &'a mut HiffyContext<'b>,
+
+    read_dma: IdolOperation<'a>,
+    write_dma: IdolOperation<'a>,
+    read_word: IdolOperation<'a>,
+    read_word32: IdolOperation<'a>,
+    write_byte: IdolOperation<'a>,
+    write_word: IdolOperation<'a>,
+    write_word32: IdolOperation<'a>,
+
+    ops: Vec<hif::Op>,
+    calls: Vec<Call>,
+
+    rail_indexes: Vec<u32>,
+}
+
+impl<'a, 'b> HifWorker<'a, 'b> {
+    fn new<'c>(
+        hubris: &'a HubrisArchive,
+        context: &'a mut HiffyContext<'b>,
+        core: &'c mut dyn humility::core::Core,
+        i2c_addr: u8,
+    ) -> Result<Self> {
+        let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
+        let write_dma = hubris.get_idol_command("Power.rendmp_dma_write")?;
+        let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
+        let read_word32 =
+            hubris.get_idol_command("Power.raw_pmbus_read32_word")?;
+        let write_word =
+            hubris.get_idol_command("Power.raw_pmbus_write_word")?;
+        let write_byte =
+            hubris.get_idol_command("Power.raw_pmbus_write_byte")?;
+        let write_word32 =
+            hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
+
+        let sensor_id_map = humility_pmbus::sensor_id_map(hubris, core)?;
+        let dev_index = hubris
+            .manifest
+            .i2c_devices
+            .iter()
+            .enumerate()
+            .find(|(_i, dev)| dev.address == i2c_addr)
+            .ok_or_else(|| {
+                anyhow!("could not find device at addr {i2c_addr:?}")
+            })?
+            .0;
+        let rail_indexes: Vec<_> = hubris
+            .manifest
+            .sensors
+            .iter()
+            .enumerate()
+            .filter(|(_i, s)| {
+                s.device == HubrisSensorDevice::I2c(dev_index)
+                    && s.kind == HubrisSensorKind::Voltage
+            })
+            .map(|(sensor_id, _s)| {
+                // This rail's voltage sensor is the n'th voltage sensor among
+                // voltage sensors that match the target device.  Convert from
+                // voltage sensor index to device index for use in
+                // Power.read/write_* APIs.
+                sensor_id_map
+                    .get(&(sensor_id as u32))
+                    .ok_or_else(|| {
+                        anyhow!(
+                    "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
+                )
+                    })
+                    .map(|i| *i as u32)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(Self {
+            hubris,
+            context,
+
+            read_dma,
+            write_dma,
+            read_word,
+            read_word32,
+            write_byte,
+            write_word,
+            write_word32,
+
+            ops: vec![],
+            calls: vec![],
+
+            rail_indexes,
+        })
+    }
+
+    fn write_dma(&mut self, i2c_addr: u8, reg: u16, data: u32) -> Result<()> {
+        let payload = self.write_dma.payload(&[
+            ("addr", i2c_addr.into()),
+            ("reg", reg.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(&self.write_dma, &payload, &mut self.ops)?;
+        self.calls.push(Call::WriteDma);
+        Ok(())
+    }
+
+    fn read_dma(&mut self, i2c_addr: u8, dma_reg: u16) -> Result<()> {
+        let payload = self
+            .read_dma
+            .payload(&[("addr", i2c_addr.into()), ("reg", dma_reg.into())])?;
+        self.context.idol_call_ops(&self.read_dma, &payload, &mut self.ops)?;
+        self.calls.push(Call::ReadDma(0));
+        Ok(())
+    }
+
+    fn read_word(&mut self, index: u32, has_rail: bool, op: u8) -> Result<()> {
+        let payload = self.read_word.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+        ])?;
+        self.context.idol_call_ops(&self.read_word, &payload, &mut self.ops)?;
+        self.calls.push(Call::ReadWord(0));
+        Ok(())
+    }
+
+    fn write_word(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+        data: u16,
+    ) -> Result<()> {
+        let payload = self.write_word.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.write_word,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::WriteWord);
+        Ok(())
+    }
+
+    fn write_byte(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+        data: u8,
+    ) -> Result<()> {
+        let payload = self.write_byte.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.write_byte,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::WriteByte);
+        Ok(())
+    }
+
+    fn read_word32(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+    ) -> Result<()> {
+        let payload = self.read_word32.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.read_word32,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::ReadWord32(0));
+        Ok(())
+    }
+
+    fn write_word32(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+        data: u32,
+    ) -> Result<()> {
+        let payload = self.write_word32.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.write_word32,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::WriteWord32);
+        Ok(())
+    }
+
+    fn run(
+        &mut self,
+        core: &mut dyn humility::core::Core,
+    ) -> Result<Vec<Result<Call, String>>> {
+        let mut ops = std::mem::take(&mut self.ops);
+        ops.push(Op::Done);
+        let r = self.context.run(core, &ops, None)?;
+        // TODO: decode error messages here
+        if r.len() != self.calls.len() {
+            bail!("mismatched result lengths");
+        }
+        let mut out = vec![];
+        for (value, call) in r.into_iter().zip(std::mem::take(&mut self.calls))
+        {
+            let op = match call {
+                Call::ReadDma(..) => &self.read_dma,
+                Call::WriteDma => &self.write_dma,
+                Call::ReadWord(..) => &self.read_word,
+                Call::ReadWord32(..) => &self.read_word32,
+                Call::WriteWord => &self.write_word,
+                Call::WriteByte => &self.write_byte,
+                Call::WriteWord32 => &self.write_word32,
+            };
+            let v = hiffy_decode(self.hubris, op, value)
+                .context("failed to decode {op:?} result")?;
+            match v {
+                Ok(v) => {
+                    let v = v.as_base().context("expected Base, got {v:?}")?;
+                    match (v, call) {
+                        (Base::U32(v), Call::ReadDma(..)) => {
+                            out.push(Ok(Call::ReadDma(*v)))
+                        }
+                        (Base::U16(v), Call::ReadWord(..)) => {
+                            out.push(Ok(Call::ReadWord(*v)))
+                        }
+                        (Base::U32(v), Call::ReadWord32(..)) => {
+                            out.push(Ok(Call::ReadWord32(*v)))
+                        }
+                        (Base::U0, Call::WriteDma) => {
+                            out.push(Ok(Call::WriteDma))
+                        }
+                        (Base::U0, Call::WriteWord) => {
+                            out.push(Ok(Call::WriteWord))
+                        }
+                        (Base::U0, Call::WriteByte) => {
+                            out.push(Ok(Call::WriteByte))
+                        }
+                        (Base::U0, Call::WriteWord32) => {
+                            out.push(Ok(Call::WriteWord32))
+                        }
+                        (base, op) => {
+                            bail!("got unexpected result {base} for {op:?}")
+                        }
+                    }
+                }
+                Err(e) => out.push(Err(e)),
+            }
+        }
+        Ok(out)
+    }
+}
+
+fn rendmp_phase_check<'a>(
+    subargs: &'a RendmpArgs,
+    hubris: &'a HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &'a mut HiffyContext,
 ) -> Result<()> {
     // Make sure we're in A2 before doing anything
     let power_state_op = hubris
@@ -1124,7 +1458,7 @@ fn rendmp_phase_check<'a>(
     }
 
     // Pick out the target device
-    let (addr, dev) = check_addr(&subargs, hubris)?;
+    let (addr, dev) = check_addr(subargs, hubris)?;
 
     // Read pin states so that we don't try to enable a phase with an open-pin
     // failure; this will
@@ -1137,320 +1471,9 @@ fn rendmp_phase_check<'a>(
         .filter(|(p, _b)| p.parse::<usize>().is_ok())
         .collect();
 
-    #[derive(Copy, Clone, Debug)]
-    enum Call {
-        ReadDma(u32),
-        WriteDma,
-        ReadWord(u16),
-        WriteWord,
-        ReadWord32(u32),
-        WriteWord32,
-    }
-    impl Call {
-        fn expect_read_dma(&self) -> Result<u32> {
-            if let Call::ReadDma(v) = self {
-                Ok(*v)
-            } else {
-                bail!("unexpected call result {self:?}; expected ReadDma")
-            }
-        }
-        fn expect_write_dma(&self) -> Result<()> {
-            if let Call::WriteDma = self {
-                Ok(())
-            } else {
-                bail!("unexpected call result {self:?}; expected WriteDma")
-            }
-        }
-        fn expect_read_word32(&self) -> Result<u32> {
-            if let Call::ReadWord32(v) = self {
-                Ok(*v)
-            } else {
-                bail!("unexpected call result {self:?}; expected ReadWord32")
-            }
-        }
-        fn expect_write_word32(&self) -> Result<()> {
-            if let Call::WriteWord32 = self {
-                Ok(())
-            } else {
-                bail!("unexpected call result {self:?}; expected WriteWord32")
-            }
-        }
-        fn expect_read_word(&self) -> Result<u16> {
-            if let Call::ReadWord(v) = self {
-                Ok(*v)
-            } else {
-                bail!("unexpected call result {self:?}; expected ReadWord")
-            }
-        }
-        fn expect_write_word(&self) -> Result<()> {
-            if let Call::WriteWord = self {
-                Ok(())
-            } else {
-                bail!("unexpected call result {self:?}; expected WriteWord")
-            }
-        }
-    }
-    use humility_idol::IdolOperation;
-    struct Worker<'a> {
-        hubris: &'a HubrisArchive,
-        context: &'a mut HiffyContext<'a>,
+    let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
-        read_dma: IdolOperation<'a>,
-        write_dma: IdolOperation<'a>,
-        read_word: IdolOperation<'a>,
-        read_word32: IdolOperation<'a>,
-        write_word: IdolOperation<'a>,
-        write_word32: IdolOperation<'a>,
-
-        ops: Vec<hif::Op>,
-        calls: Vec<Call>,
-    }
-    impl<'a> Worker<'a> {
-        fn new(
-            hubris: &'a HubrisArchive,
-            context: &'a mut HiffyContext<'a>,
-        ) -> Result<Self> {
-            let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
-            let write_dma =
-                hubris.get_idol_command("Power.rendmp_dma_write")?;
-            let read_word =
-                hubris.get_idol_command("Power.raw_pmbus_read_word")?;
-            let read_word32 =
-                hubris.get_idol_command("Power.raw_pmbus_read32_word")?;
-            let write_word =
-                hubris.get_idol_command("Power.raw_pmbus_write_word")?;
-            let write_word32 =
-                hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
-
-            Ok(Self {
-                hubris,
-                context,
-
-                read_dma,
-                write_dma,
-                read_word,
-                read_word32,
-                write_word,
-                write_word32,
-                ops: vec![],
-                calls: vec![],
-            })
-        }
-
-        fn write_dma(
-            &mut self,
-            i2c_addr: u8,
-            reg: u16,
-            data: u32,
-        ) -> Result<()> {
-            let payload = self.write_dma.payload(&[
-                ("addr", i2c_addr.into()),
-                ("reg", reg.into()),
-                ("data", data.into()),
-            ])?;
-            self.context.idol_call_ops(
-                &self.write_dma,
-                &payload,
-                &mut self.ops,
-            )?;
-            self.calls.push(Call::WriteDma);
-            Ok(())
-        }
-
-        fn read_dma(&mut self, i2c_addr: u8, dma_reg: u16) -> Result<()> {
-            let payload = self.read_dma.payload(&[
-                ("addr", i2c_addr.into()),
-                ("reg", dma_reg.into()),
-            ])?;
-            self.context.idol_call_ops(
-                &self.read_dma,
-                &payload,
-                &mut self.ops,
-            )?;
-            self.calls.push(Call::ReadDma(0));
-            Ok(())
-        }
-
-        fn read_word(
-            &mut self,
-            index: u32,
-            has_rail: bool,
-            op: u8,
-        ) -> Result<()> {
-            let payload = self.read_word.payload(&[
-                ("index", index.into()),
-                ("has_rail", has_rail.into()),
-                ("op", op.into()),
-            ])?;
-            self.context.idol_call_ops(
-                &self.read_word,
-                &payload,
-                &mut self.ops,
-            )?;
-            self.calls.push(Call::ReadWord(0));
-            Ok(())
-        }
-
-        fn write_word(
-            &mut self,
-            index: u32,
-            has_rail: bool,
-            op: u8,
-            data: u16,
-        ) -> Result<()> {
-            let payload = self.write_word.payload(&[
-                ("index", index.into()),
-                ("has_rail", has_rail.into()),
-                ("op", op.into()),
-                ("data", data.into()),
-            ])?;
-            self.context.idol_call_ops(
-                &self.write_word,
-                &payload,
-                &mut self.ops,
-            )?;
-            self.calls.push(Call::WriteWord);
-            Ok(())
-        }
-
-        fn read_word32(
-            &mut self,
-            index: u32,
-            has_rail: bool,
-            op: u8,
-        ) -> Result<()> {
-            let payload = self.read_word32.payload(&[
-                ("index", index.into()),
-                ("has_rail", has_rail.into()),
-                ("op", op.into()),
-            ])?;
-            self.context.idol_call_ops(
-                &self.read_word32,
-                &payload,
-                &mut self.ops,
-            )?;
-            self.calls.push(Call::ReadWord32(0));
-            Ok(())
-        }
-
-        fn write_word32(
-            &mut self,
-            index: u32,
-            has_rail: bool,
-            op: u8,
-            data: u32,
-        ) -> Result<()> {
-            let payload = self.write_word32.payload(&[
-                ("index", index.into()),
-                ("has_rail", has_rail.into()),
-                ("op", op.into()),
-                ("data", data.into()),
-            ])?;
-            self.context.idol_call_ops(
-                &self.write_word32,
-                &payload,
-                &mut self.ops,
-            )?;
-            self.calls.push(Call::WriteWord32);
-            Ok(())
-        }
-
-        fn run(
-            &mut self,
-            core: &mut dyn humility::core::Core,
-        ) -> Result<Vec<Result<Call, String>>> {
-            let mut ops = std::mem::take(&mut self.ops);
-            ops.push(Op::Done);
-            let r = self.context.run(core, &ops, None)?;
-            // TODO: decode error messages here
-            if r.len() != self.calls.len() {
-                bail!("mismatched result lengths");
-            }
-            let mut out = vec![];
-            for (value, call) in
-                r.into_iter().zip(std::mem::take(&mut self.calls))
-            {
-                let op = match call {
-                    Call::ReadDma(..) => &self.read_dma,
-                    Call::WriteDma => &self.write_dma,
-                    Call::ReadWord(..) => &self.read_word,
-                    Call::ReadWord32(..) => &self.read_word32,
-                    Call::WriteWord => &self.write_word,
-                    Call::WriteWord32 => &self.write_word32,
-                };
-                let v = hiffy_decode(self.hubris, op, value)
-                    .context("failed to decode {op:?} result")?;
-                match v {
-                    Ok(v) => {
-                        let v =
-                            v.as_base().context("expected Base, got {v:?}")?;
-                        match (v, call) {
-                            (Base::U32(v), Call::ReadDma(..)) => {
-                                out.push(Ok(Call::ReadDma(*v)))
-                            }
-                            (Base::U16(v), Call::ReadWord(..)) => {
-                                out.push(Ok(Call::ReadWord(*v)))
-                            }
-                            (Base::U32(v), Call::ReadWord32(..)) => {
-                                out.push(Ok(Call::ReadWord32(*v)))
-                            }
-                            (Base::U0, Call::WriteDma) => {
-                                out.push(Ok(Call::WriteDma))
-                            }
-                            (Base::U0, Call::WriteWord) => {
-                                out.push(Ok(Call::WriteWord))
-                            }
-                            (Base::U0, Call::WriteWord32) => {
-                                out.push(Ok(Call::WriteWord32))
-                            }
-                            (base, op) => {
-                                bail!("got unexpected result {base} for {op:?}")
-                            }
-                        }
-                    }
-                    Err(e) => out.push(Err(e)),
-                }
-            }
-            Ok(out)
-        }
-    }
-
-    let mut worker = Worker::new(hubris, context)?;
-
-    let sensor_id_map = humility_pmbus::sensor_id_map(hubris, core)?;
-    let dev_index = hubris
-        .manifest
-        .i2c_devices
-        .iter()
-        .enumerate()
-        .find(|(_i, dev)| dev.address == addr)
-        .ok_or_else(|| anyhow!("could not find device at addr {addr:?}"))?
-        .0;
-    let rail_indexes: Vec<_> = hubris
-        .manifest
-        .sensors
-        .iter()
-        .enumerate()
-        .filter(|(_i, s)| {
-            s.device == HubrisSensorDevice::I2c(dev_index)
-                && s.kind == HubrisSensorKind::Voltage
-        })
-        .map(|(sensor_id, _s)| {
-            // This rail's voltage sensor is the n'th voltage sensor among
-            // voltage sensors that match the target device.  Convert from
-            // voltage sensor index to device index for use in
-            // Power.read/write_* APIs.
-            sensor_id_map
-                .get(&(sensor_id as u32))
-                .ok_or_else(|| {
-                    anyhow!(
-                    "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
-                )
-                })
-                .map(|i| *i as u32)
-        })
-        .collect::<Result<Vec<_>>>()?;
-    if rail_indexes.len() != dev.rails() {
+    if worker.rail_indexes.len() != dev.rails() {
         bail!("length mismatch between sensors and rails");
     }
 
@@ -1459,6 +1482,7 @@ fn rendmp_phase_check<'a>(
     // cases, we can unconditionally write to a DMA register or PMBus operation;
     // in other cases, we'll need to read back a value, modify it locally, then
     // write in a second HIF program later.
+    let rail_indexes = std::mem::take(&mut worker.rail_indexes);
     for (rail, &index) in rail_indexes.iter().enumerate() {
         // Set the PWM register for this rail
         let reg = (0xEA31 + rail * 0x80) as u16;
@@ -1670,27 +1694,82 @@ fn rendmp_phase_check<'a>(
     }
 
     ////////////////////////////////////////////////////////////////////////////
+    // At this point, every phase is disabled and we're ready to turn on the
+    // system.  To enable system, we select a phase by modifying 0xE9C2, then
+    // write 0xEA0D/0xEA8D/0xEB0D with the following modifications:
+    // - bit 2 is set to 0 (fixed frequency mode)
+    // - bit 0 is set to 1 (enable)
+    //
+    // The basic loop is as follows:
+    // - Select phase
+    // - Enable rails
+    // - Wait a little while
+    // - Measure current + voltage
+    // - Disable rails
 
-    // Disable all phases
-    // Do the modify-write section of the read-modify-write operations
-
-    // At this point, we know that we're in A2.  We're going to start by
-    // disabling all phases, then enable them one by one in fixed-PWM mode.
-    for (phase, i) in phases {
-        match pin_states[&phase] {
+    for (phase_name, i) in phases {
+        match pin_states[&phase_name] {
             PinState::Open => {
-                println!("skipping open phase {phase}")
+                println!("skipping open phase {phase_name}");
+                continue;
             }
             PinState::Masked => {
-                println!("skipping masked phase {phase}")
+                println!("skipping masked phase {phase_name}");
+                continue;
             }
-            PinState::Good => {
-                todo!()
-            }
+            PinState::Good => (),
+        }
+
+        // Enable this phase
+        worker.write_dma(addr, 0xE9C2, 1 << (i * 2))?;
+
+        // Enable all rails
+        for (j, c) in ctrl.iter().enumerate() {
+            let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
+            worker.write_dma(addr, ctrl_addr, (c & !(1 << 2)) | 1)?;
+        }
+
+        // Small busy loop
+        worker.ops.push(Op::Push32(1000));
+        worker.ops.push(Op::Push32(0));
+        worker.ops.push(Op::Label(hif::Target(i as u8)));
+        worker.ops.push(Op::Push(1));
+        worker.ops.push(Op::Add);
+        worker.ops.push(Op::BranchLessThan(hif::Target(i as u8)));
+        worker.ops.push(Op::DropN(2));
+
+        // TODO: read current and voltage
+
+        // Disable all rails by writing the original control value
+        for (j, c) in ctrl.iter().enumerate() {
+            let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
+            worker.write_dma(addr, ctrl_addr, *c)?;
         }
     }
 
-    // Let's get phase data first
+    Ok(())
+}
+
+fn restore_default_config<'a>(
+    subargs: &RendmpArgs,
+    hubris: &'a HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &'a mut HiffyContext,
+) -> Result<()> {
+    // Pick out the target device
+    let (addr, _dev) = check_addr(subargs, hubris)?;
+    let mut worker = HifWorker::new(hubris, context, core, addr)?;
+
+    use pmbus::commands::raa229618::CommandCode::RESTORE_CFG;
+    worker.write_byte(worker.rail_indexes[0], false, RESTORE_CFG as u8, 0)?;
+    let r = worker.run(core)?;
+    if r.len() != 1 {
+        bail!("invalid result len");
+    }
+    match &r[0] {
+        Ok(v) => v.expect_write_byte()?,
+        Err(e) => bail!("{e}"),
+    }
     Ok(())
 }
 
@@ -1721,9 +1800,23 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     if subargs.blackbox {
         return rendmp_blackbox(subargs, hubris, core, &mut context);
     } else if subargs.open_pin {
-        return rendmp_open_pin(subargs, hubris, core, &mut context);
+        return rendmp_open_pin(&subargs, hubris, core, &mut context);
     } else if subargs.phase_check {
-        return rendmp_phase_check(subargs, hubris, core, &mut context);
+        let out = rendmp_phase_check(&subargs, hubris, core, &mut context);
+        if let Err(e) =
+            restore_default_config(&subargs, hubris, core, &mut context)
+                .context("failed to restore default cfg")
+        {
+            if out.is_err() {
+                warn!(
+                    "error restoring default cfg when recovering from error: \
+                     {e:?}"
+                );
+            } else {
+                return Err(e);
+            }
+        }
+        return out;
     }
 
     let i2c_read = context.get_function("I2cRead", 7)?;
