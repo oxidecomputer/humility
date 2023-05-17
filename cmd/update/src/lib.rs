@@ -42,7 +42,7 @@ struct UpdateArgs {
 
     #[clap(long)]
     /// Which image to update
-    target: String,
+    target: Option<String>,
     #[clap(long)]
     /// Don't commit the image, only write
     skip_commit: bool,
@@ -75,12 +75,24 @@ fn update(context: &mut ExecutionContext) -> Result<()> {
     msg!("(Erase may take a moment)");
     let binary_contents = std::fs::read(&subargs.path)?;
 
+    // Modern SP images don't accept a image_target argument, because they
+    // always update the alternate image.  Older SP images _also_ always update
+    // the alternate image, but take an image_target argument to match the RoT's
+    // API.
+    //
+    // We check the number of arguments here and behave appropriately.
+    let args = match (start.operation.args.is_empty(), &subargs.target) {
+        (true, Some(..)) => bail!("no target expected by prep_image_update"),
+        (false, None) => bail!("must provide target for prep_image_update"),
+        (true, None) => None,
+        (false, Some(t)) => Some(("image_type", IdolArgument::String(t))),
+    };
     match hiffy_call(
         hubris,
         core,
         &mut context,
         &start,
-        &[("image_type", IdolArgument::String(&subargs.target))],
+        args.as_ref().map_or(&[], std::slice::from_ref),
         None,
     )? {
         Ok(_) => (),
