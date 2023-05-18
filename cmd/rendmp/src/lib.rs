@@ -1489,7 +1489,7 @@ fn rendmp_phase_check<'a>(
     let (addr, dev) = check_addr(subargs, hubris)?;
 
     // Read pin states so that we don't try to enable a phase with an open-pin
-    // failure; this will
+    // failure; this would cause the power controller to lock up.
     let pin_states = get_pin_states(subargs, hubris, core, context)?;
 
     // Filter out VGEN phases
