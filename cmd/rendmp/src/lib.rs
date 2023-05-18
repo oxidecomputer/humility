@@ -1918,6 +1918,8 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     } else if subargs.open_pin {
         return rendmp_open_pin(&subargs, hubris, core, &mut context);
     } else if subargs.phase_check {
+        // Bail out early if the arguments are invalid
+        let _ = check_addr(&subargs, hubris)?;
         let out = rendmp_phase_check(&subargs, hubris, core, &mut context);
         if let Err(e) =
             restore_default_config(&subargs, hubris, core, &mut context)
