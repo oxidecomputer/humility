@@ -1781,11 +1781,12 @@ fn rendmp_phase_check<'a>(
     // - Disable rail
     println!("Phase check for {} at {addr:#x}", format!("{dev}").bold());
     println!(
-        "{} |   {}   |   {}   | {}",
+        "{} |   {}   |   {}   |   {}   | {}",
         "PHASE".bold(),
         "VOUT".bold(),
         "IOUT".bold(),
-        "RAIL".bold()
+        "TEMP".bold(),
+        "RAIL".bold(),
     );
     println!("------|----------|----------|---------");
 
@@ -1874,6 +1875,11 @@ fn rendmp_phase_check<'a>(
         // Read current and voltage from all rails
         worker.read_word(index, true, pmbus::CommandCode::READ_VOUT as u8)?;
         worker.read_word(index, true, pmbus::CommandCode::READ_IOUT as u8)?;
+        worker.read_word(
+            index,
+            true,
+            pmbus::CommandCode::READ_TEMPERATURE_1 as u8,
+        )?;
 
         // Write back the original rail and ON_OFF_CONFIG values
         let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
@@ -1897,6 +1903,10 @@ fn rendmp_phase_check<'a>(
         let read_iout = match next()? {
             Ok(v) => v.expect_read_word()?,
             Err(e) => bail!("failed to READ_IOUT: {e}"),
+        };
+        let read_tout = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => bail!("failed to READ_TEMPERATURE_1: {e}"),
         };
         let device = match dev {
             SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
@@ -1929,6 +1939,17 @@ fn rendmp_phase_check<'a>(
                 |_field, value| iout = format!("{value}"),
             )
             .map_err(|e| anyhow!("could not interpret READ_IOUT: {e:?}"))?;
+        let mut tout = String::new();
+        device
+            .interpret(
+                pmbus::CommandCode::READ_TEMPERATURE_1 as u8,
+                read_tout.as_bytes(),
+                vout_mode,
+                |_field, value| tout = format!("{value}"),
+            )
+            .map_err(|e| {
+                anyhow!("could not interpret READ_TEMPERATURE_1: {e:?}")
+            })?;
 
         let rail_name = worker
             .phase_to_rail
@@ -1937,7 +1958,7 @@ fn rendmp_phase_check<'a>(
             .1
             .as_str();
         println!(
-            " {phase_name:<4} | {:>8} | {iout:>8} | {rail_name}",
+            " {phase_name:<4} | {:>8} | {iout:>8} | {tout:>8} | {rail_name}",
             if vout_okay { vout.green() } else { vout.yellow() }
         );
 
