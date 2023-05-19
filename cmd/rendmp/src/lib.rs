@@ -1684,15 +1684,16 @@ fn rendmp_phase_check<'a>(
                 }
 
                 // Clear bit 0 of DMA register EA5B and write it back
-                let mut reg_ea5b = match next()? {
+                // (the name part_fast_add comes from Power Navigator)
+                let mut part_fast_add = match next()? {
                     Ok(v) => v.expect_read_dma()?,
                     Err(e) => {
                         bail!("worker.failed to read EA5B for rail {rail}: {e}")
                     }
                 };
-                reg_ea5b &= !1; // clear bit 0
+                part_fast_add &= !1; // clear bit 0
                 let reg = (0xEA5B + rail * 0x80) as u16;
-                worker.write_dma(addr, reg, reg_ea5b)?;
+                worker.write_dma(addr, reg, part_fast_add)?;
             }
         }
 
