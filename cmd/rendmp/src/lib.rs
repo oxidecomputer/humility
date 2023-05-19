@@ -1766,6 +1766,9 @@ fn rendmp_phase_check<'a>(
         // Enable all rails (since only our target phase will be on)
         for (j, c) in ctrl.iter().enumerate() {
             let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
+            // Not totally sure if these need to be separate, but better safe
+            // than sorry when it comes to these parts!
+            worker.write_dma(addr, ctrl_addr, (c & !(1 << 2)))?;
             worker.write_dma(addr, ctrl_addr, (c & !(1 << 2)) | 1)?;
         }
 
