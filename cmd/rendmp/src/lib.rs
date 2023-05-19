@@ -1197,7 +1197,7 @@ struct HifWorker<'a, 'b> {
 
     /// Mapping from a phase (in the chip sense) to a rail (as an index in
     /// `self.rail_indexes`).
-    phase_to_rail: BTreeMap<u8, usize>,
+    phase_to_rail: BTreeMap<u8, (usize, String)>,
 }
 
 impl<'a, 'b> HifWorker<'a, 'b> {
@@ -1239,7 +1239,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
         {
             for (i, rail) in rails.iter().enumerate() {
                 for phase in rail.phases.iter().flatten() {
-                    phase_to_rail.insert(*phase, i);
+                    phase_to_rail.insert(*phase, (i, rail.name.clone()));
                 }
             }
         } else {
@@ -1778,15 +1778,32 @@ fn rendmp_phase_check<'a>(
     // - Wait a little while
     // - Measure current + voltage
     // - Disable rail
+    println!("Phase check for {dev} at {addr:#x}");
+    println!(
+        "{} |   {}   |   {}   | {}",
+        "PHASE".bold(),
+        "VOUT".bold(),
+        "IOUT".bold(),
+        "RAIL".bold()
+    );
+    println!("------|----------|----------|---------");
+
     for (phase_name, i) in &phases {
-        print!("{phase_name} ");
         match pin_states[phase_name] {
             PinState::Open => {
-                println!("[skipping open phase]");
+                println!(
+                    "{}",
+                    format!(" {phase_name:<4} | [skipping open phase]")
+                        .dimmed()
+                );
                 continue;
             }
             PinState::Masked => {
-                println!("[skipping masked phase]");
+                println!(
+                    "{}",
+                    format!(" {phase_name:<4} | [skipping masked phase]")
+                        .dimmed()
+                );
                 continue;
             }
             PinState::Good => (),
@@ -1799,10 +1816,11 @@ fn rendmp_phase_check<'a>(
         // values as an offset into DMA registers, which doesn't quite map to
         // phase values in our manifest.  However, the phase *name* corresponds
         // to the phase value, so we'll parse the name here.
-        let rail = *worker
+        let rail = worker
             .phase_to_rail
             .get(&phase_name.parse().unwrap())
-            .ok_or_else(|| anyhow!("could not get rail for {phase_name}"))?;
+            .ok_or_else(|| anyhow!("could not get rail for {phase_name}"))?
+            .0;
         let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
         let index = rail_indexes[rail];
         // Not totally sure if these operations need to be separate, but we
@@ -1825,9 +1843,7 @@ fn rendmp_phase_check<'a>(
             || iter.next().ok_or_else(|| anyhow!("early termination"));
         match next()? {
             Ok(v) => v.expect_write_dma()?,
-            Err(e) => bail!(
-                "failed to enable phase {phase_name}: {e}"
-            ),
+            Err(e) => bail!("failed to enable phase {phase_name}: {e}"),
         }
         match next()? {
             Ok(v) => v.expect_write_dma()?,
@@ -1886,24 +1902,32 @@ fn rendmp_phase_check<'a>(
             SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
         };
 
-        println!("vout for rail {rail}:");
+        let mut vout = String::new();
         device
             .interpret(
                 pmbus::CommandCode::READ_VOUT as u8,
                 read_vout.as_bytes(),
                 vout_mode,
-                |field, value| println!("  {field:?} => {value:?}"),
+                |_field, value| vout = format!("{value}"),
             )
             .map_err(|e| anyhow!("could not interpret READ_VOUT: {e:?}"))?;
-        println!("iout for rail {rail}:");
+        let mut iout = String::new();
         device
             .interpret(
                 pmbus::CommandCode::READ_IOUT as u8,
                 read_iout.as_bytes(),
                 vout_mode,
-                |field, value| println!("  {field:?} => {value:?}"),
+                |_field, value| iout = format!("{value}"),
             )
             .map_err(|e| anyhow!("could not interpret READ_IOUT: {e:?}"))?;
+
+        let rail_name = worker
+            .phase_to_rail
+            .get(&phase_name.parse().unwrap())
+            .unwrap()
+            .1
+            .as_str();
+        println!(" {phase_name:<4} | {vout:>8} | {iout:>8} | {rail_name}");
 
         match next()? {
             Ok(v) => v.expect_write_dma()?,
