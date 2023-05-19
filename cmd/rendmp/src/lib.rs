@@ -1264,12 +1264,13 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                     .get(&(sensor_id as u32))
                     .ok_or_else(|| {
                         anyhow!(
-                    "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
-                )
+                            "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
+                        )
                     })
                     .map(|i| *i as u32)
             })
             .collect::<Result<Vec<_>>>()?;
+        println!("got rail_indexes: {rail_indexes:?}");
 
         Ok(Self {
             hubris,
@@ -1804,7 +1805,7 @@ fn rendmp_phase_check<'a>(
             .get(&phase_name.parse().unwrap())
             .ok_or_else(|| anyhow!("could not get rail for {phase_name}"))?;
         let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
-        let index = worker.rail_indexes[rail as usize];
+        let index = rail_indexes[rail as usize];
         // Not totally sure if these operations need to be separate, but we
         // were seeing processor errors under certain circumstances.
 
