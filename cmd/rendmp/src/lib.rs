@@ -1778,7 +1778,7 @@ fn rendmp_phase_check<'a>(
     // - Wait a little while
     // - Measure current + voltage
     // - Disable rail
-    println!("Phase check for {} at {addr:#x}", dev.bold());
+    println!("Phase check for {} at {addr:#x}", format!("{dev}").bold());
     println!(
         "{} |   {}   |   {}   | {}",
         "PHASE".bold(),
