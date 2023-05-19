@@ -1270,7 +1270,6 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                     .map(|i| *i as u32)
             })
             .collect::<Result<Vec<_>>>()?;
-        println!("got rail_indexes: {rail_indexes:?}");
 
         Ok(Self {
             hubris,
@@ -1601,7 +1600,7 @@ fn rendmp_phase_check<'a>(
     use pmbus::commands::raa229618::CommandCode::VOUT_MODE;
     worker.read_byte(rail_indexes[0], false, VOUT_MODE as u8)?;
 
-    // Disable all rails
+    // Disable all phases
     const PHASE_ENABLE_REG: u16 = 0xE9C2;
     worker.write_dma(addr, PHASE_ENABLE_REG, 0)?;
 
@@ -1827,6 +1826,12 @@ fn rendmp_phase_check<'a>(
         match next()? {
             Ok(v) => v.expect_write_dma()?,
             Err(e) => bail!(
+                "failed to enable phase {phase_name}: {e}"
+            ),
+        }
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!(
                 "failed to enable forced-freq pwm for phase {phase_name}: {e}"
             ),
         }
@@ -1836,12 +1841,10 @@ fn rendmp_phase_check<'a>(
                 bail!("failed to enable pwm mode for phase {phase_name}: {e}")
             }
         }
-        for (j, _) in ctrl.iter().enumerate() {
-            match next()? {
-                Ok(v) => v.expect_write_dma()?,
-                Err(e) => {
-                    bail!("failed to enable rail {j} for {phase_name}: {e}")
-                }
+        match next()? {
+            Ok(v) => v.expect_write_byte()?,
+            Err(e) => {
+                bail!("failed to enable rail {rail} for {phase_name}: {e}")
             }
         }
         if let Some(i) = iter.next() {
@@ -1852,18 +1855,8 @@ fn rendmp_phase_check<'a>(
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         // Read current and voltage from all rails
-        for rail_index in rail_indexes.iter() {
-            worker.read_word(
-                *rail_index,
-                true,
-                pmbus::CommandCode::READ_VOUT as u8,
-            )?;
-            worker.read_word(
-                *rail_index,
-                true,
-                pmbus::CommandCode::READ_IOUT as u8,
-            )?;
-        }
+        worker.read_word(index, true, pmbus::CommandCode::READ_VOUT as u8)?;
+        worker.read_word(index, true, pmbus::CommandCode::READ_IOUT as u8)?;
 
         // Write back the original rail and ON_OFF_CONFIG values
         let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
