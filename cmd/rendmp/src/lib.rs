@@ -1816,7 +1816,7 @@ fn rendmp_phase_check<'a>(
 
         // Force the rail on
         use pmbus::commands::raa229618::CommandCode::ON_OFF_CONFIG;
-        worker.write_byte(index, true, ON_OFF_CONFIG as u8, 0);
+        worker.write_byte(index, true, ON_OFF_CONFIG as u8, 0)?;
 
         // Execute this operation and confirm that it worked
         let results = worker.run(core)?;
