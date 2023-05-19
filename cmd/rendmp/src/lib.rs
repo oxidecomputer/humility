@@ -1805,7 +1805,7 @@ fn rendmp_phase_check<'a>(
             .get(&phase_name.parse().unwrap())
             .ok_or_else(|| anyhow!("could not get rail for {phase_name}"))?;
         let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
-        let index = rail_indexes[rail as usize];
+        let index = rail_indexes[rail];
         // Not totally sure if these operations need to be separate, but we
         // were seeing processor errors under certain circumstances.
 
@@ -1826,7 +1826,15 @@ fn rendmp_phase_check<'a>(
             || iter.next().ok_or_else(|| anyhow!("early termination"));
         match next()? {
             Ok(v) => v.expect_write_dma()?,
-            Err(e) => bail!("failed to enable phase {phase_name}: {e}"),
+            Err(e) => bail!(
+                "failed to enable forced-freq pwm for phase {phase_name}: {e}"
+            ),
+        }
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => {
+                bail!("failed to enable pwm mode for phase {phase_name}: {e}")
+            }
         }
         for (j, _) in ctrl.iter().enumerate() {
             match next()? {
