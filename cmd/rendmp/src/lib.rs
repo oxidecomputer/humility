@@ -1911,6 +1911,14 @@ fn rendmp_phase_check<'a>(
                 |_field, value| vout = format!("{value}"),
             )
             .map_err(|e| anyhow!("could not interpret READ_VOUT: {e:?}"))?;
+        // The voltage `vout` is now a string in the form 0.123V.  We'll parse
+        // it back to a float to determine if it's happy or not.
+        let vout_okay = if let Some(value) = vout.strip_suffix('V') {
+            let v = value.parse::<f32>().context("could not parse voltage")?;
+            v > 0.2 && v < 0.5
+        } else {
+            bail!("invalid format for voltage");
+        };
         let mut iout = String::new();
         device
             .interpret(
@@ -1927,7 +1935,10 @@ fn rendmp_phase_check<'a>(
             .unwrap()
             .1
             .as_str();
-        println!(" {phase_name:<4} | {vout:>8} | {iout:>8} | {rail_name}");
+        println!(
+            " {phase_name:<4} | {:>8} | {iout:>8} | {rail_name}",
+            if vout_okay { vout.green() } else { vout.yellow() }
+        );
 
         match next()? {
             Ok(v) => v.expect_write_dma()?,
