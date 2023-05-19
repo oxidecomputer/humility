@@ -1194,6 +1194,10 @@ struct HifWorker<'a, 'b> {
     calls: Vec<Call>,
 
     rail_indexes: Vec<u32>,
+
+    /// Mapping from a phase (in the chip sense) to a rail (as an index in
+    /// `self.rail_indexes`).
+    phase_to_rail: BTreeMap<u8, usize>,
 }
 
 impl<'a, 'b> HifWorker<'a, 'b> {
@@ -1227,6 +1231,21 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                 anyhow!("could not find device at addr {i2c_addr:?}")
             })?
             .0;
+
+        // Compute the mapping from phases to rails
+        let mut phase_to_rail = BTreeMap::new();
+        if let HubrisI2cDeviceClass::Pmbus { rails } =
+            &hubris.manifest.i2c_devices[dev_index].class
+        {
+            for (i, rail) in rails.iter().enumerate() {
+                for phase in rail.phases.iter().flatten() {
+                    phase_to_rail.insert(*phase, i);
+                }
+            }
+        } else {
+            bail!("expected PMBus class");
+        }
+
         let rail_indexes: Vec<_> = hubris
             .manifest
             .sensors
@@ -1269,6 +1288,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
             calls: vec![],
 
             rail_indexes,
+            phase_to_rail,
         })
     }
 
@@ -1496,7 +1516,7 @@ fn rendmp_phase_check<'a>(
     let phases: Vec<_> = dev
         .phases()
         .into_iter()
-        .filter(|(p, _b)| p.parse::<usize>().is_ok())
+        .filter(|(p, _b)| p.parse::<u8>().is_ok())
         .collect();
 
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
@@ -1528,11 +1548,11 @@ fn rendmp_phase_check<'a>(
         worker.read_dma(addr, reg)?;
 
         use pmbus::commands::raa229618::CommandCode::{
-            LOOPCFG, PEAK_OCUC_COUNT,
+            LOOPCFG, ON_OFF_CONFIG, PEAK_OCUC_COUNT,
         };
 
-        // Read LOOPCFG and PEAK_OCUC_COUNT; they will be modified and written
-        // back later
+        // Read a few PMBus values which will be modified and written back later
+        worker.read_byte(index, true, ON_OFF_CONFIG as u8)?;
         worker.read_word32(index, true, LOOPCFG as u8)?;
         worker.read_word(index, true, PEAK_OCUC_COUNT as u8)?;
 
@@ -1592,6 +1612,7 @@ fn rendmp_phase_check<'a>(
     let mut iter = results.iter();
     let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
     let mut ctrl = vec![];
+    let mut on_off_config = vec![];
     for (rail, &index) in rail_indexes.iter().enumerate() {
         if let Err(e) = next()? {
             bail!("failed to write PWM register for rail {rail}: {e}");
@@ -1600,6 +1621,14 @@ fn rendmp_phase_check<'a>(
         match next()? {
             Ok(v) => ctrl.push(v.expect_read_dma()?),
             Err(e) => bail!("failed to read EA0D for rail {rail}: {e}"),
+        };
+
+        // Record ON_OFF_CONFIG, which we'll use to actually force the rail on
+        match next()? {
+            Ok(v) => on_off_config.push(v.expect_read_byte()?),
+            Err(e) => {
+                bail!("failed to read ON_OFF_CONFIG for rail {rail}: {e}")
+            }
         };
 
         // Modify LOOPCFG (F0h) and write it back
@@ -1674,7 +1703,11 @@ fn rendmp_phase_check<'a>(
         // clear bits 0:3 and 17:18;
         // this disables all input and output voltage faults.
         disable_fault_value &= !(0b1111 | (0b11 << 17));
-        worker.write_dma(addr, disable_fault_reg + rail as u16, disable_fault_value)?;
+        worker.write_dma(
+            addr,
+            disable_fault_reg + rail as u16,
+            disable_fault_value,
+        )?;
     }
 
     let vout_mode = match next()? {
@@ -1728,7 +1761,6 @@ fn rendmp_phase_check<'a>(
         }
     }
 
-
     if let Some(i) = iter.next() {
         bail!("expected iterator to be done; got {i:?} instead");
     }
@@ -1742,10 +1774,10 @@ fn rendmp_phase_check<'a>(
     //
     // The basic loop is as follows:
     // - Select phase
-    // - Enable rails
+    // - Enable rail
     // - Wait a little while
     // - Measure current + voltage
-    // - Disable rails
+    // - Disable rail
     for (phase_name, i) in &phases {
         print!("{phase_name} ");
         match pin_states[phase_name] {
@@ -1763,14 +1795,28 @@ fn rendmp_phase_check<'a>(
         // Enable this phase
         worker.write_dma(addr, 0xE9C2, 1 << i)?;
 
-        // Enable all rails (since only our target phase will be on)
-        for (j, c) in ctrl.iter().enumerate() {
-            let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
-            // Not totally sure if these need to be separate, but better safe
-            // than sorry when it comes to these parts!
-            worker.write_dma(addr, ctrl_addr, (c & !(1 << 2)))?;
-            worker.write_dma(addr, ctrl_addr, (c & !(1 << 2)) | 1)?;
-        }
+        // This is a little awkward: the values in the `phases` array are bit
+        // values as an offset into DMA registers, which doesn't quite map to
+        // phase values in our manifest.  However, the phase *name* corresponds
+        // to the phase value, so we'll parse the name here.
+        let rail = *worker
+            .phase_to_rail
+            .get(&phase_name.parse().unwrap())
+            .ok_or_else(|| anyhow!("could not get rail for {phase_name}"))?;
+        let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
+        let index = worker.rail_indexes[rail as usize];
+        // Not totally sure if these operations need to be separate, but we
+        // were seeing processor errors under certain circumstances.
+
+        let c = ctrl[rail] & !(1 << 2); // ripple regulator: forced-freq PWM
+        worker.write_dma(addr, ctrl_addr, c)?;
+
+        let c = c | 1; // fixed PWM mode
+        worker.write_dma(addr, ctrl_addr, c)?;
+
+        // Force the rail on
+        use pmbus::commands::raa229618::CommandCode::ON_OFF_CONFIG;
+        worker.write_byte(index, true, ON_OFF_CONFIG as u8, 0);
 
         // Execute this operation and confirm that it worked
         let results = worker.run(core)?;
@@ -1810,56 +1856,60 @@ fn rendmp_phase_check<'a>(
             )?;
         }
 
-        // Disable all rails by writing the original control value
-        for (j, c) in ctrl.iter().enumerate() {
-            let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
-            worker.write_dma(addr, ctrl_addr, *c)?;
-        }
+        // Write back the original rail and ON_OFF_CONFIG values
+        let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
+        worker.write_dma(addr, ctrl_addr, ctrl[rail])?;
+        worker.write_byte(
+            index,
+            true,
+            ON_OFF_CONFIG as u8,
+            on_off_config[rail],
+        )?;
 
         let results = worker.run(core)?;
         let mut iter = results.iter();
         let mut next =
             || iter.next().ok_or_else(|| anyhow!("early termination"));
 
-        for (j, _) in rail_indexes.iter().enumerate() {
-            let read_vout = match next()? {
-                Ok(v) => v.expect_read_word()?,
-                Err(e) => bail!("failed to READ_VOUT: {e}"),
-            };
-            let read_iout = match next()? {
-                Ok(v) => v.expect_read_word()?,
-                Err(e) => bail!("failed to READ_IOUT: {e}"),
-            };
-            let device = match dev {
-                SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
-                SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
-            };
+        let read_vout = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => bail!("failed to READ_VOUT: {e}"),
+        };
+        let read_iout = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => bail!("failed to READ_IOUT: {e}"),
+        };
+        let device = match dev {
+            SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
+            SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
+        };
 
-            println!("vout for rail {j}:");
-            device
-                .interpret(
-                    pmbus::CommandCode::READ_VOUT as u8,
-                    read_vout.as_bytes(),
-                    vout_mode,
-                    |field, value| println!("  {field:?} => {value:?}"),
-                )
-                .map_err(|e| anyhow!("could not interpret READ_VOUT: {e:?}"))?;
-            println!("iout for rail {j}:");
-            device
-                .interpret(
-                    pmbus::CommandCode::READ_IOUT as u8,
-                    read_iout.as_bytes(),
-                    vout_mode,
-                    |field, value| println!("  {field:?} => {value:?}"),
-                )
-                .map_err(|e| anyhow!("could not interpret READ_IOUT: {e:?}"))?;
+        println!("vout for rail {rail}:");
+        device
+            .interpret(
+                pmbus::CommandCode::READ_VOUT as u8,
+                read_vout.as_bytes(),
+                vout_mode,
+                |field, value| println!("  {field:?} => {value:?}"),
+            )
+            .map_err(|e| anyhow!("could not interpret READ_VOUT: {e:?}"))?;
+        println!("iout for rail {rail}:");
+        device
+            .interpret(
+                pmbus::CommandCode::READ_IOUT as u8,
+                read_iout.as_bytes(),
+                vout_mode,
+                |field, value| println!("  {field:?} => {value:?}"),
+            )
+            .map_err(|e| anyhow!("could not interpret READ_IOUT: {e:?}"))?;
+
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!("could not disable rail {rail}: {e}"),
         }
-
-        for (j, _) in ctrl.iter().enumerate() {
-            match next()? {
-                Ok(v) => v.expect_write_dma()?,
-                Err(e) => bail!("could not disable rail {j}: {e}"),
-            }
+        match next()? {
+            Ok(v) => v.expect_write_byte()?,
+            Err(e) => bail!("could not restore ON_OFF_CONFIG for {rail}: {e}"),
         }
         if let Some(i) = iter.next() {
             bail!("expected iterator to be done; got {i:?} instead");
