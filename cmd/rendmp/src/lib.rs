@@ -1070,7 +1070,6 @@ fn get_pin_states(
         // If there are no bits set in the mask register, then the phase isn't
         // used at all, so we'll print that instead.
         let is_mask = mask & (0b11 << bit_offset) == 0;
-        print!(" {name:<5} | ");
         if is_mask {
             out.insert(name, PinState::Masked);
         } else if is_open {
@@ -1096,6 +1095,7 @@ fn rendmp_open_pin(
     println!(" {} | {}", "PHASE".bold(), "STATE".bold());
     println!("-------|-------");
     for (name, _) in &phases {
+        print!(" {name:<5} | ");
         match out[name] {
             PinState::Masked => println!("{}", "N/A (masked)".dimmed()),
             PinState::Open => println!("{}", "open".red()),
@@ -1208,7 +1208,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
         let read_byte = hubris.get_idol_command("Power.raw_pmbus_read_byte")?;
         let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
         let read_word32 =
-            hubris.get_idol_command("Power.raw_pmbus_read32_word")?;
+            hubris.get_idol_command("Power.raw_pmbus_read_word32")?;
         let write_word =
             hubris.get_idol_command("Power.raw_pmbus_write_word")?;
         let write_byte =
@@ -1505,6 +1505,13 @@ fn rendmp_phase_check<'a>(
         bail!("length mismatch between sensors and rails");
     }
 
+    // Read a device-specific DMA registers, which we'll modify to disable
+    // faults when we write it back
+    let disable_fault_reg: u16 = match dev {
+        SupportedDevice::ISL68224 => 0xE952,
+        SupportedDevice::RAA229618 => 0xE932,
+    };
+
     ////////////////////////////////////////////////////////////////////////////
     // We're doing to queue up a bunch of HIF operations to prepare.  In some
     // cases, we can unconditionally write to a DMA register or PMBus operation;
@@ -1565,14 +1572,13 @@ fn rendmp_phase_check<'a>(
                 worker.read_dma(addr, reg)?;
             }
         }
+
+        worker.read_dma(addr, disable_fault_reg + rail as u16)?;
     }
-    // Read a device-specific DMA registers, which we'll modify to disable
-    // faults when we write it back
-    let disable_fault_reg: u16 = match dev {
-        SupportedDevice::ISL68224 => 0xE952,
-        SupportedDevice::RAA229618 => 0xE932,
-    };
-    worker.read_dma(addr, disable_fault_reg)?;
+
+    // Read VOUT_MODE, which we'll need to interpret voltages
+    use pmbus::commands::raa229618::CommandCode::VOUT_MODE;
+    worker.read_byte(rail_indexes[0], false, VOUT_MODE as u8)?;
 
     // Disable all rails
     const PHASE_ENABLE_REG: u16 = 0xE9C2;
@@ -1660,16 +1666,22 @@ fn rendmp_phase_check<'a>(
                 worker.write_dma(addr, reg, reg_ea5b)?;
             }
         }
+
+        let mut disable_fault_value = match next()? {
+            Ok(v) => v.expect_read_dma()?,
+            Err(e) => bail!("failed to read {disable_fault_reg:x}: {e}"),
+        };
+        // clear bits 0:3 and 17:18;
+        // this disables all input and output voltage faults.
+        disable_fault_value &= !(0b1111 | (0b11 << 17));
+        worker.write_dma(addr, disable_fault_reg + rail as u16, disable_fault_value)?;
     }
 
-    let mut disable_fault_value = match next()? {
-        Ok(v) => v.expect_read_dma()?,
-        Err(e) => bail!("failed to read {disable_fault_reg:x}: {e}"),
+    let vout_mode = match next()? {
+        Ok(v) => v.expect_read_byte()?,
+        Err(e) => bail!("failed to read VOUT_MODE: {e}"),
     };
-    // clear bits 0:3 and 17:18;
-    // this disables all input and output voltage faults.
-    disable_fault_value &= !(0b1111 | (0b11 << 17));
-    worker.write_dma(addr, disable_fault_reg, disable_fault_value)?;
+    let vout_mode = || pmbus::commands::VOUT_MODE::CommandData(vout_mode);
 
     match next()? {
         Ok(v) => v.expect_write_dma()?,
@@ -1708,14 +1720,14 @@ fn rendmp_phase_check<'a>(
                 }
             }
         }
-    }
-
-    match next()? {
-        Ok(v) => v.expect_write_dma()?,
-        Err(e) => {
-            bail!("failed to disable faults: {e}")
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => {
+                bail!("failed to disable faults: {e}")
+            }
         }
     }
+
 
     if let Some(i) = iter.next() {
         bail!("expected iterator to be done; got {i:?} instead");
@@ -1734,30 +1746,52 @@ fn rendmp_phase_check<'a>(
     // - Wait a little while
     // - Measure current + voltage
     // - Disable rails
-    use pmbus::commands::raa229618::CommandCode::VOUT_MODE;
-    worker.read_byte(rail_indexes[0], false, VOUT_MODE as u8)?;
     for (phase_name, i) in &phases {
-        if pin_states[phase_name] != PinState::Good {
-            continue;
+        print!("{phase_name} ");
+        match pin_states[phase_name] {
+            PinState::Open => {
+                println!("[skipping open phase]");
+                continue;
+            }
+            PinState::Masked => {
+                println!("[skipping masked phase]");
+                continue;
+            }
+            PinState::Good => (),
         }
 
         // Enable this phase
-        worker.write_dma(addr, 0xE9C2, 1 << (i * 2))?;
+        worker.write_dma(addr, 0xE9C2, 1 << i)?;
 
-        // Enable all rails
+        // Enable all rails (since only our target phase will be on)
         for (j, c) in ctrl.iter().enumerate() {
             let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
             worker.write_dma(addr, ctrl_addr, (c & !(1 << 2)) | 1)?;
         }
 
-        // Small busy loop
-        worker.ops.push(Op::Push32(1000));
-        worker.ops.push(Op::Push32(0));
-        worker.ops.push(Op::Label(hif::Target(*i as u8)));
-        worker.ops.push(Op::Push(1));
-        worker.ops.push(Op::Add);
-        worker.ops.push(Op::BranchLessThan(hif::Target(*i as u8)));
-        worker.ops.push(Op::DropN(2));
+        // Execute this operation and confirm that it worked
+        let results = worker.run(core)?;
+        let mut iter = results.iter();
+        let mut next =
+            || iter.next().ok_or_else(|| anyhow!("early termination"));
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!("failed to enable phase {phase_name}: {e}"),
+        }
+        for (j, _) in ctrl.iter().enumerate() {
+            match next()? {
+                Ok(v) => v.expect_write_dma()?,
+                Err(e) => {
+                    bail!("failed to enable rail {j} for {phase_name}: {e}")
+                }
+            }
+        }
+        if let Some(i) = iter.next() {
+            bail!("expected iterator to be done; got {i:?} instead");
+        }
+
+        // Give values time to settle
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
         // Read current and voltage from all rails
         for rail_index in rail_indexes.iter() {
@@ -1778,46 +1812,13 @@ fn rendmp_phase_check<'a>(
             let ctrl_addr = (0xEA0D + 0x80 * j) as u16;
             worker.write_dma(addr, ctrl_addr, *c)?;
         }
-    }
 
-    let results = worker.run(core)?;
-    let mut iter = results.iter();
-    let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
+        let results = worker.run(core)?;
+        let mut iter = results.iter();
+        let mut next =
+            || iter.next().ok_or_else(|| anyhow!("early termination"));
 
-    let vout_mode = match next()? {
-        Ok(v) => v.expect_read_byte()?,
-        Err(e) => bail!("failed to read VOUT_MODE: {e}"),
-    };
-    let vout_mode = || pmbus::commands::VOUT_MODE::CommandData(vout_mode);
-    for (phase_name, _i) in &phases {
-        print!("{phase_name} ");
-        match pin_states[phase_name] {
-            PinState::Open => {
-                println!("[skipping open phase]");
-                continue;
-            }
-            PinState::Masked => {
-                println!("[skipping masked phase]");
-                continue;
-            }
-            PinState::Good => (),
-        }
-        match next()? {
-            Ok(v) => v.expect_write_dma()?,
-            Err(e) => bail!("failed to enable phase {phase_name}: {e}"),
-        }
-        for (j, _) in ctrl.iter().enumerate() {
-            match next()? {
-                Ok(v) => v.expect_write_dma()?,
-                Err(e) => {
-                    bail!("failed to enable rail {j} for {phase_name}: {e}")
-                }
-            }
-        }
-        // The busy loop occured here!
-
-        // Now, we parse the data for each rail
-        for (j, _) in ctrl.iter().enumerate() {
+        for (j, _) in rail_indexes.iter().enumerate() {
             let read_vout = match next()? {
                 Ok(v) => v.expect_read_word()?,
                 Err(e) => bail!("failed to READ_VOUT: {e}"),
@@ -1857,10 +1858,9 @@ fn rendmp_phase_check<'a>(
                 Err(e) => bail!("could not disable rail {j}: {e}"),
             }
         }
-    }
-
-    if let Some(i) = iter.next() {
-        bail!("expected iterator to be done; got {i:?} instead");
+        if let Some(i) = iter.next() {
+            bail!("expected iterator to be done; got {i:?} instead");
+        }
     }
 
     Ok(())
@@ -1876,6 +1876,7 @@ fn restore_default_config<'a>(
     let (addr, _dev) = check_addr(subargs, hubris)?;
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
+    humility::msg!("restoring default configuration...");
     use pmbus::commands::raa229618::CommandCode::RESTORE_CFG;
     worker.write_byte(worker.rail_indexes[0], false, RESTORE_CFG as u8, 0)?;
     let r = worker.run(core)?;
@@ -1886,6 +1887,7 @@ fn restore_default_config<'a>(
         Ok(v) => v.expect_write_byte()?,
         Err(e) => bail!("{e}"),
     }
+    humility::msg!("done restoring default configuration...");
     Ok(())
 }
 
