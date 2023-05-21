@@ -2970,10 +2970,10 @@ To list all eligible devices, use `--list`:
 ```console
 $ humility vpd --list
 humility: attached via ST-Link V3
-ID  C P  MUX ADDR DEVICE        DESCRIPTION
- 0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
- 1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD
- 2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD
+ID  C P  MUX ADDR DEVICE        DESCRIPTION               LOCKED
+ 0  1 B  1:1 0x50 at24csw080    Sharkfin VPD              locked
+ 1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD            unlocked
+ 2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD           unlocked
 ```
 
 To read from a device, specify it by either id (`--id`) or by some
@@ -3044,6 +3044,10 @@ humility: successfully wrote 56 bytes of VPD
 
 You can also use a file as a loopback device via `--loopback`, allowing
 you to, e.g., read binary data and format it (i.e., via `--read`).
+
+To lock a VPD device, use the `--lock` command.  This cannot be undone;
+subsequent attempts to write to (or lock) a locked VPD device will result
+in an error.  The lock status of each device is shown in `--list`.
 
 
 
