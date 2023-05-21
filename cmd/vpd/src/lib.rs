@@ -10,10 +10,10 @@
 //! ```console
 //! $ humility vpd --list
 //! humility: attached via ST-Link V3
-//! ID  C P  MUX ADDR DEVICE        DESCRIPTION
-//!  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
-//!  1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD
-//!  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD
+//! ID  C P  MUX ADDR DEVICE        DESCRIPTION               LOCKED
+//!  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD              locked
+//!  1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD            unlocked
+//!  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD           unlocked
 //! ```
 //!
 //! To read from a device, specify it by either id (`--id`) or by some
@@ -85,6 +85,10 @@
 //! You can also use a file as a loopback device via `--loopback`, allowing
 //! you to, e.g., read binary data and format it (i.e., via `--read`).
 //!
+//! To lock a VPD device, use the `--lock` command.  This cannot be undone;
+//! subsequent attempts to write to (or lock) a locked VPD device will result
+//! in an error.  The lock status of each device is shown in `--list`.
+//!
 
 use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
@@ -154,7 +158,7 @@ struct VpdArgs {
     loopback: Option<String>,
 
     /// lock VPD
-    #[clap(long, short, group = "command")]
+    #[clap(long, group = "command")]
     lock: bool,
 }
 
@@ -185,9 +189,8 @@ fn list(
     let mut ops = vec![];
 
     for ndx in 0..devices.len() {
-        let payload = op.payload(&[
-            ("index", idol::IdolArgument::Scalar(ndx as u64)),
-        ])?;
+        let payload =
+            op.payload(&[("index", idol::IdolArgument::Scalar(ndx as u64))])?;
 
         context.idol_call_ops(&op, &payload, &mut ops)?;
     }
@@ -226,7 +229,8 @@ fn list(
                 Ok(Base(Bool(val))) => match val {
                     false => "unlocked",
                     true => "locked",
-                }.to_string(),
+                }
+                .to_string(),
                 Ok(r) => format!("<{r:?}>").to_string(),
                 Err(err) => format!("<{}>", err).to_string(),
             },
@@ -401,7 +405,9 @@ fn vpd_read_at(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let r = context.idol_result(op, &results[0])?;
+    let r = context
+        .idol_result(op, &results[0])
+        .with_context(|| format!("failed to read at offset {offset}"))?;
     let contents = r.as_struct()?["value"].as_array()?;
     let mut rval = vec![];
 
@@ -457,13 +463,10 @@ fn vpd_read(
     let total = header.total_len_in_bytes();
 
     while vpd.len() < total {
-        vpd.extend(vpd_read_at(
-            core,
-            &mut context,
-            &op,
-            &mut target,
-            vpd.len(),
-        )?);
+        vpd.extend(
+            vpd_read_at(core, &mut context, &op, &mut target, vpd.len())
+                .with_context(|| format!("failed to read {total} bytes"))?,
+        );
     }
 
     //
@@ -516,9 +519,8 @@ fn vpd_lock(
         bail!("can't lock VPD: {}", err);
     }
 
-    let payload = op.payload(&[
-        ("index", idol::IdolArgument::Scalar(index as u64)),
-    ])?;
+    let payload =
+        op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
 
     let mut ops = vec![];
 
