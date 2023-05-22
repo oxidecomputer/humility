@@ -1026,9 +1026,9 @@ fn get_pin_states(
         ],
     };
     let mut ops = vec![];
-    for r in regs {
+    for &r in regs {
         let payload =
-            op.payload(&[("addr", addr.into()), ("reg", (*r).into())])?;
+            op.payload(&[("addr", addr.into()), ("reg", r.into())])?;
         context.idol_call_ops(&op, &payload, &mut ops)?;
     }
     ops.push(hif::Op::Done);
