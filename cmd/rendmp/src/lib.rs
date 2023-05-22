@@ -1192,8 +1192,13 @@ struct HifWorker<'a, 'b> {
 
     rail_indexes: Vec<u32>,
 
-    /// Mapping from a phase (in the chip sense) to a rail (as an index in
-    /// `self.rail_indexes`).
+    /// Mapping from a phase (in the chip sense) to a tuple of `(rail, name)`.
+    ///
+    /// - `rail` is an index into `self.rail_indexes`
+    /// - `name` is the name of that rail
+    ///
+    /// This means that names are duplicated (since each rail has multiple
+    /// phases), but that's not a huge amount of memory overhead.
     phase_to_rail: BTreeMap<u8, (usize, String)>,
 }
 
