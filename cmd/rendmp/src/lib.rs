@@ -906,7 +906,7 @@ impl std::fmt::Display for SupportedDevice {
             SupportedDevice::ISL68224 => "ISL68224",
             SupportedDevice::RAA229618 => "RAA229618",
         };
-        write!(f, "{s}",)
+        write!(f, "{s}")
     }
 }
 
