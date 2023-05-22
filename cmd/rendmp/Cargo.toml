@@ -16,9 +16,10 @@ parse_int.workspace = true
 pmbus.workspace = true
 zerocopy.workspace = true
 
-humility-cmd.workspace = true
 humility-cli.workspace = true
+humility-cmd.workspace = true
 humility-hiffy.workspace = true
-humility-idol.workspace = true
 humility-i2c.workspace = true
+humility-idol.workspace = true
+humility-pmbus.workspace = true
 humility.workspace = true

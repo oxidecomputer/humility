@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.18"
+version = "0.10.19"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -38,6 +38,7 @@ members = [
     "humility-jefe",
     "humility-log",
     "humility-net-core",
+    "humility-pmbus",
     "humility-stack",
     "cmd/apptable",
     "cmd/auxflash",
@@ -135,6 +136,7 @@ humility-jefe = { path = "./humility-jefe" }
 humility_load_derive = { path = "./load_derive" }
 humility-log = { path = "./humility-log" }
 humility-net-core = { path = "./humility-net-core" }
+humility-pmbus = { path = "./humility-pmbus" }
 humility-stack = { path = "./humility-stack" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }

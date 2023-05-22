@@ -33,6 +33,15 @@ pub enum IdolArgument<'a> {
     Scalar(u64),
 }
 
+impl<T> From<T> for IdolArgument<'_>
+where
+    T: Into<u64>,
+{
+    fn from(t: T) -> Self {
+        Self::Scalar(t.into())
+    }
+}
+
 #[derive(Debug)]
 pub enum IdolError<'a> {
     CLike(&'a HubrisEnum),
