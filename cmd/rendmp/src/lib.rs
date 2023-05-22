@@ -123,6 +123,20 @@
 //!  19    | 0°C         | 0.0 A
 //! ```
 //! (In the example above, there have been no faults so the blackbox is empty)
+//!
+//! To check individual phases for errors, use the `--phase-check` subcommand:
+//! ```console
+//! $ humility rendmp --phase-check --device=0x5c
+//! humility: attached to 0483:3754:000D00344741500820383733 via ST-Link V3
+//! Phase check for ISL68221 at 0x5c
+//! PHASE |   VOUT   |   IOUT   |   TEMP   | RAIL
+//! ------|----------|----------|----------|----------
+//!  0    |   0.451V | -55.600A | 26.000°C | VPP_ABCD
+//!  1    |   0.447V | -55.200A | 24.000°C | VPP_EFGH
+//!  2    |   0.441V |   1.100A |  0.000°C | V1P8_SP3
+//! ```
+//!
+//! This must be run with the system in the A2 power state.
 
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
