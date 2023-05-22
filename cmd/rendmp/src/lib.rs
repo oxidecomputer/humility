@@ -1747,12 +1747,15 @@ fn rendmp_phase_check<'a>(
                 bail!("failed to modify PEAK_OCUC_COUNT for rail {rail}: {e}")
             }
         }
-        if dev == SupportedDevice::RAA229618 {
-            match next()? {
+        match dev {
+            SupportedDevice::RAA229618 => match next()? {
                 Ok(v) => v.expect_write_dma()?,
                 Err(e) => {
                     bail!("failed to modify EA5B for rail {rail}: {e}")
                 }
+            },
+            SupportedDevice::ISL68224 => {
+                // no changes were made specifically for the ISL68224
             }
         }
         match next()? {
