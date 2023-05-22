@@ -902,14 +902,11 @@ impl SupportedDevice {
 
 impl std::fmt::Display for SupportedDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                SupportedDevice::ISL68224 => "ISL68221",
-                SupportedDevice::RAA229618 => "RAA229618",
-            }
-        )
+        let s = match self {
+            SupportedDevice::ISL68224 => "ISL68224",
+            SupportedDevice::RAA229618 => "RAA229618",
+        };
+        write!(f, "{s}",)
     }
 }
 
