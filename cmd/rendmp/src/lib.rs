@@ -123,14 +123,29 @@
 //!  19    | 0°C         | 0.0 A
 //! ```
 //! (In the example above, there have been no faults so the blackbox is empty)
+//!
+//! To check individual phases for errors, use the `--phase-check` subcommand:
+//! ```console
+//! $ humility rendmp --phase-check --device=0x5c
+//! humility: attached to 0483:3754:000D00344741500820383733 via ST-Link V3
+//! Phase check for ISL68221 at 0x5c
+//! PHASE |   VOUT   |   IOUT   |   TEMP   | RAIL
+//! ------|----------|----------|----------|----------
+//!  0    |   0.451V | -55.600A | 26.000°C | VPP_ABCD
+//!  1    |   0.447V | -55.200A | 24.000°C | VPP_EFGH
+//!  2    |   0.441V |   1.100A |  0.000°C | V1P8_SP3
+//! ```
+//!
+//! This must be run with the system in the A2 power state.
 
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
+use humility::warn;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
-use humility_idol::{HubrisIdol, IdolArgument};
+use humility_idol::{HubrisIdol, IdolOperation};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
@@ -140,7 +155,7 @@ use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -193,6 +208,10 @@ struct RendmpArgs {
     /// checks for open pins on the given converter
     #[clap(long, group = "subcommand")]
     open_pin: bool,
+
+    /// checks for open pins on the given converter
+    #[clap(long, group = "subcommand")]
+    phase_check: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
@@ -305,6 +324,17 @@ enum RendmpGenTwoFive {
 enum RendmpDevice {
     RendmpGenTwo(RendmpGenTwo),
     RendmpGenTwoFive(RendmpGenTwoFive),
+}
+
+/// Results of the open-pin register
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum PinState {
+    /// The phase is disabled, so we ignore its state
+    Masked,
+    /// There are no issues with this phase
+    Good,
+    /// The phase is open, which indicates an error
+    Open,
 }
 
 impl std::fmt::Display for RendmpDevice {
@@ -842,22 +872,55 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 }
 
 /// A device which supports open-pin detection and other advanced debug
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum SupportedDevice {
-    ISL68221,
+    ISL68224,
     RAA229618,
+}
+
+impl SupportedDevice {
+    /// Number of rails supported by this device
+    fn rails(&self) -> usize {
+        match self {
+            SupportedDevice::ISL68224 => 3,
+            SupportedDevice::RAA229618 => 2,
+        }
+    }
+
+    /// Returns a list of phases and their numbering
+    fn phases(&self) -> Vec<(String, u32)> {
+        match &self {
+            SupportedDevice::ISL68224 => {
+                let mut phases = vec![];
+                for phase in 0..6 {
+                    phases.push((phase.to_string(), phase + 3));
+                }
+                for i in 0..3 {
+                    phases.push((format!("VSEN{i}"), i + 12));
+                }
+                phases
+            }
+            SupportedDevice::RAA229618 => {
+                let mut phases = vec![];
+                for phase in 0..20 {
+                    phases.push((phase.to_string(), phase));
+                }
+                for i in 0..2 {
+                    phases.push((format!("VSEN{i}"), i + 20));
+                }
+                phases
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for SupportedDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                SupportedDevice::ISL68221 => "ISL68221",
-                SupportedDevice::RAA229618 => "RAA229618",
-            }
-        )
+        let s = match self {
+            SupportedDevice::ISL68224 => "ISL68224",
+            SupportedDevice::RAA229618 => "RAA229618",
+        };
+        write!(f, "{s}")
     }
 }
 
@@ -895,7 +958,7 @@ fn check_addr(
         )
     }
     let dev = match dev.device.as_str() {
-        ISL_DEV_NAME => SupportedDevice::ISL68221,
+        ISL_DEV_NAME => SupportedDevice::ISL68224,
         RAA_DEV_NAME => SupportedDevice::RAA229618,
         _ => unreachable!(), // checked above
     };
@@ -911,14 +974,8 @@ fn rendmp_blackbox(
 ) -> Result<()> {
     let (addr, _dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
-    let value = hiffy_call(
-        hubris,
-        core,
-        context,
-        &op,
-        &[("addr", IdolArgument::Scalar(u64::from(addr)))],
-        None,
-    )?;
+    let value =
+        hiffy_call(hubris, core, context, &op, &[("addr", addr.into())], None)?;
     match value {
         Ok(Value::Enum(e)) => {
             let contents = e
@@ -962,17 +1019,18 @@ fn rendmp_blackbox(
     Ok(())
 }
 
-fn rendmp_open_pin(
-    subargs: RendmpArgs,
+/// Reads and decodes open-pin registers on the selected device
+fn get_pin_states(
+    subargs: &RendmpArgs,
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &mut HiffyContext,
-) -> Result<()> {
-    let (addr, dev) = check_addr(&subargs, hubris)?;
+) -> Result<BTreeMap<String, PinState>> {
+    let (addr, dev) = check_addr(subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
 
     let regs: &'static [u16] = match dev {
-        SupportedDevice::ISL68221 => &[
+        SupportedDevice::ISL68224 => &[
             0x00BD, // open-pin
             0xE925, // mask
         ],
@@ -982,11 +1040,9 @@ fn rendmp_open_pin(
         ],
     };
     let mut ops = vec![];
-    for r in regs {
-        let payload = op.payload(&[
-            ("addr", IdolArgument::Scalar(addr as u64)),
-            ("reg", IdolArgument::Scalar(*r as u64)),
-        ])?;
+    for &r in regs {
+        let payload =
+            op.payload(&[("addr", addr.into()), ("reg", r.into())])?;
         context.idol_call_ops(&op, &payload, &mut ops)?;
     }
     ops.push(hif::Op::Done);
@@ -1002,55 +1058,966 @@ fn rendmp_open_pin(
         }
     }
 
+    let phases = dev.phases();
+
     // Register decoding was determined with a mix of Power Navigator
     // experiments and discussion with Renesas.
-    let (open, mask, phases) = match dev {
-        SupportedDevice::ISL68221 => {
-            let (open, mask) = (values[0] as u64, values[1] as u64);
-            let mut phases = vec![];
-            for phase in 0..6 {
-                phases.push((phase.to_string(), phase * 2 + 6));
-            }
-            for i in 0..3 {
-                phases.push((format!("VSEN{i}"), i * 2 + 24));
-            }
-            (open, mask, phases)
-        }
+    let (open, mask) = match dev {
+        SupportedDevice::ISL68224 => (values[0] as u64, values[1] as u64),
         SupportedDevice::RAA229618 => {
             let open = values[0] as u64 | (values[1] as u64) << 32;
             let mask = values[2] as u64 | (values[3] as u64) << 32;
-            let mut phases = vec![];
-            for phase in 0..20 {
-                phases.push((phase.to_string(), phase * 2));
-            }
-            for i in 0..2 {
-                phases.push((format!("VSEN{i}"), i * 2 + 40));
-            }
-            (open, mask, phases)
+            (open, mask)
         }
     };
-    println!("Open pin check for {dev} at {addr:#x}");
-    println!(" {} | {}", "PHASE".bold(), "STATE".bold());
-    println!("-------|-------");
-    for (name, bit_offset) in phases {
+    let mut out = BTreeMap::new();
+    for (name, n) in phases {
         // Each phase is represented by two-bit values in the open and mask
         // registers.  We ignore bits in the open register that aren't set in
         // the mask register:
+        let bit_offset = n * 2;
         let is_open = (open & mask & (0b11 << bit_offset)) != 0;
 
         // If there are no bits set in the mask register, then the phase isn't
         // used at all, so we'll print that instead.
         let is_mask = mask & (0b11 << bit_offset) == 0;
-        print!(" {name:<5} | ");
         if is_mask {
-            println!("{}", "N/A (masked)".dimmed());
+            out.insert(name, PinState::Masked);
         } else if is_open {
-            println!("{}", "open".red());
+            out.insert(name, PinState::Open);
         } else {
-            println!("{}", "okay".green());
+            out.insert(name, PinState::Good);
         }
     }
 
+    Ok(out)
+}
+
+fn rendmp_open_pin(
+    subargs: &RendmpArgs,
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &mut HiffyContext,
+) -> Result<()> {
+    let (addr, dev) = check_addr(subargs, hubris)?;
+    let phases = dev.phases();
+    let out = get_pin_states(subargs, hubris, core, context)?;
+    println!("Open pin check for {dev} at {addr:#x}");
+    println!(" {} | {}", "PHASE".bold(), "STATE".bold());
+    println!("-------|-------");
+    for (name, _) in &phases {
+        print!(" {name:<5} | ");
+        match out[name] {
+            PinState::Masked => println!("{}", "N/A (masked)".dimmed()),
+            PinState::Open => println!("{}", "open".red()),
+            PinState::Good => println!("{}", "okay".green()),
+        }
+    }
+    Ok(())
+}
+
+#[derive(Copy, Clone, Debug)]
+enum Call {
+    ReadDma(u32),
+    WriteDma,
+    ReadByte(u8),
+    ReadWord(u16),
+    ReadWord32(u32),
+    WriteByte,
+    WriteWord,
+    WriteWord32,
+}
+impl Call {
+    fn expect_read_dma(&self) -> Result<u32> {
+        if let Call::ReadDma(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected ReadDma")
+        }
+    }
+    fn expect_write_dma(&self) -> Result<()> {
+        if let Call::WriteDma = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteDma")
+        }
+    }
+    fn expect_read_word32(&self) -> Result<u32> {
+        if let Call::ReadWord32(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected ReadWord32")
+        }
+    }
+    fn expect_write_word32(&self) -> Result<()> {
+        if let Call::WriteWord32 = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteWord32")
+        }
+    }
+    fn expect_read_word(&self) -> Result<u16> {
+        if let Call::ReadWord(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected ReadWord")
+        }
+    }
+    fn expect_write_word(&self) -> Result<()> {
+        if let Call::WriteWord = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteWord")
+        }
+    }
+    fn expect_read_byte(&self) -> Result<u8> {
+        if let Call::ReadByte(v) = self {
+            Ok(*v)
+        } else {
+            bail!("unexpected call result {self:?}; expected Byte")
+        }
+    }
+    fn expect_write_byte(&self) -> Result<()> {
+        if let Call::WriteByte = self {
+            Ok(())
+        } else {
+            bail!("unexpected call result {self:?}; expected WriteByte")
+        }
+    }
+}
+
+struct HifWorker<'a, 'b> {
+    hubris: &'a HubrisArchive,
+    context: &'a mut HiffyContext<'b>,
+
+    read_dma: IdolOperation<'a>,
+    write_dma: IdolOperation<'a>,
+
+    read_byte: IdolOperation<'a>,
+    read_word: IdolOperation<'a>,
+    read_word32: IdolOperation<'a>,
+
+    write_byte: IdolOperation<'a>,
+    write_word: IdolOperation<'a>,
+    write_word32: IdolOperation<'a>,
+
+    ops: Vec<hif::Op>,
+    calls: Vec<Call>,
+
+    rail_indexes: Vec<u32>,
+
+    /// Mapping from a phase (in the chip sense) to a tuple of `(rail, name)`.
+    ///
+    /// - `rail` is an index into `self.rail_indexes`
+    /// - `name` is the name of that rail
+    ///
+    /// This means that names are duplicated (since each rail has multiple
+    /// phases), but that's not a huge amount of memory overhead.
+    phase_to_rail: BTreeMap<u8, (usize, String)>,
+}
+
+impl<'a, 'b> HifWorker<'a, 'b> {
+    fn new<'c>(
+        hubris: &'a HubrisArchive,
+        context: &'a mut HiffyContext<'b>,
+        core: &'c mut dyn humility::core::Core,
+        i2c_addr: u8,
+    ) -> Result<Self> {
+        let read_dma = hubris.get_idol_command("Power.rendmp_dma_read")?;
+        let write_dma = hubris.get_idol_command("Power.rendmp_dma_write")?;
+        let read_byte = hubris.get_idol_command("Power.raw_pmbus_read_byte")?;
+        let read_word = hubris.get_idol_command("Power.raw_pmbus_read_word")?;
+        let read_word32 =
+            hubris.get_idol_command("Power.raw_pmbus_read_word32")?;
+        let write_word =
+            hubris.get_idol_command("Power.raw_pmbus_write_word")?;
+        let write_byte =
+            hubris.get_idol_command("Power.raw_pmbus_write_byte")?;
+        let write_word32 =
+            hubris.get_idol_command("Power.raw_pmbus_write_word32")?;
+
+        let sensor_id_map = humility_pmbus::sensor_id_map(hubris, core)?;
+        let dev_index = hubris
+            .manifest
+            .i2c_devices
+            .iter()
+            .enumerate()
+            .find(|(_i, dev)| dev.address == i2c_addr)
+            .ok_or_else(|| {
+                anyhow!("could not find device at addr {i2c_addr:?}")
+            })?
+            .0;
+
+        // Compute the mapping from phases to rails
+        let mut phase_to_rail = BTreeMap::new();
+        if let HubrisI2cDeviceClass::Pmbus { rails } =
+            &hubris.manifest.i2c_devices[dev_index].class
+        {
+            for (i, rail) in rails.iter().enumerate() {
+                for phase in rail.phases.iter().flatten() {
+                    phase_to_rail.insert(*phase, (i, rail.name.clone()));
+                }
+            }
+        } else {
+            bail!("expected PMBus class");
+        }
+
+        let rail_indexes: Vec<_> = hubris
+            .manifest
+            .sensors
+            .iter()
+            .enumerate()
+            .filter(|(_i, s)| {
+                s.device == HubrisSensorDevice::I2c(dev_index)
+                    && s.kind == HubrisSensorKind::Voltage
+            })
+            .map(|(sensor_id, _s)| {
+                // This rail's voltage sensor is the n'th voltage sensor among
+                // voltage sensors that match the target device.  Convert from
+                // voltage sensor index to device index for use in
+                // Power.read/write_* APIs.
+                sensor_id_map
+                    .get(&(sensor_id as u32))
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
+                        )
+                    })
+                    .map(|i| *i as u32)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(Self {
+            hubris,
+            context,
+
+            read_dma,
+            write_dma,
+            read_byte,
+            read_word,
+            read_word32,
+            write_byte,
+            write_word,
+            write_word32,
+
+            ops: vec![],
+            calls: vec![],
+
+            rail_indexes,
+            phase_to_rail,
+        })
+    }
+
+    fn write_dma(&mut self, i2c_addr: u8, reg: u16, data: u32) -> Result<()> {
+        let payload = self.write_dma.payload(&[
+            ("addr", i2c_addr.into()),
+            ("reg", reg.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(&self.write_dma, &payload, &mut self.ops)?;
+        self.calls.push(Call::WriteDma);
+        Ok(())
+    }
+
+    fn read_dma(&mut self, i2c_addr: u8, dma_reg: u16) -> Result<()> {
+        let payload = self
+            .read_dma
+            .payload(&[("addr", i2c_addr.into()), ("reg", dma_reg.into())])?;
+        self.context.idol_call_ops(&self.read_dma, &payload, &mut self.ops)?;
+        self.calls.push(Call::ReadDma(0));
+        Ok(())
+    }
+
+    fn read_word(&mut self, index: u32, has_rail: bool, op: u8) -> Result<()> {
+        let payload = self.read_word.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+        ])?;
+        self.context.idol_call_ops(&self.read_word, &payload, &mut self.ops)?;
+        self.calls.push(Call::ReadWord(0));
+        Ok(())
+    }
+
+    fn write_word(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+        data: u16,
+    ) -> Result<()> {
+        let payload = self.write_word.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.write_word,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::WriteWord);
+        Ok(())
+    }
+
+    fn read_byte(&mut self, index: u32, has_rail: bool, op: u8) -> Result<()> {
+        let payload = self.read_byte.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+        ])?;
+        self.context.idol_call_ops(&self.read_byte, &payload, &mut self.ops)?;
+        self.calls.push(Call::ReadByte(0));
+        Ok(())
+    }
+
+    fn write_byte(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+        data: u8,
+    ) -> Result<()> {
+        let payload = self.write_byte.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.write_byte,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::WriteByte);
+        Ok(())
+    }
+
+    fn read_word32(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+    ) -> Result<()> {
+        let payload = self.read_word32.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.read_word32,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::ReadWord32(0));
+        Ok(())
+    }
+
+    fn write_word32(
+        &mut self,
+        index: u32,
+        has_rail: bool,
+        op: u8,
+        data: u32,
+    ) -> Result<()> {
+        let payload = self.write_word32.payload(&[
+            ("index", index.into()),
+            ("has_rail", has_rail.into()),
+            ("op", op.into()),
+            ("data", data.into()),
+        ])?;
+        self.context.idol_call_ops(
+            &self.write_word32,
+            &payload,
+            &mut self.ops,
+        )?;
+        self.calls.push(Call::WriteWord32);
+        Ok(())
+    }
+
+    fn run(
+        &mut self,
+        core: &mut dyn humility::core::Core,
+    ) -> Result<Vec<Result<Call, String>>> {
+        let mut ops = std::mem::take(&mut self.ops);
+        ops.push(Op::Done);
+        let r = self.context.run(core, &ops, None)?;
+        if r.len() != self.calls.len() {
+            bail!("mismatched result lengths");
+        }
+        let mut out = vec![];
+        for (value, call) in r.into_iter().zip(std::mem::take(&mut self.calls))
+        {
+            let op = match call {
+                Call::ReadDma(..) => &self.read_dma,
+                Call::WriteDma => &self.write_dma,
+                Call::ReadByte(..) => &self.read_byte,
+                Call::ReadWord(..) => &self.read_word,
+                Call::ReadWord32(..) => &self.read_word32,
+                Call::WriteWord => &self.write_word,
+                Call::WriteByte => &self.write_byte,
+                Call::WriteWord32 => &self.write_word32,
+            };
+            let v = hiffy_decode(self.hubris, op, value)
+                .context("failed to decode {op:?} result")?;
+            match v {
+                Ok(v) => {
+                    let v = v.as_base().context("expected Base, got {v:?}")?;
+                    match (v, call) {
+                        (Base::U32(v), Call::ReadDma(..)) => {
+                            out.push(Ok(Call::ReadDma(*v)))
+                        }
+                        (Base::U8(v), Call::ReadByte(..)) => {
+                            out.push(Ok(Call::ReadByte(*v)))
+                        }
+                        (Base::U16(v), Call::ReadWord(..)) => {
+                            out.push(Ok(Call::ReadWord(*v)))
+                        }
+                        (Base::U32(v), Call::ReadWord32(..)) => {
+                            out.push(Ok(Call::ReadWord32(*v)))
+                        }
+                        (Base::U0, Call::WriteDma) => {
+                            out.push(Ok(Call::WriteDma))
+                        }
+                        (Base::U0, Call::WriteWord) => {
+                            out.push(Ok(Call::WriteWord))
+                        }
+                        (Base::U0, Call::WriteByte) => {
+                            out.push(Ok(Call::WriteByte))
+                        }
+                        (Base::U0, Call::WriteWord32) => {
+                            out.push(Ok(Call::WriteWord32))
+                        }
+                        (base, op) => {
+                            bail!("got unexpected result {base} for {op:?}")
+                        }
+                    }
+                }
+                Err(e) => out.push(Err(e)),
+            }
+        }
+        Ok(out)
+    }
+}
+
+fn rendmp_phase_check<'a>(
+    subargs: &'a RendmpArgs,
+    hubris: &'a HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &'a mut HiffyContext,
+) -> Result<()> {
+    // Make sure we're in A2 before doing anything
+    let power_state_op = hubris
+        .get_idol_command("Sequencer.tofino_seq_state")
+        .or_else(|_| hubris.get_idol_command("Sequencer.get_state"))
+        .context("could not get power state HIF operation")?;
+    let r = hiffy_call(hubris, core, context, &power_state_op, &[], None)?;
+    if let Err(e) = r {
+        bail!("power state check got an error: {e}");
+    }
+    if hiffy_format_result(hubris, r) != "A2" {
+        bail!("must be in A2 when checking phases");
+    }
+
+    // Pick out the target device
+    let (addr, dev) = check_addr(subargs, hubris)?;
+
+    // Read pin states so that we don't try to enable a phase with an open-pin
+    // failure; this would cause the power controller to lock up.
+    let pin_states = get_pin_states(subargs, hubris, core, context)?;
+
+    // Filter out VGEN phases
+    let phases: Vec<_> = dev
+        .phases()
+        .into_iter()
+        .filter(|(p, _b)| p.parse::<u8>().is_ok())
+        .collect();
+
+    let mut worker = HifWorker::new(hubris, context, core, addr)?;
+
+    if worker.rail_indexes.len() != dev.rails() {
+        bail!("length mismatch between sensors and rails");
+    }
+
+    // Read a device-specific DMA registers, which we'll modify to disable
+    // faults when we write it back
+    let disable_fault_reg: u16 = match dev {
+        SupportedDevice::ISL68224 => 0xE952,
+        SupportedDevice::RAA229618 => 0xE932,
+    };
+
+    ////////////////////////////////////////////////////////////////////////////
+    // We're doing to queue up a bunch of HIF operations to prepare.  In some
+    // cases, we can unconditionally write to a DMA register or PMBus operation;
+    // in other cases, we'll need to read back a value, modify it locally, then
+    // write in a second HIF program later.
+    let rail_indexes = std::mem::take(&mut worker.rail_indexes);
+    for (rail, &index) in rail_indexes.iter().enumerate() {
+        // Set the PWM register for this rail
+        let reg = (0xEA31 + rail * 0x80) as u16;
+        worker.write_dma(addr, reg, 0x133)?;
+
+        // Read 0xEA0D / 0xEA8D / 0xEB0D (we'll modify-write them later)
+        let reg = (0xEA0D + rail * 0x80) as u16;
+        worker.read_dma(addr, reg)?;
+
+        use pmbus::commands::raa229618::CommandCode::{
+            LOOPCFG, ON_OFF_CONFIG, PEAK_OCUC_COUNT,
+        };
+
+        // Read a few PMBus values which will be modified and written back later
+        worker.read_byte(index, true, ON_OFF_CONFIG as u8)?;
+        worker.read_word32(index, true, LOOPCFG as u8)?;
+        worker.read_word(index, true, PEAK_OCUC_COUNT as u8)?;
+
+        // Set PMBus command codes 0xD0 and 0xD1 to 0x8000 (disable VMon)
+        match dev {
+            SupportedDevice::ISL68224 => {
+                use pmbus::commands::isl68224::CommandCode;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VMON_ON as u8,
+                    0x8000,
+                )?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VMON_OFF as u8,
+                    0x8000,
+                )?;
+            }
+            SupportedDevice::RAA229618 => {
+                use pmbus::commands::raa229618::CommandCode;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VIN_ON as u8,
+                    0x8000,
+                )?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VIN_OFF as u8,
+                    0x8000,
+                )?;
+
+                let reg = (0xEA5B + rail * 0x80) as u16;
+                worker.read_dma(addr, reg)?;
+            }
+        }
+
+        worker.read_dma(addr, disable_fault_reg + rail as u16)?;
+    }
+
+    // Read VOUT_MODE, which we'll need to interpret voltages
+    use pmbus::commands::raa229618::CommandCode::VOUT_MODE;
+    worker.read_byte(rail_indexes[0], false, VOUT_MODE as u8)?;
+
+    // Disable all phases
+    const PHASE_ENABLE_REG: u16 = 0xE9C2;
+    worker.write_dma(addr, PHASE_ENABLE_REG, 0)?;
+
+    let results = worker.run(core)?;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Now, we're going to walk through the results, doing the modify-write
+    // portion of various register changes.
+    let mut iter = results.iter();
+    let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
+    let mut ctrl = vec![];
+    let mut on_off_config = vec![];
+    for (rail, &index) in rail_indexes.iter().enumerate() {
+        if let Err(e) = next()? {
+            bail!("failed to write PWM register for rail {rail}: {e}");
+        }
+        // EA0D / EA8D / EB0D
+        match next()? {
+            Ok(v) => ctrl.push(v.expect_read_dma()?),
+            Err(e) => bail!("failed to read EA0D for rail {rail}: {e}"),
+        };
+
+        // Record ON_OFF_CONFIG, which we'll use to actually force the rail on
+        match next()? {
+            Ok(v) => on_off_config.push(v.expect_read_byte()?),
+            Err(e) => {
+                bail!("failed to read ON_OFF_CONFIG for rail {rail}: {e}")
+            }
+        };
+
+        // Modify LOOPCFG (F0h) and write it back
+        let mut loopcfg = match next()? {
+            Ok(v) => v.expect_read_word32()?,
+            Err(e) => bail!("failed to read LOOPCFG for rail {rail}: {e}"),
+        };
+        loopcfg &= !(
+            // Disable APD
+            (1 << 0)
+            // Disable diode emulation
+            | (1 << 6)
+            // ??
+            | (0b11 << 16)
+            // Disble diode emulation for PS0/1
+            | (1 << 28)
+        );
+        use pmbus::commands::raa229618::CommandCode::LOOPCFG;
+        worker.write_word32(index, true, LOOPCFG as u8, loopcfg)?;
+
+        // Modify PEAK_OCUC_COUNT (E9h) and write it back
+        let mut peak_ocuc_count = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => {
+                bail!("failed to read PEAK_OCUC_COUNT for rail {rail}: {e}",)
+            }
+        };
+        // Clear bits 8:15 to disable undercurrent faults
+        peak_ocuc_count &= !(0xFF << 8);
+        use pmbus::commands::raa229618::CommandCode::PEAK_OCUC_COUNT;
+        worker.write_word(
+            index,
+            true,
+            PEAK_OCUC_COUNT as u8,
+            peak_ocuc_count,
+        )?;
+
+        match dev {
+            SupportedDevice::ISL68224 => {
+                if let Err(e) = next()? {
+                    bail!("failed to set VMON_ON for {rail}: {e}",);
+                }
+                if let Err(e) = next()? {
+                    bail!("failed to set VMON_OFF for {rail}: {e}",);
+                }
+            }
+            SupportedDevice::RAA229618 => {
+                if let Err(e) = next()? {
+                    bail!("failed to set VIN_ON for {rail}: {e}",);
+                }
+                if let Err(e) = next()? {
+                    bail!("failed to set VIN_OFF for {rail}: {e}",);
+                }
+
+                // Clear bit 0 of DMA register EA5B and write it back
+                // (the name part_fast_add comes from Power Navigator)
+                let mut part_fast_add = match next()? {
+                    Ok(v) => v.expect_read_dma()?,
+                    Err(e) => {
+                        bail!("worker.failed to read EA5B for rail {rail}: {e}")
+                    }
+                };
+                part_fast_add &= !1; // clear bit 0
+                let reg = (0xEA5B + rail * 0x80) as u16;
+                worker.write_dma(addr, reg, part_fast_add)?;
+            }
+        }
+
+        let mut disable_fault_value = match next()? {
+            Ok(v) => v.expect_read_dma()?,
+            Err(e) => bail!("failed to read {disable_fault_reg:x}: {e}"),
+        };
+        // clear bits 0:3 and 17:18;
+        // this disables all input and output voltage faults.
+        disable_fault_value &= !(0b1111 | (0b11 << 17));
+        worker.write_dma(
+            addr,
+            disable_fault_reg + rail as u16,
+            disable_fault_value,
+        )?;
+    }
+
+    let vout_mode = match next()? {
+        Ok(v) => v.expect_read_byte()?,
+        Err(e) => bail!("failed to read VOUT_MODE: {e}"),
+    };
+    let vout_mode = || pmbus::commands::VOUT_MODE::CommandData(vout_mode);
+
+    match next()? {
+        Ok(v) => v.expect_write_dma()?,
+        Err(e) => {
+            bail!("failed to disable all phases: {e}")
+        }
+    }
+
+    if let Some(i) = iter.next() {
+        bail!("expected iterator to be done; got {i:?} instead");
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Check the results of the modify-write portion of register changes
+    let results = worker.run(core)?;
+    let mut iter = results.iter();
+    let mut next = || iter.next().ok_or_else(|| anyhow!("early termination"));
+    for (rail, ..) in rail_indexes.iter().enumerate() {
+        match next()? {
+            Ok(v) => v.expect_write_word32()?,
+            Err(e) => {
+                bail!("failed to modify LOOPCFG for rail {rail}: {e}")
+            }
+        }
+        match next()? {
+            Ok(v) => v.expect_write_word()?,
+            Err(e) => {
+                bail!("failed to modify PEAK_OCUC_COUNT for rail {rail}: {e}")
+            }
+        }
+        match dev {
+            SupportedDevice::RAA229618 => match next()? {
+                Ok(v) => v.expect_write_dma()?,
+                Err(e) => {
+                    bail!("failed to modify EA5B for rail {rail}: {e}")
+                }
+            },
+            SupportedDevice::ISL68224 => {
+                // no changes were made specifically for the ISL68224
+            }
+        }
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => {
+                bail!("failed to disable faults: {e}")
+            }
+        }
+    }
+
+    if let Some(i) = iter.next() {
+        bail!("expected iterator to be done; got {i:?} instead");
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // At this point, every phase is disabled and we're ready to turn on the
+    // system.  To enable system, we select a phase by modifying 0xE9C2, then
+    // write 0xEA0D/0xEA8D/0xEB0D with the following modifications:
+    // - bit 2 is set to 0 (fixed frequency mode)
+    // - bit 0 is set to 1 (enable)
+    //
+    // The basic loop is as follows:
+    // - Select phase
+    // - Enable rail
+    // - Wait a little while
+    // - Measure current + voltage
+    // - Disable rail
+    println!("Phase check for {} at {addr:#x}", format!("{dev}").bold());
+    println!(
+        "{} |   {}   |   {}   |   {}   | {}",
+        "PHASE".bold(),
+        "VOUT".bold(),
+        "IOUT".bold(),
+        "TEMP".bold(),
+        "RAIL".bold(),
+    );
+    println!("------|----------|----------|---------");
+
+    for (phase_name, i) in &phases {
+        match pin_states[phase_name] {
+            PinState::Open => {
+                println!(
+                    "{}",
+                    format!(" {phase_name:<4} | [skipping open phase]")
+                        .dimmed()
+                );
+                continue;
+            }
+            PinState::Masked => {
+                println!(
+                    "{}",
+                    format!(" {phase_name:<4} | [skipping masked phase]")
+                        .dimmed()
+                );
+                continue;
+            }
+            PinState::Good => (),
+        }
+
+        // Enable this phase
+        worker.write_dma(addr, 0xE9C2, 1 << i)?;
+
+        // This is a little awkward: the values in the `phases` array are bit
+        // values as an offset into DMA registers, which doesn't quite map to
+        // phase values in our manifest.  However, the phase *name* corresponds
+        // to the phase value, so we'll parse the name here.
+        let rail = worker
+            .phase_to_rail
+            .get(&phase_name.parse().unwrap())
+            .ok_or_else(|| anyhow!("could not get rail for {phase_name}"))?
+            .0;
+        let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
+        let index = rail_indexes[rail];
+        // Not totally sure if these operations need to be separate, but we
+        // were seeing processor errors under certain circumstances.
+
+        let c = ctrl[rail] & !(1 << 2); // ripple regulator: forced-freq PWM
+        worker.write_dma(addr, ctrl_addr, c)?;
+
+        let c = c | 1; // fixed PWM mode
+        worker.write_dma(addr, ctrl_addr, c)?;
+
+        // Force the rail on
+        use pmbus::commands::raa229618::CommandCode::ON_OFF_CONFIG;
+        worker.write_byte(index, true, ON_OFF_CONFIG as u8, 0)?;
+
+        // Execute this operation and confirm that it worked
+        let results = worker.run(core)?;
+        let mut iter = results.iter();
+        let mut next =
+            || iter.next().ok_or_else(|| anyhow!("early termination"));
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!("failed to enable phase {phase_name}: {e}"),
+        }
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!(
+                "failed to enable forced-freq pwm for phase {phase_name}: {e}"
+            ),
+        }
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => {
+                bail!("failed to enable pwm mode for phase {phase_name}: {e}")
+            }
+        }
+        match next()? {
+            Ok(v) => v.expect_write_byte()?,
+            Err(e) => {
+                bail!("failed to enable rail {rail} for {phase_name}: {e}")
+            }
+        }
+        if let Some(i) = iter.next() {
+            bail!("expected iterator to be done; got {i:?} instead");
+        }
+
+        // Give values time to settle
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // Read current and voltage from all rails
+        worker.read_word(index, true, pmbus::CommandCode::READ_VOUT as u8)?;
+        worker.read_word(index, true, pmbus::CommandCode::READ_IOUT as u8)?;
+        worker.read_word(
+            index,
+            true,
+            pmbus::CommandCode::READ_TEMPERATURE_1 as u8,
+        )?;
+
+        // Write back the original rail and ON_OFF_CONFIG values
+        let ctrl_addr = (0xEA0D + 0x80 * rail) as u16;
+        worker.write_dma(addr, ctrl_addr, ctrl[rail])?;
+        worker.write_byte(
+            index,
+            true,
+            ON_OFF_CONFIG as u8,
+            on_off_config[rail],
+        )?;
+
+        let results = worker.run(core)?;
+        let mut iter = results.iter();
+        let mut next =
+            || iter.next().ok_or_else(|| anyhow!("early termination"));
+
+        let read_vout = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => bail!("failed to READ_VOUT: {e}"),
+        };
+        let read_iout = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => bail!("failed to READ_IOUT: {e}"),
+        };
+        let read_tout = match next()? {
+            Ok(v) => v.expect_read_word()?,
+            Err(e) => bail!("failed to READ_TEMPERATURE_1: {e}"),
+        };
+        let device = match dev {
+            SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
+            SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
+        };
+
+        let mut vout = String::new();
+        device
+            .interpret(
+                pmbus::CommandCode::READ_VOUT as u8,
+                read_vout.as_bytes(),
+                vout_mode,
+                |_field, value| vout = format!("{value}"),
+            )
+            .map_err(|e| anyhow!("could not interpret READ_VOUT: {e:?}"))?;
+        // The voltage `vout` is now a string in the form 0.123V.  We'll parse
+        // it back to a float to determine if it's happy or not.
+        let vout_okay = if let Some(value) = vout.strip_suffix('V') {
+            let v = value.parse::<f32>().context("could not parse voltage")?;
+            v > 0.2 && v < 0.5
+        } else {
+            bail!("invalid format for voltage");
+        };
+        let mut iout = String::new();
+        device
+            .interpret(
+                pmbus::CommandCode::READ_IOUT as u8,
+                read_iout.as_bytes(),
+                vout_mode,
+                |_field, value| iout = format!("{value}"),
+            )
+            .map_err(|e| anyhow!("could not interpret READ_IOUT: {e:?}"))?;
+        let mut tout = String::new();
+        device
+            .interpret(
+                pmbus::CommandCode::READ_TEMPERATURE_1 as u8,
+                read_tout.as_bytes(),
+                vout_mode,
+                |_field, value| tout = format!("{value}"),
+            )
+            .map_err(|e| {
+                anyhow!("could not interpret READ_TEMPERATURE_1: {e:?}")
+            })?;
+
+        let rail_name = worker
+            .phase_to_rail
+            .get(&phase_name.parse().unwrap())
+            .unwrap()
+            .1
+            .as_str();
+        println!(
+            " {phase_name:<4} | {:>8} | {iout:>8} | {tout:>8} | {rail_name}",
+            if vout_okay { vout.green() } else { vout.yellow() }
+        );
+
+        match next()? {
+            Ok(v) => v.expect_write_dma()?,
+            Err(e) => bail!("could not disable rail {rail}: {e}"),
+        }
+        match next()? {
+            Ok(v) => v.expect_write_byte()?,
+            Err(e) => bail!("could not restore ON_OFF_CONFIG for {rail}: {e}"),
+        }
+        if let Some(i) = iter.next() {
+            bail!("expected iterator to be done; got {i:?} instead");
+        }
+    }
+
+    Ok(())
+}
+
+fn restore_default_config<'a>(
+    subargs: &RendmpArgs,
+    hubris: &'a HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    context: &'a mut HiffyContext,
+) -> Result<()> {
+    // Pick out the target device
+    let (addr, _dev) = check_addr(subargs, hubris)?;
+    let mut worker = HifWorker::new(hubris, context, core, addr)?;
+
+    humility::msg!("restoring default configuration...");
+    use pmbus::commands::raa229618::CommandCode::RESTORE_CFG;
+    worker.write_byte(worker.rail_indexes[0], false, RESTORE_CFG as u8, 0)?;
+    let r = worker.run(core)?;
+    if r.len() != 1 {
+        bail!("invalid result len");
+    }
+    match &r[0] {
+        Ok(v) => v.expect_write_byte()?,
+        Err(e) => bail!("{e}"),
+    }
+    humility::msg!("done restoring default configuration...");
     Ok(())
 }
 
@@ -1081,7 +2048,25 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     if subargs.blackbox {
         return rendmp_blackbox(subargs, hubris, core, &mut context);
     } else if subargs.open_pin {
-        return rendmp_open_pin(subargs, hubris, core, &mut context);
+        return rendmp_open_pin(&subargs, hubris, core, &mut context);
+    } else if subargs.phase_check {
+        // Bail out early if the arguments are invalid
+        let _ = check_addr(&subargs, hubris)?;
+        let out = rendmp_phase_check(&subargs, hubris, core, &mut context);
+        if let Err(e) =
+            restore_default_config(&subargs, hubris, core, &mut context)
+                .context("failed to restore default cfg")
+        {
+            if out.is_err() {
+                warn!(
+                    "error restoring default cfg when recovering from error: \
+                     {e:?}"
+                );
+            } else {
+                return Err(e);
+            }
+        }
+        return out;
     }
 
     let i2c_read = context.get_function("I2cRead", 7)?;
