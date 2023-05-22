@@ -92,7 +92,7 @@ fn poll_raw_ap_register(
         match probe.read_raw_ap_register(*ap, addr) {
             Ok(val) => match f(val) {
                 Ok(true) => return Ok(val),
-                Ok(false) => continue,
+                Ok(false) => (),
                 Err(e) => return Err(e),
             },
             Err(DebugProbeError::ArchitectureSpecific(arch_err)) => {
