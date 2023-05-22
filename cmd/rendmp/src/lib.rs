@@ -1424,7 +1424,6 @@ impl<'a, 'b> HifWorker<'a, 'b> {
         let mut ops = std::mem::take(&mut self.ops);
         ops.push(Op::Done);
         let r = self.context.run(core, &ops, None)?;
-        // TODO: decode error messages here
         if r.len() != self.calls.len() {
             bail!("mismatched result lengths");
         }
