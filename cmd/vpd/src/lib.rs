@@ -85,9 +85,10 @@
 //! You can also use a file as a loopback device via `--loopback`, allowing
 //! you to, e.g., read binary data and format it (i.e., via `--read`).
 //!
-//! To lock a VPD device, use the `--lock` command.  This cannot be undone;
-//! subsequent attempts to write to (or lock) a locked VPD device will result
-//! in an error.  The lock status of each device is shown in `--list`.
+//! To lock a VPD device, use the `--lock` command.  This will lock the VPD
+//! permanently and cannot be undone; subsequent attempts to write to (or
+//! lock) a locked VPD device will result in an error.  The lock status of
+//! each device is shown in `--list`.
 //!
 
 use anyhow::{bail, Context, Result};
@@ -157,7 +158,7 @@ struct VpdArgs {
     )]
     loopback: Option<String>,
 
-    /// lock VPD
+    /// permanently lock VPD (cannot be undone!)
     #[clap(long, group = "command")]
     lock: bool,
 }
@@ -507,7 +508,7 @@ fn vpd_lock(
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let op = hubris.get_idol_command("Vpd.lock")?;
+    let op = hubris.get_idol_command("Vpd.permanently_lock")?;
     let index = match target(hubris, subargs)? {
         VpdTarget::Device(index) => index,
         _ => {

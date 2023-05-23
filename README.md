@@ -3059,9 +3059,10 @@ humility: successfully wrote 56 bytes of VPD
 You can also use a file as a loopback device via `--loopback`, allowing
 you to, e.g., read binary data and format it (i.e., via `--read`).
 
-To lock a VPD device, use the `--lock` command.  This cannot be undone;
-subsequent attempts to write to (or lock) a locked VPD device will result
-in an error.  The lock status of each device is shown in `--list`.
+To lock a VPD device, use the `--lock` command.  This will lock the VPD
+permanently and cannot be undone; subsequent attempts to write to (or
+lock) a locked VPD device will result in an error.  The lock status of
+each device is shown in `--list`.
 
 
 
