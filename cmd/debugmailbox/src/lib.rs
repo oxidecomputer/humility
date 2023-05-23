@@ -65,7 +65,17 @@ pub enum DMCommand {
 enum DebugMailboxCmd {
     /// Force the device into a mode to attach SWD
     /// This will not work if you have secure boot enabled!
-    Debug,
+    Debug {
+        /// When true, the target will be reset via SYSREQRESET before sending
+        /// the DebugStart command to the debug mailbox.  This defaults to true
+        /// as most user applications will not have handlers for debug mailbox
+        /// operations and attempt to send a debug mailbox command will timeout.
+        /// If you are certain your target is still executing its ROM, set this
+        /// to false to enable the debug access without losing the current
+        /// execution state.
+        #[clap(long, action=clap::ArgAction::Set, default_value_t = true)]
+        reset_target: bool,
+    },
     /// Force the device into ISP mode
     Isp,
     /// Get a Debug Authentication Challenge
@@ -92,7 +102,7 @@ fn poll_raw_ap_register(
         match probe.read_raw_ap_register(*ap, addr) {
             Ok(val) => match f(val) {
                 Ok(true) => return Ok(val),
-                Ok(false) => continue,
+                Ok(false) => (),
                 Err(e) => return Err(e),
             },
             Err(DebugProbeError::ArchitectureSpecific(arch_err)) => {
@@ -282,8 +292,8 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
     }
 
     match subargs.cmd {
-        DebugMailboxCmd::Debug => {
-            alive(&mut iface, &dm_port, false)?;
+        DebugMailboxCmd::Debug { reset_target } => {
+            alive(&mut iface, &dm_port, reset_target)?;
 
             let _ =
                 write_req(&mut iface, &dm_port, DMCommand::StartDebug, &[])?;
