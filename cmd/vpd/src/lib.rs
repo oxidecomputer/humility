@@ -10,10 +10,10 @@
 //! ```console
 //! $ humility vpd --list
 //! humility: attached via ST-Link V3
-//! ID  C P  MUX ADDR DEVICE        DESCRIPTION
-//!  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD
-//!  1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD
-//!  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD
+//! ID  C P  MUX ADDR DEVICE        DESCRIPTION               LOCKED
+//!  0  1 B  1:1 0x50 at24csw080    Sharkfin VPD              locked
+//!  1  1 B  1:2 0x50 at24csw080    Gimlet Fan VPD            unlocked
+//!  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD           unlocked
 //! ```
 //!
 //! To read from a device, specify it by either id (`--id`) or by some
@@ -85,6 +85,11 @@
 //! You can also use a file as a loopback device via `--loopback`, allowing
 //! you to, e.g., read binary data and format it (i.e., via `--read`).
 //!
+//! To lock a VPD device, use the `--lock` command.  This will lock the VPD
+//! permanently and cannot be undone; subsequent attempts to write to (or
+//! lock) a locked VPD device will result in an error.  The lock status of
+//! each device is shown in `--list`.
+//!
 
 use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
@@ -152,6 +157,10 @@ struct VpdArgs {
         conflicts_with_all = &["device", "id"]
     )]
     loopback: Option<String>,
+
+    /// permanently lock VPD (cannot be undone!)
+    #[clap(long, group = "command")]
+    lock: bool,
 }
 
 enum VpdTarget {
@@ -169,28 +178,63 @@ fn vpd_devices(
         .filter(|device| device.device == "at24csw080")
 }
 
-fn list(hubris: &HubrisArchive) -> Result<()> {
+fn list(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &VpdArgs,
+) -> Result<()> {
+    let devices = vpd_devices(hubris).collect::<Vec<_>>();
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let op = hubris.get_idol_command("Vpd.is_locked")?;
+
+    let mut ops = vec![];
+
+    for ndx in 0..devices.len() {
+        let payload =
+            op.payload(&[("index", idol::IdolArgument::Scalar(ndx as u64))])?;
+
+        context.idol_call_ops(&op, &payload, &mut ops)?;
+    }
+
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
     println!(
-        "{:2} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
-        "ID", "C", "P", "MUX", "ADDR", "DEVICE"
+        "{:2} {:>2} {:2} {:3} {:4} {:13} {:25} LOCKED",
+        "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION",
     );
 
-    for (ndx, device) in vpd_devices(hubris).enumerate() {
+    for ((ndx, device), r) in devices.iter().enumerate().zip(results.iter()) {
+        use humility::reflect::Base::Bool;
+        use humility::reflect::Value::Base;
+
         let mux = match (device.mux, device.segment) {
             (Some(m), Some(s)) => format!("{}:{}", m, s),
             (None, None) => "-".to_string(),
             (_, _) => "?:?".to_string(),
         };
 
+        let result = context.idol_result(&op, r);
+
         println!(
-            "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {:25} {}",
             ndx,
             device.controller,
             device.port.name,
             mux,
             device.address,
             device.device,
-            device.description
+            device.description,
+            match result {
+                Ok(Base(Bool(val))) => match val {
+                    false => "unlocked",
+                    true => "locked",
+                }
+                .to_string(),
+                Ok(r) => format!("<{r:?}>").to_string(),
+                Err(err) => format!("<{}>", err).to_string(),
+            },
         );
     }
 
@@ -362,7 +406,9 @@ fn vpd_read_at(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let r = context.idol_result(op, &results[0])?;
+    let r = context
+        .idol_result(op, &results[0])
+        .with_context(|| format!("failed to read at offset {offset}"))?;
     let contents = r.as_struct()?["value"].as_array()?;
     let mut rval = vec![];
 
@@ -418,13 +464,10 @@ fn vpd_read(
     let total = header.total_len_in_bytes();
 
     while vpd.len() < total {
-        vpd.extend(vpd_read_at(
-            core,
-            &mut context,
-            &op,
-            &mut target,
-            vpd.len(),
-        )?);
+        vpd.extend(
+            vpd_read_at(core, &mut context, &op, &mut target, vpd.len())
+                .with_context(|| format!("failed to read {total} bytes"))?,
+        );
     }
 
     //
@@ -437,7 +480,13 @@ fn vpd_read(
         }
     };
 
-    if subargs.raw {
+    if subargs.lock {
+        //
+        // We can only get here because we are doing the read as part of
+        // a `--lock` operation.
+        //
+        assert!(!subargs.read);
+    } else if subargs.raw {
         let dumper = Dumper::new();
         dumper.dump(&vpd, 0);
     } else if let Some(output) = &subargs.binary {
@@ -452,6 +501,44 @@ fn vpd_read(
     Ok(())
 }
 
+fn vpd_lock(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &VpdArgs,
+) -> Result<()> {
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
+    let op = hubris.get_idol_command("Vpd.permanently_lock")?;
+    let index = match target(hubris, subargs)? {
+        VpdTarget::Device(index) => index,
+        _ => {
+            bail!("can only lock a physical device");
+        }
+    };
+
+    if let Err(err) = vpd_read(hubris, core, subargs) {
+        bail!("can't lock VPD: {}", err);
+    }
+
+    let payload =
+        op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
+
+    let mut ops = vec![];
+
+    context.idol_call_ops(&op, &payload, &mut ops)?;
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+
+    if let Err(err) = context.idol_result(&op, &results[0]) {
+        bail!("failed to lock {}: {:?}", index, err);
+    }
+
+    humility::msg!("successfully locked VPD");
+
+    Ok(())
+}
+
 fn vpd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -459,11 +546,13 @@ fn vpd(context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {
-        list(hubris)?;
+        list(hubris, core, &subargs)?;
     } else if subargs.write.is_some() || subargs.erase {
         vpd_write(hubris, core, &subargs)?;
     } else if subargs.read {
         vpd_read(hubris, core, &subargs)?;
+    } else if subargs.lock {
+        vpd_lock(hubris, core, &subargs)?;
     } else {
         // Clap should prevent us from getting here
         panic!();
