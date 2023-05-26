@@ -1093,8 +1093,7 @@ be set, reset, queried or configured on LPC55 targets.  Commands:
 #### Set, reset, toggle
 
 To change the state of a pin (or pins), specify the pin (or pins) and
-the desired command.  For example, to toggle the state on pin 14 on
-port B:
+the desired command.  For example, to toggle the state on pin PIO0_17:
 
 ```console
 $ humility lpc55gpio --toggle --pins PIO0_17
@@ -1165,8 +1164,8 @@ colon-delimited 6-tuple consisting of:
 - Open drain: `Normal` or `OpenDrain`
 
 Note that the direction of the pin should also likely be configured;
-this is done via the `--direction` command to either `Input` or `Output`.
-For example, to configure pin PIO0_17 to be an output:
+this is done via the `--direction` option, specifying either `Input` or
+`Output`.  For example, to configure pin PIO0_17 to be an output:
 
 ```console
 $ humility lpc55gpio -c Alt0:NoPull:Standard:Disable:Digital:Normal -p PIO0_17
