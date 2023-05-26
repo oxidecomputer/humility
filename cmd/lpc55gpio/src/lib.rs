@@ -50,6 +50,10 @@
 //! ```console
 //! $ humility gpio --input --pins PIO0_10,:
 //! humility: attached via CMSIS-DAP
+//! 10 = 0
+//! 11 = 1
+//! 12 = 1
+
 //! B:0  = 1
 //! B:14 = 1
 //! E:1  = 0
@@ -225,9 +229,9 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
 
     if let Some(ref pins) = subargs.pins {
         for pin in pins {
-            let pin = gpio_toggle.lookup_argument(hubris, "pin", 0, pin)?;
+            let p = gpio_toggle.lookup_argument(hubris, "pin", 0, pin)?;
 
-            args.push((pin, pin.to_string()));
+            args.push((p, pin.to_string()));
         }
     }
 
