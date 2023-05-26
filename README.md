@@ -1079,7 +1079,103 @@ normal, or `--start`/`-s` to run it once but catch the next fault.
 
 ### `humility lpc55gpio`
 
-The LPC55-equivalent of `humility gpio`.
+The LPC55-equivalent of `humility gpio`, allowing for GPIO pins to
+be set, reset, queried or configured on LPC55 targets.  Commands:
+
+- `--set` (`-s`): Sets a pin (sets it high)
+- `--reset` (`-r`): Resets a pin (sets it low)
+- `--toggle` (`-t`): Toggles a pin (sets it high if low, low if high)
+- `--input` (`-i`): Queries the state of a pin (or all pins if no pin
+  is specified)
+- `--configure` (`-c`): Configures a pin
+- `--direction` (`-d`): Configure the direction of a pin
+
+#### Set, reset, toggle
+
+To change the state of a pin (or pins), specify the pin (or pins) and
+the desired command.  For example, to toggle the state on pin 14 on
+port B:
+
+```console
+$ humility lpc55gpio --toggle --pins PIO0_17
+humility: attached via CMSIS-DAP
+[Ok([])]
+```
+
+To set pins PIO0_15, PIO0_16 and PIO0_17:
+
+```console
+$ humility lpc55gpio --set --pins PIO0_15,PIO0_16,PIO0_17
+humility: attached via CMSIS-DAP
+[Ok([]), Ok([]), Ok([])]
+```
+
+To reset pin PIO0_17:
+
+```console
+$ humility lpc55gpio --reset --pins PIO0_17
+humility: attached via CMSIS-DAP
+[Ok([])]
+```
+
+#### Input
+
+To get input values for a particular pin:
+
+```console
+$ humility lpc55gpio --input --pins PIO0_10,PIO0_11,PIO1_0
+humility: attached via CMSIS-DAP
+PIO0_10 = 0
+PIO0_11 = 1
+PIO1_0 = 0
+```
+
+To get input values for all pins, leave the pin unspecified:
+
+```console
+$ humility lpc55gpio --input
+humility: attached via ST-Link V3
+humility: attached to 1fc9:0143:12UNOSLDXOK51 via CMSIS-DAP
+PIO0_0 = 0
+PIO0_1 = 0
+PIO0_2 = 0
+PIO0_3 = 0
+PIO0_4 = 0
+PIO0_5 = 1
+PIO0_6 = 0
+PIO0_7 = 0
+PIO0_8 = 0
+PIO0_9 = 1
+PIO0_10 = 0
+PIO0_11 = 1
+PIO0_13 = 0
+...
+```
+
+#### Configure, direction
+
+To configure a pin, the configuration should be specified as a
+colon-delimited 6-tuple consisting of:
+
+- Alternate function: one of `Alt0` through `Alt9`
+- Mode:  `NoPull`, `PullDown`, `PullUp`, or `Repeater`
+- Slew: `Standard` or `Fast`
+- Invert: `Disable`, or `Enabled`
+- Digital mode: `Analog` or `Digital`
+- Open drain: `Normal` or `OpenDrain`
+
+Note that the direction of the pin should also likely be configured;
+this is done via the `--direction` command to either `Input` or `Output`.
+For example, to configure pin PIO0_17 to be an output:
+
+```console
+$ humility lpc55gpio -c Alt0:NoPull:Standard:Disable:Digital:Normal -p PIO0_17
+humility: attached via CMSIS-DAP
+[Ok([])]
+$ humility lpc55gpio -p PIO0_17 --direction Output
+humility: attached via CMSIS-DAP
+[Ok([])]
+```
 
 
 

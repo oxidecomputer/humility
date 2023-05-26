@@ -14,7 +14,7 @@
 //!   is specified)
 //! - `--configure` (`-c`): Configures a pin
 //! - `--direction` (`-d`): Configure the direction of a pin
-//! 
+//!
 //! ### Set, reset, toggle
 //!
 //! To change the state of a pin (or pins), specify the pin (or pins) and
@@ -30,7 +30,7 @@
 //! To set pins PIO0_15, PIO0_16 and PIO0_17:
 //!
 //! ```console
-//! $ humility gpio --set --pins PIO0_15,PIO0_16,PIO0_17
+//! $ humility lpc55gpio --set --pins PIO0_15,PIO0_16,PIO0_17
 //! humility: attached via CMSIS-DAP
 //! [Ok([]), Ok([]), Ok([])]
 //! ```
@@ -38,7 +38,7 @@
 //! To reset pin PIO0_17:
 //!
 //! ```console
-//! $ humility gpio --reset --pins PIO0_17
+//! $ humility lpc55gpio --reset --pins PIO0_17
 //! humility: attached via CMSIS-DAP
 //! [Ok([])]
 //! ```
@@ -48,55 +48,59 @@
 //! To get input values for a particular pin:
 //!
 //! ```console
-//! $ humility gpio --input --pins PIO0_10,:
+//! $ humility lpc55gpio --input --pins PIO0_10,PIO0_11,PIO1_0
 //! humility: attached via CMSIS-DAP
-//! 10 = 0
-//! 11 = 1
-//! 12 = 1
-
-//! B:0  = 1
-//! B:14 = 1
-//! E:1  = 0
+//! PIO0_10 = 0
+//! PIO0_11 = 1
+//! PIO1_0 = 0
 //! ```
 //!
 //! To get input values for all pins, leave the pin unspecified:
 //!
 //! ```console
-//! $ humility gpio --input
+//! $ humility lpc55gpio --input
 //! humility: attached via ST-Link V3
-//! Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
-//! -----------------------------------------------------------------------
-//! Port A    0   0   1   0   0   0   0   0   0   0   0   0   0   1   1   1
-//! Port B    1   0   0   0   1   0   0   0   0   0   0   0   0   0   1   0
-//! Port C    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port D    0   0   0   0   0   0   0   0   1   1   0   0   0   0   1   0
-//! Port E    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port F    1   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port G    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port H    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port I    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port J    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port K    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! humility: attached to 1fc9:0143:12UNOSLDXOK51 via CMSIS-DAP
+//! PIO0_0 = 0
+//! PIO0_1 = 0
+//! PIO0_2 = 0
+//! PIO0_3 = 0
+//! PIO0_4 = 0
+//! PIO0_5 = 1
+//! PIO0_6 = 0
+//! PIO0_7 = 0
+//! PIO0_8 = 0
+//! PIO0_9 = 1
+//! PIO0_10 = 0
+//! PIO0_11 = 1
+//! PIO0_13 = 0
+//! ...
 //! ```
 //!
-//! ### Configure
+//! ### Configure, direction
 //!
 //! To configure a pin, the configuration should be specified as a
-//! colon-delimited 5-tuple consisting of:
+//! colon-delimited 6-tuple consisting of:
 //!
-//! - Mode: `Input`, `Output`, `Alternate`, or `Analog`
-//! - Output type: `PushPull` or `OpenDrain`
-//! - Speed: `Low`, `Medium`, `High`, or `VeryHigh`
-//! - Pull direction: `None`, `Up`, or `Down`
-//! - Alternate function: one of `AF0` through `AF15`
+//! - Alternate function: one of `Alt0` through `Alt9`
+//! - Mode:  `NoPull`, `PullDown`, `PullUp`, or `Repeater`
+//! - Slew: `Standard` or `Fast`
+//! - Invert: `Disable`, or `Enabled`
+//! - Digital mode: `Analog` or `Digital`
+//! - Open drain: `Normal` or `OpenDrain`
 //!
-//! For example, to configure pin 5 on port A as a push-pull output:
+//! Note that the direction of the pin should also likely be configured;
+//! this is done via the `--direction` command to either `Input` or `Output`.
+//! For example, to configure pin PIO0_17 to be an output:
 //!
 //! ```console
-//! $ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
+//! $ humility lpc55gpio -c Alt0:NoPull:Standard:Disable:Digital:Normal -p PIO0_17
+//! humility: attached via CMSIS-DAP
+//! [Ok([])]
+//! $ humility lpc55gpio -p PIO0_17 --direction Output
+//! humility: attached via CMSIS-DAP
+//! [Ok([])]
 //! ```
-//!
-
 //!
 
 use humility_cli::{ExecutionContext, Subcommand};
