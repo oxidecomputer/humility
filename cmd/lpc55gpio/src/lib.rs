@@ -4,7 +4,95 @@
 
 //! ## `humility lpc55gpio`
 //!
-//! The LPC55-equivalent of `humility gpio`.
+//! The LPC55-equivalent of `humility gpio`, allowing for GPIO pins to
+//! be set, reset, queried or configured on LPC55 targets.  Commands:
+//!
+//! - `--set` (`-s`): Sets a pin (sets it high)
+//! - `--reset` (`-r`): Resets a pin (sets it low)
+//! - `--toggle` (`-t`): Toggles a pin (sets it high if low, low if high)
+//! - `--input` (`-i`): Queries the state of a pin (or all pins if no pin
+//!   is specified)
+//! - `--configure` (`-c`): Configures a pin
+//! - `--direction` (`-d`): Configure the direction of a pin
+//! 
+//! ### Set, reset, toggle
+//!
+//! To change the state of a pin (or pins), specify the pin (or pins) and
+//! the desired command.  For example, to toggle the state on pin 14 on
+//! port B:
+//!
+//! ```console
+//! $ humility lpc55gpio --toggle --pins PIO0_17
+//! humility: attached via CMSIS-DAP
+//! [Ok([])]
+//! ```
+//!
+//! To set pins PIO0_15, PIO0_16 and PIO0_17:
+//!
+//! ```console
+//! $ humility gpio --set --pins PIO0_15,PIO0_16,PIO0_17
+//! humility: attached via CMSIS-DAP
+//! [Ok([]), Ok([]), Ok([])]
+//! ```
+//!
+//! To reset pin PIO0_17:
+//!
+//! ```console
+//! $ humility gpio --reset --pins PIO0_17
+//! humility: attached via CMSIS-DAP
+//! [Ok([])]
+//! ```
+//!
+//! ### Input
+//!
+//! To get input values for a particular pin:
+//!
+//! ```console
+//! $ humility gpio --input --pins PIO0_10,:
+//! humility: attached via CMSIS-DAP
+//! B:0  = 1
+//! B:14 = 1
+//! E:1  = 0
+//! ```
+//!
+//! To get input values for all pins, leave the pin unspecified:
+//!
+//! ```console
+//! $ humility gpio --input
+//! humility: attached via ST-Link V3
+//! Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+//! -----------------------------------------------------------------------
+//! Port A    0   0   1   0   0   0   0   0   0   0   0   0   0   1   1   1
+//! Port B    1   0   0   0   1   0   0   0   0   0   0   0   0   0   1   0
+//! Port C    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port D    0   0   0   0   0   0   0   0   1   1   0   0   0   0   1   0
+//! Port E    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port F    1   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port G    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port H    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port I    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port J    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port K    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! ```
+//!
+//! ### Configure
+//!
+//! To configure a pin, the configuration should be specified as a
+//! colon-delimited 5-tuple consisting of:
+//!
+//! - Mode: `Input`, `Output`, `Alternate`, or `Analog`
+//! - Output type: `PushPull` or `OpenDrain`
+//! - Speed: `Low`, `Medium`, `High`, or `VeryHigh`
+//! - Pull direction: `None`, `Up`, or `Down`
+//! - Alternate function: one of `AF0` through `AF15`
+//!
+//! For example, to configure pin 5 on port A as a push-pull output:
+//!
+//! ```console
+//! $ humility gpio -c Output:PushPull:High:None:AF0 -p A:5
+//! ```
+//!
+
 //!
 
 use humility_cli::{ExecutionContext, Subcommand};
@@ -64,7 +152,7 @@ struct GpioArgs {
     direction: Option<String>,
 
     /// specifies GPIO pins on which to operate
-    #[clap(long, short, value_name = "pins")]
+    #[clap(long, short, value_name = "pins", use_value_delimiter = true)]
     pins: Option<Vec<String>>,
 }
 
