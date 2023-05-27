@@ -129,11 +129,11 @@
 //! $ humility rendmp --phase-check --device=0x5c
 //! humility: attached to 0483:3754:000D00344741500820383733 via ST-Link V3
 //! Phase check for ISL68221 at 0x5c
-//! PHASE |   VOUT   |   IOUT   |   TEMP   | RAIL
-//! ------|----------|----------|----------|----------
-//!  0    |   0.451V | -55.600A | 26.000°C | VPP_ABCD
-//!  1    |   0.447V | -55.200A | 24.000°C | VPP_EFGH
-//!  2    |   0.441V |   1.100A |  0.000°C | V1P8_SP3
+//! PHASE |    VOUT    |    IOUT    |    TEMP    | RAIL
+//! ------|------------|------------|------------|------------
+//!  0    |     0.441V |   -56.100A |   25.000°C | VPP_ABCD
+//!  1    |     0.448V |   -55.800A |   26.000°C | VPP_EFGH
+//!  2    |     0.453V |     0.900A |    0.000°C | V1P8_SP3
 //! ```
 //!
 //! This must be run with the system in the A2 power state.
@@ -155,7 +155,7 @@ use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -212,6 +212,10 @@ struct RendmpArgs {
     /// checks for open pins on the given converter
     #[clap(long, group = "subcommand")]
     phase_check: bool,
+
+    /// only check the specified phase(s)
+    #[clap(long, requires = "phase_check", use_value_delimiter = true)]
+    phases: Option<Vec<u8>>,
 
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
@@ -937,6 +941,26 @@ fn check_addr(
     const ISL_DEV_NAME: &str = "isl68224";
     const RAA_DEV_NAME: &str = "raa229618";
 
+    if let Some(rail) = &subargs.dev.rail {
+        for d in &hubris.manifest.i2c_devices {
+            if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class {
+                if rails.iter().find(|&r| r.name == *rail).is_some() {
+                    let dev = match d.device.as_str() {
+                        ISL_DEV_NAME => SupportedDevice::ISL68224,
+                        RAA_DEV_NAME => SupportedDevice::RAA229618,
+                        _ => {
+                            bail!("rail {rail} is not a supported device");
+                        }
+                    };
+
+                    return Ok((d.address, dev));
+                }
+            }
+        }
+
+        bail!("{rail} is not a valid rail");
+    }
+
     let Some(addr) = &subargs.dev.device else {
         bail!("must specify I2C address with --device");
     };
@@ -1280,7 +1304,8 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                     .get(&(sensor_id as u32))
                     .ok_or_else(|| {
                         anyhow!(
-                            "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
+                            "could not find sensor {sensor_id} \
+                            in CONTROLLER_CONFIG"
                         )
                     })
                     .map(|i| *i as u32)
@@ -1527,12 +1552,28 @@ fn rendmp_phase_check<'a>(
     // failure; this would cause the power controller to lock up.
     let pin_states = get_pin_states(subargs, hubris, core, context)?;
 
+    let mut specified: Option<HashSet<u8>> = match &subargs.phases {
+        Some(p) => Some(HashSet::from_iter(p.iter().cloned())),
+        None => None,
+    };
+
     // Filter out VGEN phases
     let phases: Vec<_> = dev
         .phases()
         .into_iter()
-        .filter(|(p, _b)| p.parse::<u8>().is_ok())
+        .filter(|(p, _b)| match (p.parse::<u8>(), &mut specified) {
+            (Ok(_), None) => true,
+            (Ok(val), Some(s)) => s.remove(&val),
+            _ => false,
+        })
         .collect();
+
+    // If phases were specified, be sure that we matched them all
+    if let Some(s) = &specified {
+        if !s.is_empty() {
+            bail!("illegal phase(s) specified: {s:?}");
+        }
+    }
 
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
@@ -1554,7 +1595,7 @@ fn rendmp_phase_check<'a>(
     // write in a second HIF program later.
     let rail_indexes = std::mem::take(&mut worker.rail_indexes);
     for (rail, &index) in rail_indexes.iter().enumerate() {
-        // Set the PWM register for this rail
+        // Set the PWM register for this rail; 0x133 denotes 50ns
         let reg = (0xEA31 + rail * 0x80) as u16;
         worker.write_dma(addr, reg, 0x133)?;
 
@@ -1799,14 +1840,14 @@ fn rendmp_phase_check<'a>(
     // - Disable rail
     println!("Phase check for {} at {addr:#x}", format!("{dev}").bold());
     println!(
-        "{} |   {}   |   {}   |   {}   | {}",
+        "{} |    {}    |    {}    |    {}    | {}",
         "PHASE".bold(),
         "VOUT".bold(),
         "IOUT".bold(),
         "TEMP".bold(),
         "RAIL".bold(),
     );
-    println!("------|----------|----------|---------");
+    println!("------|------------|------------|------------|------------");
 
     for (phase_name, i) in &phases {
         match pin_states[phase_name] {
@@ -1976,7 +2017,7 @@ fn rendmp_phase_check<'a>(
             .1
             .as_str();
         println!(
-            " {phase_name:<4} | {:>8} | {iout:>8} | {tout:>8} | {rail_name}",
+            " {phase_name:<4} | {:>10} | {iout:>10} | {tout:>10} | {rail_name}",
             if vout_okay { vout.green() } else { vout.yellow() }
         );
 
