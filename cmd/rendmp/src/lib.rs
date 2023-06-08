@@ -1553,6 +1553,34 @@ fn rendmp_phase_check<'a>(
         bail!("must be in A2 when checking phases");
     }
 
+    //
+    // We have found that for some (~20%) of the DIMMs we use on Gimlet, the
+    // phase check -- which produces about 400 mV -- powers up the Register
+    // Clock Driver (RCD) just enough to cause havoc to the I2C bus that the
+    // SPD is on (despite the SPD being in a different power domain!).  This is
+    // particularly problematic when the SPD's I2C bus is also the I2C bus by
+    // which we are communicating with the DMP controller:  we can't tell the
+    // controller to stop its phase check, so the bus becomes wedged!  Note
+    // that the SP is uninvolved:  the RAA229618 and the DIMM's RCD are locked
+    // in a deadly embrace, and no amount of resetting the SP's I2C controller
+    // (or the SP itself) will release them.  (It is a bit of a mystery why
+    // this only happens to some DIMMs -- but 400 mV is in undefined territory
+    // for the RCD, so it's also not hugely surprising that slight process
+    // variations would result in different behavior.)
+    //
+    // To avoid this, we refuse to do the phase check if we find any SPDs (that
+    // is, DIMMs) at all.  This could be made more precise (this is only a
+    // problem if the phase corresponds to a DIMM rail and the DIMM's SPD
+    // shares the I2C bus with the DMP controller -- which is to say, the ABCD
+    // bank on Gimlet), but it doesn't seem particularly worth it, especially
+    // as the phase check is only used in manufacturing before the DIMM
+    // connectors have been press fit.
+    //
+    // Finally, note that we check for SPDs by bungee jumping into the "spd"
+    // command.  If we find a(nother) need for SPD data (and arguably, even if
+    // we don't), this should be factored out into a humility-spd crate that
+    // both "spd" and "rendmp" would use.
+    //
     if cmd_spd::spd_any(hubris, core)? {
         if subargs.force_phase_check {
             warn!(
