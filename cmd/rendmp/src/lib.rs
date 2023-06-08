@@ -218,11 +218,11 @@ struct RendmpArgs {
     phase_check: bool,
 
     /// only check the specified phase(s)
-    #[clap(long, requires = "phase_check", use_value_delimiter = true)]
+    #[clap(long, requires = "phase-check", use_value_delimiter = true)]
     phase: Option<Vec<u8>>,
 
     /// force phase check, even if DIMMs are present
-    #[clap(long, requires = "phase_check")]
+    #[clap(long, requires = "phase-check")]
     force_phase_check: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
