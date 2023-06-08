@@ -139,10 +139,8 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
 
     let mut devices = BTreeMap::new();
 
-    let mut rails: Option<HashSet<String>> = match subargs.rails {
-        Some(r) => Some(HashSet::from_iter(r.iter().map(|s| s.clone()))),
-        None => None,
-    };
+    let mut rails: Option<HashSet<String>> =
+        subargs.rails.map(|r| HashSet::from_iter(r.iter().cloned()));
 
     //
     // First, take a pass looking for devices that can measure voltage.

@@ -136,7 +136,11 @@
 //!  2    |     0.453V |     0.900A |    0.000°C | V1P8_SP3
 //! ```
 //!
-//! This must be run with the system in the A2 power state.
+//! This must be run with the system in the A2 power state, and on a machine
+//! with no DIMMs.  This latter constraint can be overridden with
+//! `--force-phase-check`, but this should be used carefully:  if a checked
+//! phase powers a DIMM, an I2C hang can result.
+//!
 
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
@@ -215,7 +219,11 @@ struct RendmpArgs {
 
     /// only check the specified phase(s)
     #[clap(long, requires = "phase_check", use_value_delimiter = true)]
-    phases: Option<Vec<u8>>,
+    phase: Option<Vec<u8>>,
+
+    /// force phase check, even if DIMMs are present
+    #[clap(long, requires = "phase_check")]
+    force_phase_check: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
@@ -944,7 +952,7 @@ fn check_addr(
     if let Some(rail) = &subargs.dev.rail {
         for d in &hubris.manifest.i2c_devices {
             if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class {
-                if rails.iter().find(|&r| r.name == *rail).is_some() {
+                if rails.iter().any(|r| r.name == *rail) {
                     let dev = match d.device.as_str() {
                         ISL_DEV_NAME => SupportedDevice::ISL68224,
                         RAA_DEV_NAME => SupportedDevice::RAA229618,
@@ -1545,6 +1553,21 @@ fn rendmp_phase_check<'a>(
         bail!("must be in A2 when checking phases");
     }
 
+    if cmd_spd::spd_any(hubris, core)? {
+        if subargs.force_phase_check {
+            warn!(
+                "DIMMs are present, but phase check has been forced; if the \
+                checked phase powers a DIMM, this may hang the I2C bus!"
+            );
+        } else {
+            bail!(
+                "cannot check phases with DIMMs present: if a checked \
+                phase powers a DIMM, an I2C hang can result; this can be \
+                overridden with --force-phase-check -- but use this carefully"
+            );
+        }
+    }
+
     // Pick out the target device
     let (addr, dev) = check_addr(subargs, hubris)?;
 
@@ -1552,10 +1575,8 @@ fn rendmp_phase_check<'a>(
     // failure; this would cause the power controller to lock up.
     let pin_states = get_pin_states(subargs, hubris, core, context)?;
 
-    let mut specified: Option<HashSet<u8>> = match &subargs.phases {
-        Some(p) => Some(HashSet::from_iter(p.iter().cloned())),
-        None => None,
-    };
+    let mut specified: Option<HashSet<u8>> =
+        subargs.phase.as_ref().map(|p| HashSet::from_iter(p.iter().cloned()));
 
     // Filter out VGEN phases
     let phases: Vec<_> = dev
