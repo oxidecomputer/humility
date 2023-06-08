@@ -1678,9 +1678,10 @@ what you want.
 `humility power` displays the values associated with power rails,
 displaying output voltage, output current, input voltate, input current,
 and temperature.  Not all measurements are available for all rails; if a
-measurement is not provided for a given rail, "-" is printed.  If a rail
-can provide a given measurement, but that measurement is unavailable (say,
-due to being in a power state whereby the rail is not powered), "x" is
+measurement is not provided for a given rail, "-" is printed.  To specify
+which rails are displayed, use the `--rails` option.  If a rail can
+provide a given measurement, but that measurement is unavailable (say, due
+to being in a power state whereby the rail is not powered), "x" is
 displayed.  Some rails can determine current by output phase; to display
 these, use the `--phase-current` option.
 
@@ -2275,14 +2276,18 @@ To check individual phases for errors, use the `--phase-check` subcommand:
 $ humility rendmp --phase-check --device=0x5c
 humility: attached to 0483:3754:000D00344741500820383733 via ST-Link V3
 Phase check for ISL68221 at 0x5c
-PHASE |   VOUT   |   IOUT   |   TEMP   | RAIL
-------|----------|----------|----------|----------
- 0    |   0.451V | -55.600A | 26.000°C | VPP_ABCD
- 1    |   0.447V | -55.200A | 24.000°C | VPP_EFGH
- 2    |   0.441V |   1.100A |  0.000°C | V1P8_SP3
+PHASE |    VOUT    |    IOUT    |    TEMP    | RAIL
+------|------------|------------|------------|------------
+ 0    |     0.441V |   -56.100A |   25.000°C | VPP_ABCD
+ 1    |     0.448V |   -55.800A |   26.000°C | VPP_EFGH
+ 2    |     0.453V |     0.900A |    0.000°C | V1P8_SP3
 ```
 
-This must be run with the system in the A2 power state.
+This must be run with the system in the A2 power state, and on a machine
+with no DIMMs.  This latter constraint can be overridden with
+`--force-phase-check`, but this should be used carefully:  if a checked
+phase powers a DIMM, an I2C hang can result.
+
 
 
 ### `humility repl`
