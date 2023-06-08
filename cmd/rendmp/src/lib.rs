@@ -129,14 +129,18 @@
 //! $ humility rendmp --phase-check --device=0x5c
 //! humility: attached to 0483:3754:000D00344741500820383733 via ST-Link V3
 //! Phase check for ISL68221 at 0x5c
-//! PHASE |   VOUT   |   IOUT   |   TEMP   | RAIL
-//! ------|----------|----------|----------|----------
-//!  0    |   0.451V | -55.600A | 26.000°C | VPP_ABCD
-//!  1    |   0.447V | -55.200A | 24.000°C | VPP_EFGH
-//!  2    |   0.441V |   1.100A |  0.000°C | V1P8_SP3
+//! PHASE |    VOUT    |    IOUT    |    TEMP    | RAIL
+//! ------|------------|------------|------------|------------
+//!  0    |     0.441V |   -56.100A |   25.000°C | VPP_ABCD
+//!  1    |     0.448V |   -55.800A |   26.000°C | VPP_EFGH
+//!  2    |     0.453V |     0.900A |    0.000°C | V1P8_SP3
 //! ```
 //!
-//! This must be run with the system in the A2 power state.
+//! This must be run with the system in the A2 power state, and on a machine
+//! with no DIMMs.  This latter constraint can be overridden with
+//! `--force-phase-check`, but this should be used carefully:  if a checked
+//! phase powers a DIMM, an I2C hang can result.
+//!
 
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
@@ -155,7 +159,7 @@ use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -212,6 +216,14 @@ struct RendmpArgs {
     /// checks for open pins on the given converter
     #[clap(long, group = "subcommand")]
     phase_check: bool,
+
+    /// only check the specified phase(s)
+    #[clap(long, requires = "phase-check", use_value_delimiter = true)]
+    phase: Option<Vec<u8>>,
+
+    /// force phase check, even if DIMMs are present
+    #[clap(long, requires = "phase-check")]
+    force_phase_check: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
     // Unfortunately, due to clap#4707, they are accepted for *any* option in
@@ -937,6 +949,26 @@ fn check_addr(
     const ISL_DEV_NAME: &str = "isl68224";
     const RAA_DEV_NAME: &str = "raa229618";
 
+    if let Some(rail) = &subargs.dev.rail {
+        for d in &hubris.manifest.i2c_devices {
+            if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class {
+                if rails.iter().any(|r| r.name == *rail) {
+                    let dev = match d.device.as_str() {
+                        ISL_DEV_NAME => SupportedDevice::ISL68224,
+                        RAA_DEV_NAME => SupportedDevice::RAA229618,
+                        _ => {
+                            bail!("rail {rail} is not a supported device");
+                        }
+                    };
+
+                    return Ok((d.address, dev));
+                }
+            }
+        }
+
+        bail!("{rail} is not a valid rail");
+    }
+
     let Some(addr) = &subargs.dev.device else {
         bail!("must specify I2C address with --device");
     };
@@ -1280,7 +1312,8 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                     .get(&(sensor_id as u32))
                     .ok_or_else(|| {
                         anyhow!(
-                            "could not find sensor {sensor_id} in CONTROLLER_CONFIG"
+                            "could not find sensor {sensor_id} \
+                            in CONTROLLER_CONFIG"
                         )
                     })
                     .map(|i| *i as u32)
@@ -1520,6 +1553,49 @@ fn rendmp_phase_check<'a>(
         bail!("must be in A2 when checking phases");
     }
 
+    //
+    // We have found that for some (~20%) of the DIMMs we use on Gimlet, the
+    // phase check -- which produces about 400 mV -- powers up the Register
+    // Clock Driver (RCD) just enough to cause havoc to the I2C bus that the
+    // SPD is on (despite the SPD being in a different power domain!).  This is
+    // particularly problematic when the SPD's I2C bus is also the I2C bus by
+    // which we are communicating with the DMP controller:  we can't tell the
+    // controller to stop its phase check, so the bus becomes wedged!  Note
+    // that the SP is uninvolved:  the RAA229618 and the DIMM's RCD are locked
+    // in a deadly embrace, and no amount of resetting the SP's I2C controller
+    // (or the SP itself) will release them.  (It is a bit of a mystery why
+    // this only happens to some DIMMs -- but 400 mV is in undefined territory
+    // for the RCD, so it's also not hugely surprising that slight process
+    // variations would result in different behavior.)
+    //
+    // To avoid this, we refuse to do the phase check if we find any SPDs (that
+    // is, DIMMs) at all.  This could be made more precise (this is only a
+    // problem if the phase corresponds to a DIMM rail and the DIMM's SPD
+    // shares the I2C bus with the DMP controller -- which is to say, the ABCD
+    // bank on Gimlet), but it doesn't seem particularly worth it, especially
+    // as the phase check is only used in manufacturing before the DIMM
+    // connectors have been press fit.
+    //
+    // Finally, note that we check for SPDs by bungee jumping into the "spd"
+    // command.  If we find a(nother) need for SPD data (and arguably, even if
+    // we don't), this should be factored out into a humility-spd crate that
+    // both "spd" and "rendmp" would use.
+    //
+    if cmd_spd::spd_any(hubris, core)? {
+        if subargs.force_phase_check {
+            warn!(
+                "DIMMs are present, but phase check has been forced; if the \
+                checked phase powers a DIMM, this may hang the I2C bus!"
+            );
+        } else {
+            bail!(
+                "cannot check phases with DIMMs present: if a checked \
+                phase powers a DIMM, an I2C hang can result; this can be \
+                overridden with --force-phase-check -- but use this carefully"
+            );
+        }
+    }
+
     // Pick out the target device
     let (addr, dev) = check_addr(subargs, hubris)?;
 
@@ -1527,12 +1603,26 @@ fn rendmp_phase_check<'a>(
     // failure; this would cause the power controller to lock up.
     let pin_states = get_pin_states(subargs, hubris, core, context)?;
 
+    let mut specified: Option<HashSet<u8>> =
+        subargs.phase.as_ref().map(|p| HashSet::from_iter(p.iter().cloned()));
+
     // Filter out VGEN phases
     let phases: Vec<_> = dev
         .phases()
         .into_iter()
-        .filter(|(p, _b)| p.parse::<u8>().is_ok())
+        .filter(|(p, _b)| match (p.parse::<u8>(), &mut specified) {
+            (Ok(_), None) => true,
+            (Ok(val), Some(s)) => s.remove(&val),
+            _ => false,
+        })
         .collect();
+
+    // If phases were specified, be sure that we matched them all
+    if let Some(s) = &specified {
+        if !s.is_empty() {
+            bail!("illegal phase(s) specified: {s:?}");
+        }
+    }
 
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
@@ -1554,7 +1644,7 @@ fn rendmp_phase_check<'a>(
     // write in a second HIF program later.
     let rail_indexes = std::mem::take(&mut worker.rail_indexes);
     for (rail, &index) in rail_indexes.iter().enumerate() {
-        // Set the PWM register for this rail
+        // Set the PWM register for this rail; 0x133 denotes 50ns
         let reg = (0xEA31 + rail * 0x80) as u16;
         worker.write_dma(addr, reg, 0x133)?;
 
@@ -1799,14 +1889,14 @@ fn rendmp_phase_check<'a>(
     // - Disable rail
     println!("Phase check for {} at {addr:#x}", format!("{dev}").bold());
     println!(
-        "{} |   {}   |   {}   |   {}   | {}",
+        "{} |    {}    |    {}    |    {}    | {}",
         "PHASE".bold(),
         "VOUT".bold(),
         "IOUT".bold(),
         "TEMP".bold(),
         "RAIL".bold(),
     );
-    println!("------|----------|----------|---------");
+    println!("------|------------|------------|------------|------------");
 
     for (phase_name, i) in &phases {
         match pin_states[phase_name] {
@@ -1976,7 +2066,7 @@ fn rendmp_phase_check<'a>(
             .1
             .as_str();
         println!(
-            " {phase_name:<4} | {:>8} | {iout:>8} | {tout:>8} | {rail_name}",
+            " {phase_name:<4} | {:>10} | {iout:>10} | {tout:>10} | {rail_name}",
             if vout_okay { vout.green() } else { vout.yellow() }
         );
 

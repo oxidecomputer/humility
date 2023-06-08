@@ -17,3 +17,4 @@ humility-cmd.workspace = true
 humility-hiffy.workspace = true
 humility-i2c.workspace = true
 humility-log.workspace = true
+humility.workspace = true

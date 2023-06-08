@@ -7,9 +7,10 @@
 //! `humility power` displays the values associated with power rails,
 //! displaying output voltage, output current, input voltate, input current,
 //! and temperature.  Not all measurements are available for all rails; if a
-//! measurement is not provided for a given rail, "-" is printed.  If a rail
-//! can provide a given measurement, but that measurement is unavailable (say,
-//! due to being in a power state whereby the rail is not powered), "x" is
+//! measurement is not provided for a given rail, "-" is printed.  To specify
+//! which rails are displayed, use the `--rails` option.  If a rail can
+//! provide a given measurement, but that measurement is unavailable (say, due
+//! to being in a power state whereby the rail is not powered), "x" is
 //! displayed.  Some rails can determine current by output phase; to display
 //! these, use the `--phase-current` option.
 //!
@@ -24,7 +25,7 @@ use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 #[derive(Parser, Debug)]
 #[clap(name = "power", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -35,6 +36,10 @@ struct PowerArgs {
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,
+
+    /// only show values associated with the specified rail(s)
+    #[clap(short, long, use_value_delimiter = true)]
+    rails: Option<Vec<String>>,
 
     /// get phase current where available
     #[clap(long)]
@@ -134,12 +139,21 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
 
     let mut devices = BTreeMap::new();
 
+    let mut rails: Option<HashSet<String>> =
+        subargs.rails.map(|r| HashSet::from_iter(r.iter().cloned()));
+
     //
     // First, take a pass looking for devices that can measure voltage.
     //
     for s in hubris.manifest.sensors.iter() {
         if s.kind == HubrisSensorKind::Voltage {
             let mut phases = None;
+
+            if let Some(ref mut r) = rails {
+                if !r.remove(&s.name) {
+                    continue;
+                }
+            }
 
             if let HubrisSensorDevice::I2c(i) = &s.device {
                 let d = &hubris.manifest.i2c_devices[*i];
@@ -173,6 +187,12 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
             {
                 bail!("Duplicate voltage sensor: {s:?}");
             }
+        }
+    }
+
+    if let Some(ref r) = rails {
+        if !r.is_empty() {
+            bail!("unknown rail(s): {r:?}");
         }
     }
 

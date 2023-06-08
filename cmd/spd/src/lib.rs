@@ -106,6 +106,7 @@
 //! ```
 //!
 
+use humility::hubris::*;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
@@ -115,7 +116,7 @@ use std::fs::File;
 use std::io::Write;
 use std::str;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 
@@ -278,6 +279,39 @@ fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
     ops.push(Op::DropN(4));
 }
 
+fn spd_lookup(hubris: &HubrisArchive) -> Result<Option<HubrisVariable>> {
+    match hubris.lookup_variables("SPD_DATA") {
+        Ok(variables) => {
+            if variables.len() > 1 {
+                bail!("more than one SPD_DATA?");
+            }
+
+            Ok(Some(variables[0]))
+        }
+        Err(_) => Ok(None),
+    }
+}
+
+pub fn spd_any(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+) -> Result<bool> {
+    match spd_lookup(hubris)? {
+        Some(spd_data) => {
+            let mut bytes = vec![0u8; spd_data.size];
+
+            core.halt()?;
+            let rval = core.read_8(spd_data.addr, &mut bytes);
+            core.run()?;
+
+            rval?;
+
+            Ok(bytes.iter().any(|&datum| datum != 0))
+        }
+        None => Ok(false),
+    }
+}
+
 fn spd(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
@@ -290,18 +324,8 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
     // to find the `SPD_DATA` variable.
     //
     if subargs.bus.is_none() && subargs.controller.is_none() {
-        let spd_data = match hubris.lookup_variables("SPD_DATA") {
-            Ok(variables) => {
-                if variables.len() > 1 {
-                    bail!("more than one SPD_DATA?");
-                }
-
-                variables[0]
-            }
-            Err(_) => {
-                bail!("no bus specified and no SPD_DATA found");
-            }
-        };
+        let spd_data = spd_lookup(hubris)?
+            .ok_or_else(|| anyhow!("no bus specified and no SPD_DATA found"))?;
 
         if spd_data.size % SPD_SIZE != 0 {
             bail!(
