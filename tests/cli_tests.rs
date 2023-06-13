@@ -180,6 +180,7 @@ fn make_all_tests() -> Result<()> {
             "readvar",
             "HUBRIS_TASK_DESCS",
         ),
+        Test::witharg(Kind::All, "sensors", "sensors", "--list"),
         Test::basic(Kind::Postmortem, "stackmargin"),
         Test::basic(Kind::Postmortem, "tasks"),
         Test::witharg(Kind::Postmortem, "tasks-slvr", "tasks", "-slvr"),
