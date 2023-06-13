@@ -3709,18 +3709,6 @@ impl HubrisArchive {
         self.read_file("img/auxi.tlvc")
     }
 
-    /// Read the NXP Customer Field Programmable Area (CFPA) image from a
-    /// Hubris archive
-    pub fn read_cfpa(&self) -> Result<Option<Vec<u8>>> {
-        self.read_file("img/CFPA.bin")
-    }
-
-    /// Read the NXP Customer Manufacturing Programmable Area (CMPA) image
-    /// from a Hubris archive
-    pub fn read_cmpa(&self) -> Result<Option<Vec<u8>>> {
-        self.read_file("img/CMPA.bin")
-    }
-
     /// Determine if two types conclusively differ from one another, performing
     /// a deep comparison.
     pub fn differ(&self, lhs: HubrisGoff, rhs: HubrisGoff) -> Result<bool> {
