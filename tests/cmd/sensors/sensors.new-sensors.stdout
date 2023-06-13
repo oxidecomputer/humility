@@ -1,0 +1,6 @@
+ID  HEXID KIND           C  P MUX ADDR DEVICE        NAME
+  0   0x0 speed    -  -   -    - qsfp          xcvr30
+  1   0x1 speed    -  -   -    - qsfp          xcvr30
+  2   0x2 temp     -  -   -    - qsfp          xcvr30
+  3   0x3 temp     -  -   -    - qsfp          xcvr30
+  4   0x4 temp     -  -   -    - qsfp          xcvr30
