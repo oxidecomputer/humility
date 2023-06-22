@@ -104,6 +104,15 @@ impl<'a> UdpDumpAgent<'a> {
             Err(humpty::udp::Error::VersionMismatch { ours, theirs })
                 if ours == 2 && theirs > 2 =>
             {
+                use humpty::udp::version::CURRENT;
+
+                if theirs != CURRENT {
+                    bail!(
+                        "our Humpty version was misreported: expected \
+                        {CURRENT}, found {theirs}"
+                    );
+                }
+
                 humility::warn!(
                     "can't verify image ID in target; image mismatch possible!"
                 );

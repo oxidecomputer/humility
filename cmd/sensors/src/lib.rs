@@ -99,6 +99,40 @@ enum Spec<'a> {
     Id(HashSet<usize>),
 }
 
+impl Spec<'_> {
+    fn matches(
+        &self,
+        hubris: &HubrisArchive,
+        s: &HubrisSensor,
+        ndx: usize,
+    ) -> bool {
+        match self {
+            Spec::Params { types, devices, named } => {
+                if let Some(types) = types {
+                    if !types.contains(&s.kind) {
+                        return false;
+                    }
+                }
+                if let Some(devices) = devices {
+                    if let HubrisSensorDevice::I2c(device) = s.device {
+                        let device = &hubris.manifest.i2c_devices[device];
+                        if !devices.contains(&device.device) {
+                            return false;
+                        }
+                    }
+                }
+                if let Some(named) = named {
+                    if !named.contains(&s.name) {
+                        return false;
+                    }
+                }
+                true
+            }
+            Spec::Id(ids) => ids.contains(&ndx),
+        }
+    }
+}
+
 fn list(hubris: &HubrisArchive, spec: &Spec) -> Result<()> {
     println!(
         "{:3} {:5} {:<13} {:>2} {:>2} {:3} {:4} {:13} {:4}",
@@ -106,32 +140,13 @@ fn list(hubris: &HubrisArchive, spec: &Spec) -> Result<()> {
     );
 
     for (ndx, s) in hubris.manifest.sensors.iter().enumerate() {
-        if let Spec::Params { types: Some(types), .. } = spec {
-            if types.get(&s.kind).is_none() {
-                continue;
-            }
-        }
-
-        if let Spec::Id(ids) = spec {
-            if ids.get(&ndx).is_none() {
-                continue;
-            }
+        if !spec.matches(hubris, s, ndx) {
+            continue;
         }
 
         match &s.device {
             HubrisSensorDevice::I2c(device) => {
                 let device = &hubris.manifest.i2c_devices[*device];
-                if let Spec::Params { devices: Some(devices), .. } = spec {
-                    if devices.get(&device.device).is_none() {
-                        continue;
-                    }
-                }
-
-                if let Spec::Params { named: Some(named), .. } = spec {
-                    if named.get(&s.name).is_none() {
-                        continue;
-                    }
-                }
 
                 let mux = match (device.mux, device.segment) {
                     (Some(m), Some(s)) => format!("{}:{}", m, s),
@@ -197,34 +212,9 @@ fn print(
     let mut sensors = vec![];
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {
-        if let Spec::Id(ids) = spec {
-            if ids.get(&i).is_none() {
-                continue;
-            }
+        if !spec.matches(hubris, s, i) {
+            continue;
         }
-
-        if let Spec::Params { types: Some(types), .. } = spec {
-            if types.get(&s.kind).is_none() {
-                continue;
-            }
-        }
-
-        if let Spec::Params { devices: Some(devices), .. } = spec {
-            if let HubrisSensorDevice::I2c(i) = &s.device {
-                let d = &hubris.manifest.i2c_devices[*i];
-
-                if devices.get(&d.device).is_none() {
-                    continue;
-                }
-            }
-        }
-
-        if let Spec::Params { named: Some(named), .. } = spec {
-            if named.get(&s.name).is_none() {
-                continue;
-            }
-        }
-
         sensors.push((i, s));
     }
 
