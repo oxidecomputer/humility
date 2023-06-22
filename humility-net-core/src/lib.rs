@@ -38,6 +38,9 @@ pub struct NetCore {
 
     /// Map of RAM regions, or `None` if the dump agent can't read RAM
     ram: Option<Vec<HubrisRegion>>,
+
+    /// contents of image ID
+    imageid: Vec<u8>,
 }
 
 impl NetCore {
@@ -104,6 +107,12 @@ impl NetCore {
             dump_agent_socket,
             flash: HubrisFlashMap::new(hubris)?,
             ram: None, // filled in below
+            imageid: hubris
+                .imageid
+                .as_ref()
+                .ok_or_else(|| anyhow!("missing image ID"))?
+                .1
+                .clone(),
         };
 
         // Check for the existence of the DumpAgent.dump_task_region API, which
@@ -195,8 +204,12 @@ impl NetCore {
         };
 
         let mut agent_core = DumpAgentCore::new(self.flash.clone());
+        let image_id = self.imageid.clone();
+
         let mut udp_dump = UdpDumpAgent::new(self);
         let mut aligned_start = addr & !0b11;
+
+        udp_dump.check_imageid(&image_id)?;
 
         // Bytes remaining is signed, which is non-intuitive; because we can
         // only read aligned chunks of memory, we may read more than our
