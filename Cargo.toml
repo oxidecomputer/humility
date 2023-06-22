@@ -98,7 +98,7 @@ members = [
 [workspace.dependencies]
 # `git`-based deps
 hif = { git = "https://github.com/oxidecomputer/hif" }
-humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.3", branch = "imageid" }
+humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.3" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }

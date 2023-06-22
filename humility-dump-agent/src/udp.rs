@@ -84,18 +84,6 @@ impl<'a> UdpDumpAgent<'a> {
         let r = self.dump_remote_action(humpty::udp::Request::GetImageId)?;
 
         match r {
-            Err(humpty::udp::Error::VersionMismatch { ours, theirs })
-                if ours == 2 && theirs > 2 =>
-            {
-                humility::warn!(
-                    "can't verify image ID in target; image mismatch possible!"
-                );
-
-                Ok(())
-            }
-
-            Err(err) => bail!("failed to get image ID: {err:?}"),
-
             Ok(humpty::udp::Response::GetImageId(id)) => {
                 if &id[..] != image_id {
                     bail!(
@@ -103,12 +91,29 @@ impl<'a> UdpDumpAgent<'a> {
                         {id:x?} (Hubris)"
                     );
                 }
-
-                Ok(())
             }
 
+            //
+            // If we have failed because of a version mismatch and that
+            // mismatch indicates a version of Humpty in Hubris that predates
+            // the addition of GetImageId, we are going to drive on -- but
+            // warn that the archives could mismatch.  (Note that the sense of
+            // "ours" and "theirs" is from Hubris's perspective, so "theirs"
+            // is, in fact, ours -- and "ours" is theirs.)
+            //
+            Err(humpty::udp::Error::VersionMismatch { ours, theirs })
+                if ours == 2 && theirs > 2 =>
+            {
+                humility::warn!(
+                    "can't verify image ID in target; image mismatch possible!"
+                );
+            }
+
+            Err(err) => bail!("failed to get image ID: {err:?}"),
             _ => bail!("invalid GetImageId reply: {r:?}"),
         }
+
+        Ok(())
     }
 }
 
