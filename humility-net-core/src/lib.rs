@@ -30,7 +30,8 @@ use std::{
 };
 
 pub struct NetCore {
-    udprpc_socket: UdpSocket,
+    /// Socket to communicate with `udprpc`, or `None` if it's not present
+    udprpc_socket: Option<UdpSocket>,
     flash: HubrisFlashMap,
 
     /// Socket to communicate with the dump agent, or `None` if it's not present
@@ -54,23 +55,23 @@ impl NetCore {
 
         let scopeid = decode_iface(iface)?;
 
-        // See oxidecomputer/oana for standard Hubris UDP ports
-        let target = format!("[{}%{}]:998", ip, scopeid);
+        let udprpc_socket = if let Some(t) = hubris.lookup_task("udprpc") {
+            // Look up the reply type just to make sure it exists
+            let _rpc_reply_type = hubris
+                .lookup_module(*t)?
+                .lookup_enum_byname(hubris, "RpcReply")?;
 
-        let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
-        let udprpc_socket = UdpSocket::bind("[::]:0")?;
-        udprpc_socket.set_read_timeout(Some(timeout))?;
-        udprpc_socket.connect(&dest[..])?;
+            // See oxidecomputer/oana for standard Hubris UDP ports
+            let target = format!("[{}%{}]:998", ip, scopeid);
 
-        let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
-            anyhow!(
-                "Could not find `udprpc` task in this image. \
-                 Is it up to date?"
-            )
-        })?;
-        let _rpc_reply_type = hubris
-            .lookup_module(*rpc_task)?
-            .lookup_enum_byname(hubris, "RpcReply")?;
+            let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
+            let udprpc_socket = UdpSocket::bind("[::]:0")?;
+            udprpc_socket.set_read_timeout(Some(timeout))?;
+            udprpc_socket.connect(&dest[..])?;
+            Some(udprpc_socket)
+        } else {
+            None
+        };
 
         // We'll check to see if there's a dump agent available over UDP, which
         // means
@@ -305,7 +306,9 @@ impl Core for NetCore {
     }
 
     fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
-        self.udprpc_socket.set_read_timeout(Some(timeout))?;
+        if let Some(d) = self.udprpc_socket.as_ref() {
+            d.set_read_timeout(Some(timeout))?;
+        }
         if let Some(d) = self.dump_agent_socket.as_ref() {
             d.set_read_timeout(Some(timeout))?;
         }
@@ -314,7 +317,13 @@ impl Core for NetCore {
 
     fn send(&self, buf: &[u8], target: NetAgent) -> Result<usize> {
         match target {
-            NetAgent::UdpRpc => self.udprpc_socket.send(buf),
+            NetAgent::UdpRpc => {
+                if let Some(d) = self.udprpc_socket.as_ref() {
+                    d.send(buf)
+                } else {
+                    bail!("no `udprpc` socket; is this a -dev or -lab image?");
+                }
+            }
             NetAgent::DumpAgent => {
                 if let Some(d) = self.dump_agent_socket.as_ref() {
                     d.send(buf)
@@ -328,7 +337,13 @@ impl Core for NetCore {
 
     fn recv(&self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
         match target {
-            NetAgent::UdpRpc => self.udprpc_socket.recv(buf),
+            NetAgent::UdpRpc => {
+                if let Some(d) = self.udprpc_socket.as_ref() {
+                    d.recv(buf)
+                } else {
+                    bail!("no `udprpc` socket; is this a -dev or -lab image?");
+                }
+            }
             NetAgent::DumpAgent => {
                 if let Some(d) = self.dump_agent_socket.as_ref() {
                     d.recv(buf)
