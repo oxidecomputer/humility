@@ -15,7 +15,8 @@
 //! a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 //! either device), but if multiple kinds of specifications are present, they
 //! serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
-//! all thermal sensors from either device).
+//! all thermal sensors from either device).  Alternatively, sensors can be
+//! listed or queried by specifying the ID (or IDs) via `-i` (`--id`).
 //!
 //! By default, `humility sensors` displays the value of each specified sensor
 //! and exits; to read values once per second, use the `-s` (`--sleep`)
@@ -90,7 +91,7 @@ struct SensorsArgs {
     id: Option<Vec<usize>>,
 }
 
-enum Spec<'a> {
+enum SensorSpecification<'a> {
     Params {
         types: &'a Option<HashSet<HubrisSensorKind>>,
         devices: &'a Option<HashSet<&'a String>>,
@@ -99,7 +100,7 @@ enum Spec<'a> {
     Id(HashSet<usize>),
 }
 
-impl Spec<'_> {
+impl SensorSpecification<'_> {
     fn matches(
         &self,
         hubris: &HubrisArchive,
@@ -107,7 +108,7 @@ impl Spec<'_> {
         ndx: usize,
     ) -> bool {
         match self {
-            Spec::Params { types, devices, named } => {
+            SensorSpecification::Params { types, devices, named } => {
                 if let Some(types) = types {
                     if !types.contains(&s.kind) {
                         return false;
@@ -128,12 +129,12 @@ impl Spec<'_> {
                 }
                 true
             }
-            Spec::Id(ids) => ids.contains(&ndx),
+            SensorSpecification::Id(ids) => ids.contains(&ndx),
         }
     }
 }
 
-fn list(hubris: &HubrisArchive, spec: &Spec) -> Result<()> {
+fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
     println!(
         "{:3} {:5} {:<13} {:>2} {:>2} {:3} {:4} {:13} {:4}",
         "ID", "HEXID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
@@ -192,7 +193,7 @@ fn print(
     core: &mut dyn Core,
     subargs: &SensorsArgs,
     context: &mut HiffyContext,
-    spec: &Spec,
+    spec: &SensorSpecification,
 ) -> Result<()> {
     let mut all_ops = vec![];
     let mut err_ops = vec![];
@@ -450,9 +451,13 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
     };
 
     let specification = if let Some(ref id) = subargs.id {
-        Spec::Id(HashSet::from_iter(id.iter().cloned()))
+        SensorSpecification::Id(HashSet::from_iter(id.iter().cloned()))
     } else {
-        Spec::Params { types: &types, devices: &devices, named: &named }
+        SensorSpecification::Params {
+            types: &types,
+            devices: &devices,
+            named: &named,
+        }
     };
 
     if subargs.list {
