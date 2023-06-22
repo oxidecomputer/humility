@@ -352,10 +352,14 @@ impl<'a> HiffyContext<'a> {
             state: State::Initialized,
             functions: HiffyFunctions(function_map),
             rpc_reply_type: if core.is_net() {
-                //
-                // This should have been checked when we initially attached.
-                //
-                let rpc_task = hubris.lookup_task("udprpc").unwrap();
+                let rpc_task =
+                    hubris.lookup_task("udprpc").ok_or_else(|| {
+                        anyhow!(
+                            "Could not find `udprpc` task in this image. \
+                             Only -dev and -lab images include `udprpc`; \
+                             are you running a production image?"
+                        )
+                    })?;
 
                 Some(
                     hubris
