@@ -202,10 +202,8 @@ impl NetCore {
         let mut agent_core = DumpAgentCore::new(self.flash.clone());
         let image_id = self.imageid.clone();
 
-        let mut udp_dump = UdpDumpAgent::new(self);
+        let mut udp_dump = UdpDumpAgent::new(self, &image_id)?;
         let mut aligned_start = addr & !0b11;
-
-        udp_dump.check_imageid(&image_id)?;
 
         // Bytes remaining is signed, which is non-intuitive; because we can
         // only read aligned chunks of memory, we may read more than our

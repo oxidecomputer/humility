@@ -306,7 +306,6 @@ fn get_dump_agent<'a>(
             .unwrap_or(false)
     {
         humility::msg!("using UDP dump agent");
-        let mut udp_dump = UdpDumpAgent::new(core);
 
         let imageid = &hubris
             .imageid
@@ -314,8 +313,7 @@ fn get_dump_agent<'a>(
             .ok_or_else(|| anyhow!("missing image ID"))?
             .1;
 
-        udp_dump.check_imageid(imageid)?;
-        Ok(Box::new(udp_dump))
+        Ok(Box::new(UdpDumpAgent::new(core, imageid)?))
     } else {
         humility::msg!("using hiffy dump agent");
         Ok(Box::new(HiffyDumpAgent::new(hubris, core, subargs.timeout)?))
