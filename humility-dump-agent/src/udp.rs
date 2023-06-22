@@ -79,6 +79,37 @@ impl<'a> UdpDumpAgent<'a> {
 
         Ok(reply)
     }
+
+    pub fn check_imageid(&mut self, image_id: &Vec<u8>) -> Result<()> {
+        let r = self.dump_remote_action(humpty::udp::Request::GetImageId)?;
+
+        match r {
+            Err(humpty::udp::Error::VersionMismatch { ours, theirs })
+                if ours == 2 && theirs > 2 =>
+            {
+                humility::warn!(
+                    "can't verify image ID in target; image mismatch possible!"
+                );
+
+                Ok(())
+            }
+
+            Err(err) => bail!("failed to get image ID: {err:?}"),
+
+            Ok(humpty::udp::Response::GetImageId(id)) => {
+                if &id[..] != image_id {
+                    bail!(
+                        "image ID mismatch: {image_id:x?} (Humility) \
+                        {id:x?} (Hubris)"
+                    );
+                }
+
+                Ok(())
+            }
+
+            _ => bail!("invalid GetImageId reply: {r:?}"),
+        }
+    }
 }
 
 impl<'a> DumpAgent for UdpDumpAgent<'a> {
