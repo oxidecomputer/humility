@@ -2559,7 +2559,8 @@ use the `-t` (`--types`) option; to constrain sensors by device, use the
 a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 either device), but if multiple kinds of specifications are present, they
 serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
-all thermal sensors from either device).
+all thermal sensors from either device).  Alternatively, sensors can be
+listed or queried by specifying the ID (or IDs) via `-i` (`--id`).
 
 By default, `humility sensors` displays the value of each specified sensor
 and exits; to read values once per second, use the `-s` (`--sleep`)

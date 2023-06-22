@@ -11,8 +11,11 @@ pub struct UdpDumpAgent<'a> {
 }
 
 impl<'a> UdpDumpAgent<'a> {
-    pub fn new(core: &'a mut dyn Core) -> Self {
-        Self { core }
+    pub fn new(core: &'a mut dyn Core, image_id: &Vec<u8>) -> Result<Self> {
+        let mut udp_dump = Self { core };
+
+        udp_dump.check_imageid(image_id)?;
+        Ok(udp_dump)
     }
 
     /// Sends a remote dump command over the network
@@ -78,6 +81,51 @@ impl<'a> UdpDumpAgent<'a> {
         })?;
 
         Ok(reply)
+    }
+
+    fn check_imageid(&mut self, image_id: &Vec<u8>) -> Result<()> {
+        let r = self.dump_remote_action(humpty::udp::Request::GetImageId)?;
+
+        match r {
+            Ok(humpty::udp::Response::GetImageId(id)) => {
+                if &id[..] != image_id {
+                    bail!(
+                        "image ID mismatch: {image_id:x?} (Humility) \
+                        {id:x?} (Hubris)"
+                    );
+                }
+            }
+
+            //
+            // If we have failed because of a version mismatch and that
+            // mismatch indicates a version of Humpty in Hubris that predates
+            // the addition of GetImageId, we are going to drive on -- but
+            // warn that the archives could mismatch.  (Note that the sense of
+            // "ours" and "theirs" is from Hubris's perspective, so "theirs"
+            // is, in fact, ours -- and "ours" is theirs.)
+            //
+            Err(humpty::udp::Error::VersionMismatch { ours, theirs })
+                if ours == 2 && theirs > 2 =>
+            {
+                use humpty::udp::version::CURRENT;
+
+                if theirs != CURRENT {
+                    bail!(
+                        "our Humpty version was misreported: expected \
+                        {CURRENT}, found {theirs}"
+                    );
+                }
+
+                humility::warn!(
+                    "can't verify image ID in target; image mismatch possible!"
+                );
+            }
+
+            Err(err) => bail!("failed to get image ID: {err:?}"),
+            _ => bail!("invalid GetImageId reply: {r:?}"),
+        }
+
+        Ok(())
     }
 }
 

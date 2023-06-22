@@ -65,7 +65,7 @@
 //! ```
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -306,7 +306,14 @@ fn get_dump_agent<'a>(
             .unwrap_or(false)
     {
         humility::msg!("using UDP dump agent");
-        Ok(Box::new(UdpDumpAgent::new(core)))
+
+        let imageid = &hubris
+            .imageid
+            .as_ref()
+            .ok_or_else(|| anyhow!("missing image ID"))?
+            .1;
+
+        Ok(Box::new(UdpDumpAgent::new(core, imageid)?))
     } else {
         humility::msg!("using hiffy dump agent");
         Ok(Box::new(HiffyDumpAgent::new(hubris, core, subargs.timeout)?))

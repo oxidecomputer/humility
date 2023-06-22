@@ -15,7 +15,8 @@
 //! a logical OR (that is, (`-d raa229618,tmp117` would yield all sensors from
 //! either device), but if multiple kinds of specifications are present, they
 //! serve as a logical AND (e.g., `-t thermal -d raa229618,tmp117` would yield
-//! all thermal sensors from either device).
+//! all thermal sensors from either device).  Alternatively, sensors can be
+//! listed or queried by specifying the ID (or IDs) via `-i` (`--id`).
 //!
 //! By default, `humility sensors` displays the value of each specified sensor
 //! and exits; to read values once per second, use the `-s` (`--sleep`)
@@ -80,40 +81,73 @@ struct SensorsArgs {
         use_value_delimiter = true
     )]
     named: Option<Vec<String>>,
+
+    /// indicate sensors by ID
+    #[clap(
+        long, short, value_name = "id", use_value_delimiter = true,
+        parse(try_from_str = parse_int::parse),
+        conflicts_with_all = &["types", "devices", "named"],
+    )]
+    id: Option<Vec<usize>>,
 }
 
-fn list(
-    hubris: &HubrisArchive,
-    types: &Option<HashSet<HubrisSensorKind>>,
-    devices: &Option<HashSet<&String>>,
-    named: &Option<HashSet<&String>>,
-) -> Result<()> {
+enum SensorSpecification<'a> {
+    Params {
+        types: &'a Option<HashSet<HubrisSensorKind>>,
+        devices: &'a Option<HashSet<&'a String>>,
+        named: &'a Option<HashSet<&'a String>>,
+    },
+    Id(HashSet<usize>),
+}
+
+impl SensorSpecification<'_> {
+    fn matches(
+        &self,
+        hubris: &HubrisArchive,
+        s: &HubrisSensor,
+        ndx: usize,
+    ) -> bool {
+        match self {
+            SensorSpecification::Params { types, devices, named } => {
+                if let Some(types) = types {
+                    if !types.contains(&s.kind) {
+                        return false;
+                    }
+                }
+                if let Some(devices) = devices {
+                    if let HubrisSensorDevice::I2c(device) = s.device {
+                        let device = &hubris.manifest.i2c_devices[device];
+                        if !devices.contains(&device.device) {
+                            return false;
+                        }
+                    }
+                }
+                if let Some(named) = named {
+                    if !named.contains(&s.name) {
+                        return false;
+                    }
+                }
+                true
+            }
+            SensorSpecification::Id(ids) => ids.contains(&ndx),
+        }
+    }
+}
+
+fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
     println!(
         "{:3} {:5} {:<13} {:>2} {:>2} {:3} {:4} {:13} {:4}",
         "ID", "HEXID", "KIND", "C", "P", "MUX", "ADDR", "DEVICE", "NAME"
     );
 
     for (ndx, s) in hubris.manifest.sensors.iter().enumerate() {
-        if let Some(types) = types {
-            if types.get(&s.kind).is_none() {
-                continue;
-            }
+        if !spec.matches(hubris, s, ndx) {
+            continue;
         }
 
         match &s.device {
             HubrisSensorDevice::I2c(device) => {
                 let device = &hubris.manifest.i2c_devices[*device];
-                if let Some(devices) = devices {
-                    if devices.get(&device.device).is_none() {
-                        continue;
-                    }
-                }
-
-                if let Some(named) = named {
-                    if named.get(&s.name).is_none() {
-                        continue;
-                    }
-                }
 
                 let mux = match (device.mux, device.segment) {
                     (Some(m), Some(s)) => format!("{}:{}", m, s),
@@ -159,9 +193,7 @@ fn print(
     core: &mut dyn Core,
     subargs: &SensorsArgs,
     context: &mut HiffyContext,
-    types: &Option<HashSet<HubrisSensorKind>>,
-    devices: &Option<HashSet<&String>>,
-    named: &Option<HashSet<&String>>,
+    spec: &SensorSpecification,
 ) -> Result<()> {
     let mut all_ops = vec![];
     let mut err_ops = vec![];
@@ -181,28 +213,9 @@ fn print(
     let mut sensors = vec![];
 
     for (i, s) in hubris.manifest.sensors.iter().enumerate() {
-        if let Some(types) = types {
-            if types.get(&s.kind).is_none() {
-                continue;
-            }
+        if !spec.matches(hubris, s, i) {
+            continue;
         }
-
-        if let Some(devices) = devices {
-            if let HubrisSensorDevice::I2c(i) = &s.device {
-                let d = &hubris.manifest.i2c_devices[*i];
-
-                if devices.get(&d.device).is_none() {
-                    continue;
-                }
-            }
-        }
-
-        if let Some(named) = named {
-            if named.get(&s.name).is_none() {
-                continue;
-            }
-        }
-
         sensors.push((i, s));
     }
 
@@ -437,14 +450,28 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         None
     };
 
+    let specification = if let Some(ref id) = subargs.id {
+        SensorSpecification::Id(HashSet::from_iter(id.iter().cloned()))
+    } else {
+        SensorSpecification::Params {
+            types: &types,
+            devices: &devices,
+            named: &named,
+        }
+    };
+
     if subargs.list {
-        list(hubris, &types, &devices, &named)?;
+        list(hubris, &specification)?;
         return Ok(());
+    }
+
+    if core.is_dump() {
+        bail!("cannot query sensor data from a dump");
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    print(hubris, core, &subargs, &mut context, &types, &devices, &named)?;
+    print(hubris, core, &subargs, &mut context, &specification)?;
 
     Ok(())
 }
@@ -456,7 +483,7 @@ pub fn init() -> Command {
         run: sensors,
         kind: CommandKind::Attached {
             archive: Archive::Required,
-            attach: Attach::LiveOnly,
+            attach: Attach::Any,
             validate: Validate::Booted,
         },
     }
