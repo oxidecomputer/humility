@@ -55,12 +55,7 @@ impl NetCore {
 
         let scopeid = decode_iface(iface)?;
 
-        let udprpc_socket = if let Some(t) = hubris.lookup_task("udprpc") {
-            // Look up the reply type just to make sure it exists
-            let _rpc_reply_type = hubris
-                .lookup_module(*t)?
-                .lookup_enum_byname(hubris, "RpcReply")?;
-
+        let udprpc_socket = if hubris.lookup_task("udprpc").is_some() {
             // See oxidecomputer/oana for standard Hubris UDP ports
             let target = format!("[{}%{}]:998", ip, scopeid);
 
@@ -321,7 +316,7 @@ impl Core for NetCore {
                 if let Some(d) = self.udprpc_socket.as_ref() {
                     d.send(buf)
                 } else {
-                    bail!("no `udprpc` socket; is this a -dev or -lab image?");
+                    bail!("no `udprpc` socket");
                 }
             }
             NetAgent::DumpAgent => {
@@ -341,7 +336,7 @@ impl Core for NetCore {
                 if let Some(d) = self.udprpc_socket.as_ref() {
                     d.recv(buf)
                 } else {
-                    bail!("no `udprpc` socket; is this a -dev or -lab image?");
+                    bail!("no `udprpc` socket");
                 }
             }
             NetAgent::DumpAgent => {
