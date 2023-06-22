@@ -385,7 +385,8 @@ impl<'a> RpcClient<'a> {
         let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
             anyhow!(
                 "Could not find `udprpc` task in this image. \
-                 Is it up to date?"
+                 Only -dev and -lab images include `udprpc`; \
+                 are you running a production image?"
             )
         })?;
         let rpc_reply_type = hubris
