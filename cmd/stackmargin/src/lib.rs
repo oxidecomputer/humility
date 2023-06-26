@@ -77,7 +77,7 @@ fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
 
     let find = |addr| {
         for (_, region) in regions.iter() {
-            if addr > region.base && addr <= region.base + region.mapsize {
+            if addr > region.base && addr <= region.base + region.size {
                 return Ok(region);
             }
         }

@@ -2611,7 +2611,6 @@ impl HubrisArchive {
                         daddr: None,
                         base: sheapbss,
                         size: eheapbss - sheapbss,
-                        mapsize: eheapbss - sheapbss,
                         attr: HubrisRegionAttr {
                             read: true,
                             write: true,
@@ -2625,41 +2624,6 @@ impl HubrisArchive {
                 );
             }
         }
-
-        //
-        // We distinguish between the size of a region, and its mapsize --
-        // which, for flash-based regions is the amount of memory that is
-        // actually in use.  (We do this to give guidance about the actual
-        // flash used, which in turn is used in the dump code to be sure that
-        // we don't attempt to dump flash that has never been written to --
-        // which can have unexpected results on some MCUs.)
-        //
-        let mapsize = |attr, base, size| {
-            if attr & WRITE != 0 {
-                size
-            } else {
-                let mut current = base;
-
-                loop {
-                    match self.loaded.get(&current) {
-                        None => break current - base,
-                        Some(region) => {
-                            current = region.base + region.size;
-
-                            //
-                            // We really expect loaded regions to be entirely
-                            // contained within regions (that is, they should
-                            // not cross region boundaries), but if it does,
-                            // we'll assume that our entire region is mapped.
-                            //
-                            if current - base > size {
-                                break size;
-                            }
-                        }
-                    }
-                }
-            }
-        };
 
         //
         // Iterate over all tasks, reading their region descriptors.
@@ -2680,12 +2644,7 @@ impl HubrisArchive {
                 let region = HubrisRegion {
                     daddr: Some(*daddr),
                     base,
-                    size: if attr & WRITE != 0 {
-                        size
-                    } else {
-                        mapsize(attr, base, size)
-                    },
-                    mapsize: size,
+                    size,
                     attr: HubrisRegionAttr {
                         read: attr & READ != 0,
                         write: attr & WRITE != 0,
@@ -4038,7 +3997,6 @@ impl HubrisObjectLoader {
                 daddr: None,
                 base: h.p_vaddr as u32,
                 size: h.p_memsz as u32,
-                mapsize: h.p_memsz as u32,
                 attr: HubrisRegionAttr {
                     read: h.p_flags & PF_R != 0,
                     write: h.p_flags & PF_W != 0,
@@ -4085,7 +4043,6 @@ impl HubrisObjectLoader {
                     daddr: None,
                     base,
                     size: start - base,
-                    mapsize: start - base,
                     attr: HubrisRegionAttr {
                         read: true,
                         write: true,
@@ -5853,9 +5810,6 @@ pub struct HubrisRegion {
 
     /// Size of region
     pub size: u32,
-
-    /// Size of mapping, which (for flash mappings) is memory in use
-    pub mapsize: u32,
 
     /// Attributes of this region
     pub attr: HubrisRegionAttr,

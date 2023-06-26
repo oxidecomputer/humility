@@ -102,11 +102,11 @@ fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
                 None => "-".to_owned(),
             },
             region.base,
-            region.base + region.mapsize - 1,
-            if region.mapsize >= 1024 {
-                format!("{}KiB", region.mapsize >> 10)
+            region.base + region.size - 1,
+            if region.size >= 1024 {
+                format!("{}KiB", region.size >> 10)
             } else {
-                format!("{}", region.mapsize)
+                format!("{}", region.size)
             },
             if region.attr.read { "r" } else { "-" },
             if region.attr.write { "w" } else { "-" },
