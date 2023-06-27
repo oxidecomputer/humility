@@ -160,7 +160,6 @@ impl NetCore {
                         external: false,
                     },
                     size: task_t.size as u32,
-                    mapsize: task_t.size as u32,
                     tasks: vec![HubrisTask::Task(t)],
                 })
             }
