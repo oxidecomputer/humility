@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.23"
+version = "0.10.24"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -92,6 +92,7 @@ members = [
     "cmd/update",
     "cmd/validate",
     "cmd/vpd",
+    "cmd/writeword",
     "xtask",
 ]
 
@@ -191,6 +192,7 @@ cmd-test = { path = "./cmd/test", package = "humility-cmd-test" }
 cmd-update = { path = "./cmd/update", package = "humility-cmd-update" }
 cmd-validate = { path = "./cmd/validate", package = "humility-cmd-validate" }
 cmd-vpd = { path = "./cmd/vpd", package = "humility-cmd-vpd" }
+cmd-writeword = { path = "./cmd/writeword", package = "humility-cmd-writeword" }
 
 # crates.io deps
 anyhow = { version = "1.0.44", features = ["backtrace"] }
@@ -331,6 +333,7 @@ cmd-test = { workspace = true }
 cmd-update = { workspace = true }
 cmd-validate = { workspace = true }
 cmd-vpd = { workspace = true }
+cmd-writeword = { workspace = true }
 
 fallible-iterator = { workspace = true }
 log = { workspace = true }

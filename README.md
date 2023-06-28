@@ -286,6 +286,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility update](#humility-update): apply an update
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
+- [humility writeword](#humility-writeword): writes one or more memory words
 ### `humility apptable`
 
 This is a deprecated command that allows for the display of the app table
@@ -3164,6 +3165,14 @@ To lock a VPD device, use the `--lock` command.  This will lock the VPD
 permanently and cannot be undone; subsequent attempts to write to (or
 lock) a locked VPD device will result in an error.  The lock status of
 each device is shown in `--list`.
+
+
+
+### `humility writeword`
+
+To the specified word-aligned address, writes the specified 32-bit value.
+If multiple values are specified, writes each in turn, incrementing
+the address by the word size after each write.
 
 
 
