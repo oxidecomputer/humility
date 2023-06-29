@@ -1,0 +1,21 @@
+[package]
+name = "humility-cmd-rebootleby"
+version = "0.1.0"
+edition = "2021"
+description = "Do something kind of like embootleby to recover a device with bad CFPA/CMPA"
+
+[dependencies]
+humility = { workspace = true }
+humility-arch-arm = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+parse_int = { workspace = true }
+tempfile = { workspace = true }
+path-slash = { workspace = true }
+ihex = { workspace = true }
+zip.workspace = true
+probe-rs.workspace = true
+log.workspace = true
