@@ -15,6 +15,8 @@ tlvc.workspace = true
 tlvc-text.workspace = true
 zerocopy.workspace = true
 indicatif.workspace = true
+serde.workspace = true
+ron.workspace = true
 
 humility-cmd.workspace = true
 humility-cli.workspace = true

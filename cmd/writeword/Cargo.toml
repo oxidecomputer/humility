@@ -1,0 +1,14 @@
+[package]
+name = "humility-cmd-writeword"
+version = "0.1.0"
+edition = "2021"
+description = "writes one or more memory words"
+
+[dependencies]
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+parse_int = { workspace = true }
+parse-size = { workspace = true }

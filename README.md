@@ -286,6 +286,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility update](#humility-update): apply an update
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
+- [humility writeword](#humility-writeword): writes one or more memory words
 ### `humility apptable`
 
 This is a deprecated command that allows for the display of the app table
@@ -3091,8 +3092,10 @@ ID  C P  MUX ADDR DEVICE        DESCRIPTION               LOCKED
  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD           unlocked
 ```
 
-To read from a device, specify it by either id (`--id`) or by some
-(case-insensitive) substring of its description (`--device`):
+To read from all devices, combine `--list` with `--read`.  To read from a
+particular device, use `--read` alone, and specify the device by either id
+(`--id`) or by some (case-insensitive) substring of its description
+(`--device`):
 
 ```console
 $ humility vpd --read --id 0
@@ -3164,6 +3167,58 @@ To lock a VPD device, use the `--lock` command.  This will lock the VPD
 permanently and cannot be undone; subsequent attempts to write to (or
 lock) a locked VPD device will result in an error.  The lock status of
 each device is shown in `--list`.
+
+To lock all VPD devices, use the `--lock-all` command.  This will exit
+successfully if all devices were successfully locked or are already
+locked; if a device is missing or otherwise cannot be locked, all other
+devices will be locked, but the command will exit with a non-zero exit
+status.
+
+
+
+### `humility writeword`
+
+Given a word-aligned address, writes the specified 32-bit value.
+If multiple values are specified, writes each in turn, incrementing
+the address by the word size after each write.
+
+**It should go without saying that this should be only used with care.**
+In particular, the target is **not** halted before any writes (but that
+functionality can be affected by using `writeword`).
+
+For example, to write the value 0x11223344 to 0x24018900:
+
+```console
+$ humility writeword 0x24018900 0x11223344
+humility: attached via ST-Link V3
+humility: writing 0x11223344 to 0x24018900
+```
+
+Note that the word is written as single, 32-bit value -- and will therefore
+be little-endian if reading memory:
+
+```console
+$ humility readmem 0x24018900 16
+humility: attached via ST-Link V3
+             \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x24018900 | 44 33 22 11 00 00 00 00 00 00 00 00 00 00 00 00 | D3".............
+```
+
+To write multiple values to multiple words starting at the specified
+address, specify them as additional arguments, e.g.:
+
+```console
+$ humility writeword 0x24047800 0xaa 0xbb 0xcc 0xdd
+humility: attached via ST-Link V3
+humility: writing 0xaa to 0x24047800
+humility: writing 0xbb to 0x24047804
+humility: writing 0xcc to 0x24047808
+humility: writing 0xdd to 0x2404780c
+$ humility readmem 0x24047800 16
+humility: attached via ST-Link V3
+            \/  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+0x24047800 | aa 00 00 00 bb 00 00 00 cc 00 00 00 dd 00 00 00 | ................
+```
 
 
 
