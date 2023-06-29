@@ -3029,9 +3029,8 @@ impl HubrisArchive {
         &self,
         goff: HubrisGoff,
     ) -> Result<usize> {
-        let mut total = 0;
-
         if let Some(v) = self.structs.get(&goff) {
+            let mut total = 0;
             for m in &v.members {
                 total += self.hubpack_serialized_maxsize(m.goff)?;
             }
@@ -3043,13 +3042,13 @@ impl HubrisArchive {
         }
 
         if let Some(v) = self.enums.get(&goff) {
-            total += 1; // hubpack tag
+            let mut max = 0; // largest variant
             for variant in &v.variants {
                 if let Some(goff) = variant.goff {
-                    total += self.hubpack_serialized_maxsize(goff)?;
+                    max = max.max(self.hubpack_serialized_maxsize(goff)?);
                 }
             }
-            return Ok(total);
+            return Ok(max + 1); // the extra byte is for the hubpack tag
         }
 
         if let Some(v) = self.arrays.get(&goff) {

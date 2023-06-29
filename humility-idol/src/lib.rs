@@ -45,7 +45,7 @@ where
 #[derive(Debug)]
 pub enum IdolError<'a> {
     CLike(&'a HubrisEnum),
-    Complex(String),
+    Complex(&'a HubrisEnum),
     None,
 }
 
@@ -683,7 +683,10 @@ pub fn lookup_reply<'a>(
                 }
                 ::idol::syntax::Error::ServerDeath => IdolError::None,
                 ::idol::syntax::Error::Complex(t) => {
-                    IdolError::Complex(t.0.clone())
+                    let t = m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(
+                        || anyhow!("failed to find error type {reply:?}"),
+                    )?;
+                    IdolError::Complex(t)
                 }
             };
             Ok((lookup_ok(&ok.ty.0)?, err))

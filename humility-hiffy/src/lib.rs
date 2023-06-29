@@ -784,7 +784,12 @@ impl<'a> HiffyContext<'a> {
             }
             ::idol::syntax::Encoding::Ssmarshal
             | ::idol::syntax::Encoding::Hubpack => {
-                self.hubris.hubpack_serialized_maxsize(op.ok)?
+                let ok = self.hubris.hubpack_serialized_maxsize(op.ok)?;
+                if let idol::IdolError::Complex(e) = op.error {
+                    ok.max(self.hubris.hubpack_serialized_maxsize(e.goff)?)
+                } else {
+                    ok
+                }
             }
         };
         ops.push(push(reply_size as u32));
@@ -1286,8 +1291,8 @@ pub fn hiffy_decode(
                     Err(format!("<Unknown variant {e}>"))
                 }
             }
-            idol::IdolError::Complex(ref t) => {
-                Err(format!("<Complex error: {t}>"))
+            idol::IdolError::Complex(error) => {
+                Err(format!("<Complex error: {}>", error.name))
             }
             _ => Err(format!("<Unhandled error {e:x?}>")),
         },
