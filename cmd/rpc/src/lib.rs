@@ -406,15 +406,7 @@ impl<'a> RpcClient<'a> {
 
         let our_image_id = self.hubris.image_id().unwrap();
 
-        let nreply = match op.operation.encoding {
-            ::idol::syntax::Encoding::Zerocopy => {
-                self.hubris.typesize(op.ok)?
-            }
-            ::idol::syntax::Encoding::Ssmarshal
-            | ::idol::syntax::Encoding::Hubpack => {
-                self.hubris.hubpack_serialized_maxsize(op.ok)?
-            }
-        };
+        let nreply = op.reply_size()?;
 
         let header = RpcHeader {
             image_id: U64::from_bytes(our_image_id.try_into().unwrap()),

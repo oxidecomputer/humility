@@ -778,16 +778,7 @@ impl<'a> HiffyContext<'a> {
         }
 
         ops.push(push(payload.len() as u32));
-        let reply_size = match op.operation.encoding {
-            ::idol::syntax::Encoding::Zerocopy => {
-                self.hubris.typesize(op.ok)?
-            }
-            ::idol::syntax::Encoding::Ssmarshal
-            | ::idol::syntax::Encoding::Hubpack => {
-                self.hubris.hubpack_serialized_maxsize(op.ok)?
-            }
-        };
-        ops.push(push(reply_size as u32));
+        ops.push(push(op.reply_size()? as u32));
         if let Some(lease_size) = lease_size {
             ops.push(push(lease_size));
         }
@@ -1286,8 +1277,8 @@ pub fn hiffy_decode(
                     Err(format!("<Unknown variant {e}>"))
                 }
             }
-            idol::IdolError::Complex(ref t) => {
-                Err(format!("<Complex error: {t}>"))
+            idol::IdolError::Complex(error) => {
+                Err(format!("<Complex error: {}>", error.name))
             }
             _ => Err(format!("<Unhandled error {e:x?}>")),
         },

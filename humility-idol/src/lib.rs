@@ -45,7 +45,7 @@ where
 #[derive(Debug)]
 pub enum IdolError<'a> {
     CLike(&'a HubrisEnum),
-    Complex(String),
+    Complex(&'a HubrisEnum),
     None,
 }
 
@@ -205,6 +205,24 @@ impl<'a> IdolOperation<'a> {
         } else {
             format!("<Unknown {}.{} error: {}>", self.name.0, self.name.1, code)
         }
+    }
+
+    pub fn reply_size(&self) -> Result<usize> {
+        let reply_size = match self.operation.encoding {
+            ::idol::syntax::Encoding::Zerocopy => {
+                self.hubris.typesize(self.ok)?
+            }
+            ::idol::syntax::Encoding::Ssmarshal
+            | ::idol::syntax::Encoding::Hubpack => {
+                let ok = self.hubris.hubpack_serialized_maxsize(self.ok)?;
+                if let IdolError::Complex(e) = self.error {
+                    ok.max(self.hubris.hubpack_serialized_maxsize(e.goff)?)
+                } else {
+                    ok
+                }
+            }
+        };
+        Ok(reply_size)
     }
 }
 
@@ -683,7 +701,10 @@ pub fn lookup_reply<'a>(
                 }
                 ::idol::syntax::Error::ServerDeath => IdolError::None,
                 ::idol::syntax::Error::Complex(t) => {
-                    IdolError::Complex(t.0.clone())
+                    let t = m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(
+                        || anyhow!("failed to find error type {reply:?}"),
+                    )?;
+                    IdolError::Complex(t)
                 }
             };
             Ok((lookup_ok(&ok.ty.0)?, err))

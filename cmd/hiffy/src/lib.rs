@@ -133,7 +133,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
             Ok((_, idol::IdolError::Complex(t))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
                     println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
-                    println!("{}{:<27} {}", margin, "<error>", t);
+                    println!("{}{:<27} {}", margin, "<error>", t.name);
                 }
                 _ => warn!("mismatch on reply: found {op:?}"),
             },
