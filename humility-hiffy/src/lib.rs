@@ -778,21 +778,7 @@ impl<'a> HiffyContext<'a> {
         }
 
         ops.push(push(payload.len() as u32));
-        let reply_size = match op.operation.encoding {
-            ::idol::syntax::Encoding::Zerocopy => {
-                self.hubris.typesize(op.ok)?
-            }
-            ::idol::syntax::Encoding::Ssmarshal
-            | ::idol::syntax::Encoding::Hubpack => {
-                let ok = self.hubris.hubpack_serialized_maxsize(op.ok)?;
-                if let idol::IdolError::Complex(e) = op.error {
-                    ok.max(self.hubris.hubpack_serialized_maxsize(e.goff)?)
-                } else {
-                    ok
-                }
-            }
-        };
-        ops.push(push(reply_size as u32));
+        ops.push(push(op.reply_size()? as u32));
         if let Some(lease_size) = lease_size {
             ops.push(push(lease_size));
         }

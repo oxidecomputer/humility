@@ -206,6 +206,24 @@ impl<'a> IdolOperation<'a> {
             format!("<Unknown {}.{} error: {}>", self.name.0, self.name.1, code)
         }
     }
+
+    pub fn reply_size(&self) -> Result<usize> {
+        let reply_size = match self.operation.encoding {
+            ::idol::syntax::Encoding::Zerocopy => {
+                self.hubris.typesize(self.ok)?
+            }
+            ::idol::syntax::Encoding::Ssmarshal
+            | ::idol::syntax::Encoding::Hubpack => {
+                let ok = self.hubris.hubpack_serialized_maxsize(self.ok)?;
+                if let IdolError::Complex(e) = self.error {
+                    ok.max(self.hubris.hubpack_serialized_maxsize(e.goff)?)
+                } else {
+                    ok
+                }
+            }
+        };
+        Ok(reply_size)
+    }
 }
 
 //
