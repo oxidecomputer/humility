@@ -3092,8 +3092,10 @@ ID  C P  MUX ADDR DEVICE        DESCRIPTION               LOCKED
  2  1 B  1:3 0x50 at24csw080    Sidecar Fan VPD           unlocked
 ```
 
-To read from a device, specify it by either id (`--id`) or by some
-(case-insensitive) substring of its description (`--device`):
+To read from all devices, combine `--list` with `--read`.  To read from a
+particular device, use `--read` alone, and specify the device by either id
+(`--id`) or by some (case-insensitive) substring of its description
+(`--device`):
 
 ```console
 $ humility vpd --read --id 0
@@ -3165,6 +3167,12 @@ To lock a VPD device, use the `--lock` command.  This will lock the VPD
 permanently and cannot be undone; subsequent attempts to write to (or
 lock) a locked VPD device will result in an error.  The lock status of
 each device is shown in `--list`.
+
+To lock all VPD devices, use the `--lock-all` command.  This will exit
+successfully if all devices were successfully locked or are already
+locked; if a device is missing or otherwise cannot be locked, all other
+devices will be locked, but the command will exit with a non-zero exit
+status.
 
 
 
