@@ -148,47 +148,47 @@ impl Core for UnattachedCore {
     }
 
     fn read_8(&mut self, _addr: u32, _data: &mut [u8]) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::read_8 unimplemented when unattached!");
     }
 
     fn read_reg(&mut self, _reg: ARMRegister) -> Result<u32> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::read_reg unimplemented when unattached!");
     }
 
     fn write_reg(&mut self, _reg: ARMRegister, _value: u32) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::write_reg unimplemented when unattached!");
     }
 
     fn write_word_32(&mut self, _addr: u32, _data: u32) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::write_word_32 unimplemented when unattached!");
     }
 
     fn write_8(&mut self, _addr: u32, _data: &[u8]) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::write_8 unimplemented when unattached!");
     }
 
     fn halt(&mut self) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::halt unimplemented when unattached!");
     }
 
     fn run(&mut self) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::run unimplemented when unattached!");
     }
 
     fn step(&mut self) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::step unimplemented when unattached!");
     }
 
     fn init_swv(&mut self) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::init_swv unimplemented when unattached!");
     }
 
     fn read_swv(&mut self) -> Result<Vec<u8>> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::read_swv unimplemented when unattached!");
     }
 
     fn load(&mut self, _path: &Path) -> Result<()> {
-        bail!("Unimplemented when unattached!");
+        bail!("Core::load unimplemented when unattached!");
     }
 
     fn reset(&mut self) -> Result<()> {
