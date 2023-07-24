@@ -221,7 +221,8 @@ impl NetCore {
             // least one task associated with it.  If this task is the
             // supervisor, then that's bad news.
             let region = ram[p - 1].clone();
-            let Some(&task) = region.tasks.iter().find(|t| t.task() != 0) else {
+            let Some(&task) = region.tasks.iter().find(|t| t.task() != 0)
+            else {
                 bail!("supervisor memory cannot be read using dump facilities");
             };
 
