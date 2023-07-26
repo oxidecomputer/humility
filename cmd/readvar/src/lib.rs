@@ -135,14 +135,19 @@ fn readvar(context: &mut ExecutionContext) -> Result<()> {
         n == v || n.ends_with(&suffix)
     }
 
-    if let Some(ref variable) = subargs.variable {
+    if let Some(variable) = &subargs.variable {
         let m =
             if variable.contains("::") { match_exact } else { match_suffix };
 
+        let mut found = false;
         for (n, v) in
             hubris.qualified_variables().filter(|&(n, _)| m(n, variable))
         {
             readvar_dump(hubris, core, v, n, &subargs)?;
+            found = true;
+        }
+        if !found {
+            bail!("variable '{variable}' not found; use \"-l\" to list");
         }
     } else {
         bail!("expected variable (use \"-l\" to list)");
