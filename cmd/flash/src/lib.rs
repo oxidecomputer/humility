@@ -222,8 +222,8 @@ fn force_openocd(
 ///
 /// If `subargs.check` is false, returns `Ok(())` if the check _fails_ (meaning
 /// we should reflash), and `Err(..)` if all checks pass (meaning we should
-/// _not_ reflash).  The core is left halted if we should reflash and is left
-/// running otherwise.
+/// _not_ reflash).  The core is left halted if we should reflash and is running
+/// otherwise.
 fn validate(
     hubris: &mut HubrisArchive,
     core: &mut dyn humility::core::Core,
