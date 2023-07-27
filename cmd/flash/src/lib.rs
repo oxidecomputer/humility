@@ -280,9 +280,8 @@ fn get_image_state(
 
     // More rigorous checks if requested
     if full_check {
-        hubris.verify(core).with_context(
-            format!("image IDs match, but flash contents do not match \
-                     archive contents: {err}"),
+        hubris.verify(core).context(
+            "image IDs match, but flash contents do not match archive contents"
         )?;
 
         let r = if hubris.read_auxflash_data()?.is_some() {
