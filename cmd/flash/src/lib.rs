@@ -300,7 +300,10 @@ fn get_image_state(
                 }
             };
             let r = match worker.active_slot() {
-                Ok(Some(..)) => Ok(()),
+                Ok(Some(s)) => {
+                    humility::msg!("verified auxflash in slot {s}");
+                    Ok(())
+                },
                 Ok(None) => Err(anyhow!("no active auxflash slot")),
                 Err(e) => Err(anyhow!("failed to check auxflash slot: {e}")),
             };
