@@ -281,46 +281,45 @@ fn get_image_state(
     // More rigorous checks if requested
     if full_check {
         hubris.verify(core).context(
-            "image IDs match, but flash contents do not match archive contents"
+            "image IDs match, but flash contents do not match archive contents",
         )?;
+    }
 
-        let r = if hubris.read_auxflash_data()?.is_some() {
-            // The core must be running for us to check the auxflash slot.
-            //
-            // However, we want it halted before we exit this function, which
-            // requires careful handling.
-            core.run()?;
-            let mut worker = match cmd_auxflash::AuxFlashHandler::new(
-                hubris, core, 15_000,
-            ) {
+    if hubris.read_auxflash_data()?.is_some() {
+        // The core must be running for us to check the auxflash slot.
+        //
+        // However, we want it halted before we exit this function, which
+        // requires careful handling of functions that could bail out.
+        core.run()?;
+
+        // Note that we only run this check if we pass the image ID check;
+        // otherwise, the Idol / hiffy memory maps are unknown.
+        let mut worker =
+            match cmd_auxflash::AuxFlashHandler::new(hubris, core, 15_000) {
                 Ok(w) => w,
                 Err(e) => {
+                    // Halt the core before returning!
                     core.halt()?;
                     return Err(e);
                 }
             };
-            let r = match worker.active_slot() {
-                Ok(Some(s)) => {
-                    humility::msg!("verified auxflash in slot {s}");
-                    Ok(())
-                },
-                Ok(None) => Err(anyhow!("no active auxflash slot")),
-                Err(e) => Err(anyhow!("failed to check auxflash slot: {e}")),
-            };
-            core.halt()?;
-            r
-        } else {
-            Ok(())
+        let r = match worker.active_slot() {
+            Ok(Some(s)) => {
+                humility::msg!("verified auxflash in slot {s}");
+                Ok(())
+            }
+            Ok(None) => Err(anyhow!("no active auxflash slot")),
+            Err(e) => Err(anyhow!("failed to check auxflash slot: {e}")),
         };
 
-        // We don't actually read back the auxflash, because that
-        // would be slow; if Hubris has booted and has an active
-        // auxflash slot, then it must match (because we know that
-        // the SP code is correct, and the SP code contains a
-        // checksum of the auxflash data).
-        r.context(
-            "image ID and flash contents match, but auxflash is not loaded",
-        )
+        // Halt the core before returning results
+        core.halt()?;
+
+        r.context(if full_check {
+            "image ID and flash contents match, but auxflash is not loaded"
+        } else {
+            "image IDs match, but auxflash is not loaded"
+        })
     } else {
         Ok(())
     }
