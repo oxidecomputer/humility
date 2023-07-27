@@ -7,12 +7,12 @@
 //! Flashes the target with the image that is contained within the specified
 //! archive (or dump).  As a precautionary measure, if the specified archive
 //! already appears to be on the target, `humility flash` will fail unless the
-//! `-F` (`--force`) flag is set.  Because this will only check the image
-//! ID (and not the entire image), `humility flash` can be optionally told
-//! to verify that all of the program text in the image is on the device
-//! by specifying `-V` (`--verify`).  Similarly, if one wishes to *only*
-//! check the image against the archive (and not flash at all), specify
-//! `-C` (`--check`).
+//! `-F` (`--force`) flag is set.  This will only check the image ID; it does
+//! not check the entire image or auxiliary flash.  `humility flash` can be
+//! optionally told to verify all of the program text **and** the auxiliary
+//! flash by specifying `-V` (`--verify`). Similarly, if one wishes to *only*
+//! check the image against the archive (and not flash at all), specify `-C`
+//! (`--check`).
 //!
 //! This attempts to natively flash the part within Humility using probe-rs,
 //! but for some parts or configurations, it may need to use OpenOCD as a
@@ -32,7 +32,7 @@
 //! will be programmed after the image is written.  See RFD 311 for more
 //! information about auxiliary flash management.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{CommandFactory, Parser};
 use humility::{core::Core, hubris::*};
 use humility_cli::{
@@ -108,7 +108,6 @@ fn force_openocd(
         let core = c.as_mut();
 
         validate(hubris, core, subargs)?;
-
         if subargs.check {
             return Ok(());
         }
@@ -216,69 +215,113 @@ fn force_openocd(
     Ok(())
 }
 
+/// Validates the image and auxiliary flash against our subcommand
+///
+/// If `subargs.check` is true, returns `Ok(())` on a clean check and `Err(..)`
+/// otherwise; the core is left running.
+///
+/// If `subargs.check` is false, returns `Ok(())` if the check _fails_ (meaning
+/// we should reflash), and `Err(..)` if all checks pass (meaning we should
+/// _not_ reflash).  The core is left halted if we should reflash and is left
+/// running otherwise.
 fn validate(
     hubris: &mut HubrisArchive,
     core: &mut dyn humility::core::Core,
     subargs: &FlashArgs,
 ) -> Result<()> {
-    core.halt()?;
+    let r = get_image_state(hubris, core, subargs.verify || subargs.check);
+    if subargs.check {
+        core.run()?;
+        return r;
+    }
 
-    //
-    // We want to actually try validating to determine if this archive
-    // already matches; if it does, this command may well be in error,
-    // and we want to force the user to force their intent.
-    //
-    match hubris.validate(core, HubrisValidate::ArchiveMatch) {
-        Ok(_) => {
+    match r {
+        Ok(()) => {
             if subargs.force {
                 humility::msg!(
                     "archive appears to be already flashed; forcing re-flash"
                 );
-            } else if subargs.verify || subargs.check {
-                if let Err(err) = hubris.verify(core) {
-                    if subargs.check {
-                        core.run()?;
-                        bail!(
-                            "image IDs match, but flash contents do not match \
-                            archive contents: {err}",
-                        );
-                    }
-
-                    humility::msg!(
-                        "image IDs match, but flash contents do not match \
-                        archive contents: {err}; reflashing",
-                    );
-                } else {
-                    core.run()?;
-
-                    if subargs.check {
-                        humility::msg!("archive matches flash contents");
-                        return Ok(());
-                    }
-
-                    bail!(
-                        "archive is already flashed on attached device; \
-                        use -F (\"--force\") to force re-flash"
-                    );
-                }
+                Ok(())
             } else {
                 core.run()?;
-                bail!(
+                Err(anyhow!(if subargs.verify {
+                    "archive is already flashed on attached device; use -F \
+                     (\"--force\") to force re-flash"
+                } else {
                     "archive appears to be already flashed on attached \
-                    device; use -F (\"--force\") to force re-flash or \
-                    -V (\"--verify\") to verify contents"
-                );
+                     device; use -F (\"--force\") to force re-flash or -V \
+                     (\"--verify\") to verify contents"
+                }))
             }
         }
-        Err(err) => {
-            if subargs.check {
-                core.run()?;
-                bail!("flash/archive mismatch: {}", err);
-            }
+        Err(e) => {
+            humility::msg!("{e}; reflashing");
+            Ok(())
         }
     }
+}
 
-    Ok(())
+/// Checks the image and auxiliary flash
+///
+/// Returns `Ok(())` if the image matches; returns an error otherwise.
+///
+/// The core is halted when this function exits.
+fn get_image_state(
+    hubris: &mut HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    full_check: bool,
+) -> Result<()> {
+    core.halt()?;
+
+    // First pass: check only the image ID
+    hubris
+        .validate(core, HubrisValidate::ArchiveMatch)
+        .context("flash/archive mismatch")?;
+
+    // More rigorous checks if requested
+    if full_check {
+        hubris.verify(core).with_context(
+            format!("image IDs match, but flash contents do not match \
+                     archive contents: {err}"),
+        )?;
+
+        let r = if hubris.read_auxflash_data()?.is_some() {
+            // The core must be running for us to check the auxflash slot.
+            //
+            // However, we want it halted before we exit this function, which
+            // requires careful handling.
+            core.run()?;
+            let mut worker = match cmd_auxflash::AuxFlashHandler::new(
+                hubris, core, 15_000,
+            ) {
+                Ok(w) => w,
+                Err(e) => {
+                    core.halt()?;
+                    return Err(e);
+                }
+            };
+            let r = match worker.active_slot() {
+                Ok(Some(..)) => Ok(()),
+                Ok(None) => Err(anyhow!("no active auxflash slot")),
+                Err(e) => Err(anyhow!("failed to check auxflash slot: {e}")),
+            };
+            core.halt()?;
+            r
+        } else {
+            Ok(())
+        };
+
+        // We don't actually read back the auxflash, because that
+        // would be slow; if Hubris has booted and has an active
+        // auxflash slot, then it must match (because we know that
+        // the SP code is correct, and the SP code contains a
+        // checksum of the auxflash data).
+        r.context(
+            "image ID and flash contents match, but auxflash is not loaded",
+        )
+    } else {
+        Ok(())
+    }
 }
 
 fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
@@ -322,7 +365,6 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
     let core = c.as_mut();
 
     validate(hubris, core, &subargs)?;
-
     if subargs.check {
         return Ok(());
     }
