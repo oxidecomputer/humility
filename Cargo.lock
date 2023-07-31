@@ -1127,6 +1127,7 @@ dependencies = [
  "humility-cmd-qspi",
  "humility-cmd-readmem",
  "humility-cmd-readvar",
+ "humility-cmd-rebootleby",
  "humility-cmd-registers",
  "humility-cmd-rencm",
  "humility-cmd-rendmp",
@@ -1726,6 +1727,26 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+]
+
+[[package]]
+name = "humility-cmd-rebootleby"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-arch-arm",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-cortex",
+ "ihex",
+ "log",
+ "parse_int",
+ "path-slash",
+ "probe-rs",
+ "tempfile",
+ "zip",
 ]
 
 [[package]]

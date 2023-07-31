@@ -75,6 +75,7 @@ members = [
     "cmd/qspi",
     "cmd/readmem",
     "cmd/readvar",
+    "cmd/rebootleby",
     "cmd/registers",
     "cmd/reset",
     "cmd/rencm",
@@ -174,6 +175,7 @@ cmd-probe = { path = "./cmd/probe", package = "humility-cmd-probe" }
 cmd-qspi = { path = "./cmd/qspi", package = "humility-cmd-qspi" }
 cmd-readmem = { path = "./cmd/readmem", package = "humility-cmd-readmem" }
 cmd-readvar = { path = "./cmd/readvar", package = "humility-cmd-readvar" }
+cmd-rebootleby = { path = "./cmd/rebootleby", package = "humility-cmd-rebootleby" }
 cmd-registers = { path = "./cmd/registers", package = "humility-cmd-registers" }
 cmd-reset = { path = "./cmd/reset", package = "humility-cmd-reset" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
@@ -315,6 +317,7 @@ cmd-probe = { workspace = true }
 cmd-qspi = { workspace = true }
 cmd-readmem = { workspace = true }
 cmd-readvar = { workspace = true }
+cmd-rebootleby.workspace = true
 cmd-registers = { workspace = true }
 cmd-reset = { workspace = true }
 cmd-rencm = { workspace = true }
