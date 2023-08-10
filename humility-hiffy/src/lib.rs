@@ -1233,12 +1233,11 @@ pub fn hiffy_call(
     // and copy it into the incoming HiffyLease::Read argument
     let out = match lease {
         Some(HiffyLease::Read(data)) => {
-            let ok_size = hubris.typesize(op.ok)?;
+            let ok_size = op.reply_size()?;
             if let Ok(v) = v.as_mut() {
                 let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
                 data.copy_from_slice(&extra_data);
             }
-
             // Shoehorn that extra data in, assuming decoding worked.
             hiffy_decode(hubris, op, v)?
         }
