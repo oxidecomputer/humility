@@ -121,6 +121,8 @@ use humility::hubris::*;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use std::convert::TryInto;
+use std::io::Write;
+use std::path::PathBuf;
 
 //
 // We allow the size to be specified as a number (e.g., with an optional `0x`
@@ -143,16 +145,20 @@ fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
 #[clap(name = "readmem", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct ReadmemArgs {
     /// print out as halfwords instead of as bytes
-    #[clap(long, short = 'H', conflicts_with_all = &["word", "symbol"])]
+    #[clap(long, short = 'H', conflicts_with_all = &["word", "symbol", "file"])]
     halfword: bool,
 
     /// print out as words instead of as bytes
-    #[clap(long, short, conflicts_with_all = &["symbol"])]
+    #[clap(long, short, conflicts_with_all = &["symbol" , "file"])]
     word: bool,
 
     /// print out as symbols
     #[clap(long, short)]
     symbol: bool,
+
+    /// Save to a file instead of printing out
+    #[clap(long, conflicts_with_all = &["word", "halfword", "symbol"])]
+    file: Option<PathBuf>,
 
     /// address to read
     address: String,
@@ -197,6 +203,19 @@ fn readmem(context: &mut ExecutionContext) -> Result<()> {
 
     if addr & (size - 1) as u32 != 0 {
         bail!("address must be {}-byte aligned", size);
+    }
+
+    if let Some(file) = subargs.file {
+        let mut f = std::fs::File::create(&file)?;
+        let mut bytes = vec![0u8; max];
+        for (i, addr) in (addr..addr + (length as u32)).step_by(max).enumerate()
+        {
+            let buf = &mut bytes[..std::cmp::min(max, length - (i * max))];
+            core.read_8(addr, buf)?;
+            f.write_all(buf)?;
+        }
+        humility_log::msg!("Wrote {} bytes to {:?}", length, file);
+        return Ok(());
     }
 
     if length > max {

@@ -1714,6 +1714,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-log",
  "parse-size",
  "parse_int",
 ]
