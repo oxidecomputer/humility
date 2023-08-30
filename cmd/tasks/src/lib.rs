@@ -122,6 +122,7 @@ use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
+use std::io::Write;
 
 #[derive(Parser, Debug)]
 #[clap(name = "tasks", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -150,29 +151,34 @@ struct TasksArgs {
     task: Option<String>,
 }
 
-fn print_regs(regs: &BTreeMap<ARMRegister, u32>, additional: bool) {
+fn print_regs(
+    w: &mut dyn Write,
+    regs: &BTreeMap<ARMRegister, u32>,
+    additional: bool,
+) -> Result<()> {
     let bar = if additional { "|" } else { " " };
 
-    print!("   |\n   +--->");
+    write!(w, "   |\n   +--->")?;
 
     for r in 0..=16 {
         let reg = ARMRegister::from_usize(r).unwrap();
 
         if r != 0 && r % 4 == 0 {
-            print!("   {}    ", bar);
+            write!(w, "   {}    ", bar)?;
         }
 
-        print!("  {:>3} = 0x{:08x}", reg, regs.get(&reg).unwrap());
+        write!(w, "  {:>3} = 0x{:08x}", reg, regs.get(&reg).unwrap())?;
 
         if r % 4 == 3 {
-            println!();
+            writeln!(w)?;
         }
     }
 
-    println!();
+    writeln!(w)?;
+
+    Ok(())
 }
 
-#[rustfmt::skip::macros(println)]
 fn tasks(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -180,6 +186,31 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
 
     let subargs = TasksArgs::try_parse_from(subargs)?;
 
+    print_tasks(
+        &mut std::io::stdout(),
+        core,
+        hubris,
+        subargs.registers,
+        subargs.stack,
+        subargs.line,
+        subargs.spin,
+        subargs.verbose,
+        subargs.task,
+    )
+}
+#[rustfmt::skip::macros(println)]
+#[allow(clippy::too_many_arguments)]
+pub fn print_tasks(
+    w: &mut dyn Write,
+    core: &mut dyn Core,
+    hubris: &HubrisArchive,
+    registers: bool,
+    stack: bool,
+    line: bool,
+    spin: bool,
+    verbose: bool,
+    task_arg: Option<String>,
+) -> Result<()> {
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
     let ticks = if core.is_net() { None } else { Some(hubris.ticks(core)?) };
@@ -193,8 +224,8 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
 
     let printer = humility_stack::StackPrinter {
         indent: 3,
-        line: subargs.line,
-        additional: subargs.registers || subargs.verbose,
+        line,
+        additional: registers || verbose,
     };
 
     loop {
@@ -271,20 +302,24 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
             }
         }
 
-        let keep_halted = subargs.stack || subargs.registers || panicked;
+        let keep_halted = stack || registers || panicked;
 
         if !keep_halted {
             core.run()?;
         }
 
-        println!(
+        writeln!(
+            w,
             "system time = {}",
             ticks
                 .map(|t| t.to_string())
                 .unwrap_or_else(|| "unavailable-via-net".to_owned())
-        );
-        println!("{:2} {:21} {:>8} {:3} {:9}",
-            "ID", "TASK", "GEN", "PRI", "STATE");
+        )?;
+        writeln!(
+            w,
+            "{:2} {:21} {:>8} {:3} {:9}",
+            "ID", "TASK", "GEN", "PRI", "STATE"
+        )?;
 
         let mut any_names_truncated = false;
 
@@ -298,7 +333,7 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
 
             let irqs = hubris.manifest.task_irqs.get(module);
 
-            if let Some(ref task) = subargs.task {
+            if let Some(ref task) = task_arg {
                 if *task != module {
                     if let Ok(task_addr) = parse_int::parse::<u32>(task) {
                         if *addr != task_addr {
@@ -337,21 +372,24 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
             // Special case for the supervisor on a net core, which we can't
             // meaningfully process.
             if i == 0 && core.is_net() {
-                println!(
+                writeln!(
+                    w,
                     "{:2} {:21} {:>8} {:3} [cannot read supervisor memory]",
                     i, modname, "?", task.priority.0
-                );
+                )?;
                 continue;
             } else {
-                print!(
+                write!(
+                    w,
                     "{:2} {:21} {:>8} {:3} ",
                     i,
                     modname,
                     u32::from(task.generation),
                     task.priority.0
-                );
+                )?;
             }
             explain_state(
+                w,
                 hubris,
                 core,
                 i,
@@ -361,28 +399,28 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
                 irqs,
                 timer,
             )?;
-            println!();
+            writeln!(w)?;
 
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
-            if subargs.stack || subargs.registers {
+            if stack || registers {
                 let t = HubrisTask::Task(i);
                 let regs = hubris.registers(core, t)?;
 
-                if subargs.stack {
+                if stack {
                     match hubris.stack(core, t, desc.initial_stack, &regs) {
                         Ok(stack) => printer.print(hubris, &stack),
                         Err(e) => {
-                            println!("   stack unwind failed: {:?} ", e);
+                            writeln!(w, "   stack unwind failed: {:?} ", e)?;
                         }
                     }
                 }
 
-                if subargs.registers {
-                    print_regs(&regs, subargs.verbose);
+                if registers {
+                    print_regs(w, &regs, verbose)?;
                 }
             }
 
-            if subargs.verbose {
+            if verbose {
                 let fmt = HubrisPrintFormat {
                     indent: 16,
                     newline: true,
@@ -390,30 +428,33 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
                     ..HubrisPrintFormat::default()
                 };
 
-                print!("   |\n   +-----------> {:#08x} ", addr);
+                write!(w, "   |\n   +-----------> {:#08x} ", addr)?;
                 task_value.format(hubris, fmt, &mut std::io::stdout())?;
-                println!("\n");
+                writeln!(w, "\n")?;
             }
 
-            if subargs.registers && !subargs.verbose {
-                println!();
+            if registers && !verbose {
+                writeln!(w)?;
             }
         }
 
         if any_names_truncated {
-            println!("Note: task names were truncated to fit. Use \
-                humility manifest to see them.");
+            writeln!(
+                w,
+                "Note: task names were truncated to fit. Use \
+                humility manifest to see them."
+            )?;
         }
 
         if keep_halted {
             core.run()?;
         }
 
-        if subargs.task.is_some() && !found {
-            bail!("\"{}\" is not a valid task", subargs.task.unwrap());
+        if task_arg.is_some() && !found {
+            bail!("\"{}\" is not a valid task", task_arg.unwrap());
         }
 
-        if !subargs.spin {
+        if !spin {
             break;
         }
     }
@@ -429,6 +470,7 @@ enum Deadline {
 
 #[allow(clippy::too_many_arguments)]
 fn explain_state(
+    w: &mut dyn Write,
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
@@ -441,13 +483,14 @@ fn explain_state(
     match ts {
         TaskState::Healthy(ss) => {
             explain_sched_state(
-                hubris, task_index, regs, current, irqs, timer, ss,
+                w, hubris, task_index, regs, current, irqs, timer, ss,
             )?;
         }
         TaskState::Faulted { fault, original_state } => {
-            explain_fault_info(hubris, core, task_index, regs, fault)?;
-            print!(" (was: ");
+            explain_fault_info(w, hubris, core, task_index, regs, fault)?;
+            write!(w, " (was: ")?;
             explain_sched_state(
+                w,
                 hubris,
                 task_index,
                 regs,
@@ -456,13 +499,15 @@ fn explain_state(
                 timer,
                 original_state,
             )?;
-            print!(")");
+            write!(w, ")")?;
         }
     }
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn explain_sched_state(
+    w: &mut dyn Write,
     hubris: &HubrisArchive,
     task_index: u32,
     regs: &HashMap<(u32, ARMRegister), u32>,
@@ -474,43 +519,52 @@ fn explain_sched_state(
     use doppel::SchedState;
 
     match e {
-        SchedState::Stopped => print!("not started"),
+        SchedState::Stopped => {
+            write!(w, "not started")?;
+        }
         SchedState::Runnable => {
             if current {
-                print!("RUNNING")
+                write!(w, "RUNNING")?;
             } else {
-                print!("ready")
+                write!(w, "ready")?;
             }
         }
         SchedState::InSend(tid) => {
             if tid == TaskId::KERNEL {
-                print!("HALT: send to kernel");
+                write!(w, "HALT: send to kernel")?;
             } else {
-                print!("wait: send to ");
-                print_task_id(hubris, tid);
+                write!(w, "wait: send to ")?;
+                print_task_id(w, hubris, tid)?;
             }
         }
         SchedState::InReply(tid) => {
-            print!("wait: reply from ");
-            print_task_id(hubris, tid);
+            write!(w, "wait: reply from ")?;
+            print_task_id(w, hubris, tid)?;
         }
         SchedState::InRecv(tid) => {
             let notmask = *regs.get(&(task_index, ARMRegister::R6)).unwrap();
-            explain_recv(hubris, task_index, tid, notmask, irqs, timer);
+            explain_recv(w, hubris, task_index, tid, notmask, irqs, timer)?;
         }
     }
     Ok(())
 }
 
-fn print_task_id(hubris: &HubrisArchive, task_id: TaskId) {
+fn print_task_id(
+    w: &mut dyn Write,
+    hubris: &HubrisArchive,
+    task_id: TaskId,
+) -> Result<()> {
     if let Some(n) = hubris.task_name(task_id.index()) {
-        print!("{}/gen{}", n, task_id.generation());
+        write!(w, "{}/gen{}", n, task_id.generation())?;
     } else {
-        print!("unknown#{}/gen{}", task_id.index(), task_id.generation());
+        write!(w, "unknown#{}/gen{}", task_id.index(), task_id.generation())?;
     }
+
+    Ok(())
 }
 
 fn explain_fault_info(
+    w: &mut dyn Write,
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     task_index: u32,
@@ -519,46 +573,52 @@ fn explain_fault_info(
 ) -> Result<()> {
     use doppel::FaultInfo;
 
-    print!("FAULT: ");
+    write!(w, "FAULT: ")?;
     match fi {
-        FaultInfo::DivideByZero => print!("divide by zero"),
-        FaultInfo::IllegalText => print!("jump to non-executable mem"),
-        FaultInfo::IllegalInstruction => print!("illegal instruction"),
+        FaultInfo::DivideByZero => {
+            write!(w, "divide by zero")?;
+        }
+        FaultInfo::IllegalText => {
+            write!(w, "jump to non-executable mem")?;
+        }
+        FaultInfo::IllegalInstruction => {
+            write!(w, "illegal instruction")?;
+        }
         FaultInfo::InvalidOperation(bits) => {
-            print!("general fault, cfsr=0x{:x}", bits);
+            write!(w, "general fault, cfsr=0x{:x}", bits)?;
         }
         FaultInfo::StackOverflow { address } => {
-            print!("stack overflow; sp=0x{:x}", address);
+            write!(w, "stack overflow; sp=0x{:x}", address)?;
         }
         FaultInfo::Injected(task) => {
-            print!("killed by ");
-            print_task_id(hubris, task);
+            write!(w, "killed by ")?;
+            print_task_id(w, hubris, task)?;
         }
         FaultInfo::MemoryAccess { address, source } => {
-            print!("mem fault (");
+            write!(w, "mem fault (")?;
             if let Some(addr) = address {
-                print!("precise: 0x{:x}", addr);
+                write!(w, "precise: 0x{:x}", addr)?;
             } else {
-                print!("imprecise");
+                write!(w, "imprecise")?;
             }
-            print!(")");
+            write!(w, ")")?;
 
-            explain_fault_source(source);
+            explain_fault_source(w, source)?;
         }
         FaultInfo::BusError { address, source } => {
-            print!("bus fault (");
+            write!(w, "bus fault (")?;
             if let Some(addr) = address {
-                print!("precise: 0x{:x}", addr);
+                write!(w, "precise: 0x{:x}", addr)?;
             } else {
-                print!("imprecise");
+                write!(w, "imprecise")?;
             }
-            print!(")");
+            write!(w, ")")?;
 
-            explain_fault_source(source);
+            explain_fault_source(w, source)?;
         }
         FaultInfo::SyscallUsage(ue) => {
-            print!("in syscall: ");
-            explain_usage_error(ue);
+            write!(w, "in syscall: ")?;
+            explain_usage_error(w, ue)?;
         }
         FaultInfo::Panic => {
             let msg_base = *regs.get(&(task_index, ARMRegister::R4)).unwrap();
@@ -567,36 +627,47 @@ fn explain_fault_info(
             let mut buf = vec![0; msg_len];
             core.read_8(msg_base, &mut buf)?;
             match std::str::from_utf8(&buf) {
-                Ok(msg) => print!("{}", msg),
-                Err(_) => print!("panic with invalid message"),
+                Ok(msg) => {
+                    write!(w, "{}", msg)?;
+                }
+                Err(_) => {
+                    write!(w, "panic with invalid message")?;
+                }
             }
         }
         FaultInfo::FromServer(task_id, reason) => {
-            print!("reply fault: task id {}, reason {:?}", task_id, reason);
+            write!(w, "reply fault: task id {}, reason {:?}", task_id, reason)?;
         }
     }
     Ok(())
 }
 
-fn explain_usage_error(e: doppel::UsageError) {
+fn explain_usage_error(w: &mut dyn Write, e: doppel::UsageError) -> Result<()> {
     use doppel::UsageError::*;
     match e {
-        BadSyscallNumber => print!("undefined syscall number"),
-        InvalidSlice => print!("sent malformed slice to kernel"),
-        TaskOutOfRange => print!("used bogus task index"),
-        IllegalTask => print!("illegal task operation"),
-        LeaseOutOfRange => print!("bad caller lease index"),
-        OffsetOutOfRange => print!("bad caller lease offset"),
-        NoIrq => print!("referred to undefined interrupt"),
-        BadKernelMessage => print!("sent nonsense IPC to kernel"),
-    }
+        BadSyscallNumber => write!(w, "undefined syscall number")?,
+        InvalidSlice => write!(w, "sent malformed slice to kernel")?,
+        TaskOutOfRange => write!(w, "used bogus task index")?,
+        IllegalTask => write!(w, "illegal task operation")?,
+        LeaseOutOfRange => write!(w, "bad caller lease index")?,
+        OffsetOutOfRange => write!(w, "bad caller lease offset")?,
+        NoIrq => write!(w, "referred to undefined interrupt")?,
+        BadKernelMessage => write!(w, "sent nonsense IPC to kernel")?,
+    };
+
+    Ok(())
 }
 
-fn explain_fault_source(e: doppel::FaultSource) {
+fn explain_fault_source(
+    w: &mut dyn Write,
+    e: doppel::FaultSource,
+) -> Result<()> {
     match e {
-        doppel::FaultSource::User => print!(" in task code"),
-        doppel::FaultSource::Kernel => print!(" in syscall"),
-    }
+        doppel::FaultSource::User => write!(w, " in task code")?,
+        doppel::FaultSource::Kernel => write!(w, " in syscall")?,
+    };
+
+    Ok(())
 }
 
 /// Heuristic recognition of receive states used by normal programs.
@@ -612,13 +683,14 @@ fn explain_fault_source(e: doppel::FaultSource) {
 ///
 /// - Make common cases unobtrusive and easy to scan.
 fn explain_recv(
+    w: &mut dyn Write,
     hubris: &HubrisArchive,
     task_index: u32,
     src: Option<TaskId>,
     notmask: u32,
     irqs: Option<&Vec<(u32, u32)>>,
     timer: Option<Deadline>,
-) {
+) -> Result<()> {
     // Come up with a description for each notification bit.
     struct NoteInfo {
         irqs: Vec<u32>,
@@ -657,12 +729,12 @@ fn explain_recv(
             outer_first = true;
         }
         Some(other) => {
-            print!("recv(");
-            print_task_id(hubris, other);
-            print!(" only)");
+            write!(w, "recv(")?;
+            print_task_id(w, hubris, other)?;
+            write!(w, " only)")?;
         }
         None => {
-            print!("recv");
+            write!(w, "recv")?;
         }
     }
 
@@ -678,42 +750,44 @@ fn explain_recv(
 
     // Display notification bits, along with meaning where we can.
     if notmask != 0 {
-        print!("{}notif:", if outer_first { "" } else { ", " });
+        write!(w, "{}notif:", if outer_first { "" } else { ", " })?;
         for nt in note_types {
             let name = notification_name(nt.bit);
             if let Some(name) = name {
-                print!(" {name}");
+                write!(w, " {name}")?;
             } else {
-                print!(" bit{}", nt.bit);
+                write!(w, " bit{}", nt.bit)?;
             }
             if !nt.irqs.is_empty() || nt.timer.is_some() {
-                print!("(");
+                write!(w, "(")?;
                 let mut first = true;
                 if let Some(ts) = nt.timer {
-                    print!("{}T", if !first { "/" } else { "" });
+                    write!(w, "{}T", if !first { "/" } else { "" })?;
                     match ts {
                         Deadline::Relative { dt, .. } => {
-                            print!("{dt:+}");
+                            write!(w, "{dt:+}")?;
                         }
                         Deadline::Absolute { t, .. } => {
-                            print!("={t:}");
+                            write!(w, "={t:}")?;
                         }
                     }
                     first = false;
                 }
                 for irq in &nt.irqs {
-                    print!("{}irq{}", if !first { "/" } else { "" }, irq);
+                    write!(w, "{}irq{}", if !first { "/" } else { "" }, irq)?;
                     first = false;
                 }
-                print!(")");
+                write!(w, ")")?;
             }
         }
     }
 
     // Flag things that are probably bugs
     if src == Some(TaskId::KERNEL) && notmask == 0 {
-        print!("(DEAD)");
+        write!(w, "(DEAD)")?;
     }
+
+    Ok(())
 }
 
 pub fn init() -> Command {
