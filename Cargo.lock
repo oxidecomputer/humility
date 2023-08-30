@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.28"
+version = "0.10.29"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1988,10 +1988,14 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "hif",
  "humility-cli",
  "humility-cmd",
+ "humility-cmd-tasks",
  "humility-core",
  "humility-cortex",
+ "humility-hiffy",
+ "parse_int",
 ]
 
 [[package]]

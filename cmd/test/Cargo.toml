@@ -9,7 +9,11 @@ colored.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 
+parse_int.workspace = true
+hif.workspace = true
+humility-hiffy.workspace = true
 humility.workspace = true
 humility-cortex.workspace = true
 humility-cmd.workspace = true
 humility-cli.workspace = true
+cmd-tasks.workspace = true
