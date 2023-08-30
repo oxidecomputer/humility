@@ -4,171 +4,124 @@
 
 //! ## `humility test`
 //!
-//! When run against a test archive, `humility test` kicks off the test suite
-//! and parses its results via ITM.
+//! When run against a test archive, `humility test` kicks off the test suite.
+//! Humility is responsible for getting the number of tests and then running
+//! each one in succession.
 //!
 //! ```console
-//! humility: attached via ST-Link
-//! humility: ITM synchronization packet found at offset 6
-//! humility: expecting 22 cases
-//! humility: running test_send ... ok
-//! humility: running test_recv_reply ... ok
-//! humility: running test_fault_badmem ... ok
-//! humility: running test_fault_stackoverflow ... ok
-//! humility: running test_fault_execdata ... ok
-//! humility: running test_fault_illop ... ok
-//! humility: running test_fault_nullexec ... ok
-//! humility: running test_fault_textoob ... ok
-//! humility: running test_fault_stackoob ... ok
-//! humility: running test_fault_buserror ... ok
-//! humility: running test_fault_illinst ... ok
-//! humility: running test_fault_divzero ... ok
-//! humility: running test_panic ... ok
-//! humility: running test_restart ... ok
-//! humility: running test_restart_taskgen ... ok
-//! humility: running test_borrow_info ... ok
-//! humility: running test_borrow_read ... ok
-//! humility: running test_borrow_write ... ok
-//! humility: running test_supervisor_fault_notification ... ok
-//! humility: running test_timer_advance ... ok
-//! humility: running test_timer_notify ... ok
-//! humility: running test_timer_notify_past ... ok
-//! humility: tests completed: pass
+//! humility: attached via CMSIS-DAP
+//! Total test cases: 50
+//! humility: running test_send ...ok
+//! humility: running test_recv_reply ...ok
+//! humility: running test_recv_reply_fault ...ok
+//! humility: running test_floating_point_lowregs ...ok
+//! humility: running test_floating_point_highregs ...ok
+//! humility: running test_floating_point_fault ...ok
+//! humility: running test_fault_badmem ...ok
+//! humility: running test_fault_stackoverflow ...ok
+//! humility: running test_fault_execdata ...ok
+//! humility: running test_fault_illop ...ok
+//! humility: running test_fault_nullexec ...ok
+//! humility: running test_fault_textoob ...ok
+//! humility: running test_fault_stackoob ...ok
+//! humility: running test_fault_buserror ...ok
+//! humility: running test_fault_illinst ...ok
+//! humility: running test_fault_divzero ...ok
+//! humility: running test_fault_maxstatus ...ok
+//! humility: running test_fault_badstatus ...ok
+//! humility: running test_fault_maxrestart ...ok
+//! humility: running test_fault_badrestart ...ok
+//! humility: running test_fault_maxinjection ...ok
+//! humility: running test_fault_badinjection ...ok
+//! humility: running test_fault_superinjection ...ok
+//! humility: running test_fault_selfinjection ...ok
+//! humility: running test_panic ...ok
+//! humility: running test_restart ...ok
+//! humility: running test_restart_taskgen ...ok
+//! humility: running test_borrow_info ...ok
+//! humility: running test_borrow_read ...ok
+//! humility: running test_borrow_write ...ok
+//! humility: running test_borrow_without_peer_waiting ...ok
+//! humility: running test_supervisor_fault_notification ...ok
+//! humility: running test_timer_advance ...ok
+//! humility: running test_timer_notify ...ok
+//! humility: running test_timer_notify_past ...ok
+//! humility: running test_task_config ...ok
+//! humility: running test_task_status ...ok
+//! humility: running test_task_fault_injection ...ok
+//! humility: running test_refresh_task_id_basic ...ok
+//! humility: running test_refresh_task_id_off_by_one ...ok
+//! humility: running test_refresh_task_id_off_by_many ...ok
+//! humility: running test_post ...ok
+//! humility: running test_idol_basic ...ok
+//! humility: running test_idol_bool_arg ...ok
+//! humility: running test_idol_bool_ret ...ok
+//! humility: running test_idol_bool_xor ...ok
+//! humility: running test_idol_err_ret ...ok
+//! humility: running test_idol_ssmarshal ...ok
+//! humility: running test_idol_ssmarshal_multiarg ...ok
+//! humility: running test_idol_ssmarshal_multiarg_enum ...ok
+//! Ran a total of 50 cases
 //! ```
 //!
-//! If a test fails, this will also create a complete report, e.g.:
-//!
-//! ```console
-//! humility: attached via ST-Link
-//! humility: ITM synchronization packet found at offset 6
-//! humility: expecting 22 cases
-//! humility: running test_send ... ok
-//! humility: running test_recv_reply ... fail
-//! humility: running test_fault_badmem ... ok
-//! ...
-//! humility: running test_timer_notify_past ... ok
-//! humility: tests completed: fail
-//! humility: test output dumped to hubris.testout.15
-//! ```
-//!
-//! This output file will have (among other things) a section that has
-//! complete test run information.  For details on a failing test, look
-//! for `result: Fail`:
+//! All tests will produce an output file. This contains information about
+//! the hubris archive as well as task state after each test run. Search
+//! for "fail" to see any failed tests.
 //!
 //! ```console
 //! $ cat hubris.testout.15
 //! ...
 //! ==== Test results
-//! [
-//!     ...
-//!     TestCompletion {
-//!         case: "test_recv_reply",
-//!         result: Fail,
-//!         log: [
-//!             (
-//!                 UserLog,
-//!                 "assistant starting",
-//!             ),
-//!             (
-//!                 KernelLog,
-//!                 "task @1 panicked: panicked at \'assertion failed: false\', test/test-suite/src/main.rs:124:5",
-//!             ),
-//!             (
-//!                 UserLog,
-//!                 "Task #1 Panic!",
-//!             ),
-//!             (
-//!                 UserLog,
-//!                 "assistant starting",
-//!             ),
-//!         ],
-//!     },
-//!     ...
+//! ...
+//! ==== Test test_task_status result: "ok"
+//! ==== Task state
+//! system time = 27941
+//! ID TASK                       GEN PRI STATE
+//! 0 runner                       0   0 recv, notif: bit0 bit1 bit2 bit3 bit4 bit5 bit6 bit7 bit8 bit9 bit10 bit11 bit12 bit13 bit14 bit15 bit16 bit17 bit18 bit19 bit20 bit21 bit22 bit23 bit24 bit25 bit26 bit27 bit28 bit29 bit30 bit31
+//! 1 suite                       33   2 recv
+//! 2 assist                      37   1 FAULT: in syscall: used bogus task index (was: ready)
+//! 3 idol                         0   1 recv
+//! 4 hiffy                        0   3 notif: bit31(T+8)
+//! 5 idle                         0   4 RUNNING
 //! ```
 //!
-//! This shows the sequential ordering of all log messages while running the
-//! test.  The test report can also be useful even when tests pass; to always
-//! dump a test report, use the `-d` option to `humility test`.
-//!
-//! Note that `humility test` relies on the ability to keep up with ITM data,
-//! which can be lossy.  In the event ITM data is lost, the failure mode is
-//! unlikely to be a failing test, but rather a fatal error due to a misframed
-//! packet:
-//!
-//! ```console
-//! humility: running test_fault_nullexec ... ok
-//! humility: running test_fault_textoob ... ok
-//! humility: running test_fault_stackoob ... humility: test output dumped to hubris.testout.21
-//! humility: test failed: malformed datum: 0x74
-//! Error: test failed
-//! ```
-//!
-//! All received packet data will be dumped to the resulting output file,
-//! allowing these transient failures to be differentiated from deeper issues.
+//! Older versions of the test suite gave streaming output. This is no longer
+//! available. If the information in the output is not enough to debug, the
+//! recommendation is to extend the state that is captured.
 //!
 
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
-use humility::core::Core;
+use hif::*;
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_cortex::itm::*;
-use std::cell::RefCell;
-use std::collections::VecDeque;
+use humility_hiffy::*;
 use std::fmt;
-use std::fs;
 use std::fs::OpenOptions;
-use std::io::BufWriter;
-use std::io::Write;
-use std::time::Instant;
+use std::io::{BufWriter, Write};
 
 #[derive(Parser, Debug)]
 #[clap(name = "test", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct TestArgs {
+    /// sets timeout
+    #[clap(
+        long, short = 'T', default_value_t = 3000, value_name = "timeout_ms",
+        parse(try_from_str = parse_int::parse)
+    )]
+    timeout: u32,
+
     /// dump full report even on success
     #[clap(long, short)]
     dumpalways: bool,
     /// sets the output file
     #[clap(long, short, value_name = "filename")]
     output: Option<String>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum TestSource {
-    KernelLog,
-    UserLog,
-    Suite,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum TestToken {
-    Meta,
-    Expect,
-    Case,
-    Run,
-    Start,
-    Finish,
-    Done,
-    None,
-    Unknown(String),
-}
-
-impl From<&str> for TestToken {
-    fn from(input: &str) -> Self {
-        match input {
-            "meta" => TestToken::Meta,
-            "expect" => TestToken::Expect,
-            "case" => TestToken::Case,
-            "run" => TestToken::Run,
-            "start" => TestToken::Start,
-            "finish" => TestToken::Finish,
-            "done" => TestToken::Done,
-            _ => TestToken::Unknown(input.to_owned()),
-        }
-    }
+    /// Run a single test
+    #[clap(long, short, value_name = "single")]
+    single: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -176,6 +129,16 @@ enum TestResult {
     Ok,
     Fail,
     Unknown(String),
+}
+
+impl TestResult {
+    fn to_str_no_color(&self) -> String {
+        match self {
+            TestResult::Ok => "ok".to_string(),
+            TestResult::Fail => "fail".to_string(),
+            TestResult::Unknown(s) => format!("unknown: {}", s),
+        }
+    }
 }
 
 impl From<&str> for TestResult {
@@ -227,429 +190,6 @@ impl fmt::Display for TestRunResult {
     }
 }
 
-fn nargs(token: &TestToken) -> usize {
-    match token {
-        TestToken::Meta | TestToken::Run => 0,
-        TestToken::Expect | TestToken::Case | TestToken::Start => 1,
-        TestToken::Done => 1,
-        TestToken::Finish => 2,
-        _ => 0,
-    }
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-struct TestCompletion {
-    case: String,
-    result: TestResult,
-    log: Vec<(TestSource, String)>,
-}
-
-pub struct TestRun<'a> {
-    hubris: &'a HubrisArchive,
-    log: Vec<(char, TestSource)>,
-    raw: Vec<char>,
-    buffer: Vec<char>,
-    case: usize,
-    cases: Vec<String>,
-    expected: TestToken,
-    ncases: Option<usize>,
-    result: Option<TestRunResult>,
-    results: Vec<TestCompletion>,
-}
-
-#[rustfmt::skip::macros(bail)]
-impl<'a> TestRun<'a> {
-    pub fn new(hubris: &'a HubrisArchive) -> TestRun<'a> {
-        Self {
-            hubris,
-            log: Vec::new(),
-            raw: Vec::new(),
-            buffer: Vec::new(),
-            expected: TestToken::Meta,
-            case: 0,
-            cases: Vec::new(),
-            ncases: None,
-            result: None,
-            results: Vec::new(),
-        }
-    }
-
-    fn parse(&mut self) -> Result<()> {
-        let s: String = self.buffer.iter().collect();
-        let tokens: Vec<&str> = s.split(' ').collect();
-
-        if tokens.is_empty() {
-            bail!("expected {:?} token, found blank line", self.expected);
-        }
-
-        let token = TestToken::from(tokens[0]);
-
-        if token != self.expected {
-            bail!("expected {:?} token, found {:?}", self.expected, token);
-        }
-
-        let nargs = nargs(&token);
-
-        if tokens.len() - 1 != nargs {
-            bail!("for {:?}, expected {} args, found {}",
-                token, nargs, tokens.len() - 1);
-        }
-
-        self.expected = match token {
-            TestToken::Meta => TestToken::Expect,
-
-            TestToken::Expect => {
-                self.ncases = match tokens[1].parse::<usize>() {
-                    Ok(val) => Some(val),
-                    Err(e) => bail!("invalid number of cases: {:?}", e),
-                };
-                TestToken::Case
-            }
-
-            TestToken::Case => {
-                self.cases.push(tokens[1].to_string());
-
-                if self.cases.len() == self.ncases.unwrap() {
-                    TestToken::Run
-                } else {
-                    TestToken::Case
-                }
-            }
-
-            TestToken::Run => {
-                println!("humility: expecting {} cases", self.cases.len());
-                TestToken::Start
-            }
-
-            TestToken::Start => {
-                if tokens[1] != self.cases[self.case] {
-                    bail!("starting case {}: expected case {}, found case {}",
-                        self.case, self.cases[self.case], tokens[1]);
-                }
-
-                print!("humility: running {} ... ", self.cases[self.case]);
-                std::io::stdout().flush().unwrap();
-
-                TestToken::Finish
-            }
-
-            TestToken::Finish => {
-                if tokens[2] != self.cases[self.case] {
-                    bail!("finishing case {}: expected case {}, found case {}",
-                        self.case, self.cases[self.case], tokens[2]);
-                }
-
-                let mut log = vec![];
-                let mut last = None;
-                let mut buf = vec![];
-
-                for (datum, source) in &self.log {
-                    if let Some(l) = last {
-                        if l != *source || *datum == '\n' {
-                            let s: String = buf.iter().collect();
-                            log.push((l, s));
-                            buf.truncate(0);
-                        }
-                    }
-
-                    if *datum == '\n' {
-                        last = None;
-                        continue;
-                    }
-
-                    buf.push(*datum);
-                    last = Some(*source);
-                }
-
-                if let Some(l) = last {
-                    let s: String = buf.iter().collect();
-                    log.push((l, s));
-                }
-
-                let completion = TestCompletion {
-                    case: self.cases[self.case].clone(),
-                    result: TestResult::from(tokens[1]),
-                    log,
-                };
-
-                println!("{}", completion.result);
-                self.results.push(completion);
-
-                self.log.truncate(0);
-                self.case += 1;
-
-                if self.case < self.ncases.unwrap() {
-                    TestToken::Start
-                } else {
-                    TestToken::Done
-                }
-            }
-
-            TestToken::Done => {
-                let result = TestRunResult::from(tokens[1]);
-                humility::msg!("tests completed: {result}");
-                self.result = Some(result);
-                TestToken::None
-            }
-
-            _ => {
-                println!("{:#?}", self.results);
-                bail!("unhandled token {:?}", token);
-            }
-        };
-
-        self.buffer.truncate(0);
-
-        Ok(())
-    }
-
-    pub fn consume(&mut self, source: TestSource, datum: char) -> Result<()> {
-        match source {
-            TestSource::Suite => {
-                self.raw.push(datum);
-
-                if datum == '\n' {
-                    self.parse()?;
-                } else {
-                    self.buffer.push(datum);
-                }
-            }
-
-            _ => {
-                self.log.push((datum, source));
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn report(
-        &mut self,
-        output: Option<&String>,
-        wire: &[(u8, f64, f64)],
-        err: Option<&anyhow::Error>,
-    ) -> Result<()> {
-        let filename = match output {
-            Some(filename) => filename.clone(),
-            None => {
-                let mut filename;
-                let mut i = 0;
-
-                loop {
-                    filename = format!("hubris.testout.{}", i);
-
-                    if let Ok(_f) = fs::File::open(&filename) {
-                        i += 1;
-                        continue;
-                    }
-
-                    break;
-                }
-
-                filename
-            }
-        };
-
-        let file =
-            OpenOptions::new().write(true).create_new(true).open(&filename)?;
-        let mut out = BufWriter::new(&file);
-
-        writeln!(out, "==== Test archive details")?;
-        writeln!(out, "{:#?}", self.hubris.manifest)?;
-
-        writeln!(out, "==== Test result")?;
-
-        match &self.result {
-            None => match err {
-                Some(err) => {
-                    writeln!(out, "result=aborted due to error: {:?}", err)?;
-                }
-                None => {
-                    writeln!(out, "result=incomplete")?;
-                }
-            },
-            Some(result) => {
-                writeln!(out, "result={:?}", result)?;
-            }
-        }
-
-        writeln!(out, "==== Raw SWO output")?;
-        for (i, w) in wire.iter().enumerate() {
-            writeln!(out, "swo,{},{},{},0x{:02x},,", i, w.1, w.2, w.0)?;
-        }
-
-        writeln!(out, "==== Test output")?;
-        writeln!(out, "{}", self.raw.iter().collect::<String>())?;
-        writeln!(out, "==== Test results")?;
-        writeln!(out, "{:#?}", self.results)?;
-
-        humility::msg!("test output dumped to {filename}");
-
-        Ok(())
-    }
-
-    pub fn completed(&mut self) -> bool {
-        self.result.is_some()
-    }
-
-    pub fn failed(&mut self) -> bool {
-        self.result == Some(TestRunResult::Fail)
-    }
-}
-
-fn test_ingest(
-    core: &mut dyn Core,
-    subargs: &TestArgs,
-    hubris: &HubrisArchive,
-    traceid: Option<u8>,
-) -> Result<()> {
-    let mut bufs: VecDeque<(Vec<u8>, f64)> = VecDeque::new();
-    let mut ndx = 0;
-    let mut current = None;
-
-    let v = hubris
-        .lookup_variable("TEST_KICK")
-        .context("does not appear to be a test archive")?;
-
-    if v.size != 4 {
-        bail!("expected TEST_KICK to be of size 4; found {}", v.size);
-    }
-
-    let start = Instant::now();
-
-    let mut testrun = TestRun::new(hubris);
-    let mut kicked = false;
-
-    let shared = RefCell::new(core);
-
-    let wirebuf = vec![];
-    let wire = RefCell::new(wirebuf);
-
-    let output = subargs.output.as_ref();
-    let timeout = 30;
-
-    let rval = itm_ingest(
-        traceid,
-        || {
-            loop {
-                if start.elapsed().as_secs() > timeout {
-                    bail!("timed out after {} seconds", timeout);
-                }
-
-                //
-                // We will keep reading until we have a zero byte read, at
-                // which time we will kick out and process one byte.
-                //
-                let buf = shared.borrow_mut().read_swv()?;
-
-                if !buf.is_empty() {
-                    bufs.push_back((buf, start.elapsed().as_secs_f64()));
-                    continue;
-                }
-
-                match current {
-                    None => {
-                        current = bufs.pop_front();
-                        ndx = 0;
-                    }
-
-                    Some((ref buf, _)) => {
-                        if ndx == buf.len() {
-                            current = bufs.pop_front();
-                            ndx = 0;
-                        }
-                    }
-                }
-
-                if current.is_none() {
-                    continue;
-                }
-
-                break;
-            }
-
-            let (buf, pulled) = current.as_ref().unwrap();
-            ndx += 1;
-
-            let datum = (buf[ndx - 1], start.elapsed().as_secs_f64());
-            wire.borrow_mut().push((datum.0, *pulled, datum.1));
-
-            Ok(Some(datum))
-        },
-        |packet| match &packet.payload {
-            ITMPayload::Instrumentation { payload, port } => {
-                let source = match *port {
-                    0 => TestSource::KernelLog,
-                    1 => TestSource::UserLog,
-                    8 => TestSource::Suite,
-                    _ => {
-                        bail!("spurious data on port {}: {:x?}", port, payload);
-                    }
-                };
-
-                for p in payload {
-                    match testrun.consume(source, *p as char) {
-                        Ok(_) => {}
-                        Err(err) => {
-                            testrun.report(
-                                output,
-                                &wire.borrow(),
-                                Some(&err),
-                            )?;
-                            return Err(err);
-                        }
-                    }
-
-                    if testrun.completed() {
-                        if testrun.failed() {
-                            testrun.report(output, &wire.borrow(), None)?;
-                            std::process::exit(1);
-                        }
-
-                        if subargs.dumpalways {
-                            testrun.report(output, &wire.borrow(), None)?;
-                        }
-
-                        std::process::exit(0);
-                    }
-                }
-
-                Ok(())
-            }
-            ITMPayload::None => {
-                match packet.header {
-                    ITMHeader::Sync => {
-                        if !kicked {
-                            shared.borrow_mut().halt()?;
-                            shared.borrow_mut().write_word_32(v.addr, 1)?;
-                            shared.borrow_mut().run()?;
-                            kicked = true;
-                        }
-                    }
-                    ITMHeader::Malformed(datum) => {
-                        bail!("malformed datum: 0x{:x}", datum);
-                    }
-                    _ => {}
-                }
-
-                Ok(())
-            }
-            _ => {
-                bail!("unknown packet: {:x?}", packet);
-            }
-        },
-    );
-
-    match rval {
-        Ok(_) => rval,
-        Err(err) => {
-            testrun.report(output, &wire.borrow(), Some(&err))?;
-            Err(err)
-        }
-    }
-}
-
 fn test(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -659,9 +199,118 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
 
     hubris.validate(core, HubrisValidate::Booted)?;
 
-    let stim = 0x0000_ffff;
-    let traceid = itm_enable_ingest(core, hubris, stim)?;
-    test_ingest(core, &subargs, hubris, traceid)?;
+    // This type is &[(&str, &(dyn Fn() + Send + Sync))]
+    let test_slice = hubris
+        .lookup_variable("TESTS")
+        .context("This does not look to be a test archive")?;
+
+    let filename = match subargs.output {
+        Some(filename) => filename,
+        None => {
+            let mut filename;
+            let mut i = 0;
+
+            loop {
+                filename = format!("hubris.testout.{}", i);
+
+                if let Ok(_f) = std::fs::File::open(&filename) {
+                    i += 1;
+                    continue;
+                }
+
+                break;
+            }
+
+            filename
+        }
+    };
+
+    let file =
+        OpenOptions::new().write(true).create_new(true).open(&filename)?;
+    let mut out = BufWriter::new(&file);
+
+    writeln!(out, "==== Test archive details")?;
+    writeln!(out, "{:#?}", hubris.manifest)?;
+
+    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
+    let run_test = context.get_function("RunTest", 1)?;
+
+    // Slices are (not so) secretly structs with members "length" and "data_ptr"
+    let test_struct = hubris.lookup_struct(test_slice.goff)?;
+    let len_data = test_struct.lookup_member("length")?;
+    let data_ptr_data = test_struct.lookup_member("data_ptr")?;
+    let test_len =
+        core.read_word_32(test_slice.addr + (len_data.offset as u32))?;
+    let test_array =
+        core.read_word_32(test_slice.addr + (data_ptr_data.offset as u32))?;
+
+    println!("Total test cases: {}", test_len);
+    // This the (&str, &(dyn Fn() + Send + Sync)) which is also secretly a struct
+    // We only care about the first entry (&str)
+    let array_entry_ptr = hubris.lookup_ptrtype(data_ptr_data.goff)?;
+    let array_entry = hubris.lookup_struct(array_entry_ptr)?;
+    let test_name_str =
+        hubris.lookup_struct(array_entry.lookup_member("__0")?.goff)?;
+
+    let mut ran_cases = 0;
+    for i in 0..test_len {
+        let base = test_array + i * (array_entry.size as u32);
+        let str_len = core.read_word_32(
+            base + (test_name_str.lookup_member("length")?.offset as u32),
+        )?;
+        let mut bytes = vec![0u8; str_len as usize];
+        let str_addr = core.read_word_32(
+            base + (test_name_str.lookup_member("data_ptr")?.offset as u32),
+        )?;
+        core.read_8(str_addr, &mut bytes)?;
+
+        let test_name =
+            std::str::from_utf8(&bytes).unwrap_or("<test name unknown>");
+
+        if let Some(ref expected) = subargs.single {
+            if expected != test_name {
+                println!("skipping {}", test_name);
+                continue;
+            }
+        }
+        print!("humility: running {} ...", test_name);
+        ran_cases += 1;
+
+        let ops =
+            vec![Op::Push32(i), Op::Call(run_test.id), Op::Drop, Op::Done];
+
+        let results = context.run(core, ops.as_slice(), None)?;
+        if results.is_empty() {
+            bail!("Bad return");
+        }
+
+        let result = match &results[0] {
+            Ok(s) => {
+                if s[0] == 1 {
+                    TestResult::Ok
+                } else {
+                    TestResult::Fail
+                }
+            }
+            Err(e) => TestResult::Unknown(format!("{}", e)),
+        };
+
+        println!("{:#}", result);
+        writeln!(
+            out,
+            "==== Test {} result: {:?}",
+            test_name,
+            result.to_str_no_color()
+        )?;
+        writeln!(out, "==== Task state")?;
+
+        cmd_tasks::print_tasks(
+            &mut out, core, hubris, false, false, false, false, false, None,
+        )?;
+    }
+    println!("Ran a total of {} cases", ran_cases);
+    println!("Wrote test output to {}", filename);
 
     Ok(())
 }

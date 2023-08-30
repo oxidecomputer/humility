@@ -266,6 +266,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility qspi](#humility-qspi): QSPI status, reading and writing
 - [humility readmem](#humility-readmem): read and display memory region
 - [humility readvar](#humility-readvar): read and display a specified Hubris variable
+- [humility rebootleby](#humility-rebootleby): Do something kind of like embootleby to recover a device with bad CFPA/CMPA
 - [humility registers](#humility-registers): print Hubris registers
 - [humility rencm](#humility-rencm): query Renesas 8A3400X ClockMatrix parts
 - [humility rendmp](#humility-rendmp): Renesas digital muliphase controller operations
@@ -2015,6 +2016,15 @@ CURRENT_TASK_PTR (0x20000018) = Some(NonNull<kern::task::Task> {
 
 
 
+### `humility rebootleby`
+
+Recovers an LPC55 target by reflashing the CFPA, CMPA, and bootleby image.
+This will _not_ work if the target has a locked CMPA or SWD access has
+been disabled!
+
+!!! Using this can be dangerous and should be undertaken with caution
+
+
 ### `humility registers`
 
 `humility registers` displays the registers from either a live system
@@ -2913,107 +2923,90 @@ These options can naturally be combined, e.g. `humility tasks -slvr`.
 
 ### `humility test`
 
-When run against a test archive, `humility test` kicks off the test suite
-and parses its results via ITM.
+When run against a test archive, `humility test` kicks off the test suite.
+Humility is responsible for getting the number of tests and then running
+each one in succession.
 
 ```console
-humility: attached via ST-Link
-humility: ITM synchronization packet found at offset 6
-humility: expecting 22 cases
-humility: running test_send ... ok
-humility: running test_recv_reply ... ok
-humility: running test_fault_badmem ... ok
-humility: running test_fault_stackoverflow ... ok
-humility: running test_fault_execdata ... ok
-humility: running test_fault_illop ... ok
-humility: running test_fault_nullexec ... ok
-humility: running test_fault_textoob ... ok
-humility: running test_fault_stackoob ... ok
-humility: running test_fault_buserror ... ok
-humility: running test_fault_illinst ... ok
-humility: running test_fault_divzero ... ok
-humility: running test_panic ... ok
-humility: running test_restart ... ok
-humility: running test_restart_taskgen ... ok
-humility: running test_borrow_info ... ok
-humility: running test_borrow_read ... ok
-humility: running test_borrow_write ... ok
-humility: running test_supervisor_fault_notification ... ok
-humility: running test_timer_advance ... ok
-humility: running test_timer_notify ... ok
-humility: running test_timer_notify_past ... ok
-humility: tests completed: pass
+humility: attached via CMSIS-DAP
+Total test cases: 50
+humility: running test_send ...ok
+humility: running test_recv_reply ...ok
+humility: running test_recv_reply_fault ...ok
+humility: running test_floating_point_lowregs ...ok
+humility: running test_floating_point_highregs ...ok
+humility: running test_floating_point_fault ...ok
+humility: running test_fault_badmem ...ok
+humility: running test_fault_stackoverflow ...ok
+humility: running test_fault_execdata ...ok
+humility: running test_fault_illop ...ok
+humility: running test_fault_nullexec ...ok
+humility: running test_fault_textoob ...ok
+humility: running test_fault_stackoob ...ok
+humility: running test_fault_buserror ...ok
+humility: running test_fault_illinst ...ok
+humility: running test_fault_divzero ...ok
+humility: running test_fault_maxstatus ...ok
+humility: running test_fault_badstatus ...ok
+humility: running test_fault_maxrestart ...ok
+humility: running test_fault_badrestart ...ok
+humility: running test_fault_maxinjection ...ok
+humility: running test_fault_badinjection ...ok
+humility: running test_fault_superinjection ...ok
+humility: running test_fault_selfinjection ...ok
+humility: running test_panic ...ok
+humility: running test_restart ...ok
+humility: running test_restart_taskgen ...ok
+humility: running test_borrow_info ...ok
+humility: running test_borrow_read ...ok
+humility: running test_borrow_write ...ok
+humility: running test_borrow_without_peer_waiting ...ok
+humility: running test_supervisor_fault_notification ...ok
+humility: running test_timer_advance ...ok
+humility: running test_timer_notify ...ok
+humility: running test_timer_notify_past ...ok
+humility: running test_task_config ...ok
+humility: running test_task_status ...ok
+humility: running test_task_fault_injection ...ok
+humility: running test_refresh_task_id_basic ...ok
+humility: running test_refresh_task_id_off_by_one ...ok
+humility: running test_refresh_task_id_off_by_many ...ok
+humility: running test_post ...ok
+humility: running test_idol_basic ...ok
+humility: running test_idol_bool_arg ...ok
+humility: running test_idol_bool_ret ...ok
+humility: running test_idol_bool_xor ...ok
+humility: running test_idol_err_ret ...ok
+humility: running test_idol_ssmarshal ...ok
+humility: running test_idol_ssmarshal_multiarg ...ok
+humility: running test_idol_ssmarshal_multiarg_enum ...ok
+Ran a total of 50 cases
 ```
 
-If a test fails, this will also create a complete report, e.g.:
-
-```console
-humility: attached via ST-Link
-humility: ITM synchronization packet found at offset 6
-humility: expecting 22 cases
-humility: running test_send ... ok
-humility: running test_recv_reply ... fail
-humility: running test_fault_badmem ... ok
-...
-humility: running test_timer_notify_past ... ok
-humility: tests completed: fail
-humility: test output dumped to hubris.testout.15
-```
-
-This output file will have (among other things) a section that has
-complete test run information.  For details on a failing test, look
-for `result: Fail`:
+All tests will produce an output file. This contains information about
+the hubris archive as well as task state after each test run. Search
+for "fail" to see any failed tests.
 
 ```console
 $ cat hubris.testout.15
 ...
 ==== Test results
-[
-    ...
-    TestCompletion {
-        case: "test_recv_reply",
-        result: Fail,
-        log: [
-            (
-                UserLog,
-                "assistant starting",
-            ),
-            (
-                KernelLog,
-                "task @1 panicked: panicked at \'assertion failed: false\', test/test-suite/src/main.rs:124:5",
-            ),
-            (
-                UserLog,
-                "Task #1 Panic!",
-            ),
-            (
-                UserLog,
-                "assistant starting",
-            ),
-        ],
-    },
-    ...
+...
+==== Test test_task_status result: "ok"
+==== Task state
+system time = 27941
+ID TASK                       GEN PRI STATE
+0 runner                       0   0 recv, notif: bit0 bit1 bit2 bit3 bit4 bit5 bit6 bit7 bit8 bit9 bit10 bit11 bit12 bit13 bit14 bit15 bit16 bit17 bit18 bit19 bit20 bit21 bit22 bit23 bit24 bit25 bit26 bit27 bit28 bit29 bit30 bit31
+1 suite                       33   2 recv
+2 assist                      37   1 FAULT: in syscall: used bogus task index (was: ready)
+3 idol                         0   1 recv
+4 hiffy                        0   3 notif: bit31(T+8)
+5 idle                         0   4 RUNNING
 ```
 
-This shows the sequential ordering of all log messages while running the
-test.  The test report can also be useful even when tests pass; to always
-dump a test report, use the `-d` option to `humility test`.
-
-Note that `humility test` relies on the ability to keep up with ITM data,
-which can be lossy.  In the event ITM data is lost, the failure mode is
-unlikely to be a failing test, but rather a fatal error due to a misframed
-packet:
-
-```console
-humility: running test_fault_nullexec ... ok
-humility: running test_fault_textoob ... ok
-humility: running test_fault_stackoob ... humility: test output dumped to hubris.testout.21
-humility: test failed: malformed datum: 0x74
-Error: test failed
-```
-
-All received packet data will be dumped to the resulting output file,
-allowing these transient failures to be differentiated from deeper issues.
+Older versions of the test suite gave streaming output. This is no longer
+available. If the information in the output is not enough to debug, the
+recommendation is to extend the state that is captured.
 
 
 
