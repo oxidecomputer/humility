@@ -31,7 +31,6 @@ use std::{
 use anyhow::{bail, Context, Result};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
-use clap_num::maybe_hex;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
@@ -93,7 +92,7 @@ enum DebugMailboxCmd {
         /// Debug credential key name (try `permslip list-keys -t`)
         key_name: String,
         /// Authentication beacon (UM11126 §51.7)
-        #[clap(long, default_value_t = 0, value_parser=maybe_hex::<u16>)]
+        #[clap(long, default_value_t = 0, parse(try_from_str = parse_int::parse))]
         beacon: u16,
     },
 }

@@ -8,7 +8,6 @@ description = "interact with the debug mailbox on the LPC55"
 anyhow.workspace = true
 byteorder.workspace = true
 clap.workspace = true
-clap-num.workspace = true
 parse_int.workspace = true
 probe-rs.workspace = true
 
