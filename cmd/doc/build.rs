@@ -48,6 +48,7 @@ fn main() -> Result<()> {
     write!(
         output,
         r##"
+#[allow(clippy::needless_raw_string_hashes)]
 fn cmd_docs(lookup: &str) -> Option<&'static str> {{
     let mut m = HashMap::new();
 "##
@@ -107,6 +108,7 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
     m.get(lookup).as_ref().map(|result| result as _)
 }}
 
+#[allow(clippy::needless_raw_string_hashes)]
 fn docs() -> &'static str {{
     r##""##
     )?;

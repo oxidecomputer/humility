@@ -82,7 +82,7 @@ where
     let input: Vec<_> = input.into_iter().collect();
     let input2 = input.clone();
 
-    let m = match command.try_get_matches_from(input.into_iter()) {
+    let m = match command.try_get_matches_from(input) {
         Ok(m) => m,
         Err(e) => {
             e.print().unwrap();
@@ -94,7 +94,7 @@ where
 
     // If we're here, we know that our arguments pass muster from the Clap
     // perspective.
-    Some((commands, m, Cli::parse_from(input2.into_iter())))
+    Some((commands, m, Cli::parse_from(input2)))
 }
 
 #[test]

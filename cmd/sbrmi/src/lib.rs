@@ -220,6 +220,7 @@ fn cpuid(
             r.cpuid2(eax, ecx)
         }
     }
+    #[allow(clippy::arc_with_non_send_sync)]
     let workspace = WorkspaceRef {
         cell: Arc::new(RefCell::new(SbrmiWorkspace {
             hubris,
