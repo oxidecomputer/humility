@@ -21,7 +21,12 @@
 //! entered ISP mode!
 //! ```
 
-use std::{fs::File, path::PathBuf};
+use std::{
+    fs::File,
+    path::PathBuf,
+    process::{Command as Process, Stdio},
+    thread::spawn,
+};
 
 use anyhow::{bail, Context, Result};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
@@ -82,6 +87,14 @@ enum DebugMailboxCmd {
     AuthChallenge { out: PathBuf },
     /// Send a Debug Authentication Response
     AuthResponse { dar: PathBuf },
+    /// Debug Authentication Challenge/Response with online signing via `permslip`
+    AuthOnline {
+        /// Debug credential key name (try `permslip list-keys -t`)
+        key_name: String,
+        /// Authentication beacon (UM11126 §51.7)
+        #[clap(long, default_value_t = 0, parse(try_from_str = parse_int::parse))]
+        beacon: u16,
+    },
 }
 
 fn poll_raw_ap_register(
@@ -329,7 +342,7 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
 
             let dar_bytes = std::fs::read(dar)?;
             if dar_bytes.len() % 4 != 0 {
-                bail!("Debug Authentication Response is not an even number of words (bytes: {}", dar_bytes.len());
+                bail!("Debug Authentication Response is not an even number of words ({} bytes)", dar_bytes.len());
             }
 
             let mut dar_words = vec![0u32; dar_bytes.len() / 4];
@@ -342,6 +355,58 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
                 dar_words.as_slice(),
             )?;
 
+            let _ = write_req(&mut iface, &dm_port, DMCommand::ExitDM, &[])?;
+        }
+        DebugMailboxCmd::AuthOnline { key_name, beacon } => {
+            // Get the challenge from the chip.
+            alive(&mut iface, &dm_port, true)?;
+            let dac = write_req(
+                &mut iface,
+                &dm_port,
+                DMCommand::DebugChallenge,
+                &[],
+            )?;
+
+            // Ask permission-slip to sign it.
+            let mut permslip = Process::new("permslip")
+                .arg("sign")
+                .arg(key_name)
+                .arg("--kind=debug-authn-challenge")
+                .arg(format!("--beacon={beacon}"))
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .context("Unable to execute `permslip`, is it in your PATH and executable?")?;
+
+            // Send the challenge to permission-slip ...
+            let mut input =
+                permslip.stdin.take().context("Opening permslip stdin")?;
+            spawn(move || -> Result<()> {
+                for word in dac {
+                    input.write_u32::<LittleEndian>(word)?;
+                }
+                Ok(())
+            });
+
+            // ... and read the response from it.
+            let dar_bytes = permslip
+                .wait_with_output()
+                .context("Reading permslip stdout")?
+                .stdout;
+            if dar_bytes.len() % 4 != 0 {
+                bail!("Debug Authentication Response is not an even number of words ({} bytes)", dar_bytes.len());
+            }
+            let mut dar_words = vec![0u32; dar_bytes.len() / 4];
+            LittleEndian::read_u32_into(&dar_bytes, &mut dar_words);
+
+            // Send the response to the chip.
+            alive(&mut iface, &dm_port, false)?;
+            let _ = write_req(
+                &mut iface,
+                &dm_port,
+                DMCommand::DebugResponse,
+                dar_words.as_slice(),
+            )?;
             let _ = write_req(&mut iface, &dm_port, DMCommand::ExitDM, &[])?;
         }
     };
