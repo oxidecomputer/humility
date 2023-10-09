@@ -224,7 +224,7 @@ impl Completer for ClapCompleter {
                 let mut words = line.split(' ');
                 let command = words.next().unwrap();
                 if let Some(command) = self.commands.get(command) {
-                    let last_word = words.rev().next().unwrap();
+                    let last_word = words.next_back().unwrap();
                     let span = Span::new(line.len() - last_word.len(), pos);
 
                     let mut completions = Vec::new();

@@ -438,7 +438,7 @@ impl HubrisFlashMap {
 
     pub fn read(&self, addr: u32, data: &mut [u8]) -> Option<()> {
         if let Some((&base, &(size, offset))) =
-            self.regions.range(..=addr).rev().next()
+            self.regions.range(..=addr).next_back()
         {
             if base <= addr && base + size > addr {
                 let start = (addr - base) as usize;
@@ -1142,7 +1142,7 @@ impl HubrisArchive {
     fn load_archive(&mut self, archive: &[u8]) -> Result<()> {
         let cursor = Cursor::new(archive);
         let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut manifest = &mut self.manifest;
+        let manifest = &mut self.manifest;
 
         macro_rules! byname {
             ($name:tt) => {
@@ -2766,7 +2766,7 @@ impl HubrisArchive {
             let val = u32::from_le_bytes(stack[o..o + 4].try_into().unwrap());
 
             let reg = match r {
-                0 | 1 | 2 | 3 => ARMRegister::from_usize(r).unwrap(),
+                0..=3 => ARMRegister::from_usize(r).unwrap(),
                 4 => ARMRegister::R12,
                 5 => ARMRegister::LR,
                 6 => ARMRegister::PC,

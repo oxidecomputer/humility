@@ -741,10 +741,7 @@ fn monorail_status(
             .collect::<Result<Vec<Result<_, _>>>>()?;
 
         // Decode the port and phy status values into reflect::Value
-        port_results
-            .into_iter()
-            .zip(phy_results.into_iter())
-            .collect::<Vec<_>>()
+        port_results.into_iter().zip(phy_results).collect::<Vec<_>>()
     };
 
     // Convert ports in a lookup-friendly structure
