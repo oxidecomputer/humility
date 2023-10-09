@@ -104,7 +104,7 @@ use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::rc::Rc;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -212,7 +212,7 @@ fn cpuid(
     }
     #[derive(Clone)]
     struct WorkspaceRef<'a, 'b> {
-        cell: Arc<RefCell<SbrmiWorkspace<'a, 'b>>>,
+        cell: Rc<RefCell<SbrmiWorkspace<'a, 'b>>>,
     }
     impl<'a, 'b> raw_cpuid::CpuIdReader for WorkspaceRef<'a, 'b> {
         fn cpuid2(&self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
@@ -221,7 +221,7 @@ fn cpuid(
         }
     }
     let workspace = WorkspaceRef {
-        cell: Arc::new(RefCell::new(SbrmiWorkspace {
+        cell: Rc::new(RefCell::new(SbrmiWorkspace {
             hubris,
             core,
             context,

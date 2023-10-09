@@ -1269,7 +1269,7 @@ impl Core for DumpCore {
         let rsize = data.len();
 
         if let Some((&base, &(size, offset))) =
-            self.regions.range(..=addr).rev().next()
+            self.regions.range(..=addr).next_back()
         {
             if base <= addr && addr < (base + size) {
                 if (addr - base) + rsize as u32 > size {

@@ -122,7 +122,7 @@ impl DumpAgentCore {
 
     fn read(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
         if let Some((&base, contents)) =
-            self.ram_regions.range(..=addr).rev().next()
+            self.ram_regions.range(..=addr).next_back()
         {
             if base > addr || base + (contents.len() as u32) <= addr {
                 //
