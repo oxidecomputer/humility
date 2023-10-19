@@ -4778,6 +4778,7 @@ impl HubrisObjectLoader {
         let union = self.structs.remove(&goff).ok_or_else(|| {
             anyhow!("goff {:?} not present in structs map", goff)
         })?;
+
         self.structs_byname
             .get_vec_mut(&union.name)
             .expect("structs vs structs_byname inconsistency")
@@ -6456,13 +6457,8 @@ fn try_scoped<'a>(
         let expr = format!("^{}$", search);
         let re = Regex::new(&expr).unwrap();
 
-        let mut matched = vec![];
-
-        for (n, _) in map.iter() {
-            if re.is_match(n) {
-                matched.push(n);
-            }
-        }
+        let matched: Vec<_> =
+            map.keys().filter(|&n| re.is_match(n)).collect::<_>();
 
         if matched.len() == 1 {
             Some(matched[0])

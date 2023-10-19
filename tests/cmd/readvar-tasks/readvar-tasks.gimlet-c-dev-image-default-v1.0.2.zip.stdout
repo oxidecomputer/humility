@@ -1,0 +1,515 @@
+kern::startup::HUBRIS_TASK_DESCS (0x08005538) = [
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005ae4 (&kern::descs::RegionDesc),
+            0x8005af0 (&kern::descs::RegionDesc),
+            0x8005afc (&kern::descs::RegionDesc),
+            0x8005b08 (&kern::descs::RegionDesc),
+            0x8005b14 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8098001,
+        initial_stack: 0x2404c600,
+        priority: 0x0,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x0
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005b20 (&kern::descs::RegionDesc),
+            0x8005b2c (&kern::descs::RegionDesc),
+            0x8005b38 (&kern::descs::RegionDesc),
+            0x8005a00 (&kern::descs::RegionDesc),
+            0x8005a0c (&kern::descs::RegionDesc),
+            0x8005ac0 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8020001,
+        initial_stack: 0x24011798,
+        priority: 0x5,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x1
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005b44 (&kern::descs::RegionDesc),
+            0x8005b50 (&kern::descs::RegionDesc),
+            0x8005a24 (&kern::descs::RegionDesc),
+            0x8005a30 (&kern::descs::RegionDesc),
+            0x8005a3c (&kern::descs::RegionDesc),
+            0x8005a90 (&kern::descs::RegionDesc),
+            0x8005ab4 (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80ca001,
+        initial_stack: 0x2404d380,
+        priority: 0x1,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x2
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005b5c (&kern::descs::RegionDesc),
+            0x8005b68 (&kern::descs::RegionDesc),
+            0x8005a9c (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x809c001,
+        initial_stack: 0x24044368,
+        priority: 0x3,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x3
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005b74 (&kern::descs::RegionDesc),
+            0x8005b80 (&kern::descs::RegionDesc),
+            0x8005a60 (&kern::descs::RegionDesc),
+            0x8005a6c (&kern::descs::RegionDesc),
+            0x8005a78 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80a0001,
+        initial_stack: 0x24045380,
+        priority: 0x3,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x4
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005b8c (&kern::descs::RegionDesc),
+            0x8005b98 (&kern::descs::RegionDesc),
+            0x8005a54 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80a4001,
+        initial_stack: 0x24046380,
+        priority: 0x2,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x5
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005ba4 (&kern::descs::RegionDesc),
+            0x8005bb0 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80c0001,
+        initial_stack: 0x24004380,
+        priority: 0x1,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x6
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005bbc (&kern::descs::RegionDesc),
+            0x8005bc8 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8008001,
+        initial_stack: 0x24003770,
+        priority: 0x5,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x7
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005bd4 (&kern::descs::RegionDesc),
+            0x8005be0 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8080001,
+        initial_stack: 0x240385e0,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x8
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005bec (&kern::descs::RegionDesc),
+            0x8005bf8 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8088001,
+        initial_stack: 0x24008400,
+        priority: 0x5,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x9
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005c04 (&kern::descs::RegionDesc),
+            0x8005c10 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8010001,
+        initial_stack: 0x2403a640,
+        priority: 0x4,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0xa
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005c1c (&kern::descs::RegionDesc),
+            0x8005c28 (&kern::descs::RegionDesc),
+            0x8005a48 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80a8001,
+        initial_stack: 0x24047800,
+        priority: 0x2,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0xb
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005c34 (&kern::descs::RegionDesc),
+            0x8005c40 (&kern::descs::RegionDesc),
+            0x8005a84 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80ac001,
+        initial_stack: 0x24048bb8,
+        priority: 0x3,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0xc
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005c4c (&kern::descs::RegionDesc),
+            0x8005c58 (&kern::descs::RegionDesc),
+            0x8005c64 (&kern::descs::RegionDesc),
+            0x8005a18 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80b0001,
+        initial_stack: 0x24049800,
+        priority: 0x3,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0xd
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005c70 (&kern::descs::RegionDesc),
+            0x8005c7c (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80c2001,
+        initial_stack: 0x2403c400,
+        priority: 0x4,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0xe
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005c88 (&kern::descs::RegionDesc),
+            0x8005c94 (&kern::descs::RegionDesc),
+            0x80059f4 (&kern::descs::RegionDesc),
+            0x8005acc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8060001,
+        initial_stack: 0x24021000,
+        priority: 0x7,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0xf
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005ca0 (&kern::descs::RegionDesc),
+            0x8005cac (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80b4001,
+        initial_stack: 0x2403f000,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x10
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005cb8 (&kern::descs::RegionDesc),
+            0x8005cc4 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80c4001,
+        initial_stack: 0x2404a800,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x11
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005cd0 (&kern::descs::RegionDesc),
+            0x8005cdc (&kern::descs::RegionDesc),
+            0x80059e8 (&kern::descs::RegionDesc),
+            0x8005ad8 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8040001,
+        initial_stack: 0x24029000,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x12
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005ce8 (&kern::descs::RegionDesc),
+            0x8005cf4 (&kern::descs::RegionDesc),
+            0x8005aa8 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8070001,
+        initial_stack: 0x24034000,
+        priority: 0x4,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x13
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005d00 (&kern::descs::RegionDesc),
+            0x8005d0c (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80b8001,
+        initial_stack: 0x2404b3e8,
+        priority: 0x5,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x14
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005d18 (&kern::descs::RegionDesc),
+            0x8005d24 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80c6001,
+        initial_stack: 0x2404d720,
+        priority: 0x4,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x15
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005d30 (&kern::descs::RegionDesc),
+            0x8005d3c (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80ca801,
+        initial_stack: 0x2404db80,
+        priority: 0x2,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x16
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005d48 (&kern::descs::RegionDesc),
+            0x8005d54 (&kern::descs::RegionDesc),
+            0x8005d60 (&kern::descs::RegionDesc),
+            0x8005d6c (&kern::descs::RegionDesc),
+            0x8005d78 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x8090001,
+        initial_stack: 0x24040960,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x17
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005d84 (&kern::descs::RegionDesc),
+            0x8005d90 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80c8001,
+        initial_stack: 0x2404cb20,
+        priority: 0x4,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x18
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005d9c (&kern::descs::RegionDesc),
+            0x8005da8 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80cb001,
+        initial_stack: 0x2404dd00,
+        priority: 0x8,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x19
+    },
+    TaskDesc {
+        regions: [
+            0x80059dc (&kern::descs::RegionDesc),
+            0x8005db4 (&kern::descs::RegionDesc),
+            0x8005dc0 (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc),
+            0x80059dc (&kern::descs::RegionDesc)
+        ],
+        entry_point: 0x80bc001,
+        initial_stack: 0x24043000,
+        priority: 0x6,
+        flags: TaskFlags {
+            bits: 0x1
+        },
+        index: 0x1a
+    }
+]
