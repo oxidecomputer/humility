@@ -17,6 +17,12 @@ dump</a></tt> for details on Hubris dumps).
 Cores that act as input are in the `cmd/cores` subdirectory; to add a new core
 file, deposit it there with a unique name that begins with `hubris.core.`
 
+## Adding archives
+
+Some tests are able to operate on archives alone.  Archives that act as input
+for these tests are in the `cmd/archives` subdirectoty; to add a new archive,
+deposit it there with a unique name that begins with `build-`.
+
 ## Running tests
 
 Running `cargo test` will automatically generate the `toml` files that
@@ -36,6 +42,10 @@ Note that this can also be used to run all tests against a specific dump:
 ```console
 $ TRYCMD_TEST="tests/cmd/*/*.kiowa.18.toml" cargo test
 ```
+
+Or against a particular archive:
+
+$ TRYCMD_TEST="tests/cmd/*/*.gimlet-rot-c-image-b.zip.toml" cargo test
 
 ## Changes in output
 
