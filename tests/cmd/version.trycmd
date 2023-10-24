@@ -2,7 +2,11 @@ Long version flag:
 
 ```
 $ humility --version
+<<<<<<< HEAD
 humility 0.10.31
+=======
+humility 0.10.29
+>>>>>>> 579759ad (Bump version)
 
 ```
 
@@ -10,6 +14,10 @@ Short version flag:
 
 ```
 $ humility -V
+<<<<<<< HEAD
 humility 0.10.31
+=======
+humility 0.10.29
+>>>>>>> 579759ad (Bump version)
 
 ```
