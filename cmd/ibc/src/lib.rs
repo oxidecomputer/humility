@@ -303,6 +303,7 @@ impl<'a> IbcHandler<'a> {
 ///
 /// See page 19 of the BMR491 technical specification
 #[derive(Copy, Clone, Debug, FromBytes)]
+#[repr(C, packed)]
 struct IbcEvent {
     event_id: U16<BigEndian>,
     timestamp: U32<BigEndian>,
