@@ -200,45 +200,126 @@ impl<'a> IbcHandler<'a> {
             Self::format_time(e.timestamp.get())
         );
         println!("  EVENT_ID            {:#06x}", e.event_id.get());
-        println!("  STATUS_WORD         {:#06x}", e.status_word.get());
+
+        // Decoding is extracted from revision A and B of the datasheet, which
+        // contain non-overlapping sets of decoding information.  They don't
+        // actively disagree with each other, though, which is good!
+        //
+        // 28701-BMR491 02 Rev A, April 2021
+        // 28701-BMR491 10 Rev B, September 2022
+        let status_word = e.status_word.get();
+        println!("  STATUS_WORD         {:#06x}", status_word);
+        for (bit, name) in [
+            (0, "Unspecified fault (manufacturer?)"),
+            (1, "CML fault"),
+            (2, "Temperature fault or warning"),
+            (3, "Input undervoltage fault"),
+            (4, "Output overcurrent fault"),
+            (5, "Output overvoltage fault"),
+            (6, "Unit is not providing power"),
+            (9, "A bit in Status-Other is set"),
+            (11, "Power-Good signal, if present, is negated"),
+            (12, "Manufacturer specific fault or warning"),
+            (
+                13,
+                "input voltage, input current, or input power fault or warning",
+            ),
+            (14, "output current or output power fault or warning"),
+            (15, "output voltage fault or warning"),
+        ] {
+            if status_word & (1 << bit) != 0 {
+                println!("    {:#06x}: {name}", 1 << bit);
+            }
+        }
         let statuses = [
-            ("STATUS_VOUT", e.status_vout),
-            ("STATUS_IOUT", e.status_iout),
-            ("STATUS_INPUT", e.status_input),
-            ("STATUS_TEMPERATURE", e.status_temperature),
-            ("STATUS_CML", e.status_cml),
-            ("STATUS_OTHER", e.status_other),
-            ("STATUS_MFG", e.status_mfr),
+            (
+                "STATUS_VOUT",
+                e.status_vout,
+                &[
+                    (1, "Toff-Max Fault"),
+                    (2, "Ton-Max Fault"),
+                    (3, "Vout Max Warning"),
+                    (4, "Vout Undervoltage Fault"),
+                    (5, "Vout Undervoltage Warning"),
+                    (6, "Vout Overvoltage Warning"),
+                    (7, "Vout Overvoltage Fault"),
+                ] as &[_],
+            ),
+            (
+                "STATUS_IOUT",
+                e.status_iout,
+                &[
+                    (4, "Iout undercurrent fault"),
+                    (5, "Iout Overcurrent warning"),
+                    (6, "Iout Overcurrent and low voltage fault"),
+                    (7, "Iout Overcurrent Fault"),
+                ],
+            ),
+            (
+                "STATUS_INPUT",
+                e.status_input,
+                &[
+                    (3, "Insufficient Vin"),
+                    (4, "VIN undervoltage fault"),
+                    (5, "VIN undervoltage warning"),
+                    (6, "VIN overvoltage warning"),
+                    (7, "VIN overvoltage fault"),
+                ],
+            ),
+            (
+                "STATUS_TEMPERATURE",
+                e.status_temperature,
+                &[
+                    (4, "undertemperature fault"),
+                    (5, "undertemperature warning"),
+                    (6, "overtemperature warning"),
+                    (7, "overtemperature fault"),
+                ],
+            ),
+            (
+                "STATUS_CML",
+                e.status_cml,
+                &[
+                    (0, "Other memory or logic fault"),
+                    (1, "Other communication fault"),
+                    (4, "Memory Fault Detected"),
+                    (5, "Packed Error Check Failed"),
+                    (6, "Invalid Or Unsupported Data Received"),
+                    (7, "Invalid Or Unsupported Command Received"),
+                ],
+            ),
+            ("STATUS_OTHER", e.status_other, &[]),
+            (
+                "STATUS_MFG",
+                e.status_mfr,
+                &[
+                    // TODO: some of these flags are only valid in the
+                    // life-cycle section
+                    (0, "BOOT_EVENT"),
+                    (1, "INPUT_LOW_EVENT"),
+                    (2, "CANCEL_EVENT"),
+                    (3, "ERASE_EVENT"),
+                    (4, "CLR_EVENT"),
+                    (5, "ERASE_OVFL_EVENT*"),
+                    (7, "Brown out detected (?)"),
+                ],
+            ),
         ];
 
-        for (name, value) in statuses {
+        for (name, value, bits) in statuses {
             if value == 0 && !verbose {
                 continue;
             }
             print!("  {: <18}  ", name);
-            let v = format!("{:#06x}", value);
+            let v = format!("{:#04x}", value);
             if value == 0 {
                 println!("{}", v.dimmed());
             } else {
                 println!("{v}");
             }
-        }
-        if e.status_word.get() == 0x0001 {
-            for (i, flag) in [
-                "BOOT_EVENT",
-                "INPUT_LOW_EVENT",
-                "CANCEL_EVENT",
-                "ERASE_EVENT",
-                "CLR_EVENT",
-                "ERASE_OVFL_EVENT",
-            ]
-            .iter()
-            .enumerate()
-            {
-                // TODO: some of these flags are only valid in the life-cycle
-                // section
-                if e.status_mfr & (1 << i) != 0 {
-                    println!("    b{i} = {flag}");
+            for (bit, name) in bits {
+                if value & (1 << bit) != 0 {
+                    println!("    {:#04x}: {name}", 1 << bit);
                 }
             }
         }
@@ -303,6 +384,7 @@ impl<'a> IbcHandler<'a> {
 ///
 /// See page 19 of the BMR491 technical specification
 #[derive(Copy, Clone, Debug, FromBytes)]
+#[repr(C, packed)]
 struct IbcEvent {
     event_id: U16<BigEndian>,
     timestamp: U32<BigEndian>,
