@@ -228,7 +228,7 @@ impl<'a> IbcHandler<'a> {
             (15, "output voltage fault or warning"),
         ] {
             if status_word & (1 << bit) != 0 {
-                println!("{:#06x}: {name}", 1 << bit);
+                println!("    {:#06x}: {name}", 1 << bit);
             }
         }
         let statuses = [
@@ -319,7 +319,7 @@ impl<'a> IbcHandler<'a> {
             }
             for (bit, name) in bits {
                 if value & (1 << bit) != 0 {
-                    println!("{:#04x}: {name}", 1 << bit);
+                    println!("    {:#04x}: {name}", 1 << bit);
                 }
             }
         }
