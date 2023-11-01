@@ -249,6 +249,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility gpio](#humility-gpio): GPIO pin manipulation
 - [humility hash](#humility-hash): Access to the HASH block
 - [humility hiffy](#humility-hiffy): manipulate HIF execution
+- [humility host](#humility-host): Pretty-printing of host state
 - [humility i2c](#humility-i2c): scan for and read I2C devices
 - [humility ibc](#humility-ibc): interface to the BMR491 power regulator
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
@@ -789,6 +790,58 @@ UserLeds.led_toggle() = ()
 To view the raw HIF functions provided to programmatic HIF consumers
 within Humility, use `-L` (`--list-functions`).
 
+
+
+### `humility host`
+`humility host` pretty-prints host state, which is sent to the SP over IPCC.
+
+It is only functional on a Gimlet SP image.
+
+#### `humility host last-panic`
+Pretty prints the value of `LAST_HOST_PANIC`
+```console
+humility: attached to dump
+humility: reading LAST_HOST_PANIC
+humility: fixing up trimmed initial data
+ipd_cause:   IPCC_PANIC_CALL
+ipd_error:   0
+ipd_cpuid:   58
+ipd_thread:  0xfffff78811079c20
+ipd_addr:    0x0
+ipd_pc:      0xfffffffff7ee48b8
+ipd_fp:      0xfffff78811079a50
+ipd_rp:      0x0
+ipd_message: I/O to pool 'oxp_410e4dfb-b4d1-4d73-8c39-077bf436da3a' appears to be hung.
+ipd_stackid: 16
+stack trace:
+  vdev_deadman+0x108          (0xfffffffff7ee48b8)
+  vdev_deadman+0x43           (0xfffffffff7ee47f3)
+  spa_deadman+0x84            (0xfffffffff7ed54d4)
+  cyclic_softint+0xe1         (0xfffffffffc03e061)
+  cbe_low_level+0x20          (0xfffffffffbc0c3f0)
+  av_dispatch_softvect+0x72   (0xfffffffffbcc9d12)
+  apix_dispatch_softint+0x35  (0xfffffffff7c92545)
+  switch_sp_and_call+0x15     (0xfffffffffbc818c5)
+  apix_do_softint+0x5a        (0xfffffffff7c925ba)
+  apix_do_interrupt+0x2bf     (0xfffffffff7c9306f)
+  _interrupt+0xc3             (0xfffffffffbc00233)
+  i86_mwait+0x12              (0xfffffffffbc81042)
+  cpu_idle_mwait+0x14b        (0xfffffffffbc5131b)
+  cpu_idle_adaptive+0x19      (0xfffffffffbc50f39)
+  idle+0xa8                   (0xfffffffffbc96c88)
+  thread_start+0xb            (0xfffffffffbc838bb)
+ipd_dataidx: 0
+ipd_data:    [0; 256]
+```
+
+#### `humility host boot-fail`
+Pretty-prints the contents of `LAST_HOST_BOOT_FAIL`
+```console
+$ humility host boot-fail
+humility: attached to dump
+humility: reading LAST_HOST_BOOT_FAIL
+[0; 4096]
+```
 
 
 ### `humility i2c`
