@@ -60,7 +60,7 @@ use zerocopy::FromBytes;
 use humility::{core::Core, hubris::HubrisArchive};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_log::msg;
+use humility_log::{msg, warn};
 
 #[derive(Parser, Debug)]
 enum HostCommand {
@@ -161,7 +161,10 @@ fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
         0x5e => Some(0x00),
         0xa9 => Some(0x00),
         0xeb => Some(0xff), // can't distinguish between different 0xeb**
-        b => bail!("could not decode `ipd_cause`: {b:#04x}"),
+        b => {
+            warn!("could not decode `ipd_cause`: {b:#04x}");
+            Some(0xff)
+        }
     };
     let d = if let Some(b) = bonus_byte {
         msg!("fixing up trimmed initial data");
@@ -180,14 +183,14 @@ fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     println!(
         "ipd_cause:   {}",
         match p.ipd_cause {
-            0xca11 => "IPCC_PANIC_CALL",
-            0xa900 => "IPCC_PANIC_TRAP",
-            0x5e00 => "IPCC_PANIC_USERTRAP",
-            0xeb00 => "IPCC_PANIC_EARLYBOOT",
-            0xeb97 => "IPCC_PANIC_EARLYBOOT_PROM",
-            0xeba9 => "IPCC_PANIC_EARLYBOOT_TRAP",
-            0xebff => "IPCC_PANIC_EARLYBOOT_*",
-            b => bail!("unknown `ipd_cause` {b:#04x}"),
+            0xca11 => "IPCC_PANIC_CALL".to_owned(),
+            0xa900 => "IPCC_PANIC_TRAP".to_owned(),
+            0x5e00 => "IPCC_PANIC_USERTRAP".to_owned(),
+            0xeb00 => "IPCC_PANIC_EARLYBOOT".to_owned(),
+            0xeb97 => "IPCC_PANIC_EARLYBOOT_PROM".to_owned(),
+            0xeba9 => "IPCC_PANIC_EARLYBOOT_TRAP".to_owned(),
+            0xebff => "IPCC_PANIC_EARLYBOOT_*".to_owned(),
+            b => format!("Unknown `ipd_cause` {b:#06x}"),
         }
     );
 
