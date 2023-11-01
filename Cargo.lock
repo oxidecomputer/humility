@@ -1110,6 +1110,7 @@ dependencies = [
  "humility-cmd-gpio",
  "humility-cmd-hash",
  "humility-cmd-hiffy",
+ "humility-cmd-host",
  "humility-cmd-i2c",
  "humility-cmd-ibc",
  "humility-cmd-itm",
@@ -1466,6 +1467,19 @@ dependencies = [
  "idol",
  "indexmap",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-host"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-log",
+ "zerocopy",
 ]
 
 [[package]]
