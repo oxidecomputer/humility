@@ -387,9 +387,12 @@ impl<'a> IbcHandler<'a> {
         println!("  {: <18}  {:#04x}", "STATUS_MFR", e.status_mfr);
 
         if let Some(&(_, bits)) = mfr.iter().find(|&&(v, _)| v == status_word) {
-            for (value, meaning) in bits {
-                if e.status_mfr == *value {
+            match bits.iter().find(|&&(v, _)| v == e.status_mfr) {
+                Some(&(value, meaning)) => {
                     println!("    {value:#04x}: {meaning}");
+                }
+                None => {
+                    println!("    {:#04x}: Unknown meaning!", e.status_mfr);
                 }
             }
         }
