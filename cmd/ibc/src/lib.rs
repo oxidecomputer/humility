@@ -352,7 +352,7 @@ impl<'a> IbcHandler<'a> {
         }
 
         // The STATUS_MFR depends on the value of STATUS_WORD.  See
-        // Application Note 321 for details.
+        // Application Note 326 for details.
         let mfr = [
             (
                 0x0001u16,
