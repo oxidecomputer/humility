@@ -610,6 +610,41 @@ fn serialize_arg(
                 bail!("non-newtype structure arguments currently unsupported");
             }
         }
+        HubrisType::Array(&HubrisArray { goff, count }) => {
+            let t = hubris.lookup_type(goff)?;
+            if !matches!(
+                t,
+                HubrisType::Base(HubrisBasetype {
+                    encoding: HubrisEncoding::Unsigned,
+                    size: 1,
+                })
+            ) {
+                bail!(
+                    "array type in {} ({t:?}) not yet supported",
+                    member.name
+                );
+            }
+            match value {
+                IdolArgument::String(value) => {
+                    let bytes = bytes_from_str(value)?;
+                    if bytes.len() != count {
+                        bail!(
+                            "Cannot convert '{value}' to [u8; {count}]; \
+                             wrong length"
+                        );
+                    }
+
+                    for byte in bytes {
+                        hubpack_serialize_append(buf, &byte)?;
+                    }
+
+                    Ok(())
+                }
+                _ => {
+                    bail!("Bad idol argument value");
+                }
+            }
+        }
         _ => {
             bail!("type of {} ({:?}) not yet supported", member.name, t);
         }
