@@ -285,6 +285,43 @@ fn lookup<'a>(
     }
 }
 
+/// Convert array from hiffy `--argument` list string to a vector of bytes.
+///
+/// The humility hiffy cmd accepts multiple encodings of array arguments:
+/// - When passed a string of characters like `--arguments array=5432` the
+/// string is passed to the operation 'as_bytes'. An idol op that takes a
+/// 4 byte array will receive [ 53, 52, 51, 50 ] given the argument string
+/// above. This is intended as a mechanism for passing ASCII characters to a
+/// task.
+/// - To pass an array that's interpreted as the decimal representation of
+/// bytes instead of ASCII, provide the array as a string enclosed in square
+/// brackets with each array element separated by a space. The argument string
+/// `--argument array=[37 1 255 127]` will result in the task receiving the
+/// byte array `[ 37, 1, 255, 127 ]`.
+fn bytes_from_str(value: &str) -> Result<Vec<u8>> {
+    if value.starts_with('[') && value.ends_with(']') {
+        // use double ended iterator to drop first and last chars
+        let mut chars = value.chars();
+        chars.next();
+        chars.next_back();
+        let value = chars.as_str();
+
+        let mut bytes: Vec<u8> = Vec::new();
+        for element in value.split(' ') {
+            let element = element.trim();
+            let byte: u8 = element.parse().context(format!(
+                "cannot parse \"{}\" as u8 (is it base 10?)",
+                element
+            ))?;
+            bytes.push(byte);
+        }
+
+        Ok(bytes)
+    } else {
+        Ok(Vec::from(value.as_bytes()))
+    }
+}
+
 //
 // Store a call argument to the specified payload
 //
@@ -398,14 +435,15 @@ fn call_arg(
             }
             match value {
                 IdolArgument::String(value) => {
-                    if value.len() != count {
+                    let bytes = bytes_from_str(value)?;
+                    if bytes.len() != count {
                         bail!(
                             "Cannot convert '{value}' to [u8; {count}]; \
                              wrong length"
                         );
                     }
                     let dest = &mut buf[member.offset..member.offset + count];
-                    dest.copy_from_slice(value.as_bytes());
+                    dest.copy_from_slice(&bytes);
                 }
                 IdolArgument::Scalar(v) => {
                     bail!("Cannot convert scalar {v} to [u8; {count}]")
