@@ -19,7 +19,7 @@ use termios::Termios;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 use humility_cli::{ExecutionContext, Subcommand};
-use humility_hiffy::{HiffyContext, HiffyLease};
+use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
 use super::UartConsoleArgs;
@@ -59,7 +59,8 @@ impl<'a> UartConsoleHandler<'a> {
             &mut self.context,
             &op,
             &[],
-            Some(HiffyLease::Read(buf)),
+            None,
+            Some(buf),
         )?;
 
         let v = match value {
@@ -85,7 +86,8 @@ impl<'a> UartConsoleHandler<'a> {
             &mut self.context,
             &op,
             &[],
-            Some(HiffyLease::Write(buf)),
+            Some(buf),
+            None,
         )?;
 
         let v = match value {
@@ -185,6 +187,7 @@ impl<'a> UartConsoleHandler<'a> {
             &op,
             &[("attach", IdolArgument::String("false"))],
             None,
+            None,
         )?;
 
         match value {
@@ -204,6 +207,7 @@ impl<'a> UartConsoleHandler<'a> {
             &mut self.context,
             &op,
             &[],
+            None,
             None,
         )?;
 

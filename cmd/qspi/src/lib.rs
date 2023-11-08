@@ -1001,6 +1001,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             &hubris.get_idol_command("HostFlash.write_persistent_data")?,
             &[("dev_select", IdolArgument::String(dev_select))],
             None,
+            None,
         )?;
         if let Err(e) = out {
             bail!("write_persistent_data failed: {e}");

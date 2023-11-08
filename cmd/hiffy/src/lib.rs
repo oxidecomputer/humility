@@ -79,15 +79,15 @@ struct HiffyArgs {
     call: Option<String>,
 
     /// input for an operation that takes a lease
-    #[clap(long, short, requires = "call", conflicts_with = "num")]
+    #[clap(long, short, requires = "call")]
     input: Option<String>,
 
     /// number of bytes to return, when a function has a write-only lease
-    #[clap(long, short, requires = "call", conflicts_with = "input")]
+    #[clap(long, short, requires = "call")]
     num: Option<usize>,
 
     /// output for an operation that writes to a lease
-    #[clap(long, short, requires = "call", conflicts_with = "input")]
+    #[clap(long, short, requires = "call")]
     output: Option<String>,
 
     /// print returned data in hex
@@ -286,7 +286,14 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
             None
         };
 
-        let (return_code, data) = if let Some(input) = input {
+        let (return_code, output) = {
+            let mut output = if let Some(read_size) = subargs.num {
+                let read = vec![0u8; read_size];
+                Some(read)
+            } else {
+                None
+            };
+
             (
                 hiffy_call(
                     hubris,
@@ -294,27 +301,15 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
                     &mut context,
                     &op,
                     &args,
-                    Some(HiffyLease::Write(&input)),
+                    input.as_deref(),
+                    output.as_deref_mut(),
                 )?,
-                None,
+                output,
             )
-        } else if let Some(read_size) = subargs.num {
-            let mut read = vec![0u8; read_size];
-            let r = hiffy_call(
-                hubris,
-                core,
-                &mut context,
-                &op,
-                &args,
-                Some(HiffyLease::Read(&mut read)),
-            )?;
-            (r, Some(read))
-        } else {
-            (hiffy_call(hubris, core, &mut context, &op, &args, None)?, None)
         };
 
         hiffy_print_result(hubris, &op, return_code)?;
-        if let Some(data) = data {
+        if let Some(data) = output {
             if let Some(out) = &subargs.output {
                 std::fs::write(out, &data)
                     .context(format!("Could not write to {}", out))?;
