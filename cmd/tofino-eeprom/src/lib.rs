@@ -15,7 +15,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_hiffy::{HiffyContext, HiffyLease};
+use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
 // Limited to 128 bytes due to the write buffer in the EEPROM
@@ -91,7 +91,8 @@ impl<'a> EepromHandler<'a> {
                 &mut self.context,
                 &op,
                 &[("offset", IdolArgument::Scalar(offset as u64))],
-                Some(HiffyLease::Read(chunk)),
+                None,
+                Some(chunk),
             )?;
             if let Err(e) = value {
                 bail!("Got Hubris error: {:?}", e);
@@ -127,7 +128,8 @@ impl<'a> EepromHandler<'a> {
                 &mut self.context,
                 &op,
                 &[("offset", IdolArgument::Scalar(offset as u64))],
-                Some(HiffyLease::Write(chunk)),
+                Some(chunk),
+                None,
             )?;
             if let Err(e) = value {
                 bail!("Got Hubris error: {:?}", e);

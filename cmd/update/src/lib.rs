@@ -63,13 +63,20 @@ fn update(context: &mut ExecutionContext) -> Result<()> {
     let finish = hubris.get_idol_command("Update.finish_image_update")?;
     let block_size = hubris.get_idol_command("Update.block_size")?;
 
-    let blk_size =
-        match hiffy_call(hubris, core, &mut context, &block_size, &[], None)? {
-            Ok(v) => v.as_base()?.as_u32().ok_or_else(|| {
-                anyhow::anyhow!("Couldn't get a u32 for block size")
-            })?,
-            Err(e) => bail!("Hiffy error getting block size {}", e),
-        };
+    let blk_size = match hiffy_call(
+        hubris,
+        core,
+        &mut context,
+        &block_size,
+        &[],
+        None,
+        None,
+    )? {
+        Ok(v) => v.as_base()?.as_u32().ok_or_else(|| {
+            anyhow::anyhow!("Couldn't get a u32 for block size")
+        })?,
+        Err(e) => bail!("Hiffy error getting block size {}", e),
+    };
 
     msg!("Starting update using an update block size of {blk_size}");
     msg!("(Erase may take a moment)");
@@ -94,6 +101,7 @@ fn update(context: &mut ExecutionContext) -> Result<()> {
         &start,
         args.as_ref().map_or(&[], std::slice::from_ref),
         None,
+        None,
     )? {
         Ok(_) => (),
         Err(e) => bail!("Hiffy error doing prep {}", e),
@@ -113,7 +121,8 @@ fn update(context: &mut ExecutionContext) -> Result<()> {
             &mut context,
             &write,
             &[("block_num", IdolArgument::Scalar(i as u64))],
-            Some(HiffyLease::Write(c)),
+            Some(c),
+            None,
         )? {
             Ok(_) => (),
             Err(e) => bail!("Hiffy error writing block #{} {}", i, e),
@@ -126,7 +135,8 @@ fn update(context: &mut ExecutionContext) -> Result<()> {
     } else {
         msg!("Comitting update");
 
-        match hiffy_call(hubris, core, &mut context, &finish, &[], None)? {
+        match hiffy_call(hubris, core, &mut context, &finish, &[], None, None)?
+        {
             Ok(_) => (),
             Err(e) => bail!("Hiffy error committing update {}", e),
         }

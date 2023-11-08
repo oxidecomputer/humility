@@ -329,6 +329,7 @@ fn monorail_read(
         &op,
         &[("addr", IdolArgument::Scalar(u64::from(addr)))],
         None,
+        None,
     )?;
     match value {
         Ok(v) => {
@@ -379,6 +380,7 @@ fn monorail_write(
             ("addr", IdolArgument::Scalar(u64::from(addr))),
             ("value", IdolArgument::Scalar(u64::from(value))),
         ],
+        None,
         None,
     )?;
     match value {
@@ -468,6 +470,7 @@ fn monorail_phy_read(
             ("reg", IdolArgument::Scalar(u64::from(reg.reg))),
         ],
         None,
+        None,
     )?;
     match value {
         Ok(v) => {
@@ -511,6 +514,7 @@ fn monorail_phy_write(
             ("reg", IdolArgument::Scalar(u64::from(reg.reg))),
             ("value", IdolArgument::Scalar(u64::from(value))),
         ],
+        None,
         None,
     )?;
     match value {
@@ -894,6 +898,7 @@ fn monorail_mac_table(
         &op_mac_count,
         &[],
         None,
+        None,
     )?;
     let mac_count = match value {
         Ok(v) => {
@@ -998,6 +1003,7 @@ fn monorail_reset_counters(
         &op,
         &[("port", IdolArgument::Scalar(u64::from(port)))],
         None,
+        None,
     )?;
     value.map(|_| ()).map_err(|err| anyhow!("Got error {err}"))
 }
@@ -1015,6 +1021,7 @@ fn monorail_counters(
         context,
         &op,
         &[("port", IdolArgument::Scalar(u64::from(port)))],
+        None,
         None,
     )?;
     let decode_count = |s: &Value| match s {

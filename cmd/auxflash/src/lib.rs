@@ -19,7 +19,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_hiffy::{HiffyContext, HiffyLease};
+use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
 const DEFAULT_SLOT_SIZE_BYTES: usize = 2 * 1024 * 1024;
@@ -102,6 +102,7 @@ impl<'a> AuxFlashHandler<'a> {
             &op,
             &[],
             None,
+            None,
         )?;
         let v = match value {
             Ok(v) => v,
@@ -122,6 +123,7 @@ impl<'a> AuxFlashHandler<'a> {
             &mut self.context,
             &op,
             &[],
+            None,
             None,
         )?;
         let v = match value {
@@ -144,6 +146,7 @@ impl<'a> AuxFlashHandler<'a> {
             &op,
             &[("slot", IdolArgument::Scalar(u64::from(slot)))],
             None,
+            None,
         )?;
         match value {
             Ok(..) => Ok(()),
@@ -159,6 +162,7 @@ impl<'a> AuxFlashHandler<'a> {
             &mut self.context,
             &op,
             &[("slot", IdolArgument::Scalar(u64::from(slot)))],
+            None,
             None,
         )?;
         let v = match value {
@@ -241,7 +245,8 @@ impl<'a> AuxFlashHandler<'a> {
                     ("slot", IdolArgument::Scalar(slot as u64)),
                     ("offset", IdolArgument::Scalar(offset as u64)),
                 ],
-                Some(HiffyLease::Read(chunk)),
+                None,
+                Some(chunk),
             )?;
             if let Err(e) = value {
                 bail!("Got Hubris error: {:?}", e);
@@ -335,7 +340,8 @@ impl<'a> AuxFlashHandler<'a> {
                     ("slot", IdolArgument::Scalar(slot as u64)),
                     ("offset", IdolArgument::Scalar(offset as u64)),
                 ],
-                Some(HiffyLease::Write(chunk)),
+                Some(chunk),
+                None,
             )?;
             if let Err(e) = value {
                 bail!("Got Hubris error: {:?}", e);

@@ -56,12 +56,6 @@ pub struct HiffyFunction {
     pub errmap: HashMap<u32, String>,
 }
 
-#[derive(Debug)]
-pub enum HiffyLease<'a> {
-    Read(&'a mut [u8]),
-    Write(&'a [u8]),
-}
-
 impl HiffyFunction {
     pub fn strerror(&self, code: u32) -> String {
         match self.errmap.get(&code) {
@@ -746,10 +740,15 @@ impl<'a> HiffyContext<'a> {
         op: &idol::IdolOperation,
         payload: &[u8],
         ops: &mut Vec<Op>,
-        lease_size: Option<u32>,
+        lease_write_size: Option<u32>,
+        lease_read_size: Option<u32>,
         func_name: &str,
     ) -> Result<()> {
-        let arg_count = if lease_size.is_some() { 5 } else { 4 };
+        let arg_count = match (lease_write_size, lease_read_size) {
+            (None, None) => 4,
+            (Some(_), None) | (None, Some(_)) => 5,
+            (Some(_), Some(_)) => 6,
+        };
         let send = self.get_function(func_name, arg_count)?;
 
         let push = |val: u32| {
@@ -779,8 +778,13 @@ impl<'a> HiffyContext<'a> {
 
         ops.push(push(payload.len() as u32));
         ops.push(push(op.reply_size()? as u32));
-        if let Some(lease_size) = lease_size {
-            ops.push(push(lease_size));
+
+        if let Some(s) = lease_write_size {
+            ops.push(push(s));
+        }
+
+        if let Some(s) = lease_read_size {
+            ops.push(push(s));
         }
         ops.push(Op::Call(send.id));
         ops.push(Op::DropN(size));
@@ -795,7 +799,7 @@ impl<'a> HiffyContext<'a> {
         payload: &[u8],
         ops: &mut Vec<Op>,
     ) -> Result<()> {
-        self.idol_call_ops_inner(op, payload, ops, None, "Send")
+        self.idol_call_ops_inner(op, payload, ops, None, None, "Send")
     }
 
     /// Convenience routine to translate an Idol call (which reads data from the
@@ -811,6 +815,7 @@ impl<'a> HiffyContext<'a> {
             op,
             payload,
             ops,
+            None,
             Some(lease_size),
             "SendLeaseRead",
         )
@@ -830,7 +835,26 @@ impl<'a> HiffyContext<'a> {
             payload,
             ops,
             Some(lease_size),
+            None,
             "SendLeaseWrite",
+        )
+    }
+
+    pub fn idol_call_ops_read_write(
+        &self,
+        op: &idol::IdolOperation,
+        payload: &[u8],
+        ops: &mut Vec<Op>,
+        lease_write_size: u32,
+        lease_read_size: u32,
+    ) -> Result<()> {
+        self.idol_call_ops_inner(
+            op,
+            payload,
+            ops,
+            Some(lease_write_size),
+            Some(lease_read_size),
+            "SendLeaseReadWrite",
         )
     }
 
@@ -1186,42 +1210,44 @@ pub fn hiffy_call(
     context: &mut HiffyContext,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
-    lease: Option<HiffyLease>,
+    lease_write: Option<&[u8]>,
+    lease_read: Option<&mut [u8]>,
 ) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    check_lease(op, lease.as_ref())?;
+    check_op(op)?;
+    check_leases(op, lease_write, lease_read.as_deref())?;
 
     let mut ops = vec![];
 
     let payload = op.payload(args)?;
-    match lease.as_ref() {
-        None => context.idol_call_ops(op, &payload, &mut ops)?,
-        // Read/Write is flipped when passing through the Idol operation;
-        // HiffyLease::Read/Write is from the perspective of the host, but
-        // idol_call_ops_read/write is from the perspective of the called
-        // function.
-        Some(HiffyLease::Read(n)) => context.idol_call_ops_write(
+    // Read/Write is flipped when passing through the Idol operation;
+    // Read/Write is from the perspective of the host, but
+    // idol_call_ops_read/read_write/write is from the perspective of the
+    // called function.
+    match (&lease_write, &lease_read) {
+        (None, None) => context.idol_call_ops(op, &payload, &mut ops)?,
+        (None, Some(n)) => context.idol_call_ops_write(
             op,
             &payload,
             &mut ops,
             n.len().try_into().unwrap(),
         )?,
-        Some(HiffyLease::Write(d)) => context.idol_call_ops_read(
+        (Some(d), None) => context.idol_call_ops_read(
             op,
             &payload,
             &mut ops,
             d.len().try_into().unwrap(),
         )?,
+        (Some(d), Some(n)) => context.idol_call_ops_read_write(
+            op,
+            &payload,
+            &mut ops,
+            d.len().try_into().unwrap(),
+            n.len().try_into().unwrap(),
+        )?,
     }
     ops.push(Op::Done);
 
-    let data = lease.as_ref().and_then(|lease| {
-        if let HiffyLease::Write(d) = *lease {
-            Some(d)
-        } else {
-            None
-        }
-    });
-    let mut results = context.run(core, ops.as_slice(), data)?;
+    let mut results = context.run(core, ops.as_slice(), lease_write)?;
 
     if results.len() != 1 {
         bail!("unexpected results length: {:?}", results);
@@ -1230,9 +1256,9 @@ pub fn hiffy_call(
     let mut v: Result<Vec<u8>, u32> = results.pop().unwrap();
 
     // If this is a Read operation, steal extra data from the returned stack
-    // and copy it into the incoming HiffyLease::Read argument
-    let out = match lease {
-        Some(HiffyLease::Read(data)) => {
+    // and copy it into the incoming 'read' argument
+    let out = match lease_read {
+        Some(data) => {
             let ok_size = op.reply_size()?;
             if let Ok(v) = v.as_mut() {
                 let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
@@ -1323,62 +1349,99 @@ pub fn hiffy_print_result(
     Ok(())
 }
 
+/// Check that hiffy is able to call the given operation, bailing
+/// with a user-friendly message if that's not the case.
+fn check_op(op: &idol::IdolOperation) -> Result<()> {
+    // detect ops w/ incompatible prototypes
+    match op.operation.leases.len() {
+        // no leases, no problem
+        0 => (),
+        // if the op requires a single lease it must be either `read` or
+        // `write` (xor really)
+        1 => {
+            if op.operation.leases[0].read == op.operation.leases[0].write {
+                bail!(
+                    "cannot call a hiffy operation that uses a R/W \
+                 (or nR/nW) lease"
+                );
+            }
+        }
+        // ops w/ 2 leases must take one read, one write
+        2 => {
+            if op.operation.leases[0].read == op.operation.leases[0].write
+                || op.operation.leases[1].read == op.operation.leases[1].write
+            {
+                bail!(
+                    "cannot call a hiffy operation that uses a R/W \
+                     (or nR/nW) lease"
+                );
+            }
+            if op.operation.leases[0].read == op.operation.leases[0].write
+                || op.operation.leases[1].read == op.operation.leases[1].write
+            {
+                bail!(
+                    "cannot call a hiffy operation that takes two read or \
+                    write leases"
+                );
+            }
+        }
+        _ => bail!(
+            "`humility hiffy` cannot call operations that use \
+             > 2 leases"
+        ),
+    };
+
+    Ok(())
+}
+
 /// Check that the given operation and provided leases are compatible, bailing
 /// with a user-friendly message if that's not the case.
-fn check_lease(
+fn check_leases(
     op: &idol::IdolOperation,
-    lease: Option<&HiffyLease>,
+    lease_write: Option<&[u8]>,
+    lease_read: Option<&[u8]>,
 ) -> Result<()> {
-    match lease {
-        None => match op.operation.leases.len() {
-            0 => (),
-            1 => match (
-                op.operation.leases[0].read,
-                op.operation.leases[0].write,
-            ) {
-                (true, false) => {
-                    bail!(
-                        "this operation reads from a lease. \
-                         Use `-i` to specify the data source"
-                    );
-                }
-                (false, true) => {
-                    bail!(
-                        "this operation writes to a lease. \
-                         Use `-n` to specify how much data you want back."
-                    );
-                }
-                _ => {
-                    bail!(
-                        "cannot call a hiffy operation that uses a R/W \
-                         (or nR/nW) lease"
-                    )
-                }
-            },
-            _ => bail!(
-                "`humility hiffy` cannot call operations that use \
-                 > 1 leases"
-            ),
-        },
-        Some(HiffyLease::Read(..)) => {
-            if op.operation.leases.len() != 1
+    let lease_count = op.operation.leases.len();
+    match (lease_write, lease_read) {
+        (None, None) => {
+            if lease_count != 0 {
+                bail!(
+                    "this operation requires {} leases but none were provided",
+                    lease_count
+                );
+            }
+        }
+        (Some(..), None) => {
+            if lease_count != 1
+                || !op.operation.leases[0].read
+                || op.operation.leases[0].write
+            {
+                bail!(
+                    "this operation reads from a lease. \
+                     Use `--i` to specify the data source"
+                );
+            }
+        }
+        (None, Some(..)) => {
+            if lease_count != 1
                 || op.operation.leases[0].read
                 || !op.operation.leases[0].write
             {
                 bail!(
                     "`humility hiffy --input ...` can only call functions that \
-                     take a single, read-only lease"
+                     take a read-only lease"
                 );
             }
         }
-        Some(HiffyLease::Write(..)) => {
-            if op.operation.leases.len() != 1
-                || !op.operation.leases[0].read
-                || op.operation.leases[0].write
+        (Some(_), Some(_)) => {
+            if lease_count != 2
+                || op.operation.leases[0].read == op.operation.leases[1].read
+                || op.operation.leases[0].write == op.operation.leases[1].write
             {
                 bail!(
-                    "`humility hiffy --num ...` can only call functions that \
-                     take a single, read-only lease"
+                    "humility hiffy --input ... --num ... can only call \
+                    functions that take a read-only lease and a write-only \
+                    lease"
                 );
             }
         }

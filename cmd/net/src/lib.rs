@@ -92,6 +92,7 @@ fn net_ip(context: &mut ExecutionContext) -> Result<()> {
         &op,
         &[],
         None,
+        None,
     )?;
     let v = match value {
         Ok(v) => v,
@@ -153,6 +154,7 @@ fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
         &mut hiffy_context,
         &op_mac_count,
         &[],
+        None,
         None,
     )?;
     let mac_count = match value {
@@ -276,6 +278,7 @@ fn net_status(context: &mut ExecutionContext) -> Result<()> {
         &op,
         &[],
         None,
+        None,
     )?;
     let v = match value {
         Ok(v) => v,
@@ -356,6 +359,7 @@ fn net_counters(context: &mut ExecutionContext) -> Result<()> {
         &mut hiffy_context,
         &op,
         &[],
+        None,
         None,
     )?;
     let v = match value {
