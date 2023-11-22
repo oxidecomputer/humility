@@ -228,6 +228,16 @@ impl<'a> IbcHandler<'a> {
     }
 
     fn print_event(&self, e: IbcEvent, verbose: bool, vout_mode: u8) {
+        // In that case that a log contains no entries, the newest event index
+        // reported will be the lowest slot for the log type, which will be
+        // empty. Reading an empty event will return 0xFF in all bytes.
+        if e.timestamp.get() == u32::MAX
+            && e.event_id.get() == u16::MAX
+            && e.status_word.get() == u16::MAX
+        {
+            println!("  EMPTY");
+            return;
+        }
         println!(
             "  TIMESTAMP           {:#010x} = {}",
             e.timestamp.get(),
