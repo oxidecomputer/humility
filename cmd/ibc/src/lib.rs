@@ -211,23 +211,30 @@ impl<'a> IbcHandler<'a> {
                 Err(e) => bail!("Failed to read event {i}: {e}"),
             }
         }
+        let mut base_timestamp: u32 = 0;
         for i in 0..=newest_fault_event_index {
             let e = events[i as usize];
             println!("{}", "FAULT EVENT".red());
             println!("  EVENT_INDEX:        {i}");
-            self.print_event(e, verbose, vout_mode);
+            self.print_event(e, verbose, vout_mode, &mut base_timestamp);
         }
         for i in 24..=newest_lifecycle_event_index {
             let e = events[i as usize];
             println!("{}", "LIFECYCLE EVENT".green());
             println!("  EVENT_INDEX:        {i}");
-            self.print_event(e, verbose, vout_mode);
+            self.print_event(e, verbose, vout_mode, &mut base_timestamp);
         }
 
         Ok(())
     }
 
-    fn print_event(&self, e: IbcEvent, verbose: bool, vout_mode: u8) {
+    fn print_event(
+        &self,
+        e: IbcEvent,
+        verbose: bool,
+        vout_mode: u8,
+        base_timestamp: &mut u32,
+    ) {
         // In that case that a log contains no entries, the newest event index
         // reported will be the lowest slot for the log type, which will be
         // empty. Reading an empty event will return 0xFF in all bytes.
@@ -238,12 +245,6 @@ impl<'a> IbcHandler<'a> {
             println!("  EMPTY");
             return;
         }
-        println!(
-            "  TIMESTAMP           {:#010x} = {}",
-            e.timestamp.get(),
-            Self::format_time(e.timestamp.get())
-        );
-        println!("  EVENT_ID            {:#06x}", e.event_id.get());
 
         // Decoding is extracted from revision A and B of the datasheet, which
         // contain non-overlapping sets of decoding information.  They don't
@@ -260,6 +261,30 @@ impl<'a> IbcHandler<'a> {
         //   28710-FGB 100 378 Rev A (Application Note 326), May 2023
 
         let status_word = e.status_word.get();
+
+        // When a BOOT_EVENT or TIME_ERASE_EVENT is seen, record the timestamp
+        // so that the times for following events can be displayed relative to
+        // this.
+        if e.status_word.get() == 1 && (e.status_mfr == 0 || e.status_mfr == 6)
+        {
+            *base_timestamp = e.timestamp.get();
+        }
+
+        if *base_timestamp != 0 && *base_timestamp <= e.timestamp.get() {
+            println!(
+                "  TIMESTAMP           {:#010x} = +{}",
+                e.timestamp.get(),
+                Self::format_time(e.timestamp.get() - *base_timestamp)
+            );
+        } else {
+            println!(
+                "  TIMESTAMP           {:#010x} = {}",
+                e.timestamp.get(),
+                Self::format_time(e.timestamp.get())
+            );
+        }
+        println!("  EVENT_ID            {:#06x}", e.event_id.get());
+
         println!("  STATUS_WORD         {:#06x}", status_word);
         for (bit, name) in [
             (0, "System event"),
