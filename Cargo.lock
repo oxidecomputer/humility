@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.35"
+version = "0.10.36"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -2902,8 +2902,8 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "pmbus"
-version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/pmbus#5af447d53a4bc863b7e0700cee23cbf89da39cd5"
+version = "0.1.2"
+source = "git+https://github.com/oxidecomputer/pmbus#c7e916cdfd75091c1b06d8348ad9e03fcb295cb2"
 dependencies = [
  "anyhow",
  "convert_case",
