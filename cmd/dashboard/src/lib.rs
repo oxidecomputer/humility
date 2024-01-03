@@ -36,12 +36,12 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::time::{Duration, Instant};
-use tui::{
+use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
-    text::{Span, Spans},
+    text::{Span, Line},
     widgets::{
         Axis, Block, Borders, Chart, Dataset, List, ListItem, ListState,
         Paragraph,
@@ -1007,7 +1007,7 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
             Some(Some(val)) => graph.attributes.legend_value((*val).into()),
         };
 
-        rows.push(ListItem::new(Spans::from(vec![
+        rows.push(ListItem::new(Line::from(vec![
             Span::styled(
                 format!("{:<20}", s.name),
                 Style::default().fg(s.color),
@@ -1082,7 +1082,7 @@ fn draw_status<B: Backend>(
         }
     }
 
-    let text = vec![Spans::from(bar)];
+    let text = vec![Line::from(bar)];
 
     let para = Paragraph::new(text)
         .alignment(Alignment::Right)
