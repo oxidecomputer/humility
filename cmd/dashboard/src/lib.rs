@@ -32,22 +32,22 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
-use std::fs::File;
-use std::io;
-use std::io::Write;
-use std::time::{Duration, Instant};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
-    text::{Span, Line},
+    text::{Line, Span},
     widgets::{
         Axis, Block, Borders, Chart, Dataset, List, ListItem, ListState,
         Paragraph,
     },
     Frame, Terminal,
 };
+use std::fs::File;
+use std::io;
+use std::io::Write;
+use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(name = "dashboard", about = env!("CARGO_PKG_DESCRIPTION"))]
