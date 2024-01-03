@@ -236,6 +236,7 @@ postcard = "0.7.0"
 proc-macro2 = "1.0"
 quote = "1.0"
 rand = "0.8"
+ratatui = "0.23.0"
 raw-cpuid = { version = "11.0.0", features = ["display"] }
 rayon = "1.7"
 reedline = "0.11.0"
@@ -259,7 +260,6 @@ termios = "0.3" # not usable on windows!
 thiserror = "1.0"
 toml = "0.5"
 trycmd = "0.13.2"
-tui = { version = "0.16", default-features = false }
 winapi = "0.3.9"
 zerocopy = "0.6.1"
 zip = "0.6.4"
