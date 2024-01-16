@@ -1096,7 +1096,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.36"
+version = "0.10.37"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1132,6 +1132,7 @@ dependencies = [
  "humility-cmd-itm",
  "humility-cmd-jefe",
  "humility-cmd-lpc55gpio",
+ "humility-cmd-lsusb",
  "humility-cmd-manifest",
  "humility-cmd-map",
  "humility-cmd-monorail",
@@ -1571,6 +1572,18 @@ dependencies = [
  "humility-cmd",
  "humility-hiffy",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-lsusb"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "rusb",
 ]
 
 [[package]]

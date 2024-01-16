@@ -255,6 +255,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
+- [humility lsusb](#humility-lsusb): List all USB devices visible to Humility
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
 - [humility monorail](#humility-monorail): Management network control and debugging
@@ -957,55 +958,89 @@ loss.
 
 Here's an example:
 ```console
-$ humility -tsn5 ibc black-box
+$ humility ibc black-box
 humility: attached to 0483:374e:001B00083156501320323443 via ST-Link V3
 FAULT EVENT
   EVENT_INDEX:        0
-  TIMESTAMP           0x000001ca = 45.5 sec
+  TIMESTAMP           0x000a3747 = 18 hr, 35 min, 51.1 sec
   EVENT_ID            0x0000
   STATUS_WORD         0x0010
-  STATUS_IOUT         0x0080
-  V_IN                0xf869 = 52.50V
-  V_OUT               0x5f00 = 11.88V
-  I_OUT               0x004e = 78.00A
-  TEMPERATURE         0x001c = 28.00°C
+    0x0010: Output overcurrent fault
+  STATUS_IOUT         0x80
+    0x80: Iout Overcurrent Fault
+  STATUS_MFR          0x00
+  V_IN                0xf84f = 39.500V
+  V_OUT               0x6000 = 12.000V
+  I_OUT               0x0075 = 117.000A
+  TEMPERATURE         0x0023 = 35.000°C
 FAULT EVENT
   EVENT_INDEX:        1
-  TIMESTAMP           0x000001d4 = 46.6 sec
+  TIMESTAMP           0x000a3751 = 18 hr, 35 min, 52.1 sec
   EVENT_ID            0x0001
   STATUS_WORD         0x0001
-  STATUS_MFG          0x0001
-    b0 = BOOT_EVENT
-  V_IN                0xf83c = 30.00V
-  V_OUT               0x0000 = 0.00V
-  I_OUT               0x0000 = 0.00A
-  TEMPERATURE         0x0000 = 0.00°C
+    0x0001: System event
+  STATUS_MFR          0x01
+    0x01: INPUT_LOW_EVENT
+  V_IN                0xf83c = 30.000V
+  V_OUT               0x0000 = 0.000V
+  I_OUT               0x0000 = 0.000A
+  TEMPERATURE         0x0000 = 0.000°C
 FAULT EVENT
   EVENT_INDEX:        2
-  TIMESTAMP           0x000002c4 = 1 min, 10.0 sec
+  TIMESTAMP           0x2809e751 = 777 day, 11 hr, 22 min, 48.1 sec
   EVENT_ID            0x0002
-  STATUS_WORD         0x0010
-  STATUS_IOUT         0x0080
-  V_IN                0xf877 = 59.50V
-  V_OUT               0x5f00 = 11.88V
-  I_OUT               0x0070 = 112.00A
-  TEMPERATURE         0x002c = 44.00°C
+  STATUS_WORD         0x0001
+    0x0001: System event
+  STATUS_MFR          0x02
+    0x02: CANCEL_EVENT
+  V_IN                0xf86b = 53.500V
+  V_OUT               0x5f00 = 11.875V
+  I_OUT               0x0000 = 0.000A
+  TEMPERATURE         0x0012 = 18.000°C
 FAULT EVENT
   EVENT_INDEX:        3
-  TIMESTAMP           0x27ffb2c4 = 776 day, 16 hr, 48 min, 6.6 sec
+  TIMESTAMP           0x50099751 = 1554 day, 4 hr, 9 min, 44.1 sec
   EVENT_ID            0x0003
   STATUS_WORD         0x0001
-  STATUS_MFG          0x0002
-    b1 = INPUT_LOW_EVENT
-  V_IN                0xf86b = 53.50V
-  V_OUT               0x6000 = 12.00V
-  I_OUT               0x0000 = 0.00A
-  TEMPERATURE         0x0016 = 22.00°C
+    0x0001: System event
+  STATUS_MFR          0x02
+    0x02: CANCEL_EVENT
+  V_IN                0xf86b = 53.500V
+  V_OUT               0x6000 = 12.000V
+  I_OUT               0x0000 = 0.000A
+  TEMPERATURE         0x0020 = 32.000°C
+LIFECYCLE EVENT
+  EVENT_INDEX:        24
+  TIMESTAMP           0xffef8ad0 = 4969 day, 18 hr, 41 min, 12.0 sec
+  EVENT_ID            0x0680
+  STATUS_WORD         0x0001
+    0x0001: System event
+  STATUS_MFR          0x04
+    0x04: CLR_EVENT
+  V_IN                0xf86b = 53.500V
+  V_OUT               0x5f00 = 11.875V
+  I_OUT               0x0000 = 0.000A
+  TEMPERATURE         0x001a = 26.000°C
+LIFECYCLE EVENT
+  EVENT_INDEX:        25
+  TIMESTAMP           0xffef8bd4 = 4969 day, 18 hr, 41 min, 38.0 sec
+  EVENT_ID            0x0681
+  STATUS_WORD         0x0001
+    0x0001: System event
+  STATUS_MFR          0x05
+    0x05: ERASE_OVFL_EVENT
+  V_IN                0xf860 = 48.000V
+  V_OUT               0x5f00 = 11.875V
+  I_OUT               0x0000 = 0.000A
+  TEMPERATURE         0x001b = 27.000°C
+
 ```
 
-The log doesn't appear to be _completely_ reliable, so take it with a grain
-of salt and with the datasheet close at hand.  For example, the machine in
-the example above had **not** be up for 776 days.
+The log doesn't appear to be _completely_ reliable, especially with
+respect to timestamps, so take it with a grain of salt and with the
+datasheet close at hand.  For example, the machine in the example above
+had **not** be up for 777 days (or, for that matter, for 4,969).
+
 
 
 ### `humility itm`
@@ -1231,6 +1266,12 @@ humility: attached via CMSIS-DAP
 [Ok([])]
 ```
 
+
+
+### `humility lsusb`
+
+`humility lsusb` will show you Humility's view of the USB devices available
+on the system, to help you choose probes and/or diagnose permissions issues.
 
 
 ### `humility manifest`

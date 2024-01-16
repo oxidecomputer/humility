@@ -1,0 +1,13 @@
+[package]
+name = "humility-cmd-lsusb"
+version = "0.1.0"
+edition = "2021"
+description = "List all USB devices visible to Humility"
+
+[dependencies]
+humility = { workspace = true }
+humility-cmd = { workspace = true }
+humility-cli = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+rusb = {workspace = true}

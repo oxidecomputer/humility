@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.36"
+version = "0.10.37"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -65,6 +65,7 @@ members = [
     "cmd/itm",
     "cmd/jefe",
     "cmd/lpc55gpio",
+    "cmd/lsusb",
     "cmd/manifest",
     "cmd/map",
     "cmd/monorail",
@@ -165,6 +166,7 @@ cmd-ibc = { path = "./cmd/ibc", package = "humility-cmd-ibc" }
 cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
+cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
@@ -308,6 +310,7 @@ cmd-ibc = { workspace = true }
 cmd-itm = { workspace = true }
 cmd-jefe = { workspace = true }
 cmd-lpc55gpio = { workspace = true }
+cmd-lsusb = { workspace = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
