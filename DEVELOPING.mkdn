@@ -1,0 +1,55 @@
+# Hacking Humility
+
+This file is intended to collect recipes and procedures for working on Humility,
+oriented toward the casual or intermittent contributor.
+
+## Mostly Cargo Just Works
+
+`cargo build` and `cargo test` will both do the thing you expect.
+
+## Bumping the crate version requires an extra step
+
+The Humility version appears in a bunch of golden files recording known-good
+command output. As a result, if you change the crate version in `Cargo.toml`,
+the tests will fail.
+
+With the version change _as the only change in your checkout,_ so that you're
+not introducing other churn to the golden changes, you can safely just run:
+
+```
+TRYCMD_TEST="tests/cmd/*trycmd" TRYCMD=overwrite cargo test
+```
+
+and it'll fix the files. Check the diff to make sure you didn't do anything
+unintended.
+
+## How to add a new subcommand
+
+So you've decided to add a subcommand to Humility. Here's what you need to do.
+
+1. Add a new `lib` package underneath the `cmd/` subdirectory. The easiest way
+   to get all the fiddly bits right is to copy an existing one. If you do this,
+   make sure you remember to change the package name in the `Cargo.toml`, and
+   make sure any new name starts with `humility-cmd-` (e.g.
+   `humility-cmd-yourcommand`).
+
+2. Review the settings in the `init` routine you cribbed from to make sure they
+   reflect your subcommand. In particular, the name must appear a second time in
+   the `name:` field, and `kind` should reflect whether you need an attached
+   target and archive, or not.
+
+3. Cite your new subcommand from the root `Cargo.toml`. This needs to happen in
+   three places using two different names: in the `workspace.members` element
+   using the relative path (e.g. `cmd/yourcommand`); in the
+   `workspace.dependencies` section using the name of your package with the
+   leading `humility-` stripped off, so e.g. `cmd-yourcommand`; and then in the
+   `dependencies` table with a line reading `cmd-yourcommand = {workspace =
+   true}`.
+
+4. Regenerate the README file by running `cargo xtask readme`. The `xtask` bit
+   there is very important.
+
+5. If you're adding a new command, you almost certainly want to bump Humility's
+   patch version. This makes it easier to tell whether users have the command.
+   Doing this requires an extra step compared to a normal Rust package; see the
+   previous section in this file.
