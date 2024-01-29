@@ -926,6 +926,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gimlet-inspector-protocol"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/gimlet-inspector-protocol#030004d082f4ec70e33cbc00886096b15ef3c2cc"
+dependencies = [
+ "hubpack",
+ "serde",
+]
+
+[[package]]
 name = "gimli"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1123,6 +1132,7 @@ dependencies = [
  "humility-cmd-extract",
  "humility-cmd-flash",
  "humility-cmd-gdb",
+ "humility-cmd-gimlet",
  "humility-cmd-gpio",
  "humility-cmd-hash",
  "humility-cmd-hiffy",
@@ -1437,6 +1447,24 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-openocd",
  "tempfile",
+]
+
+[[package]]
+name = "humility-cmd-gimlet"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "gimlet-inspector-protocol",
+ "hubpack",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "indexmap",
+ "parse_int",
+ "serde",
+ "zerocopy",
 ]
 
 [[package]]

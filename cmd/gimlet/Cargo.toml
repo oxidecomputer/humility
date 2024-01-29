@@ -1,0 +1,21 @@
+[package]
+name = "humility-cmd-gimlet"
+version = "0.1.0"
+edition = "2021"
+description = "Gimlet-specific diagnostic commands"
+
+[dependencies]
+humility.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true
+
+hubpack.workspace = true
+gimlet-inspector-protocol.workspace = true
+
+anyhow.workspace = true
+clap.workspace = true
+colored.workspace = true
+indexmap.workspace = true
+parse_int.workspace = true
+serde.workspace = true
+zerocopy.workspace = true

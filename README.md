@@ -246,6 +246,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility extract](#humility-extract): extract all or part of a Hubris archive
 - [humility flash](#humility-flash): flash archive onto attached device
 - [humility gdb](#humility-gdb): Attach to a running system using GDB
+- [humility gimlet](#humility-gimlet): Gimlet-specific diagnostic commands
 - [humility gpio](#humility-gpio): GPIO pin manipulation
 - [humility hash](#humility-hash): Access to the HASH block
 - [humility hiffy](#humility-hiffy): manipulate HIF execution
@@ -641,6 +642,18 @@ When using `pyocd`, it must be launched with the `--persist` option,
 because `humility gdb` connects to it multiple times (once to check the
 app id, then again to run the console).
 
+
+
+### `humility gimlet`
+
+`humility gimlet` contacts a (recent firmware version) Gimlet over the
+management network and extracts certain live diagnostic information.
+
+```console
+$ humility gimlet --ip fe80::0c1d:9aff:fe64:b8c2%en0 read-seq-regs
+```
+
+For a complete list of subcommands, use `humility gimlet --help`.
 
 
 ### `humility gpio`
