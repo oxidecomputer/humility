@@ -6,6 +6,7 @@ description = "print command documentation"
 
 [build-dependencies]
 cargo_metadata = { workspace = true }
+cargo-readme = { workspace = true }
 anyhow = { workspace = true }
 
 [dependencies]

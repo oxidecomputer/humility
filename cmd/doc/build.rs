@@ -2,13 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 
 fn main() -> Result<()> {
     use cargo_metadata::MetadataCommand;
@@ -60,20 +59,30 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
             path.parent().unwrap().join("src/lib.rs").display()
         );
 
-        let mut gencmd = Command::new("cargo");
-        gencmd.arg("readme");
-        gencmd.arg("--no-title");
-        gencmd.arg("-r");
-        gencmd.arg(path.parent().unwrap());
+        let cmd_path = path.parent().unwrap();
+        let mut lib_path = cmd_path.join("src");
+        lib_path.push("lib.rs");
+        let mut file = File::open(&lib_path).with_context(|| {
+            format!("failed to open {}", lib_path.display())
+        })?;
+        let contents = cargo_readme::generate_readme(
+            cmd_path, &mut file, None, false, true, true, true,
+        )
+        .map_err(|error| {
+            anyhow::anyhow!("failed to generate README for {cmd}: {error}")
+        })?;
 
-        let contents = gencmd.output()?;
+        //
+        // We are prescriptive about what we expect this output to look like.
+        //
 
-        if !contents.status.success() {
+        let header = format!("### `humility {}`\n", cmd);
+        if !contents.starts_with(&header) {
             bail!(
-                "\"cargo readme\" command failed for {}: {:?}; \
-                have you run \"cargo install cargo-readme\"?",
+                "documentation for {} is malformed: \
+                must begin with '{}'",
                 cmd,
-                contents
+                header
             );
         }
 
@@ -81,19 +90,19 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
 
         let header = format!("### `humility {}`\n", cmd);
 
-        if contents.stdout.len() == 1 {
+        if contents.len() == 1 {
             bail!("no documentation for {cmd}");
         } else {
-            if !contents.stdout.starts_with(header.as_bytes()) {
+            if !contents.starts_with(&header) {
                 bail!("malformed documentation for {}", cmd);
             }
 
-            output.write_all(&contents.stdout[1..])?;
+            output.write_all(&contents.as_bytes()[1..])?;
 
             //
             // If we don't end on a blank line, insert one.
             //
-            if !contents.stdout.ends_with("\n\n".as_bytes()) {
+            if !contents.ends_with("\n\n") {
                 writeln!(output)?;
             }
         }
