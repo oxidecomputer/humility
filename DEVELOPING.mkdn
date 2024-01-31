@@ -3,9 +3,17 @@
 This file is intended to collect recipes and procedures for working on Humility,
 oriented toward the casual or intermittent contributor.
 
-## Mostly Cargo Just Works
+## Build dependencies
 
-`cargo build` and `cargo test` will both do the thing you expect.
+In order to build Humility, the following dependencies are required:
+
+- [`cargo readme`](https://crates.io/crates/cargo-readme), which can be
+  installed using `cargo install cargo-readme`
+- `libudev` and `pkg-config` (at least on Linux), which you can install
+  using your package manager of choice.
+
+Once these build dependencies are present, `cargo build` and `cargo test` will
+both do the thing you expect.
 
 ## Bumping the crate version requires an extra step
 
