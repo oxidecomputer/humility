@@ -7,7 +7,7 @@ mod env;
 use anyhow::Result;
 use clap::{AppSettings, ArgGroup, ArgMatches, Parser};
 use env::Environment;
-use humility::{core::Core, hubris::HubrisArchive, msg, warn};
+use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
 
 #[derive(Parser, Debug, Clone)]
 #[clap(
@@ -61,7 +61,7 @@ pub struct Cli {
     /// HUMILITY_IP environment variable. Run "humility doc" for more
     /// information on running Humility over a network.
     #[clap(long, short, group = "hubris")]
-    pub ip: Option<String>,
+    pub ip: Option<net::ScopedV6Addr>,
 
     /// Hubris environment file. Thie may also be set via the
     /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
@@ -158,7 +158,7 @@ impl ExecutionContext {
             if let Ok(e) = env::var("HUMILITY_PROBE") {
                 cli.probe = Some(e);
             } else if let Ok(e) = env::var("HUMILITY_IP") {
-                cli.ip = Some(e);
+                cli.ip = Some(e.parse()?);
             } else if let Ok(e) = env::var("HUMILITY_TARGET") {
                 cli.target = Some(e);
             } else if let Ok(e) = env::var("HUMILITY_DUMP") {
