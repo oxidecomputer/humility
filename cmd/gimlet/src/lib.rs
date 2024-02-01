@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use clap::{ArgGroup, IntoApp, Parser};
-use humility::net::decode_iface;
+use humility::net::ScopedV6Addr;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind, Dumper};
 
@@ -42,15 +42,6 @@ struct Args {
     #[clap(long, default_value_t = HARDCODED_PORT)]
     port: u16,
 
-    /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
-    #[clap(
-        long,
-        env = "HUMILITY_RPC_IP",
-        group = "target",
-        use_value_delimiter = true
-    )]
-    ip: String,
-
     #[clap(subcommand)]
     cmd: SubCmd,
 }
@@ -69,19 +60,14 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(ip: &str, port: u16, timeout: Duration) -> Result<Self> {
-        let Some((ip, scope)) = ip.rsplit_once('%') else {
-            bail!("Missing scope id in IP (e.g. '%en0')")
+    pub fn new(ip: ScopedV6Addr, port: u16, timeout: Duration) -> Result<Self> {
+        let dest = {
+            let ScopedV6Addr { ip, scopeid } = ip;
+            SocketAddrV6::new(
+                ip, port, 0, // flow info
+                scopeid,
+            )
         };
-
-        let scopeid = decode_iface(scope)?;
-
-        let dest = SocketAddrV6::new(
-            ip.parse()?,
-            port,
-            0, // flow info
-            scopeid,
-        );
 
         let socket = UdpSocket::bind("[::]:0")?;
         socket.set_read_timeout(Some(timeout))?;
@@ -116,14 +102,22 @@ impl Client {
 }
 
 fn run(context: &mut ExecutionContext) -> Result<()> {
+    let ip = context
+        .cli
+        .ip
+        // TODO(eliza): I wonder if there's some way to make `clap` enforce that
+        // an optional global argument is required, so that it prints a prettier
+        // error message here?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "the `--ip <IP>` argument is required with `humility gimlet`"
+            )
+        })?;
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = Args::try_parse_from(subargs)?;
 
-    let mut client = Client::new(
-        &subargs.ip,
-        subargs.port,
-        Duration::from_millis(subargs.timeout),
-    )?;
+    let mut client =
+        Client::new(ip, subargs.port, Duration::from_millis(subargs.timeout))?;
 
     // We can generalize this when we have more than one command defined.
     match subargs.cmd {
