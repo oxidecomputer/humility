@@ -401,7 +401,16 @@ pub struct HubrisFlashMap {
 }
 
 impl HubrisFlashMap {
+    /// # Errors
+    ///
+    /// (Non-exhaustive list added when surprising error conditions were
+    /// discovered:)
+    ///
+    /// This will fail if the `HubrisArchive` is fake, i.e. contains zero bytes.
     pub fn new(hubris: &HubrisArchive) -> Result<Self> {
+        if hubris.archive().is_empty() {
+            bail!("archive is required for network use but was not provided");
+        }
         //
         // We want to read in the "final.elf" from our archive and use that
         // to determine the memory that constitutes flash.
