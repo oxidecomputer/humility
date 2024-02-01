@@ -5,6 +5,16 @@
 use anyhow::{bail, Context, Result};
 use std::{fmt, net::Ipv6Addr, str::FromStr};
 
+/// An IPv6 address, plus a scope ID.
+///
+/// The Rust standard library's [`Ipv6Addr`] type does not parse scoped IPv6
+/// addresses with [zone indices], which are used to disambiguate link-local
+/// addresses. This type implements [`FromStr`] by parsing an IPv6 address
+/// (using [`Ipv6Addr::from_str`]) and a trailing zone index, which may either
+/// be numeric or an interface name, if the host OS supports this. Interface
+/// names are translated to numeric zone indices using [`decode_iface`].
+///
+/// [zone indices]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses_(with_zone_index)
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct ScopedV6Addr {
     pub ip: Ipv6Addr,
