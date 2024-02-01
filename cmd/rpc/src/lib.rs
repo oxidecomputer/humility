@@ -64,7 +64,7 @@ use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
-use humility::net::decode_iface;
+use humility::net::{decode_iface, ScopedV6Addr};
 use humility::{hubris::*, reflect};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
@@ -108,21 +108,21 @@ struct RpcArgs {
     task: Option<String>,
 
     /// interface on which to listen, e.g. 'en0'
-    #[clap(short, requires = "listen")]
-    interface: Option<String>,
+    #[clap(short, requires = "listen", value_parser = decode_iface)]
+    interface: Option<u32>,
 
     /// arguments
     #[clap(long, short, requires = "call", use_delimiter = true)]
     arguments: Vec<String>,
 
-    /// IPv6 address, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
+    /// IPv6 addresses, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
     #[clap(
         long,
         env = "HUMILITY_RPC_IP",
         group = "target",
         use_value_delimiter = true
     )]
-    ip: Option<Vec<String>>,
+    ip: Option<Vec<ScopedV6Addr>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, SerializedSize)]
@@ -292,7 +292,7 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
                 0
             }
         }
-        Some(iface) => decode_iface(iface)?,
+        Some(iface) => *iface,
     };
 
     let timeout = Duration::from_millis(rpc_args.timeout as u64);
@@ -363,19 +363,11 @@ pub struct RpcClient<'a> {
 impl<'a> RpcClient<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
-        ip: &str,
+        ip: ScopedV6Addr,
         timeout: Duration,
     ) -> Result<Self> {
-        let mut iter = ip.split('%');
-        let ip = iter.next().expect("ip address is empty");
-        let iface = iter
-            .next()
-            .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
-
-        let scopeid = decode_iface(iface)?;
-
         // Hard-coded socket address, based on Hubris configuration
-        let target = format!("[{}%{}]:998", ip, scopeid);
+        let target = format!("[{ip}]:998");
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
         let socket = UdpSocket::bind("[::]:0")?;
@@ -452,12 +444,12 @@ fn rpc_call(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
     args: &[(&str, idol::IdolArgument)],
-    ips: Vec<String>,
+    ips: Vec<ScopedV6Addr>,
     timeout: u32,
 ) -> Result<()> {
     let timeout = Duration::from_millis(u64::from(timeout));
 
-    for ip in &ips {
+    for &ip in &ips {
         let mut client = RpcClient::new(hubris, ip, timeout)?;
         let result = client.call(op, args)?;
         print!("{:25} ", ip);
@@ -482,17 +474,41 @@ fn rpc_run(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
+    // For some reason, macOS requires the interface to be non-zero:
+    // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
+    // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
+    let interface = match subargs.interface {
+        None => {
+            if cfg!(target_os = "macos") {
+                bail!("Must specify interface with `-i` on macOS");
+            } else {
+                0
+            }
+        }
+        Some(iface) => iface,
+    };
+
     let ips = if subargs.listen {
         let image_id = hubris.image_id().unwrap();
-        let interface: &str = subargs.interface.as_ref().unwrap();
 
         rpc_listen(&subargs)?
             .iter()
             .filter(|t| t.image_id == image_id)
-            .map(|t| format!("{}%{}", t.ip, interface))
-            .collect::<Vec<String>>()
+            .map(|target| match target.ip {
+                IpAddr::V4(ip) => bail!(
+                    "target {target:?} had an unanticipated \
+                    IPv4 address ({ip})"
+                ),
+                IpAddr::V6(ip) => Ok(ScopedV6Addr { ip, scopeid: interface }),
+            })
+            .collect::<Result<Vec<_>>>()?
     } else {
-        subargs.ip.unwrap()
+        subargs.ip.ok_or_else(|| {
+            anyhow!(
+                "the `--ip <IPS>` argument is required by `humility rpc` \
+                unless `--listen` is also set"
+            )
+        })?
     };
 
     if let Some(call) = &subargs.call {

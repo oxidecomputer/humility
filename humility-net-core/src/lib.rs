@@ -17,7 +17,7 @@ use humility::{
     core::{Core, NetAgent},
     hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisTask},
     msg,
-    net::decode_iface,
+    net::ScopedV6Addr,
 };
 use humility_arch_arm::ARMRegister;
 use humility_dump_agent::{
@@ -46,21 +46,13 @@ pub struct NetCore {
 
 impl NetCore {
     fn new(
-        ip: &str,
+        addr: ScopedV6Addr,
         hubris: &HubrisArchive,
         timeout: Duration,
     ) -> Result<Self> {
-        let mut iter = ip.split('%');
-        let ip = iter.next().expect("ip address is empty");
-        let iface = iter
-            .next()
-            .ok_or_else(|| anyhow!("Missing scope id in IP (e.g. '%en0')"))?;
-
-        let scopeid = decode_iface(iface)?;
-
         let udprpc_socket = if hubris.lookup_task("udprpc").is_some() {
             // See oxidecomputer/oana for standard Hubris UDP ports
-            let target = format!("[{}%{}]:998", ip, scopeid);
+            let target = format!("[{addr}]:998");
 
             let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
             let udprpc_socket = UdpSocket::bind("[::]:0")?;
@@ -88,7 +80,7 @@ impl NetCore {
         //
         // See oxidecomputer/oana for standard Hubris UDP ports
         let dump_agent_socket = if has_dump_agent {
-            let target = format!("[{}%{}]:11113", ip, scopeid);
+            let target = format!("[{addr}]:11113");
             let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
             let dump_agent_socket = UdpSocket::bind("[::]:0")?;
             dump_agent_socket.set_read_timeout(Some(timeout))?;
@@ -419,7 +411,7 @@ impl Core for NetCore {
 }
 
 pub fn attach_net(
-    ip: &str,
+    ip: ScopedV6Addr,
     hubris: &HubrisArchive,
     timeout: Duration,
 ) -> Result<Box<dyn Core>> {
