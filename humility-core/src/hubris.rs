@@ -401,7 +401,16 @@ pub struct HubrisFlashMap {
 }
 
 impl HubrisFlashMap {
+    /// # Errors
+    ///
+    /// (Non-exhaustive list added when surprising error conditions were
+    /// discovered:)
+    ///
+    /// This will fail if the `HubrisArchive` is fake, i.e. contains zero bytes.
     pub fn new(hubris: &HubrisArchive) -> Result<Self> {
+        if hubris.archive().is_empty() {
+            bail!("archive is required for network use but was not provided");
+        }
         //
         // We want to read in the "final.elf" from our archive and use that
         // to determine the memory that constitutes flash.
@@ -2574,7 +2583,12 @@ impl HubrisArchive {
 
         let base_offs = self.member_offset(desc, "base")?;
         let size_offs = self.member_offset(desc, "size")?;
-        let attr_offs = self.member_offset(desc, "attributes.bits")?;
+
+        // bitflags 1.x versus 2.x encode bitfields differently
+        let attr_offs = self
+            .member_offset(desc, "attributes.bits")
+            .or_else(|_| self.member_offset(desc, "attributes.__0"))
+            .context("could not find attributes.bits")?;
 
         //
         // Regrettably copied out of Hubris -- there isn't DWARF for this.
