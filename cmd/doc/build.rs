@@ -93,10 +93,6 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
         if contents.len() == 1 {
             bail!("no documentation for {cmd}");
         } else {
-            if !contents.starts_with(&header) {
-                bail!("malformed documentation for {}", cmd);
-            }
-
             output.write_all(&contents.as_bytes()[1..])?;
 
             //

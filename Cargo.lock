@@ -1545,14 +1545,14 @@ name = "humility-cmd-gimlet"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
+ "clap 3.2.23",
  "colored",
  "gimlet-inspector-protocol",
  "hubpack",
  "humility-cli",
  "humility-cmd",
  "humility-core",
- "indexmap",
+ "indexmap 1.9.3",
  "parse_int",
  "serde",
  "zerocopy",
