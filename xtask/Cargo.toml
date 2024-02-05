@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2018"
 
 [dependencies]
+cargo-readme = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 cargo_metadata = { workspace = true }

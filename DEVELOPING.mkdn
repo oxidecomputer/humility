@@ -7,6 +7,9 @@ oriented toward the casual or intermittent contributor.
 
 `cargo build` and `cargo test` will both do the thing you expect.
 
+On Linux, `libudev` and `pkg-config` will need to be installed from your
+distro's package manager, if they are not already present on your system.
+
 ## Bumping the crate version requires an extra step
 
 The Humility version appears in a bunch of golden files recording known-good

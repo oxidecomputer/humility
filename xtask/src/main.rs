@@ -2,12 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
-use std::process::Command;
 
 #[derive(Debug, Parser)]
 #[clap(max_term_width = 80, about = "extra tasks to help you work on Hubris")]
@@ -71,52 +70,35 @@ fn make_readme() -> Result<()> {
     }
 
     for (cmd, (_, path)) in &cmds {
-        let mut gencmd = Command::new("cargo");
-        gencmd.arg("readme");
-        gencmd.arg("--no-title");
-        gencmd.arg("-r");
-        gencmd.arg(path.parent().unwrap());
-
-        let contents = gencmd.output()?;
-
-        if !contents.status.success() {
-            bail!(
-                "\"cargo readme\" command failed for {}: {:?}; have you run \"cargo install cargo-readme\"?",
-                cmd,
-                contents
-            );
-        }
+        let cmd_path = path.parent().unwrap();
+        let mut lib_path = cmd_path.join("src");
+        lib_path.push("lib.rs");
+        let mut file = std::fs::File::open(&lib_path).with_context(|| {
+            format!("failed to open {}", lib_path.display())
+        })?;
+        let contents = cargo_readme::generate_readme(
+            cmd_path, &mut file, None, false, true, true, true,
+        )
+        .map_err(|error| {
+            anyhow::anyhow!("failed to generate README for {cmd}: {error}")
+        })?;
 
         //
         // We are prescriptive about what we expect this output to look like.
         //
-        let header = format!("### `humility {}`\n", cmd);
-        if contents.stdout.len() == 1 {
-            println!("warning: no documentation for {}", cmd);
-            //
-            // For now, we offer a cheerful message encouraging documentation --
-            // but once we have everything documented, this needs to be a
-            // hard failure.
-            //
-            writeln!(
-                output,
-                "{}\nNo documentation yet for `humility {}`; \
-                pull requests welcome!\n",
-                header, cmd
-            )?;
-        } else {
-            if !contents.stdout.starts_with(header.as_bytes()) {
-                bail!(
-                    "documentation for {} is malformed: \
-                    must begin with '{}'",
-                    cmd,
-                    header
-                );
-            }
 
-            output.write_all(&contents.stdout)?;
-            writeln!(output, "\n")?;
+        let header = format!("### `humility {}`\n", cmd);
+        if !contents.starts_with(&header) {
+            bail!(
+                "documentation for {} is malformed: \
+                must begin with '{}'",
+                cmd,
+                header
+            );
         }
+
+        output.write_all(contents.as_bytes())?;
+        writeln!(output, "\n\n")?;
     }
 
     Ok(())

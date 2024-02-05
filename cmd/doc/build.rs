@@ -2,13 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 
 fn main() -> Result<()> {
     use cargo_metadata::MetadataCommand;
@@ -60,42 +59,39 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
             path.parent().unwrap().join("src/lib.rs").display()
         );
 
-        let mut gencmd = Command::new("cargo");
-        gencmd.arg("readme");
-        gencmd.arg("--no-title");
-        gencmd.arg("-r");
-        gencmd.arg(path.parent().unwrap());
+        let cmd_path = path.parent().unwrap();
+        let mut lib_path = cmd_path.join("src");
+        lib_path.push("lib.rs");
+        let mut file = File::open(&lib_path).with_context(|| {
+            format!("failed to open {}", lib_path.display())
+        })?;
+        let contents = cargo_readme::generate_readme(
+            cmd_path, &mut file, None, false, true, true, true,
+        )
+        .map_err(|error| {
+            anyhow!("failed to generate README for {cmd}: {error}")
+        })?;
 
-        let contents = gencmd.output()?;
-
-        if !contents.status.success() {
-            bail!(
-                "\"cargo readme\" command failed for {}: {:?}; \
-                have you run \"cargo install cargo-readme\"?",
-                cmd,
-                contents
-            );
-        }
+        //
+        // We are prescriptive about what we expect this output to look like.
+        //
+        let header = format!("### `humility {}`\n", cmd);
+        ensure!(
+            contents.starts_with(&header),
+            "documentation for {cmd} is malformed: \
+            must begin with '{header}'",
+        );
+        ensure!(contents.len() > 1, "no documentation for {cmd}");
 
         write!(output, "        m.insert(\"{}\", r##\"", cmd)?;
 
-        let header = format!("### `humility {}`\n", cmd);
+        output.write_all(&contents.as_bytes()[1..])?;
 
-        if contents.stdout.len() == 1 {
-            bail!("no documentation for {cmd}");
-        } else {
-            if !contents.stdout.starts_with(header.as_bytes()) {
-                bail!("malformed documentation for {}", cmd);
-            }
-
-            output.write_all(&contents.stdout[1..])?;
-
-            //
-            // If we don't end on a blank line, insert one.
-            //
-            if !contents.stdout.ends_with("\n\n".as_bytes()) {
-                writeln!(output)?;
-            }
+        //
+        // If we don't end on a blank line, insert one.
+        //
+        if !contents.ends_with("\n\n") {
+            writeln!(output)?;
         }
 
         writeln!(output, "\"##);\n")?;
