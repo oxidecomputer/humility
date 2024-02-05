@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::File;
@@ -69,38 +69,29 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
             cmd_path, &mut file, None, false, true, true, true,
         )
         .map_err(|error| {
-            anyhow::anyhow!("failed to generate README for {cmd}: {error}")
+            anyhow!("failed to generate README for {cmd}: {error}")
         })?;
 
         //
         // We are prescriptive about what we expect this output to look like.
         //
-
         let header = format!("### `humility {}`\n", cmd);
-        if !contents.starts_with(&header) {
-            bail!(
-                "documentation for {} is malformed: \
-                must begin with '{}'",
-                cmd,
-                header
-            );
-        }
+        ensure!(
+            contents.starts_with(&header),
+            "documentation for {cmd} is malformed: \
+            must begin with '{header}'",
+        );
+        ensure!(contents.len() > 1, "no documentation for {cmd}");
 
         write!(output, "        m.insert(\"{}\", r##\"", cmd)?;
 
-        let header = format!("### `humility {}`\n", cmd);
+        output.write_all(&contents.as_bytes()[1..])?;
 
-        if contents.len() == 1 {
-            bail!("no documentation for {cmd}");
-        } else {
-            output.write_all(&contents.as_bytes()[1..])?;
-
-            //
-            // If we don't end on a blank line, insert one.
-            //
-            if !contents.ends_with("\n\n") {
-                writeln!(output)?;
-            }
+        //
+        // If we don't end on a blank line, insert one.
+        //
+        if !contents.ends_with("\n\n") {
+            writeln!(output)?;
         }
 
         writeln!(output, "\"##);\n")?;
