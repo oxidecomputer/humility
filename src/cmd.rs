@@ -106,10 +106,6 @@ pub fn subcommand(
                 bail!("cannot specify a dump for {} command", cmd);
             }
 
-            if context.cli.ip.is_some() {
-                bail!("cannot specify IP address for {} command", cmd);
-            }
-
             if context.cli.probe.is_some() {
                 bail!("cannot specify probe for {} command", cmd);
             }
