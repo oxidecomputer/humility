@@ -116,9 +116,11 @@ fn ringbuf_dump(
         if let Some(max_variant_len) =
             counters.counts.iter().map(|(name, _)| name.len()).max()
         {
-            println!("ENTRY TOTALS:");
+            println!("{:max_variant_len$} {:>8}", "VARIANT", "TOTAL");
             for (name, count) in counters.counts {
-                println!("    {name:max_variant_len$} {count:>8}");
+                if count > 0 {
+                    println!("{name:max_variant_len$} {count:>8}");
+                }
             }
         }
     }
