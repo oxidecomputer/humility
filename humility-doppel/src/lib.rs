@@ -338,10 +338,14 @@ impl humility::reflect::Load for CountedRingbuf {
     fn from_value(v: &Value) -> Result<Self> {
         let rb_struct = v.as_struct()?;
         anyhow::ensure!(
-            rb_struct.name() == "CountedRingbuf",
+            // N.B. that we only check that the name *starts* with
+            // `CountedRingbuf`, as the actual `CountedRingbuf` type will be
+            // generic over the entry type.
+            rb_struct.name().starts_with("CountedRingbuf"),
             "expected CountedRingbuf, got {:?}",
             rb_struct.name()
         );
+
         // This is optional, as the `ringbuf` crate may have been compiled with
         // the "disabled" feature flag. In this case, we record event counts,
         // but don't compile in the actual ringbufs.
