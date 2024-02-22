@@ -60,7 +60,7 @@ use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_doppel::{Ringbuf, StaticCell};
+use humility_doppel::{CountedRingbuf, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -89,46 +89,72 @@ fn ringbuf_dump(
     core.read_8(ringbuf_var.addr, buf.as_mut_slice())?;
     core.run()?;
 
-    // There are two possible shapes of ringbufs, depending on the age of the
+    // There are three possible shapes of ringbufs, depending on the age of the
     // firmware.
     // - Raw Ringbuf that is not wrapped by anything.
     // - Safe Ringbuf that is inside a StaticCell.
+    // - CountedRingbuf, which consists of a `StaticCell<Ringbuf>` and a set of
+    //   entry counters.
     //
-    // Here we will attempt to handle them both -- first raw, then fallback.
+    // Here we will attempt to handle all three -- first the counted ringbuf,
+    // then raw, then fallback.
     let ringbuf_val: Value =
         Value::Struct(reflect::load_struct(hubris, &buf, definition, 0)?);
 
-    let ringbuf: Ringbuf = Ringbuf::from_value(&ringbuf_val).or_else(|_e| {
-        let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
-        Ringbuf::from_value(&cell.cell.value)
-    })?;
+    let (ringbuf, counters) = CountedRingbuf::from_value(&ringbuf_val)
+        .map(|CountedRingbuf { ringbuf, counters }| (ringbuf, Some(counters)))
+        .or_else(|_e| {
+            Ringbuf::from_value(&ringbuf_val).map(|r| (Some(r), None))
+        })
+        .or_else(|_e| {
+            let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
+            let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
+            Ok::<_, anyhow::Error>((Some(ringbuf), None))
+        })?;
 
-    let ndx = if let Some(x) = ringbuf.last {
-        x as usize
-    } else {
-        return Ok(());
-    };
-
-    let fmt = HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
-
-    println!("{:>4} {:>4} {:>8} {:>8} PAYLOAD", "NDX", "LINE", "GEN", "COUNT",);
-
-    for i in 0..ringbuf.buffer.len() {
-        let slot = (ndx + i + 1) % ringbuf.buffer.len();
-        let entry = &ringbuf.buffer[slot];
-
-        if entry.generation == 0 {
-            continue;
+    if let Some(counters) = counters {
+        if let Some(max_variant_len) =
+            counters.counts.iter().map(|(name, _)| name.len()).max()
+        {
+            println!("ENTRY TOTALS:");
+            for (name, count) in counters.counts {
+                println!("    {name:max_variant_len$} {count:>8}");
+            }
         }
+    }
 
-        let mut dumped = vec![];
-        entry.payload.format(hubris, fmt, &mut dumped)?;
-        let dumped = String::from_utf8(dumped)?;
+    if let Some(ringbuf) = ringbuf {
+        let ndx = if let Some(x) = ringbuf.last {
+            x as usize
+        } else {
+            return Ok(());
+        };
+
+        let fmt =
+            HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
 
         println!(
-            "{:4} {:4} {:8} {:8} {}",
-            slot, entry.line, entry.generation, entry.count, dumped
+            "{:>4} {:>4} {:>8} {:>8} PAYLOAD",
+            "NDX", "LINE", "GEN", "COUNT",
         );
+
+        for i in 0..ringbuf.buffer.len() {
+            let slot = (ndx + i + 1) % ringbuf.buffer.len();
+            let entry = &ringbuf.buffer[slot];
+
+            if entry.generation == 0 {
+                continue;
+            }
+
+            let mut dumped = vec![];
+            entry.payload.format(hubris, fmt, &mut dumped)?;
+            let dumped = String::from_utf8(dumped)?;
+
+            println!(
+                "{:4} {:4} {:8} {:8} {}",
+                slot, entry.line, entry.generation, entry.count, dumped
+            );
+        }
     }
 
     Ok(())

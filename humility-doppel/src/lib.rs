@@ -35,6 +35,7 @@
 
 use anyhow::{anyhow, bail, Result};
 use humility::reflect::{Load, Ptr, Value};
+use indexmap::IndexMap;
 use std::convert::TryInto;
 use zerocopy::{AsBytes, LittleEndian, U16, U64};
 
@@ -300,6 +301,18 @@ pub struct Ringbuf {
     pub buffer: Vec<RingbufEntry>,
 }
 
+/// Double of the struct from `ringbuf`.
+#[derive(Clone, Debug)]
+pub struct CountedRingbuf {
+    pub ringbuf: Option<Ringbuf>,
+    pub counters: RingbufCounts,
+}
+
+#[derive(Clone, Debug)]
+pub struct RingbufCounts {
+    pub counts: IndexMap<String, u32>,
+}
+
 #[derive(Clone, Debug, Load)]
 pub struct StaticCell {
     pub cell: UnsafeCell,
@@ -319,4 +332,44 @@ pub struct RpcHeader {
     pub op: U16<LittleEndian>,
     pub nreply: U16<LittleEndian>,
     pub nbytes: U16<LittleEndian>,
+}
+
+impl humility::reflect::Load for CountedRingbuf {
+    fn from_value(v: &Value) -> Result<Self> {
+        let rb_struct = v.as_struct()?;
+        anyhow::ensure!(
+            rb_struct.name() == "CountedRingbuf",
+            "expected CountedRingbuf, got {:?}",
+            rb_struct.name()
+        );
+        // This is optional, as the `ringbuf` crate may have been compiled with
+        // the "disabled" feature flag. In this case, we record event counts,
+        // but don't compile in the actual ringbufs.
+        let ringbuf = rb_struct
+            .get("ringbuf")
+            .map(|value| {
+                let cell = StaticCell::from_value(value)?;
+                let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
+                Ok::<_, anyhow::Error>(ringbuf)
+            })
+            .transpose()?;
+        let counters = RingbufCounts::from_value(&rb_struct["counters"])?;
+        Ok(Self { ringbuf, counters })
+    }
+}
+
+impl humility::reflect::Load for RingbufCounts {
+    fn from_value(v: &Value) -> Result<Self> {
+        let count_struct = v.as_struct()?;
+        let counts = count_struct
+            .iter()
+            .map(|(name, value)| {
+                let count = value.as_base()?.as_u32().ok_or_else(|| {
+                    anyhow::anyhow!("ringbuf count must be a u32")
+                })?;
+                Ok((name.to_string(), count))
+            })
+            .collect::<Result<IndexMap<_, _>>>()?;
+        Ok(Self { counts })
+    }
 }

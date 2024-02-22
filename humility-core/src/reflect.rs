@@ -472,6 +472,15 @@ impl Struct {
         }
         Ok(())
     }
+
+    /// Returns a reference to the value of the member named `name`, if it
+    /// exists, or `None`, if no member with that name exists.
+    pub fn get<Q: ?Sized>(&self, name: &Q) -> Option<&Value>
+    where
+        Q: std::hash::Hash + indexmap::Equivalent<String>,
+    {
+        self.members.get(name).map(Box::as_ref)
+    }
 }
 
 /// Allows access to struct members using `s["foo"]`.
