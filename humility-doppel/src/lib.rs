@@ -310,7 +310,13 @@ pub struct CountedRingbuf {
 
 #[derive(Clone, Debug)]
 pub struct RingbufCounts {
-    pub counts: IndexMap<String, u32>,
+    pub counts: IndexMap<String, RingbufCounter>,
+}
+
+#[derive(Clone, Debug)]
+pub enum RingbufCounter {
+    Single(u32),
+    Nested(RingbufCounts),
 }
 
 #[derive(Clone, Debug, Load)]
@@ -364,30 +370,31 @@ impl humility::reflect::Load for CountedRingbuf {
 
 impl humility::reflect::Load for RingbufCounts {
     fn from_value(v: &Value) -> Result<Self> {
-        fn atomic_u32_value(value: &Value) -> Result<u32> {
-            let atomic = value.as_struct()?;
-            anyhow::ensure!(
-                // N.B. that we only check that the name *starts* with
-                // `CountedRingbuf`, as the actual `CountedRingbuf` type will be
-                // generic over the entry type.
-                atomic.name().starts_with("AtomicU32"),
-                "expected AtomicU32, got {:?}",
-                atomic.name()
-            );
-            let cell = UnsafeCell::from_value(&atomic["v"])?;
-            cell.value
-                .as_base()?
-                .as_u32()
-                .ok_or_else(|| anyhow::anyhow!("ringbuf count must be a u32"))
-        }
-
         let count_struct = v.as_struct()?;
         let counts = count_struct
             .iter()
             .map(|(name, value)| {
-                Ok((name.to_string(), atomic_u32_value(value)?))
+                let value = RingbufCounter::from_value(value)?;
+                Ok((name.to_string(), value))
             })
             .collect::<Result<IndexMap<_, _>>>()?;
         Ok(Self { counts })
+    }
+}
+
+impl humility::reflect::Load for RingbufCounter {
+    fn from_value(value: &Value) -> Result<Self> {
+        let counter = value.as_struct()?;
+        if counter.name().starts_with("AtomicU32") {
+            let cell = UnsafeCell::from_value(&counter["v"])?;
+            return cell
+                .value
+                .as_base()?
+                .as_u32()
+                .map(Self::Single)
+                .ok_or_else(|| anyhow::anyhow!("ringbuf count must be a u32"));
+        }
+
+        Ok(Self::Nested(RingbufCounts::from_value(value)?))
     }
 }

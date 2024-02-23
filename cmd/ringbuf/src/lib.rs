@@ -60,7 +60,9 @@ use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_doppel::{CountedRingbuf, Ringbuf, StaticCell};
+use humility_doppel::{
+    CountedRingbuf, Ringbuf, RingbufCounter, RingbufCounts, StaticCell,
+};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -150,24 +152,33 @@ fn ringbuf_dump(
     };
 
     if let (Some(counters), false) = (counters, no_totals) {
-        if let Some(max_variant_len) = counters
-            .counts
-            .iter()
-            .filter_map(|(name, &count)| {
-                (full_totals || count > 0).then_some(name.len())
-            })
-            .max()
-        {
-            const VARIANT: &str = "VARIANT";
-            const TOTAL_LEN: usize = 8;
-            let maxlen = std::cmp::max(VARIANT.len(), max_variant_len);
-            println!("{:>TOTAL_LEN$} {VARIANT:<maxlen$}", "TOTAL");
-            for (name, count) in counters.counts {
-                if full_totals || count > 0 {
-                    println!("{count:>8} {name:<maxlen$}");
+        const TOTAL_LEN: usize = 8;
+        println!("{:>TOTAL_LEN$} {:<}", "TOTAL", "VARIANT");
+
+        fn print_counters(
+            prefix: &str,
+            full_totals: bool,
+            RingbufCounts { ref counts }: &RingbufCounts,
+        ) {
+            for (name, counter) in counts {
+                match counter {
+                    RingbufCounter::Single(0) if !full_totals => continue,
+                    RingbufCounter::Single(count) => {
+                        let (before, after) = if !prefix.is_empty() {
+                            ("(", ")")
+                        } else {
+                            ("", "")
+                        };
+                        println!("{count:>8} {prefix}{before}{name}{after}");
+                    }
+                    RingbufCounter::Nested(ref counts) => {
+                        print_counters(name, full_totals, counts);
+                    }
                 }
             }
         }
+
+        print_counters("", full_totals, &counters);
     }
 
     if let (Some(ringbuf), false) = (ringbuf, totals_only) {
