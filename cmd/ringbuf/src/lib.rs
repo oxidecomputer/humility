@@ -158,13 +158,13 @@ fn ringbuf_dump(
             })
             .max()
         {
-            const VARIANT: &str = " VARIANT";
+            const VARIANT: &str = "VARIANT";
             const TOTAL_LEN: usize = 8;
             let maxlen = std::cmp::max(VARIANT.len(), max_variant_len);
-            println!("{VARIANT:>maxlen$} {:>TOTAL_LEN$}", "TOTAL");
+            println!("{:>TOTAL_LEN$} {VARIANT:<maxlen$}", "TOTAL");
             for (name, count) in counters.counts {
                 if full_totals || count > 0 {
-                    println!("{name:>maxlen$} {count:>8}");
+                    println!("{count:>8} {name:<maxlen$}");
                 }
             }
         }
