@@ -398,3 +398,14 @@ impl humility::reflect::Load for RingbufCounter {
         Ok(Self::Nested(RingbufCounts::from_value(value)?))
     }
 }
+
+impl RingbufCounter {
+    pub fn total(&self) -> usize {
+        match self {
+            Self::Single(n) => *n as usize,
+            Self::Nested(counts) => {
+                counts.counts.values().map(Self::total).sum()
+            }
+        }
+    }
+}

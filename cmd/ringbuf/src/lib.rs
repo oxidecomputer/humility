@@ -153,32 +153,63 @@ fn ringbuf_dump(
 
     if let (Some(counters), false) = (counters, no_totals) {
         const TOTAL_LEN: usize = 8;
-        println!("{:>TOTAL_LEN$} {:<}", "TOTAL", "VARIANT");
-
+        println!("{:>TOTAL_LEN$} VARIANT", "TOTAL");
         fn print_counters(
             prefix: &str,
             full_totals: bool,
             RingbufCounts { ref counts }: &RingbufCounts,
+            indent: usize,
         ) {
+            let (before, after) = if prefix.is_empty() {
+                ("", "")
+            } else {
+                ("(", ")")
+            };
             for (name, counter) in counts {
+                let total = counter.total();
+                if total == 0 && !full_totals {
+                    continue;
+                }
+
+                let print_arrow = || {
+                    if indent == 0 {
+                        return;
+                    } else if total == 0 {
+                        print!("|{:>indent$} ", "");
+                    } else {
+                        // highlight non-zero variants
+                        print!("+{:->indent$} ", ">")
+                    }
+                };
+
                 match counter {
-                    RingbufCounter::Single(0) if !full_totals => continue,
-                    RingbufCounter::Single(count) => {
-                        let (before, after) = if !prefix.is_empty() {
-                            ("(", ")")
-                        } else {
-                            ("", "")
-                        };
-                        println!("{count:>8} {prefix}{before}{name}{after}");
+                    RingbufCounter::Single(_) => {
+                        print!("{total:>TOTAL_LEN$} ");
+                        if full_totals {
+                            print_arrow();
+                        }
+                        println!("{prefix}{before}{name}{after}");
                     }
                     RingbufCounter::Nested(ref counts) => {
-                        print_counters(name, full_totals, counts);
+                        if full_totals {
+                            print!("{total:>TOTAL_LEN$} ");
+                            print_arrow();
+                            println!(
+                                "{prefix}{before}{name}(_){after}",
+                            );
+                        }
+                        print_counters(
+                            name,
+                            full_totals,
+                            counts,
+                            indent + 4,
+                        );
                     }
                 }
             }
         }
 
-        print_counters("", full_totals, &counters);
+        print_counters("", full_totals, &counters, 0);
     }
 
     if let (Some(ringbuf), false) = (ringbuf, totals_only) {
