@@ -160,11 +160,8 @@ fn ringbuf_dump(
             RingbufCounts { ref counts }: &RingbufCounts,
             indent: usize,
         ) {
-            let (before, after) = if prefix.is_empty() {
-                ("", "")
-            } else {
-                ("(", ")")
-            };
+            let (before, after) =
+                if prefix.is_empty() { ("", "") } else { ("(", ")") };
             for (name, counter) in counts {
                 let total = counter.total();
                 if total == 0 && !full_totals {
@@ -194,16 +191,9 @@ fn ringbuf_dump(
                         if full_totals {
                             print!("{total:>TOTAL_LEN$} ");
                             print_arrow();
-                            println!(
-                                "{prefix}{before}{name}(_){after}",
-                            );
+                            println!("{prefix}{before}{name}(_){after}",);
                         }
-                        print_counters(
-                            name,
-                            full_totals,
-                            counts,
-                            indent + 4,
-                        );
+                        print_counters(name, full_totals, counts, indent + 4);
                     }
                 }
             }
