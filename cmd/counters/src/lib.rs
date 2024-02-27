@@ -166,12 +166,10 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
         while let Some(((varname, var), def)) = ctrs.next() {
             if let Some(def) = def {
                 println!(" +---> {varname}:");
-                let pad = if ctrs.peek().is_some() {
-                    " |  "
-                } else {
-                    "    "
-                };
-                if let Err(e) = counter_dump(hubris, core, def, var, subargs.full, pad) {
+                let pad = if ctrs.peek().is_some() { " |  " } else { "    " };
+                if let Err(e) =
+                    counter_dump(hubris, core, def, var, subargs.full, pad)
+                {
                     if subargs.verbose {
                         humility::msg!("counter dump failed: {e:?}");
                     } else {
@@ -182,7 +180,6 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 humility::msg!("could not look up type: {:?}", var.goff);
             }
         }
-
     }
     Ok(())
 }

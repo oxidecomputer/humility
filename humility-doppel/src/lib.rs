@@ -399,8 +399,14 @@ impl Counters {
         self.counts.values().map(CounterVariant::total).sum()
     }
 
-    pub fn display_padded<'a>(&'a self, pad: &'a str) -> impl fmt::Display + 'a {
-        struct PaddedCtrs<'a> {ctrs: &'a Counters, pad: &'a str }
+    pub fn display_padded<'a>(
+        &'a self,
+        pad: &'a str,
+    ) -> impl fmt::Display + 'a {
+        struct PaddedCtrs<'a> {
+            ctrs: &'a Counters,
+            pad: &'a str,
+        }
         impl fmt::Display for PaddedCtrs<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 self.ctrs.fmt_padded(self.pad, f)
@@ -416,7 +422,7 @@ impl Counters {
             prefix: &str,
             Counters { ref counts }: &Counters,
             indent: usize,
-            f: &mut fmt::Formatter<'_>
+            f: &mut fmt::Formatter<'_>,
         ) -> fmt::Result {
             let total_len = f.width().unwrap_or(8);
             let (before, after) =
@@ -475,7 +481,6 @@ impl Counters {
         fmt_counters(pad, "", self, 0, f)
     }
 }
-
 
 impl humility::reflect::Load for CounterVariant {
     fn from_value(value: &Value) -> Result<Self> {

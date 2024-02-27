@@ -133,7 +133,7 @@ fn ringbuf_dump(
             let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
             Ok::<_, anyhow::Error>((Some(ringbuf), None))
         })?;
-        
+
     if let (Some(counters), false) = (counters, no_totals) {
         const TOTAL_WIDTH: usize = 8;
         if full_totals {
