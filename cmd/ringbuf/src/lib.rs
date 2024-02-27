@@ -60,9 +60,7 @@ use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_doppel::{
-    CountedRingbuf, Ringbuf, RingbufCounter, RingbufCounts, StaticCell,
-};
+use humility_doppel::{CountedRingbuf, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -152,54 +150,11 @@ fn ringbuf_dump(
     };
 
     if let (Some(counters), false) = (counters, no_totals) {
-        const TOTAL_LEN: usize = 8;
-        println!("{:>TOTAL_LEN$} VARIANT", "TOTAL");
-        fn print_counters(
-            prefix: &str,
-            full_totals: bool,
-            RingbufCounts { ref counts }: &RingbufCounts,
-            indent: usize,
-        ) {
-            let (before, after) =
-                if prefix.is_empty() { ("", "") } else { ("(", ")") };
-            for (name, counter) in counts {
-                let total = counter.total();
-                if total == 0 && !full_totals {
-                    continue;
-                }
-
-                let print_arrow = || {
-                    if indent == 0 {
-                        return;
-                    } else if total == 0 {
-                        print!("|{:>indent$} ", "");
-                    } else {
-                        // highlight non-zero variants
-                        print!("+{:->indent$} ", ">")
-                    }
-                };
-
-                match counter {
-                    RingbufCounter::Single(_) => {
-                        print!("{total:>TOTAL_LEN$} ");
-                        if full_totals {
-                            print_arrow();
-                        }
-                        println!("{prefix}{before}{name}{after}");
-                    }
-                    RingbufCounter::Nested(ref counts) => {
-                        if full_totals {
-                            print!("{total:>TOTAL_LEN$} ");
-                            print_arrow();
-                            println!("{prefix}{before}{name}(_){after}",);
-                        }
-                        print_counters(name, full_totals, counts, indent + 4);
-                    }
-                }
-            }
+        if full_totals {
+            println!("{counters:#}");
+        } else {
+            println!("{counters}");
         }
-
-        print_counters("", full_totals, &counters, 0);
     }
 
     if let (Some(ringbuf), false) = (ringbuf, totals_only) {
