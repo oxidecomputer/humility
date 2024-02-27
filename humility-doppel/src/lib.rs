@@ -390,7 +390,7 @@ impl humility::reflect::Load for Counters {
 
 impl fmt::Display for Counters {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_padded("", f.alternate(), f)
+        self.fmt_padded("", f)
     }
 }
 
@@ -403,38 +403,37 @@ impl Counters {
         struct PaddedCtrs<'a> {ctrs: &'a Counters, pad: &'a str }
         impl fmt::Display for PaddedCtrs<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                self.ctrs.fmt_padded(self.pad, f.alternate(), f)
+                self.ctrs.fmt_padded(self.pad, f)
             }
         }
 
         PaddedCtrs { ctrs: self, pad }
     }
 
-    fn fmt_padded(&self, pad: &str, full: bool, mut f: impl fmt::Write) -> fmt::Result {
-        const TOTAL_LEN: usize = 8;
+    fn fmt_padded(&self, pad: &str, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn fmt_counters(
             pad: &str,
             prefix: &str,
             Counters { ref counts }: &Counters,
             indent: usize,
-            full: bool,
-            f: &mut impl fmt::Write
+            f: &mut fmt::Formatter<'_>
         ) -> fmt::Result {
+            let total_len = f.width().unwrap_or(8);
             let (before, after) =
                 if prefix.is_empty() { ("", "") } else { ("(", ")") };
             let mut has_written_any = false;
             for (name, counter) in counts {
                 let total = counter.total();
-                if total == 0 && !full {
+                if total == 0 && !f.alternate() {
                     continue;
                 }
                 if has_written_any || indent > 0 {
-                    f.write_char('\n')?;
+                    f.write_str("\n")?;
                 } else {
                     has_written_any = true
                 };
 
-                fn print_arrow(indent: usize, total: usize, f: &mut impl fmt::Write) -> fmt::Result {
+                let print_arrow = |f: &mut fmt::Formatter<'_>| {
                     if indent == 0 {
                         Ok(())
                     } else if total == 0 {
@@ -443,23 +442,26 @@ impl Counters {
                         // highlight non-zero variants
                         write!(f, "+{:->indent$} ", ">")
                     }
-                }
+                };
 
                 match counter {
                     CounterVariant::Single(_) => {
-                        write!(f, "{pad}{total:>TOTAL_LEN$} ")?;
-                        if full {
-                            print_arrow(indent, total, f)?;
+                        write!(f, "{pad}{total:>total_len$} ")?;
+                        if f.alternate() {
+                            print_arrow(f)?;
                         }
                         write!(f, "{prefix}{before}{name}{after}")?;
                     }
                     CounterVariant::Nested(ref counts) => {
-                        if full {
-                            write!(f, "{pad}{total:>TOTAL_LEN$} ")?;
-                            print_arrow(indent, total, f)?;
+                        let indent = if f.alternate() {
+                            write!(f, "{pad}{total:>total_len$} ")?;
+                            print_arrow(f)?;
                             write!(f, "{prefix}{before}{name}(_){after}",)?;
-                        }
-                        fmt_counters(pad, name, counts, indent + 4, full, f)?;
+                            indent + 4
+                        } else {
+                            indent
+                        };
+                        fmt_counters(pad, name, counts, indent, f)?;
                     }
                 }
             }
@@ -467,11 +469,10 @@ impl Counters {
             Ok(())
         }
 
-        if self.total() == 0 && !full {
+        if self.total() == 0 && !f.alternate() {
             return Ok(());
         }
-        writeln!(f, "{pad}{:>TOTAL_LEN$} VARIANT", "TOTAL")?;
-        fmt_counters(pad, "", self, 0, full, &mut f)
+        fmt_counters(pad, "", self, 0, f)
     }
 }
 

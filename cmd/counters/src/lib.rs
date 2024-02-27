@@ -193,7 +193,6 @@ fn counter_dump(
     def: &HubrisStruct,
     var: &HubrisVariable,
     full: bool,
-
     pad: &str,
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
@@ -220,6 +219,7 @@ fn counter_dump(
     }
     Ok(())
 }
+
 fn taskname<'a>(
     hubris: &'a HubrisArchive,
     variable: &'a HubrisVariable,
