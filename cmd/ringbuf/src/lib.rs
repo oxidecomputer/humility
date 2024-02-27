@@ -53,7 +53,7 @@
 //! See the [`ringbuf`
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -85,16 +85,12 @@ struct TotalsOptions {
     /// not been recorded
     #[clap(long, short, conflicts_with = "list")]
     full_totals: bool,
-    /// only display entry variant totals, and not ringbuf contents
-    #[clap(long, short, conflicts_with = "list")]
-    totals_only: bool,
     /// skip displaying total counts for ringbuf entry variants
     #[clap(
         long,
         short,
         conflicts_with_all = &[
             "full-totals",
-            "totals-only",
             "list"
         ],
     )]
@@ -106,7 +102,7 @@ fn ringbuf_dump(
     core: &mut dyn Core,
     definition: &HubrisStruct,
     ringbuf_var: &HubrisVariable,
-    TotalsOptions { full_totals, totals_only, no_totals }: TotalsOptions,
+    TotalsOptions { full_totals, no_totals }: TotalsOptions,
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(ringbuf_var.size, Default::default);
@@ -127,37 +123,25 @@ fn ringbuf_dump(
     let ringbuf_val: Value =
         Value::Struct(reflect::load_struct(hubris, &buf, definition, 0)?);
 
-    let (ringbuf, counters) = {
-        let maybe_counted = CountedRingbuf::from_value(&ringbuf_val).map(
-            |CountedRingbuf { ringbuf, counters }| (ringbuf, Some(counters)),
-        );
-        // If we are only displaying totals, bail early with the error returned
-        // by `CountedRingbuf::from_value`, since this ringbuf doesn't have totals.
-        if totals_only {
-            maybe_counted.context("no entry total counts found")?
-        } else {
-            maybe_counted
-                .or_else(|_e| {
-                    Ringbuf::from_value(&ringbuf_val).map(|r| (Some(r), None))
-                })
-                .or_else(|_e| {
-                    let cell: StaticCell =
-                        StaticCell::from_value(&ringbuf_val)?;
-                    let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
-                    Ok::<_, anyhow::Error>((Some(ringbuf), None))
-                })?
-        }
-    };
-
+    let (ringbuf, counters) = CountedRingbuf::from_value(&ringbuf_val)
+        .map(|CountedRingbuf { ringbuf, counters }| (ringbuf, Some(counters)))
+        .or_else(|_e| {
+            Ringbuf::from_value(&ringbuf_val).map(|r| (Some(r), None))
+        })
+        .or_else(|_e| {
+            let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
+            let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
+            Ok::<_, anyhow::Error>((Some(ringbuf), None))
+        })?;
     if let (Some(counters), false) = (counters, no_totals) {
         if full_totals {
             println!("{counters:#}");
-        } else {
+        } else if counters.total() > 0 {
             println!("{counters}");
         }
     }
 
-    if let (Some(ringbuf), false) = (ringbuf, totals_only) {
+    if let Some(ringbuf) = ringbuf {
         let ndx = if let Some(x) = ringbuf.last {
             x as usize
         } else {
@@ -276,17 +260,9 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
         if let Some(def) = def {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1, subargs.totals)
             {
-                // If we're only displaying total counts, don't print the
-                // error for ringbufs that don't have counters, unless
-                // verbose was requested or the user specifically requested
-                // a ringbuf by name (suggesting that they expected it to have
-                // counters) .
-                let display_error =
-                    !subargs.totals.totals_only || subargs.name.is_some();
-
                 if subargs.verbose {
                     humility::msg!("ringbuf dump failed: {e:?}");
-                } else if display_error {
+                } else {
                     humility::msg!("ringbuf dump failed: {e}");
                 }
             }

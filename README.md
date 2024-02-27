@@ -236,6 +236,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
 - [humility bankerase](#humility-bankerase): Erase a bank
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
+- [humility counters](#humility-counters): display event counters
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
@@ -323,6 +324,13 @@ be erased from 0x40000 to 0x48000,  but address 0x40000 will have value
 ### `humility console-proxy`
 
 Act as a proxy for the host serial console when it is jumpered to the SP.
+
+
+### `humility counters`
+
+`humility counters` reads and displays any Hubris counters (as created via
+the `counters` crate and either the `counters!` or `counted_ringbuf!`
+macros).
 
 
 ### `humility dashboard`

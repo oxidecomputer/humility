@@ -390,22 +390,51 @@ impl humility::reflect::Load for Counters {
 
 impl fmt::Display for Counters {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_padded("", f.alternate(), f)
+    }
+}
+
+impl Counters {
+    pub fn total(&self) -> usize {
+        self.counts.values().map(CounterVariant::total).sum()
+    }
+
+    pub fn display_padded<'a>(&'a self, pad: &'a str) -> impl fmt::Display + 'a {
+        struct PaddedCtrs<'a> {ctrs: &'a Counters, pad: &'a str }
+        impl fmt::Display for PaddedCtrs<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.ctrs.fmt_padded(self.pad, f.alternate(), f)
+            }
+        }
+
+        PaddedCtrs { ctrs: self, pad }
+    }
+
+    fn fmt_padded(&self, pad: &str, full: bool, mut f: impl fmt::Write) -> fmt::Result {
         const TOTAL_LEN: usize = 8;
         fn fmt_counters(
+            pad: &str,
             prefix: &str,
             Counters { ref counts }: &Counters,
             indent: usize,
-            f: &mut fmt::Formatter,
+            full: bool,
+            f: &mut impl fmt::Write
         ) -> fmt::Result {
             let (before, after) =
                 if prefix.is_empty() { ("", "") } else { ("(", ")") };
+            let mut has_written_any = false;
             for (name, counter) in counts {
                 let total = counter.total();
-                if total == 0 && !f.alternate() {
+                if total == 0 && !full {
                     continue;
                 }
+                if has_written_any || indent > 0 {
+                    f.write_char('\n')?;
+                } else {
+                    has_written_any = true
+                };
 
-                let print_arrow = |f: &mut fmt::Formatter<'_>| -> fmt::Result {
+                fn print_arrow(indent: usize, total: usize, f: &mut impl fmt::Write) -> fmt::Result {
                     if indent == 0 {
                         Ok(())
                     } else if total == 0 {
@@ -414,23 +443,23 @@ impl fmt::Display for Counters {
                         // highlight non-zero variants
                         write!(f, "+{:->indent$} ", ">")
                     }
-                };
+                }
 
                 match counter {
                     CounterVariant::Single(_) => {
-                        write!(f, "{total:>TOTAL_LEN$} ")?;
-                        if f.alternate() {
-                            print_arrow(f)?;
+                        write!(f, "{pad}{total:>TOTAL_LEN$} ")?;
+                        if full {
+                            print_arrow(indent, total, f)?;
                         }
-                        writeln!(f, "{prefix}{before}{name}{after}")?;
+                        write!(f, "{prefix}{before}{name}{after}")?;
                     }
                     CounterVariant::Nested(ref counts) => {
-                        if f.alternate() {
-                            write!(f, "{total:>TOTAL_LEN$} ")?;
-                            print_arrow(f)?;
-                            writeln!(f, "{prefix}{before}{name}(_){after}",)?;
+                        if full {
+                            write!(f, "{pad}{total:>TOTAL_LEN$} ")?;
+                            print_arrow(indent, total, f)?;
+                            write!(f, "{prefix}{before}{name}(_){after}",)?;
                         }
-                        fmt_counters(name, counts, indent + 4, f)?;
+                        fmt_counters(pad, name, counts, indent + 4, full, f)?;
                     }
                 }
             }
@@ -438,10 +467,14 @@ impl fmt::Display for Counters {
             Ok(())
         }
 
-        writeln!(f, "{:>TOTAL_LEN$} VARIANT", "TOTAL")?;
-        fmt_counters("", self, 0, f)
+        if self.total() == 0 && !full {
+            return Ok(());
+        }
+        writeln!(f, "{pad}{:>TOTAL_LEN$} VARIANT", "TOTAL")?;
+        fmt_counters(pad, "", self, 0, full, &mut f)
     }
 }
+
 
 impl humility::reflect::Load for CounterVariant {
     fn from_value(value: &Value) -> Result<Self> {
