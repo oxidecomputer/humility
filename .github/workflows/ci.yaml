@@ -29,7 +29,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --locked --profile=ci
+          args: --profile=ci
   check:
     name: Check
     strategy:
@@ -56,7 +56,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --locked  --profile=ci
+          args: --profile=ci
   test:
     name: Test
     strategy:
@@ -78,7 +78,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --locked  --all --profile=ci
+          args: --all --profile=ci
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -92,4 +92,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --locked --profile=ci -- -D warnings
+          args: --profile=ci -- -D warnings
