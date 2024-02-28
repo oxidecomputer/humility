@@ -88,15 +88,11 @@ struct CountersArgs {
     #[clap(long, short, conflicts_with = "list")]
     full: bool,
 
-    /// sort counters using the provided ordering
-    #[clap(
-        long,
-        short,
-        conflicts_with = "list",
-        value_enum,
-        default_value_t = Order::Decl,
-    )]
-    sort: Order,
+    /// sort counters using the provided ordering.
+    ///
+    /// [default: `decl` if `--full` is set, `alpha` otherwise]
+    #[clap(long, short, conflicts_with = "list", value_enum)]
+    sort: Option<Order>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -228,15 +224,29 @@ fn counter_dump(
         .map(|r| r.counters)
         .or_else(|_| Counters::from_value(&val))?;
 
-    // If requested, sort the counters.
-    match args.sort {
-        Order::Decl => {}
-        Order::Value => counters.sort_unstable_by(
+    // Sort the counters.
+    match (args.sort, args.full) {
+        // If `--full` is set, zero valued counters are displayed, so it's nice
+        // to always display them in the same order across dumps/Humility
+        // processes, so that the output is easily comparable. Therefore, sort
+        // by declaration order, if no sorting was requested.
+        (Some(Order::Decl), _) | (None, true) => {
+            // Counters are already sorted by declaration order.
+        }
+        // If `--full` is not set, the output is not comparable across
+        // dumps/Hubris processes, because which counters are present varies
+        // based on the state of the system.
+        //
+        // Therefore, sort by value by default, so the highest-valued counters
+        // are shown first.
+        (Some(Order::Value), _) | (None, false) => counters.sort_unstable_by(
             &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
                 a.total().cmp(&b.total()).reverse()
             },
         ),
-        Order::Alpha => counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b)),
+        (Some(Order::Alpha), _) => {
+            counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b))
+        }
     }
 
     let disp = counters.display_padded(pad);

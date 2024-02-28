@@ -60,7 +60,7 @@ use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_doppel::{CountedRingbuf, Ringbuf, StaticCell};
+use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -134,12 +134,22 @@ fn ringbuf_dump(
             Ok::<_, anyhow::Error>((Some(ringbuf), None))
         })?;
 
-    if let (Some(counters), false) = (counters, no_totals) {
+    if let (Some(mut counters), false) = (counters, no_totals) {
         const TOTAL_WIDTH: usize = 8;
         if full_totals {
             println!("{:>TOTAL_WIDTH$} VARIANT", "TOTAL");
             println!("{counters:#TOTAL_WIDTH$}");
         } else if counters.total() > 0 {
+            // Because we're not displaying counters with zero variants, the
+            // displayed list of counters depends on the state of this specific
+            // system, and can't easily be compared. Therefore, sort them by the
+            // value of the counter, so the most frequently recorded variants
+            // are displayed first.
+            counters.sort_unstable_by(
+                &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
+                    a.total().cmp(&b.total()).reverse()
+                },
+            );
             println!("{:>TOTAL_WIDTH$} VARIANT", "TOTAL");
             println!("{counters:TOTAL_WIDTH$}");
         }
