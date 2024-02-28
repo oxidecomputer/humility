@@ -332,6 +332,57 @@ Act as a proxy for the host serial console when it is jumpered to the SP.
 the `counters` crate and either the `counters!` or `counted_ringbuf!`
 macros).
 
+For example:
+```console
+$ humility -d ./hubris.core.0 counters
+humility: attached to dump
+gimlet_seq
+|
++---> drv_gimlet_seq_server::__RINGBUF:
+      TOTAL VARIANT
+          1 Ice40Rails
+          1 IdentValid
+          1 ChecksumValid
+          1 Reprogram
+          1 Programmed
+          1 Programming
+          1 Ice40PowerGoodV1P2
+          1 Ice40PowerGoodV3P3
+          1 RailsOff
+          1 Ident
+          1 A2Status
+          1 A2
+        102 A1Status
+          1 CPUPresent
+          1 Coretype
+        292 A0Status
+         15 A0Power
+...
+```
+
+If an argument is provided, only counters that have a name that
+contains the argument as a substring, or are in a task that contains
+the argument as a substring will be displayed.  For example,
+to display every counter that has `thermal` in the name or the
+containing task:
+
+```console
+$ humility -d ./hubris.core.0 counters thermal
+humility: attached to dump
+thermal
+ |
+ +---> task_thermal::__RINGBUF:
+       TOTAL VARIANT
+           1 Start
+           1 ThermalMode(Auto)
+           3 AutoState(Boot)
+           2 AutoState(Running)
+          78 ControlPwm
+           2 PowerModeChanged
+           6 FanAdded
+```
+
+
 
 ### `humility dashboard`
 
