@@ -60,13 +60,13 @@
 //!
 
 use anyhow::{bail, Result};
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, Parser, ValueEnum};
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_doppel::{CountedRingbuf, Counters};
+use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
 use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]
@@ -87,6 +87,27 @@ struct CountersArgs {
     /// show counters with zero values
     #[clap(long, short, conflicts_with = "list")]
     full: bool,
+
+    /// sort counters using the provided ordering
+    #[clap(
+        long,
+        short,
+        conflicts_with = "list",
+        value_enum,
+        default_value_t = Order::Decl,
+    )]
+    sort: Order,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "kebab-case")]
+enum Order {
+    /// Sort by declaration order in the source struct.
+    Decl,
+    /// Sort by counter value, descending (highest to lowest).
+    Value,
+    /// Sort by counter name, ascending (alphabetical).
+    Alpha,
 }
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
@@ -142,7 +163,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
         }
     }
 
-    for (_, vars) in &mut counters {
+    for vars in counters.values_mut() {
         vars.sort_by_key(|&(v, _)| v);
     }
 
@@ -168,7 +189,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 println!(" +---> {varname}:");
                 let pad = if ctrs.peek().is_some() { " |  " } else { "    " };
                 if let Err(e) =
-                    counter_dump(hubris, core, def, var, subargs.full, pad)
+                    counter_dump(hubris, core, def, var, &subargs, pad)
                 {
                     if subargs.verbose {
                         humility::msg!("counter dump failed: {e:?}");
@@ -189,7 +210,7 @@ fn counter_dump(
     core: &mut dyn Core,
     def: &HubrisStruct,
     var: &HubrisVariable,
-    full: bool,
+    args: &CountersArgs,
     pad: &str,
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
@@ -203,11 +224,23 @@ fn counter_dump(
 
     // Counters may either be a standalone counters variable or a counted
     // ringbuf. We'll try to interpret the var as either one.
-    let counters = CountedRingbuf::from_value(&val)
+    let mut counters = CountedRingbuf::from_value(&val)
         .map(|r| r.counters)
         .or_else(|_| Counters::from_value(&val))?;
+
+    // If requested, sort the counters.
+    match args.sort {
+        Order::Decl => {}
+        Order::Value => counters.sort_unstable_by(
+            &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
+                a.total().cmp(&b.total()).reverse()
+            },
+        ),
+        Order::Alpha => counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b)),
+    }
+
     let disp = counters.display_padded(pad);
-    if full {
+    if args.full {
         println!("{disp:#}");
     } else if counters.total() > 0 {
         println!("{disp}");

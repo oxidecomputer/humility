@@ -399,6 +399,23 @@ impl Counters {
         self.counts.values().map(CounterVariant::total).sum()
     }
 
+    pub fn sort_unstable_by(
+        &mut self,
+        cmp: &mut impl FnMut(
+            &String,
+            &CounterVariant,
+            &String,
+            &CounterVariant,
+        ) -> std::cmp::Ordering,
+    ) {
+        for v in self.counts.values_mut() {
+            if let CounterVariant::Nested(ref mut c) = v {
+                c.sort_unstable_by(cmp);
+            }
+        }
+        self.counts.sort_unstable_by(cmp);
+    }
+
     pub fn display_padded<'a>(
         &'a self,
         pad: &'a str,
