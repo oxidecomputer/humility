@@ -209,8 +209,7 @@ fn counter_dump(
     args: &CountersArgs,
     pad: &str,
 ) -> Result<()> {
-    let mut buf: Vec<u8> = vec![];
-    buf.resize_with(var.size, Default::default);
+    let mut buf = vec![0u8; var.size];
 
     core.halt()?;
     core.read_8(var.addr, buf.as_mut_slice())?;
