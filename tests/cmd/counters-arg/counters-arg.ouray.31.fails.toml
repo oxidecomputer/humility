@@ -9,5 +9,3 @@ bin.name = "humility"
 args = "-d hubris.core.ouray.31.fails counters gimlet_seq"
 
 status.code = 1
-# humility counters fails on this dump, as it contains no counters
-status.code = 1
