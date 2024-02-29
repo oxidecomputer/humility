@@ -7,4 +7,4 @@
 fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.ouray.36 ringbuf --full-totals"
-
+status.code = 1
