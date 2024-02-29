@@ -172,6 +172,12 @@ fn make_all_tests() -> Result<()> {
         Test::witharg(Kind::Postmortem, "registers-s", "registers", "-s"),
         Test::basic(Kind::Postmortem, "ringbuf"),
         Test::witharg(Kind::Postmortem, "ringbuf-arg", "ringbuf", "i2c"),
+        Test::witharg(
+            Kind::Postmortem,
+            "ringbuf-full-totals",
+            "ringbuf",
+            "--full-totals",
+        ),
         Test::witharg(Kind::All, "readvar-list", "readvar", "-l"),
         Test::witharg(Kind::Postmortem, "readvar-ticks", "readvar", "TICKS"),
         Test::witharg(
@@ -184,6 +190,15 @@ fn make_all_tests() -> Result<()> {
         Test::basic(Kind::Postmortem, "stackmargin"),
         Test::basic(Kind::Postmortem, "tasks"),
         Test::witharg(Kind::Postmortem, "tasks-slvr", "tasks", "-slvr"),
+        Test::basic(Kind::Postmortem, "counters"),
+        Test::witharg(Kind::Postmortem, "counters-list", "counters", "--list"),
+        Test::witharg(Kind::Postmortem, "counters-full", "counters", "--full"),
+        Test::witharg(
+            Kind::Postmortem,
+            "counters-arg",
+            "counters",
+            "gimlet_seq",
+        ),
     ];
 
     make_tests(&tests, Kind::Postmortem)?;

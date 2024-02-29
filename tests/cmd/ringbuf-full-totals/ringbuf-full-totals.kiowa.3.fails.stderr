@@ -1,0 +1,4 @@
+humility ringbuf failed: failed to load dump "hubris.core.kiowa.3.fails"
+
+Caused by:
+    invalid Zip archive: Invalid zip header

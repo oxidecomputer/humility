@@ -1,0 +1,36 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
+humility: ring buffer EXTERNAL_RINGBUF in jefe:
+ NDX LINE      GEN    COUNT PAYLOAD
+   2   76        1        1 Request(Hold, TaskIndex(0x4))
+   3   87        1        1 Disposition(TaskIndex(0x4), Hold)
+   0   76        2        1 Request(Start, TaskIndex(0x8))
+   1   87        2        1 Disposition(TaskIndex(0x8), Start)
+humility: ring buffer MAX31790_RINGBUF in thermal:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  251        1      125 ReadError(GlobalConfiguration, BadResponse)
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  663        1        1 AddrISR(0x1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
+humility: ring buffer TASK_SPD_RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
+ NDX LINE      GEN    COUNT PAYLOAD
+   5   47     7265        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41     7265        1 Calling
+   7   47     7265        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41     7265        1 Calling
+   9   47     7265        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41     7265        1 Calling
+  11   47     7265        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41     7265        1 Calling
+  13   47     7265        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41     7265        1 Calling
+  15   47     7265        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41     7266        1 Calling
+   1   47     7266        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41     7266        1 Calling
+   3   47     7266        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41     7266        1 Calling
