@@ -1,0 +1,951 @@
+INTERFACE                    TASK
+Jefe                         jefe
+  |
+  +--> Jefe.get_state
+  |       <ok>                        u32
+  |
+  +--> Jefe.set_state
+  |       state                       u32
+  |       <ok>                        ()
+  |
+  +--> Jefe.request_reset
+  |       <ok>                        ()
+  |
+  +--> Jefe.get_reset_reason
+  |       <ok>                        ResetReason
+  |
+  +--> Jefe.set_reset_reason
+  |       reason                      ResetReason
+  |       <ok>                        ()
+  |
+  +--> Jefe.reinitialize_dump_areas
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.get_dump_area
+  |       index                       u8
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.claim_dump_area
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task
+  |       task_index                  u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task_region
+  |       task_index                  u32
+  |       address                     u32
+  |       length                      u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.reinitialize_dump_from
+  |       index                       u8
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.restart_me_raw
+          <ok>                        ()
+  
+INTERFACE                    TASK
+Net                          net
+  |
+  +--> Net.recv_packet
+  |       socket                      SocketName
+  |       large_payload_behavior      LargePayloadBehavior
+  |
+  +--> Net.send_packet
+  |       socket                      SocketName
+  |       metadata                    UdpMetadata
+  |
+  +--> Net.smi_read
+  |       phy                         u8
+  |       register                    u8
+  |       <ok>                        u16
+  |
+  +--> Net.smi_write
+  |       phy                         u8
+  |       register                    u8
+  |       value                       u16
+  |       <ok>                        ()
+  |
+  +--> Net.read_phy_reg
+  |       port                        u8
+  |       page                        u16
+  |       reg                         u8
+  |       <ok>                        u16
+  |       <error>                     PhyError
+  |
+  +--> Net.write_phy_reg
+  |       port                        u8
+  |       page                        u16
+  |       reg                         u8
+  |       value                       u16
+  |       <ok>                        ()
+  |       <error>                     PhyError
+  |
+  +--> Net.read_ksz8463_mac_count
+  |       <ok>                        usize
+  |       <error>                     KszError
+  |
+  +--> Net.read_ksz8463_mac
+  |       i                           u16
+  |       <ok>                        KszMacTableEntry
+  |       <error>                     KszError
+  |
+  +--> Net.read_ksz8463_reg
+  |       reg                         u16
+  |       <ok>                        u16
+  |       <error>                     KszError
+  |
+  +--> Net.get_mac_address
+  |       <ok>                        MacAddress
+  |
+  +--> Net.get_spare_mac_addresses
+  |       <ok>                        MacAddressBlock
+  |
+  +--> Net.management_link_status
+  |       <ok>                        ManagementLinkStatus
+  |       <error>                     MgmtError
+  |
+  +--> Net.management_counters
+          <ok>                        ManagementCounters
+          <error>                     MgmtError
+  
+INTERFACE                    TASK
+Sys                          sys
+  |
+  +--> Sys.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.leave_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.gpio_configure_raw
+  |       port                        Port
+  |       pins                        u16
+  |       packed_attributes           u16
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_set_reset
+  |       port                        Port
+  |       set_pins                    u16
+  |       reset_pins                  u16
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_read_input
+  |       port                        Port
+  |       <ok>                        u16
+  |
+  +--> Sys.gpio_toggle
+  |       port                        Port
+  |       pins                        u16
+  |       <ok>                        ()
+  |
+  +--> Sys.read_uid
+          <ok>                        [u32; 3]
+  
+INTERFACE                    TASK
+Spi                          spi2_driver
+  |
+  +--> Spi.read
+  |       device_index                u8
+  |
+  +--> Spi.write
+  |       device_index                u8
+  |
+  +--> Spi.exchange
+  |       device_index                u8
+  |
+  +--> Spi.lock
+  |       device_index                u8
+  |       cs_state                    CsState
+  |
+  +--> Spi.release
+  
+INTERFACE                    TASK
+Packrat                      packrat
+  |
+  +--> Packrat.get_mac_address_block
+  |       <ok>                        MacAddressBlock
+  |       <error>                     CacheGetError
+  |
+  +--> Packrat.set_mac_address_block
+  |       macs                        MacAddressBlock
+  |       <ok>                        ()
+  |       <error>                     CacheSetError
+  |
+  +--> Packrat.get_identity
+  |       <ok>                        VpdIdentity
+  |       <error>                     CacheGetError
+  |
+  +--> Packrat.set_identity
+  |       macs                        VpdIdentity
+  |       <ok>                        ()
+  |       <error>                     CacheSetError
+  |
+  +--> Packrat.get_next_boot_host_startup_options
+  |       <ok>                        HostStartupOptions
+  |
+  +--> Packrat.set_next_boot_host_startup_options
+  |       startup_options             HostStartupOptions
+  |       <ok>                        ()
+  |
+  +--> Packrat.set_spd_eeprom
+  |       index                       u8
+  |       page1                       bool
+  |       offset                      u8
+  |       <ok>                        ()
+  |
+  +--> Packrat.get_spd_present
+  |       index                       usize
+  |       <ok>                        bool
+  |
+  +--> Packrat.get_spd_data
+  |       index                       usize
+  |       <ok>                        u8
+  |
+  +--> Packrat.get_full_spd_data
+          dev                         usize
+          <ok>                        ()
+  
+INTERFACE                    TASK
+Thermal                      thermal
+  |
+  +--> Thermal.set_mode_manual
+  |       initial_pwm                 u8
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_mode_auto
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_mode
+  |       <ok>                        ThermalMode
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_auto_state
+  |       <ok>                        ThermalAutoState
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_fan_pwm
+  |       index                       u8
+  |       pwm                         u8
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.disable_watchdog
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.enable_watchdog
+  |       timeout_s                   u8
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_pid
+  |       z                           f32
+  |       p                           f32
+  |       i                           f32
+  |       d                           f32
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_margin
+  |       <ok>                        f32
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.set_margin
+  |       margin                      f32
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.update_dynamic_input
+  |       index                       usize
+  |       model                       ThermalProperties
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.remove_dynamic_input
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     ThermalError
+  |
+  +--> Thermal.get_runtime
+          <ok>                        u64
+          <error>                     ThermalError
+  
+INTERFACE                    TASK
+Power                        power
+  |
+  +--> Power.pmbus_read
+  |       dev                         Device
+  |       rail                        u8
+  |       index                       u32
+  |       op                          Operation
+  |       <ok>                        PmbusValue
+  |       <error>                     ResponseCode
+  |
+  +--> Power.read_mode
+  |       dev                         Device
+  |       rail                        u8
+  |       index                       u32
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.phase_current
+  |       rail                        SensorId
+  |       phase                       u8
+  |       <ok>                        f32
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_event_log_read
+  |       index                       u8
+  |       <ok>                        Bmr491Event
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_fault_log_clear
+  |       <ok>                        ()
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_max_fault_event_index
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.bmr491_max_lifecycle_event_index
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.rendmp_blackbox_dump
+  |       addr                        u8
+  |       <ok>                        RenesasBlackbox
+  |       <error>                     ResponseCode
+  |
+  +--> Power.rendmp_dma_read
+  |       addr                        u8
+  |       reg                         u16
+  |       <ok>                        u32
+  |       <error>                     ResponseCode
+  |
+  +--> Power.rendmp_dma_write
+  |       addr                        u8
+  |       reg                         u16
+  |       data                        u32
+  |       <ok>                        ()
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_read_byte
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       <ok>                        u8
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_read_word
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       <ok>                        u16
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_read_word32
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       <ok>                        u32
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_read_block
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       <ok>                        RawPmbusBlock
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_set
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       <ok>                        ()
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_write_byte
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       data                        u8
+  |       <ok>                        ()
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_write_word
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       data                        u16
+  |       <ok>                        ()
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_write_word32
+  |       index                       u32
+  |       has_rail                    bool
+  |       op                          u8
+  |       data                        u32
+  |       <ok>                        ()
+  |       <error>                     ResponseCode
+  |
+  +--> Power.raw_pmbus_write_block
+          index                       u32
+          has_rail                    bool
+          op                          u8
+          data                        RawPmbusBlock
+          <ok>                        ()
+          <error>                     ResponseCode
+  
+INTERFACE                    TASK
+Sequencer                    gimlet_seq
+  |
+  +--> Sequencer.get_state
+  |       <ok>                        drv_gimlet_state::PowerState
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.set_state
+  |       state                       drv_gimlet_state::PowerState
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.fans_on
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.fans_off
+  |       <ok>                        ()
+  |       <error>                     SeqError
+  |
+  +--> Sequencer.send_hardware_nmi
+  |       <ok>                        ()
+  |
+  +--> Sequencer.read_fpga_regs
+          <ok>                        [u8; 64]
+          <error>                     SeqError
+  
+INTERFACE                    TASK
+Hash                         hash_driver
+  |
+  +--> Hash.init_sha256
+  |       <ok>                        ()
+  |       <error>                     HashError
+  |
+  +--> Hash.update
+  |       len                         u32
+  |       <ok>                        ()
+  |       <error>                     HashError
+  |
+  +--> Hash.finalize_sha256
+  |       <ok>                        [u8; crate::SHA256_SZ]
+  |       <error>                     HashError
+  |
+  +--> Hash.digest_sha256
+          len                         u32
+          <ok>                        [u8; crate::SHA256_SZ]
+          <error>                     HashError
+  
+INTERFACE                    TASK
+HostFlash                    hf
+  |
+  +--> HostFlash.read_id
+  |       <ok>                        [u8; 20]
+  |       <error>                     HfError
+  |
+  +--> HostFlash.capacity
+  |       <ok>                        usize
+  |       <error>                     HfError
+  |
+  +--> HostFlash.read_status
+  |       <ok>                        u8
+  |       <error>                     HfError
+  |
+  +--> HostFlash.bulk_erase
+  |       protect                     HfProtectMode
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.page_program
+  |       address                     u32
+  |       protect                     HfProtectMode
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.read
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.sector_erase
+  |       address                     u32
+  |       protect                     HfProtectMode
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.get_mux
+  |       <ok>                        HfMuxState
+  |       <error>                     HfError
+  |
+  +--> HostFlash.set_mux
+  |       state                       HfMuxState
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.get_dev
+  |       <ok>                        HfDevSelect
+  |       <error>                     HfError
+  |
+  +--> HostFlash.set_dev
+  |       dev                         HfDevSelect
+  |       <ok>                        ()
+  |       <error>                     HfError
+  |
+  +--> HostFlash.hash
+  |       address                     u32
+  |       len                         u32
+  |       <ok>                        [u8; crate::SHA256_SZ]
+  |       <error>                     HfError
+  |
+  +--> HostFlash.get_persistent_data
+  |       <ok>                        HfPersistentData
+  |       <error>                     HfError
+  |
+  +--> HostFlash.write_persistent_data
+          dev_select                  HfDevSelect
+          <ok>                        ()
+          <error>                     HfError
+  
+INTERFACE                    TASK
+Update                       update_server
+  |
+  +--> Update.block_size
+  |       <ok>                        usize
+  |       <error>                     UpdateError
+  |
+  +--> Update.prep_image_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.write_one_block
+  |       block_num                   usize
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.abort_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.finish_image_update
+  |       <ok>                        ()
+  |       <error>                     UpdateError
+  |
+  +--> Update.current_version
+  |       <ok>                        ImageVersion
+  |
+  +--> Update.read_caboose_value
+          name                        [u8; 4]
+          <ok>                        u32
+          <error>                     CabooseError
+  
+INTERFACE                    TASK
+Sensor                       sensor
+  |
+  +--> Sensor.get
+  |       id                          SensorId
+  |       <ok>                        f32
+  |       <error>                     SensorError
+  |
+  +--> Sensor.get_reading
+  |       id                          SensorId
+  |       <ok>                        Reading
+  |       <error>                     SensorError
+  |
+  +--> Sensor.get_raw_reading
+  |       id                          SensorId
+  |
+  +--> Sensor.get_last_data
+  |       id                          SensorId
+  |       <ok>                        (f32, u64)
+  |       <error>                     SensorApiError
+  |
+  +--> Sensor.get_last_nodata
+  |       id                          SensorId
+  |
+  +--> Sensor.get_min
+  |       id                          SensorId
+  |       <ok>                        (f32, u64)
+  |       <error>                     SensorApiError
+  |
+  +--> Sensor.get_max
+  |       id                          SensorId
+  |       <ok>                        (f32, u64)
+  |       <error>                     SensorApiError
+  |
+  +--> Sensor.post
+  |       id                          SensorId
+  |       value                       f32
+  |       timestamp                   u64
+  |       <ok>                        ()
+  |       <error>                     SensorApiError
+  |
+  +--> Sensor.nodata
+  |       id                          SensorId
+  |       nodata                      NoData
+  |       timestamp                   u64
+  |       <ok>                        ()
+  |       <error>                     SensorApiError
+  |
+  +--> Sensor.get_nerrors
+          id                          SensorId
+          <ok>                        u32
+          <error>                     SensorApiError
+  
+INTERFACE                    TASK
+HostSpComms                  host_sp_comms
+  |
+  +--> HostSpComms.set_status
+  |       status                      u64
+  |       <ok>                        ()
+  |       <error>                     HostSpCommsError
+  |
+  +--> HostSpComms.get_status
+          <ok>                        Status
+          <error>                     HostSpCommsError
+  
+INTERFACE                    TASK
+ControlPlaneAgent            control_plane_agent
+  |
+  +--> ControlPlaneAgent.fetch_host_phase2_data
+  |       image_hash                  [u8; 32]
+  |       offset                      u64
+  |       notification_bit            u8
+  |       <ok>                        ()
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.get_host_phase2_data
+  |       image_hash                  [u8; 32]
+  |       offset                      u64
+  |       <ok>                        usize
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.get_startup_options
+  |       <ok>                        HostStartupOptions
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.set_startup_options
+  |       startup_options             u64
+  |       <ok>                        ()
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.identity
+  |       <ok>                        VpdIdentity
+  |
+  +--> ControlPlaneAgent.get_uart_client
+  |       <ok>                        UartClient
+  |
+  +--> ControlPlaneAgent.get_installinator_image_id
+  |       <ok>                        usize
+  |
+  +--> ControlPlaneAgent.set_humility_uart_client
+  |       attach                      bool
+  |       <ok>                        ()
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.uart_read
+  |       <ok>                        usize
+  |       <error>                     ControlPlaneAgentError
+  |
+  +--> ControlPlaneAgent.uart_write
+          <ok>                        usize
+          <error>                     ControlPlaneAgentError
+  
+INTERFACE                    TASK
+SpRot                        sprot
+  |
+  +--> SpRot.status
+  |       <ok>                        SprotStatus
+  |       <error>                     SprotError
+  |
+  +--> SpRot.io_stats
+  |       <ok>                        SprotIoStats
+  |       <error>                     SprotError
+  |
+  +--> SpRot.rot_state
+  |       <ok>                        RotState
+  |       <error>                     SprotError
+  |
+  +--> SpRot.pulse_cs
+  |       delay                       u16
+  |       <ok>                        PulseStatus
+  |       <error>                     SprotError
+  |
+  +--> SpRot.block_size
+  |       <ok>                        u32
+  |       <error>                     SprotError
+  |
+  +--> SpRot.prep_image_update
+  |       target                      UpdateTarget
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.write_one_block
+  |       block_num                   u32
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.abort_update
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.finish_image_update
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.switch_default_image
+  |       slot                        SlotId
+  |       duration                    SwitchDuration
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.reset
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.dump
+  |       address                     u32
+  |       <ok>                        ()
+  |       <error>                     DumpOrSprotError
+  |
+  +--> SpRot.caboose_size
+  |       slot                        SlotId
+  |       <ok>                        u32
+  |       <error>                     RawCabooseOrSprotError
+  |
+  +--> SpRot.read_caboose_region
+  |       offset                      u32
+  |       slot                        SlotId
+  |       <ok>                        ()
+  |       <error>                     RawCabooseOrSprotError
+  |
+  +--> SpRot.rot_boot_info
+  |       <ok>                        RotBootInfo
+  |       <error>                     SprotError
+  |
+  +--> SpRot.cert_chain_len
+  |       <ok>                        u32
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.cert_len
+  |       index                       u32
+  |       <ok>                        u32
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.cert
+  |       index                       u32
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.record
+  |       algorithm                   HashAlgorithm
+  |       <ok>                        ()
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.read_rot_page
+  |       page                        RotPage
+  |       <ok>                        ()
+  |       <error>                     SprotError
+  |
+  +--> SpRot.log
+  |       offset                      u32
+  |       <ok>                        ()
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.log_len
+  |       <ok>                        u32
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.attest
+  |       <ok>                        ()
+  |       <error>                     AttestOrSprotError
+  |
+  +--> SpRot.attest_len
+          <ok>                        u32
+          <error>                     AttestOrSprotError
+  
+INTERFACE                    TASK
+Validate                     validate
+  |
+  +--> Validate.validate_i2c
+          index                       u32
+          <ok>                        ValidateOk
+          <error>                     ValidateError
+  
+INTERFACE                    TASK
+Vpd                          vpd
+  |
+  +--> Vpd.read_tmp117_eeprom
+  |       index                       u8
+  |       <ok>                        [u8; 6]
+  |       <error>                     VpdError
+  |
+  +--> Vpd.read
+  |       index                       u8
+  |       offset                      u16
+  |       <ok>                        [u8; 16]
+  |       <error>                     VpdError
+  |
+  +--> Vpd.write
+  |       index                       u8
+  |       offset                      u16
+  |       contents                    u8
+  |       <ok>                        ()
+  |       <error>                     VpdError
+  |
+  +--> Vpd.is_locked
+  |       index                       u8
+  |       <ok>                        bool
+  |       <error>                     VpdError
+  |
+  +--> Vpd.permanently_lock
+          index                       u8
+          <ok>                        ()
+          <error>                     VpdError
+  
+INTERFACE                    TASK
+UserLeds                     user_leds
+  |
+  +--> UserLeds.led_on
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_off
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_toggle
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_blink
+          index                       usize
+          <ok>                        ()
+          <error>                     LedError
+  
+INTERFACE                    TASK
+DumpAgent                    dump_agent
+  |
+  +--> DumpAgent.read_dump
+  |       index                       u8
+  |       offset                      u32
+  |       <ok>                        [u8; DUMP_READ_SIZE]
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.get_dump_area
+  |       index                       u8
+  |       <ok>                        DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.initialize_dump
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.add_dump_segment
+  |       address                     u32
+  |       length                      u32
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.take_dump
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.dump_task
+  |       task_index                  u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.dump_task_region
+  |       task_index                  u32
+  |       start                       u32
+  |       length                      u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> DumpAgent.reinitialize_dump_from
+          index                       u8
+          <ok>                        ()
+          <error>                     DumpAgentError
+  
+INTERFACE                    TASK
+Sbrmi                        sbrmi
+  |
+  +--> Sbrmi.nthreads
+  |       <ok>                        u8
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.enabled
+  |       <ok>                        [u8; 16]
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.alert
+  |       <ok>                        [u8; 16]
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.cpuid
+  |       thread                      u8
+  |       eax                         u32
+  |       ecx                         u32
+  |       <ok>                        [u32; 4]
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.rdmsr8
+  |       thread                      u8
+  |       msr                         u32
+  |       <ok>                        u8
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.rdmsr16
+  |       thread                      u8
+  |       msr                         u32
+  |       <ok>                        u16
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.rdmsr32
+  |       thread                      u8
+  |       msr                         u32
+  |       <ok>                        u32
+  |       <error>                     SbrmiError
+  |
+  +--> Sbrmi.rdmsr64
+          thread                      u8
+          msr                         u32
+          <ok>                        u64
+          <error>                     SbrmiError
+  
