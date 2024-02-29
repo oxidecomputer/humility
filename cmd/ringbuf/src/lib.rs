@@ -60,7 +60,7 @@ use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_doppel::{Ringbuf, StaticCell};
+use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -74,6 +74,27 @@ struct RingbufArgs {
     /// print only a single ringbuffer by substring of name
     #[clap(conflicts_with = "list")]
     name: Option<String>,
+    #[clap(flatten)]
+    totals: TotalsOptions,
+}
+
+#[derive(Parser, Debug, Clone, Copy)]
+#[clap(next_help_heading = "DISPLAYING ENTRY TOTALS")]
+struct TotalsOptions {
+    /// when displaying totals, don't skip entry variants which have
+    /// not been recorded
+    #[clap(long, short, conflicts_with = "list")]
+    full_totals: bool,
+    /// skip displaying total counts for ringbuf entry variants
+    #[clap(
+        long,
+        short,
+        conflicts_with_all = &[
+            "full-totals",
+            "list"
+        ],
+    )]
+    no_totals: bool,
 }
 
 fn ringbuf_dump(
@@ -81,6 +102,7 @@ fn ringbuf_dump(
     core: &mut dyn Core,
     definition: &HubrisStruct,
     ringbuf_var: &HubrisVariable,
+    TotalsOptions { full_totals, no_totals }: TotalsOptions,
 ) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(ringbuf_var.size, Default::default);
@@ -89,46 +111,82 @@ fn ringbuf_dump(
     core.read_8(ringbuf_var.addr, buf.as_mut_slice())?;
     core.run()?;
 
-    // There are two possible shapes of ringbufs, depending on the age of the
+    // There are three possible shapes of ringbufs, depending on the age of the
     // firmware.
     // - Raw Ringbuf that is not wrapped by anything.
     // - Safe Ringbuf that is inside a StaticCell.
+    // - CountedRingbuf, which consists of a `StaticCell<Ringbuf>` and a set of
+    //   entry counters.
     //
-    // Here we will attempt to handle them both -- first raw, then fallback.
+    // Here we will attempt to handle all three -- first the counted ringbuf,
+    // then raw, then fallback.
     let ringbuf_val: Value =
         Value::Struct(reflect::load_struct(hubris, &buf, definition, 0)?);
 
-    let ringbuf: Ringbuf = Ringbuf::from_value(&ringbuf_val).or_else(|_e| {
-        let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
-        Ringbuf::from_value(&cell.cell.value)
-    })?;
+    let (ringbuf, counters) = CountedRingbuf::from_value(&ringbuf_val)
+        .map(|CountedRingbuf { ringbuf, counters }| (ringbuf, Some(counters)))
+        .or_else(|_e| {
+            Ringbuf::from_value(&ringbuf_val).map(|r| (Some(r), None))
+        })
+        .or_else(|_e| {
+            let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
+            let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
+            Ok::<_, anyhow::Error>((Some(ringbuf), None))
+        })?;
 
-    let ndx = if let Some(x) = ringbuf.last {
-        x as usize
-    } else {
-        return Ok(());
-    };
-
-    let fmt = HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
-
-    println!("{:>4} {:>4} {:>8} {:>8} PAYLOAD", "NDX", "LINE", "GEN", "COUNT",);
-
-    for i in 0..ringbuf.buffer.len() {
-        let slot = (ndx + i + 1) % ringbuf.buffer.len();
-        let entry = &ringbuf.buffer[slot];
-
-        if entry.generation == 0 {
-            continue;
+    if let (Some(mut counters), false) = (counters, no_totals) {
+        const TOTAL_WIDTH: usize = 8;
+        if full_totals {
+            println!("{:>TOTAL_WIDTH$} VARIANT", "TOTAL");
+            println!("{counters:#TOTAL_WIDTH$}");
+        } else if counters.total() > 0 {
+            // Because we're not displaying counters with zero variants, the
+            // displayed list of counters depends on the state of this specific
+            // system, and can't easily be compared. Therefore, sort them by the
+            // value of the counter, so the most frequently recorded variants
+            // are displayed first.
+            counters.sort_unstable_by(
+                &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
+                    a.total().cmp(&b.total()).reverse()
+                },
+            );
+            println!("{:>TOTAL_WIDTH$} VARIANT", "TOTAL");
+            println!("{counters:TOTAL_WIDTH$}");
         }
+    }
 
-        let mut dumped = vec![];
-        entry.payload.format(hubris, fmt, &mut dumped)?;
-        let dumped = String::from_utf8(dumped)?;
+    if let Some(ringbuf) = ringbuf {
+        let ndx = if let Some(x) = ringbuf.last {
+            x as usize
+        } else {
+            return Ok(());
+        };
+
+        let fmt =
+            HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
 
         println!(
-            "{:4} {:4} {:8} {:8} {}",
-            slot, entry.line, entry.generation, entry.count, dumped
+            "{:>4} {:>4} {:>8} {:>8} PAYLOAD",
+            "NDX", "LINE", "GEN", "COUNT",
         );
+
+        for i in 0..ringbuf.buffer.len() {
+            let slot = (ndx + i + 1) % ringbuf.buffer.len();
+            let entry = &ringbuf.buffer[slot];
+
+            if entry.generation == 0 {
+                continue;
+            }
+
+            let mut dumped = vec![];
+            entry.payload.format(hubris, fmt, &mut dumped)?;
+            let dumped = String::from_utf8(dumped)?;
+
+            println!(
+                "{:4} {:4} {:8} {:8} {}",
+                slot, entry.line, entry.generation, entry.count, dumped
+            );
+        }
     }
 
     Ok(())
@@ -214,7 +272,8 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
             taskname(hubris, v.1).unwrap_or("???")
         );
         if let Some(def) = def {
-            if let Err(e) = ringbuf_dump(hubris, core, def, v.1) {
+            if let Err(e) = ringbuf_dump(hubris, core, def, v.1, subargs.totals)
+            {
                 if subargs.verbose {
                     humility::msg!("ringbuf dump failed: {e:?}");
                 } else {

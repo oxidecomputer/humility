@@ -1,0 +1,97 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  121        1        1 CommandError(DeviceReset, BusLockedMux)
+humility: ring buffer MAX31790_RINGBUF in thermal:
+ NDX LINE      GEN    COUNT PAYLOAD
+  11  268      211        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  12  268      211        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  13  268      211        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  14  268      211        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  15  268      211        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+  16  268      211        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+  17  268      211        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  18  268      211        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  19  268      211        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  20  268      211        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  21  268      211        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+  22  268      211        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+  23  268      211        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  24  268      211        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  25  268      211        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+  26  268      211        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+  27  268      211        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+  28  268      211        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+  29  268      211        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  30  268      211        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+  31  268      211        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+   0  268      212        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+   1  268      212        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+   2  268      212        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+   3  268      212        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+   4  268      212        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+   5  268      212        1 Read16(Tach1CountMSB, [ 0xff, 0xe0 ])
+   6  268      212        1 Read16(Tach2CountMSB, [ 0xff, 0xe0 ])
+   7  268      212        1 Read16(Tach3CountMSB, [ 0xff, 0xe0 ])
+   8  268      212        1 Read16(Tach4CountMSB, [ 0xff, 0xe0 ])
+   9  268      212        1 Read16(Tach5CountMSB, [ 0xff, 0xe0 ])
+  10  268      212        1 Read16(Tach6CountMSB, [ 0xff, 0xe0 ])
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   2  308    10125        1 WaitISR(0x21)
+   3  384    10125        1 WriteISR(0x21)
+   4  384    10125        2 WriteISR(0x8021)
+   5  384    10125        1 WriteISR(0x8031)
+   6  308    10125        1 WaitISR(0x21)
+   7  384    10125        1 WriteISR(0x21)
+   8  384    10125        2 WriteISR(0x8021)
+   9  384    10125        1 WriteISR(0x8031)
+  10  308    10125        1 WaitISR(0x21)
+  11  384    10125        1 WriteISR(0x21)
+  12  384    10125        2 WriteISR(0x8021)
+  13  384    10125        1 WriteISR(0x8031)
+  14  308    10125        1 WaitISR(0x21)
+  15  384    10125        1 WriteISR(0x21)
+   0  384    10126        2 WriteISR(0x8021)
+   1  384    10126        1 WriteISR(0x8031)
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  663        1        1 AddrISR(0x1)
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   3  142      231        8 Some(MuxNotFound)
+   4  142      231        4 Some(NoDevice)
+   5  142      231        3 Some(SegmentDisconnected)
+   6  142      231        8 Some(MuxNotFound)
+   7  142      231        4 Some(NoDevice)
+   8  142      231        1 Some(SegmentDisconnected)
+   9  142      231        1 Some(MuxDisconnected)
+  10  142      231        1 Some(SegmentDisconnected)
+  11  142      231        8 Some(MuxNotFound)
+  12  142      231        4 Some(NoDevice)
+  13  142      231        1 Some(SegmentDisconnected)
+  14  142      231        1 Some(BusLockedMux)
+  15  163      231        1 None
+   0  142      232        1 Some(SegmentDisconnected)
+   1  142      232        8 Some(MuxNotFound)
+   2  142      232        4 Some(NoDevice)
+humility: ring buffer TASK_SPD_RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
+ NDX LINE      GEN    COUNT PAYLOAD
+   5   47     8911        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41     8911        1 Calling
+   7   47     8911        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41     8911        1 Calling
+   9   47     8911        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41     8911        1 Calling
+  11   47     8911        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41     8911        1 Calling
+  13   47     8911        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41     8911        1 Calling
+  15   47     8911        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41     8912        1 Calling
+   1   47     8912        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41     8912        1 Calling
+   3   47     8912        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41     8912        1 Calling

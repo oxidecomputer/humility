@@ -1,0 +1,441 @@
+humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
+   TOTAL VARIANT
+    2068 Status
+     446 ClockConfigWrite
+     295 A0Status
+     102 A1Status
+      15 A0Power
+       2 V3P3SysA0VOut
+       1 SMStatus
+       1 SetState
+       1 RailsOff
+       1 Ident
+       1 A2Status
+       1 A2
+       1 SpdDimmsFound
+       1 Ice40PowerGoodV1P2
+       1 IdentValid
+       1 CPUPresent
+       1 Coretype
+       1 Programmed
+       1 Ice40Rails
+       1 InterruptFlags
+       1 RailsOn
+       1 UartEnabled
+       1 Ice40PowerGoodV3P3
+       1 UpdateState(A0)
+       1 A0
+       1 Reprogram
+       1 ClockConfigSuccess
+       1 ChecksumValid
+       1 PGStatus
+       1 Programming
+       1 PowerControl
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  254        1        1 Ice40Rails(true, true)
+   1  283        1        1 Ice40PowerGoodV1P2(true)
+   2  304        1        1 Ice40PowerGoodV3P3(true)
+   3  346        1        1 IdentValid(false)
+   4  349        1        1 ChecksumValid(false)
+   5  352        1        1 Reprogram(true)
+   6  366        1        1 Programming
+   7  395        1        1 Programmed
+   8  399        1        1 RailsOff
+   9  402        1        1 Ident(0xde01)
+  10  408        1        1 A2Status(0x0)
+  11  431        1      446 ClockConfigWrite
+  12  442        1        1 ClockConfigSuccess
+  13 1329        1        1 V3P3SysA0VOut(Volts(0.072265625))
+  14  444        1        1 A2
+  15 1142        1        1 SpdDimmsFound(0x10)
+  16  621        1        1 SetState(A2, A0, 0x1c897)
+  17 1329        1        1 V3P3SysA0VOut(Volts(0.06640625))
+  18  625        1        1 PGStatus { b_pg: 0x0, c_pg: 0x0, nic: 0x0 }
+  19  631        1        1 SMStatus { a1: 0x0, a0: 0x0 }
+  20  636        1        1 PowerControl(0x0)
+  21  640        1        1 InterruptFlags(0x0)
+  22  673        1        1 A1Status(0x2)
+  23  673        1      100 A1Status(0x3)
+  24  673        1        1 A1Status(0x5)
+  25  691        1        1 CPUPresent(true)
+  26  701        1        1 Coretype { coretype: true, sp3r1: true, sp3r2: false }
+  27  729        1       11 A0Status(0x1)
+  28  729        1      281 A0Status(0x2)
+  29  729        1        1 A0Status(0x4)
+  30  729        1        1 A0Status(0x6)
+  31  729        1        1 A0Status(0x7)
+  32  750        1        1 RailsOn
+  33  761        1        1 A0Power(0x7)
+  34  761        1        9 A0Power(0xa)
+  35  761        1        4 A0Power(0xb)
+  36  761        1        1 A0Power(0xc)
+  37  784        1        1 UartEnabled
+  38  785        1        1 A0(0x336)
+  39  609        1        1 UpdateState(A0)
+  40  500        1     2068 Status { ier: 0x0, ifr: 0x0, amd_status: 0x4, amd_a0: 0x4 }
+humility: ring buffer drv_i2c_devices::adm1272::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  106        1        1 Config(CommandData(0x3f3f))
+   1  159        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   2  177        1        1 Coefficients(Coefficients { m: 0x297, b: 0x5000, R: 0xff })
+   3  205        1        1 Coefficients(Coefficients { m: 0x2927, b: 0x0, R: 0xfd })
+   4  106        1        1 Config(CommandData(0x3f3f))
+   5  159        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   6  177        1        1 Coefficients(Coefficients { m: 0x52e, b: 0x5000, R: 0xff })
+   7  205        1        1 Coefficients(Coefficients { m: 0x524e, b: 0x0, R: 0xfd })
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
+humility: ring buffer drv_i2c_devices::sbrmi::__RINGBUF in sbrmi:
+humility: ring buffer drv_oxide_vpd::__RINGBUF in gimlet_seq:
+humility: ring buffer drv_oxide_vpd::__RINGBUF in host_sp_comms:
+humility: ring buffer drv_packrat_vpd_loader::__RINGBUF in gimlet_seq:
+humility: ring buffer drv_sbrmi::__RINGBUF in sbrmi:
+humility: ring buffer drv_stm32h7_spi_server_core::__RINGBUF in spi2_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  27  430    12401        1 Tx(0x0)
+  28  494    12401        1 WaitISR(0xa0002)
+  29  464    12401        1 Rx(0x5)
+  30  430    12401        1 Tx(0x0)
+  31  494    12401        1 WaitISR(0x90002)
+  32  464    12401        1 Rx(0x3)
+  33  430    12401        1 Tx(0x0)
+  34  464    12401        1 Rx(0x7f)
+  35  494    12401        1 WaitISR(0x70012)
+  36  464    12401        1 Rx(0xff)
+  37  494    12401        1 WaitISR(0x60012)
+  38  464    12401        1 Rx(0x4)
+  39  494    12401        1 WaitISR(0x50012)
+  40  464    12401        1 Rx(0xff)
+  41  494    12401        1 WaitISR(0x40012)
+  42  464    12401        1 Rx(0x0)
+  43  494    12401        1 WaitISR(0x30012)
+  44  464    12401        1 Rx(0xf)
+  45  494    12401        1 WaitISR(0x20012)
+  46  464    12401        1 Rx(0xff)
+  47  494    12401        1 WaitISR(0x10012)
+  48  464    12401        1 Rx(0x0)
+  49  322    12401        1 Start(exchange, (0x10, 0x10))
+  50  430    12401        1 Tx(0x1)
+  51  430    12401        1 Tx(0x0)
+  52  430    12401        1 Tx(0xf)
+  53  430    12401        5 Tx(0x0)
+  54  494    12401        1 WaitISR(0x100002)
+  55  464    12401        1 Rx(0x0)
+  56  430    12401        1 Tx(0x0)
+  57  494    12401        1 WaitISR(0xf0002)
+  58  464    12401        1 Rx(0x0)
+  59  430    12401        1 Tx(0x0)
+  60  464    12401        1 Rx(0x0)
+  61  430    12401        1 Tx(0x0)
+  62  494    12401        1 WaitISR(0xd0002)
+  63  464    12401        1 Rx(0x0)
+   0  430    12402        1 Tx(0x0)
+   1  494    12402        1 WaitISR(0xc0002)
+   2  464    12402        1 Rx(0x0)
+   3  430    12402        1 Tx(0x0)
+   4  464    12402        1 Rx(0xd)
+   5  430    12402        1 Tx(0x0)
+   6  494    12402        1 WaitISR(0xa0002)
+   7  464    12402        1 Rx(0x6)
+   8  430    12402        1 Tx(0x0)
+   9  494    12402        1 WaitISR(0x90002)
+  10  464    12402        1 Rx(0x2)
+  11  430    12402        1 Tx(0x0)
+  12  464    12402        1 Rx(0x1)
+  13  494    12402        1 WaitISR(0x70012)
+  14  464    12402        1 Rx(0x0)
+  15  494    12402        1 WaitISR(0x60012)
+  16  464    12402        1 Rx(0xc)
+  17  494    12402        1 WaitISR(0x50012)
+  18  464    12402        1 Rx(0x4)
+  19  494    12402        1 WaitISR(0x40012)
+  20  464    12402        1 Rx(0x2)
+  21  494    12402        1 WaitISR(0x30012)
+  22  464    12402        1 Rx(0x0)
+  23  494    12402        1 WaitISR(0x20012)
+  24  464    12402        1 Rx(0xf)
+  25  494    12402        1 WaitISR(0x10012)
+  26  464    12402        1 Rx(0x4)
+humility: ring buffer drv_stm32h7_spi_server_core::__RINGBUF in sprot:
+humility: ring buffer drv_stm32h7_sprot_server::__RINGBUF in sprot:
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  23  573     3263        2 WriteISR(0x8021)
+  24  573     3263        1 WriteISR(0x8023)
+  25  603     3263        1 WriteWaitISR(0x8020)
+  26  603     3263        2 WriteWaitISR(0x8021)
+  27  603     3263        1 WriteWaitISR(0x8061)
+  28  668     3263        2 ReadISR(0x8021)
+  29  668     3263        1 ReadISR(0x8025)
+  30  711     3263        1 ReadWaitISR(0x8061)
+  31  487     3263        1 WaitISR(0x21)
+  32  573     3263        1 WriteISR(0x21)
+  33  573     3263        2 WriteISR(0x8021)
+  34  573     3263        1 WriteISR(0x8023)
+  35  603     3263        1 WriteWaitISR(0x8020)
+  36  603     3263        2 WriteWaitISR(0x8021)
+  37  603     3263        1 WriteWaitISR(0x8061)
+  38  668     3263        2 ReadISR(0x8021)
+  39  668     3263        1 ReadISR(0x8025)
+  40  711     3263        1 ReadWaitISR(0x8061)
+  41  487     3263        1 WaitISR(0x21)
+  42  573     3263        1 WriteISR(0x21)
+  43  573     3263        2 WriteISR(0x8021)
+  44  573     3263        1 WriteISR(0x8023)
+  45  603     3263        1 WriteWaitISR(0x8020)
+  46  603     3263        2 WriteWaitISR(0x8021)
+  47  603     3263        1 WriteWaitISR(0x8061)
+   0  668     3264        2 ReadISR(0x8021)
+   1  668     3264        1 ReadISR(0x8025)
+   2  711     3264        1 ReadWaitISR(0x8061)
+   3  487     3264        1 WaitISR(0x21)
+   4  573     3264        1 WriteISR(0x21)
+   5  573     3264        2 WriteISR(0x8021)
+   6  573     3264        1 WriteISR(0x8023)
+   7  603     3264        1 WriteWaitISR(0x8020)
+   8  603     3264        2 WriteWaitISR(0x8021)
+   9  603     3264        1 WriteWaitISR(0x8061)
+  10  668     3264        2 ReadISR(0x8021)
+  11  668     3264        1 ReadISR(0x8025)
+  12  711     3264        1 ReadWaitISR(0x8061)
+  13  487     3264        1 WaitISR(0x21)
+  14  573     3264        1 WriteISR(0x21)
+  15  573     3264        2 WriteISR(0x8021)
+  16  573     3264        1 WriteISR(0x8023)
+  17  603     3264        1 WriteWaitISR(0x8020)
+  18  603     3264        2 WriteWaitISR(0x8021)
+  19  603     3264        1 WriteWaitISR(0x8061)
+  20  668     3264        2 ReadISR(0x8021)
+  21  668     3264        1 ReadISR(0x8025)
+  22  711     3264        1 ReadWaitISR(0x8061)
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+  24 1093     3341        1 TxBogus(0x1b)
+  25 1028     3341        1 TxISR(0x378000)
+  26 1110     3341        1 WaitTx
+  27 1028     3341        1 TxISR(0x378000)
+  28 1110     3341        1 WaitTx
+  29 1028     3341        1 TxISR(0x370030)
+  30  869     3341        1 AddrISR(0x370001)
+  31  892     3341        1 WaitAddr
+  32  869     3341        1 AddrISR(0x370001)
+  33  892     3341        1 WaitAddr
+  34  869     3341        1 AddrISR(0x368009)
+  35  884     3341        1 AddrMatch
+  36  917     3341        1 AddrNack(0x1b)
+  37  932     3341        1 RxISR(0x368001)
+  38 1011     3341        1 WaitRx
+  39  932     3341        1 RxISR(0x368001)
+  40 1011     3341        1 WaitRx
+  41  932     3341        1 RxISR(0x368005)
+  42  959     3341        1 RxNack(0x1b, 0x7)
+  43  932     3341        1 RxISR(0x368001)
+  44 1011     3341        1 WaitRx
+  45  932     3341        1 RxISR(0x368001)
+  46 1011     3341        1 WaitRx
+  47  932     3341        1 RxISR(0x378009)
+   0  993     3342        1 RepeatedStart(true)
+   1 1028     3342        1 TxISR(0x378001)
+   2 1110     3342        1 WaitTx
+   3 1028     3342        1 TxISR(0x378003)
+   4 1093     3342        1 TxBogus(0x1b)
+   5 1028     3342        1 TxISR(0x378000)
+   6 1110     3342        1 WaitTx
+   7 1028     3342        1 TxISR(0x378003)
+   8 1093     3342        1 TxBogus(0x1b)
+   9 1028     3342        1 TxISR(0x378000)
+  10 1110     3342        1 WaitTx
+  11 1028     3342        1 TxISR(0x378000)
+  12 1110     3342        1 WaitTx
+  13 1028     3342        1 TxISR(0x378003)
+  14 1093     3342        1 TxBogus(0x1b)
+  15 1028     3342        1 TxISR(0x378000)
+  16 1110     3342        1 WaitTx
+  17 1028     3342        1 TxISR(0x378000)
+  18 1110     3342        1 WaitTx
+  19 1028     3342        1 TxISR(0x370030)
+  20  869     3342        1 AddrISR(0x370001)
+  21  892     3342        1 WaitAddr
+  22  869     3342        1 AddrISR(0x370001)
+  23  892     3342        1 WaitAddr
+humility: ring buffer drv_stm32xx_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  644        1        2 Wiggles(0x0)
+   1  644        1        1 Wiggles(0x4)
+   2  644        1        1 Wiggles(0x0)
+   3  753        1        1 SegmentFailed(BusLockedMux)
+   4  252        1        1 Reset((I2C2, PortIndex(0x0)))
+   5  262        1        1 ResetMux(0x73)
+   6  753        1        1 SegmentFailed(BusLockedMux)
+   7  768        1        1 MuxUnknown((I2C2, PortIndex(0x0)))
+   8  753        1        1 SegmentFailed(ControllerBusy)
+   9  252        1        1 Reset((I2C2, PortIndex(0x1)))
+  10  262        1        1 ResetMux(0x70)
+  11  262        1        1 ResetMux(0x71)
+  12  262        1        1 ResetMux(0x72)
+  13  190        1        1 MuxUnknownRecover((I2C2, PortIndex(0x1)))
+  14  190        1        1 MuxUnknownRecover((I2C2, PortIndex(0x0)))
+humility: ring buffer ksz8463::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   7  148        4        1 Write(IACR, 0x40f)
+   8  148        4        1 Write(P1VIDCR, 0x301)
+   9  148        4        1 Write(P2VIDCR, 0x302)
+  10  148        4        1 Write(P3VIDCR, 0x3ff)
+  11  134        4        1 Read(P1CR1, 0x0)
+  12  148        4        1 Write(P1CR1, 0x202)
+  13  134        4        1 Read(P2CR1, 0x0)
+  14  148        4        1 Write(P2CR1, 0x202)
+  15  134        4        1 Read(P3CR1, 0x0)
+   0  148        5        1 Write(P3CR1, 0x4)
+   1  148        5        1 Write(SGCR9, 0xa)
+   2  134        5        1 Read(P3CR2, 0x607)
+   3  148        5        1 Write(P3CR2, 0x4607)
+   4  134        5        1 Read(SGCR2, 0xf0)
+   5  148        5        1 Write(SGCR2, 0x80f0)
+   6  148        5        1 Write(CIDER, 0x1)
+humility: ring buffer ksz8463::__RINGBUF in host_sp_comms:
+humility: ring buffer stm32h7_update_server::__RINGBUF in update_server:
+humility: ring buffer task_control_plane_agent::CRITICAL in control_plane_agent:
+humility: ring buffer task_control_plane_agent::__RINGBUF in control_plane_agent:
+humility: ring buffer task_control_plane_agent::update::rot::__RINGBUF in control_plane_agent:
+humility: ring buffer task_dump_agent::__RINGBUF in dump_agent:
+humility: ring buffer task_dump_agent::udp::__RINGBUF in dump_agent:
+humility: ring buffer task_hiffy::stm32h7::__RINGBUF in hiffy:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  592        1        1 Execute((0x0, Push(0xa)))
+   1  592        1        1 Execute((0x2, Push(0x2)))
+   2  592        1        1 Execute((0x4, Push(0x5)))
+   3  592        1        1 Execute((0x6, Push(0x1)))
+   4  592        1        1 Execute((0x8, Push(0x0)))
+   5  592        1        1 Execute((0xa, Call(TargetFunction(0x1))))
+   6  592        1        1 Execute((0xc, DropN(0x5)))
+   7  592        1        1 Execute((0xe, Done))
+   8  596        1        1 Success
+humility: ring buffer task_host_sp_comms::__RINGBUF in host_sp_comms:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  410        1        1 JefeNotification { now: 0x714, state: A2 }
+   1  311        1        1 HfMux { now: 0x714, state: Some(SP) }
+   2  410        1        1 JefeNotification { now: 0x1cbce, state: A0 }
+   3  311        1        1 HfMux { now: 0x1cbce, state: Some(HostCPU) }
+humility: ring buffer task_jefe::dump::__RINGBUF in jefe:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   69        1        1 Initialized
+humility: ring buffer task_jefe::external::__RINGBUF in jefe:
+humility: ring buffer task_net::mgmt::__RINGBUF in net:
+humility: ring buffer task_packrat::__RINGBUF in packrat:
+ NDX LINE      GEN    COUNT PAYLOAD
+   2   88        2        1 SpdDataUpdate { index: 0x8, page1: false, offset: 0x0, len: 0x0 }
+   3   88        2        1 SpdDataUpdate { index: 0x9, page1: false, offset: 0x0, len: 0x0 }
+   4   88        2        1 SpdDataUpdate { index: 0xa, page1: false, offset: 0x0, len: 0x0 }
+   5   88        2        1 SpdDataUpdate { index: 0xb, page1: false, offset: 0x0, len: 0x0 }
+   6   88        2        1 SpdDataUpdate { index: 0xc, page1: false, offset: 0x0, len: 0x0 }
+   7   88        2        1 SpdDataUpdate { index: 0xd, page1: false, offset: 0x0, len: 0x0 }
+   8   88        2        1 SpdDataUpdate { index: 0xe, page1: false, offset: 0x0, len: 0x0 }
+   9   88        2        1 SpdDataUpdate { index: 0xf, page1: false, offset: 0x0, len: 0x0 }
+  10   88        2        1 SpdDataUpdate { index: 0x8, page1: true, offset: 0x0, len: 0x0 }
+  11   88        2        1 SpdDataUpdate { index: 0x9, page1: true, offset: 0x0, len: 0x0 }
+  12   88        2        1 SpdDataUpdate { index: 0xa, page1: true, offset: 0x0, len: 0x0 }
+  13   88        2        1 SpdDataUpdate { index: 0xb, page1: true, offset: 0x0, len: 0x0 }
+  14   88        2        1 SpdDataUpdate { index: 0xc, page1: true, offset: 0x0, len: 0x0 }
+  15   88        2        1 SpdDataUpdate { index: 0xd, page1: true, offset: 0x0, len: 0x0 }
+   0   88        3        1 SpdDataUpdate { index: 0xe, page1: true, offset: 0x0, len: 0x0 }
+   1   88        3        1 SpdDataUpdate { index: 0xf, page1: true, offset: 0x0, len: 0x0 }
+humility: ring buffer task_power::__RINGBUF in power:
+humility: ring buffer task_power::bsp::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  232        1        1 Now(0x78)
+   1  134        1        1 Max5970 { sensor: SensorId(0x42), last_bounce_detected: None, status0: 0x0, status1: 0xa0, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 2.734375, min_vout: 0.828125, max_vout: 3.328125 }
+   2  134        1        1 Max5970 { sensor: SensorId(0x43), last_bounce_detected: None, status0: 0x0, status1: 0xa0, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.024414063, max_iout: 2.734375, min_vout: 0.828125, max_vout: 3.34375 }
+   3  134        1        1 Max5970 { sensor: SensorId(0x3), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.2695313, min_vout: 12.09375, max_vout: 12.34375 }
+   4  134        1        1 Max5970 { sensor: SensorId(0x4), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.076293945, min_vout: 0.9375, max_vout: 3.34375 }
+   5  134        1        1 Max5970 { sensor: SensorId(0x8), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.171875, min_vout: 12.03125, max_vout: 12.296875 }
+   6  134        1        1 Max5970 { sensor: SensorId(0x9), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.036621094, min_vout: 0.9375, max_vout: 3.34375 }
+   7  134        1        1 Max5970 { sensor: SensorId(0xd), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.068359375, max_iout: 1.2109375, min_vout: 12.03125, max_vout: 12.28125 }
+   8  134        1        1 Max5970 { sensor: SensorId(0xe), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.024414063, min_vout: 0.9375, max_vout: 3.34375 }
+   9  134        1        1 Max5970 { sensor: SensorId(0x12), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.1425781, min_vout: 12.046875, max_vout: 12.296875 }
+  10  134        1        1 Max5970 { sensor: SensorId(0x13), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.1586914, min_vout: 0.9375, max_vout: 3.34375 }
+  11  134        1        1 Max5970 { sensor: SensorId(0x17), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.009765625, max_iout: 1.25, min_vout: 12.0625, max_vout: 12.3125 }
+  12  134        1        1 Max5970 { sensor: SensorId(0x18), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.0061035156, min_vout: 0.9375, max_vout: 3.34375 }
+  13  134        1        1 Max5970 { sensor: SensorId(0x1c), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.09375, min_vout: 12.046875, max_vout: 12.296875 }
+  14  134        1        1 Max5970 { sensor: SensorId(0x1d), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.12207031, min_vout: 0.9375, max_vout: 3.34375 }
+  15  134        1        1 Max5970 { sensor: SensorId(0x21), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.0742188, min_vout: 12.046875, max_vout: 12.296875 }
+  16  134        1        1 Max5970 { sensor: SensorId(0x22), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.024414063, min_vout: 0.9375, max_vout: 3.34375 }
+  17  134        1        1 Max5970 { sensor: SensorId(0x26), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.2207031, min_vout: 12.0625, max_vout: 12.3125 }
+  18  134        1        1 Max5970 { sensor: SensorId(0x27), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.0061035156, min_vout: 0.9375, max_vout: 3.34375 }
+  19  134        1        1 Max5970 { sensor: SensorId(0x2b), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.009765625, max_iout: 1.71875, min_vout: 12.03125, max_vout: 12.28125 }
+  20  134        1        1 Max5970 { sensor: SensorId(0x2c), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.05493164, min_vout: 0.9375, max_vout: 3.328125 }
+  21  134        1        1 Max5970 { sensor: SensorId(0x30), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.38085938, min_vout: 12.03125, max_vout: 12.28125 }
+  22  134        1        1 Max5970 { sensor: SensorId(0x31), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.289917, min_vout: 0.9375, max_vout: 3.34375 }
+  23  232        1        1 Now(0x82)
+  24  134        1        1 Max5970 { sensor: SensorId(0x42), last_bounce_detected: None, status0: 0x0, status1: 0xa0, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 2.734375, min_vout: 0.828125, max_vout: 3.328125 }
+  25  134        1        1 Max5970 { sensor: SensorId(0x43), last_bounce_detected: None, status0: 0x0, status1: 0xa0, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.024414063, max_iout: 2.734375, min_vout: 0.828125, max_vout: 3.34375 }
+  26  134        1        1 Max5970 { sensor: SensorId(0x3), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.2695313, min_vout: 12.09375, max_vout: 12.34375 }
+  27  134        1        1 Max5970 { sensor: SensorId(0x4), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.076293945, min_vout: 0.9375, max_vout: 3.34375 }
+  28  134        1        1 Max5970 { sensor: SensorId(0x8), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.171875, min_vout: 12.03125, max_vout: 12.296875 }
+  29  134        1        1 Max5970 { sensor: SensorId(0x9), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.036621094, min_vout: 0.9375, max_vout: 3.34375 }
+  30  134        1        1 Max5970 { sensor: SensorId(0xd), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.068359375, max_iout: 1.2109375, min_vout: 12.03125, max_vout: 12.28125 }
+  31  134        1        1 Max5970 { sensor: SensorId(0xe), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.024414063, min_vout: 0.9375, max_vout: 3.34375 }
+  32  134        1        1 Max5970 { sensor: SensorId(0x12), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.1425781, min_vout: 12.046875, max_vout: 12.296875 }
+  33  134        1        1 Max5970 { sensor: SensorId(0x13), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.1586914, min_vout: 0.9375, max_vout: 3.34375 }
+  34  134        1        1 Max5970 { sensor: SensorId(0x17), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.009765625, max_iout: 1.25, min_vout: 12.0625, max_vout: 12.3125 }
+  35  134        1        1 Max5970 { sensor: SensorId(0x18), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.0061035156, min_vout: 0.9375, max_vout: 3.34375 }
+  36  134        1        1 Max5970 { sensor: SensorId(0x1c), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.09375, min_vout: 12.046875, max_vout: 12.296875 }
+  37  134        1        1 Max5970 { sensor: SensorId(0x1d), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.12207031, min_vout: 0.9375, max_vout: 3.34375 }
+  38  134        1        1 Max5970 { sensor: SensorId(0x21), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.0742188, min_vout: 12.046875, max_vout: 12.296875 }
+  39  134        1        1 Max5970 { sensor: SensorId(0x22), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.024414063, min_vout: 0.9375, max_vout: 3.34375 }
+  40  134        1        1 Max5970 { sensor: SensorId(0x26), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 1.2207031, min_vout: 12.0625, max_vout: 12.3125 }
+  41  134        1        1 Max5970 { sensor: SensorId(0x27), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.0061035156, min_vout: 0.9375, max_vout: 3.34375 }
+  42  134        1        1 Max5970 { sensor: SensorId(0x2b), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0.009765625, max_iout: 1.71875, min_vout: 12.03125, max_vout: 12.28125 }
+  43  134        1        1 Max5970 { sensor: SensorId(0x2c), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.05493164, min_vout: 0.9375, max_vout: 3.328125 }
+  44  134        1        1 Max5970 { sensor: SensorId(0x30), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.38085938, min_vout: 12.03125, max_vout: 12.28125 }
+  45  134        1        1 Max5970 { sensor: SensorId(0x31), last_bounce_detected: None, status0: 0x0, status1: 0x80, status3: 0x0, fault0: 0x0, fault1: 0x0, fault2: 0x0, min_iout: 0, max_iout: 0.289917, min_vout: 0.9375, max_vout: 3.34375 }
+humility: ring buffer task_spd::__RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  191     1578        1 MuxState(Idle, AwaitingSegment)
+   1  169     1578        1 Rx(0x4a, 0x40)
+   2  191     1578        1 MuxState(AwaitingSegment, Done)
+   3  164     1578        2 Initiate(0x19, false)
+   4  164     1578        1 Initiate(0x4a, true)
+   5  169     1578        1 Rx(0x4a, 0x3)
+   6  191     1578        1 MuxState(Idle, AwaitingSegment)
+   7  169     1578        1 Rx(0x4a, 0x40)
+   8  191     1578        1 MuxState(AwaitingSegment, Done)
+   9  164     1578        2 Initiate(0x1a, false)
+  10  164     1578        1 Initiate(0x4a, true)
+  11  169     1578        1 Rx(0x4a, 0x3)
+  12  191     1578        1 MuxState(Idle, AwaitingSegment)
+  13  169     1578        1 Rx(0x4a, 0x40)
+  14  191     1578        1 MuxState(AwaitingSegment, Done)
+  15  164     1578        2 Initiate(0x1b, false)
+humility: ring buffer task_thermal::__RINGBUF in thermal:
+   TOTAL VARIANT
+     138 ControlPwm
+       6 FanAdded
+       3 AutoState(Boot)
+       2 AutoState(Running)
+       2 PowerModeChanged
+       1 Start
+       1 ThermalMode(Auto)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  346        1        1 Start
+   1  133        1        1 ThermalMode(Auto)
+   2  625        1        1 AutoState(Boot)
+   3  634        1        1 FanAdded(Fan(0x0))
+   4  634        1        1 FanAdded(Fan(0x1))
+   5  634        1        1 FanAdded(Fan(0x2))
+   6  634        1        1 FanAdded(Fan(0x3))
+   7  634        1        1 FanAdded(Fan(0x4))
+   8  634        1        1 FanAdded(Fan(0x5))
+   9  778        1        1 PowerModeChanged(PowerBitmask(InternalBitFlags(0x1)))
+  10  625        1        1 AutoState(Boot)
+  11  876        1        1 AutoState(Running)
+  12  990        1      117 ControlPwm(0x0)
+  13  778        1        1 PowerModeChanged(PowerBitmask(InternalBitFlags(0x2)))
+  14  625        1        1 AutoState(Boot)
+  15  876        1        1 AutoState(Running)
+  16  990        1       21 ControlPwm(0x0)
+humility: ring buffer task_validate::__RINGBUF in validate:
+humility: ring buffer vsc85xx::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   26        1        1 Vsc8562InitSgmii(0x1e)
+   1   23        1        1 ViperPatch(0x1e)
+   2  133        1        1 GotCrc(0xfb48)

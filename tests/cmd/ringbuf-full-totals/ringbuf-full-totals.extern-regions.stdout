@@ -1,0 +1,24 @@
+humility: ring buffer ksz8463::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   7  148        4        1 Write(IACR, 0x40f)
+   8  148        4        1 Write(P1VIDCR, 0x301)
+   9  148        4        1 Write(P2VIDCR, 0x302)
+  10  148        4        1 Write(P3VIDCR, 0x3ff)
+  11  134        4        1 Read(P1CR1, 0x0)
+  12  148        4        1 Write(P1CR1, 0x202)
+  13  134        4        1 Read(P2CR1, 0x0)
+  14  148        4        1 Write(P2CR1, 0x202)
+  15  134        4        1 Read(P3CR1, 0x0)
+   0  148        5        1 Write(P3CR1, 0x4)
+   1  148        5        1 Write(SGCR9, 0xa)
+   2  134        5        1 Read(P3CR2, 0x607)
+   3  148        5        1 Write(P3CR2, 0x4607)
+   4  134        5        1 Read(SGCR2, 0xf0)
+   5  148        5        1 Write(SGCR2, 0x80f0)
+   6  148        5        1 Write(CIDER, 0x1)
+humility: ring buffer task_net::mgmt::__RINGBUF in net:
+humility: ring buffer vsc85xx::__RINGBUF in net:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   26        1        1 Vsc8562InitSgmii(0x1e)
+   1   23        1        1 ViperPatch(0x1e)
+   2  133        1        1 GotCrc(0xfb48)

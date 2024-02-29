@@ -1,0 +1,81 @@
+humility: ring buffer DS2482_RINGBUF in thermal:
+humility: ring buffer MAX31790_RINGBUF in thermal:
+humility: ring buffer MAX7358_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0   82        1   429705 (Some(SwitchControl), 0x0)
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+  30  287    15057        1 0x1
+  31  447    15057        2 0x1
+   0  447    15058        1 0x8005
+   1  477    15058        2 0x8001
+   2  287    15058        1 0x8001
+   3  269    15058        1 0x1000d6
+   4  287    15058        1 0x1
+   5  447    15058        2 0x1
+   6  447    15058        1 0x8005
+   7  477    15058        3 0x8001
+   8  287    15058        1 0x8001
+   9  269    15058        1 0x1000d6
+  10  287    15058        1 0x1
+  11  447    15058        2 0x1
+  12  447    15058        1 0x8005
+  13  477    15058        3 0x8001
+  14  287    15058        1 0x8001
+  15  269    15058        1 0x1000d6
+  16  287    15058        1 0x1
+  17  447    15058        2 0x1
+  18  447    15058        1 0x8005
+  19  477    15058        3 0x8001
+  20  287    15058        1 0x8001
+  21  269    15058        1 0x1000d6
+  22  287    15058        1 0x1
+  23  447    15058        2 0x1
+  24  447    15058        1 0x8005
+  25  477    15058        2 0x8001
+  26  287    15058        1 0x8001
+  27  269    15058        1 0x1000d6
+  28  287    15058        1 0x1
+  29  447    15058        2 0x1
+humility: ring buffer STM32H7_I2C_RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  642        1        1 0x1
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  520    53716        1 Some(ControllerLocked)
+   1  142    53716        1 Some(ControllerLocked)
+   2  520    53716        1 Some(ControllerLocked)
+   3  142    53716        1 Some(ControllerLocked)
+   4  520    53716        1 Some(ControllerLocked)
+   5  142    53716        1 Some(ControllerLocked)
+   6  520    53716        1 Some(ControllerLocked)
+   7  142    53716        1 Some(ControllerLocked)
+   8  520    53716        1 Some(ControllerLocked)
+   9  142    53716        1 Some(ControllerLocked)
+  10  520    53716        1 Some(ControllerLocked)
+  11  142    53716        1 Some(ControllerLocked)
+  12  520    53716        1 Some(ControllerLocked)
+  13  142    53716        1 Some(ControllerLocked)
+  14  520    53716        1 Some(ControllerLocked)
+  15  142    53716        1 Some(ControllerLocked)
+humility: ring buffer TASK_SPD_RINGBUF in spd:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  137        1        1 0x0
+humility: ring buffer TASK_SPI_RINGBUF in spi:
+ NDX LINE      GEN    COUNT PAYLOAD
+   1   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41    28442        1 Calling
+   3   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41    28442        1 Calling
+   5   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41    28442        1 Calling
+   7   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41    28442        1 Calling
+   9   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41    28442        1 Calling
+  11   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41    28442        1 Calling
+  13   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41    28442        1 Calling
+  15   47    28442        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41    28443        1 Calling

@@ -1195,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.10.39"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1212,6 +1212,7 @@ dependencies = [
  "humility-cmd-auxflash",
  "humility-cmd-bankerase",
  "humility-cmd-console-proxy",
+ "humility-cmd-counters",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
@@ -1380,6 +1381,18 @@ dependencies = [
  "humility-idol",
  "parse_int",
  "termios",
+]
+
+[[package]]
+name = "humility-cmd-counters"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.23",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-doppel",
 ]
 
 [[package]]
@@ -2306,6 +2319,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "humility-core",
+ "indexmap 1.9.3",
  "zerocopy",
 ]
 

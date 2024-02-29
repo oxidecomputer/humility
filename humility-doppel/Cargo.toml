@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+indexmap.workspace = true
 zerocopy.workspace = true
 
 humility.workspace = true

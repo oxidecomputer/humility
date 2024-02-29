@@ -1,0 +1,12 @@
+
+#
+# This test case has been automatically created, but can be edited and
+# should be checked in.  Should it ever be regenerated, simply delete
+# it and re-run "cargo test"
+#
+fs.base = "../cores"
+bin.name = "humility"
+args = "-d hubris.core.spoopy.0 counters gimlet_seq"
+
+# humility counters fails on this dump, as it contains no counters
+status.code = 1

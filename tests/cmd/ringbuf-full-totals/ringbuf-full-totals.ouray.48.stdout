@@ -1,0 +1,21 @@
+humility: ring buffer EXTERNAL_RINGBUF in jefe:
+humility: ring buffer STM32H7_I2C_RINGBUF in i2c_driver:
+humility: ring buffer STM32H7_I2C_SERVER_RINGBUF in i2c_driver:
+humility: ring buffer TASK_SPI_RINGBUF in spi:
+ NDX LINE      GEN    COUNT PAYLOAD
+   7   47    21122        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   8   41    21122        1 Calling
+   9   47    21122        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  10   41    21122        1 Calling
+  11   47    21122        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  12   41    21122        1 Calling
+  13   47    21122        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+  14   41    21122        1 Calling
+  15   47    21122        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   0   41    21123        1 Calling
+   1   47    21123        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   2   41    21123        1 Calling
+   3   47    21123        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   4   41    21123        1 Calling
+   5   47    21123        1 Returned([ 0xff, 0xff, 0xff, 0xff ])
+   6   41    21123        1 Calling

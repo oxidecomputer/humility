@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.10.39"
+version = "0.11.0"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -44,6 +44,7 @@ members = [
     "cmd/auxflash",
     "cmd/bankerase",
     "cmd/console-proxy",
+    "cmd/counters",
     "cmd/dashboard",
     "cmd/debugmailbox",
     "cmd/diagnose",
@@ -148,6 +149,7 @@ cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-bankerase = { path = "./cmd/bankerase", package = "humility-cmd-bankerase" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
+cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugmailbox" }
@@ -294,7 +296,8 @@ humility-cli = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-bankerase = { workspace = true }
-cmd-console-proxy = { workspace = true }
+cmd-console-proxy = { workspace = true } 
+cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
 cmd-debugmailbox = { workspace = true }
