@@ -8,3 +8,5 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.chilly.0 counters"
 
+# humility counters fails on this dump, as it contains no counters
+status.code = 1

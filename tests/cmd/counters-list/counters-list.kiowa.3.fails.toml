@@ -9,3 +9,5 @@ bin.name = "humility"
 args = "-d hubris.core.kiowa.3.fails counters --list"
 
 status.code = 1
+# humility counters fails on this dump, as it contains no counters
+status.code = 1
