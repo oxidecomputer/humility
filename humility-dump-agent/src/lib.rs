@@ -521,6 +521,10 @@ pub trait DumpAgentExt {
             // Read dump headers until the first empty header (DUMPER_NONE)
             let all = self.read_dump_headers(false)?;
 
+            if all.len() == 0 {
+                bail!("could not read dump; no dump found?");
+            }
+
             let area = match area {
                 None => None,
                 Some(DumpArea::ByIndex(ndx)) => Some(ndx),
