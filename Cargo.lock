@@ -1393,6 +1393,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "indexmap 1.9.3",
 ]
 
 [[package]]

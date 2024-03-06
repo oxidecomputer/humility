@@ -33,8 +33,8 @@
 //! breaking compatibility, and the application can have struct fields we don't
 //! interpret.
 
-use anyhow::{anyhow, bail, Result};
-use humility::reflect::{Load, Ptr, Value};
+use anyhow::{anyhow, bail, Context, Result};
+use humility::reflect::{Base, Load, Ptr, Value};
 use indexmap::IndexMap;
 use std::convert::TryInto;
 use std::fmt;
@@ -380,7 +380,8 @@ impl humility::reflect::Load for Counters {
         let counts = count_struct
             .iter()
             .map(|(name, value)| {
-                let value = CounterVariant::from_value(value)?;
+                let value = CounterVariant::from_value(value)
+                    .with_context(|| format!("failed to read {name}"))?;
                 Ok((name.to_string(), value))
             })
             .collect::<Result<IndexMap<_, _>>>()?;
@@ -442,8 +443,6 @@ impl Counters {
             f: &mut fmt::Formatter<'_>,
         ) -> fmt::Result {
             let total_len = f.width().unwrap_or(8);
-            let (before, after) =
-                if prefix.is_empty() { ("", "") } else { ("(", ")") };
             let mut has_written_any = false;
             for (name, counter) in counts {
                 let total = counter.total();
@@ -473,18 +472,34 @@ impl Counters {
                         if f.alternate() {
                             print_arrow(f)?;
                         }
-                        write!(f, "{prefix}{before}{name}{after}")?;
+                        write!(f, "{prefix}{name}")?;
+                        for _ in 0..prefix.matches('(').count() {
+                            f.write_str(")")?;
+                        }
+                    }
+                    CounterVariant::Nested(ref counts) if f.alternate() => {
+                        write!(f, "{pad}{total:>total_len$} ")?;
+                        print_arrow(f)?;
+                        write!(f, "{prefix}{name}(_)",)?;
+                        for _ in 0..prefix.matches('(').count() {
+                            f.write_str(")")?;
+                        }
+                        fmt_counters(
+                            pad,
+                            &format!("{name}("),
+                            counts,
+                            indent + 4,
+                            f,
+                        )?;
                     }
                     CounterVariant::Nested(ref counts) => {
-                        let indent = if f.alternate() {
-                            write!(f, "{pad}{total:>total_len$} ")?;
-                            print_arrow(f)?;
-                            write!(f, "{prefix}{before}{name}(_){after}",)?;
-                            indent + 4
-                        } else {
-                            indent
-                        };
-                        fmt_counters(pad, name, counts, indent, f)?;
+                        fmt_counters(
+                            pad,
+                            &format!("{prefix}{name}("),
+                            counts,
+                            indent,
+                            f,
+                        )?;
                     }
                 }
             }
@@ -501,6 +516,11 @@ impl Counters {
 
 impl humility::reflect::Load for CounterVariant {
     fn from_value(value: &Value) -> Result<Self> {
+        // `core::convert::Infallible`` generates `()` as its counter type.
+        if let Ok(Base::U0) = value.as_base() {
+            return Ok(Self::Single(0));
+        }
+
         let counter = value.as_struct()?;
         if counter.name().starts_with("AtomicU32") {
             let cell = UnsafeCell::from_value(&counter["v"])?;

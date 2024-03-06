@@ -67,7 +67,9 @@ use humility::reflect::{self, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
+use indexmap::IndexMap;
 use std::collections::BTreeMap;
+use std::fmt;
 
 #[derive(Parser, Debug)]
 #[clap(name = "counters", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -87,6 +89,10 @@ struct CountersArgs {
     /// show counters with zero values
     #[clap(long, short, conflicts_with = "list")]
     full: bool,
+
+    /// show IPC counters, grouped by IPC interface rather than by counter.
+    #[clap(long, short, conflicts_with = "list")]
+    ipc: bool,
 
     /// sort counters using the provided ordering.
     ///
@@ -112,6 +118,10 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
 
     let subargs = CountersArgs::try_parse_from(subargs)?;
+
+    if subargs.ipc {
+        return ipc_counter_dump(hubris, core, &subargs);
+    }
 
     // map of counters by task, sorted by task name.
     let mut counters: BTreeMap<&str, Vec<_>> = BTreeMap::new();
@@ -209,19 +219,9 @@ fn counter_dump(
     args: &CountersArgs,
     pad: &str,
 ) -> Result<()> {
-    let mut buf = vec![0u8; var.size];
-
-    core.halt()?;
-    core.read_8(var.addr, buf.as_mut_slice())?;
-    core.run()?;
-
-    let val: Value = Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
-
     // Counters may either be a standalone counters variable or a counted
     // ringbuf. We'll try to interpret the var as either one.
-    let mut counters = CountedRingbuf::from_value(&val)
-        .map(|r| r.counters)
-        .or_else(|_| Counters::from_value(&val))?;
+    let mut counters = load_counters(hubris, core, def, var)?;
 
     // Sort the counters.
     match (args.sort, args.full) {
@@ -257,6 +257,190 @@ fn counter_dump(
         println!("{pad}   <no counts recorded>")
     }
     Ok(())
+}
+
+fn ipc_counter_dump(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &CountersArgs,
+) -> Result<()> {
+    let mut ipcs = BTreeMap::new();
+    for (varname, var) in hubris.qualified_variables() {
+        if varname.ends_with("_CLIENT_COUNTERS") {
+            let task = taskname(hubris, var)?;
+            if let Some(ref name) = subargs.name {
+                if !varname.contains(name) {
+                    continue;
+                }
+            }
+
+            let def = hubris.lookup_struct(var.goff)?;
+            let ctrs = load_counters(hubris, core, def, var)?;
+            let iface = ipcs.entry(varname).or_insert_with(|| {
+                let name = def
+                    .name
+                    .split("::")
+                    .last()
+                    .map(|s| {
+                        s.trim_end_matches("Counts").trim_end_matches("Event")
+                    })
+                    .unwrap_or("");
+                IpcIface { name, counters: Default::default() }
+            });
+            IpcCounters::populate(&mut iface.counters, task, ctrs);
+        }
+    }
+
+    for (ipc_name, ctrs) in ipcs {
+        println!("{ipc_name}:");
+
+        if subargs.full {
+            println!("{ctrs:#}\n");
+        } else {
+            println!("{ctrs}\n");
+        }
+    }
+    Ok(())
+}
+
+fn load_counters(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    def: &HubrisStruct,
+    var: &HubrisVariable,
+) -> Result<Counters> {
+    let mut buf = vec![0u8; var.size];
+
+    core.halt()?;
+    core.read_8(var.addr, buf.as_mut_slice())?;
+    core.run()?;
+
+    let val: Value = Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
+
+    // Counters may either be a standalone counters variable or a counted
+    // ringbuf. We'll try to interpret the var as either one.
+    CountedRingbuf::from_value(&val)
+        .map(|r| r.counters)
+        .or_else(|_| Counters::from_value(&val))
+}
+
+struct IpcIface<'a> {
+    name: &'a str,
+    counters: IndexMap<String, IpcCounters<'a>>,
+}
+
+#[derive(Debug)]
+enum IpcCounters<'taskname> {
+    Single(IndexMap<&'taskname str, u32>),
+    Nested(IndexMap<String, IpcCounters<'taskname>>),
+}
+
+impl<'taskname> IpcCounters<'taskname> {
+    fn empty() -> Self {
+        Self::Nested(Default::default())
+    }
+
+    fn populate(
+        map: &mut IndexMap<String, IpcCounters<'taskname>>,
+        taskname: &'taskname str,
+        ctrs: Counters,
+    ) {
+        for (name, count) in ctrs.counts {
+            match count {
+                CounterVariant::Single(val) => {
+                    match map.entry(name).or_insert_with(|| {
+                        IpcCounters::Single(Default::default())
+                    }) {
+                        IpcCounters::Single(ref mut tasks) => {
+                            tasks.insert(taskname, val);
+                        }
+                        _ => panic!("expected single IPC counters"),
+                    }
+                }
+                CounterVariant::Nested(vals) => {
+                    if let IpcCounters::Nested(ref mut map) =
+                        map.entry(name).or_insert_with(Self::empty)
+                    {
+                        Self::populate(map, taskname, vals)
+                    } else {
+                        unreachable!()
+                    }
+                }
+            }
+        }
+    }
+
+    fn total(&self) -> u32 {
+        match self {
+            IpcCounters::Single(ref tasks) => tasks.values().sum(),
+            IpcCounters::Nested(ref map) => map.values().map(Self::total).sum(),
+        }
+    }
+
+    fn fmt_padded(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        indent: usize,
+        full: bool,
+    ) -> fmt::Result {
+        match self {
+            IpcCounters::Single(ref tasks) => {
+                for (task, &val) in tasks {
+                    if val != 0 || full {
+                        writeln!(
+                            f,
+                            "   |{:>indent$} task {task:<name_width$}{val:>8}",
+                            "",
+                            name_width = 80 - 5 - 8 - 5 - indent,
+                        )?;
+                    }
+                }
+            }
+            IpcCounters::Nested(ref map) => {
+                for (name, ctrs) in map {
+                    let total = ctrs.total();
+                    if total != 0 || full {
+                        writeln!(
+                            f,
+                            "   +{:->indent$}> {name:<name_width$}{total:>8}",
+                            "",
+                            name_width = 80 - 6 - 8 - indent
+                        )?;
+                        ctrs.fmt_padded(f, indent + 3, full)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for IpcIface<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { name, counters } = self;
+        const IPC_METHOD: &str = "IPC METHOD";
+        writeln!(
+            f,
+            "  {IPC_METHOD}{:>indent$}",
+            "TOTAL",
+            indent = 80 - 2 - IPC_METHOD.len()
+        )?;
+        for (ipc, ctrs) in counters {
+            let total = ctrs.total();
+            if total == 0 && !f.alternate() {
+                continue;
+            }
+            writeln!(
+                f,
+                "  {:<-indent$}{total:>8}",
+                format!("{name}.{ipc}()",),
+                indent = 80 - 2 - 8
+            )?;
+            ctrs.fmt_padded(f, 3, f.alternate())?;
+        }
+        Ok(())
+    }
 }
 
 fn taskname<'a>(
