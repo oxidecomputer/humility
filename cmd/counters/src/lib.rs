@@ -296,6 +296,17 @@ fn ipc_counter_dump(
         }
     }
 
+    if ipcs.is_empty() {
+        if let Some(ref name) = subargs.name {
+            bail!(
+                "no IPC counters found with names containing \"{}\" (-l to list)",
+                name
+            );
+        } else {
+            bail!("no IPC counters found");
+        }
+    }
+
     for (ipc_name, mut ctrs) in ipcs {
         if let Some(order) = subargs.sort {
             ctrs.sort(order);
