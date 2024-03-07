@@ -296,11 +296,16 @@ fn ipc_counter_dump(
         }
     }
 
-    for (ipc_name, ctrs) in ipcs {
+    for (ipc_name, mut ctrs) in ipcs {
+        if let Some(order) = subargs.sort {
+            ctrs.sort(order);
+        } else if !subargs.full {
+            ctrs.sort(Order::Value)
+        }
         if subargs.full {
-            println!("{ipc_name}\n{ctrs:#}\n");
+            println!("{ipc_name}\n{ctrs:#}");
         } else if !ctrs.counters.is_empty() {
-            println!("{ipc_name}\n{ctrs}\n");
+            println!("{ipc_name}\n{ctrs}");
         }
     }
     Ok(())
@@ -341,6 +346,36 @@ enum IpcCounters<'taskname> {
 impl<'taskname> IpcCounters<'taskname> {
     fn empty() -> Self {
         Self::Nested(Default::default())
+    }
+
+    fn sort(&mut self, order: Order) {
+        match self {
+            IpcCounters::Single(ref mut tasks) => match order {
+                Order::Decl => {}
+                Order::Value => {
+                    tasks.sort_unstable_by(|_, a, _, b| a.cmp(b).reverse());
+                }
+                Order::Alpha => {
+                    tasks.sort_unstable_by(|a, _, b, _| a.cmp(b));
+                }
+            },
+            IpcCounters::Nested(ref mut map) => {
+                for v in map.values_mut() {
+                    v.sort(order);
+                }
+                match order {
+                    Order::Decl => {}
+                    Order::Value => {
+                        map.sort_unstable_by(|_, a, _, b| {
+                            a.total().cmp(&b.total()).reverse()
+                        });
+                    }
+                    Order::Alpha => {
+                        map.sort_unstable_by(|a, _, b, _| a.cmp(b));
+                    }
+                }
+            }
+        }
     }
 
     fn populate(
@@ -499,6 +534,25 @@ impl<'taskname> IpcCounters<'taskname> {
         };
 
         Ok(())
+    }
+}
+
+impl IpcIface<'_> {
+    fn sort(&mut self, order: Order) {
+        for ctrs in self.counters.values_mut() {
+            ctrs.sort(order);
+        }
+        match order {
+            Order::Decl => {}
+            Order::Value => {
+                self.counters.sort_unstable_by(|_, a, _, b| {
+                    a.total().cmp(&b.total()).reverse()
+                });
+            }
+            Order::Alpha => {
+                self.counters.sort_unstable_by(|a, _, b, _| a.cmp(b));
+            }
+        }
     }
 }
 
