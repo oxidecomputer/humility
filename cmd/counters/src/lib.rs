@@ -287,17 +287,20 @@ fn ipc_counter_dump(
                     .unwrap_or("");
                 IpcIface { name, counters: Default::default() }
             });
-            IpcCounters::populate(&mut iface.counters, task, ctrs);
+            IpcCounters::populate(
+                &mut iface.counters,
+                task,
+                ctrs,
+                subargs.full,
+            );
         }
     }
 
     for (ipc_name, ctrs) in ipcs {
-        println!("{ipc_name}:");
-
         if subargs.full {
-            println!("{ctrs:#}\n");
-        } else {
-            println!("{ctrs}\n");
+            println!("{ipc_name}\n{ctrs:#}\n");
+        } else if !ctrs.counters.is_empty() {
+            println!("{ipc_name}\n{ctrs}\n");
         }
     }
     Ok(())
@@ -344,8 +347,12 @@ impl<'taskname> IpcCounters<'taskname> {
         map: &mut IndexMap<String, IpcCounters<'taskname>>,
         taskname: &'taskname str,
         ctrs: Counters,
+        full: bool,
     ) {
         for (name, count) in ctrs.counts {
+            if !full && count.total() == 0 {
+                continue;
+            }
             match count {
                 CounterVariant::Single(val) => {
                     match map.entry(name).or_insert_with(|| {
@@ -361,7 +368,7 @@ impl<'taskname> IpcCounters<'taskname> {
                     if let IpcCounters::Nested(ref mut map) =
                         map.entry(name).or_insert_with(Self::empty)
                     {
-                        Self::populate(map, taskname, vals)
+                        Self::populate(map, taskname, vals, full)
                     } else {
                         unreachable!()
                     }
@@ -377,40 +384,119 @@ impl<'taskname> IpcCounters<'taskname> {
         }
     }
 
-    fn fmt_padded(
+    fn fmt_counters(
         &self,
-        f: &mut fmt::Formatter<'_>,
+        prefix: &str,
         indent: usize,
-        full: bool,
+        f: &mut fmt::Formatter<'_>,
     ) -> fmt::Result {
+        let total_len = f.width().unwrap_or(8);
+        let mut has_written_any = false;
+        let print_arrow = |f: &mut fmt::Formatter<'_>, indent: usize| {
+            for _ in 1..indent {
+                f.write_str(" |     ")?;
+            }
+            f.write_str(" +---> ")?;
+            Ok(())
+        };
+        let total = self.total();
+        // if total == 0 && !f.alternate() {
+        //     return Ok(());
+        // }
+
         match self {
-            IpcCounters::Single(ref tasks) => {
-                for (task, &val) in tasks {
-                    if val != 0 || full {
-                        writeln!(
+            IpcCounters::Single(tasks) if tasks.len() == 1 => {
+                let (task, counter) = tasks.iter().next().unwrap();
+                write!(f, "{counter:>total_len$}")?;
+                print_arrow(f, indent)?;
+                write!(f, "{prefix}")?;
+
+                for _ in 0..prefix.matches('(').count() {
+                    f.write_str(")")?;
+                }
+                writeln!(f, " [{task}]")?;
+            }
+
+            IpcCounters::Single(tasks) => {
+                if !prefix.is_empty() {
+                    write!(f, "{total:>total_len$}")?;
+                    print_arrow(f, indent)?;
+                    write!(f, "{prefix}")?;
+                    for _ in 0..prefix.matches('(').count() {
+                        f.write_str(")")?;
+                    }
+                    f.write_str("\n")?;
+                }
+
+                for (&task, &count) in tasks {
+                    if count == 0 && !f.alternate() {
+                        continue;
+                    }
+                    if has_written_any {
+                        f.write_str("\n")?;
+                    } else {
+                        has_written_any = true
+                    };
+                    write!(f, "{count:>total_len$}",)?;
+                    print_arrow(f, indent + 1)?;
+                    write!(f, "[{task}]",)?;
+                }
+
+                if has_written_any {
+                    f.write_str("\n")?;
+                }
+            }
+            IpcCounters::Nested(ref counts) if counts.len() == 1 => {
+                let (name, counter) = counts.iter().next().unwrap();
+                let indent = if matches!(counter, IpcCounters::Single(counts) if counts.len() > 1)
+                {
+                    indent + 1
+                } else {
+                    indent
+                };
+                if prefix.is_empty() {
+                    counter.fmt_counters(name, indent, f)?;
+                } else {
+                    counter.fmt_counters(
+                        &format!("{prefix}({name}"),
+                        indent,
+                        f,
+                    )?;
+                }
+            }
+
+            IpcCounters::Nested(ref counts) => {
+                if !prefix.is_empty() {
+                    write!(f, "{total:>total_len$}")?;
+                    print_arrow(f, indent)?;
+                    write!(f, "{prefix}(_)")?;
+                    for _ in 0..prefix.matches('(').count() {
+                        f.write_str(")")?;
+                    }
+                    writeln!(f)?;
+                }
+                for (name, counter) in counts {
+                    // let total = counter.total();
+                    // if total == 0 && !f.alternate() {
+                    //     continue;
+                    // }
+                    // if has_written_any {
+                    //     f.write_str("\n")?;
+                    // } else {
+                    //     has_written_any = true
+                    // };
+                    if prefix.is_empty() {
+                        counter.fmt_counters(name, indent + 1, f)?;
+                    } else {
+                        counter.fmt_counters(
+                            &format!("{prefix}({name}"),
+                            indent + 1,
                             f,
-                            "   |{:>indent$} task {task:<name_width$}{val:>8}",
-                            "",
-                            name_width = 80 - 5 - 8 - 5 - indent,
                         )?;
                     }
                 }
             }
-            IpcCounters::Nested(ref map) => {
-                for (name, ctrs) in map {
-                    let total = ctrs.total();
-                    if total != 0 || full {
-                        writeln!(
-                            f,
-                            "   +{:->indent$}> {name:<name_width$}{total:>8}",
-                            "",
-                            name_width = 80 - 6 - 8 - indent
-                        )?;
-                        ctrs.fmt_padded(f, indent + 3, full)?;
-                    }
-                }
-            }
-        }
+        };
 
         Ok(())
     }
@@ -419,25 +505,14 @@ impl<'taskname> IpcCounters<'taskname> {
 impl fmt::Display for IpcIface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self { name, counters } = self;
-        const IPC_METHOD: &str = "IPC METHOD";
-        writeln!(
-            f,
-            "  {IPC_METHOD}{:>indent$}",
-            "TOTAL",
-            indent = 80 - 2 - IPC_METHOD.len()
-        )?;
         for (ipc, ctrs) in counters {
             let total = ctrs.total();
             if total == 0 && !f.alternate() {
                 continue;
             }
-            writeln!(
-                f,
-                "  {:<-indent$}{total:>8}",
-                format!("{name}.{ipc}()",),
-                indent = 80 - 2 - 8
-            )?;
-            ctrs.fmt_padded(f, 3, f.alternate())?;
+            writeln!(f, "{total:>8} {name}.{ipc}()",)?;
+            ctrs.fmt_counters("", 0, f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
