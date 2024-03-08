@@ -439,9 +439,9 @@ impl<'taskname> IpcCounters<'taskname> {
         let mut has_written_any = false;
         let print_arrow = |f: &mut fmt::Formatter<'_>, indent: usize| {
             for _ in 1..indent {
-                write!(f, "{}", " |     ".dimmed())?;
+                f.write_str(" |     ")?;
             }
-            write!(f, "{}", " +---> ".dimmed())?;
+            f.write_str(" +---> ")?;
             Ok(())
         };
         let total = self.total();
@@ -585,14 +585,7 @@ impl fmt::Display for IpcIface<'_> {
             if total == 0 && !f.alternate() {
                 continue;
             }
-            writeln!(
-                f,
-                "{total:>8} {}{}{}{}",
-                name.bold(),
-                ".".bold(),
-                ipc.bold(),
-                "()".bold()
-            )?;
+            writeln!(f, "{total:>8} {}::{}()", name.bold(), ipc.bold(),)?;
             ctrs.fmt_counters("", 0, f)?;
             writeln!(f)?;
         }
