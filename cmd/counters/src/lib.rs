@@ -61,6 +61,7 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, ValueEnum};
+use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
@@ -438,33 +439,58 @@ impl<'taskname> IpcCounters<'taskname> {
         let mut has_written_any = false;
         let print_arrow = |f: &mut fmt::Formatter<'_>, indent: usize| {
             for _ in 1..indent {
-                f.write_str(" |     ")?;
+                write!(f, "{}", " |     ".dimmed())?;
             }
-            f.write_str(" +---> ")?;
+            write!(f, "{}", " +---> ".dimmed())?;
             Ok(())
         };
         let total = self.total();
+
+        let print_parens = |f: &mut fmt::Formatter<'_>| {
+            for _ in 0..prefix.matches('(').count() {
+                write!(
+                    f,
+                    "{}",
+                    if prefix.contains("Err") {
+                        ")".red()
+                    } else {
+                        ")".green()
+                    }
+                )?;
+            }
+            Ok(())
+        };
+
+        let print_single_prefix = |f: &mut fmt::Formatter<'_>| {
+            if !prefix.is_empty() {
+                write!(
+                    f,
+                    "{}",
+                    if prefix.contains("Err") {
+                        prefix.red()
+                    } else {
+                        prefix.green()
+                    }
+                )?;
+                print_parens(f)?;
+                f.write_str(" ")?;
+            }
+            Ok::<_, fmt::Error>(())
+        };
         match self {
             IpcCounters::Single(tasks) if tasks.len() == 1 => {
                 let (task, counter) = tasks.iter().next().unwrap();
                 write!(f, "{counter:>total_len$}")?;
                 print_arrow(f, indent)?;
-                write!(f, "{prefix}")?;
-
-                for _ in 0..prefix.matches('(').count() {
-                    f.write_str(")")?;
-                }
-                writeln!(f, " [{task}]")?;
+                print_single_prefix(f)?;
+                writeln!(f, "[{task}]")?;
             }
 
             IpcCounters::Single(tasks) => {
                 if !prefix.is_empty() {
                     write!(f, "{total:>total_len$}")?;
                     print_arrow(f, indent)?;
-                    write!(f, "{prefix}")?;
-                    for _ in 0..prefix.matches('(').count() {
-                        f.write_str(")")?;
-                    }
+                    print_single_prefix(f)?;
                     f.write_str("\n")?;
                 }
 
@@ -506,10 +532,12 @@ impl<'taskname> IpcCounters<'taskname> {
                 if !prefix.is_empty() {
                     write!(f, "{total:>total_len$}")?;
                     print_arrow(f, indent)?;
-                    write!(f, "{prefix}(_)")?;
-                    for _ in 0..prefix.matches('(').count() {
-                        f.write_str(")")?;
+                    if prefix.contains("Err") {
+                        write!(f, "{}{}", prefix.red(), "(_)".red())?;
+                    } else {
+                        write!(f, "{}{}", prefix.green(), "(_)".green())?;
                     }
+                    print_parens(f)?;
                     writeln!(f)?;
                 }
                 for (name, counter) in counts {
@@ -557,7 +585,14 @@ impl fmt::Display for IpcIface<'_> {
             if total == 0 && !f.alternate() {
                 continue;
             }
-            writeln!(f, "{total:>8} {name}.{ipc}()",)?;
+            writeln!(
+                f,
+                "{total:>8} {}{}{}{}",
+                name.bold(),
+                ".".bold(),
+                ipc.bold(),
+                "()".bold()
+            )?;
             ctrs.fmt_counters("", 0, f)?;
             writeln!(f)?;
         }
