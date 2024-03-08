@@ -313,9 +313,7 @@ fn ipc_counter_dump(
         } else if !subargs.full {
             ctrs.sort(Order::Value)
         }
-        if subargs.full {
-            println!("{ipc_name}\n{ctrs:#}");
-        } else if !ctrs.counters.is_empty() {
+        if !ctrs.counters.is_empty() {
             println!("{ipc_name}\n{ctrs}");
         }
     }
@@ -446,10 +444,6 @@ impl<'taskname> IpcCounters<'taskname> {
             Ok(())
         };
         let total = self.total();
-        // if total == 0 && !f.alternate() {
-        //     return Ok(());
-        // }
-
         match self {
             IpcCounters::Single(tasks) if tasks.len() == 1 => {
                 let (task, counter) = tasks.iter().next().unwrap();
@@ -475,9 +469,6 @@ impl<'taskname> IpcCounters<'taskname> {
                 }
 
                 for (&task, &count) in tasks {
-                    if count == 0 && !f.alternate() {
-                        continue;
-                    }
                     if has_written_any {
                         f.write_str("\n")?;
                     } else {
@@ -522,15 +513,6 @@ impl<'taskname> IpcCounters<'taskname> {
                     writeln!(f)?;
                 }
                 for (name, counter) in counts {
-                    // let total = counter.total();
-                    // if total == 0 && !f.alternate() {
-                    //     continue;
-                    // }
-                    // if has_written_any {
-                    //     f.write_str("\n")?;
-                    // } else {
-                    //     has_written_any = true
-                    // };
                     if prefix.is_empty() {
                         counter.fmt_counters(name, indent + 1, f)?;
                     } else {
