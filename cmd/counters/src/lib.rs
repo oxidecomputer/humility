@@ -58,6 +58,38 @@
 //!            6 FanAdded
 //! ```
 //!
+//!
+//! The `--ipc` argument shows IPC client counters generated automatically by
+//! `idol`, showing the total request count for a given IPC and per-client-task
+//! breakdowns. For example:`
+//!
+//! ```console
+//! $ humility -d ./hubris.core.0 counters --ipc`
+//! humility: attached to dump
+//! drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+//!        6 HostFlash::get_mux()
+//!        6 +---> Ok [host_sp_comms]
+//!
+//!        2 HostFlash::set_mux()
+//!        2 +---> Ok
+//!        1 |      +---> [gimlet_seq]
+//!        1 |      +---> [host_sp_comms]
+//!
+//!        1 HostFlash::get_dev()
+//!        1 +---> Ok [host_sp_comms]
+//!
+//!
+//! drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+//!     2017 Sequencer::get_state()
+//!     2017 +---> Ok
+//!     1386 |      +---> [thermal]
+//!      626 |      +---> [power]
+//!        5 |      +---> [host_sp_comms]
+//! ...
+//! ```
+//!
+//! When displaying counters by IPC, substring filtering is performed on the
+//! counters variable, but *not* on the client task name.
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, ValueEnum};
