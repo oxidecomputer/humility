@@ -222,6 +222,18 @@ struct CountersArgs {
 
     #[clap(flatten)]
     opts: Options,
+
+    /// select the format to output counters.
+    ///
+    /// * "text": format counters in a human-readable ASCII text format (the
+    ///   default)
+    ///
+    /// * "csv": outputs counters in comma-separated values (CSV) format,
+    ///   suitable for use with other tools.
+    ///
+    /// [conflicts with: --ipc]
+    #[clap(long, short, value_enum, default_value_t = Output::Text)]
+    output: Output,
 }
 
 /// Arguments that conflict with the `list` subcommand, but apply to both the
@@ -252,6 +264,18 @@ enum Subcmd {
     List {
         /// show only counters whose names include the provided substring.
         name: Option<String>,
+
+        /// select the format to output counters.
+        ///
+        /// * "text": format counters in a human-readable ASCII text format (the
+        ///   default)
+        ///
+        /// * "csv": outputs counters in comma-separated values (CSV) format,
+        ///   suitable for use with other tools.
+        ///
+        /// [conflicts with: --ipc]
+        #[clap(long, short, value_enum, default_value_t = Output::Text)]
+        output: Output,
     },
 
     /// show IPC counters, grouped by IPC interface rather than by counter.
@@ -272,11 +296,19 @@ enum Order {
 impl CountersArgs {
     fn name(&self) -> Option<&str> {
         match self.command {
-            Some(Subcmd::List { ref name }) => name.as_deref(),
+            Some(Subcmd::List { ref name, .. }) => name.as_deref(),
             Some(Subcmd::Ipc(ref ipc)) => ipc.opts.name.as_deref(),
             _ => self.opts.name.as_deref(),
         }
     }
+}
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "kebab-case")]
+enum Output {
+    /// Output human-readable ASCII text (the default).
+    Text,
+    /// Output comma-separated values (CSV).
+    Csv,
 }
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
@@ -341,56 +373,140 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
         vars.sort_by_key(|&(v, _)| v);
     }
 
-    if let Some(Subcmd::List { .. }) = subargs.command {
-        for (t, ctrs) in counters {
-            println!("{t}:");
-            println!("    {:<10} {:>5} VARIABLE", "ADDR", "SIZE",);
-            for ((name, var), _) in ctrs {
-                println!("    {:<#010x} {:>5} {name}", var.addr, var.size)
+    if let Some(Subcmd::List { output, .. }) = subargs.command {
+        match output {
+            Output::Text => {
+                for (t, ctrs) in &counters {
+                    println!("{t}:");
+                    println!("    {:<10} {:>5} VARIABLE", "ADDR", "SIZE",);
+                    for ((name, HubrisVariable { addr, size, .. }), _) in ctrs {
+                        println!("    {addr:<#010x} {size:>5} {name}",)
+                    }
+                }
+            }
+            Output::Csv => {
+                println!("task,variable,addr,size");
+                for (t, ctrs) in &counters {
+                    for ((name, HubrisVariable { addr, size, .. }), _) in ctrs {
+                        println!("{t},{name},{addr:#x},{size}");
+                    }
+                }
             }
         }
-
         return Ok(());
     }
 
-    for (t, ctrs) in counters {
+    if subargs.output == Output::Csv {
+        println!("task,variable,variant,count");
+    }
+
+    for (t, ctrs) in &counters {
         // Try not to use `?` here, because it causes one bad counter to make
-        // them all unavailable.
-        println!("{t}\n |");
-        let mut ctrs = ctrs.iter().peekable();
-        while let Some(((varname, var), def)) = ctrs.next() {
-            if let Some(def) = def {
-                println!(" +---> {varname}:");
-                let pad = if ctrs.peek().is_some() { " |  " } else { "    " };
-                if let Err(e) =
-                    counter_dump(hubris, core, def, var, &subargs.opts, pad)
-                {
-                    if subargs.opts.verbose {
-                        humility::msg!("counter dump failed: {e:?}");
-                    } else {
-                        humility::msg!("counter dump failed: {e}");
+        // them all unavailable. Instead, construct an iterator of
+        // `Result<Counters, Error>`.
+        let resolved_counters = ctrs.iter().map(|((varname, var), def)| {
+            let ctr = def
+                .ok_or_else(|| {
+                    anyhow::anyhow!("could not look up type: {:?}", var.goff)
+                })
+                .and_then(|def| load_counters(hubris, core, def, var));
+            (varname, ctr)
+        });
+        match subargs.output {
+            Output::Csv => {
+                for (varname, ctr) in resolved_counters {
+                    match ctr {
+                        Err(e) if subargs.opts.verbose => {
+                            humility::msg!("counter dump failed: {e:?}")
+                        }
+                        Err(e) => humility::msg!("counter dump failed: {e}"),
+                        Ok(mut ctr) => {
+                            counters_dump_csv(
+                                &mut ctr,
+                                varname,
+                                t,
+                                &subargs.opts,
+                            );
+                        }
                     }
                 }
-            } else {
-                humility::msg!("could not look up type: {:?}", var.goff);
+            }
+            Output::Text => {
+                println!("{t}\n |");
+                let mut ctrs = resolved_counters.peekable();
+                while let Some((varname, ctr)) = ctrs.next() {
+                    println!(" +---> {varname}:");
+                    let pad =
+                        if ctrs.peek().is_some() { " |  " } else { "    " };
+                    match ctr {
+                        Err(e) if subargs.opts.verbose => {
+                            humility::msg!("counter dump failed: {e:?}")
+                        }
+                        Err(e) => humility::msg!("counter dump failed: {e}"),
+                        Ok(mut ctr) => {
+                            counter_dump(&mut ctr, &subargs.opts, pad)
+                        }
+                    }
+                }
             }
         }
     }
     Ok(())
 }
 
-fn counter_dump(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    def: &HubrisStruct,
-    var: &HubrisVariable,
+fn counters_dump_csv(
+    counters: &mut Counters,
+    varname: &str,
+    taskname: &str,
     opts: &Options,
-    pad: &str,
-) -> Result<()> {
-    // Counters may either be a standalone counters variable or a counted
-    // ringbuf. We'll try to interpret the var as either one.
-    let mut counters = load_counters(hubris, core, def, var)?;
+) {
+    // Sort the counters.
+    match opts.sort {
+        Some(Order::Value) => counters.sort_unstable_by(
+            &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
+                a.total().cmp(&b.total()).reverse()
+            },
+        ),
+        Some(Order::Alpha) => {
+            counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b))
+        }
+        _ => {}
+    }
 
+    fn csv_dump(
+        taskname: &str,
+        varname: &str,
+        prefix: &mut String,
+        counters: &Counters,
+        opts: &Options,
+    ) {
+        for (name, ctr) in &counters.counts {
+            if ctr.total() == 0 && !opts.full {
+                continue;
+            }
+            match ctr {
+                CounterVariant::Single(count) => {
+                    print!("{taskname},{varname},{prefix}{name}");
+                    for _ in 0..prefix.matches('(').count() {
+                        print!(")");
+                    }
+                    println!(",{count}");
+                }
+                CounterVariant::Nested(counts) => {
+                    let pfxlen = prefix.len();
+                    prefix.push_str(name);
+                    prefix.push('(');
+                    csv_dump(taskname, varname, prefix, counts, opts);
+                    prefix.truncate(pfxlen);
+                }
+            }
+        }
+    }
+
+    csv_dump(taskname, varname, &mut String::new(), counters, opts);
+}
+
+fn counter_dump(counters: &mut Counters, opts: &Options, pad: &str) {
     // Sort the counters.
     match opts {
         // If `--full` is set, zero valued counters are displayed, so it's nice
@@ -426,7 +542,6 @@ fn counter_dump(
     } else {
         println!("{pad}   <no counts recorded>")
     }
-    Ok(())
 }
 
 fn taskname<'a>(
