@@ -8,3 +8,4 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.ouray.63 counters --ipc"
 
+status.code = 1
