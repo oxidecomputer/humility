@@ -1389,6 +1389,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 3.2.23",
+ "colored",
  "humility-cli",
  "humility-cmd",
  "humility-core",
