@@ -1395,6 +1395,8 @@ dependencies = [
  "humility-core",
  "humility-doppel",
  "indexmap 1.9.3",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2322,6 +2324,7 @@ dependencies = [
  "anyhow",
  "humility-core",
  "indexmap 1.9.3",
+ "serde",
  "zerocopy",
 ]
 

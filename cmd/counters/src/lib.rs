@@ -207,6 +207,7 @@ use humility::reflect::{self, Load, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
+use indexmap::IndexMap;
 use std::collections::BTreeMap;
 
 mod ipc;
@@ -309,6 +310,7 @@ enum Output {
     Text,
     /// Output comma-separated values (CSV).
     Csv,
+    Json,
 }
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
@@ -392,6 +394,21 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                     }
                 }
             }
+            Output::Json => {
+                let mut values = Vec::new();
+                for (t, ctrs) in counters {
+                    for ((name, HubrisVariable { addr, size, .. }), _) in ctrs {
+                        values.push(serde_json::json!({
+                            "task": t,
+                            "name": name,
+                            "addr": addr,
+                            "size": size,
+                        }));
+                    }
+                }
+
+                serde_json::to_writer_pretty(std::io::stdout(), &values)?;
+            }
         }
         return Ok(());
     }
@@ -400,7 +417,8 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
         println!("task,variable,variant,count");
     }
 
-    for (t, ctrs) in &counters {
+    let mut json: IndexMap<&str, IndexMap<_, _>> = IndexMap::new();
+    for (t, ctrs) in counters {
         // Try not to use `?` here, because it causes one bad counter to make
         // them all unavailable. Instead, construct an iterator of
         // `Result<Counters, Error>`.
@@ -431,6 +449,21 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                     }
                 }
             }
+            Output::Json => {
+                for (varname, ctr) in resolved_counters {
+                    match ctr {
+                        Err(e) if subargs.opts.verbose => {
+                            humility::msg!("counter dump failed: {e:?}")
+                        }
+                        Err(e) => humility::msg!("counter dump failed: {e}"),
+                        Ok(ctr) => {
+                            json.entry(t)
+                                .or_default()
+                                .insert(varname.to_owned(), ctr);
+                        }
+                    }
+                }
+            }
             Output::Text => {
                 println!("{t}\n |");
                 let mut ctrs = resolved_counters.peekable();
@@ -450,6 +483,11 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 }
             }
         }
+    }
+
+    if !json.is_empty() {
+        assert_eq!(subargs.output, Output::Json);
+        serde_json::to_writer_pretty(std::io::stdout(), &json)?;
     }
     Ok(())
 }

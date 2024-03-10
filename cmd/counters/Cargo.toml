@@ -9,8 +9,10 @@ anyhow = { workspace = true }
 colored = { workspace = true }
 clap = { workspace = true }
 indexmap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 humility = { workspace = true }
-humility-doppel = { workspace = true }
+humility-doppel = { workspace = true, features = ["serde"] }
 humility-cmd = { workspace = true }
 humility-cli  = {  workspace = true }
