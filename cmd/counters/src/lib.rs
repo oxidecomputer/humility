@@ -639,9 +639,6 @@ impl fmt::Display for IpcIface<'_> {
         let Self { name, counters } = self;
         for (ipc, ctrs) in counters {
             let total = ctrs.total();
-            if total == 0 && !f.alternate() {
-                continue;
-            }
             writeln!(f, "{total:>8} {}::{}()", name.bold(), ipc.bold(),)?;
             ctrs.fmt_counters("", 0, f)?;
             writeln!(f)?;
