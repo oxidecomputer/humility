@@ -68,23 +68,42 @@
 //! humility: attached to dump
 //! drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
 //!        6 HostFlash::get_mux()
-//!        6 +---> Ok [host_sp_comms]
+//!        6 +---> Ok <---+ [host_sp_comms]
 //!
 //!        2 HostFlash::set_mux()
 //!        2 +---> Ok
-//!        1 |      +---> [gimlet_seq]
-//!        1 |      +---> [host_sp_comms]
+//!        1 |     <---+ [gimlet_seq]
+//!        1 |     <---+ [host_sp_comms]
 //!
 //!        1 HostFlash::get_dev()
-//!        1 +---> Ok [host_sp_comms]
+//!        1 +---> Ok <---+ [host_sp_comms]
 //!
 //!
 //! drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
 //!     2017 Sequencer::get_state()
 //!     2017 +---> Ok
-//!     1386 |      +---> [thermal]
-//!      626 |      +---> [power]
-//!        5 |      +---> [host_sp_comms]
+//!     1386 |     <---+ [thermal]
+//!      626 |     <---+ [power]
+//!        5 |     <---+ [host_sp_comms]
+//!
+//!
+//! drv_spi_api::__SPI_CLIENT_COUNTERS
+//!    67589 Spi::exchange()
+//!    67589 +---> Ok
+//!    67580 |     <---+ [gimlet_seq]
+//!        8 |     <---+ [net]
+//!        1 |     <---+ [host_sp_comms]
+//!
+//!      592 Spi::write()
+//!      592 +---> Ok
+//!      530 |     <---+ [gimlet_seq]
+//!       62 |     <---+ [net]
+//!
+//!        4 Spi::lock()
+//!        4 +---> Ok <---+ [gimlet_seq]
+//!
+//!        1 Spi::release()
+//!        1 +---> Ok <---+ [gimlet_seq]
 //! ...
 //! ```
 //!
@@ -469,11 +488,12 @@ impl<'taskname> IpcCounters<'taskname> {
     ) -> fmt::Result {
         let total_len = f.width().unwrap_or(8);
         let mut has_written_any = false;
-        let print_arrow = |f: &mut fmt::Formatter<'_>, indent: usize| {
+        const REQ_ARROW: &str = "<---+";
+        const RSP_ARROW: &str = "+--->";
+        let print_indent = |f: &mut fmt::Formatter<'_>, indent: usize| {
             for _ in 1..indent {
-                f.write_str(" |     ")?;
+                f.write_str("|     ")?
             }
-            f.write_str(" +---> ")?;
             Ok(())
         };
         let total = self.total();
@@ -512,16 +532,20 @@ impl<'taskname> IpcCounters<'taskname> {
         match self {
             IpcCounters::Single(tasks) if tasks.len() == 1 => {
                 let (task, counter) = tasks.iter().next().unwrap();
-                write!(f, "{counter:>total_len$}")?;
-                print_arrow(f, indent)?;
-                print_single_prefix(f)?;
-                writeln!(f, "[{task}]")?;
+                write!(f, "{counter:>total_len$} ")?;
+                print_indent(f, indent)?;
+                if !prefix.is_empty() {
+                    write!(f, "{RSP_ARROW} ")?;
+                    print_single_prefix(f)?;
+                }
+                writeln!(f, "{REQ_ARROW} [{task}]",)?;
             }
 
             IpcCounters::Single(tasks) => {
                 if !prefix.is_empty() {
-                    write!(f, "{total:>total_len$}")?;
-                    print_arrow(f, indent)?;
+                    write!(f, "{total:>total_len$} ")?;
+                    print_indent(f, indent)?;
+                    write!(f, "{RSP_ARROW} ")?;
                     print_single_prefix(f)?;
                     f.write_str("\n")?;
                 }
@@ -532,9 +556,9 @@ impl<'taskname> IpcCounters<'taskname> {
                     } else {
                         has_written_any = true
                     };
-                    write!(f, "{count:>total_len$}",)?;
-                    print_arrow(f, indent + 1)?;
-                    write!(f, "[{task}]",)?;
+                    write!(f, "{count:>total_len$} ",)?;
+                    print_indent(f, indent + 1)?;
+                    write!(f, "{REQ_ARROW} [{task}]",)?;
                 }
 
                 if has_written_any {
@@ -562,12 +586,13 @@ impl<'taskname> IpcCounters<'taskname> {
 
             IpcCounters::Nested(ref counts) => {
                 if !prefix.is_empty() {
-                    write!(f, "{total:>total_len$}")?;
-                    print_arrow(f, indent)?;
+                    write!(f, "{total:>total_len$} ")?;
+                    print_indent(f, indent)?;
+                    f.write_str(RSP_ARROW)?;
                     if prefix.contains("Err") {
-                        write!(f, "{}{}", prefix.red(), "(_)".red())?;
+                        write!(f, " {}{}", prefix.red(), "(_)".red())?;
                     } else {
-                        write!(f, "{}{}", prefix.green(), "(_)".green())?;
+                        write!(f, " {}{}", prefix.green(), "(_)".green())?;
                     }
                     print_parens(f)?;
                     writeln!(f)?;

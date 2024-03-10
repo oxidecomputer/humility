@@ -1,185 +1,185 @@
 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
        6 HostFlash::get_mux()
-       6 +---> Ok [host_sp_comms]
+       6 +---> Ok <---+ [host_sp_comms]
 
        2 HostFlash::set_mux()
        2 +---> Ok 
-       1 |      +---> [gimlet_seq]
-       1 |      +---> [host_sp_comms]
+       1 |     <---+ [gimlet_seq]
+       1 |     <---+ [host_sp_comms]
 
        1 HostFlash::get_dev()
-       1 +---> Ok [host_sp_comms]
+       1 +---> Ok <---+ [host_sp_comms]
 
 
 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
     2017 Sequencer::get_state()
     2017 +---> Ok 
-    1386 |      +---> [thermal]
-     626 |      +---> [power]
-       5 |      +---> [host_sp_comms]
+    1386 |     <---+ [thermal]
+     626 |     <---+ [power]
+       5 |     <---+ [host_sp_comms]
 
 
 drv_spi_api::__SPI_CLIENT_COUNTERS
    67589 Spi::exchange()
    67589 +---> Ok 
-   67580 |      +---> [gimlet_seq]
-       8 |      +---> [net]
-       1 |      +---> [host_sp_comms]
+   67580 |     <---+ [gimlet_seq]
+       8 |     <---+ [net]
+       1 |     <---+ [host_sp_comms]
 
      592 Spi::write()
      592 +---> Ok 
-     530 |      +---> [gimlet_seq]
-      62 |      +---> [net]
+     530 |     <---+ [gimlet_seq]
+      62 |     <---+ [net]
 
        4 Spi::lock()
-       4 +---> Ok [gimlet_seq]
+       4 +---> Ok <---+ [gimlet_seq]
 
        1 Spi::release()
-       1 +---> Ok [gimlet_seq]
+       1 +---> Ok <---+ [gimlet_seq]
 
 
 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
   135574 Sys::gpio_set_reset()
-  135316 +---> [spi2_driver]
-     220 +---> [i2c_driver]
-      15 +---> [gimlet_seq]
-      10 +---> [hf]
-       8 +---> [net]
-       3 +---> [host_sp_comms]
-       1 +---> [sprot]
-       1 +---> [user_leds]
+  135316 <---+ [spi2_driver]
+     220 <---+ [i2c_driver]
+      15 <---+ [gimlet_seq]
+      10 <---+ [hf]
+       8 <---+ [net]
+       3 <---+ [host_sp_comms]
+       1 <---+ [sprot]
+       1 <---+ [user_leds]
 
    16832 Sys::gpio_read_input()
-   16796 +---> [gimlet_seq]
-      36 +---> [i2c_driver]
+   16796 <---+ [gimlet_seq]
+      36 <---+ [i2c_driver]
 
     6351 Sys::gpio_configure_raw()
-    6284 +---> [i2c_driver]
-      24 +---> [spi2_driver]
-      14 +---> [gimlet_seq]
-      13 +---> [net]
-       6 +---> [hf]
-       4 +---> [sprot]
-       2 +---> [spd]
-       2 +---> [host_sp_comms]
-       1 +---> [control_plane_agent]
-       1 +---> [user_leds]
+    6284 <---+ [i2c_driver]
+      24 <---+ [spi2_driver]
+      14 <---+ [gimlet_seq]
+      13 <---+ [net]
+       6 <---+ [hf]
+       4 <---+ [sprot]
+       2 <---+ [spd]
+       2 <---+ [host_sp_comms]
+       1 <---+ [control_plane_agent]
+       1 <---+ [user_leds]
 
       14 Sys::enable_clock_raw()
       14 +---> Ok 
-       4 |      +---> [net]
-       3 |      +---> [i2c_driver]
-       1 |      +---> [spi2_driver]
-       1 |      +---> [spd]
-       1 |      +---> [hash_driver]
-       1 |      +---> [hf]
-       1 |      +---> [host_sp_comms]
-       1 |      +---> [control_plane_agent]
-       1 |      +---> [sprot]
+       4 |     <---+ [net]
+       3 |     <---+ [i2c_driver]
+       1 |     <---+ [spi2_driver]
+       1 |     <---+ [spd]
+       1 |     <---+ [hash_driver]
+       1 |     <---+ [hf]
+       1 |     <---+ [host_sp_comms]
+       1 |     <---+ [control_plane_agent]
+       1 |     <---+ [sprot]
 
       12 Sys::leave_reset_raw()
       12 +---> Ok 
-       3 |      +---> [i2c_driver]
-       2 |      +---> [net]
-       1 |      +---> [spi2_driver]
-       1 |      +---> [spd]
-       1 |      +---> [hash_driver]
-       1 |      +---> [hf]
-       1 |      +---> [host_sp_comms]
-       1 |      +---> [control_plane_agent]
-       1 |      +---> [sprot]
+       3 |     <---+ [i2c_driver]
+       2 |     <---+ [net]
+       1 |     <---+ [spi2_driver]
+       1 |     <---+ [spd]
+       1 |     <---+ [hash_driver]
+       1 |     <---+ [hf]
+       1 |     <---+ [host_sp_comms]
+       1 |     <---+ [control_plane_agent]
+       1 |     <---+ [sprot]
 
        5 Sys::enter_reset_raw()
        5 +---> Ok 
-       2 |      +---> [net]
-       1 |      +---> [spi2_driver]
-       1 |      +---> [hash_driver]
-       1 |      +---> [sprot]
+       2 |     <---+ [net]
+       1 |     <---+ [spi2_driver]
+       1 |     <---+ [hash_driver]
+       1 |     <---+ [sprot]
 
        1 Sys::disable_clock_raw()
-       1 +---> Ok [hash_driver]
+       1 +---> Ok <---+ [hash_driver]
 
        1 Sys::read_uid()
-       1 +---> [host_sp_comms]
+       1 <---+ [host_sp_comms]
 
 
 task_jefe_api::__JEFE_CLIENT_COUNTERS
        5 Jefe::set_state()
-       5 +---> [gimlet_seq]
+       5 <---+ [gimlet_seq]
 
        4 Jefe::get_state()
-       2 +---> [net]
-       2 +---> [spd]
+       2 <---+ [net]
+       2 <---+ [spd]
 
        1 Jefe::set_reset_reason()
-       1 +---> [sys]
+       1 <---+ [sys]
 
 
 task_net_api::__NET_CLIENT_COUNTERS
     1380 Net::send_packet()
-    1380 +---> Ok [udpbroadcast]
+    1380 +---> Ok <---+ [udpbroadcast]
 
        3 Net::recv_packet()
        3 +---> Err(QueueEmpty) 
-       1 |      +---> [gimlet_inspector]
-       1 |      +---> [udpecho]
-       1 |      +---> [dump_agent]
+       1 |     <---+ [gimlet_inspector]
+       1 |     <---+ [udpecho]
+       1 |     <---+ [dump_agent]
 
        2 Net::get_mac_address()
-       1 +---> [udpbroadcast]
-       1 +---> [control_plane_agent]
+       1 <---+ [udpbroadcast]
+       1 <---+ [control_plane_agent]
 
        1 Net::get_spare_mac_addresses()
-       1 +---> [host_sp_comms]
+       1 <---+ [host_sp_comms]
 
 
 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
     9280 Packrat::get_spd_data()
-    9280 +---> [spd]
+    9280 <---+ [spd]
 
     4656 Packrat::get_spd_present()
-    4640 +---> [spd]
-      16 +---> [host_sp_comms]
+    4640 <---+ [spd]
+      16 <---+ [host_sp_comms]
 
       32 Packrat::set_spd_eeprom()
-      32 +---> [gimlet_seq]
+      32 <---+ [gimlet_seq]
 
       16 Packrat::get_full_spd_data()
-      16 +---> [host_sp_comms]
+      16 <---+ [host_sp_comms]
 
        8 Packrat::get_identity()
        8 +---> Ok 
-       7 |      +---> [host_sp_comms]
-       1 |      +---> [udpbroadcast]
+       7 |     <---+ [host_sp_comms]
+       1 |     <---+ [udpbroadcast]
 
        1 Packrat::get_mac_address_block()
-       1 +---> Ok [net]
+       1 +---> Ok <---+ [net]
 
        1 Packrat::set_mac_address_block()
-       1 +---> Ok [gimlet_seq]
+       1 +---> Ok <---+ [gimlet_seq]
 
        1 Packrat::set_identity()
-       1 +---> Ok [gimlet_seq]
+       1 +---> Ok <---+ [gimlet_seq]
 
        1 Packrat::get_next_boot_host_startup_options()
-       1 +---> [host_sp_comms]
+       1 <---+ [host_sp_comms]
 
 
 task_sensor_api::__SENSOR_CLIENT_COUNTERS
    76717 Sensor::post()
    76717 +---> Ok 
-   50300 |      +---> [power]
-   26417 |      +---> [thermal]
+   50300 |     <---+ [power]
+   26417 |     <---+ [thermal]
 
    19804 Sensor::get_reading()
-   18101 +---> Ok [thermal]
+   18101 +---> Ok <---+ [thermal]
     1703 +---> Err(_)
-    1701 |      +---> Err(NotPresent) [thermal]
-       2 |      +---> Err(DeviceError) [thermal]
+    1701 |     +---> Err(NotPresent) <---+ [thermal]
+       2 |     +---> Err(DeviceError) <---+ [thermal]
 
     6225 Sensor::nodata()
     6225 +---> Ok 
-    3536 |      +---> [power]
-    2689 |      +---> [thermal]
+    3536 |     <---+ [power]
+    2689 |     <---+ [thermal]
 
 
