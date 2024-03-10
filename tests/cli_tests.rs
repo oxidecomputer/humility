@@ -194,6 +194,7 @@ fn make_all_tests() -> Result<()> {
         Test::witharg(Kind::Postmortem, "counters-list", "counters", "--list"),
         Test::witharg(Kind::Postmortem, "counters-full", "counters", "--full"),
         Test::witharg(Kind::Postmortem, "counters-ipc", "counters", "--ipc"),
+        Test::witharg(Kind::Postmortem, "counters-ipc-full", "counters", "-if"),
         Test::witharg(
             Kind::Postmortem,
             "counters-arg",
