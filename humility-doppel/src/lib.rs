@@ -341,12 +341,16 @@ pub struct CountedRingbuf {
 
 /// Double of counter structs generated the `counters` crate in Hubris.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Counters {
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub counts: IndexMap<String, CounterVariant>,
 }
 
 /// The counter for one variant in a set of [`Counters`].
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum CounterVariant {
     /// A single variant atomic counter.
     Single(u32),

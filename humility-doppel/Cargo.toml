@@ -11,3 +11,4 @@ indexmap.workspace = true
 zerocopy.workspace = true
 
 humility.workspace = true
+serde = { workspace = true, optional = true}
