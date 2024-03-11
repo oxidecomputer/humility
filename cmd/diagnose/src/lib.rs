@@ -18,7 +18,6 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
@@ -112,7 +111,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     );
 
     // Read the initial task table snapshot.
-    let tasks_0 = load_tcbs(hubris, core, base, task_count, &task_t)?;
+    let tasks_0 = Task::load_tcbs(hubris, core, base, task_count, &task_t)?;
     // Load the descriptors; these are not expected to change.
     let descs = load_task_descs(hubris, core, &tasks_0)?;
     // Find the names for each descriptor; these too are not expected to change.
@@ -197,7 +196,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
 
     // Take a new snapshot.
     let ticks_1 = core.read_word_64(hubris.lookup_variable("TICKS")?.addr)?;
-    let tasks_1 = load_tcbs(hubris, core, base, task_count, &task_t)?;
+    let tasks_1 = Task::load_tcbs(hubris, core, base, task_count, &task_t)?;
 
     // Note: we are leaving core halted here.
 
@@ -324,7 +323,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
         core.halt()?;
 
         println!("Results for these tasks::");
-        let tasks_2 = load_tcbs(hubris, core, base, task_count, &task_t)?;
+        let tasks_2 = Task::load_tcbs(hubris, core, base, task_count, &task_t)?;
         for (name, i) in tasks_worth_holding {
             let i = u32::from(i) as usize;
             if let TaskState::Faulted { fault, original_state } =
@@ -358,34 +357,6 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     section("End Of Report");
 
     Ok(())
-}
-
-/// Reads a snapshot of the task table (the Task Control Blocks) from target
-/// memory.
-///
-/// Tasks are returned in index order.
-fn load_tcbs(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    task_table_base: u32,
-    task_count: usize,
-    task_t: &HubrisStruct,
-) -> Result<Vec<Task>> {
-    let taskblock = {
-        let mut taskblock = vec![0; task_t.size * task_count];
-        core.read_8(task_table_base, &mut taskblock)?;
-        taskblock
-    };
-
-    let mut tasks = Vec::with_capacity(task_count);
-    for i in 0..task_count {
-        let offs = i * task_t.size;
-
-        let task: Task = reflect::load(hubris, &taskblock, task_t, offs)?;
-        tasks.push(task);
-    }
-
-    Ok(tasks)
 }
 
 /// Reads a snapshot of the Task Descriptors portion of the app table from

@@ -34,7 +34,7 @@
 //! interpret.
 
 use anyhow::{anyhow, bail, Context, Result};
-use humility::reflect::{Base, Load, Ptr, Value};
+use humility::reflect::{self, Base, Load, Ptr, Value};
 use indexmap::IndexMap;
 use std::convert::TryInto;
 use std::fmt;
@@ -55,7 +55,37 @@ pub struct Task {
     pub timer: TimerState,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
+impl Task {
+    // Reads a snapshot of the task table (the Task Control Blocks) from target
+    /// memory.
+    ///
+    /// Tasks are returned in index order.
+    pub fn load_tcbs(
+        hubris: &humility::hubris::HubrisArchive,
+        core: &mut dyn humility::core::Core,
+        task_table_base: u32,
+        task_count: usize,
+        task_t: &humility::hubris::HubrisStruct,
+    ) -> Result<Vec<Self>> {
+        let taskblock = {
+            let mut taskblock = vec![0; task_t.size * task_count];
+            core.read_8(task_table_base, &mut taskblock)?;
+            taskblock
+        };
+
+        let mut tasks = Vec::with_capacity(task_count);
+        for i in 0..task_count {
+            let offs = i * task_t.size;
+
+            let task: Self = reflect::load(hubris, &taskblock, task_t, offs)?;
+            tasks.push(task);
+        }
+
+        Ok(tasks)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Load)]
 pub struct Generation(pub u8);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
@@ -202,7 +232,7 @@ pub enum ReplyFaultReason {
     AccessViolation = 5,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum GenOrRestartCount {
     Gen(Generation),
     RestartCount(u32),
@@ -233,7 +263,7 @@ impl humility::reflect::Load for GenOrRestartCount {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskId(pub u16);
 
 impl TaskId {
@@ -391,7 +421,7 @@ impl humility::reflect::Load for Counters {
 
 impl fmt::Display for Counters {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_padded("", f)
+        self.fmt_padded("", "", 0, f)
     }
 }
 
@@ -427,90 +457,39 @@ impl Counters {
         }
         impl fmt::Display for PaddedCtrs<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                self.ctrs.fmt_padded(self.pad, f)
+                if self.ctrs.total() == 0 && !f.alternate() {
+                    return Ok(());
+                }
+                self.ctrs.fmt_padded(self.pad, "", 0, f)
             }
         }
 
         PaddedCtrs { ctrs: self, pad }
     }
 
-    fn fmt_padded(&self, pad: &str, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn fmt_counters(
-            pad: &str,
-            prefix: &str,
-            Counters { ref counts }: &Counters,
-            indent: usize,
-            f: &mut fmt::Formatter<'_>,
-        ) -> fmt::Result {
-            let total_len = f.width().unwrap_or(8);
-            let mut has_written_any = false;
-            for (name, counter) in counts {
-                let total = counter.total();
-                if total == 0 && !f.alternate() {
-                    continue;
-                }
-                if has_written_any || indent > 0 {
-                    f.write_str("\n")?;
-                } else {
-                    has_written_any = true
-                };
-
-                let print_arrow = |f: &mut fmt::Formatter<'_>| {
-                    if indent == 0 {
-                        Ok(())
-                    } else if total == 0 {
-                        write!(f, "|{:>indent$} ", "")
-                    } else {
-                        // highlight non-zero variants
-                        write!(f, "+{:->indent$} ", ">")
-                    }
-                };
-
-                match counter {
-                    CounterVariant::Single(_) => {
-                        write!(f, "{pad}{total:>total_len$} ")?;
-                        if f.alternate() {
-                            print_arrow(f)?;
-                        }
-                        write!(f, "{prefix}{name}")?;
-                        for _ in 0..prefix.matches('(').count() {
-                            f.write_str(")")?;
-                        }
-                    }
-                    CounterVariant::Nested(ref counts) if f.alternate() => {
-                        write!(f, "{pad}{total:>total_len$} ")?;
-                        print_arrow(f)?;
-                        write!(f, "{prefix}{name}(_)",)?;
-                        for _ in 0..prefix.matches('(').count() {
-                            f.write_str(")")?;
-                        }
-                        fmt_counters(
-                            pad,
-                            &format!("{name}("),
-                            counts,
-                            indent + 4,
-                            f,
-                        )?;
-                    }
-                    CounterVariant::Nested(ref counts) => {
-                        fmt_counters(
-                            pad,
-                            &format!("{prefix}{name}("),
-                            counts,
-                            indent,
-                            f,
-                        )?;
-                    }
-                }
+    fn fmt_padded(
+        &self,
+        pad: &str,
+        prefix: &str,
+        indent: usize,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        let total_len = f.width().unwrap_or(8);
+        let mut has_written_any = false;
+        for (name, counter) in &self.counts {
+            let total = counter.total();
+            if total == 0 && !f.alternate() {
+                continue;
             }
-
-            Ok(())
+            if has_written_any || indent > 0 {
+                f.write_str("\n")?;
+            } else {
+                has_written_any = true
+            };
+            counter.fmt_padded(pad, prefix, name, indent, f)?;
         }
 
-        if self.total() == 0 && !f.alternate() {
-            return Ok(());
-        }
-        fmt_counters(pad, "", self, 0, f)
+        Ok(())
     }
 }
 
@@ -544,5 +523,78 @@ impl CounterVariant {
                 counts.counts.values().map(Self::total).sum()
             }
         }
+    }
+
+    pub fn display_padded<'a>(
+        &'a self,
+        pad: &'a str,
+    ) -> impl fmt::Display + 'a {
+        struct PaddedCtrs<'a> {
+            ctrs: &'a CounterVariant,
+            pad: &'a str,
+        }
+        impl fmt::Display for PaddedCtrs<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if self.ctrs.total() == 0 && !f.alternate() {
+                    return Ok(());
+                }
+                self.ctrs.fmt_padded(self.pad, "", "", 0, f)
+            }
+        }
+
+        PaddedCtrs { ctrs: self, pad }
+    }
+
+    fn fmt_padded(
+        &self,
+        pad: &str,
+        prefix: &str,
+        name: &str,
+        indent: usize,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        let total_len = f.width().unwrap_or(8);
+        let total = self.total();
+        let print_arrow = |f: &mut fmt::Formatter<'_>| {
+            if indent == 0 {
+                Ok(())
+            } else if total == 0 {
+                write!(f, "|{:>indent$} ", "")
+            } else {
+                // highlight non-zero variants
+                write!(f, "+{:->indent$} ", ">")
+            }
+        };
+
+        match self {
+            CounterVariant::Single(_) => {
+                write!(f, "{pad}{total:>total_len$} ")?;
+                if f.alternate() {
+                    print_arrow(f)?;
+                }
+                write!(f, "{prefix}{name}")?;
+                for _ in 0..prefix.matches('(').count() {
+                    f.write_str(")")?;
+                }
+            }
+            CounterVariant::Nested(ref counts) if f.alternate() => {
+                write!(f, "{pad}{total:>total_len$} ")?;
+                print_arrow(f)?;
+                write!(f, "{prefix}{name}(_)",)?;
+                for _ in 0..prefix.matches('(').count() {
+                    f.write_str(")")?;
+                }
+                counts.fmt_padded(pad, &format!("{name}("), indent + 4, f)?;
+            }
+            CounterVariant::Nested(ref counts) => {
+                counts.fmt_padded(
+                    pad,
+                    &format!("{prefix}{name}("),
+                    indent,
+                    f,
+                )?;
+            }
+        }
+        Ok(())
     }
 }
