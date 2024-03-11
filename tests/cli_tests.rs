@@ -212,6 +212,24 @@ fn make_all_tests() -> Result<()> {
             "counters",
             "gimlet_seq",
         ),
+        Test::witharg(
+            Kind::Postmortem,
+            "counters-csv",
+            "counters",
+            "--output csv",
+        ),
+        Test::witharg(
+            Kind::Postmortem,
+            "counters-csv-full",
+            "counters",
+            "--output csv --full",
+        ),
+        Test::witharg(
+            Kind::Postmortem,
+            "counters-json",
+            "counters",
+            "--output json",
+        ),
     ];
 
     make_tests(&tests, Kind::Postmortem)?;
