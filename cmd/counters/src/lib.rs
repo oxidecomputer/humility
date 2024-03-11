@@ -591,6 +591,8 @@ impl<'taskname> IpcCounterMap<'taskname> {
             } else {
                 counter.fmt_counters(&format!("{prefix}({name}"), indent, f)?;
             }
+
+            return Ok(());
         }
 
         let total_len = f.width().unwrap_or(8);
