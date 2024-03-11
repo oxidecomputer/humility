@@ -328,23 +328,21 @@ fn ipc_counter_dump(
 
             let def = hubris.lookup_struct(var.goff)?;
             let ctrs = load_counters(hubris, core, def, var)?;
-            let iface = ipcs.entry(varname).or_insert_with(|| {
-                let name = def
-                    .name
-                    .split("::")
-                    .last()
-                    .map(|s| {
-                        s.trim_end_matches("Counts").trim_end_matches("Event")
-                    })
-                    .unwrap_or("");
-                IpcIface { name, counters: Default::default() }
-            });
-            IpcCounters::populate(
-                &mut iface.counters,
-                task,
-                ctrs,
-                subargs.full,
-            );
+            ipcs.entry(varname)
+                .or_insert_with(|| {
+                    let name = def
+                        .name
+                        .split("::")
+                        .last()
+                        .map(|s| {
+                            s.trim_end_matches("Counts")
+                                .trim_end_matches("Event")
+                        })
+                        .unwrap_or("");
+                    IpcIface { name, counters: Default::default() }
+                })
+                .counters
+                .populate(task, ctrs, subargs.full);
         }
     }
 
@@ -359,14 +357,14 @@ fn ipc_counter_dump(
         }
     }
 
-    for (ipc_name, mut ctrs) in ipcs {
+    for (ipc_name, mut iface) in ipcs {
         if let Some(order) = subargs.sort {
-            ctrs.sort(order);
+            iface.counters.sort(order);
         } else if !subargs.full {
-            ctrs.sort(Order::Value)
+            iface.counters.sort(Order::Value)
         }
-        if !ctrs.counters.is_empty() {
-            println!("{ipc_name}\n{ctrs}");
+        if !iface.counters.0.is_empty() {
+            println!("{ipc_name}\n{iface}");
         }
     }
     Ok(())
@@ -395,23 +393,24 @@ fn load_counters(
 
 struct IpcIface<'a> {
     name: &'a str,
-    counters: IndexMap<String, IpcCounters<'a>>,
+    counters: IpcCounters<'a>,
 }
 
-#[derive(Debug)]
-enum IpcCounters<'taskname> {
+#[derive(Default)]
+struct IpcCounters<'taskname>(IndexMap<String, IpcCounterVariant<'taskname>>);
+
+enum IpcCounterVariant<'taskname> {
     Single(IndexMap<&'taskname str, u32>),
-    Nested(IndexMap<String, IpcCounters<'taskname>>),
+    Nested(IpcCounters<'taskname>),
 }
 
-impl<'taskname> IpcCounters<'taskname> {
-    fn empty() -> Self {
-        Self::Nested(Default::default())
-    }
+const REQ_ARROW: &str = "<---+";
+const RSP_ARROW: &str = "+--->";
 
+impl<'taskname> IpcCounterVariant<'taskname> {
     fn sort(&mut self, order: Order) {
         match self {
-            IpcCounters::Single(ref mut tasks) => match order {
+            Self::Single(ref mut tasks) => match order {
                 Order::Decl => {}
                 Order::Value => {
                     tasks.sort_unstable_by(|_, a, _, b| a.cmp(b).reverse());
@@ -420,63 +419,14 @@ impl<'taskname> IpcCounters<'taskname> {
                     tasks.sort_unstable_by(|a, _, b, _| a.cmp(b));
                 }
             },
-            IpcCounters::Nested(ref mut map) => {
-                for v in map.values_mut() {
-                    v.sort(order);
-                }
-                match order {
-                    Order::Decl => {}
-                    Order::Value => {
-                        map.sort_unstable_by(|_, a, _, b| {
-                            a.total().cmp(&b.total()).reverse()
-                        });
-                    }
-                    Order::Alpha => {
-                        map.sort_unstable_by(|a, _, b, _| a.cmp(b));
-                    }
-                }
-            }
-        }
-    }
-
-    fn populate(
-        map: &mut IndexMap<String, IpcCounters<'taskname>>,
-        taskname: &'taskname str,
-        ctrs: Counters,
-        full: bool,
-    ) {
-        for (name, count) in ctrs.counts {
-            if !full && count.total() == 0 {
-                continue;
-            }
-            match count {
-                CounterVariant::Single(val) => {
-                    match map.entry(name).or_insert_with(|| {
-                        IpcCounters::Single(Default::default())
-                    }) {
-                        IpcCounters::Single(ref mut tasks) => {
-                            tasks.insert(taskname, val);
-                        }
-                        _ => panic!("expected single IPC counters"),
-                    }
-                }
-                CounterVariant::Nested(vals) => {
-                    if let IpcCounters::Nested(ref mut map) =
-                        map.entry(name).or_insert_with(Self::empty)
-                    {
-                        Self::populate(map, taskname, vals, full)
-                    } else {
-                        unreachable!()
-                    }
-                }
-            }
+            Self::Nested(ref mut map) => map.sort(order),
         }
     }
 
     fn total(&self) -> u32 {
         match self {
-            IpcCounters::Single(ref tasks) => tasks.values().sum(),
-            IpcCounters::Nested(ref map) => map.values().map(Self::total).sum(),
+            Self::Single(ref tasks) => tasks.values().sum(),
+            Self::Nested(ref ctrs) => ctrs.total(),
         }
     }
 
@@ -487,32 +437,7 @@ impl<'taskname> IpcCounters<'taskname> {
         f: &mut fmt::Formatter<'_>,
     ) -> fmt::Result {
         let total_len = f.width().unwrap_or(8);
-        let mut has_written_any = false;
-        const REQ_ARROW: &str = "<---+";
-        const RSP_ARROW: &str = "+--->";
-        let print_indent = |f: &mut fmt::Formatter<'_>, indent: usize| {
-            for _ in 1..indent {
-                f.write_str("|     ")?
-            }
-            Ok(())
-        };
         let total = self.total();
-
-        let print_parens = |f: &mut fmt::Formatter<'_>| {
-            for _ in 0..prefix.matches('(').count() {
-                write!(
-                    f,
-                    "{}",
-                    if prefix.contains("Err") {
-                        ")".red()
-                    } else {
-                        ")".green()
-                    }
-                )?;
-            }
-            Ok(())
-        };
-
         let print_single_prefix = |f: &mut fmt::Formatter<'_>| {
             if !prefix.is_empty() {
                 write!(
@@ -524,13 +449,13 @@ impl<'taskname> IpcCounters<'taskname> {
                         prefix.green()
                     }
                 )?;
-                print_parens(f)?;
+                print_parens(f, prefix)?;
                 f.write_str(" ")?;
             }
             Ok::<_, fmt::Error>(())
         };
         match self {
-            IpcCounters::Single(tasks) if tasks.len() == 1 => {
+            IpcCounterVariant::Single(tasks) if tasks.len() == 1 => {
                 let (task, counter) = tasks.iter().next().unwrap();
                 write!(f, "{counter:>total_len$} ")?;
                 print_indent(f, indent)?;
@@ -541,7 +466,7 @@ impl<'taskname> IpcCounters<'taskname> {
                 writeln!(f, "{REQ_ARROW} [{task}]",)?;
             }
 
-            IpcCounters::Single(tasks) => {
+            IpcCounterVariant::Single(tasks) => {
                 if !prefix.is_empty() {
                     write!(f, "{total:>total_len$} ")?;
                     print_indent(f, indent)?;
@@ -550,6 +475,7 @@ impl<'taskname> IpcCounters<'taskname> {
                     f.write_str("\n")?;
                 }
 
+                let mut has_written_any = false;
                 for (&task, &count) in tasks {
                     if has_written_any {
                         f.write_str("\n")?;
@@ -565,49 +491,8 @@ impl<'taskname> IpcCounters<'taskname> {
                     f.write_str("\n")?;
                 }
             }
-            IpcCounters::Nested(ref counts) if counts.len() == 1 => {
-                let (name, counter) = counts.iter().next().unwrap();
-                let indent = if matches!(counter, IpcCounters::Single(counts) if counts.len() > 1)
-                {
-                    indent + 1
-                } else {
-                    indent
-                };
-                if prefix.is_empty() {
-                    counter.fmt_counters(name, indent, f)?;
-                } else {
-                    counter.fmt_counters(
-                        &format!("{prefix}({name}"),
-                        indent,
-                        f,
-                    )?;
-                }
-            }
-
-            IpcCounters::Nested(ref counts) => {
-                if !prefix.is_empty() {
-                    write!(f, "{total:>total_len$} ")?;
-                    print_indent(f, indent)?;
-                    f.write_str(RSP_ARROW)?;
-                    if prefix.contains("Err") {
-                        write!(f, " {}{}", prefix.red(), "(_)".red())?;
-                    } else {
-                        write!(f, " {}{}", prefix.green(), "(_)".green())?;
-                    }
-                    print_parens(f)?;
-                    writeln!(f)?;
-                }
-                for (name, counter) in counts {
-                    if prefix.is_empty() {
-                        counter.fmt_counters(name, indent + 1, f)?;
-                    } else {
-                        counter.fmt_counters(
-                            &format!("{prefix}({name}"),
-                            indent + 1,
-                            f,
-                        )?;
-                    }
-                }
+            IpcCounterVariant::Nested(ref counts) => {
+                counts.fmt_counters(prefix, indent, f)?
             }
         };
 
@@ -615,28 +500,9 @@ impl<'taskname> IpcCounters<'taskname> {
     }
 }
 
-impl IpcIface<'_> {
-    fn sort(&mut self, order: Order) {
-        for ctrs in self.counters.values_mut() {
-            ctrs.sort(order);
-        }
-        match order {
-            Order::Decl => {}
-            Order::Value => {
-                self.counters.sort_unstable_by(|_, a, _, b| {
-                    a.total().cmp(&b.total()).reverse()
-                });
-            }
-            Order::Alpha => {
-                self.counters.sort_unstable_by(|a, _, b, _| a.cmp(b));
-            }
-        }
-    }
-}
-
 impl fmt::Display for IpcIface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { name, counters } = self;
+        let Self { name, counters: IpcCounters(counters) } = self;
         for (ipc, ctrs) in counters {
             let total = ctrs.total();
             writeln!(f, "{total:>8} {}::{}()", name.bold(), ipc.bold(),)?;
@@ -645,6 +511,133 @@ impl fmt::Display for IpcIface<'_> {
         }
         Ok(())
     }
+}
+
+impl<'taskname> IpcCounters<'taskname> {
+    fn total(&self) -> u32 {
+        self.0.values().map(IpcCounterVariant::total).sum()
+    }
+
+    fn sort(&mut self, order: Order) {
+        for v in self.0.values_mut() {
+            v.sort(order);
+        }
+        match order {
+            Order::Decl => {}
+            Order::Value => {
+                self.0.sort_unstable_by(|_, a, _, b| {
+                    a.total().cmp(&b.total()).reverse()
+                });
+            }
+            Order::Alpha => {
+                self.0.sort_unstable_by(|a, _, b, _| a.cmp(b));
+            }
+        }
+    }
+
+    fn populate(
+        &mut self,
+        taskname: &'taskname str,
+        ctrs: Counters,
+        full: bool,
+    ) {
+        for (name, count) in ctrs.counts {
+            if !full && count.total() == 0 {
+                continue;
+            }
+            match count {
+                CounterVariant::Single(val) => {
+                    match self.0.entry(name).or_insert_with(|| {
+                        IpcCounterVariant::Single(Default::default())
+                    }) {
+                        IpcCounterVariant::Single(ref mut tasks) => {
+                            tasks.insert(taskname, val);
+                        }
+                        _ => panic!("expected single IPC counters"),
+                    }
+                }
+                CounterVariant::Nested(vals) => {
+                    if let IpcCounterVariant::Nested(ref mut map) =
+                        self.0.entry(name).or_insert_with(|| {
+                            IpcCounterVariant::Nested(Default::default())
+                        })
+                    {
+                        map.populate(taskname, vals, full);
+                    } else {
+                        unreachable!()
+                    }
+                }
+            }
+        }
+    }
+
+    fn fmt_counters(
+        &self,
+        prefix: &str,
+        indent: usize,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        let Self(counts) = self;
+        if counts.len() == 1 {
+            let (name, counter) = counts.iter().next().unwrap();
+            let indent = if matches!(counter, IpcCounterVariant::Single(counts) if counts.len() > 1)
+            {
+                indent + 1
+            } else {
+                indent
+            };
+            if prefix.is_empty() {
+                counter.fmt_counters(name, indent, f)?;
+            } else {
+                counter.fmt_counters(&format!("{prefix}({name}"), indent, f)?;
+            }
+        }
+
+        let total_len = f.width().unwrap_or(8);
+
+        if !prefix.is_empty() {
+            write!(f, "{:>total_len$} ", self.total())?;
+            print_indent(f, indent)?;
+            f.write_str(RSP_ARROW)?;
+            if prefix.contains("Err") {
+                write!(f, " {}{}", prefix.red(), "(_)".red())?;
+            } else {
+                write!(f, " {}{}", prefix.green(), "(_)".green())?;
+            }
+            print_parens(f, prefix)?;
+            writeln!(f)?;
+        }
+        for (name, counter) in counts {
+            if prefix.is_empty() {
+                counter.fmt_counters(name, indent + 1, f)?;
+            } else {
+                counter.fmt_counters(
+                    &format!("{prefix}({name}"),
+                    indent + 1,
+                    f,
+                )?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn print_indent(f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
+    for _ in 1..indent {
+        f.write_str("|     ")?
+    }
+    Ok(())
+}
+
+fn print_parens(f: &mut fmt::Formatter<'_>, prefix: &str) -> fmt::Result {
+    for _ in 0..prefix.matches('(').count() {
+        write!(
+            f,
+            "{}",
+            if prefix.contains("Err") { ")".red() } else { ")".green() }
+        )?;
+    }
+    Ok(())
 }
 
 fn taskname<'a>(
