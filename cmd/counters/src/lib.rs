@@ -393,21 +393,21 @@ fn load_counters(
 
 struct IpcIface<'a> {
     name: &'a str,
-    counters: IpcCounters<'a>,
+    counters: IpcCounterMap<'a>,
 }
 
 #[derive(Default)]
-struct IpcCounters<'taskname>(IndexMap<String, IpcCounterVariant<'taskname>>);
+struct IpcCounterMap<'taskname>(IndexMap<String, IpcCounters<'taskname>>);
 
-enum IpcCounterVariant<'taskname> {
+enum IpcCounters<'taskname> {
     Single(IndexMap<&'taskname str, u32>),
-    Nested(IpcCounters<'taskname>),
+    Nested(IpcCounterMap<'taskname>),
 }
 
 const REQ_ARROW: &str = "<---+";
 const RSP_ARROW: &str = "+--->";
 
-impl<'taskname> IpcCounterVariant<'taskname> {
+impl<'taskname> IpcCounters<'taskname> {
     fn sort(&mut self, order: Order) {
         match self {
             Self::Single(ref mut tasks) => match order {
@@ -455,7 +455,7 @@ impl<'taskname> IpcCounterVariant<'taskname> {
             Ok::<_, fmt::Error>(())
         };
         match self {
-            IpcCounterVariant::Single(tasks) if tasks.len() == 1 => {
+            IpcCounters::Single(tasks) if tasks.len() == 1 => {
                 let (task, counter) = tasks.iter().next().unwrap();
                 write!(f, "{counter:>total_len$} ")?;
                 print_indent(f, indent)?;
@@ -466,7 +466,7 @@ impl<'taskname> IpcCounterVariant<'taskname> {
                 writeln!(f, "{REQ_ARROW} [{task}]",)?;
             }
 
-            IpcCounterVariant::Single(tasks) => {
+            IpcCounters::Single(tasks) => {
                 if !prefix.is_empty() {
                     write!(f, "{total:>total_len$} ")?;
                     print_indent(f, indent)?;
@@ -491,7 +491,7 @@ impl<'taskname> IpcCounterVariant<'taskname> {
                     f.write_str("\n")?;
                 }
             }
-            IpcCounterVariant::Nested(ref counts) => {
+            IpcCounters::Nested(ref counts) => {
                 counts.fmt_counters(prefix, indent, f)?
             }
         };
@@ -502,7 +502,7 @@ impl<'taskname> IpcCounterVariant<'taskname> {
 
 impl fmt::Display for IpcIface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { name, counters: IpcCounters(counters) } = self;
+        let Self { name, counters: IpcCounterMap(counters) } = self;
         for (ipc, ctrs) in counters {
             let total = ctrs.total();
             writeln!(f, "{total:>8} {}::{}()", name.bold(), ipc.bold(),)?;
@@ -513,9 +513,9 @@ impl fmt::Display for IpcIface<'_> {
     }
 }
 
-impl<'taskname> IpcCounters<'taskname> {
+impl<'taskname> IpcCounterMap<'taskname> {
     fn total(&self) -> u32 {
-        self.0.values().map(IpcCounterVariant::total).sum()
+        self.0.values().map(IpcCounters::total).sum()
     }
 
     fn sort(&mut self, order: Order) {
@@ -548,18 +548,18 @@ impl<'taskname> IpcCounters<'taskname> {
             match count {
                 CounterVariant::Single(val) => {
                     match self.0.entry(name).or_insert_with(|| {
-                        IpcCounterVariant::Single(Default::default())
+                        IpcCounters::Single(Default::default())
                     }) {
-                        IpcCounterVariant::Single(ref mut tasks) => {
+                        IpcCounters::Single(ref mut tasks) => {
                             tasks.insert(taskname, val);
                         }
                         _ => panic!("expected single IPC counters"),
                     }
                 }
                 CounterVariant::Nested(vals) => {
-                    if let IpcCounterVariant::Nested(ref mut map) =
+                    if let IpcCounters::Nested(ref mut map) =
                         self.0.entry(name).or_insert_with(|| {
-                            IpcCounterVariant::Nested(Default::default())
+                            IpcCounters::Nested(Default::default())
                         })
                     {
                         map.populate(taskname, vals, full);
@@ -580,7 +580,7 @@ impl<'taskname> IpcCounters<'taskname> {
         let Self(counts) = self;
         if counts.len() == 1 {
             let (name, counter) = counts.iter().next().unwrap();
-            let indent = if matches!(counter, IpcCounterVariant::Single(counts) if counts.len() > 1)
+            let indent = if matches!(counter, IpcCounters::Single(counts) if counts.len() > 1)
             {
                 indent + 1
             } else {
