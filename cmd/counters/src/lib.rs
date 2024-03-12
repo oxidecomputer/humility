@@ -214,38 +214,41 @@ mod ipc;
 #[derive(Parser, Debug)]
 #[clap(name = "counters", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct CountersArgs {
-    /// list all counters without displaying their values
-    #[clap(long, short)]
-    list: bool,
+    #[clap(subcommand)]
+    command: Option<Subcmd>,
 
     /// print full errors
     #[clap(long, short)]
     verbose: bool,
 
     /// print only a single counter by substring of name
-    #[clap(conflicts_with = "list")]
     name: Option<String>,
 
     /// show counters with zero values
-    #[clap(long, short, conflicts_with = "list")]
+    #[clap(long, short)]
     full: bool,
-
-    /// show IPC counters, grouped by IPC interface rather than by counter.
-    #[clap(long, short, conflicts_with = "list")]
-    ipc: bool,
 
     /// sort counters using the provided ordering.
     ///
     /// [default: `decl` if `--full` is set, `alpha` otherwise]
-    #[clap(long, short, conflicts_with = "list", value_enum)]
+    #[clap(long, short, value_enum)]
     sort: Option<Order>,
+}
 
-    /// when used with `--ipc`, show only IPC counters originating from tasks
-    /// whose name contain the given substring.
-    ///
-    /// multiple values may be provided to select more than one client task.
-    #[clap(long, short, conflicts_with = "list", requires = "ipc")]
-    client: Vec<String>,
+#[derive(clap::Subcommand, Debug)]
+enum Subcmd {
+    /// list all counters without displaying their values
+    List,
+
+    /// show IPC counters, grouped by IPC interface rather than by counter.
+    Ipc {
+        /// show only IPC counters originating from tasks
+        /// whose name contain the given substring.
+        ///
+        /// multiple values may be provided to select more than one client task.
+        #[clap(long, short)]
+        client: Vec<String>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -266,8 +269,8 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
 
     let subargs = CountersArgs::try_parse_from(subargs)?;
 
-    if subargs.ipc {
-        return ipc::ipc_counter_dump(hubris, core, &subargs);
+    if let Some(Subcmd::Ipc { ref client }) = subargs.command {
+        return ipc::ipc_counter_dump(hubris, core, &subargs, client);
     }
 
     // map of counters by task, sorted by task name.
@@ -320,7 +323,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
         vars.sort_by_key(|&(v, _)| v);
     }
 
-    if subargs.list {
+    if let Some(Subcmd::List) = subargs.command {
         for (t, ctrs) in counters {
             println!("{t}:");
             println!("    {:<10} {:>5} VARIABLE", "ADDR", "SIZE",);

@@ -16,6 +16,7 @@ pub(super) fn ipc_counter_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     subargs: &CountersArgs,
+    clients: &[String],
 ) -> Result<()> {
     // In order to display task generations accurately, we must find and load
     // the task table:
@@ -39,8 +40,8 @@ pub(super) fn ipc_counter_dump(
             let taskname = taskname(hubris, var)?;
             // If we're only showing IPCs from specific clients, check whether
             // the task name contains that substring.
-            if !subargs.client.is_empty()
-                && !subargs.client.iter().any(|name| taskname.contains(name))
+            if !clients.is_empty()
+                && !clients.iter().any(|name| taskname.contains(name))
             {
                 continue;
             }
