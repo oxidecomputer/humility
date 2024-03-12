@@ -58,6 +58,7 @@
 //!            6 FanAdded
 //! ```
 //!
+//! #### IPC counters
 //!
 //! The `--ipc` argument shows IPC client counters generated automatically by
 //! `idol`, showing the total request count for a given IPC and per-client-task
@@ -95,7 +96,8 @@
 //! ```
 //!
 //! When displaying counters by IPC, substring filtering is performed on the
-//! counters variable, but *not* on the client task name. For example:
+//! counters variable, but *not* on the client task name. This allows filtering
+//! the output based on the IPC interface. For example:
 //!
 //! ```console
 //! $ humility -d ./hubris.core.0 counters --ipc sensors
@@ -124,6 +126,78 @@
 //!    totals:                                              = 0 err      = 6225 ok
 //!
 //! ```
+//!
+//! Instead, to show only the IPC counters _recorded_ by specific client tasks,
+//! use the `--client` argument, which will filter the output counters to those
+//! recorded in tasks whose names match the provided strings. For example, to
+//! show only IPC counters recorded by the `gimlet_seq` task, use:
+//!
+//!```console
+//! $ humility -d ./hubris.core.0 counters --ipc --client gimlet_seq
+//! humility: attached to dump
+//! drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+//!  fn HostFlash::set_mux() .............................................. 1 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+//!
+//!
+//! drv_spi_api::__SPI_CLIENT_COUNTERS
+//!  fn Spi::exchange() ............................................... 67580 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ....... = 67580 ok
+//!
+//!  fn Spi::write() .................................................... 530 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ......... = 530 ok
+//!
+//!  fn Spi::lock() ....................................................... 4 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ........... = 4 ok
+//!
+//!  fn Spi::release() .................................................... 1 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+//!
+//!
+//! drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+//!  fn Sys::gpio_read_input() ........................................ 16796 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ....... = 16796 ok
+//!
+//!  fn Sys::gpio_set_reset() ............................................ 15 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 .......... = 15 ok
+//!
+//!  fn Sys::gpio_configure_raw() ........................................ 14 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 .......... = 14 ok
+//!
+//!
+//! task_jefe_api::__JEFE_CLIENT_COUNTERS
+//!  fn Jefe::set_state() ................................................. 5 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ........... = 5 ok
+//!
+//!
+//! task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+//!  fn Packrat::set_spd_eeprom() ........................................ 32 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 .......... = 32 ok
+//!
+//!  fn Packrat::set_mac_address_block() .................................. 1 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+//!
+//!  fn Packrat::set_identity() ........................................... 1 calls
+//!     clients:
+//!     task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+//! ```
+//!
+//! Multiple `--client` arguments may be provided, to show IPCs from any of a
+//! set of client tasks.
+//!
+//! `--client` may be combined with a filter matching counter variable names, to
+//! show only the calls to specific IPC interfaces from specific tasks.
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, ValueEnum};
@@ -168,6 +242,13 @@ struct CountersArgs {
     /// [default: `decl` if `--full` is set, `alpha` otherwise]
     #[clap(long, short, conflicts_with = "list", value_enum)]
     sort: Option<Order>,
+
+    /// when used with `--ipc`, show only IPC counters originating from tasks
+    /// whose name contain the given substring.
+    ///
+    /// multiple values may be provided to select more than one client task.
+    #[clap(long, short, conflicts_with = "list", requires = "ipc")]
+    client: Vec<String>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -353,7 +434,17 @@ fn ipc_counter_dump(
         if varname.ends_with("_CLIENT_COUNTERS") {
             let task = HubrisTask::from(var.goff);
             let taskname = taskname(hubris, var)?;
+            // If we're only showing IPCs from specific clients, check whether
+            // the task name contains that substring.
+            if !subargs.client.is_empty()
+                && !subargs.client.iter().any(|name| taskname.contains(name))
+            {
+                continue;
+            }
+
             let gen = task_table[task.task() as usize].generation;
+            // Only select counters matching the provided filter, if there is
+            // one.
             if let Some(ref name) = subargs.name {
                 if !varname.contains(name) {
                     continue;
