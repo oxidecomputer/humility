@@ -480,6 +480,7 @@ impl fmt::Display for IpcIface<'_> {
                     .saturating_sub(1)
             )?;
             let mut formatted_tasks = 0;
+            let mut formatted_errors = 0;
             let num_important_tasks = ctrs
                 .0
                 .iter()
@@ -526,6 +527,7 @@ impl fmt::Display for IpcIface<'_> {
                     mut pfx: String,
                     formatted: &mut usize,
                     num_important: usize,
+                    only_important_task: bool,
                     f: &mut fmt::Formatter<'_>,
                 ) -> fmt::Result {
                     match ctr {
@@ -540,11 +542,14 @@ impl fmt::Display for IpcIface<'_> {
                             }
                             let pad = 80usize
                                 .saturating_sub(total_len * 2)
-                                .saturating_sub(if num_important > 1 {
-                                    total_len + 3
-                                } else {
-                                    0
-                                })
+                                .saturating_sub(
+                                    if num_important > 1 && !only_important_task
+                                    {
+                                        total_len + 3
+                                    } else {
+                                        0
+                                    },
+                                )
                                 .saturating_sub(pfx.len())
                                 .saturating_sub(value_str.len())
                                 .saturating_sub("    - Err() ".len());
@@ -583,6 +588,7 @@ impl fmt::Display for IpcIface<'_> {
                                     },
                                     formatted,
                                     num_important,
+                                    only_important_task,
                                     f,
                                 )?;
                             }
@@ -593,6 +599,7 @@ impl fmt::Display for IpcIface<'_> {
                     Ok(())
                 }
 
+                let mut formatted_errs_this_task = 0;
                 let errs = if let CounterVariant::Nested(map) = ctrs {
                     map.counts.get("Err")
                 } else {
@@ -603,15 +610,18 @@ impl fmt::Display for IpcIface<'_> {
                     if err_total > 0 || f.alternate() {
                         let total_str = format!("{err_total}");
                         if let CounterVariant::Nested(_) = errs {
-                            let mut formatted = 0;
+                            let only_important_task = num_important_tasks == 1;
                             fmt_err_variant(
                                 errs,
                                 String::new(),
-                                &mut formatted,
+                                &mut formatted_errs_this_task,
                                 0,
+                                only_important_task,
                                 f,
                             )?;
-                            if formatted > 1 {
+                            if formatted_errs_this_task > 1
+                                && !only_important_task
+                            {
                                 const INDENT: &str = "      ";
                                 let colored_total = if err_total > 0 {
                                     total_str.red()
@@ -652,9 +662,10 @@ impl fmt::Display for IpcIface<'_> {
                         }
                     }
                 }
+                formatted_errors += formatted_errs_this_task;
             }
 
-            if formatted_tasks > 1 {
+            if formatted_tasks > 1 || formatted_errors > 1 {
                 let err_underline = "-".repeat(err_str.len() + 2);
                 let ok_underline = "-".repeat(ok_str.len() + 2);
                 writeln!(
