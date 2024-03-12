@@ -462,23 +462,7 @@ impl fmt::Display for IpcIface<'_> {
             let ok = total - errors;
             let ok_str = ok.to_string();
             let err_str = errors.to_string();
-            writeln!(
-                f,
-                " fn {}::{}()",
-                self.name.bold(),
-                method_name.bold(),
-                // "".dimmed(),
-                // ok_str.green(),
-                // " ".dimmed(),
-                // err_str.red(),
-                // pad = 80
-                //     - total_len
-                //     // - ok_str.len()
-                //     - self.name.len()
-                //     - method_name.len()
-                //     - 8,
-                // // pad2 = total_len - err_str.len(),
-            )?;
+            writeln!(f, " fn {}::{}()", self.name.bold(), method_name.bold(),)?;
             let mut formatted_tasks = 0;
             for ((task, gen), ctrs) in &ctrs.0 {
                 let total = ctrs.total();
@@ -502,31 +486,29 @@ impl fmt::Display for IpcIface<'_> {
                 };
                 writeln!(
                     f,
-                    "    task {}{restarts}{:.<pad$} {} ok {:.>pad2$}{} err",
+                    "    task {}{restarts}{:.<pad$} {} ok",
                     task.italic(),
                     " ".dimmed(),
                     if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
-                    " ".dimmed(),
-                    if errors > 0 { err_str.red() } else { err_str.dimmed() },
                     pad = 80
-                        - 4
-                        - (total_len * 2)
+                        - total_len
                         - ok_str.len()
                         - task.len()
                         - restarts.len()
-                        - 9,
-                    pad2 = total_len - err_str.len() - 1,
+                        - 6,
                 )?;
 
                 fn fmt_err_variant(
                     ctr: &CounterVariant,
                     mut pfx: String,
+                    formatted: &mut usize,
                     f: &mut fmt::Formatter<'_>,
                 ) -> fmt::Result {
                     match ctr {
                         &CounterVariant::Single(value)
                             if value > 0 || f.alternate() =>
                         {
+                            *formatted += 1;
                             let total_len = f.width().unwrap_or(8);
                             let value_str = format!("+ {value}");
                             for _ in 0..pfx.matches('(').count() {
@@ -534,15 +516,20 @@ impl fmt::Display for IpcIface<'_> {
                             }
                             writeln!(
                                 f,
-                                "    - {pfx} {:.>pad$}{}",
+                                "    - Err({}) {:.>pad$}{}",
+                                pfx.red(),
                                 " ".dimmed(),
-                                value_str.red(),
+                                if value > 0 {
+                                    value_str.red()
+                                } else {
+                                    value_str.dimmed()
+                                },
                                 pad = 80
-                                    - (total_len * 2)
-                                    - 10
+                                    - (total_len * 3)
                                     - pfx.len()
                                     - value_str.len()
-                                    - 7,
+                                    - 7
+                                    - 5
                             )?;
                         }
                         CounterVariant::Nested(map) => {
@@ -554,6 +541,7 @@ impl fmt::Display for IpcIface<'_> {
                                     } else {
                                         name.clone()
                                     },
+                                    formatted,
                                     f,
                                 )?;
                             }
@@ -564,18 +552,46 @@ impl fmt::Display for IpcIface<'_> {
                     Ok(())
                 }
 
-                match ctrs {
-                    CounterVariant::Nested(map) => {
-                        if let Some(errs) = map.counts.get("Err") {
-                            if errs.total() > 0 || f.alternate() {
-                                writeln!(f, "    errors:")?;
-                                if let CounterVariant::Nested(_) = errs {
-                                    fmt_err_variant(errs, String::new(), f)?
-                                }
+                let errs = if let CounterVariant::Nested(map) = ctrs {
+                    map.counts.get("Err")
+                } else {
+                    None
+                };
+                if let Some(errs) = errs {
+                    let err_total = errs.total();
+                    if err_total > 0 || f.alternate() {
+                        let total_str = format!("{err_total}");
+                        if let CounterVariant::Nested(_) = errs {
+                            let mut formatted = 0;
+                            fmt_err_variant(
+                                errs,
+                                String::new(),
+                                &mut formatted,
+                                f,
+                            )?;
+                            if formatted > 1 && err_total > 0 {
+                                const INDENT: &str = "      ";
+                                writeln!(
+                                    f,
+                                    "{INDENT} {:>pad$}{:->underline$}\n{INDENT} {:>pad$}= {}",
+                                    "",
+                                    "",
+                                    "",
+                                    if err_total > 0 {
+                                        total_str.red()
+                                    } else {
+                                        total_str.dimmed()
+                                    },
+                                    pad = 80
+                                        - (total_len * 3)
+                                        - total_str.len()
+                                        - INDENT.len()
+                                        - 3,
+                                    underline = total_str.len() + 2,
+                                )?;
                             }
                         }
                     }
-                    _ => {}
                 }
             }
 
@@ -584,23 +600,21 @@ impl fmt::Display for IpcIface<'_> {
                 let ok_underline = "-".repeat(ok_str.len() + 2);
                 writeln!(
                     f,
-                    "{:<total_len$} {:>pad1$}{ok_underline}   {:>pad2$}{err_underline}    ",
+                    "    {:>pad1$}{err_underline}    {:>pad2$}{ok_underline}",
                     "",
                     " ",
-                    " ",
-                    pad1 = 80 - (total_len * 3) - ok_underline.len() - 3,
-                    pad2 = (total_len + 2) - err_underline.len() - 2,
+                    pad1 = 80 - (total_len * 2) - err_underline.len() - 6,
+                    pad2 = (total_len + 2) - ok_underline.len(),
                 )?;
                 writeln!(
                     f,
-                    "{:<total_len$} {:>pad1$}= {}   {:>pad2$}= {}    ",
-                    "",
+                    "    {:>pad1$}= {} err {:>pad2$}= {} ok",
+                    " ",
+                    if errors > 0 { err_str.red() } else { err_str.dimmed() },
                     " ",
                     if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
-                    "  ",
-                    if errors > 0 { err_str.red() } else { err_str.dimmed() },
-                    pad1 = 80 - (total_len * 3) - ok_str.len() - 5,
-                    pad2 = (total_len + 2) - err_str.len() - 4,
+                    pad1 = 80 - (total_len * 2) - (err_str.len() + 2) - 6,
+                    pad2 = (total_len) - (ok_str.len() + 1),
                 )?;
             }
         }
@@ -641,249 +655,6 @@ fn ipc_error_count(ctr: &CounterVariant) -> usize {
         }
     }
 }
-
-// enum IpcCounters<'taskname> {
-//     Single(IndexMap<&'taskname str, u32>),
-//     Nested(IpcCounterMap<'taskname>),
-// }
-
-// const REQ_ARROW: &str = "<---+";
-// const RSP_ARROW: &str = "+--->";
-
-// impl<'taskname> IpcCounters<'taskname> {
-//     fn sort(&mut self, order: Order) {
-//         match self {
-//             Self::Single(ref mut tasks) => match order {
-//                 Order::Decl => {}
-//                 Order::Value => {
-//                     tasks.sort_unstable_by(|_, a, _, b| a.cmp(b).reverse());
-//                 }
-//                 Order::Alpha => {
-//                     tasks.sort_unstable_by(|a, _, b, _| a.cmp(b));
-//                 }
-//             },
-//             Self::Nested(ref mut map) => map.sort(order),
-//         }
-//     }
-
-//     fn total(&self) -> u32 {
-//         match self {
-//             Self::Single(ref tasks) => tasks.values().sum(),
-//             Self::Nested(ref ctrs) => ctrs.total(),
-//         }
-//     }
-
-//     fn fmt_counters(
-//         &self,
-//         prefix: &str,
-//         indent: usize,
-//         f: &mut fmt::Formatter<'_>,
-//     ) -> fmt::Result {
-//         let total_len = f.width().unwrap_or(8);
-//         let total = self.total();
-//         let print_single_prefix = |f: &mut fmt::Formatter<'_>| {
-//             if !prefix.is_empty() {
-//                 write!(
-//                     f,
-//                     "{}",
-//                     if prefix.contains("Err") {
-//                         prefix.red()
-//                     } else {
-//                         prefix.green()
-//                     }
-//                 )?;
-//                 print_parens(f, prefix)?;
-//                 f.write_str(" ")?;
-//             }
-//             Ok::<_, fmt::Error>(())
-//         };
-//         match self {
-//             IpcCounters::Single(tasks) if tasks.len() == 1 => {
-//                 let (task, counter) = tasks.iter().next().unwrap();
-//                 write!(f, "{counter:>total_len$} ")?;
-//                 print_indent(f, indent)?;
-//                 if !prefix.is_empty() {
-//                     write!(f, "{RSP_ARROW} ")?;
-//                     print_single_prefix(f)?;
-//                 }
-//                 writeln!(f, "{REQ_ARROW} [{task}]",)?;
-//             }
-
-//             IpcCounters::Single(tasks) => {
-//                 if !prefix.is_empty() {
-//                     write!(f, "{total:>total_len$} ")?;
-//                     print_indent(f, indent)?;
-//                     write!(f, "{RSP_ARROW} ")?;
-//                     print_single_prefix(f)?;
-//                     f.write_str("\n")?;
-//                 }
-
-//                 let mut has_written_any = false;
-//                 for (&task, &count) in tasks {
-//                     if has_written_any {
-//                         f.write_str("\n")?;
-//                     } else {
-//                         has_written_any = true
-//                     };
-//                     write!(f, "{count:>total_len$} ",)?;
-//                     print_indent(f, indent + 1)?;
-//                     write!(f, "{REQ_ARROW} [{task}]",)?;
-//                 }
-
-//                 if has_written_any {
-//                     f.write_str("\n")?;
-//                 }
-//             }
-//             IpcCounters::Nested(ref counts) => {
-//                 counts.fmt_counters(prefix, indent, f)?
-//             }
-//         };
-
-//         Ok(())
-//     }
-// }
-
-// impl fmt::Display for IpcIface<'_> {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         let Self { name, counters: IpcCounterMap(counters) } = self;
-//         for (ipc, ctrs) in counters {
-//             let total = ctrs.total();
-//             writeln!(f, "{total:>8} {}::{}()", name.bold(), ipc.bold(),)?;
-//             ctrs.fmt_counters("", 0, f)?;
-//             writeln!(f)?;
-//         }
-//         Ok(())
-//     }
-// }
-
-// impl<'taskname> IpcCounterMap<'taskname> {
-//     fn total(&self) -> u32 {
-//         self.0.values().map(IpcCounters::total).sum()
-//     }
-
-//     fn sort(&mut self, order: Order) {
-//         for v in self.0.values_mut() {
-//             v.sort(order);
-//         }
-//         match order {
-//             Order::Decl => {}
-//             Order::Value => {
-//                 self.0.sort_unstable_by(|_, a, _, b| {
-//                     a.total().cmp(&b.total()).reverse()
-//                 });
-//             }
-//             Order::Alpha => {
-//                 self.0.sort_unstable_by(|a, _, b, _| a.cmp(b));
-//             }
-//         }
-//     }
-
-//     fn populate(
-//         &mut self,
-//         taskname: &'taskname str,
-//         ctrs: Counters,
-//         full: bool,
-//     ) {
-//         for (name, count) in ctrs.counts {
-//             if !full && count.total() == 0 {
-//                 continue;
-//             }
-//             match count {
-//                 CounterVariant::Single(val) => {
-//                     match self.0.entry(name).or_insert_with(|| {
-//                         IpcCounters::Single(Default::default())
-//                     }) {
-//                         IpcCounters::Single(ref mut tasks) => {
-//                             tasks.insert(taskname, val);
-//                         }
-//                         _ => panic!("expected single IPC counters"),
-//                     }
-//                 }
-//                 CounterVariant::Nested(vals) => {
-//                     if let IpcCounters::Nested(ref mut map) =
-//                         self.0.entry(name).or_insert_with(|| {
-//                             IpcCounters::Nested(Default::default())
-//                         })
-//                     {
-//                         map.populate(taskname, vals, full);
-//                     } else {
-//                         unreachable!()
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     fn fmt_counters(
-//         &self,
-//         prefix: &str,
-//         indent: usize,
-//         f: &mut fmt::Formatter<'_>,
-//     ) -> fmt::Result {
-//         let Self(counts) = self;
-//         if counts.len() == 1 {
-//             let (name, counter) = counts.iter().next().unwrap();
-//             let indent = if matches!(counter, IpcCounters::Single(counts) if counts.len() > 1)
-//             {
-//                 indent + 1
-//             } else {
-//                 indent
-//             };
-//             if prefix.is_empty() {
-//                 counter.fmt_counters(name, indent, f)?;
-//             } else {
-//                 counter.fmt_counters(&format!("{prefix}({name}"), indent, f)?;
-//             }
-
-//             return Ok(());
-//         }
-
-//         let total_len = f.width().unwrap_or(8);
-
-//         if !prefix.is_empty() {
-//             write!(f, "{:>total_len$} ", self.total())?;
-//             print_indent(f, indent)?;
-//             f.write_str(RSP_ARROW)?;
-//             if prefix.contains("Err") {
-//                 write!(f, " {}{}", prefix.red(), "(_)".red())?;
-//             } else {
-//                 write!(f, " {}{}", prefix.green(), "(_)".green())?;
-//             }
-//             print_parens(f, prefix)?;
-//             writeln!(f)?;
-//         }
-//         for (name, counter) in counts {
-//             if prefix.is_empty() {
-//                 counter.fmt_counters(name, indent + 1, f)?;
-//             } else {
-//                 counter.fmt_counters(
-//                     &format!("{prefix}({name}"),
-//                     indent + 1,
-//                     f,
-//                 )?;
-//             }
-//         }
-//         Ok(())
-//     }
-// }
-
-// fn print_indent(f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
-//     for _ in 1..indent {
-//         f.write_str("|     ")?
-//     }
-//     Ok(())
-// }
-
-// fn print_parens(f: &mut fmt::Formatter<'_>, prefix: &str) -> fmt::Result {
-//     for _ in 0..prefix.matches('(').count() {
-//         write!(
-//             f,
-//             "{}",
-//             if prefix.contains("Err") { ")".red() } else { ")".green() }
-//         )?;
-//     }
-//     Ok(())
-// }
 
 fn taskname<'a>(
     hubris: &'a HubrisArchive,
