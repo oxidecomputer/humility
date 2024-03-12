@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.flash-ram-mismatch.0 counters --ipc"
+args = "-d hubris.core.flash-ram-mismatch.0 counters ipc"
 
 status.code = 1

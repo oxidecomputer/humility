@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.ouray.64 counters --ipc --client gimlet_seq --client net"
+args = "-d hubris.core.ouray.64 counters ipc --client gimlet_seq --client net"
 
 status.code = 1

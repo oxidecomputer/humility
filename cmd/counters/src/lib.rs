@@ -60,12 +60,12 @@
 //!
 //! #### IPC counters
 //!
-//! The `--ipc` argument shows IPC client counters generated automatically by
+//! The `ipc` subcommand shows IPC client counters generated automatically by
 //! `idol`, showing the total request count for a given IPC and per-client-task
 //! breakdowns. For example:`
 //!
 //! ```console
-//! $ humility -d ./hubris.core.0 counters --ipc`
+//! $ humility -d ./hubris.core.0 counters ipc`
 //! humility: attached to dump
 //! drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
 //!  fn HostFlash::get_mux() .............................................. 6 calls
@@ -100,7 +100,7 @@
 //! the output based on the IPC interface. For example:
 //!
 //! ```console
-//! $ humility -d ./hubris.core.0 counters --ipc sensors
+//! $ humility -d ./hubris.core.0 counters ipc sensors
 //! humility: attached to dump
 //! task_sensor_api::__SENSOR_CLIENT_COUNTERS
 //! fn Sensor::post() ................................................ 76717 calls
@@ -133,7 +133,7 @@
 //! show only IPC counters recorded by the `gimlet_seq` task, use:
 //!
 //!```console
-//! $ humility -d ./hubris.core.0 counters --ipc --client gimlet_seq
+//! $ humility -d ./hubris.core.0 counters ipc --client gimlet_seq
 //! humility: attached to dump
 //! drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
 //!  fn HostFlash::set_mux() .............................................. 1 calls
@@ -213,16 +213,27 @@ mod ipc;
 
 #[derive(Parser, Debug)]
 #[clap(name = "counters", about = env!("CARGO_PKG_DESCRIPTION"))]
+// This attribute means that any the args defined in `Options` will conflict
+// with the `list` subcommand.
+#[clap(args_conflicts_with_subcommands = true)]
 struct CountersArgs {
     #[clap(subcommand)]
     command: Option<Subcmd>,
 
+    #[clap(flatten)]
+    opts: Options,
+}
+
+/// Arguments that conflict with the `list` subcommand, but apply to both the
+/// default and to the `ipc` subcommand.
+#[derive(Parser, Debug)]
+struct Options {
+    /// show only counters whose names include the provided substring.
+    name: Option<String>,
+
     /// print full errors
     #[clap(long, short)]
     verbose: bool,
-
-    /// print only a single counter by substring of name
-    name: Option<String>,
 
     /// show counters with zero values
     #[clap(long, short)]
@@ -238,17 +249,13 @@ struct CountersArgs {
 #[derive(clap::Subcommand, Debug)]
 enum Subcmd {
     /// list all counters without displaying their values
-    List,
+    List {
+        /// show only counters whose names include the provided substring.
+        name: Option<String>,
+    },
 
     /// show IPC counters, grouped by IPC interface rather than by counter.
-    Ipc {
-        /// show only IPC counters originating from tasks
-        /// whose name contain the given substring.
-        ///
-        /// multiple values may be provided to select more than one client task.
-        #[clap(long, short)]
-        client: Vec<String>,
-    },
+    Ipc(ipc::Args),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -262,6 +269,16 @@ enum Order {
     Alpha,
 }
 
+impl CountersArgs {
+    fn name(&self) -> Option<&str> {
+        match self.command {
+            Some(Subcmd::List { ref name }) => name.as_deref(),
+            Some(Subcmd::Ipc(ref ipc)) => ipc.opts.name.as_deref(),
+            _ => self.opts.name.as_deref(),
+        }
+    }
+}
+
 fn counters(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -269,9 +286,10 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
 
     let subargs = CountersArgs::try_parse_from(subargs)?;
 
-    if let Some(Subcmd::Ipc { ref client }) = subargs.command {
-        return ipc::ipc_counter_dump(hubris, core, &subargs, client);
+    if let Some(Subcmd::Ipc(ipc)) = subargs.command {
+        return ipc.ipc_counter_dump(hubris, core);
     }
+    let name = subargs.name();
 
     // map of counters by task, sorted by task name.
     let mut counters: BTreeMap<&str, Vec<_>> = BTreeMap::new();
@@ -299,7 +317,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
             }
         };
         let t = taskname(hubris, var)?;
-        if let Some(ref name) = subargs.name {
+        if let Some(ref name) = name {
             if varname.contains(name) || t.contains(name) {
                 counters.entry(t).or_default().push(((varname, var), def));
             }
@@ -309,7 +327,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
     }
 
     if counters.is_empty() {
-        if let Some(name) = subargs.name {
+        if let Some(name) = name {
             bail!(
                 "no counters found with names containing \"{}\" (-l to list)",
                 name
@@ -323,7 +341,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
         vars.sort_by_key(|&(v, _)| v);
     }
 
-    if let Some(Subcmd::List) = subargs.command {
+    if let Some(Subcmd::List { .. }) = subargs.command {
         for (t, ctrs) in counters {
             println!("{t}:");
             println!("    {:<10} {:>5} VARIABLE", "ADDR", "SIZE",);
@@ -345,9 +363,9 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 println!(" +---> {varname}:");
                 let pad = if ctrs.peek().is_some() { " |  " } else { "    " };
                 if let Err(e) =
-                    counter_dump(hubris, core, def, var, &subargs, pad)
+                    counter_dump(hubris, core, def, var, &subargs.opts, pad)
                 {
-                    if subargs.verbose {
+                    if subargs.opts.verbose {
                         humility::msg!("counter dump failed: {e:?}");
                     } else {
                         humility::msg!("counter dump failed: {e}");
@@ -366,7 +384,7 @@ fn counter_dump(
     core: &mut dyn Core,
     def: &HubrisStruct,
     var: &HubrisVariable,
-    args: &CountersArgs,
+    opts: &Options,
     pad: &str,
 ) -> Result<()> {
     // Counters may either be a standalone counters variable or a counted
@@ -374,12 +392,13 @@ fn counter_dump(
     let mut counters = load_counters(hubris, core, def, var)?;
 
     // Sort the counters.
-    match (args.sort, args.full) {
+    match opts {
         // If `--full` is set, zero valued counters are displayed, so it's nice
         // to always display them in the same order across dumps/Humility
         // processes, so that the output is easily comparable. Therefore, sort
         // by declaration order, if no sorting was requested.
-        (Some(Order::Decl), _) | (None, true) => {
+        Options { sort: Some(Order::Decl), .. }
+        | Options { sort: None, full: true, .. } => {
             // Counters are already sorted by declaration order.
         }
         // If `--full` is not set, the output is not comparable across
@@ -388,18 +407,19 @@ fn counter_dump(
         //
         // Therefore, sort by value by default, so the highest-valued counters
         // are shown first.
-        (Some(Order::Value), _) | (None, false) => counters.sort_unstable_by(
+        Options { sort: Some(Order::Value), .. }
+        | Options { sort: None, full: false, .. } => counters.sort_unstable_by(
             &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
                 a.total().cmp(&b.total()).reverse()
             },
         ),
-        (Some(Order::Alpha), _) => {
+        Options { sort: Some(Order::Alpha), .. } => {
             counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b))
         }
     }
 
     let disp = counters.display_padded(pad);
-    if args.full {
+    if opts.full {
         println!("{disp:#}");
     } else if counters.total() > 0 {
         println!("{disp}");

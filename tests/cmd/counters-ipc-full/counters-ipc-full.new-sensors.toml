@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.new-sensors counters -if"
+args = "-d hubris.core.new-sensors counters ipc --full"
 
 status.code = 1
