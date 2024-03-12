@@ -1,0 +1,5 @@
+humility: attached to dump
+humility counters failed: failed to read TASK_TABLE_SIZE
+
+Caused by:
+    read of 4 bytes from invalid address: 0x20000008

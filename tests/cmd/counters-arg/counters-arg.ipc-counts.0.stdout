@@ -1,0 +1,74 @@
+control_plane_agent
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+       <no counts recorded>
+gimlet_inspector
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+       <no counts recorded>
+gimlet_seq
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |         1 set_mux(Ok)
+ +---> drv_gimlet_seq_server::__RINGBUF:
+ |     16787 Status
+ |       446 ClockConfigWrite
+ |       294 A0Status
+ |       102 A1Status
+ |        15 A0Power
+ |         2 UpdateState(A0)
+ |         2 UpdateState(A0PlusHP)
+ |         3 NICPowerEnableLow
+ |         2 V3P3SysA0VOut
+ |         1 RailsOn
+ |         1 SetState
+ |         1 RailsOff
+ |         1 Ident
+ |         1 A2Status
+ |         1 A2
+ |         1 SpdDimmsFound
+ |         1 ChecksumValid(false)
+ |         1 CPUPresent(true)
+ |         1 Coretype
+ |         1 IdentValid(false)
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 Ice40Rails
+ |         1 UartEnabled
+ |         1 A0
+ |         1 Ice40PowerGoodV3P3(true)
+ |         1 Programming
+ |         1 Programmed
+ |         1 ClockConfigSuccess
+ |         1 Reprogram(true)
+ |         1 PGStatus
+ |         1 SMStatus
+ |         1 NICStatus
+ |         1 InterruptFlags
+ |         1 PowerControl
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |     67580 exchange(Ok)
+ |       530 write(Ok)
+ |         4 lock(Ok)
+ |         1 release(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |     16796 gpio_read_input
+ |        15 gpio_set_reset
+ |        14 gpio_configure_raw
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         5 set_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          32 set_spd_eeprom
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)
+host_sp_comms
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+           5 get_state(Ok)
+power
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+         626 get_state(Ok)
+thermal
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+        1386 get_state(Ok)

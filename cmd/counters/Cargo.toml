@@ -6,7 +6,9 @@ description = "display event counters"
 
 [dependencies]
 anyhow = { workspace = true }
+colored = { workspace = true }
 clap = { workspace = true }
+indexmap = { workspace = true }
 
 humility = { workspace = true }
 humility-doppel = { workspace = true }
