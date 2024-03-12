@@ -113,6 +113,7 @@
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, ValueEnum};
 use colored::Colorize;
+use core::num;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
@@ -508,19 +509,45 @@ impl fmt::Display for IpcIface<'_> {
                         format!(" ({restarts} restarts)")
                     }
                 };
-                writeln!(
-                    f,
-                    "    task {}{restarts}{dim_space:.<pad$} {} ok",
-                    task.italic(),
-                    if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
-                    pad = 80usize
-                        .saturating_sub(ok_str.len())
+                write!(f, "    task {}{restarts} ", task.italic())?;
+                if errors == 0 && !f.alternate() {
+                    let err_str =
+                        if num_important_tasks > 1 { "+ 0" } else { "= 0" };
+                    let pad1 = 80usize
+                        .saturating_sub(err_str.len())
                         .saturating_sub(task.len())
                         .saturating_sub(restarts.len())
-                        .saturating_sub("    task ".len())
-                        .saturating_sub(2)
-                        .saturating_sub(" ok".len())
-                )?;
+                        .saturating_sub("    task  ".len())
+                        .saturating_sub(total_len * 2);
+                    writeln!(
+                        f,
+                        "{dim_space:.>pad1$}{} {dim_space:.>pad2$}{} ok",
+                        err_str.dimmed(),
+                        if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
+                        pad2 = 80usize
+                            .saturating_sub(pad1)
+                            .saturating_sub(ok_str.len())
+                            .saturating_sub(" ok".len())
+                            .saturating_sub(err_str.len())
+                            .saturating_sub(task.len())
+                            .saturating_sub(restarts.len())
+                            .saturating_sub("    task  ".len())
+                            .saturating_sub(2)
+                    )?;
+                } else {
+                    writeln!(
+                        f,
+                        "{dim_space:.>pad$}{} ok",
+                        if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
+                        pad = 80usize
+                            .saturating_sub(ok_str.len())
+                            .saturating_sub(task.len())
+                            .saturating_sub(restarts.len())
+                            .saturating_sub("    task ".len())
+                            .saturating_sub(2)
+                            .saturating_sub(" ok".len())
+                    )?;
+                }
 
                 fn fmt_err_variant(
                     ctr: &CounterVariant,
