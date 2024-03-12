@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::{load_counters, taskname, CountersArgs, Order};
+use super::{load_counters, taskname, Options, Order};
 use anyhow::{bail, Result};
 use colored::{ColoredString, Colorize};
 use humility::core::Core;
@@ -12,98 +12,114 @@ use indexmap::IndexMap;
 use std::collections::BTreeMap;
 use std::fmt;
 
-pub(super) fn ipc_counter_dump(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &CountersArgs,
-) -> Result<()> {
-    // In order to display task generations accurately, we must find and load
-    // the task table:
-    let task_table = {
-        let (base, task_count) = hubris.task_table(core)?;
-        let task_t = hubris.lookup_struct_byname("Task")?.clone();
-        humility_doppel::Task::load_tcbs(
-            hubris,
-            core,
-            base,
-            task_count as usize,
-            &task_t,
-        )?
-    };
+#[derive(Debug, clap::Parser)]
+pub(super) struct Args {
+    /// show only IPC counters originating from tasks whose name contain the
+    /// given substring.
+    ///
+    /// multiple values may be provided to select more than one client task.
+    #[clap(long = "client", short)]
+    clients: Vec<String>,
 
-    let mut ipcs = BTreeMap::new();
-
-    for (varname, var) in hubris.qualified_variables() {
-        if varname.ends_with("_CLIENT_COUNTERS") {
-            let task = HubrisTask::from(var.goff);
-            let taskname = taskname(hubris, var)?;
-            // If we're only showing IPCs from specific clients, check whether
-            // the task name contains that substring.
-            if !subargs.client.is_empty()
-                && !subargs.client.iter().any(|name| taskname.contains(name))
-            {
-                continue;
-            }
-
-            let gen = task_table[task.task() as usize].generation;
-            // Only select counters matching the provided filter, if there is
-            // one.
-            if let Some(ref name) = subargs.name {
-                if !varname.contains(name) {
-                    continue;
-                }
-            }
-
-            let def = hubris.lookup_struct(var.goff)?;
-            let ctrs = load_counters(hubris, core, def, var)?;
-            let iface = ipcs.entry(varname).or_insert_with(|| {
-                let name = def
-                    .name
-                    .split("::")
-                    .last()
-                    .map(|s| {
-                        s.trim_end_matches("Counts").trim_end_matches("Event")
-                    })
-                    .unwrap_or("");
-                IpcIface { name, methods: Default::default() }
-            });
-            for (method, count) in ctrs.counts {
-                iface
-                    .methods
-                    .entry(method)
-                    .or_default()
-                    .0
-                    .insert((taskname, gen), count);
-            }
-        }
-    }
-
-    if ipcs.is_empty() {
-        if let Some(ref name) = subargs.name {
-            bail!(
-                "no IPC counters found with names containing \"{}\" (-l to list)",
-                name
-            );
-        } else {
-            bail!("no IPC counters found");
-        }
-    }
-
-    for (varname, mut iface) in ipcs {
-        if let Some(order) = subargs.sort {
-            iface.sort(order);
-        } else if !subargs.full {
-            iface.sort(Order::Value)
-        }
-        if subargs.full {
-            println!("{varname}\n{iface:#}");
-        } else if iface.total() > 0 {
-            println!("{varname}\n{iface}");
-        }
-    }
-    Ok(())
+    #[clap(flatten)]
+    pub(super) opts: Options,
 }
 
+impl Args {
+    pub(super) fn ipc_counter_dump(
+        &self,
+        hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<()> {
+        let Self { clients, opts } = self;
+        // In order to display task generations accurately, we must find and load
+        // the task table:
+        let task_table = {
+            let (base, task_count) = hubris.task_table(core)?;
+            let task_t = hubris.lookup_struct_byname("Task")?.clone();
+            humility_doppel::Task::load_tcbs(
+                hubris,
+                core,
+                base,
+                task_count as usize,
+                &task_t,
+            )?
+        };
+
+        let mut ipcs = BTreeMap::new();
+
+        for (varname, var) in hubris.qualified_variables() {
+            if varname.ends_with("_CLIENT_COUNTERS") {
+                let task = HubrisTask::from(var.goff);
+                let taskname = taskname(hubris, var)?;
+                // If we're only showing IPCs from specific clients, check whether
+                // the task name contains that substring.
+                if !clients.is_empty()
+                    && !clients.iter().any(|name| taskname.contains(name))
+                {
+                    continue;
+                }
+
+                let gen = task_table[task.task() as usize].generation;
+                // Only select counters matching the provided filter, if there is
+                // one.
+                if let Some(ref name) = opts.name {
+                    if !varname.contains(name) {
+                        continue;
+                    }
+                }
+
+                let def = hubris.lookup_struct(var.goff)?;
+                let ctrs = load_counters(hubris, core, def, var)?;
+                let iface = ipcs.entry(varname).or_insert_with(|| {
+                    let name = def
+                        .name
+                        .split("::")
+                        .last()
+                        .map(|s| {
+                            s.trim_end_matches("Counts")
+                                .trim_end_matches("Event")
+                        })
+                        .unwrap_or("");
+                    IpcIface { name, methods: Default::default() }
+                });
+                for (method, count) in ctrs.counts {
+                    iface
+                        .methods
+                        .entry(method)
+                        .or_default()
+                        .0
+                        .insert((taskname, gen), count);
+                }
+            }
+        }
+
+        if ipcs.is_empty() {
+            if let Some(ref name) = opts.name {
+                bail!(
+                    "no IPC counters found with names containing \"{}\" (-l to list)",
+                    name
+                );
+            } else {
+                bail!("no IPC counters found");
+            }
+        }
+
+        for (varname, mut iface) in ipcs {
+            if let Some(order) = opts.sort {
+                iface.sort(order);
+            } else if !opts.full {
+                iface.sort(Order::Value)
+            }
+            if opts.full {
+                println!("{varname}\n{iface:#}");
+            } else if iface.total() > 0 {
+                println!("{varname}\n{iface}");
+            }
+        }
+        Ok(())
+    }
+}
 struct IpcIface<'a> {
     name: &'a str,
     methods: IndexMap<String, Ipc<'a>>,

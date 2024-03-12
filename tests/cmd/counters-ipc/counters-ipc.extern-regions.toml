@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.extern-regions counters --ipc"
+args = "-d hubris.core.extern-regions counters ipc"
 
 status.code = 1

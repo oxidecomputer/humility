@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.nightly-2022-11-01 counters --ipc"
+args = "-d hubris.core.nightly-2022-11-01 counters ipc"
 
 status.code = 1

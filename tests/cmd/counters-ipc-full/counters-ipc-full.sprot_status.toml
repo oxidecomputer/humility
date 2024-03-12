@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.sprot_status counters -if"
+args = "-d hubris.core.sprot_status counters ipc --full"
 
 status.code = 1

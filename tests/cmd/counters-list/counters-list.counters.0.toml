@@ -6,5 +6,4 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.counters.0 counters --list"
-
+args = "-d hubris.core.counters.0 counters list"

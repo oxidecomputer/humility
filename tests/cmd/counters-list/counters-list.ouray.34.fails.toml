@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.ouray.34.fails counters --list"
+args = "-d hubris.core.ouray.34.fails counters list"
 
 status.code = 1

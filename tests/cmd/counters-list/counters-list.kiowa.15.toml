@@ -6,7 +6,7 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.kiowa.15 counters --list"
+args = "-d hubris.core.kiowa.15 counters list"
 
 # humility counters fails on this dump, as it contains no counters
 status.code = 1

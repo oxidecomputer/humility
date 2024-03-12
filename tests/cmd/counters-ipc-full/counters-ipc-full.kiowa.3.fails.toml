@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.kiowa.3.fails counters -if"
+args = "-d hubris.core.kiowa.3.fails counters ipc --full"
 
 status.code = 1
