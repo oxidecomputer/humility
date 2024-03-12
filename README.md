@@ -382,6 +382,7 @@ thermal
            6 FanAdded
 ```
 
+##### IPC counters
 
 The `--ipc` argument shows IPC client counters generated automatically by
 `idol`, showing the total request count for a given IPC and per-client-task
@@ -391,48 +392,136 @@ breakdowns. For example:`
 $ humility -d ./hubris.core.0 counters --ipc`
 humility: attached to dump
 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
-       6 HostFlash::get_mux()
-       6 +---> Ok <---+ [host_sp_comms]
+ fn HostFlash::get_mux() .............................................. 6 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 6 ok
 
-       2 HostFlash::set_mux()
-       2 +---> Ok
-       1 |     <---+ [gimlet_seq]
-       1 |     <---+ [host_sp_comms]
+ fn HostFlash::set_mux() .............................................. 2 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ........... + 1 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
 
-       1 HostFlash::get_dev()
-       1 +---> Ok <---+ [host_sp_comms]
+ fn HostFlash::get_dev() .............................................. 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
 
 
 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
-    2017 Sequencer::get_state()
-    2017 +---> Ok
-    1386 |     <---+ [thermal]
-     626 |     <---+ [power]
-       5 |     <---+ [host_sp_comms]
-
-
-drv_spi_api::__SPI_CLIENT_COUNTERS
-   67589 Spi::exchange()
-   67589 +---> Ok
-   67580 |     <---+ [gimlet_seq]
-       8 |     <---+ [net]
-       1 |     <---+ [host_sp_comms]
-
-     592 Spi::write()
-     592 +---> Ok
-     530 |     <---+ [gimlet_seq]
-      62 |     <---+ [net]
-
-       4 Spi::lock()
-       4 +---> Ok <---+ [gimlet_seq]
-
-       1 Spi::release()
-       1 +---> Ok <---+ [gimlet_seq]
+ fn Sequencer::get_state() ......................................... 2017 calls
+    clients:
+    task thermal (0 restarts) .......................... + 0 ........ + 1386 ok
+    task power (0 restarts) ............................ + 0 ......... + 626 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 5 ok
+                                                         ---          ------
+    totals:                                              = 0 err      = 2017 ok
 ...
 ```
 
 When displaying counters by IPC, substring filtering is performed on the
-counters variable, but *not* on the client task name.
+counters variable, but *not* on the client task name. This allows filtering
+the output based on the IPC interface. For example:
+
+```console
+$ humility -d ./hubris.core.0 counters --ipc sensors
+humility: attached to dump
+task_sensor_api::__SENSOR_CLIENT_COUNTERS
+fn Sensor::post() ................................................ 76717 calls
+   clients:
+   task power (0 restarts) ............................ + 0 ....... + 50300 ok
+   task thermal (0 restarts) .......................... + 0 ....... + 26417 ok
+                                                        ---         -------
+   totals:                                              = 0 err     = 76717 ok
+
+fn Sensor::get_reading() ......................................... 19804 calls
+   clients:
+   task thermal (0 restarts) ...................................... = 18101 ok
+   - Err(NotPresent) ............................... + 1701 ..................
+   - Err(DeviceError) ................................. + 2 ..................
+                                                     ------         -------
+   totals:                                           = 1703 err     = 18101 ok
+
+fn Sensor::nodata() ............................................... 6225 calls
+   clients:
+   task power (0 restarts) ............................ + 0 ........ + 3536 ok
+   task thermal (0 restarts) .......................... + 0 ........ + 2689 ok
+                                                        ---          ------
+   totals:                                              = 0 err      = 6225 ok
+
+```
+
+Instead, to show only the IPC counters _recorded_ by specific client tasks,
+use the `--client` argument, which will filter the output counters to those
+recorded in tasks whose names match the provided strings. For example, to
+show only IPC counters recorded by the `gimlet_seq` task, use:
+
+```console
+$ humility -d ./hubris.core.0 counters --ipc --client gimlet_seq
+humility: attached to dump
+drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+ fn HostFlash::set_mux() .............................................. 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+drv_spi_api::__SPI_CLIENT_COUNTERS
+ fn Spi::exchange() ............................................... 67580 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ....... = 67580 ok
+
+ fn Spi::write() .................................................... 530 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ......... = 530 ok
+
+ fn Spi::lock() ....................................................... 4 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 4 ok
+
+ fn Spi::release() .................................................... 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_read_input() ........................................ 16796 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ....... = 16796 ok
+
+ fn Sys::gpio_set_reset() ............................................ 15 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 .......... = 15 ok
+
+ fn Sys::gpio_configure_raw() ........................................ 14 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 .......... = 14 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::set_state() ................................................. 5 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 5 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::set_spd_eeprom() ........................................ 32 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 .......... = 32 ok
+
+ fn Packrat::set_mac_address_block() .................................. 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+ fn Packrat::set_identity() ........................................... 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+```
+
+Multiple `--client` arguments may be provided, to show IPCs from any of a
+set of client tasks.
+
+`--client` may be combined with a filter matching counter variable names, to
+show only the calls to specific IPC interfaces from specific tasks.
 
 
 ### `humility dashboard`

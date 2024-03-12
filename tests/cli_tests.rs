@@ -197,6 +197,12 @@ fn make_all_tests() -> Result<()> {
         Test::witharg(Kind::Postmortem, "counters-ipc-full", "counters", "-if"),
         Test::witharg(
             Kind::Postmortem,
+            "counters-ipc-filtered",
+            "counters",
+            "--ipc --client gimlet_seq --client net",
+        ),
+        Test::witharg(
+            Kind::Postmortem,
             "counters-arg",
             "counters",
             "gimlet_seq",

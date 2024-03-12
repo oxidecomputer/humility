@@ -1,0 +1,90 @@
+drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+ fn HostFlash::set_mux() .............................................. 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+drv_spi_api::__SPI_CLIENT_COUNTERS
+ fn Spi::exchange() ............................................... 67588 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ....... + 67580 ok
+    task net (0 restarts) .............................. + 0 ........... + 8 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 67588 ok
+
+ fn Spi::write() .................................................... 592 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ......... + 530 ok
+    task net (0 restarts) .............................. + 0 .......... + 62 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 592 ok
+
+ fn Spi::lock() ....................................................... 4 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 4 ok
+
+ fn Spi::release() .................................................... 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_read_input() ........................................ 16796 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ....... = 16796 ok
+
+ fn Sys::gpio_configure_raw() ........................................ 27 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 .......... + 14 ok
+    task net (0 restarts) .............................. + 0 .......... + 13 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 27 ok
+
+ fn Sys::gpio_set_reset() ............................................ 23 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 .......... + 15 ok
+    task net (0 restarts) .............................. + 0 ........... + 8 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 23 ok
+
+ fn Sys::enable_clock_raw() ........................................... 4 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 4 ok
+
+ fn Sys::enter_reset_raw() ............................................ 2 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 2 ok
+
+ fn Sys::leave_reset_raw() ............................................ 2 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 2 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::set_state() ................................................. 5 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 5 ok
+
+ fn Jefe::get_state() ................................................. 2 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 2 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::set_spd_eeprom() ........................................ 32 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 .......... = 32 ok
+
+ fn Packrat::get_mac_address_block() .................................. 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+ fn Packrat::set_mac_address_block() .................................. 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+ fn Packrat::set_identity() ........................................... 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
