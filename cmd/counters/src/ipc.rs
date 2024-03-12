@@ -1,6 +1,6 @@
 use super::{load_counters, taskname, CountersArgs, Order};
 use anyhow::{bail, Result};
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_doppel::{CounterVariant, GenOrRestartCount};
@@ -133,21 +133,31 @@ impl IpcIface<'_> {
     }
 }
 
+const INDENT: &str = "    ";
+
 impl fmt::Display for IpcIface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let total_len = f.width().unwrap_or(10);
         let dim_space = " ".dimmed();
-        const INDENT: &str = "    ";
+
         for (method_name, ctrs) in &self.methods {
             let total = ctrs.total();
             if total == 0 && !f.alternate() {
                 continue;
             }
+
+            // N.B. that throughout this implementation, we pad a number of
+            // strings with `.` characters by padding a space or empty string to
+            // a width with the string's length subtracted, rather than simply
+            // padding the string in the format argument. This is because we
+            // would like to put spaces around each string, rather than having
+            // the `.` characters run up to the padded value, in order to make
+            // the output a bit more readable when displayed without colors.
             let total_str = total.to_string();
             let errors = ctrs.total_errors();
             let ok = total - errors;
-            let ok_str = ok.to_string();
-            let err_str = errors.to_string();
+            let ok_str = fmt_oks(ok, ok.to_string());
+            let err_str = fmt_errs(errors, errors.to_string());
             writeln!(
                 f,
                 " fn {}::{}() {dim_space:.>pad$}{} calls\n{INDENT}{}:",
@@ -165,27 +175,41 @@ impl fmt::Display for IpcIface<'_> {
                     .saturating_sub(total_str.len())
                     .saturating_sub(1)
             )?;
-            let mut formatted_tasks = 0;
-            let mut formatted_errors = 0;
-            let num_important_tasks = ctrs
+
+            // The number of tasks we'll be formatting for this IPC method.
+            //
+            // This is used to determine whether totals will be displayed ---
+            // we're only formatting a single task for a given IPC method, we
+            // don't need to sum up the totals across tasks.
+            let formatted_tasks = ctrs
                 .0
                 .iter()
+                // A task is displayed if it has a non-zero count, *or* if we're
+                // in alternate mode (set if the `--full` argument is passed),
+                // in which case we always display all counts.
                 .filter(|(_, c)| c.total() > 0 || f.alternate())
                 .count();
+
+            // Count the total number of error variants that have been
+            // formatted for this IPC method, in order to determine whether an
+            // error total must be displayed.
+            let mut formatted_errors = 0;
+
             for ((task, gen), ctrs) in &ctrs.0 {
                 let total = ctrs.total();
+                // Skip displaying a task if it has no counts and we're not in
+                // alt mode (`--full`).
                 if total == 0 && !f.alternate() {
                     continue;
-                } else {
-                    formatted_tasks += 1;
                 }
 
                 let errors = ipc_error_count(ctrs);
                 let ok = total - errors;
-                let ok_str = format!(
-                    "{} {ok}",
-                    if num_important_tasks > 1 { "+" } else { "=" }
-                );
+
+                // If we're not summing multiple tasks, just output an `=`
+                // sign for this task's counts.
+                let sign = if formatted_tasks > 1 { "+" } else { "=" };
+                let ok_str = fmt_oks(ok, format!("{sign} {ok}",));
                 let restarts = match gen {
                     GenOrRestartCount::Gen(gen) => {
                         format!(" (gen {gen:?})")
@@ -195,9 +219,12 @@ impl fmt::Display for IpcIface<'_> {
                     }
                 };
                 write!(f, "{INDENT}task {}{restarts} ", task.italic())?;
+
                 if errors == 0 && !f.alternate() {
-                    let err_str =
-                        if num_important_tasks > 1 { "+ 0" } else { "= 0" };
+                    // If no errors were recorded, and we won't be printing each
+                    // error variant because we're not in alt mode, add `0 errs`
+                    // on this line to show that this task recorded no errors.
+                    let err_str = format!("{sign} {errors}").dimmed();
                     let pad1 = 80usize
                         .saturating_sub(err_str.len())
                         .saturating_sub(task.len())
@@ -207,9 +234,7 @@ impl fmt::Display for IpcIface<'_> {
                         .saturating_sub(total_len * 2);
                     writeln!(
                         f,
-                        "{dim_space:.>pad1$}{} {dim_space:.>pad2$}{} ok",
-                        err_str.dimmed(),
-                        if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
+                        "{dim_space:.>pad1$}{err_str} {dim_space:.>pad2$}{ok_str} ok",
                         pad2 = 80usize
                             .saturating_sub(pad1)
                             .saturating_sub(ok_str.len())
@@ -222,10 +247,11 @@ impl fmt::Display for IpcIface<'_> {
                             .saturating_sub(2)
                     )?;
                 } else {
+                    // Otherwise, we'll be formatting the error total at the
+                    // bottom, so just display this task's ok count.
                     writeln!(
                         f,
-                        "{dim_space:.>pad$}{} ok",
-                        if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
+                        "{dim_space:.>pad$}{ok_str} ok",
                         pad = 80usize
                             .saturating_sub(ok_str.len())
                             .saturating_sub(task.len())
@@ -234,85 +260,6 @@ impl fmt::Display for IpcIface<'_> {
                             .saturating_sub(2)
                             .saturating_sub(" ok".len())
                     )?;
-                }
-
-                fn fmt_err_variant(
-                    ctr: &CounterVariant,
-                    mut pfx: String,
-                    formatted: &mut usize,
-                    num_important: usize,
-                    only_important_task: bool,
-                    f: &mut fmt::Formatter<'_>,
-                ) -> fmt::Result {
-                    match ctr {
-                        &CounterVariant::Single(value)
-                            if value > 0 || f.alternate() =>
-                        {
-                            *formatted += 1;
-                            let total_len = f.width().unwrap_or(10);
-                            let value_str = format!("+ {value}",);
-                            for _ in 0..pfx.matches('(').count() {
-                                pfx.push(')');
-                            }
-                            let pad = 80usize
-                                .saturating_sub(total_len * 2)
-                                .saturating_sub(
-                                    if num_important > 1 && !only_important_task
-                                    {
-                                        total_len + 3
-                                    } else {
-                                        0
-                                    },
-                                )
-                                .saturating_sub(pfx.len())
-                                .saturating_sub(value_str.len())
-                                .saturating_sub("- Err() ".len())
-                                .saturating_sub(INDENT.len());
-                            writeln!(
-                                f,
-                                "{INDENT}- Err({}) {:.>pad$}{}{:.<rem$}",
-                                pfx.red(),
-                                " ".dimmed(),
-                                if value > 0 {
-                                    value_str.red()
-                                } else {
-                                    value_str.dimmed()
-                                },
-                                " ".dimmed(),
-                                rem = 80usize
-                                    .saturating_sub(pad)
-                                    .saturating_sub(value_str.len())
-                                    .saturating_sub(pfx.len())
-                                    .saturating_sub("- Err() ".len())
-                                    .saturating_sub(INDENT.len())
-                                    .saturating_sub(1),
-                            )?;
-                        }
-                        CounterVariant::Nested(map) => {
-                            let num_important = map
-                                .counts
-                                .iter()
-                                .filter(|(_, c)| c.total() > 0 || f.alternate())
-                                .count();
-                            for (name, ctr) in &map.counts {
-                                fmt_err_variant(
-                                    ctr,
-                                    if !pfx.is_empty() {
-                                        format!("{pfx}({name}")
-                                    } else {
-                                        name.clone()
-                                    },
-                                    formatted,
-                                    num_important,
-                                    only_important_task,
-                                    f,
-                                )?;
-                            }
-                        }
-                        _ => {}
-                    };
-
-                    Ok(())
                 }
 
                 let mut formatted_errs_this_task = 0;
@@ -324,9 +271,10 @@ impl fmt::Display for IpcIface<'_> {
                 if let Some(errs) = errs {
                     let err_total = errs.total();
                     if err_total > 0 || f.alternate() {
-                        let total_str = format!("{err_total}");
+                        let total_str =
+                            fmt_errs(err_total, err_total.to_string());
                         if let CounterVariant::Nested(_) = errs {
-                            let only_important_task = num_important_tasks == 1;
+                            let only_important_task = formatted_tasks == 1;
                             fmt_err_variant(
                                 errs,
                                 String::new(),
@@ -339,11 +287,6 @@ impl fmt::Display for IpcIface<'_> {
                                 && !only_important_task
                             {
                                 const TOTAL_INDENT: &str = "      ";
-                                let colored_total = if err_total > 0 {
-                                    total_str.red()
-                                } else {
-                                    total_str.dimmed()
-                                };
                                 let pad = 80usize
                                     .saturating_sub(total_len * 3)
                                     .saturating_sub(total_str.len())
@@ -352,18 +295,18 @@ impl fmt::Display for IpcIface<'_> {
                                 write!(
                                     f,
                                     "{TOTAL_INDENT}{:>pad$}{:->underline$}\n\
-                                    {TOTAL_INDENT}{:>pad$}= {colored_total}",
+                                    {TOTAL_INDENT}{:>pad$}= {total_str}",
                                     "",
                                     "",
                                     "",
                                     underline = total_str.len() + 2,
                                 )?;
-                                if num_important_tasks > 1 {
+                                if formatted_tasks > 1 {
                                     writeln!(
                                         f,
-                                        " {:->arrow$} {} {colored_total}",
+                                        " {:->arrow$} {sign} {total_str}",
                                         ">".dimmed(),
-                                        if err_total > 0 {
+                                        sign = if err_total > 0 {
                                             "+".red()
                                         } else {
                                             "+".dimmed()
@@ -396,26 +339,110 @@ impl fmt::Display for IpcIface<'_> {
                         .saturating_sub(INDENT.len()),
                     pad2 = (total_len + 2) - ok_underline.len(),
                 )?;
+                let pad1 = 80usize
+                    .saturating_sub(total_len * 2)
+                    .saturating_sub(err_str.len() + 2)
+                    .saturating_sub(INDENT.len())
+                    .saturating_sub("totals:".len());
+                let pad2 = total_len - (ok_str.len() + 1);
                 writeln!(
                     f,
-                    "{INDENT}{}:{:>pad1$}= {} err {:>pad2$}= {} ok",
+                    "{INDENT}{}:{space:>pad1$}= {err_str} err {space:>pad2$}= {ok_str} ok",
                     "totals".bold(),
-                    " ",
-                    if errors > 0 { err_str.red() } else { err_str.dimmed() },
-                    " ",
-                    if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
-                    pad1 = 80usize
-                        .saturating_sub(total_len * 2)
-                        .saturating_sub(err_str.len() + 2)
-                        .saturating_sub(INDENT.len())
-                        .saturating_sub("totals:".len()),
-                    pad2 = total_len - (ok_str.len() + 1),
+                    space = "",
                 )?;
             }
             f.write_str("\n")?;
         }
 
         Ok(())
+    }
+}
+
+fn fmt_err_variant(
+    ctr: &CounterVariant,
+    mut pfx: String,
+    formatted_errors: &mut usize,
+    num_important_variants: usize,
+    only_important_task: bool,
+    f: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
+    match ctr {
+        &CounterVariant::Single(value) if value > 0 || f.alternate() => {
+            *formatted_errors += 1;
+            let total_len = f.width().unwrap_or(10);
+            let value_str = fmt_errs(value as usize, format!("+ {value}"));
+            for _ in 0..pfx.matches('(').count() {
+                pfx.push(')');
+            }
+            let pad = 80usize
+                .saturating_sub(total_len * 2)
+                .saturating_sub(
+                    if num_important_variants > 1 && !only_important_task {
+                        total_len + 3
+                    } else {
+                        0
+                    },
+                )
+                .saturating_sub(pfx.len())
+                .saturating_sub(value_str.len())
+                .saturating_sub("- Err() ".len())
+                .saturating_sub(INDENT.len());
+            writeln!(
+                f,
+                "{INDENT}- Err({}) {:.>pad$}{value_str}{:.<rem$}",
+                pfx.red(),
+                " ".dimmed(),
+                " ".dimmed(),
+                rem = 80usize
+                    .saturating_sub(pad)
+                    .saturating_sub(value_str.len())
+                    .saturating_sub(pfx.len())
+                    .saturating_sub("- Err() ".len())
+                    .saturating_sub(INDENT.len())
+                    .saturating_sub(1),
+            )?;
+        }
+        CounterVariant::Nested(map) => {
+            let num_important = map
+                .counts
+                .iter()
+                .filter(|(_, c)| c.total() > 0 || f.alternate())
+                .count();
+            for (name, ctr) in &map.counts {
+                fmt_err_variant(
+                    ctr,
+                    if !pfx.is_empty() {
+                        format!("{pfx}({name}")
+                    } else {
+                        name.clone()
+                    },
+                    formatted_errors,
+                    num_important,
+                    only_important_task,
+                    f,
+                )?;
+            }
+        }
+        _ => {}
+    };
+
+    Ok(())
+}
+
+fn fmt_oks(ok: usize, ok_str: String) -> ColoredString {
+    if ok > 0 {
+        ok_str.green()
+    } else {
+        ok_str.dimmed()
+    }
+}
+
+fn fmt_errs(errs: impl Into<usize>, err_str: String) -> ColoredString {
+    if errs.into() > 0 {
+        err_str.red()
+    } else {
+        err_str.dimmed()
     }
 }
 
