@@ -451,28 +451,33 @@ impl IpcIface<'_> {
 
 impl fmt::Display for IpcIface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let total_len = f.width().unwrap_or(8);
+        let total_len = f.width().unwrap_or(10);
         let dim_space = " ".dimmed();
         for (method_name, ctrs) in &self.methods {
             let total = ctrs.total();
             if total == 0 && !f.alternate() {
                 continue;
             }
+            let total_str = total.to_string();
             let errors = ctrs.total_errors();
             let ok = total - errors;
             let ok_str = ok.to_string();
             let err_str = errors.to_string();
             writeln!(
                 f,
-                " fn {}::{}() {dim_space:.>pad$}",
+                " fn {}::{}() {dim_space:.>pad$}{} calls\n    clients:",
                 self.name.bold(),
                 method_name.bold(),
-                pad = 80
-                    - " fn ".len()
-                    - "() ".len()
-                    - "::".len()
-                    - method_name.len()
-                    - self.name.len()
+                total_str.bold(),
+                pad = 80usize
+                    .saturating_sub(" fn ".len())
+                    .saturating_sub("() ".len())
+                    .saturating_sub("::".len())
+                    .saturating_sub(" calls".len())
+                    .saturating_sub(method_name.len())
+                    .saturating_sub(self.name.len())
+                    .saturating_sub(total_str.len())
+                    .saturating_sub(1)
             )?;
             let mut formatted_tasks = 0;
             let num_important_tasks = ctrs
@@ -507,12 +512,13 @@ impl fmt::Display for IpcIface<'_> {
                     "    task {}{restarts}{dim_space:.<pad$} {} ok",
                     task.italic(),
                     if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
-                    pad = 80
-                        - total_len
-                        - ok_str.len()
-                        - task.len()
-                        - restarts.len()
-                        - 6,
+                    pad = 80usize
+                        .saturating_sub(ok_str.len())
+                        .saturating_sub(task.len())
+                        .saturating_sub(restarts.len())
+                        .saturating_sub("    task ".len())
+                        .saturating_sub(2)
+                        .saturating_sub(" ok".len())
                 )?;
 
                 fn fmt_err_variant(
@@ -527,18 +533,21 @@ impl fmt::Display for IpcIface<'_> {
                             if value > 0 || f.alternate() =>
                         {
                             *formatted += 1;
-                            let total_len = f.width().unwrap_or(8);
+                            let total_len = f.width().unwrap_or(10);
                             let value_str = format!("+ {value}",);
                             for _ in 0..pfx.matches('(').count() {
                                 pfx.push(')');
                             }
-                            let pad = 80
-                                - (total_len * 2)
-                                - if num_important > 1 { total_len } else { 0 }
-                                - pfx.len()
-                                - value_str.len()
-                                - 9
-                                - 5;
+                            let pad = 80usize
+                                .saturating_sub(total_len * 2)
+                                .saturating_sub(if num_important > 1 {
+                                    total_len + 3
+                                } else {
+                                    0
+                                })
+                                .saturating_sub(pfx.len())
+                                .saturating_sub(value_str.len())
+                                .saturating_sub("    - Err() ".len());
                             writeln!(
                                 f,
                                 "    - Err({}) {:.>pad$}{}{:.<rem$}",
@@ -550,7 +559,12 @@ impl fmt::Display for IpcIface<'_> {
                                     value_str.dimmed()
                                 },
                                 " ".dimmed(),
-                                rem = (total_len * 3) + 4 - value_str.len()
+                                rem = 80usize
+                                    .saturating_sub(pad)
+                                    .saturating_sub(value_str.len())
+                                    .saturating_sub(pfx.len())
+                                    .saturating_sub("    - Err() ".len())
+                                    .saturating_sub(1),
                             )?;
                         }
                         CounterVariant::Nested(map) => {
@@ -604,17 +618,17 @@ impl fmt::Display for IpcIface<'_> {
                                 } else {
                                     total_str.dimmed()
                                 };
+                                let pad = 80usize
+                                    .saturating_sub(total_len * 3)
+                                    .saturating_sub(total_str.len())
+                                    .saturating_sub(INDENT.len())
+                                    .saturating_sub(5);
                                 write!(
                                     f,
-                                    "{INDENT} {:>pad$}{:->underline$}\n{INDENT} {:>pad$}= {colored_total}",
+                                    "{INDENT}{:>pad$}{:->underline$}\n{INDENT}{:>pad$}= {colored_total}",
                                     "",
                                     "",
                                     "",
-                                    pad = 80
-                                        - (total_len * 3)
-                                        - total_str.len()
-                                        - INDENT.len()
-                                        - 5,
                                     underline = total_str.len() + 2,
                                 )?;
                                 if num_important_tasks > 1 {
@@ -627,7 +641,9 @@ impl fmt::Display for IpcIface<'_> {
                                         } else {
                                             "+".dimmed()
                                         },
-                                        arrow = total_len - 4 - total_str.len()
+                                        arrow = (total_len + 3)
+                                            .saturating_sub(4) // spaces and +
+                                            .saturating_sub(total_str.len())
                                     )?;
                                 } else {
                                     writeln!(f, " err")?;
@@ -646,20 +662,28 @@ impl fmt::Display for IpcIface<'_> {
                     "    {:>pad1$}{err_underline}    {:>pad2$}{ok_underline}",
                     "",
                     " ",
-                    pad1 = 80 - (total_len * 2) - err_underline.len() - 6,
+                    pad1 = 80usize
+                        .saturating_sub(total_len * 2)
+                        .saturating_sub(err_underline.len())
+                        .saturating_sub(4),
                     pad2 = (total_len + 2) - ok_underline.len(),
                 )?;
                 writeln!(
                     f,
-                    "    {:>pad1$}= {} err {:>pad2$}= {} ok",
+                    "    totals:{:>pad1$}= {} err {:>pad2$}= {} ok",
                     " ",
                     if errors > 0 { err_str.red() } else { err_str.dimmed() },
                     " ",
                     if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
-                    pad1 = 80 - (total_len * 2) - (err_str.len() + 2) - 6,
+                    pad1 = 80usize
+                        .saturating_sub(total_len * 2)
+                        .saturating_sub(err_str.len() + 2)
+                        .saturating_sub(4)
+                        .saturating_sub("totals:".len()),
                     pad2 = (total_len) - (ok_str.len() + 1),
                 )?;
             }
+            f.write_str("\n")?;
         }
 
         Ok(())

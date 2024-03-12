@@ -474,7 +474,6 @@ impl Counters {
         indent: usize,
         f: &mut fmt::Formatter<'_>,
     ) -> fmt::Result {
-        let total_len = f.width().unwrap_or(8);
         let mut has_written_any = false;
         for (name, counter) in &self.counts {
             let total = counter.total();
