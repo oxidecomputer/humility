@@ -452,6 +452,7 @@ impl IpcIface<'_> {
 impl fmt::Display for IpcIface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let total_len = f.width().unwrap_or(8);
+        let dim_space = " ".dimmed();
         for (method_name, ctrs) in &self.methods {
             let total = ctrs.total();
             if total == 0 && !f.alternate() {
@@ -463,31 +464,34 @@ impl fmt::Display for IpcIface<'_> {
             let err_str = errors.to_string();
             writeln!(
                 f,
-                "{total:>total_len$} {}::{}() {:.<pad$} {} ok {:.>pad2$}{} err",
+                " fn {}::{}()",
                 self.name.bold(),
                 method_name.bold(),
-                "".dimmed(),
-                ok_str.green(),
-                " ".dimmed(),
-                err_str.red(),
-                pad = 80
-                    - (total_len * 3)
-                    - ok_str.len()
-                    - self.name.len()
-                    - method_name.len()
-                    - 8,
-                pad2 = total_len - err_str.len(),
+                // "".dimmed(),
+                // ok_str.green(),
+                // " ".dimmed(),
+                // err_str.red(),
+                // pad = 80
+                //     - total_len
+                //     // - ok_str.len()
+                //     - self.name.len()
+                //     - method_name.len()
+                //     - 8,
+                // // pad2 = total_len - err_str.len(),
             )?;
+            let mut formatted_tasks = 0;
             for ((task, gen), ctrs) in &ctrs.0 {
                 let total = ctrs.total();
                 if total == 0 && !f.alternate() {
                     continue;
+                } else {
+                    formatted_tasks += 1;
                 }
 
                 let errors = ipc_error_count(ctrs);
                 let ok = total - errors;
-                let ok_str = ok.to_string();
-                let err_str = errors.to_string();
+                let ok_str = format!("+ {ok}");
+                let err_str = format!("+ {errors}");
                 let restarts = match gen {
                     GenOrRestartCount::Gen(gen) => {
                         format!(" (gen {gen:?})")
@@ -498,38 +502,106 @@ impl fmt::Display for IpcIface<'_> {
                 };
                 writeln!(
                     f,
-                    "{:>total_len$} task {}{restarts}{:.<pad$} {} ok {:.>pad2$}{} err",
-                    "",
+                    "    task {}{restarts}{:.<pad$} {} ok {:.>pad2$}{} err",
                     task.italic(),
                     " ".dimmed(),
-                    ok_str.green(),
+                    if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
                     " ".dimmed(),
-                    err_str.red(),
+                    if errors > 0 { err_str.red() } else { err_str.dimmed() },
                     pad = 80
-                        - (total_len * 3)
+                        - 4
+                        - (total_len * 2)
                         - ok_str.len()
                         - task.len()
                         - restarts.len()
-                        - 8,
-                    pad2 = total_len - err_str.len(),
+                        - 9,
+                    pad2 = total_len - err_str.len() - 1,
                 )?;
 
+                fn fmt_err_variant(
+                    ctr: &CounterVariant,
+                    mut pfx: String,
+                    f: &mut fmt::Formatter<'_>,
+                ) -> fmt::Result {
+                    match ctr {
+                        &CounterVariant::Single(value)
+                            if value > 0 || f.alternate() =>
+                        {
+                            let total_len = f.width().unwrap_or(8);
+                            let value_str = format!("+ {value}");
+                            for _ in 0..pfx.matches('(').count() {
+                                pfx.push(')');
+                            }
+                            writeln!(
+                                f,
+                                "    - {pfx} {:.>pad$}{}",
+                                " ".dimmed(),
+                                value_str.red(),
+                                pad = 80
+                                    - (total_len * 2)
+                                    - 10
+                                    - pfx.len()
+                                    - value_str.len()
+                                    - 7,
+                            )?;
+                        }
+                        CounterVariant::Nested(map) => {
+                            for (name, ctr) in &map.counts {
+                                fmt_err_variant(
+                                    ctr,
+                                    if !pfx.is_empty() {
+                                        format!("{pfx}({name}")
+                                    } else {
+                                        name.clone()
+                                    },
+                                    f,
+                                )?;
+                            }
+                        }
+                        _ => {}
+                    };
+
+                    Ok(())
+                }
+
                 match ctrs {
-                    CounterVariant::Nested(map) if f.alternate() => {
-                        writeln!(f, "{:#}", map.display_padded("         - "))?
-                    }
-                    CounterVariant::Nested(map)
-                        if map
-                            .counts
-                            .iter()
-                            .filter(|(_, c)| c.total() > 1)
-                            .count()
-                            > 1 =>
-                    {
-                        writeln!(f, "{}", ctrs.display_padded("         - "))?
+                    CounterVariant::Nested(map) => {
+                        if let Some(errs) = map.counts.get("Err") {
+                            if errs.total() > 0 || f.alternate() {
+                                writeln!(f, "    errors:")?;
+                                if let CounterVariant::Nested(_) = errs {
+                                    fmt_err_variant(errs, String::new(), f)?
+                                }
+                            }
+                        }
                     }
                     _ => {}
                 }
+            }
+
+            if formatted_tasks > 1 {
+                let err_underline = "-".repeat(err_str.len() + 2);
+                let ok_underline = "-".repeat(ok_str.len() + 2);
+                writeln!(
+                    f,
+                    "{:<total_len$} {:>pad1$}{ok_underline}   {:>pad2$}{err_underline}    ",
+                    "",
+                    " ",
+                    " ",
+                    pad1 = 80 - (total_len * 3) - ok_underline.len() - 3,
+                    pad2 = (total_len + 2) - err_underline.len() - 2,
+                )?;
+                writeln!(
+                    f,
+                    "{:<total_len$} {:>pad1$}= {}   {:>pad2$}= {}    ",
+                    "",
+                    " ",
+                    if ok > 0 { ok_str.green() } else { ok_str.dimmed() },
+                    "  ",
+                    if errors > 0 { err_str.red() } else { err_str.dimmed() },
+                    pad1 = 80 - (total_len * 3) - ok_str.len() - 5,
+                    pad2 = (total_len + 2) - err_str.len() - 4,
+                )?;
             }
         }
 
