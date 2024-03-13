@@ -231,10 +231,6 @@ struct Options {
     /// show only counters whose names include the provided substring.
     name: Option<String>,
 
-    /// print full errors
-    #[clap(long, short)]
-    verbose: bool,
-
     /// show counters with zero values
     #[clap(long, short)]
     full: bool,
@@ -281,6 +277,7 @@ impl CountersArgs {
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
+    let verbose = context.cli.verbose > 0;
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
@@ -365,7 +362,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 if let Err(e) =
                     counter_dump(hubris, core, def, var, &subargs.opts, pad)
                 {
-                    if subargs.opts.verbose {
+                    if verbose {
                         humility::msg!("counter dump failed: {e:?}");
                     } else {
                         humility::msg!("counter dump failed: {e}");

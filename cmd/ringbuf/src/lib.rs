@@ -68,9 +68,6 @@ struct RingbufArgs {
     /// list variables
     #[clap(long, short)]
     list: bool,
-    /// print full errors
-    #[clap(long, short)]
-    verbose: bool,
     /// print only a single ringbuffer by substring of name
     #[clap(conflicts_with = "list")]
     name: Option<String>,
@@ -205,6 +202,7 @@ fn taskname<'a>(
 fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let verbose = context.cli.verbose > 0;
     let hubris = context.archive.as_ref().unwrap();
 
     let subargs = RingbufArgs::try_parse_from(subargs)?;
@@ -274,7 +272,7 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
         if let Some(def) = def {
             if let Err(e) = ringbuf_dump(hubris, core, def, v.1, subargs.totals)
             {
-                if subargs.verbose {
+                if verbose {
                     humility::msg!("ringbuf dump failed: {e:?}");
                 } else {
                     humility::msg!("ringbuf dump failed: {e}");
