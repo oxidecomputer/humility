@@ -32,7 +32,12 @@ fn main() -> Result<()> {
     let mut context =
         humility_cli::ExecutionContext::new(args.clone(), &m, false)?;
 
-    let log_level = if args.verbose { "trace" } else { "warn" };
+    let log_level = match args.verbose {
+        0 => "warn",
+        1 => "info",
+        2 => "info,humility=debug",
+        _ => "trace",
+    };
 
     let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
 

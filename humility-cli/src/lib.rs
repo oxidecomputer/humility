@@ -5,7 +5,7 @@
 mod env;
 
 use anyhow::Result;
-use clap::{AppSettings, ArgGroup, ArgMatches, Parser};
+use clap::{AppSettings, ArgAction, ArgGroup, ArgMatches, Parser};
 use env::Environment;
 use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
 
@@ -16,9 +16,12 @@ use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
 )]
 #[clap(global_setting(AppSettings::NoAutoVersion))]
 pub struct Cli {
-    /// verbose messages
-    #[clap(long, short)]
-    pub verbose: bool,
+    /// Enable verbose output.
+    ///
+    /// Use multiple times for more verbose output (up to `-vvv` for total
+    /// information overload).
+    #[clap(long, short, action = ArgAction::Count)]
+    pub verbose: u8,
 
     /// terse output
     #[clap(long, short = 'T', hide = true)]
