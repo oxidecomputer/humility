@@ -453,7 +453,7 @@ ID TASK                       GEN PRI STATE
                 }
 
  7 hiffy                        0   3 notif: bit31(T+43)
-   stack unwind failed: 0x20004000 is valid, but offset in dump (0xd7fe0) + size (0x4000) exceeds max (0xda7e0); is the dump truncated or otherwise corrupt? 
+   stack unwind failed: 0x20004000 is valid, but offset in dump (0xd7fe0) + size (0x4000) exceeds max (0xda7e0); is the dump truncated or otherwise corrupt?
    |
    +--->   R0 = 0x08009fb0   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200040fc
    |       R4 = 0x08009fb0   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
@@ -506,7 +506,7 @@ ID TASK                       GEN PRI STATE
                 }
 
  8 idle                         0   5 ready
-   stack unwind failed: Do not have unwind info for the given address. 
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
    |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000

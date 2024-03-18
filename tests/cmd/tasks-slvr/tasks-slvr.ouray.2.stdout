@@ -235,3 +235,123 @@ ID TASK                       GEN PRI STATE
                 }
 
  5 log                          0   3 RUNNING
+   could not read registers: register PC not found in dump
+   |
+   +-----------> 0x20000358 Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x1,
+                        r6: 0x2,
+                        r7: 0x20003ff8,
+                        r8: 0xffff,
+                        r9: 0x6,
+                        r10: 0x802911c,
+                        r11: 0x6,
+                        psp: 0x20003e60,
+                        exc_return: 0xffffffed
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200000c8 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004878 (&abi::TaskDesc)
+                }
+
+ 6 pong                         0   3 wait: reply from log/gen0
+   |
+   +--->  0x20004f40 0x08030ee2 userlib::sys_send_stub
+   |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:127
+   |      0x20004f80 0x0803101a <userlib::logging::Logger as defmt::Logger>::release
+   |                 @ /home/bmc/hubris-logging/userlib/src/logging.rs:37
+   |      0x20004f80 0x08031062 _defmt_release
+   |                 @ /home/bmc/hubris-logging/userlib/src/logging.rs:10
+   |      0x20004fa0 0x08030b5c defmt::export::release
+   |                 @ /home/bmc/.cargo/registry/src/github.com-1ecc6299db9ec823/defmt-0.1.3//home/bmc/.cargo/registry/src/github.com-1ecc6299db9ec823/defmt-0.1.3/src/export.rs:44
+   |      0x20005000 0x08030116 userlib::sys_reply
+   |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:317
+   |      0x20005000 0x08030116 main
+   |                 @ /home/bmc/hubris-logging/task-pong/src/main.rs:7
+   |
+   |
+   +--->   R0 = 0x20004f4c   R1 = 0x00000002   R2 = 0x00000100   R3 = 0x0803166c
+   |       R4 = 0x00050001   R5 = 0x08031614   R6 = 0x00000000   R7 = 0x08031614
+   |       R8 = 0x00000000   R9 = 0x20004f40  R10 = 0x00000001  R11 = 0x00000000
+   |      R12 = 0x00000001   SP = 0x20004f20   LR = 0x08031063   PC = 0x08030ee2
+   |      PSR = 0x01000000
+   |
+   +-----------> 0x200003c8 Task {
+                    save: SavedState {
+                        r4: 0x50001,
+                        r5: 0x8031614,
+                        r6: 0x0,
+                        r7: 0x8031614,
+                        r8: 0x0,
+                        r9: 0x20004f40,
+                        r10: 0x1,
+                        r11: 0x0,
+                        psp: 0x20004eb8,
+                        exc_return: 0xffffffed
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InReply(TaskId(0x5))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x3eb18f8)),
+                        to_post: NotificationSet(0x1)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200000e8 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004890 (&abi::TaskDesc)
+                }
+
+ 7 idle                         0   5 ready
+   |
+   +--->  0x20005100 0x08032001 _start
+   |                 @ /home/bmc/hubris-logging/userlib/src/lib.rs:809
+   |
+   |
+   +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x20005100   LR = 0xffffffff   PC = 0x08032001
+   |      PSR = 0x01000000
+   |
+   +-----------> 0x20000438 Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20005098,
+                        exc_return: 0xffffffed
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000108 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80048a8 (&abi::TaskDesc)
+                }
+

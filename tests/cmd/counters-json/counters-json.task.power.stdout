@@ -1,0 +1,172 @@
+{
+  "power": {
+    "drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS": {
+      "get_state": {
+        "Ok": 75,
+        "Err": {
+          "IllegalTransition": 0,
+          "MuxToHostCPUFailed": 0,
+          "MuxToSPFailed": 0,
+          "ReadRegsFailed": 0,
+          "CPUNotPresent": 0,
+          "UnrecognizedCPU": 0,
+          "A1Timeout": 0,
+          "A0TimeoutGroupC": 0,
+          "A0Timeout": 0,
+          "I2cFault": 0,
+          "ServerRestarted": 0
+        }
+      },
+      "set_state": {
+        "Ok": 0,
+        "Err": {
+          "IllegalTransition": 0,
+          "MuxToHostCPUFailed": 0,
+          "MuxToSPFailed": 0,
+          "ReadRegsFailed": 0,
+          "CPUNotPresent": 0,
+          "UnrecognizedCPU": 0,
+          "A1Timeout": 0,
+          "A0TimeoutGroupC": 0,
+          "A0Timeout": 0,
+          "I2cFault": 0,
+          "ServerRestarted": 0
+        }
+      },
+      "fans_on": {
+        "Ok": 0,
+        "Err": {
+          "IllegalTransition": 0,
+          "MuxToHostCPUFailed": 0,
+          "MuxToSPFailed": 0,
+          "ReadRegsFailed": 0,
+          "CPUNotPresent": 0,
+          "UnrecognizedCPU": 0,
+          "A1Timeout": 0,
+          "A0TimeoutGroupC": 0,
+          "A0Timeout": 0,
+          "I2cFault": 0,
+          "ServerRestarted": 0
+        }
+      },
+      "fans_off": {
+        "Ok": 0,
+        "Err": {
+          "IllegalTransition": 0,
+          "MuxToHostCPUFailed": 0,
+          "MuxToSPFailed": 0,
+          "ReadRegsFailed": 0,
+          "CPUNotPresent": 0,
+          "UnrecognizedCPU": 0,
+          "A1Timeout": 0,
+          "A0TimeoutGroupC": 0,
+          "A0Timeout": 0,
+          "I2cFault": 0,
+          "ServerRestarted": 0
+        }
+      },
+      "send_hardware_nmi": {
+        "Ok": 0,
+        "Err": 0
+      },
+      "read_fpga_regs": {
+        "Ok": 0,
+        "Err": {
+          "IllegalTransition": 0,
+          "MuxToHostCPUFailed": 0,
+          "MuxToSPFailed": 0,
+          "ReadRegsFailed": 0,
+          "CPUNotPresent": 0,
+          "UnrecognizedCPU": 0,
+          "A1Timeout": 0,
+          "A0TimeoutGroupC": 0,
+          "A0Timeout": 0,
+          "I2cFault": 0,
+          "ServerRestarted": 0
+        }
+      }
+    },
+    "task_sensor_api::__SENSOR_CLIENT_COUNTERS": {
+      "get": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0,
+          "NotPresent": 0,
+          "DeviceError": 0,
+          "DeviceUnavailable": 0,
+          "DeviceTimeout": 0,
+          "DeviceOff": 0
+        }
+      },
+      "get_reading": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0,
+          "NotPresent": 0,
+          "DeviceError": 0,
+          "DeviceUnavailable": 0,
+          "DeviceTimeout": 0,
+          "DeviceOff": 0
+        }
+      },
+      "get_raw_reading": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "get_last_data": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "get_last_nodata": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "get_min": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "get_max": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "post": {
+        "Ok": 1332,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "nodata": {
+        "Ok": 5032,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      },
+      "get_nerrors": {
+        "Ok": 0,
+        "Err": {
+          "InvalidSensor": 0,
+          "NoReading": 0
+        }
+      }
+    }
+  }
+}

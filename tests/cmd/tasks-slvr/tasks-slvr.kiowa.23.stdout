@@ -529,7 +529,7 @@ ID TASK                       GEN PRI STATE
                 }
 
  8 idle                         0   5 ready
-   stack unwind failed: Do not have unwind info for the given address. 
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
    |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x00000000
