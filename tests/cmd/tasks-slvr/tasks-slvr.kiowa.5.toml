@@ -7,5 +7,3 @@
 fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.kiowa.5 tasks -slvr"
-
-status.code = 1

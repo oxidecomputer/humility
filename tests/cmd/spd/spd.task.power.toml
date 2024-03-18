@@ -8,3 +8,4 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.task.power spd"
 
+status.code = 1
