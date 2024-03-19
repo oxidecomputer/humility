@@ -387,3 +387,419 @@ ID TASK                       GEN PRI STATE
                 }
 
  6 spi_driver                   0   2 RUNNING
+   could not read registers: register PC not found in dump
+   |
+   +-----------> 0x200005e8 Task {
+                    save: SavedState {
+                        r4: 0x7,
+                        r5: 0x0,
+                        r6: 0x3,
+                        r7: 0x200033ac,
+                        r8: 0x1,
+                        r9: 0x3,
+                        r10: 0x1,
+                        r11: 0x4,
+                        psp: 0x20003320,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200000e8 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005054 (&abi::TaskDesc)
+                }
+
+ 7 spi                          0   3 wait: reply from spi_driver/gen0
+   |
+   +--->  0x20003bb8 0x08020212 userlib::sys_send_stub
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
+   |      0x20003c00 0x08020118 main
+   |                 @ /home/bmc/hubris/task-spi/src/main.rs:24
+   |
+   |
+   +--->   R0 = 0x20003bdc   R1 = 0x20003c14   R2 = 0x00000001   R3 = 0x00000000
+   |       R4 = 0x00060003   R5 = 0x0802028c   R6 = 0x00000000   R7 = 0x0802028c
+   |       R8 = 0x00000000   R9 = 0x20003bc4  R10 = 0x00000002  R11 = 0x00000000
+   |      R12 = 0x20003cf0   SP = 0x20003b98   LR = 0x08020119   PC = 0x08020212
+   |      PSR = 0x01000000
+   |
+   +-----------> 0x20000698 Task {
+                    save: SavedState {
+                        r4: 0x60003,
+                        r5: 0x802028c,
+                        r6: 0x0,
+                        r7: 0x802028c,
+                        r8: 0x0,
+                        r9: 0x20003bc4,
+                        r10: 0x2,
+                        r11: 0x0,
+                        psp: 0x20003b30,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InReply(TaskId(0x6))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000108 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x800506c (&abi::TaskDesc)
+                }
+
+ 8 user_leds                    0   2 recv
+   |
+   +--->  0x200043c8 0x08022eae userlib::sys_recv_stub
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
+   |      0x20004400 0x080220d4 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:208
+   |      0x20004400 0x080220d4 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:164
+   |      0x20004400 0x080220d4 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:78
+   |      0x20004400 0x080220d4 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:116
+   |      0x20004400 0x080220e2 main
+   |                 @ /home/bmc/hubris/drv/user-leds/src/main.rs:69
+   |
+   |
+   +--->   R0 = 0x200043cc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200043d8
+   |       R4 = 0x200043cc   R5 = 0x00000004   R6 = 0x00000000   R7 = 0x00000000
+   |       R8 = 0x200043f4   R9 = 0x00000009  R10 = 0x00020004  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x200043a8   LR = 0x080220e3   PC = 0x08022eae
+   |      PSR = 0x61000000
+   |
+   +-----------> 0x20000748 Task {
+                    save: SavedState {
+                        r4: 0x200043cc,
+                        r5: 0x4,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x200043f4,
+                        r9: 0x9,
+                        r10: 0x20004,
+                        r11: 0x1,
+                        psp: 0x20004340,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x2),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000128 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8005084 (&abi::TaskDesc)
+                }
+
+ 9 pong                         0   3 recv, notif: bit0(T+135)
+   |
+   +--->  0x200047b8 0x08024d36 userlib::sys_recv_stub
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
+   |      0x20004800 0x0802408a userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:208
+   |      0x20004800 0x08024098 main
+   |                 @ /home/bmc/hubris/task-pong/src/main.rs:7
+   |
+   |
+   +--->   R0 = 0x200047c4   R1 = 0x00000010   R2 = 0x00000001   R3 = 0x200047d8
+   |       R4 = 0x200047c4   R5 = 0x00000010   R6 = 0x00000001   R7 = 0x00000000
+   |       R8 = 0x00000006   R9 = 0x00000000  R10 = 0x200047c4  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20004798   LR = 0x08024099   PC = 0x08024d36
+   |      PSR = 0x41000000
+   |
+   +-----------> 0x200007f8 Task {
+                    save: SavedState {
+                        r4: 0x200047c4,
+                        r5: 0x10,
+                        r6: 0x1,
+                        r7: 0x0,
+                        r8: 0x6,
+                        r9: 0x0,
+                        r10: 0x200047c4,
+                        r11: 0x1,
+                        psp: 0x20004730,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(None)),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x155cc)),
+                        to_post: NotificationSet(0x1)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000148 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x800509c (&abi::TaskDesc)
+                }
+
+10 i2c_debug                    0   3 notif: bit31(T+635)
+   |
+   +--->  0x20006380 0x08028e9c userlib::sys_recv_stub
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:261
+   |      0x20006400 0x08028306 userlib::sys_get_timer
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:688
+   |      0x20006400 0x080282e6 userlib::hl::sleep_until
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:474
+   |      0x20006400 0x080282d2 userlib::hl::sleep_for
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:499
+   |      0x20006400 0x08028306 main
+   |                 @ /home/bmc/hubris/task-i2c/src/main.rs:183
+   |
+   |
+   +--->   R0 = 0x080290a8   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200063d8
+   |       R4 = 0x080290a8   R5 = 0x00000000   R6 = 0x80000000   R7 = 0x8000ffff
+   |       R8 = 0x200063d8   R9 = 0x8000ffff  R10 = 0x20006c00  R11 = 0x00000001
+   |      R12 = 0x00000000   SP = 0x20006360   LR = 0x08028307   PC = 0x08028e9c
+   |      PSR = 0x41000000
+   |
+   +-----------> 0x200008a8 Task {
+                    save: SavedState {
+                        r4: 0x80290a8,
+                        r5: 0x0,
+                        r6: 0x80000000,
+                        r7: 0x8000ffff,
+                        r8: 0x200063d8,
+                        r9: 0x8000ffff,
+                        r10: 0x20006c00,
+                        r11: 0x1,
+                        psp: 0x200062f8,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InRecv(Some(TaskId(0xffff)))),
+                    timer: TimerState {
+                        deadline: Some(Timestamp(0x157c0)),
+                        to_post: NotificationSet(0x80000000)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000168 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050b4 (&abi::TaskDesc)
+                }
+
+11 thermal                      0   3 wait: send to i2c_driver/gen0
+   |
+   +--->  0x20008598 0x080355ba userlib::sys_send_stub
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
+   |      0x200085f0 0x08033a2e drv_i2c_api::I2cDevice::read_reg
+   |                 @ /home/bmc/hubris/drv/i2c-api/src/lib.rs:316
+   |      0x20008618 0x08034aae drv_i2c_devices::max31790::read_reg8
+   |                 @ /home/bmc/hubris/drv/i2c-devices/src/max31790.rs:235
+   |      0x20008800 0x08030442 <core::result::Result<T,E> as core::ops::try::Try>::into_result
+   |                 @ /rustc/2987785df3d46d5ff144a5c67fbb8f5cca798d78/library/core/src/result.rs:1502
+   |      0x20008800 0x08030438 drv_i2c_devices::max31790::Max31790::initialize
+   |                 @ /home/bmc/hubris/drv/i2c-devices/src/max31790.rs:298
+   |      0x20008800 0x08030442 main
+   |                 @ /home/bmc/hubris/task-thermal/src/main.rs:159
+   |
+   |
+   +--->   R0 = 0x200085c4   R1 = 0x2000859e   R2 = 0x00000002   R3 = 0x00000000
+   |       R4 = 0x00040001   R5 = 0x200085a0   R6 = 0x00000004   R7 = 0x08036990
+   |       R8 = 0x00000000   R9 = 0x200085ac  R10 = 0x00000002  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x20008578   LR = 0x08033a2f   PC = 0x080355ba
+   |      PSR = 0x01000000
+   |
+   +-----------> 0x20000958 Task {
+                    save: SavedState {
+                        r4: 0x40001,
+                        r5: 0x200085a0,
+                        r6: 0x4,
+                        r7: 0x8036990,
+                        r8: 0x0,
+                        r9: 0x200085ac,
+                        r10: 0x2,
+                        r11: 0x0,
+                        psp: 0x20008510,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x3),
+                    state: Healthy(InSend(TaskId(0x4))),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000188 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050cc (&abi::TaskDesc)
+                }
+
+12 idle                         0   5 ready
+   |
+   +--->  0x2000a100 0x08040056 main
+   |                 @ /home/bmc/hubris/task-idle/src/main.rs:9
+   |
+   |
+   +--->   R0 = 0x2000a100   R1 = 0x2000a100   R2 = 0x00000000   R3 = 0x00000000
+   |       R4 = 0x00000000   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x2000a0f8
+   |       R8 = 0x00000000   R9 = 0x00000000  R10 = 0x00000000  R11 = 0x00000000
+   |      R12 = 0x00000000   SP = 0x2000a0f8   LR = 0x0804004f   PC = 0x08040056
+   |      PSR = 0x61000000
+   |
+   +-----------> 0x20000a08 Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x2000a0f8,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x2000a090,
+                        exc_return: 0xffffffed,
+                        s16: 0x0,
+                        s17: 0x0,
+                        s18: 0x0,
+                        s19: 0x0,
+                        s20: 0x0,
+                        s21: 0x0,
+                        s22: 0x0,
+                        s23: 0x0,
+                        s24: 0x0,
+                        s25: 0x0,
+                        s26: 0x0,
+                        s27: 0x0,
+                        s28: 0x0,
+                        s29: 0x0,
+                        s30: 0x0,
+                        s31: 0x0
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x200001a8 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x80050e4 (&abi::TaskDesc)
+                }
+

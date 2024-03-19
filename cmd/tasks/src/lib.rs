@@ -404,19 +404,29 @@ pub fn print_tasks(
             let desc: TaskDesc = task.descriptor.load_from(hubris, core)?;
             if stack || registers {
                 let t = HubrisTask::Task(i);
-                let regs = hubris.registers(core, t)?;
+                match hubris.registers(core, t) {
+                    Ok(regs) => {
+                        if stack {
+                            let initial = desc.initial_stack;
 
-                if stack {
-                    match hubris.stack(core, t, desc.initial_stack, &regs) {
-                        Ok(stack) => printer.print(hubris, &stack),
-                        Err(e) => {
-                            writeln!(w, "   stack unwind failed: {:?} ", e)?;
+                            match hubris.stack(core, t, initial, &regs) {
+                                Ok(stack) => printer.print(hubris, &stack),
+                                Err(e) => {
+                                    writeln!(
+                                        w,
+                                        "   stack unwind failed: {e:?}"
+                                    )?;
+                                }
+                            }
+                        }
+
+                        if registers {
+                            print_regs(w, &regs, verbose)?;
                         }
                     }
-                }
-
-                if registers {
-                    print_regs(w, &regs, verbose)?;
+                    Err(e) => {
+                        writeln!(w, "   could not read registers: {e:?}")?;
+                    }
                 }
             }
 

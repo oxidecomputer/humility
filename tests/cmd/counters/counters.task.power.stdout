@@ -1,0 +1,7 @@
+power
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |        75 get_state(Ok)
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+        5032 nodata(Ok)
+        1332 post(Ok)

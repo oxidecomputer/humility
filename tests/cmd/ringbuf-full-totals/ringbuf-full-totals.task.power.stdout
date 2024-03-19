@@ -1,0 +1,12 @@
+humility: ring buffer drv_i2c_devices::adm1272::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  106        1        1 Config(CommandData(0x3f3f))
+   1  159        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   2  177        1        1 Coefficients(Coefficients { m: 0x297, b: 0x5000, R: 0xff })
+   3  205        1        1 Coefficients(Coefficients { m: 0x2927, b: 0x0, R: 0xfd })
+   4  106        1        1 Config(CommandData(0x3f3f))
+   5  159        1        1 Coefficients(Coefficients { m: 0xfde, b: 0x0, R: 0xfe })
+   6  177        1        1 Coefficients(Coefficients { m: 0x52e, b: 0x5000, R: 0xff })
+   7  205        1        1 Coefficients(Coefficients { m: 0x524e, b: 0x0, R: 0xfd })
+humility: ring buffer task_power::__RINGBUF in power:
+humility: ring buffer task_power::bsp::__RINGBUF in power:

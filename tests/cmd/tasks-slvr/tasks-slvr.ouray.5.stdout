@@ -479,3 +479,33 @@ ID TASK                       GEN PRI STATE
                 }
 
 10 idle                         0   5 RUNNING
+   could not read registers: register PC not found in dump
+   |
+   +-----------> 0x200005e8 Task {
+                    save: SavedState {
+                        r4: 0x0,
+                        r5: 0x0,
+                        r6: 0x0,
+                        r7: 0x0,
+                        r8: 0x0,
+                        r9: 0x0,
+                        r10: 0x0,
+                        r11: 0x0,
+                        psp: 0x20010098,
+                        exc_return: 0xffffffed
+                    },
+                    priority: Priority(0x5),
+                    state: Healthy(Runnable),
+                    timer: TimerState {
+                        deadline: None,
+                        to_post: NotificationSet(0x0)
+                    },
+                    generation: Generation(0x0),
+                    region_table: &[&abi::RegionDesc] {
+                        data_ptr: 0x20000168 (*const &abi::RegionDesc),
+                        length: 0x8
+                    },
+                    notifications: 0x0,
+                    descriptor: 0x8004cf4 (&abi::TaskDesc)
+                }
+
