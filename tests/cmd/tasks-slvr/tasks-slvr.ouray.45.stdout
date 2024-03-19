@@ -1,7 +1,7 @@
 system time = 83329
 ID TASK                       GEN PRI STATE    
  0 jefe                         0   0 FAULT: stack overflow; sp=0x20000fa0 (was: ready)
-   stack unwind failed: Do not have unwind info for the given address. 
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +--->   R0 = 0x20000ac0   R1 = 0x00000540   R2 = 0x08004c38   R3 = 0x08004c38
    |       R4 = 0x20001068   R5 = 0x200012d0   R6 = 0x08009e0b   R7 = 0x20001008

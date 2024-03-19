@@ -1,0 +1,3 @@
+system time = 76648
+ID TASK                       GEN PRI STATE    
+ 8 power                        0   6 FAULT: stack overflow; sp=0x24043fa0 (was: ready)

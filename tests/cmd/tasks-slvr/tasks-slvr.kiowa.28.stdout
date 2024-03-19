@@ -187,7 +187,7 @@ ID TASK                       GEN PRI STATE
                 }
 
  3 spi2_driver                  0   2 FAULT: stack overflow; sp=0x2000ff98 (was: ready)
-   stack unwind failed: Do not have unwind info for the given address. 
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +--->   R0 = 0x7fcf0d53   R1 = 0x3e3d79d6   R2 = 0x632c7efd   R3 = 0x993d0532
    |       R4 = 0x00000001   R5 = 0x00000000   R6 = 0x00000000   R7 = 0x20010048

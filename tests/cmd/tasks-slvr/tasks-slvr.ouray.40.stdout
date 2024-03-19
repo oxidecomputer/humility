@@ -247,7 +247,7 @@ ID TASK                       GEN PRI STATE
                 }
 
  4 user_leds                    3   2 FAULT: stack overflow; sp=0x20002ba0 (was: ready)
-   stack unwind failed: Do not have unwind info for the given address. 
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +--->   R0 = 0x20002bdc   R1 = 0x20002bd8   R2 = 0x00000c04   R3 = 0x20002bf8
    |       R4 = 0x00000002   R5 = 0x20002f20   R6 = 0x20002c70   R7 = 0x20002c58

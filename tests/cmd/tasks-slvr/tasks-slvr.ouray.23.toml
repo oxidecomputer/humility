@@ -7,5 +7,3 @@
 fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.ouray.23 tasks -slvr"
-
-status.code = 1

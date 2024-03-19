@@ -1,0 +1,4 @@
+task,variable,variant,count
+power,drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS,get_state(Ok),75
+power,task_sensor_api::__SENSOR_CLIENT_COUNTERS,post(Ok),1332
+power,task_sensor_api::__SENSOR_CLIENT_COUNTERS,nodata(Ok),5032

@@ -1,0 +1,4 @@
+power
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+          75 get_state(Ok)

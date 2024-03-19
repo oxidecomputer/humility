@@ -1,0 +1,4 @@
+power:
+    ADDR        SIZE VARIABLE
+    0x24045f1c   248 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+    0x24046014   160 task_sensor_api::__SENSOR_CLIENT_COUNTERS
