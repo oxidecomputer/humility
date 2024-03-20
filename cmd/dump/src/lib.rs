@@ -134,14 +134,15 @@ struct DumpArgs {
     )]
     force_overwrite: bool,
 
-    /// simulate dumper by reading directly from target (skipping agent)
+    /// simulate dumper by reading directly from target
     #[clap(long, group = "simulation")]
     simulate_dumper: bool,
 
     /// in addition to simulating the dumper, generate a stock dump
     #[clap(
         long, requires = "simulation",
-        conflicts_with_all = &["task", "all"]
+        conflicts_with_all = &["task", "all"],
+        value_name = "filename",
     )]
     stock_dumpfile: Option<String>,
 
@@ -151,13 +152,19 @@ struct DumpArgs {
     emulate_dumper: bool,
 
     /// simulates a single-task dump
-    #[clap(long, conflicts_with_all = &["area", "stock-dumpfile", "list"])]
+    #[clap(
+        long,
+        conflicts_with_all = &["area", "stock-dumpfile", "list"],
+        requires = "simulate-dumper",
+        value_name = "task",
+    )]
     simulate_task_dump: Option<String>,
 
     /// dumps a single task
     #[clap(
         long,
-        conflicts_with_all = &["simulation", "list", "area"]
+        conflicts_with_all = &["simulation", "list", "area"],
+        value_name = "task",
     )]
     task: Option<String>,
 
