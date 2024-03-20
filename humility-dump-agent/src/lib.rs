@@ -533,7 +533,7 @@ pub trait DumpAgentExt {
             };
 
             match area {
-                None | Some(0) if all[0].1.is_none() => (
+                None | Some(0) if all.len() > 0 && all[0].1.is_none() => (
                     0usize,
                     all.iter()
                         .map(|(h, _t)| *h)
@@ -644,7 +644,7 @@ pub fn task_areas(
 ) -> IndexMap<usize, (DumpTask, Vec<DumpAreaHeader>)> {
     let mut rval = IndexMap::new();
 
-    if headers[0].1.is_none() {
+    if headers.len() == 0 || headers[0].1.is_none() {
         return rval;
     }
 
