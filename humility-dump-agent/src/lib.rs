@@ -521,6 +521,10 @@ pub trait DumpAgentExt {
             // Read dump headers until the first empty header (DUMPER_NONE)
             let all = self.read_dump_headers(false)?;
 
+            if all.is_empty() {
+                bail!("no dumps are present");
+            }
+
             let area = match area {
                 None => None,
                 Some(DumpArea::ByIndex(ndx)) => Some(ndx),
@@ -533,7 +537,7 @@ pub trait DumpAgentExt {
             };
 
             match area {
-                None | Some(0) if all.len() > 0 && all[0].1.is_none() => (
+                None | Some(0) if all[0].1.is_none() => (
                     0usize,
                     all.iter()
                         .map(|(h, _t)| *h)
@@ -644,7 +648,7 @@ pub fn task_areas(
 ) -> IndexMap<usize, (DumpTask, Vec<DumpAreaHeader>)> {
     let mut rval = IndexMap::new();
 
-    if headers.len() == 0 || headers[0].1.is_none() {
+    if headers.is_empty() || headers[0].1.is_none() {
         return rval;
     }
 
