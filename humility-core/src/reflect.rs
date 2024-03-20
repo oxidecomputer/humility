@@ -421,6 +421,30 @@ impl core::fmt::LowerHex for Base {
     }
 }
 
+impl core::fmt::Binary for Base {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        use core::fmt::Binary;
+
+        match self {
+            Self::U8(x) => Binary::fmt(&x, f),
+            Self::U16(x) => Binary::fmt(&x, f),
+            Self::U32(x) => Binary::fmt(&x, f),
+            Self::U64(x) => Binary::fmt(&x, f),
+            Self::U128(x) => Binary::fmt(&x, f),
+
+            Self::I8(x) => Binary::fmt(&x, f),
+            Self::I16(x) => Binary::fmt(&x, f),
+            Self::I32(x) => Binary::fmt(&x, f),
+            Self::I64(x) => Binary::fmt(&x, f),
+            Self::I128(x) => Binary::fmt(&x, f),
+
+            Self::U0 | Self::F32(_) | Self::F64(_) | Self::Bool(_) => {
+                panic!("Cannot format {} as binary", self)
+            }
+        }
+    }
+}
+
 impl Format for Base {
     fn format(
         &self,
@@ -563,6 +587,15 @@ impl Format for Tuple {
         out: &mut dyn std::io::Write,
     ) -> Result<()> {
         fmt.indent += 4;
+
+        // Is this a bitflags-generated type? If so, just format it as a binary
+        // value.
+        if self.name().contains("InternalBitFlags") {
+            if let Some(flags) = self.1.get(0).and_then(|v| v.as_base().ok()) {
+                write!(out, "{flags:#b}")?;
+                return Ok(());
+            }
+        }
 
         // We only want to print the tuple name if this is a
         // user-defined tuple type.
