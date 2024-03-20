@@ -201,28 +201,38 @@ fn list(
 ) -> Result<()> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let op = hubris.get_idol_command("Vpd.is_locked")?;
     let read_op = hubris.get_idol_command("Vpd.read")?;
 
-    let mut ops = vec![];
+    let locked_op = hubris.get_idol_command("Vpd.is_locked").ok();
+    let results = if let Some(locked_op) = &locked_op {
+        let mut ops = vec![];
 
-    for ndx in 0..devices.len() {
-        let payload =
-            op.payload(&[("index", idol::IdolArgument::Scalar(ndx as u64))])?;
+        for ndx in 0..devices.len() {
+            let payload = locked_op.payload(&[(
+                "index",
+                idol::IdolArgument::Scalar(ndx as u64),
+            )])?;
 
-        context.idol_call_ops(&op, &payload, &mut ops)?;
-    }
+            context.idol_call_ops(locked_op, &payload, &mut ops)?;
+        }
 
-    ops.push(Op::Done);
+        ops.push(Op::Done);
 
-    let results = context.run(core, ops.as_slice(), None)?;
+        Some(context.run(core, ops.as_slice(), None)?)
+    } else {
+        println!(
+            "Note: firmware does not support the Vpd.is_locked operation."
+        );
+        println!("Lock status will be missing from the table below.");
+        None
+    };
 
     println!(
         "{:2} {:>2} {:2} {:3} {:4} {:13} {:25} LOCKED",
         "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION",
     );
 
-    for ((ndx, device), r) in devices.iter().enumerate().zip(results.iter()) {
+    for (ndx, device) in devices.iter().enumerate() {
         use humility::reflect::Base::Bool;
         use humility::reflect::Value::Base;
 
@@ -232,7 +242,11 @@ fn list(
             (_, _) => "?:?".to_string(),
         };
 
-        let result = context.idol_result(&op, r);
+        let result = if let (Some(lop), Some(rs)) = (&locked_op, &results) {
+            Some(context.idol_result(lop, &rs[ndx]))
+        } else {
+            None
+        };
 
         println!(
             "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {:25} {}",
@@ -244,13 +258,14 @@ fn list(
             device.device,
             device.description,
             match result {
-                Ok(Base(Bool(val))) => match val {
+                Some(Ok(Base(Bool(val)))) => match val {
                     false => "unlocked",
                     true => "locked",
                 }
                 .to_string(),
-                Ok(r) => format!("<{r:?}>").to_string(),
-                Err(err) => format!("<{}>", err).to_string(),
+                Some(Ok(r)) => format!("<{r:?}>").to_string(),
+                Some(Err(err)) => format!("<{}>", err).to_string(),
+                None => "(too old)".to_string(),
             },
         );
 
