@@ -1130,7 +1130,7 @@ checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 [[package]]
 name = "hidapi"
 version = "1.4.1"
-source = "git+https://github.com/oxidecomputer/hidapi-rs?branch=oxide-stable#91237483222a42f68d16adcdfd42bc8e32adf666"
+source = "git+https://github.com/oxidecomputer/hidapi-rs?branch=oxide-stable#69f84deac74461bfc08adefd1feb8abe4fcdda26"
 dependencies = [
  "cc",
  "libc",
