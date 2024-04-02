@@ -415,6 +415,9 @@ impl<'a> RpcClient<'a> {
         let buf = &self.buf[..n];
 
         if buf[0] != 0 {
+            // TODO: assumes the discriminator is a u8. It's not clear from
+            // context whether this assumption carries through into the udprpc
+            // task.
             match self.rpc_reply_type.lookup_variant_by_tag(Tag::from(buf[0])) {
                 Some(e) => {
                     let msg = format!("Got error from `udprpc`: {}", e.name);

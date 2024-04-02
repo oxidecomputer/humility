@@ -5855,28 +5855,16 @@ pub struct HubrisEnumVariant {
 }
 
 /// Type representing an enum variant tag.
-#[derive(Copy, Clone, Debug, Eq)]
+///
+/// Tags may be signed or unsigned. Every variant of a given enum uses the same
+/// signedness. (This should likely be available on the HubrisEnum type but is
+/// not.) As a result, signed and unsigned `Tag`s never compare as equal. This
+/// can pose a problem for manually rolling enum reconstruction code using
+/// `lookup_variant_by_tag`, but `determine_variant` will do the right thing.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Tag {
     Unsigned(u64),
     Signed(i64),
-}
-
-/// Equality for tags is a little weird. Most of Humility assumes enum
-/// discriminants are unsigned. So, we want to treat an unsigned representation
-/// of a signed number as equivalent.
-impl PartialEq for Tag {
-    fn eq(&self, other: &Self) -> bool {
-        match (*self, *other) {
-            // These two lines are basically what derive(PartialEq would do.
-            (Self::Unsigned(a), Self::Unsigned(b)) => a == b,
-            (Self::Signed(a), Self::Signed(b)) => a == b,
-
-            // This ensures that a signed discriminant, reinterpreted by
-            // Humility as an unsigned integer, is treated as equivalent.
-            (Self::Unsigned(u), Self::Signed(s))
-            | (Self::Signed(s), Self::Unsigned(u)) => u == s as u64,
-        }
-    }
 }
 
 /// All u64s can become Tags.
@@ -6004,6 +5992,16 @@ pub struct HubrisEnum {
 }
 
 impl HubrisEnum {
+    /// Finds a variant of this enum type that has the discriminant `tag`.
+    ///
+    /// `tag` must have the proper signedness for this enum. Historically a lot
+    /// of code assumed that discriminants were always unsigned, and there are
+    /// still routines around that make this assumption; they will simply fail
+    /// to find variants for enums using signed discriminants.
+    ///
+    /// If you would like to avoid this pitfall, the `determine_variant`
+    /// routine will do the type lookup for you, and should almost always be
+    /// preferred where applicable!
     pub fn lookup_variant_by_tag(
         &self,
         tag: Tag,
@@ -6043,6 +6041,12 @@ impl HubrisEnum {
         bail!("missing variant: {}.{}", self.name, name)
     }
 
+    /// Finds a variant of this enum given a blob of data representing one of
+    /// its variants. This handles looking up the offset of the tag in memory,
+    /// and handling signed/unsigned tags.
+    ///
+    /// It's almost always better to use this than to attempt to roll your own
+    /// using `lookup_variant_by_tag`.
     pub fn determine_variant(
         &self,
         hubris: &HubrisArchive,

@@ -692,6 +692,9 @@ impl<'a> HiffyContext<'a> {
                 //
                 if buf[0] != 0 {
                     let rpc_reply_type = self.rpc_reply_type.unwrap();
+                    // TODO: this assumes that the reply enum can be represented
+                    // by a u8 (buf[0] is a u8) and will not work with larger
+                    // discriminants, or signed discriminants.
                     match rpc_reply_type
                         .lookup_variant_by_tag(Tag::from(buf[0]))
                     {
@@ -883,6 +886,11 @@ impl<'a> HiffyContext<'a> {
             }
             Err(e) => {
                 let variant = if let idol::IdolError::CLike(error) = op.error {
+                    // TODO potentially sign-extended discriminator represented
+                    // as u32 and then zero-extended to u64; won't work for
+                    // signed values. Can't use determine_variant here because
+                    // it's not laid out in memory, it's been unfolded onto the
+                    // return stack.
                     error.lookup_variant_by_tag(Tag::from(*e as u64))
                 } else {
                     None
@@ -1298,6 +1306,10 @@ pub fn hiffy_decode(
         }
         Err(e) => match op.error {
             idol::IdolError::CLike(error) => {
+                // TODO potentially sign-extended discriminator represented as
+                // u32 and then zero-extended to u64; won't work for signed
+                // values. Can't use determine_variant here because it's not
+                // laid out in memory, it's been unfolded onto the return stack.
                 if let Some(v) =
                     error.lookup_variant_by_tag(Tag::from(e as u64))
                 {

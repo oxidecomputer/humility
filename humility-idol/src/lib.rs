@@ -195,6 +195,10 @@ impl<'a> IdolOperation<'a> {
 
     pub fn strerror(&self, code: u32) -> String {
         let variant = if let IdolError::CLike(error) = self.error {
+            // TODO: assumes discriminant is a u8. Since this is using Hiffy
+            // call results instead of looking at a Rust value in memory, it's
+            // not clear from context what changes would be required to fix
+            // this.
             error.lookup_variant_by_tag(Tag::from(code as u64))
         } else {
             None
