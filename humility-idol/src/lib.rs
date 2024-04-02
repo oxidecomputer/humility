@@ -195,7 +195,7 @@ impl<'a> IdolOperation<'a> {
 
     pub fn strerror(&self, code: u32) -> String {
         let variant = if let IdolError::CLike(error) = self.error {
-            error.lookup_variant_by_tag(code as u64)
+            error.lookup_variant_by_tag(Tag::from(code as u64))
         } else {
             None
         };

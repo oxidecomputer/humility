@@ -692,7 +692,9 @@ impl<'a> HiffyContext<'a> {
                 //
                 if buf[0] != 0 {
                     let rpc_reply_type = self.rpc_reply_type.unwrap();
-                    match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
+                    match rpc_reply_type
+                        .lookup_variant_by_tag(Tag::from(buf[0]))
+                    {
                         Some(e) => {
                             let image_id = self.hubris.image_id().unwrap();
                             let msg = format!("RPC error: {}", e.name);
@@ -881,7 +883,7 @@ impl<'a> HiffyContext<'a> {
             }
             Err(e) => {
                 let variant = if let idol::IdolError::CLike(error) = op.error {
-                    error.lookup_variant_by_tag(*e as u64)
+                    error.lookup_variant_by_tag(Tag::from(*e as u64))
                 } else {
                     None
                 };
@@ -1296,7 +1298,9 @@ pub fn hiffy_decode(
         }
         Err(e) => match op.error {
             idol::IdolError::CLike(error) => {
-                if let Some(v) = error.lookup_variant_by_tag(e as u64) {
+                if let Some(v) =
+                    error.lookup_variant_by_tag(Tag::from(e as u64))
+                {
                     Err(v.name.to_string())
                 } else {
                     Err(format!("<Unknown variant {e}>"))
