@@ -15,6 +15,7 @@ use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
 use std::io::Cursor;
 use std::mem::size_of;
+use std::num::TryFromIntError;
 use std::path::Path;
 use std::str::{self, FromStr};
 use std::time::Instant;
@@ -4756,7 +4757,11 @@ impl HubrisObjectLoader {
 
         while let Some(attr) = attrs.next()? {
             if attr.name() == gimli::constants::DW_AT_discr_value {
-                value = attr.value().udata_value();
+                value = attr.value().udata_value().map(Tag::Unsigned);
+
+                if value.is_none() {
+                    value = attr.value().sdata_value().map(Tag::Signed);
+                }
 
                 if value.is_none() {
                     bail!("bad discriminant on union {}", parent);
@@ -4844,10 +4849,19 @@ impl HubrisObjectLoader {
                 }
 
                 gimli::constants::DW_AT_const_value => {
-                    value = attr.value().udata_value();
+                    value = attr.value().udata_value().map(Tag::Unsigned);
 
                     if value.is_none() {
-                        bail!("bad discriminant on const enum {}", parent);
+                        value = attr.value().sdata_value().map(Tag::Signed);
+                    }
+
+                    if value.is_none() {
+                        bail!(
+                            "bad discriminant on const enum {}: {:?} ({:?})",
+                            parent,
+                            attr.value(),
+                            name
+                        );
                     }
                 }
 
@@ -5837,7 +5851,124 @@ pub struct HubrisEnumVariant {
     pub name: String,
     pub offset: usize,
     pub goff: Option<HubrisGoff>,
-    pub tag: Option<u64>,
+    pub tag: Option<Tag>,
+}
+
+/// Type representing an enum variant tag.
+///
+/// Tags may be signed or unsigned. Every variant of a given enum uses the same
+/// signedness. (This should likely be available on the HubrisEnum type but is
+/// not.) As a result, signed and unsigned `Tag`s never compare as equal. This
+/// can pose a problem for manually rolling enum reconstruction code using
+/// `lookup_variant_by_tag`, but `determine_variant` will do the right thing.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Tag {
+    Unsigned(u64),
+    Signed(i64),
+}
+
+/// All u64s can become Tags.
+impl From<u64> for Tag {
+    fn from(u: u64) -> Self {
+        Tag::Unsigned(u)
+    }
+}
+
+/// All u32s can become Tags.
+impl From<u32> for Tag {
+    fn from(u: u32) -> Self {
+        Tag::Unsigned(u64::from(u))
+    }
+}
+
+/// All u16s can become Tags.
+impl From<u16> for Tag {
+    fn from(u: u16) -> Self {
+        Tag::Unsigned(u64::from(u))
+    }
+}
+
+/// All u8s can become Tags.
+impl From<u8> for Tag {
+    fn from(u: u8) -> Self {
+        Tag::Unsigned(u64::from(u))
+    }
+}
+
+/// All i64s can become Tags.
+impl From<i64> for Tag {
+    fn from(i: i64) -> Self {
+        Tag::Signed(i)
+    }
+}
+
+/// All i32s can become Tags.
+impl From<i32> for Tag {
+    fn from(i: i32) -> Self {
+        Tag::Signed(i64::from(i))
+    }
+}
+
+/// All i16s can become Tags.
+impl From<i16> for Tag {
+    fn from(i: i16) -> Self {
+        Tag::Signed(i64::from(i))
+    }
+}
+
+/// All i8s can become Tags.
+impl From<i8> for Tag {
+    fn from(i: i8) -> Self {
+        Tag::Signed(i64::from(i))
+    }
+}
+
+/// Some Tags can become u8s.
+impl TryFrom<Tag> for u8 {
+    type Error = TryFromIntError;
+
+    fn try_from(t: Tag) -> Result<u8, TryFromIntError> {
+        match t {
+            Tag::Unsigned(u) => u.try_into(),
+            Tag::Signed(i) => i.try_into(),
+        }
+    }
+}
+
+/// Some Tags can become u16s.
+impl TryFrom<Tag> for u16 {
+    type Error = TryFromIntError;
+
+    fn try_from(t: Tag) -> Result<u16, TryFromIntError> {
+        match t {
+            Tag::Unsigned(u) => u.try_into(),
+            Tag::Signed(i) => i.try_into(),
+        }
+    }
+}
+
+/// Some Tags can become u32s.
+impl TryFrom<Tag> for u32 {
+    type Error = TryFromIntError;
+
+    fn try_from(t: Tag) -> Result<u32, TryFromIntError> {
+        match t {
+            Tag::Unsigned(u) => u.try_into(),
+            Tag::Signed(i) => i.try_into(),
+        }
+    }
+}
+
+/// Some Tags (and all unsigned Tags) can become u64s.
+impl TryFrom<Tag> for u64 {
+    type Error = TryFromIntError;
+
+    fn try_from(t: Tag) -> Result<u64, TryFromIntError> {
+        match t {
+            Tag::Unsigned(u) => Ok(u),
+            Tag::Signed(i) => i.try_into(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -5855,15 +5986,25 @@ pub struct HubrisEnum {
     /// only one variant.
     pub discriminant: Option<HubrisDiscriminant>,
     /// temporary to hold tag of next variant
-    pub tag: Option<u64>,
+    pub tag: Option<Tag>,
     pub variants: Vec<HubrisEnumVariant>,
     namespace: Option<NamespaceId>,
 }
 
 impl HubrisEnum {
+    /// Finds a variant of this enum type that has the discriminant `tag`.
+    ///
+    /// `tag` must have the proper signedness for this enum. Historically a lot
+    /// of code assumed that discriminants were always unsigned, and there are
+    /// still routines around that make this assumption; they will simply fail
+    /// to find variants for enums using signed discriminants.
+    ///
+    /// If you would like to avoid this pitfall, the `determine_variant`
+    /// routine will do the type lookup for you, and should almost always be
+    /// preferred where applicable!
     pub fn lookup_variant_by_tag(
         &self,
-        tag: u64,
+        tag: Tag,
     ) -> Option<&HubrisEnumVariant> {
         // We prioritize picking a variant with the matching tag
         if let Some(t) = self.variants.iter().find(|v| v.tag == Some(tag)) {
@@ -5900,17 +6041,41 @@ impl HubrisEnum {
         bail!("missing variant: {}.{}", self.name, name)
     }
 
+    /// Finds a variant of this enum given a blob of data representing one of
+    /// its variants. This handles looking up the offset of the tag in memory,
+    /// and handling signed/unsigned tags.
+    ///
+    /// It's almost always better to use this than to attempt to roll your own
+    /// using `lookup_variant_by_tag`.
     pub fn determine_variant(
         &self,
         hubris: &HubrisArchive,
         buf: &[u8],
     ) -> Result<&HubrisEnumVariant> {
-        let readval = |b: &[u8], o, sz| -> Result<u64> {
-            Ok(match sz {
-                1 => u64::from(b[o]),
-                2 => u64::from(u16::from_le_bytes(b[o..o + 2].try_into()?)),
-                4 => u64::from(u32::from_le_bytes(b[o..o + 4].try_into()?)),
-                8 => u64::from_le_bytes(b[o..o + 8].try_into()?),
+        let readtag = |b: &[u8], o, sz, enc| -> Result<Tag> {
+            Ok(match (sz, enc) {
+                (1, HubrisEncoding::Unsigned) => Tag::from(b[o]),
+                (2, HubrisEncoding::Unsigned) => {
+                    Tag::from(u16::from_le_bytes(b[o..o + 2].try_into()?))
+                }
+                (4, HubrisEncoding::Unsigned) => {
+                    Tag::from(u32::from_le_bytes(b[o..o + 4].try_into()?))
+                }
+                (8, HubrisEncoding::Unsigned) => {
+                    Tag::from(u64::from_le_bytes(b[o..o + 8].try_into()?))
+                }
+
+                (1, HubrisEncoding::Signed) => Tag::from(b[o] as i8),
+                (2, HubrisEncoding::Signed) => {
+                    Tag::from(i16::from_le_bytes(b[o..o + 2].try_into()?))
+                }
+                (4, HubrisEncoding::Signed) => {
+                    Tag::from(i32::from_le_bytes(b[o..o + 4].try_into()?))
+                }
+                (8, HubrisEncoding::Signed) => {
+                    Tag::from(i64::from_le_bytes(b[o..o + 8].try_into()?))
+                }
+
                 _ => {
                     bail!("bad variant size!");
                 }
@@ -5918,18 +6083,18 @@ impl HubrisEnum {
         };
 
         if let Some(HubrisDiscriminant::Value(goff, offs)) = self.discriminant {
-            let size = match hubris.basetypes.get(&goff) {
-                Some(v) => v.size,
+            let (encoding, size) = match hubris.basetypes.get(&goff) {
+                Some(v) => (v.encoding, v.size),
                 None => {
                     bail!("enum has discriminant of unknown type: {}", goff);
                 }
             };
 
-            let val = readval(buf, offs, size)?;
+            let val = readtag(buf, offs, size, encoding)?;
 
             match self.lookup_variant_by_tag(val) {
                 None => {
-                    bail!("unknown variant: 0x{:x}", val);
+                    bail!("unknown variant: {:#x?}", val);
                 }
 
                 Some(variant) => Ok(variant),

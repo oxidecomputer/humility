@@ -692,7 +692,12 @@ impl<'a> HiffyContext<'a> {
                 //
                 if buf[0] != 0 {
                     let rpc_reply_type = self.rpc_reply_type.unwrap();
-                    match rpc_reply_type.lookup_variant_by_tag(buf[0] as u64) {
+                    // TODO: this assumes that the reply enum can be represented
+                    // by a u8 (buf[0] is a u8) and will not work with larger
+                    // discriminants, or signed discriminants.
+                    match rpc_reply_type
+                        .lookup_variant_by_tag(Tag::from(buf[0]))
+                    {
                         Some(e) => {
                             let image_id = self.hubris.image_id().unwrap();
                             let msg = format!("RPC error: {}", e.name);
@@ -881,7 +886,12 @@ impl<'a> HiffyContext<'a> {
             }
             Err(e) => {
                 let variant = if let idol::IdolError::CLike(error) = op.error {
-                    error.lookup_variant_by_tag(*e as u64)
+                    // TODO potentially sign-extended discriminator represented
+                    // as u32 and then zero-extended to u64; won't work for
+                    // signed values. Can't use determine_variant here because
+                    // it's not laid out in memory, it's been unfolded onto the
+                    // return stack.
+                    error.lookup_variant_by_tag(Tag::from(*e as u64))
                 } else {
                     None
                 };
@@ -1296,7 +1306,13 @@ pub fn hiffy_decode(
         }
         Err(e) => match op.error {
             idol::IdolError::CLike(error) => {
-                if let Some(v) = error.lookup_variant_by_tag(e as u64) {
+                // TODO potentially sign-extended discriminator represented as
+                // u32 and then zero-extended to u64; won't work for signed
+                // values. Can't use determine_variant here because it's not
+                // laid out in memory, it's been unfolded onto the return stack.
+                if let Some(v) =
+                    error.lookup_variant_by_tag(Tag::from(e as u64))
+                {
                     Err(v.name.to_string())
                 } else {
                     Err(format!("<Unknown variant {e}>"))

@@ -205,7 +205,13 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
     for (rndx, (ndx, device)) in devices.iter().enumerate() {
         let result = match &results[rndx] {
             Ok(val) => {
-                if let Some(variant) = ok.lookup_variant_by_tag(val[0].into()) {
+                // TODO: assumes discriminant is a u8. Since this is using Hiffy
+                // call results instead of looking at a Rust value in memory,
+                // it's not clear from context what changes would be required to
+                // fix this.
+                if let Some(variant) =
+                    ok.lookup_variant_by_tag(Tag::from(val[0]))
+                {
                     Ok(match variant.name.as_str() {
                         "Present" => "present".yellow(),
                         "Validated" => "validated".green(),
@@ -217,7 +223,11 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
             }
             Err(e) => {
                 if let idol::IdolError::CLike(err) = op.error {
-                    Ok(match err.lookup_variant_by_tag(*e as u64) {
+                    // TODO: assumes discriminant is a u8. Since this is using
+                    // Hiffy call results instead of looking at a Rust value in
+                    // memory, it's not clear from context what changes would be
+                    // required to fix this.
+                    Ok(match err.lookup_variant_by_tag(Tag::from(*e)) {
                         Some(variant) => match variant.name.as_str() {
                             "NotPresent" => {
                                 if device.removable {
