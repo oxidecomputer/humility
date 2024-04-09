@@ -2274,12 +2274,13 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         }
     };
 
-    let word_result = |result: &Result<Vec<u8>, u32>, what| -> Result<u32> {
+    let word_result = |result: &Result<Vec<u8>, IpcError>,
+                       what|
+     -> Result<u32> {
         match result {
-            Err(err) => {
-                bail!("failed to read {}: {}", what, i2c_read.strerror(*err));
+            &Err(err) => {
+                bail!("failed to read {}: {}", what, i2c_read.strerror(err));
             }
-
             Ok(result) => {
                 if result.len() != 4 {
                     bail!("bad length on {}: {:x?}", what, result);

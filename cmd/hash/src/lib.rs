@@ -293,7 +293,7 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
         context: &mut HiffyContext,
         id: hif::TargetFunction,
         data: Option<&[u8]>,
-    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    ) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         let mut ops = vec![];
         if let Some(payload) = data {
             ops.push(Op::Push32(payload.len() as u32));

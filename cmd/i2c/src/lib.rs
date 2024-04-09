@@ -220,7 +220,7 @@ pub struct I2cArgs {
 fn i2c_done(
     subargs: &I2cArgs,
     hargs: &humility_i2c::I2cArgs,
-    results: &[Result<Vec<u8>, u32>],
+    results: &[Result<Vec<u8>, IpcError>],
     func: &HiffyFunction,
 ) -> Result<()> {
     let errmap = &func.errmap;
@@ -273,7 +273,7 @@ fn i2c_done(
                 } else {
                     match &results[i] {
                         Ok(_) => "\\o/",
-                        Err(err) => {
+                        Err(IpcError::Error(err)) => {
                             if let Some(name) = errmap.get(err) {
                                 if name == "NoDevice" {
                                     "-"
@@ -290,6 +290,7 @@ fn i2c_done(
                                 "???"
                             }
                         }
+                        Err(IpcError::ServerDied(_)) => "DEAD",
                     }
                 }
             );
@@ -329,7 +330,7 @@ fn i2c_done(
                     Ok(val) => {
                         print!("  {:02x}", val[0]);
                     }
-                    Err(err) => {
+                    Err(IpcError::Error(err)) => {
                         print!(
                             "{:>4}",
                             if let Some(name) = errmap.get(err) {
@@ -347,6 +348,7 @@ fn i2c_done(
                             }
                         );
                     }
+                    Err(IpcError::ServerDied(_)) => print!("DEAD"),
                 }
             }
 
@@ -507,9 +509,10 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
                     println!("mux {}, segment {}", val[0], val[1]);
                 }
             }
-            Err(err) => {
+            Err(IpcError::Error(err)) => {
                 println!("Err({})", func.errmap.get(err).unwrap());
             }
+            Err(IpcError::ServerDied(_)) => println!("Err(ServerDeath)"),
         }
 
         return Ok(());

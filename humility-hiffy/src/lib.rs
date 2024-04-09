@@ -5,6 +5,7 @@
 //! Interface to the `hiffy` task, which allows execution of HIF programs
 
 use anyhow::{anyhow, bail, Context, Result};
+use core::fmt;
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
@@ -44,7 +45,7 @@ pub struct HiffyContext<'a> {
     timeout: u32,
     state: State,
     functions: HiffyFunctions,
-    rpc_results: Vec<Result<Vec<u8>, u32>>,
+    rpc_results: Vec<Result<Vec<u8>, IpcError>>,
     rpc_reply_type: Option<&'a HubrisEnum>,
 }
 
@@ -56,11 +57,22 @@ pub struct HiffyFunction {
     pub errmap: HashMap<u32, String>,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum IpcError {
+    /// The IPC returned an error.
+    Error(u32),
+    /// The IPC returned a dead code, indicating that the server task has died.
+    ServerDied(u32),
+}
+
 impl HiffyFunction {
-    pub fn strerror(&self, code: u32) -> String {
-        match self.errmap.get(&code) {
-            Some(name) => name.clone(),
-            None => format!("<Unknown {} error: {}>", self.name, code),
+    pub fn strerror(&self, err: impl Into<IpcError>) -> String {
+        match err.into() {
+            IpcError::Error(code) => match self.errmap.get(&code) {
+                Some(name) => name.clone(),
+                None => format!("<Unknown {} error: {}>", self.name, code),
+            },
+            e => format!("<{e}>"),
         }
     }
 
@@ -730,7 +742,7 @@ impl<'a> HiffyContext<'a> {
                 if rval == 0 {
                     self.rpc_results.push(Ok(buf[5..].to_vec()));
                 } else {
-                    self.rpc_results.push(Err(rval));
+                    self.rpc_results.push(Err(IpcError::from(rval)));
                 }
             }
             self.state = State::Kicked;
@@ -867,7 +879,7 @@ impl<'a> HiffyContext<'a> {
     pub fn idol_result(
         &mut self,
         op: &idol::IdolOperation,
-        result: &Result<Vec<u8>, u32>,
+        result: &Result<Vec<u8>, IpcError>,
     ) -> Result<humility::reflect::Value> {
         use humility::reflect::{deserialize_value, load_value};
 
@@ -884,7 +896,7 @@ impl<'a> HiffyContext<'a> {
                     }
                 })
             }
-            Err(e) => {
+            Err(IpcError::Error(e)) => {
                 let variant = if let idol::IdolError::CLike(error) = op.error {
                     // TODO potentially sign-extended discriminator represented
                     // as u32 and then zero-extended to u64; won't work for
@@ -902,6 +914,7 @@ impl<'a> HiffyContext<'a> {
                     bail!(format!("{:x?}", e))
                 }
             }
+            Err(e) => bail!("{e}"),
         }
     }
 
@@ -1040,7 +1053,7 @@ impl<'a> HiffyContext<'a> {
         core: &mut dyn Core,
         ops: &[Op],
         data: Option<&[u8]>,
-    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    ) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.start(core, ops, data)?;
         while !self.done(core)? {
             thread::sleep(Duration::from_millis(100));
@@ -1155,7 +1168,7 @@ impl<'a> HiffyContext<'a> {
     pub fn results(
         &mut self,
         core: &mut dyn Core,
-    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    ) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         if self.state != State::ResultsReady {
             bail!("invalid state for consuming results: {:?}", self.state);
         }
@@ -1190,7 +1203,9 @@ impl<'a> HiffyContext<'a> {
                     rvec.push(Ok(payload.to_vec()))
                 }
 
-                FunctionResult::Failure(code) => rvec.push(Err(code)),
+                FunctionResult::Failure(code) => {
+                    rvec.push(Err(IpcError::from(code)))
+                }
             }
 
             result = next;
@@ -1263,7 +1278,7 @@ pub fn hiffy_call(
         bail!("unexpected results length: {:?}", results);
     }
 
-    let mut v: Result<Vec<u8>, u32> = results.pop().unwrap();
+    let mut v: Result<Vec<u8>, IpcError> = results.pop().unwrap();
 
     // If this is a Read operation, steal extra data from the returned stack
     // and copy it into the incoming 'read' argument
@@ -1282,6 +1297,57 @@ pub fn hiffy_call(
     Ok(out)
 }
 
+impl IpcError {
+    const DEAD_CODE: u32 = u32::MAX << 8;
+}
+
+impl From<u32> for IpcError {
+    fn from(val: u32) -> Self {
+        if val & Self::DEAD_CODE == Self::DEAD_CODE {
+            Self::ServerDied(val & !Self::DEAD_CODE)
+        } else {
+            Self::Error(val)
+        }
+    }
+}
+
+impl From<IpcError> for u32 {
+    fn from(err: IpcError) -> Self {
+        match err {
+            IpcError::Error(e) => e,
+            IpcError::ServerDied(id) => id | IpcError::DEAD_CODE,
+        }
+    }
+}
+
+impl fmt::Display for IpcError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error(e) => {
+                write!(f, "server returned error code: {e:#x?}")
+            }
+            Self::ServerDied(id) => {
+                write!(f, "server died; its new ID is {id}")
+            }
+        }
+    }
+}
+
+impl fmt::Debug for IpcError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IpcError::Error(e) => {
+                write!(f, "IpcError::Error({e:#x?})")
+            }
+            IpcError::ServerDied(id) => {
+                write!(f, "IpcError::ServerDied({id})")
+            }
+        }
+    }
+}
+
+impl std::error::Error for IpcError {}
+
 /// Decodes a value returned from [hiffy_call] or equivalent.
 ///
 /// Returns an outer error if decoding fails, or an inner error if the Hiffy
@@ -1289,9 +1355,9 @@ pub fn hiffy_call(
 pub fn hiffy_decode(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
-    val: Result<Vec<u8>, u32>,
+    val: Result<Vec<u8>, impl Into<IpcError>>,
 ) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    let r = match val {
+    let r = match val.map_err(Into::into) {
         Ok(val) => {
             let ty = hubris.lookup_type(op.ok).unwrap();
             Ok(match op.operation.encoding {
@@ -1304,7 +1370,7 @@ pub fn hiffy_decode(
                 }
             })
         }
-        Err(e) => match op.error {
+        Err(IpcError::Error(e)) => match op.error {
             idol::IdolError::CLike(error) => {
                 // TODO potentially sign-extended discriminator represented as
                 // u32 and then zero-extended to u64; won't work for signed
@@ -1323,6 +1389,7 @@ pub fn hiffy_decode(
             }
             _ => Err(format!("<Unhandled error {e:x?}>")),
         },
+        Err(dead @ IpcError::ServerDied(_)) => Err(format!("<{dead}>")),
     };
     Ok(r)
 }
