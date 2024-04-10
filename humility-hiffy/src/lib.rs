@@ -11,6 +11,7 @@ use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
 use humility_doppel::{RpcHeader, StaticCell};
 use humility_idol as idol;
+pub use humility_idol::IpcError;
 use postcard::{take_from_bytes, to_slice};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -44,7 +45,7 @@ pub struct HiffyContext<'a> {
     timeout: u32,
     state: State,
     functions: HiffyFunctions,
-    rpc_results: Vec<Result<Vec<u8>, u32>>,
+    rpc_results: Vec<Result<Vec<u8>, IpcError>>,
     rpc_reply_type: Option<&'a HubrisEnum>,
 }
 
@@ -57,10 +58,13 @@ pub struct HiffyFunction {
 }
 
 impl HiffyFunction {
-    pub fn strerror(&self, code: u32) -> String {
-        match self.errmap.get(&code) {
-            Some(name) => name.clone(),
-            None => format!("<Unknown {} error: {}>", self.name, code),
+    pub fn strerror(&self, err: impl Into<IpcError>) -> String {
+        match err.into() {
+            IpcError::Error(code) => match self.errmap.get(&code) {
+                Some(name) => name.clone(),
+                None => format!("<Unknown {} error: {}>", self.name, code),
+            },
+            IpcError::ServerDied(id) => format!("<server died: {id}>"),
         }
     }
 
@@ -730,7 +734,7 @@ impl<'a> HiffyContext<'a> {
                 if rval == 0 {
                     self.rpc_results.push(Ok(buf[5..].to_vec()));
                 } else {
-                    self.rpc_results.push(Err(rval));
+                    self.rpc_results.push(Err(IpcError::from(rval)));
                 }
             }
             self.state = State::Kicked;
@@ -867,7 +871,7 @@ impl<'a> HiffyContext<'a> {
     pub fn idol_result(
         &mut self,
         op: &idol::IdolOperation,
-        result: &Result<Vec<u8>, u32>,
+        result: &Result<Vec<u8>, IpcError>,
     ) -> Result<humility::reflect::Value> {
         use humility::reflect::{deserialize_value, load_value};
 
@@ -884,24 +888,7 @@ impl<'a> HiffyContext<'a> {
                     }
                 })
             }
-            Err(e) => {
-                let variant = if let idol::IdolError::CLike(error) = op.error {
-                    // TODO potentially sign-extended discriminator represented
-                    // as u32 and then zero-extended to u64; won't work for
-                    // signed values. Can't use determine_variant here because
-                    // it's not laid out in memory, it's been unfolded onto the
-                    // return stack.
-                    error.lookup_variant_by_tag(Tag::from(*e as u64))
-                } else {
-                    None
-                };
-
-                if let Some(variant) = variant {
-                    bail!(variant.name.to_string())
-                } else {
-                    bail!(format!("{:x?}", e))
-                }
-            }
+            Err(e) => bail!("{}", op.strerror(*e)),
         }
     }
 
@@ -1040,7 +1027,7 @@ impl<'a> HiffyContext<'a> {
         core: &mut dyn Core,
         ops: &[Op],
         data: Option<&[u8]>,
-    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    ) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.start(core, ops, data)?;
         while !self.done(core)? {
             thread::sleep(Duration::from_millis(100));
@@ -1155,7 +1142,7 @@ impl<'a> HiffyContext<'a> {
     pub fn results(
         &mut self,
         core: &mut dyn Core,
-    ) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    ) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         if self.state != State::ResultsReady {
             bail!("invalid state for consuming results: {:?}", self.state);
         }
@@ -1190,7 +1177,9 @@ impl<'a> HiffyContext<'a> {
                     rvec.push(Ok(payload.to_vec()))
                 }
 
-                FunctionResult::Failure(code) => rvec.push(Err(code)),
+                FunctionResult::Failure(code) => {
+                    rvec.push(Err(IpcError::from(code)))
+                }
             }
 
             result = next;
@@ -1263,7 +1252,7 @@ pub fn hiffy_call(
         bail!("unexpected results length: {:?}", results);
     }
 
-    let mut v: Result<Vec<u8>, u32> = results.pop().unwrap();
+    let mut v: Result<Vec<u8>, IpcError> = results.pop().unwrap();
 
     // If this is a Read operation, steal extra data from the returned stack
     // and copy it into the incoming 'read' argument
@@ -1289,9 +1278,9 @@ pub fn hiffy_call(
 pub fn hiffy_decode(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
-    val: Result<Vec<u8>, u32>,
+    val: Result<Vec<u8>, impl Into<IpcError>>,
 ) -> Result<std::result::Result<humility::reflect::Value, String>> {
-    let r = match val {
+    let r = match val.map_err(Into::into) {
         Ok(val) => {
             let ty = hubris.lookup_type(op.ok).unwrap();
             Ok(match op.operation.encoding {
@@ -1304,7 +1293,7 @@ pub fn hiffy_decode(
                 }
             })
         }
-        Err(e) => match op.error {
+        Err(IpcError::Error(e)) => match op.error {
             idol::IdolError::CLike(error) => {
                 // TODO potentially sign-extended discriminator represented as
                 // u32 and then zero-extended to u64; won't work for signed
@@ -1323,6 +1312,7 @@ pub fn hiffy_decode(
             }
             _ => Err(format!("<Unhandled error {e:x?}>")),
         },
+        Err(dead @ IpcError::ServerDied(_)) => Err(format!("<{dead}>")),
     };
     Ok(r)
 }

@@ -389,7 +389,7 @@ fn print_result(
     code: u8,
     mode: impl Fn() -> VOutModeCommandData,
     command: &dyn pmbus::Command,
-    result: &Result<Vec<u8>, u32>,
+    result: &Result<Vec<u8>, IpcError>,
     worker: &dyn PmbusWorker,
 ) -> Result<()> {
     let nbytes = match command.read_op() {
@@ -709,7 +709,7 @@ fn summarize_rail(
     driver: &pmbus::Device,
     rail: &str,
     calls: &[u8],
-    results: &[Result<Vec<u8>, u32>],
+    results: &[Result<Vec<u8>, IpcError>],
     worker: &dyn PmbusWorker,
     width: usize,
 ) -> Result<()> {
@@ -1421,10 +1421,10 @@ trait PmbusWorker {
     fn write(&mut self, code: u8, op: &WriteOp);
 
     /// Executes queued-up commands, returning the result
-    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, u32>>>;
+    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, IpcError>>>;
 
-    fn decode_read_err(&self, code: u32) -> String;
-    fn decode_write_err(&self, code: u32) -> String;
+    fn decode_read_err(&self, code: IpcError) -> String;
+    fn decode_write_err(&self, code: IpcError) -> String;
 }
 
 struct I2cWorker<'a> {
@@ -1497,18 +1497,18 @@ impl PmbusWorker for I2cWorker<'_> {
         self.ops.push(Op::DropN(5));
     }
 
-    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.ops.push(Op::Done);
         let ops = std::mem::take(&mut self.ops);
         self.context.run(self.core, &ops, None)
     }
 
-    fn decode_read_err(&self, code: u32) -> String {
+    fn decode_read_err(&self, code: IpcError) -> String {
         self.read_func.strerror(code)
     }
 
-    fn decode_write_err(&self, code: u32) -> String {
-        self.read_func.strerror(code)
+    fn decode_write_err(&self, code: IpcError) -> String {
+        self.write_func.strerror(code)
     }
 
     fn write(&mut self, code: u8, op: &WriteOp) {
@@ -1825,17 +1825,17 @@ impl PmbusWorker for IdolWorker<'_> {
         self.just_set_rail = false;
     }
 
-    fn decode_read_err(&self, code: u32) -> String {
+    fn decode_read_err(&self, err: IpcError) -> String {
         // All read operations share an error code
-        self.read_byte.strerror(code)
+        self.read_byte.strerror(err)
     }
 
-    fn decode_write_err(&self, code: u32) -> String {
+    fn decode_write_err(&self, err: IpcError) -> String {
         // All write operations share an error code
-        self.write_byte.strerror(code)
+        self.write_byte.strerror(err)
     }
 
-    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    fn run(&mut self) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.ops.push(Op::Done);
         let ops = std::mem::take(&mut self.ops);
         let mut out = self.context.run(self.core, &ops, None)?;

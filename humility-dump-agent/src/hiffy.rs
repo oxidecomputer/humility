@@ -6,7 +6,7 @@ use anyhow::{bail, Result};
 use core::mem::size_of;
 use hif::*;
 use humility::{core::Core, hubris::HubrisArchive};
-use humility_hiffy::HiffyContext;
+use humility_hiffy::{HiffyContext, IpcError};
 use humility_idol::{self as idol, HubrisIdol};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader};
 
@@ -54,7 +54,7 @@ impl<'a> HiffyDumpAgent<'a> {
 
         Ok(Self { hubris, core, context })
     }
-    fn run(&mut self, ops: &[Op]) -> Result<Vec<Result<Vec<u8>, u32>>> {
+    fn run(&mut self, ops: &[Op]) -> Result<Vec<Result<Vec<u8>, IpcError>>> {
         self.context.run(self.core, ops, None)
     }
 }
@@ -70,8 +70,8 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         self.context.idol_call_ops(&op, &[], &mut ops)?;
         ops.push(Op::Done);
 
-        if let Err(err) = &self.run(ops.as_slice())?[0] {
-            bail!("failed to initialize dump: {}", op.strerror(*err));
+        if let Err(err) = self.run(ops.as_slice())?[0] {
+            bail!("failed to initialize dump: {}", op.strerror(err));
         }
 
         Ok(())
@@ -97,10 +97,9 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         for (result, (base, size)) in results.iter().zip(segments.iter()) {
             if let Err(err) = result {
                 bail!(
-                    "failed to add segment at address {:#x} for length {}: {}",
-                    *base,
-                    *size,
-                    op.strerror(*err)
+                    "failed to add segment at address {base:#x} for length \
+                    {size}: {}",
+                    op.strerror(*err),
                 );
             }
         }
@@ -162,7 +161,7 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         let results = self.run(ops.as_slice())?;
 
         if let Err(err) = results[rindex] {
-            bail!("failed to take dump: {}", op.strerror(err));
+            bail!("failed to take dump: {}", op.strerror(err))
         }
 
         Ok(())
@@ -302,6 +301,7 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         if let Err(err) = &out[0] {
             bail!("failed to dump task region: {}", op.strerror(*err))
         }
+
         Ok(())
     }
 }

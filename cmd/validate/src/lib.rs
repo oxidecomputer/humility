@@ -49,7 +49,7 @@ use hif::*;
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_hiffy::HiffyContext;
+use humility_hiffy::{HiffyContext, IpcError};
 use humility_i2c::I2cArgs;
 use humility_idol::{self as idol, HubrisIdol};
 
@@ -221,7 +221,7 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
                     Ok(hubris.printfmt(val, op.ok, fmt)?.white())
                 }
             }
-            Err(e) => {
+            Err(IpcError::Error(e)) => {
                 if let idol::IdolError::CLike(err) = op.error {
                     // TODO: assumes discriminant is a u8. Since this is using
                     // Hiffy call results instead of looking at a Rust value in
@@ -248,6 +248,7 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
                     Err(anyhow!("unexpected error type {:?}", op.error))
                 }
             }
+            Err(IpcError::ServerDied(_)) => Ok("server died".red()),
         }?;
 
         let mux = match (device.mux, device.segment) {

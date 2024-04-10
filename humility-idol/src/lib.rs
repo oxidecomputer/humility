@@ -14,6 +14,7 @@ use hubpack::SerializedSize;
 use humility::hubris::*;
 use indexmap::IndexMap;
 use serde::Serialize;
+use std::fmt;
 
 #[derive(Debug)]
 pub struct IdolOperation<'a> {
@@ -47,6 +48,14 @@ pub enum IdolError<'a> {
     CLike(&'a HubrisEnum),
     Complex(&'a HubrisEnum),
     None,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum IpcError {
+    /// The IPC returned an error.
+    Error(u32),
+    /// The IPC returned a dead code, indicating that the server task has died.
+    ServerDied(u32),
 }
 
 impl<'a> IdolOperation<'a> {
@@ -193,21 +202,31 @@ impl<'a> IdolOperation<'a> {
         Ok(())
     }
 
-    pub fn strerror(&self, code: u32) -> String {
-        let variant = if let IdolError::CLike(error) = self.error {
-            // TODO: assumes discriminant is a u8. Since this is using Hiffy
-            // call results instead of looking at a Rust value in memory, it's
-            // not clear from context what changes would be required to fix
-            // this.
-            error.lookup_variant_by_tag(Tag::from(code as u64))
-        } else {
-            None
-        };
+    pub fn strerror(&self, error: impl Into<IpcError>) -> String {
+        match error.into() {
+            IpcError::Error(code) => {
+                let variant = if let IdolError::CLike(error) = self.error {
+                    // TODO: assumes discriminant is a u8. Since this is using Hiffy
+                    // call results instead of looking at a Rust value in memory, it's
+                    // not clear from context what changes would be required to fix
+                    // this.
+                    error.lookup_variant_by_tag(Tag::from(code as u64))
+                } else {
+                    None
+                };
 
-        if let Some(variant) = variant {
-            variant.name.to_string()
-        } else {
-            format!("<Unknown {}.{} error: {}>", self.name.0, self.name.1, code)
+                if let Some(variant) = variant {
+                    variant.name.to_string()
+                } else {
+                    format!(
+                        "<Unknown {}.{} error: {}>",
+                        self.name.0, self.name.1, code
+                    )
+                }
+            }
+            IpcError::ServerDied(id) => {
+                format!("<{} server died: {id}>", self.name.0)
+            }
         }
     }
 
@@ -229,6 +248,57 @@ impl<'a> IdolOperation<'a> {
         Ok(reply_size)
     }
 }
+
+impl IpcError {
+    const DEAD_CODE: u32 = u32::MAX << 8;
+}
+
+impl From<u32> for IpcError {
+    fn from(val: u32) -> Self {
+        if val & Self::DEAD_CODE == Self::DEAD_CODE {
+            Self::ServerDied(val & !Self::DEAD_CODE)
+        } else {
+            Self::Error(val)
+        }
+    }
+}
+
+impl From<IpcError> for u32 {
+    fn from(err: IpcError) -> Self {
+        match err {
+            IpcError::Error(e) => e,
+            IpcError::ServerDied(id) => id | IpcError::DEAD_CODE,
+        }
+    }
+}
+
+impl fmt::Display for IpcError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error(e) => {
+                write!(f, "server returned error code: {e:#x?}")
+            }
+            Self::ServerDied(id) => {
+                write!(f, "server died; its new ID is {id}")
+            }
+        }
+    }
+}
+
+impl fmt::Debug for IpcError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IpcError::Error(e) => {
+                write!(f, "IpcError::Error({e:#x?})")
+            }
+            IpcError::ServerDied(id) => {
+                write!(f, "IpcError::ServerDied({id})")
+            }
+        }
+    }
+}
+
+impl std::error::Error for IpcError {}
 
 //
 // Lookup an Idol operation based on the interface and operation
