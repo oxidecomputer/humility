@@ -1826,19 +1826,13 @@ impl PmbusWorker for IdolWorker<'_> {
     }
 
     fn decode_read_err(&self, err: IpcError) -> String {
-        match err {
-            // All read operations share an error code
-            IpcError::Error(code) => self.read_byte.strerror(code),
-            e => e.to_string(),
-        }
+        // All read operations share an error code
+        self.read_byte.strerror(err)
     }
 
     fn decode_write_err(&self, err: IpcError) -> String {
-        match err {
-            // All write operations share an error code
-            IpcError::Error(code) => self.write_byte.strerror(code),
-            e => e.to_string(),
-        }
+        // All write operations share an error code
+        self.write_byte.strerror(err)
     }
 
     fn run(&mut self) -> Result<Vec<Result<Vec<u8>, IpcError>>> {

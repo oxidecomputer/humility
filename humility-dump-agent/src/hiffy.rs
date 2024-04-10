@@ -70,15 +70,8 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         self.context.idol_call_ops(&op, &[], &mut ops)?;
         ops.push(Op::Done);
 
-        match self.run(ops.as_slice())?[0] {
-            Err(IpcError::Error(err)) => {
-                bail!("failed to initialize dump: {}", op.strerror(err))
-            }
-            // TODO(eliza): perhaps we can retry?
-            Err(IpcError::ServerDied(_)) => {
-                bail!("failed to initialize dump: dump agent died")
-            }
-            Ok(_) => {}
+        if let Err(err) = self.run(ops.as_slice())?[0] {
+            bail!("failed to initialize dump: {}", op.strerror(err));
         }
 
         Ok(())
@@ -102,15 +95,12 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
         let results = self.run(ops.as_slice())?;
 
         for (result, (base, size)) in results.iter().zip(segments.iter()) {
-            match result {
-                Err(IpcError::Error(err)) => {
-                    bail!("failed to add segment at address {base:#x} for length {size}: {}", op.strerror(*err))
-                }
-                // TODO(eliza): perhaps we can retry?
-                Err(IpcError::ServerDied(_)) => {
-                    bail!("failed to add segment at address {base:#x} for length {size}: dump agent died")
-                }
-                Ok(_) => {}
+            if let Err(err) = result {
+                bail!(
+                    "failed to add segment at address {base:#x} for length \
+                    {size}: {}",
+                    op.strerror(*err),
+                );
             }
         }
 
@@ -170,12 +160,8 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
 
         let results = self.run(ops.as_slice())?;
 
-        match results[rindex] {
-            Err(IpcError::Error(err)) => {
-                bail!("failed to take dump: {}", op.strerror(err))
-            }
-            Err(e) => bail!("failed to take dump: {e}"),
-            Ok(_) => {}
+        if let Err(err) = results[rindex] {
+            bail!("failed to take dump: {}", op.strerror(err))
         }
 
         Ok(())
@@ -231,7 +217,7 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
                         }
                         rval.push(val.to_vec());
                     }
-                    Err(IpcError::Error(err)) => {
+                    Err(err) => {
                         let s = op.strerror(*err);
                         if s == "InvalidArea" {
                             return Ok(rval);
@@ -242,9 +228,6 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
                             );
                         }
                     }
-                    Err(e) => bail!(
-                        "failed to read index {index}, offset: {offset}: {e}"
-                    ),
                 }
             }
         }
@@ -269,11 +252,8 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
                 assert_eq!(v.len(), 1);
                 Ok(v[0])
             }
-            Err(IpcError::Error(err)) => {
+            Err(err) => {
                 bail!("failed to dump task: {}", op.strerror(*err))
-            }
-            Err(e) => {
-                bail!("failed to dump task: {e}")
             }
         }
     }
@@ -301,11 +281,8 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
                 assert_eq!(v.len(), 1);
                 Ok(v[0])
             }
-            Err(IpcError::Error(err)) => {
+            Err(err) => {
                 bail!("failed to dump task region: {}", op.strerror(*err))
-            }
-            Err(e) => {
-                bail!("failed to dump task region: {e}")
             }
         }
     }
@@ -321,14 +298,10 @@ impl<'a> DumpAgent for HiffyDumpAgent<'a> {
 
         let out = self.run(ops.as_slice())?;
         assert_eq!(out.len(), 1);
-        match &out[0] {
-            Ok(_) => Ok(()),
-            Err(IpcError::Error(err)) => {
-                bail!("failed to dump task region: {}", op.strerror(*err))
-            }
-            Err(e) => {
-                bail!("failed to dump task region: {e}")
-            }
+        if let Err(err) = &out[0] {
+            bail!("failed to dump task region: {}", op.strerror(*err))
         }
+
+        Ok(())
     }
 }

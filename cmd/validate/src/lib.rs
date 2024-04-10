@@ -248,7 +248,7 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
                     Err(anyhow!("unexpected error type {:?}", op.error))
                 }
             }
-            Err(IpcError::ServerDied(e)) => Ok(e.to_string().red()),
+            Err(IpcError::ServerDied(_)) => Ok("server died".red()),
         }?;
 
         let mux = match (device.mux, device.segment) {

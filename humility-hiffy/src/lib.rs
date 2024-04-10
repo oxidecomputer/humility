@@ -5,13 +5,13 @@
 //! Interface to the `hiffy` task, which allows execution of HIF programs
 
 use anyhow::{anyhow, bail, Context, Result};
-use core::fmt;
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
 use humility_doppel::{RpcHeader, StaticCell};
 use humility_idol as idol;
+pub use humility_idol::IpcError;
 use postcard::{take_from_bytes, to_slice};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -57,14 +57,6 @@ pub struct HiffyFunction {
     pub errmap: HashMap<u32, String>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub enum IpcError {
-    /// The IPC returned an error.
-    Error(u32),
-    /// The IPC returned a dead code, indicating that the server task has died.
-    ServerDied(u32),
-}
-
 impl HiffyFunction {
     pub fn strerror(&self, err: impl Into<IpcError>) -> String {
         match err.into() {
@@ -72,7 +64,7 @@ impl HiffyFunction {
                 Some(name) => name.clone(),
                 None => format!("<Unknown {} error: {}>", self.name, code),
             },
-            e => format!("<{e}>"),
+            IpcError::ServerDied(id) => format!("<server died: {id}>"),
         }
     }
 
@@ -896,25 +888,7 @@ impl<'a> HiffyContext<'a> {
                     }
                 })
             }
-            Err(IpcError::Error(e)) => {
-                let variant = if let idol::IdolError::CLike(error) = op.error {
-                    // TODO potentially sign-extended discriminator represented
-                    // as u32 and then zero-extended to u64; won't work for
-                    // signed values. Can't use determine_variant here because
-                    // it's not laid out in memory, it's been unfolded onto the
-                    // return stack.
-                    error.lookup_variant_by_tag(Tag::from(*e as u64))
-                } else {
-                    None
-                };
-
-                if let Some(variant) = variant {
-                    bail!(variant.name.to_string())
-                } else {
-                    bail!(format!("{:x?}", e))
-                }
-            }
-            Err(e) => bail!("{e}"),
+            Err(e) => bail!("{}", op.strerror(*e)),
         }
     }
 
@@ -1296,57 +1270,6 @@ pub fn hiffy_call(
     };
     Ok(out)
 }
-
-impl IpcError {
-    const DEAD_CODE: u32 = u32::MAX << 8;
-}
-
-impl From<u32> for IpcError {
-    fn from(val: u32) -> Self {
-        if val & Self::DEAD_CODE == Self::DEAD_CODE {
-            Self::ServerDied(val & !Self::DEAD_CODE)
-        } else {
-            Self::Error(val)
-        }
-    }
-}
-
-impl From<IpcError> for u32 {
-    fn from(err: IpcError) -> Self {
-        match err {
-            IpcError::Error(e) => e,
-            IpcError::ServerDied(id) => id | IpcError::DEAD_CODE,
-        }
-    }
-}
-
-impl fmt::Display for IpcError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Error(e) => {
-                write!(f, "server returned error code: {e:#x?}")
-            }
-            Self::ServerDied(id) => {
-                write!(f, "server died; its new ID is {id}")
-            }
-        }
-    }
-}
-
-impl fmt::Debug for IpcError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IpcError::Error(e) => {
-                write!(f, "IpcError::Error({e:#x?})")
-            }
-            IpcError::ServerDied(id) => {
-                write!(f, "IpcError::ServerDied({id})")
-            }
-        }
-    }
-}
-
-impl std::error::Error for IpcError {}
 
 /// Decodes a value returned from [hiffy_call] or equivalent.
 ///
