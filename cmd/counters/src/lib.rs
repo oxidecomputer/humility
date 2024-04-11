@@ -201,6 +201,7 @@
 
 use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, ValueEnum};
+use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
@@ -320,8 +321,8 @@ enum Output {
 }
 
 // Help message printed out when no counters match a filter.
-const LIST_HINT: &str = "hint: use `humility counters list` to list all \
- available counters";
+const LIST_HINT: &str = "use `humility counters list` to list all \
+    available counters";
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
@@ -373,8 +374,9 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
     if counters.is_empty() {
         if let Some(name) = name {
             bail!(
-                "no counters found with names containing \"{}\"\n{LIST_HINT}",
-                name
+                "no counters found with names containing \"{name}\"\n\
+                {} {LIST_HINT}",
+                hint(),
             );
         } else {
             bail!("no counters found");
@@ -445,9 +447,9 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 for (varname, ctr) in resolved_counters {
                     match ctr {
                         Err(e) if subargs.opts.verbose => {
-                            humility::msg!("counter dump failed: {e:?}")
+                            humility::warn!("counter dump failed: {e:?}")
                         }
-                        Err(e) => humility::msg!("counter dump failed: {e}"),
+                        Err(e) => humility::warn!("counter dump failed: {e}"),
                         Ok(mut ctr) => {
                             counters_dump_csv(
                                 &mut ctr,
@@ -463,9 +465,9 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                 for (varname, ctr) in resolved_counters {
                     match ctr {
                         Err(e) if subargs.opts.verbose => {
-                            humility::msg!("counter dump failed: {e:?}")
+                            humility::warn!("counter dump failed: {e:?}")
                         }
-                        Err(e) => humility::msg!("counter dump failed: {e}"),
+                        Err(e) => humility::warn!("counter dump failed: {e}"),
                         Ok(ctr) => {
                             json.entry(t)
                                 .or_default()
@@ -483,9 +485,9 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
                         if ctrs.peek().is_some() { " |  " } else { "    " };
                     match ctr {
                         Err(e) if subargs.opts.verbose => {
-                            humility::msg!("counter dump failed: {e:?}")
+                            humility::warn!("counter dump failed: {e:?}")
                         }
-                        Err(e) => humility::msg!("counter dump failed: {e}"),
+                        Err(e) => humility::warn!("counter dump failed: {e}"),
                         Ok(mut ctr) => {
                             counter_dump(&mut ctr, &subargs.opts, pad)
                         }
@@ -618,6 +620,10 @@ fn load_counters(
     CountedRingbuf::from_value(&val)
         .map(|r| r.counters)
         .or_else(|_| Counters::from_value(&val))
+}
+
+fn hint() -> impl std::fmt::Display {
+    "hint:".bold()
 }
 
 pub fn init() -> Command {

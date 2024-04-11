@@ -96,11 +96,11 @@ impl Args {
 
         if ipcs.is_empty() {
             if let Some(ref name) = opts.name {
+                let hint = super::hint();
                 bail!(
-                    "no IPC counters found with names containing \"{}\"\n\
-                    {LIST_HINT}\n\
-                    hint: use `--client` to filter IPCs by client task name",
-                    name
+                    "no IPC counters found with names containing \"{name}\"\n\
+                    {hint} {LIST_HINT}\n\
+                    {hint} use `--client` to filter by client task name"
                 );
             } else {
                 bail!("no IPC counters found");
