@@ -232,7 +232,10 @@ struct CountersArgs {
     /// * "csv": outputs counters in comma-separated values (CSV) format,
     ///   suitable for use with other tools.
     ///
-    /// [conflicts with: --ipc]
+    /// * "json": outputs counters in JSON format, suitable for use with
+    ///   other tools.
+    ///
+    /// [conflicts with: ipc]
     #[clap(long, short, value_enum, default_value_t = Output::Text)]
     output: Output,
 }
@@ -274,7 +277,9 @@ enum Subcmd {
         /// * "csv": outputs counters in comma-separated values (CSV) format,
         ///   suitable for use with other tools.
         ///
-        /// [conflicts with: --ipc]
+        /// * "json": outputs counters in JSON format, suitable for use with
+        ///   other tools.
+
         #[clap(long, short, value_enum, default_value_t = Output::Text)]
         output: Output,
     },
@@ -310,8 +315,13 @@ enum Output {
     Text,
     /// Output comma-separated values (CSV).
     Csv,
+    /// Output JSON.
     Json,
 }
+
+// Help message printed out when no counters match a filter.
+const LIST_HINT: &str = "hint: use `humility counters list` to list all \
+ available counters";
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
@@ -363,7 +373,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
     if counters.is_empty() {
         if let Some(name) = name {
             bail!(
-                "no counters found with names containing \"{}\" (-l to list)",
+                "no counters found with names containing \"{}\"\n{LIST_HINT}",
                 name
             );
         } else {

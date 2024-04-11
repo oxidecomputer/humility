@@ -1,2 +1,3 @@
 humility: attached to dump
-humility counters failed: no counters found with names containing "gimlet_seq" (-l to list)
+humility counters failed: no counters found with names containing "gimlet_seq"
+hint: use `humility counters list` to list all available counters
