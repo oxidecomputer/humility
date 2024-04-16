@@ -1,0 +1,3 @@
+system time = 23233
+ID TASK                       GEN PRI STATE    
+10 gimlet_seq                  12   4 FAULT: stack overflow; sp=0x24047fc0 (was: ready)
