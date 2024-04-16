@@ -323,21 +323,27 @@ pub struct RingbufEntry {
 }
 
 #[derive(Clone, Debug)]
-pub struct RingbufCount(pub u32);
+pub struct RingbufCount(Option<u64>);
 
 impl humility::reflect::Load for RingbufCount {
     fn from_value(v: &Value) -> Result<Self> {
         match v.as_base()? {
-            Base::U16(v) => Ok(Self(u32::from(*v))),
-            Base::U32(v) => Ok(Self(*v)),
-            _ => bail!("not a u32 or u16: {v:?}"),
+            Base::U0 => Ok(Self(None)),
+            Base::U8(v) => Ok(Self(Some(u64::from(*v)))),
+            Base::U16(v) => Ok(Self(Some(u64::from(*v)))),
+            Base::U32(v) => Ok(Self(Some(u64::from(*v)))),
+            Base::U64(v) => Ok(Self(Some(*v))),
+            _ => bail!("not an unsigned integer: {v:?}"),
         }
     }
 }
 
 impl std::fmt::Display for RingbufCount {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
+        match self.0 {
+            Some(v) => v.fmt(f),
+            None => "()".fmt(f),
+        }
     }
 }
 
