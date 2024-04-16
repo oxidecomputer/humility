@@ -1,0 +1,136 @@
+humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
+   TOTAL VARIANT
+       1 Ice40Rails
+       1 IdentValid(_)
+       0 |     IdentValid(true)
+       1 +---> IdentValid(false)
+       1 ChecksumValid(_)
+       0 |     ChecksumValid(true)
+       1 +---> ChecksumValid(false)
+       1 Reprogram(_)
+       1 +---> Reprogram(true)
+       0 |     Reprogram(false)
+       1 Programmed
+       1 Programming
+       1 Ice40PowerGoodV1P2(_)
+       1 +---> Ice40PowerGoodV1P2(true)
+       0 |     Ice40PowerGoodV1P2(false)
+       1 Ice40PowerGoodV3P3(_)
+       1 +---> Ice40PowerGoodV3P3(true)
+       0 |     Ice40PowerGoodV3P3(false)
+       1 RailsOff
+       1 Ident
+       1 A2Status
+       1 A2
+       0 A0FailureDetails
+       0 A0Failed(_)
+       0 |     A0Failed(IllegalTransition)
+       0 |     A0Failed(MuxToHostCPUFailed)
+       0 |     A0Failed(MuxToSPFailed)
+       0 |     A0Failed(CPUNotPresent)
+       0 |     A0Failed(UnrecognizedCPU)
+       0 |     A0Failed(A1Timeout)
+       0 |     A0Failed(A0TimeoutGroupC)
+       0 |     A0Failed(A0Timeout)
+       0 |     A0Failed(I2cFault)
+       0 |     A0Failed(ServerRestarted)
+       0 A1Status
+       0 CPUPresent(_)
+       0 |     CPUPresent(true)
+       0 |     CPUPresent(false)
+       0 Coretype
+       0 A0Status
+       0 A0Power
+       0 NICPowerEnableLow
+       0 RailsOn
+       0 UartEnabled
+       0 A0
+       1 SetState
+       0 UpdateState(_)
+       0 |     UpdateState(A2)
+       0 |     UpdateState(A2PlusFans)
+       0 |     UpdateState(A1)
+       0 |     UpdateState(A0)
+       0 |     UpdateState(A0PlusHP)
+       0 |     UpdateState(A0Thermtrip)
+       0 |     UpdateState(A0Reset)
+     446 ClockConfigWrite
+       1 ClockConfigSuccess
+       0 Status
+       0 PGStatus
+       0 SMStatus
+       0 NICStatus
+       0 ResetCounts
+       0 PowerControl
+       0 InterruptFlags
+       1 V3P3SysA0VOut
+       0 SpdBankAbsent
+       0 SpdAbsent
+       1 SpdDimmsFound
+       0 I2cError(_)
+       0 |     I2cError(BadResponse)
+       0 |     I2cError(BadArg)
+       0 |     I2cError(NoDevice)
+       0 |     I2cError(BadController)
+       0 |     I2cError(ReservedAddress)
+       0 |     I2cError(BadPort)
+       0 |     I2cError(NoRegister)
+       0 |     I2cError(BadMux)
+       0 |     I2cError(BadSegment)
+       0 |     I2cError(MuxNotFound)
+       0 |     I2cError(SegmentNotFound)
+       0 |     I2cError(SegmentDisconnected)
+       0 |     I2cError(MuxDisconnected)
+       0 |     I2cError(MuxMissing)
+       0 |     I2cError(BadMuxRegister)
+       0 |     I2cError(BusReset)
+       0 |     I2cError(BusResetMux)
+       0 |     I2cError(BusLocked)
+       0 |     I2cError(BusLockedMux)
+       0 |     I2cError(ControllerBusy)
+       0 |     I2cError(BusError)
+       0 |     I2cError(BadDeviceState)
+       0 |     I2cError(OperationNotSupported)
+       0 |     I2cError(IllegalLeaseCount)
+       0 |     I2cError(TooMuchData)
+       0 I2cFault
+       0 I2cRetry(_)
+       0 |     I2cRetry(SpdLoad)
+       0 |     I2cRetry(SpdLoadTop)
+       0 |     I2cRetry(VCoreOn)
+       0 |     I2cRetry(VCoreOff)
+       0 |     I2cRetry(VCoreUndervoltageInitialize)
+       0 |     I2cRetry(SocOn)
+       0 |     I2cRetry(SocOff)
+       0 StartFailed(_)
+       0 |     StartFailed(IllegalTransition)
+       0 |     StartFailed(MuxToHostCPUFailed)
+       0 |     StartFailed(MuxToSPFailed)
+       0 |     StartFailed(CPUNotPresent)
+       0 |     StartFailed(UnrecognizedCPU)
+       0 |     StartFailed(A1Timeout)
+       0 |     StartFailed(A0TimeoutGroupC)
+       0 |     StartFailed(A0Timeout)
+       0 |     StartFailed(I2cFault)
+       0 |     StartFailed(ServerRestarted)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  264        1        1 Ice40Rails(true, true)
+   1  293        1        1 Ice40PowerGoodV1P2(true)
+   2  314        1        1 Ice40PowerGoodV3P3(true)
+   3  356        1        1 IdentValid(false)
+   4  359        1        1 ChecksumValid(false)
+   5  362        1        1 Reprogram(true)
+   6  376        1        1 Programming
+   7  405        1        1 Programmed
+   8  409        1        1 RailsOff
+   9  412        1        1 Ident(0xde01)
+  10  418        1        1 A2Status(0x0)
+  11  441        1      446 ClockConfigWrite
+  12  452        1        1 ClockConfigSuccess
+  13 1407        1        1 V3P3SysA0VOut(Volts(0.0546875))
+  14  454        1        1 A2
+  15 1220        1        1 SpdDimmsFound(0x10)
+  16  670        1        1 SetState(A2, A0, 0x5ac1)
+humility: ring buffer drv_gimlet_seq_server::vcore::__RINGBUF in gimlet_seq:
+humility: ring buffer drv_oxide_vpd::__RINGBUF in gimlet_seq:
+humility: ring buffer drv_packrat_vpd_loader::__RINGBUF in gimlet_seq:
