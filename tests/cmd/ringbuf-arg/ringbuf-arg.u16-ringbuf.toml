@@ -8,3 +8,4 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.u16-ringbuf ringbuf i2c"
 
+status.code = 1
