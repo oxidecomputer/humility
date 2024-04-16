@@ -318,8 +318,27 @@ impl humility::reflect::Load for TaskId {
 pub struct RingbufEntry {
     pub line: u16,
     pub generation: u16,
-    pub count: u32,
+    pub count: RingbufCount,
     pub payload: Value,
+}
+
+#[derive(Clone, Debug)]
+pub struct RingbufCount(pub u32);
+
+impl humility::reflect::Load for RingbufCount {
+    fn from_value(v: &Value) -> Result<Self> {
+        match v.as_base()? {
+            Base::U16(v) => Ok(Self(u32::from(*v))),
+            Base::U32(v) => Ok(Self(*v)),
+            _ => bail!("not a u32 or u16: {v:?}"),
+        }
+    }
+}
+
+impl std::fmt::Display for RingbufCount {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
 }
 
 /// Double of the struct from `ringbuf`.
