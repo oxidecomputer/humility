@@ -1,0 +1,52 @@
+drv_spi_api::__SPI_CLIENT_COUNTERS
+ fn Spi::write() .................................................... 530 calls
+    clients:
+    task gimlet_seq .................................... = 0 ......... = 530 ok
+
+ fn Spi::exchange() ................................................... 5 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 5 ok
+
+ fn Spi::lock() ....................................................... 4 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 4 ok
+
+ fn Spi::release() .................................................... 1 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_configure_raw() ........................................ 12 calls
+    clients:
+    task gimlet_seq .................................... = 0 .......... = 12 ok
+
+ fn Sys::gpio_set_reset() ............................................ 12 calls
+    clients:
+    task gimlet_seq .................................... = 0 .......... = 12 ok
+
+ fn Sys::gpio_read_input() ............................................ 5 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 5 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::set_state() ................................................. 1 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 1 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::set_spd_eeprom() ........................................ 32 calls
+    clients:
+    task gimlet_seq .................................... = 0 .......... = 32 ok
+
+ fn Packrat::set_mac_address_block() .................................. 1 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 1 ok
+
+ fn Packrat::set_identity() ........................................... 1 calls
+    clients:
+    task gimlet_seq .................................... = 0 ........... = 1 ok
+
+

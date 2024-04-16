@@ -7,5 +7,3 @@
 fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.u16-ringbuf counters ipc --full"
-
-status.code = 1
