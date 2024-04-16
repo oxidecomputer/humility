@@ -1,0 +1,9 @@
+gimlet_seq:
+    ADDR        SIZE VARIABLE
+    0x2404a054   616 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+    0x24049190  3496 drv_gimlet_seq_server::__RINGBUF
+    0x24049fa4   176 drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS
+    0x2404a508    52 drv_spi_api::__SPI_CLIENT_COUNTERS
+    0x2404a53c    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+    0x2404a580   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+    0x2404a7c0    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS

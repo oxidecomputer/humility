@@ -1,0 +1,2 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+10 gimlet_seq         0x24048000       1600       1560         40

@@ -1,0 +1,40 @@
+humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
+   TOTAL VARIANT
+     446 ClockConfigWrite
+       1 SetState
+       1 IdentValid(false)
+       1 ChecksumValid(false)
+       1 Reprogram(true)
+       1 Programmed
+       1 Programming
+       1 Ice40PowerGoodV1P2(true)
+       1 Ice40PowerGoodV3P3(true)
+       1 RailsOff
+       1 Ident
+       1 A2Status
+       1 A2
+       1 SpdDimmsFound
+       1 V3P3SysA0VOut
+       1 ClockConfigSuccess
+       1 Ice40Rails
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  264        1        1 Ice40Rails(true, true)
+   1  293        1        1 Ice40PowerGoodV1P2(true)
+   2  314        1        1 Ice40PowerGoodV3P3(true)
+   3  356        1        1 IdentValid(false)
+   4  359        1        1 ChecksumValid(false)
+   5  362        1        1 Reprogram(true)
+   6  376        1        1 Programming
+   7  405        1        1 Programmed
+   8  409        1        1 RailsOff
+   9  412        1        1 Ident(0xde01)
+  10  418        1        1 A2Status(0x0)
+  11  441        1      446 ClockConfigWrite
+  12  452        1        1 ClockConfigSuccess
+  13 1407        1        1 V3P3SysA0VOut(Volts(0.0546875))
+  14  454        1        1 A2
+  15 1220        1        1 SpdDimmsFound(0x10)
+  16  670        1        1 SetState(A2, A0, 0x5ac1)
+humility: ring buffer drv_gimlet_seq_server::vcore::__RINGBUF in gimlet_seq:
+humility: ring buffer drv_oxide_vpd::__RINGBUF in gimlet_seq:
+humility: ring buffer drv_packrat_vpd_loader::__RINGBUF in gimlet_seq:

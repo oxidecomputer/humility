@@ -1,0 +1,39 @@
+gimlet_seq
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_gimlet_seq_server::__RINGBUF:
+ |       446 ClockConfigWrite
+ |         1 SetState
+ |         1 IdentValid(false)
+ |         1 ChecksumValid(false)
+ |         1 Reprogram(true)
+ |         1 Programmed
+ |         1 Programming
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 Ice40PowerGoodV3P3(true)
+ |         1 RailsOff
+ |         1 Ident
+ |         1 A2Status
+ |         1 A2
+ |         1 SpdDimmsFound
+ |         1 V3P3SysA0VOut
+ |         1 ClockConfigSuccess
+ |         1 Ice40Rails
+ +---> drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |       530 write(Ok)
+ |         5 exchange(Ok)
+ |         4 lock(Ok)
+ |         1 release(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |        12 gpio_configure_raw
+ |        12 gpio_set_reset
+ |         5 gpio_read_input
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         1 set_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          32 set_spd_eeprom
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)
