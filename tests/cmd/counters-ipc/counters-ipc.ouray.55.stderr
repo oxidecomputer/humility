@@ -1,5 +1,5 @@
 humility: attached to dump
-humility counters failed: failed to read TASK_TABLE_SIZE
-
-Caused by:
-    read of 4 bytes from invalid address: 0x20000008
+humility: WARNING: failed to load task table: failed to read TASK_TABLE_SIZE
+humility: WARNING: no generations/restart counts will be displayed.
+humility: note: this may be a single-task dump.
+humility counters failed: no IPC counters found

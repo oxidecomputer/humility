@@ -1,0 +1,16 @@
+drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+ fn Sequencer::get_state() ........................................... 75 calls
+    clients:
+    task power ......................................... = 0 .......... = 75 ok
+
+
+task_sensor_api::__SENSOR_CLIENT_COUNTERS
+ fn Sensor::nodata() ............................................... 5032 calls
+    clients:
+    task power ......................................... = 0 ........ = 5032 ok
+
+ fn Sensor::post() ................................................. 1332 calls
+    clients:
+    task power ......................................... = 0 ........ = 1332 ok
+
+

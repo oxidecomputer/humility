@@ -34,17 +34,29 @@ impl Args {
         let Self { clients, opts } = self;
         // In order to display task generations accurately, we must find and load
         // the task table:
-        let task_table = {
-            let (base, task_count) = hubris.task_table(core)?;
-            let task_t = hubris.lookup_struct_byname("Task")?.clone();
-            humility_doppel::Task::load_tcbs(
-                hubris,
-                core,
-                base,
-                task_count as usize,
-                &task_t,
-            )?
-        };
+        let task_table = hubris
+            .task_table(core)
+            .and_then(|(base, task_count)| {
+                let task_t = hubris.lookup_struct_byname("Task")?.clone();
+                humility_doppel::Task::load_tcbs(
+                    hubris,
+                    core,
+                    base,
+                    task_count as usize,
+                    &task_t,
+                )
+            })
+            // This may be a single-task dump, in which case, we cannot load the
+            // task table. In that case, rather than bailing, we'll just not
+            // display restart counts.
+            .unwrap_or_else(|err| {
+                humility::warn!("failed to load task table: {err}");
+                humility::warn!(
+                    "no generations/restart counts will be displayed."
+                );
+                humility::msg!("note: this may be a single-task dump.");
+                Vec::new()
+            });
 
         let mut ipcs = BTreeMap::new();
 
@@ -60,7 +72,9 @@ impl Args {
                     continue;
                 }
 
-                let gen = task_table[task.task() as usize].generation;
+                let gen = task_table
+                    .get(task.task() as usize)
+                    .map(|task| task.generation);
                 // Only select counters matching the provided filter, if there is
                 // one.
                 if let Some(ref name) = opts.name {
@@ -128,9 +142,9 @@ struct IpcIface<'a> {
 }
 
 #[derive(Default)]
-struct Ipc<'taskname>(
-    IndexMap<(&'taskname str, GenOrRestartCount), CounterVariant>,
-);
+struct Ipc<'taskname>(IndexMap<ClientTask<'taskname>, CounterVariant>);
+
+type ClientTask<'taskname> = (&'taskname str, Option<GenOrRestartCount>);
 
 impl IpcIface<'_> {
     fn total(&self) -> usize {
@@ -233,12 +247,15 @@ impl fmt::Display for IpcIface<'_> {
                 let sign = if formatted_tasks > 1 { "+" } else { "=" };
                 let ok_str = fmt_oks(ok, format!("{sign} {ok}",));
                 let restarts = match gen {
-                    GenOrRestartCount::Gen(gen) => {
+                    Some(GenOrRestartCount::Gen(gen)) => {
                         format!(" (gen {gen:?})")
                     }
-                    GenOrRestartCount::RestartCount(restarts) => {
+                    Some(GenOrRestartCount::RestartCount(restarts)) => {
                         format!(" ({restarts} restarts)")
                     }
+                    // This is a single-task dump, so we don't have generation
+                    // numbers or restart counts.
+                    None => String::new(),
                 };
                 write!(f, "{INDENT}task {}{restarts} ", task.italic())?;
 
