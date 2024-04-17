@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::{load_counters, taskname, Options, Order};
+use super::{load_counters, taskname, Options, Order, LIST_HINT};
 use anyhow::{bail, Result};
 use colored::{ColoredString, Colorize};
 use humility::core::Core;
@@ -110,9 +110,11 @@ impl Args {
 
         if ipcs.is_empty() {
             if let Some(ref name) = opts.name {
+                let hint = super::hint();
                 bail!(
-                    "no IPC counters found with names containing \"{}\" (-l to list)",
-                    name
+                    "no IPC counters found with names containing \"{name}\"\n\
+                    {hint} {LIST_HINT}\n\
+                    {hint} use `--client` to filter by client task name"
                 );
             } else {
                 bail!("no IPC counters found");
