@@ -80,7 +80,7 @@ fn list1(dev: &rusb::Device<impl rusb::UsbContext>) -> Result<String> {
     let handle = match dev.open() {
         Ok(handle) => handle,
         Err(e) => {
-            return Err(anyhow!("{pid:04x}:{vid:04x}:???\topen failed: {e}"));
+            return Err(anyhow!("{vid:04x}:{pid:04x}:???\topen failed: {e}"));
         }
     };
     let lang = *handle
@@ -99,7 +99,7 @@ fn list1(dev: &rusb::Device<impl rusb::UsbContext>) -> Result<String> {
         .read_serial_number_string(lang, &desc, TIMEOUT)
         .unwrap_or_else(|_| "(serial unknown)".to_string());
 
-    Ok(format!("{pid:04x}:{vid:04x}:{serial}\t{man}\t{prod}"))
+    Ok(format!("{vid:04x}:{pid:04x}:{serial}\t{man}\t{prod}"))
 }
 
 pub fn init() -> Command {
