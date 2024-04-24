@@ -43,7 +43,7 @@ impl Environment {
         }
     }
 
-    fn read(filename: &str) -> Result<IndexMap<String, Environment>> {
+    pub fn read(filename: &str) -> Result<IndexMap<String, Environment>> {
         let path = PathBuf::from(filename);
         let input = fs::read_to_string(path)?;
         Ok(serde_json::from_str(&input)?)
