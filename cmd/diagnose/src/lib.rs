@@ -94,9 +94,8 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     println!("Taking initial snapshot of task status...");
 
     // Mise en place:
-    let base = core.read_word_32(hubris.lookup_symword("TASK_TABLE_BASE")?)?;
-    let task_count =
-        core.read_word_32(hubris.lookup_symword("TASK_TABLE_SIZE")?)? as usize;
+    let (base, task_count) = hubris.task_table(core)?;
+    let task_count = task_count as usize;
     let task_t = hubris.lookup_struct_byname("Task")?.clone();
 
     // Park the core so that we don't have stuff changing out from under us.
