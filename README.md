@@ -384,12 +384,12 @@ thermal
 
 ##### IPC counters
 
-The `--ipc` argument shows IPC client counters generated automatically by
+The `ipc` subcommand shows IPC client counters generated automatically by
 `idol`, showing the total request count for a given IPC and per-client-task
 breakdowns. For example:`
 
 ```console
-$ humility -d ./hubris.core.0 counters --ipc`
+$ humility -d ./hubris.core.0 counters ipc`
 humility: attached to dump
 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
  fn HostFlash::get_mux() .............................................. 6 calls
@@ -424,7 +424,7 @@ counters variable, but *not* on the client task name. This allows filtering
 the output based on the IPC interface. For example:
 
 ```console
-$ humility -d ./hubris.core.0 counters --ipc sensors
+$ humility -d ./hubris.core.0 counters ipc sensors
 humility: attached to dump
 task_sensor_api::__SENSOR_CLIENT_COUNTERS
 fn Sensor::post() ................................................ 76717 calls
@@ -457,7 +457,7 @@ recorded in tasks whose names match the provided strings. For example, to
 show only IPC counters recorded by the `gimlet_seq` task, use:
 
 ```console
-$ humility -d ./hubris.core.0 counters --ipc --client gimlet_seq
+$ humility -d ./hubris.core.0 counters ipc --client gimlet_seq
 humility: attached to dump
 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
  fn HostFlash::set_mux() .............................................. 1 calls
@@ -2715,6 +2715,15 @@ humility: ring buffer ksz8463::__RINGBUF in net:
    8  148       89        1 Write(IACR, 0x1c14)
 ...
 ```
+
+By default, all integer values in a ring buffer are displayed in hex;
+this can be overridden with the `--decimal` option.
+
+Unless explicitly disabled, ring buffer entries are de-deduplicated (with
+the count of a specific entry being indicated by the `COUNT` column). In
+some cases, it can be useful to expand these de-duplicated entries (for
+example, if each entry represents a measurement, and one wishes to see the
+entire series); this can be effected with the `--expand` option.
 
 See the [`ringbuf`
 documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
