@@ -50,6 +50,15 @@
 //! ...
 //! ```
 //!
+//! By default, all integer values in a ring buffer are displayed in hex;
+//! this can be overridden with the `--decimal` option.
+//!
+//! Unless explicitly disabled, ring buffer entries are de-deduplicated (with
+//! the count of a specific entry being indicated by the `COUNT` column). In
+//! some cases, it can be useful to expand these de-duplicated entries (for
+//! example, if each entry represents a measurement, and one wishes to see the
+//! entire series); this can be effected with the `--expand` option.
+//!
 //! See the [`ringbuf`
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
@@ -71,6 +80,12 @@ struct RingbufArgs {
     /// print full errors
     #[clap(long, short)]
     verbose: bool,
+    /// print integer values in decimal rather than hex
+    #[clap(long, short)]
+    decimal: bool,
+    /// expand de-duplicated entries
+    #[clap(long, short)]
+    expand: bool,
     /// print only a single ringbuffer by substring of name
     #[clap(conflicts_with = "list")]
     name: Option<String>,
@@ -98,12 +113,13 @@ struct TotalsOptions {
 }
 
 fn ringbuf_dump(
+    subargs: &RingbufArgs,
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     definition: &HubrisStruct,
     ringbuf_var: &HubrisVariable,
-    TotalsOptions { full_totals, no_totals }: TotalsOptions,
 ) -> Result<()> {
+    let TotalsOptions { full_totals, no_totals } = subargs.totals;
     let mut buf: Vec<u8> = vec![];
     buf.resize_with(ringbuf_var.size, Default::default);
 
@@ -162,13 +178,18 @@ fn ringbuf_dump(
             return Ok(());
         };
 
-        let fmt =
-            HubrisPrintFormat { hex: true, ..HubrisPrintFormat::default() };
+        let fmt = HubrisPrintFormat {
+            hex: !subargs.decimal,
+            ..HubrisPrintFormat::default()
+        };
 
-        println!(
-            "{:>4} {:>4} {:>8} {:>8} PAYLOAD",
-            "NDX", "LINE", "GEN", "COUNT",
-        );
+        print!("{:>4} {:>4} {:>8} ", "NDX", "LINE", "GEN");
+
+        if !subargs.expand {
+            print!("{:>8} ", "COUNT");
+        }
+
+        println!("PAYLOAD");
 
         for i in 0..ringbuf.buffer.len() {
             let slot = (ndx + i + 1) % ringbuf.buffer.len();
@@ -182,10 +203,19 @@ fn ringbuf_dump(
             entry.payload.format(hubris, fmt, &mut dumped)?;
             let dumped = String::from_utf8(dumped)?;
 
-            println!(
-                "{:4} {:4} {:8} {:8} {}",
-                slot, entry.line, entry.generation, entry.count, dumped
-            );
+            if subargs.expand {
+                for _ in 0..entry.count.0.unwrap_or(1) {
+                    println!(
+                        "{:4} {:4} {:8} {}",
+                        slot, entry.line, entry.generation, dumped
+                    );
+                }
+            } else {
+                println!(
+                    "{:4} {:4} {:8} {:8} {}",
+                    slot, entry.line, entry.generation, entry.count, dumped
+                );
+            }
         }
     }
 
@@ -272,8 +302,7 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
             taskname(hubris, v.1).unwrap_or("???")
         );
         if let Some(def) = def {
-            if let Err(e) = ringbuf_dump(hubris, core, def, v.1, subargs.totals)
-            {
+            if let Err(e) = ringbuf_dump(&subargs, hubris, core, def, v.1) {
                 if subargs.verbose {
                     humility::msg!("ringbuf dump failed: {e:?}");
                 } else {

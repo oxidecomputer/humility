@@ -323,7 +323,7 @@ pub struct RingbufEntry {
 }
 
 #[derive(Clone, Debug)]
-pub struct RingbufCount(Option<u64>);
+pub struct RingbufCount(pub Option<u64>);
 
 impl humility::reflect::Load for RingbufCount {
     fn from_value(v: &Value) -> Result<Self> {
