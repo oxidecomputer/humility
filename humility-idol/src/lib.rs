@@ -23,7 +23,7 @@ pub struct IdolOperation<'a> {
     pub task: HubrisTask,
     pub operation: &'a Operation,
     pub code: u16,
-    pub args: &'a HubrisStruct,
+    pub args: Option<&'a HubrisStruct>,
     pub ok: HubrisGoff,
     pub error: IdolError<'a>,
 }
@@ -70,15 +70,17 @@ impl<'a> IdolOperation<'a> {
 
         let t = format!("{}_{}_ARGS", interface, operation);
         let module = hubris.lookup_module(task)?;
-        let args = module
-            .lookup_struct_byname(hubris, &t)?
-            .ok_or_else(|| anyhow!("failed to find {t}"))?;
+        let args = module.lookup_struct_byname(hubris, &t)?;
         let (ok, error) = lookup_reply(hubris, module, operation)?;
 
         //
         // We have our fully formed Idol call!
         //
         Ok(Self { hubris, name, task, operation: op, code, args, ok, error })
+    }
+
+    fn args_size(&self) -> usize {
+        self.args.map(|s| s.size).unwrap_or(0)
     }
 
     pub fn payload(&self, args: &[(&str, IdolArgument)]) -> Result<Vec<u8>> {
@@ -93,7 +95,7 @@ impl<'a> IdolOperation<'a> {
             // Zerocopy will populate payload based on its actual size, so
             // resize it appropriately.
             ::idol::syntax::Encoding::Zerocopy => {
-                payload.resize(self.args.size, 0)
+                payload.resize(self.args_size(), 0)
             }
             // Serializing args will append to `payload`, so leave it empty (for
             // now).
@@ -117,7 +119,8 @@ impl<'a> IdolOperation<'a> {
 
             let member = self
                 .args
-                .members
+                .map(|s| &s.members[..])
+                .unwrap_or(&[])
                 .iter()
                 .find(|&m| m.name == arg_name)
                 .ok_or_else(|| {

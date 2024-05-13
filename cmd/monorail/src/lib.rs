@@ -705,7 +705,7 @@ fn monorail_status(
         // They're placed back-to-back in Hiffy code, so we'll call the two
         // loops one after the other (i.e. values are not interleaved!)
         for op in [&op_port, &op_phy] {
-            assert_eq!(op.args.members.len(), 1); // Sanity-check!
+            assert_eq!(op.args.unwrap().members.len(), 1); // Sanity-check!
             let ret_size = hubris.typesize(op.ok)? as u32;
 
             // Here we go!
