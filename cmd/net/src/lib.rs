@@ -63,7 +63,7 @@ enum NetCommand {
     Counters {
         /// Show a table of raw counter values
         table: bool,
-        /// Show a diagram of counters in context
+        /// Show a diagram of good packet counts in context
         diagram: bool,
     },
 }
@@ -383,6 +383,7 @@ fn net_counters(
 
     if !table && !diagram {
         net_counters_table(s)?;
+        println!();
         net_counters_diagram(s)?;
     } else {
         if table {
