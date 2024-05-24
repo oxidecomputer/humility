@@ -546,7 +546,7 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
 
     println!(
         "            ┌──────────────────┐            ┌───────────────────┐
-            │ {}          │ 100BASE-FX │ {}           │ SGMII 
+            │ {}          │            │ {}           │
             │                  │tx        rx│                   │tx
             │            {:>6}├───────────►│{:<6}       {:>6}├───────►
             │                  │1          0│                   │0
@@ -556,9 +556,10 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
 │    │◄─────┤{:<6}            │tx        rx│                   │tx
 └────┘    tx│            {:>6}├───────────►│{:<6}       {:>6}├───────►
             │                  │2          1│                   │1
-       RMII │            {:>6}│◄───────────┤{:<6}       {:>6}│◄───────
+       {} │            {:>6}│◄───────────┤{:<6}       {:>6}│◄───────
             │                  │rx        tx│                   │rx
-            └──────────────────┘            └───────────────────┘
+            │                  │            │                   │
+            └──────────────────┘ {} └───────────────────┘  {}
                                              MEDIA           MAC
     ",
         "KSZ8463".bold(),
@@ -574,9 +575,12 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
         ksz_tx[1].to_string().green(),
         v_media_rx[1].to_string().green(),
         mac(v_mac_tx[1]),
+        "RMII".dimmed(),
         ksz_rx[1].to_string().green(),
         v_media_tx[1].to_string().green(),
         mac(v_mac_rx[1]),
+        "100BASE-FX".dimmed(),
+        "SGMII".dimmed(),
     );
     Ok(())
 }
