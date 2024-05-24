@@ -536,12 +536,17 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
         v_media_rx[port] = value(v_rx, "media_good");
     }
 
-    let mac =
-        |i: u16| if v_mac_valid { i.to_string() } else { "--".to_string() };
+    let mac = |i: u16| {
+        if v_mac_valid {
+            i.to_string().green()
+        } else {
+            "--".to_string().dimmed()
+        }
+    };
 
     println!(
         "            ┌──────────────────┐            ┌───────────────────┐
-            │KSZ8463           │ 100BASE-FX │VSC85x2            │ SGMII 
+            │ {}          │ 100BASE-FX │ {}           │ SGMII 
             │                  │tx        rx│                   │tx
             │            {:>6}├───────────►│{:<6}       {:>6}├───────►
             │                  │1          0│                   │0
@@ -556,19 +561,21 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
             └──────────────────┘            └───────────────────┘
                                              MEDIA           MAC
     ",
-        ksz_tx[0],
-        v_media_rx[0],
+        "KSZ8463".bold(),
+        "VSC85x2".bold(),
+        ksz_tx[0].to_string().green(),
+        v_media_rx[0].to_string().green(),
         mac(v_mac_tx[0]),
-        ksz_rx[0],
-        v_media_tx[0],
+        ksz_rx[0].to_string().green(),
+        v_media_tx[0].to_string().green(),
         mac(v_mac_rx[0]),
-        ksz_rx[2],
-        ksz_tx[2],
-        ksz_tx[1],
-        v_media_rx[1],
+        ksz_rx[2].to_string().green(),
+        ksz_tx[2].to_string().green(),
+        ksz_tx[1].to_string().green(),
+        v_media_rx[1].to_string().green(),
         mac(v_mac_tx[1]),
-        ksz_rx[1],
-        v_media_tx[1],
+        ksz_rx[1].to_string().green(),
+        v_media_tx[1].to_string().green(),
         mac(v_mac_rx[1]),
     );
     Ok(())
