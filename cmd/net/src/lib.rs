@@ -57,7 +57,15 @@ enum NetCommand {
     /// Print the link status
     Status,
     /// Print the counters
-    Counters,
+    ///
+    /// This is a destructive operation that clears counter values, resetting
+    /// them to zero.
+    Counters {
+        /// Show a table of raw counter values
+        table: bool,
+        /// Show a diagram of counters in context
+        diagram: bool,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -342,7 +350,11 @@ fn net_status(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net_counters(context: &mut ExecutionContext) -> Result<()> {
+fn net_counters(
+    context: &mut ExecutionContext,
+    table: bool,
+    diagram: bool,
+) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
 
@@ -369,6 +381,21 @@ fn net_counters(context: &mut ExecutionContext) -> Result<()> {
     let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementCounters");
 
+    if !table && !diagram {
+        net_counters_table(s)?;
+        net_counters_diagram(s)?;
+    } else {
+        if table {
+            net_counters_table(s)?;
+        }
+        if diagram {
+            net_counters_diagram(s)?;
+        }
+    }
+    Ok(())
+}
+
+fn net_counters_table(s: &Struct) -> Result<()> {
     let k_tx = s["ksz8463_tx"].as_array()?;
     let k_rx = s["ksz8463_rx"].as_array()?;
     let value = |k: &Struct, s: &str| {
@@ -473,6 +500,81 @@ fn net_counters(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+fn net_counters_diagram(s: &Struct) -> Result<()> {
+    let k_tx = s["ksz8463_tx"].as_array()?;
+    let k_rx = s["ksz8463_rx"].as_array()?;
+    let value = |k: &Struct, s: &str| k[s].as_base().unwrap().as_u32().unwrap();
+
+    let mut ksz_tx = [0; 3];
+    let mut ksz_rx = [0; 3];
+    for port in 0..3 {
+        let k_tx = k_tx[port].as_struct()?;
+        let k_rx = k_rx[port].as_struct()?;
+        for t in ["unicast", "broadcast", "multicast"] {
+            ksz_tx[port] += value(k_tx, t);
+            ksz_rx[port] += value(k_rx, t);
+        }
+    }
+
+    let v_tx = s["vsc85x2_tx"].as_array()?;
+    let v_rx = s["vsc85x2_rx"].as_array()?;
+    let v_mac_valid = s["vsc85x2_mac_valid"].as_base()?.as_bool().unwrap();
+    let value = |v: &Struct, s: &str| v[s].as_base().unwrap().as_u16().unwrap();
+
+    let mut v_mac_tx = [0; 2];
+    let mut v_mac_rx = [0; 2];
+    let mut v_media_tx = [0; 2];
+    let mut v_media_rx = [0; 2];
+    for port in 0..2 {
+        let v_tx = v_tx[port].as_struct()?;
+        let v_rx = v_rx[port].as_struct()?;
+        if v_mac_valid {
+            v_mac_tx[port] = value(v_tx, "mac_good");
+            v_mac_rx[port] = value(v_rx, "mac_good");
+        }
+        v_media_tx[port] = value(v_tx, "media_good");
+        v_media_rx[port] = value(v_rx, "media_good");
+    }
+
+    let mac =
+        |i: u16| if v_mac_valid { i.to_string() } else { "--".to_string() };
+
+    println!(
+        "\
+            ┌──────────────────┐            ┌───────────────────┐
+            │KSZ8463           │ 100BASE-FX │VSC85x2            │ SGMII 
+            │                  │tx        rx│                   │tx
+            │            {:>6}├───────────►│{:<6}       {:>6}├───────►
+            │                  │1          0│                   │0
+┌────┐    rx│            {:>6}│◄───────────┤{:<6}       {:>6}│◄───────
+│    ├─────►│{:<6}            │rx        tx│                   │rx
+│ SP │     3│                  │            │                   │
+│    │◄─────┤{:<6}            │tx        rx│                   │tx
+└────┘    tx│            {:>6}├───────────►│{:<6}       {:>6}├───────►
+            │                  │2          1│                   │1
+       RMII │            {:>6}│◄───────────┤{:<6}       {:>6}│◄───────
+            │                  │rx        tx│                   │rx
+            └──────────────────┘            └───────────────────┘
+                                             MEDIA           MAC
+    ",
+        ksz_tx[0],
+        v_media_rx[0],
+        mac(v_mac_tx[0]),
+        ksz_rx[0],
+        v_media_tx[0],
+        mac(v_mac_rx[0]),
+        ksz_rx[2],
+        ksz_tx[2],
+        ksz_tx[1],
+        v_media_rx[1],
+        mac(v_mac_tx[1]),
+        ksz_rx[1],
+        v_media_tx[1],
+        mac(v_mac_rx[1]),
+    );
+    Ok(())
+}
+
 fn net(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = NetArgs::try_parse_from(subargs)?;
@@ -481,7 +583,9 @@ fn net(context: &mut ExecutionContext) -> Result<()> {
         NetCommand::Mac => net_mac_table(context)?,
         NetCommand::Ip => net_ip(context)?,
         NetCommand::Status => net_status(context)?,
-        NetCommand::Counters => net_counters(context)?,
+        NetCommand::Counters { table, diagram } => {
+            net_counters(context, table, diagram)?
+        }
     }
     Ok(())
 }
