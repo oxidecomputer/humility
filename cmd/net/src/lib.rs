@@ -540,8 +540,7 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
         |i: u16| if v_mac_valid { i.to_string() } else { "--".to_string() };
 
     println!(
-        "\
-            ┌──────────────────┐            ┌───────────────────┐
+        "            ┌──────────────────┐            ┌───────────────────┐
             │KSZ8463           │ 100BASE-FX │VSC85x2            │ SGMII 
             │                  │tx        rx│                   │tx
             │            {:>6}├───────────►│{:<6}       {:>6}├───────►
