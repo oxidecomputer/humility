@@ -62,8 +62,10 @@ enum NetCommand {
     /// them to zero.
     Counters {
         /// Show a table of raw counter values
+        #[clap(short, long)]
         table: bool,
         /// Show a diagram of good packet counts in context
+        #[clap(short, long)]
         diagram: bool,
     },
 }
