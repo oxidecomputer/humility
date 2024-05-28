@@ -60,6 +60,8 @@ enum NetCommand {
     ///
     /// This is a destructive operation that clears counter values, resetting
     /// them to zero.
+    ///
+    /// If no flags are provided, both the table and diagram are shown.
     Counters {
         /// Show a table of raw counter values
         #[clap(short, long)]
