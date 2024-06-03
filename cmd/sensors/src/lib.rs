@@ -389,20 +389,20 @@ impl SensorReader for RamSensorReader {
         core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
         core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
 
-        let Value::Array(data_value) = humility::reflect::load_value(
+        let data_values = humility::reflect::load_value(
             hubris,
             &self.data_value_buf,
             hubris.lookup_type(self.data_value.goff)?,
             0,
-        )?
-        else {
-            bail!("expected DATA_VALUES to be an array");
+        )?;
+        let Value::Array(data_values) = data_values else {
+            bail!("expected DATA_VALUES to be an array, not {data_values:?}");
         };
         let data_values = self
             .sensors
             .iter()
             .map(|i| {
-                let Value::Base(Base::F32(f)) = &data_value[*i] else {
+                let Value::Base(Base::F32(f)) = &data_values[*i] else {
                     bail!("expected an f32");
                 };
                 Ok(*f)
