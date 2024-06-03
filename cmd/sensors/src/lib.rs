@@ -24,7 +24,7 @@
 //! `--tabular`.  In its default output (with one sensor per row), error
 //! counts are also displayed.
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
@@ -51,6 +51,12 @@ struct SensorsArgs {
     /// list all sensors
     #[clap(long, short)]
     list: bool,
+
+    /// use the given backend to read sensor data
+    ///
+    /// [default: `hiffy` if present, otherwise `readmem`]
+    #[clap(long, short, value_enum)]
+    backend: Option<Backend>,
 
     /// print sensors every second
     #[clap(long, short, conflicts_with = "list")]
@@ -89,6 +95,15 @@ struct SensorsArgs {
         conflicts_with_all = &["types", "devices", "named"],
     )]
     id: Option<Vec<usize>>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
+#[clap(rename_all = "kebab-case")]
+enum Backend {
+    /// Use the Hiffy task to read sensor data
+    Hiffy,
+    /// Use the RAM-reading primitive to read sensor data
+    Readmem,
 }
 
 enum SensorSpecification<'a> {
@@ -188,14 +203,21 @@ fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
     Ok(())
 }
 
-struct SensorResult {
+struct SensorData {
+    /// Last reading value (from `Sensor.get`), or `None` if it was an error
     values: Vec<Option<f32>>,
+
+    /// Error counters from `Sensor.get_nerrors`
     errors: Vec<Option<u32>>,
 }
 
 trait SensorReader {
     /// Reads sensor data, returning a tuple of `values, errors`
-    fn run(&mut self, core: &mut dyn Core) -> Result<SensorResult>;
+    fn run(
+        &mut self,
+        hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<SensorData>;
 }
 
 struct HiffySensorReader<'a> {
@@ -266,7 +288,11 @@ impl<'a> HiffySensorReader<'a> {
 }
 
 impl<'a> SensorReader for HiffySensorReader<'a> {
-    fn run(&mut self, core: &mut dyn Core) -> Result<SensorResult> {
+    fn run(
+        &mut self,
+        _hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<SensorData> {
         let mut rval = vec![];
         let mut errs = vec![];
 
@@ -298,15 +324,139 @@ impl<'a> SensorReader for HiffySensorReader<'a> {
             errs = vec![None; rval.len()];
         }
 
-        Ok(SensorResult { values: rval, errors: errs })
+        Ok(SensorData { values: rval, errors: errs })
     }
 }
 
-fn print<S: SensorReader>(
+/// Reader for sensor data that pulls it out of RAM directly
+struct RamSensorReader {
+    /// Position of `LAST_READING` in global RAM
+    last_reading: HubrisVariable,
+    last_reading_buf: Vec<u8>,
+
+    /// Position of `DATA_VALUE` in global RAM
+    data_value: HubrisVariable,
+    data_value_buf: Vec<u8>,
+
+    /// Position of `NERRORS` in global RAM
+    nerrors: HubrisVariable,
+    nerrors_buf: Vec<u8>,
+
+    /// Indexes of sensors that we care about
+    ///
+    /// We'll read the entire array (for simplicity) then filter just the ones
+    /// that matter
+    sensors: Vec<usize>,
+}
+
+impl RamSensorReader {
+    fn new(
+        hubris: &HubrisArchive,
+        sensors: &[(usize, HubrisSensor)],
+    ) -> Result<Self> {
+        let find_var = |v| {
+            hubris
+                .qualified_variables()
+                .find(|&(n, _v)| n == format!("task_sensor::main::{v}"))
+                .ok_or_else(|| anyhow!("could not find DATA_VALUE"))
+                .map(|(_name, v)| *v)
+        };
+        let last_reading = find_var("LAST_READING")?;
+        let data_value = find_var("DATA_VALUE")?;
+        let nerrors = find_var("NERRORS")?;
+
+        Ok(Self {
+            last_reading,
+            last_reading_buf: vec![0u8; last_reading.size],
+            data_value,
+            data_value_buf: vec![0u8; data_value.size],
+            nerrors,
+            nerrors_buf: vec![0u8; nerrors.size],
+            sensors: sensors.iter().map(|(i, _)| *i).collect(),
+        })
+    }
+}
+
+impl SensorReader for RamSensorReader {
+    fn run(
+        &mut self,
+        hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<SensorData> {
+        use humility::reflect::{Base, Value};
+
+        core.read_8(self.data_value.addr, &mut self.data_value_buf)?;
+        core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
+        core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
+
+        let Value::Array(data_value) = humility::reflect::load_value(
+            hubris,
+            &self.data_value_buf,
+            hubris.lookup_type(self.data_value.goff)?,
+            0,
+        )?
+        else {
+            bail!("expected DATA_VALUES to be an array");
+        };
+        let data_values = self
+            .sensors
+            .iter()
+            .map(|i| {
+                let Value::Base(Base::F32(f)) = &data_value[*i] else {
+                    bail!("expected an f32");
+                };
+                Ok(*f)
+            })
+            .collect::<Result<Vec<f32>>>()?;
+        println!("data values:\n{data_values:?}");
+
+        let Value::Array(last_reading) = humility::reflect::load_value(
+            hubris,
+            &self.last_reading_buf,
+            hubris.lookup_type(self.last_reading.goff)?,
+            0,
+        )?
+        else {
+            bail!("expected LAST_READING to be an array");
+        };
+        println!("last reading:\n{last_reading:?}");
+        // TODO clear data_values which aren't bla bla bla
+
+        let Value::Array(nerrors) = humility::reflect::load_value(
+            hubris,
+            &self.nerrors_buf,
+            hubris.lookup_type(self.nerrors.goff)?,
+            0,
+        )?
+        else {
+            bail!("expected NERRORS to be an array");
+        };
+        let nerrors = self
+            .sensors
+            .iter()
+            .map(|i| {
+                let Value::Base(Base::U32(e)) = &nerrors[*i] else {
+                    bail!("expected NERRORS member to be u32");
+                };
+                Ok(Some(*e))
+            })
+            .collect::<Result<Vec<Option<u32>>>>()?;
+        let nerrors = self.sensors.iter().map(|i| nerrors[*i]).collect();
+        println!("nerrors:\n{nerrors:?}");
+
+        Ok(SensorData {
+            values: data_values.into_iter().map(Option::Some).collect(), // TODO replace errors
+            errors: nerrors,
+        })
+    }
+}
+
+fn print(
+    hubris: &HubrisArchive,
     core: &mut dyn Core,
     sensors: &[(usize, HubrisSensor)],
     subargs: &SensorsArgs,
-    reader: &mut S,
+    reader: &mut dyn SensorReader,
 ) -> Result<()> {
     if subargs.tabular {
         for (_, s) in sensors {
@@ -324,7 +474,8 @@ fn print<S: SensorReader>(
 
     loop {
         let start = Instant::now();
-        let SensorResult { values: rval, errors: errs } = reader.run(core)?;
+        let SensorData { values: rval, errors: errs } =
+            reader.run(hubris, core)?;
 
         if subargs.tabular {
             for val in rval {
@@ -505,12 +656,20 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         sensors.push((i, s.clone()));
     }
 
-    let mut reader = {
-        let context = HiffyContext::new(hubris, core, subargs.timeout)?;
-        HiffySensorReader::new(hubris, &sensors, context)?
+    let mut reader: Box<dyn SensorReader> = match subargs.backend {
+        Some(Backend::Hiffy) => {
+            let context = HiffyContext::new(hubris, core, subargs.timeout)?;
+            Box::new(HiffySensorReader::new(hubris, &sensors, context)?)
+        }
+        Some(Backend::Readmem) => {
+            Box::new(RamSensorReader::new(hubris, &sensors)?)
+        }
+        None => match HiffyContext::new(hubris, core, subargs.timeout) {
+            Ok(ctx) => Box::new(HiffySensorReader::new(hubris, &sensors, ctx)?),
+            Err(_) => Box::new(RamSensorReader::new(hubris, &sensors)?),
+        },
     };
-
-    print(core, &sensors, &subargs, &mut reader)?;
+    print(hubris, core, &sensors, &subargs, &mut *reader)?;
 
     Ok(())
 }
