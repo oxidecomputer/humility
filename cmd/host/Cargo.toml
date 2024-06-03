@@ -14,4 +14,5 @@ zerocopy.workspace = true
 humility.workspace = true
 humility-cmd.workspace = true
 humility-cli.workspace = true
+humility-doppel.workspace = true
 humility-log.workspace = true

@@ -385,6 +385,11 @@ pub enum CounterVariant {
 }
 
 #[derive(Clone, Debug, Load)]
+pub struct ClaimOnceCell {
+    pub cell: UnsafeCell,
+}
+
+#[derive(Clone, Debug, Load)]
 pub struct StaticCell {
     pub cell: UnsafeCell,
 }
