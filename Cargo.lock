@@ -1195,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.11.6"
+version = "0.11.7"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1631,6 +1631,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-doppel",
  "humility-log",
  "zerocopy",
 ]

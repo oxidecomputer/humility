@@ -1899,6 +1899,16 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_qualified_variable(
+        &self,
+        name: &str,
+    ) -> Result<&HubrisVariable> {
+        match self.qualified_variables.get(name) {
+            Some(variable) => Ok(variable),
+            None => Err(anyhow!("variable {} not found", name)),
+        }
+    }
+
     pub fn lookup_variables(&self, name: &str) -> Result<&Vec<HubrisVariable>> {
         match self.variables.get_vec(name) {
             None => Err(anyhow!("variable {} not found", name)),
