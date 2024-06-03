@@ -29,6 +29,7 @@ use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::reflect::{Base, Value};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
@@ -375,6 +376,30 @@ impl RamSensorReader {
             sensors: sensors.iter().map(|(i, _)| *i).collect(),
         })
     }
+
+    fn unpack_array<T, F: Fn(&Value) -> Result<T>>(
+        &self,
+        hubris: &HubrisArchive,
+        buf: &[u8],
+        var: HubrisVariable,
+        f: F,
+    ) -> Result<Vec<T>> {
+        let vs = humility::reflect::load_value(
+            hubris,
+            buf,
+            hubris.lookup_type(var.goff)?,
+            0,
+        )?;
+        let Value::Struct(vs) = vs else {
+            bail!("expected a MaybeUnint struct, not {vs:?}");
+        };
+        let Value::Array(vs) =
+            vs.get("value").ok_or_else(|| anyhow!("missing `value` member"))?
+        else {
+            bail!("expected an array, not {vs:?}");
+        };
+        self.sensors.iter().map(|i| f(&vs[*i])).collect()
+    }
 }
 
 impl SensorReader for RamSensorReader {
@@ -383,76 +408,42 @@ impl SensorReader for RamSensorReader {
         hubris: &HubrisArchive,
         core: &mut dyn Core,
     ) -> Result<SensorData> {
-        use humility::reflect::{Base, Value};
-
         core.read_8(self.data_value.addr, &mut self.data_value_buf)?;
         core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
         core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
 
-        let data_values = humility::reflect::load_value(
+        let data_values = self.unpack_array(
             hubris,
             &self.data_value_buf,
-            hubris.lookup_type(self.data_value.goff)?,
-            0,
-        )?;
-        let Value::Struct(s) = data_values else {
-            bail!("expected DATA_VALUES to be a struct, not {data_values:?}");
-        };
-        let Value::Array(data_values) =
-            s.get("value").ok_or_else(|| anyhow!("missing `value` member"))?
-        else {
-            bail!("expected DATA_VALUES to contain an array not {s:?}");
-        };
-        let data_values = self
-            .sensors
-            .iter()
-            .map(|i| {
-                let Value::Base(Base::F32(f)) = &data_values[*i] else {
+            self.data_value,
+            |v| {
+                let Value::Base(Base::F32(f)) = v else {
                     bail!("expected an f32");
                 };
-                Ok(*f)
-            })
-            .collect::<Result<Vec<f32>>>()?;
+                Ok(Some(*f))
+            },
+        )?;
         println!("data values:\n{data_values:?}");
 
-        let Value::Array(last_reading) = humility::reflect::load_value(
+        let last_readings = self.unpack_array(
             hubris,
             &self.last_reading_buf,
-            hubris.lookup_type(self.last_reading.goff)?,
-            0,
-        )?
-        else {
-            bail!("expected LAST_READING to be an array");
-        };
-        println!("last reading:\n{last_reading:?}");
+            self.last_reading,
+            |v| Ok(v.clone()),
+        );
+        println!("last readings: {last_readings:?}");
         // TODO clear data_values which aren't bla bla bla
 
-        let Value::Array(nerrors) = humility::reflect::load_value(
-            hubris,
-            &self.nerrors_buf,
-            hubris.lookup_type(self.nerrors.goff)?,
-            0,
-        )?
-        else {
-            bail!("expected NERRORS to be an array");
-        };
-        let nerrors = self
-            .sensors
-            .iter()
-            .map(|i| {
-                let Value::Base(Base::U32(e)) = &nerrors[*i] else {
+        let nerrors =
+            self.unpack_array(hubris, &self.nerrors_buf, self.nerrors, |v| {
+                let Value::Base(Base::U32(e)) = v else {
                     bail!("expected NERRORS member to be u32");
                 };
                 Ok(Some(*e))
-            })
-            .collect::<Result<Vec<Option<u32>>>>()?;
-        let nerrors = self.sensors.iter().map(|i| nerrors[*i]).collect();
+            })?;
         println!("nerrors:\n{nerrors:?}");
 
-        Ok(SensorData {
-            values: data_values.into_iter().map(Option::Some).collect(), // TODO replace errors
-            errors: nerrors,
-        })
+        Ok(SensorData { values: data_values, errors: nerrors })
     }
 }
 
