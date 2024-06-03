@@ -452,12 +452,13 @@ impl SensorReader for RamSensorReader {
                 Ok(r)
             },
         )?;
+
+        // Clear data values that aren't valid (according to `last_reading`)
         for (data, valid) in data_values.iter_mut().zip(data_valid.iter()) {
             if !valid {
                 *data = None;
             }
         }
-        // TODO clear data_values which aren't bla bla bla
 
         let nerrors =
             self.unpack_array(hubris, &self.nerrors_buf, self.nerrors, |v| {
