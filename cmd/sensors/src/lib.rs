@@ -466,7 +466,6 @@ impl SensorReader for RamSensorReader {
                 };
                 Ok(Some(*e))
             })?;
-        println!("nerrors:\n{nerrors:?}");
 
         Ok(SensorData { values: data_values, errors: nerrors })
     }
