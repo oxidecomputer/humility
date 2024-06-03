@@ -412,7 +412,7 @@ impl SensorReader for RamSensorReader {
         core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
         core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
 
-        let data_values = self.unpack_array(
+        let mut data_values = self.unpack_array(
             hubris,
             &self.data_value_buf,
             self.data_value,
@@ -423,15 +423,40 @@ impl SensorReader for RamSensorReader {
                 Ok(Some(*f))
             },
         )?;
-        println!("data values:\n{data_values:?}");
 
-        let last_readings = self.unpack_array(
+        let data_valid = self.unpack_array(
             hubris,
             &self.last_reading_buf,
             self.last_reading,
-            |v| Ok(v.clone()),
-        );
-        println!("last readings: {last_readings:?}");
+            |v| {
+                let Value::Enum(e) = v else {
+                    bail!("expected an enum, not {v:?}");
+                };
+                let r = match e.disc() {
+                    "Some" => {
+                        let Some(Value::Tuple(t)) = e.contents() else {
+                            bail!("expected a tuple inside the enum");
+                        };
+                        let Value::Enum(e) = &t[0] else {
+                            bail!("expected an enum inside the tuple");
+                        };
+                        match e.disc() {
+                            "Data" | "DataOnly" => true,
+                            "Error" | "ErrorOnly" => false,
+                            s => bail!("invalid discriminant '{s}'"),
+                        }
+                    }
+                    "None" => false,
+                    s => bail!("invalid discriminant '{s}'"),
+                };
+                Ok(r)
+            },
+        )?;
+        for (data, valid) in data_values.iter_mut().zip(data_valid.iter()) {
+            if !valid {
+                *data = None;
+            }
+        }
         // TODO clear data_values which aren't bla bla bla
 
         let nerrors =
