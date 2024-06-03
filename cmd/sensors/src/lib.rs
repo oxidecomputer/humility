@@ -395,8 +395,13 @@ impl SensorReader for RamSensorReader {
             hubris.lookup_type(self.data_value.goff)?,
             0,
         )?;
-        let Value::Array(data_values) = data_values else {
-            bail!("expected DATA_VALUES to be an array, not {data_values:?}");
+        let Value::Struct(s) = data_values else {
+            bail!("expected DATA_VALUES to be a struct, not {data_values:?}");
+        };
+        let Value::Array(data_values) =
+            s.get("value").ok_or_else(|| anyhow!("missing `value` member"))?
+        else {
+            bail!("expected DATA_VALUES to contain an array not {s:?}");
         };
         let data_values = self
             .sensors
