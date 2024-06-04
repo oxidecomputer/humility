@@ -24,13 +24,15 @@
 //! `--tabular`.  In its default output (with one sensor per row), error
 //! counts are also displayed.
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
+use humility::reflect::{self, Load};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use itertools::izip;
@@ -51,6 +53,16 @@ struct SensorsArgs {
     /// list all sensors
     #[clap(long, short)]
     list: bool,
+
+    /// use the given backend to read sensor data
+    ///
+    /// By default, this will try to make sensible choices:
+    /// - On live systems, it tries to use `hiffy`, falling back to `readmem` if
+    ///   the `hiffy`-based backend fails (e.g. on network-connected targets
+    ///   without the `udprpc` task)
+    /// - On dumps, it will use the `readmem` backend
+    #[clap(long, short, value_enum)]
+    backend: Option<Backend>,
 
     /// print sensors every second
     #[clap(long, short, conflicts_with = "list")]
@@ -89,6 +101,15 @@ struct SensorsArgs {
         conflicts_with_all = &["types", "devices", "named"],
     )]
     id: Option<Vec<usize>>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
+#[clap(rename_all = "kebab-case")]
+enum Backend {
+    /// Use the Hiffy task to read sensor data
+    Hiffy,
+    /// Use the RAM-reading primitive to read sensor data
+    Readmem,
 }
 
 enum SensorSpecification<'a> {
@@ -188,94 +209,101 @@ fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
     Ok(())
 }
 
-fn print(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &SensorsArgs,
-    context: &mut HiffyContext,
-    spec: &SensorSpecification,
-) -> Result<()> {
-    let mut all_ops = vec![];
-    let mut err_ops = vec![];
-    let nerrbits = 32;
-    let op = hubris.get_idol_command("Sensor.get")?;
+struct SensorData {
+    /// Last reading value (from `Sensor.get`), or `None` if it was an error
+    values: Vec<Option<f32>>,
 
-    let ok = hubris.lookup_basetype(op.ok)?;
+    /// Error counters from `Sensor.get_nerrors`
+    errors: Vec<Option<u32>>,
+}
 
-    if (ok.encoding, ok.size) != (HubrisEncoding::Float, 4) {
-        bail!("expected return value of Sensor.get() to be a float");
-    }
+trait SensorReader {
+    /// Reads sensor data, returning a tuple of `values, errors`
+    fn run(
+        &mut self,
+        hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<SensorData>;
+}
 
-    if hubris.manifest.sensors.is_empty() {
-        bail!("no sensors found");
-    }
+struct HiffySensorReader<'a> {
+    context: HiffyContext<'a>,
+    all_ops: Vec<Vec<Op>>,
+    err_ops: Vec<Vec<Op>>,
+}
 
-    let mut sensors = vec![];
+const NUM_ERR_BITS: usize = 32;
 
-    for (i, s) in hubris.manifest.sensors.iter().enumerate() {
-        if !spec.matches(hubris, s, i) {
-            continue;
-        }
-        sensors.push((i, s));
-    }
+impl<'a> HiffySensorReader<'a> {
+    fn new(
+        hubris: &HubrisArchive,
+        sensors: &[(usize, HubrisSensor)],
+        context: HiffyContext<'a>,
+    ) -> Result<Self> {
+        let op = hubris.get_idol_command("Sensor.get")?;
+        let ok = hubris.lookup_basetype(op.ok)?;
 
-    for s in sensors.chunks(100) {
-        let mut ops = vec![];
-
-        for (i, _) in s {
-            let payload =
-                op.payload(&[("id", idol::IdolArgument::Scalar(*i as u64))])?;
-            context.idol_call_ops(&op, &payload, &mut ops)?;
+        if (ok.encoding, ok.size) != (HubrisEncoding::Float, 4) {
+            bail!("expected return value of Sensor.get() to be a float");
         }
 
-        ops.push(Op::Done);
-        all_ops.push(ops);
-    }
-
-    if let Ok(errop) = hubris.get_idol_command("Sensor.get_nerrors") {
-        let ok = hubris.lookup_basetype(errop.ok)?;
-
-        if (ok.encoding, ok.size) != (HubrisEncoding::Unsigned, nerrbits / 8) {
-            bail!("expected return value of get_nerrors() to be a u32");
-        }
+        let mut all_ops = vec![];
+        let mut err_ops = vec![];
 
         for s in sensors.chunks(100) {
             let mut ops = vec![];
 
             for (i, _) in s {
-                let payload = errop.payload(&[(
+                let payload = op.payload(&[(
                     "id",
                     idol::IdolArgument::Scalar(*i as u64),
                 )])?;
-                context.idol_call_ops(&errop, &payload, &mut ops)?;
+                context.idol_call_ops(&op, &payload, &mut ops)?;
             }
 
             ops.push(Op::Done);
-            err_ops.push(ops);
+            all_ops.push(ops);
         }
+
+        if let Ok(errop) = hubris.get_idol_command("Sensor.get_nerrors") {
+            let ok = hubris.lookup_basetype(errop.ok)?;
+
+            if (ok.encoding, ok.size)
+                != (HubrisEncoding::Unsigned, NUM_ERR_BITS / 8)
+            {
+                bail!("expected return value of get_nerrors() to be a u32");
+            }
+
+            for s in sensors.chunks(100) {
+                let mut ops = vec![];
+
+                for (i, _) in s {
+                    let payload = errop.payload(&[(
+                        "id",
+                        idol::IdolArgument::Scalar(*i as u64),
+                    )])?;
+                    context.idol_call_ops(&errop, &payload, &mut ops)?;
+                }
+
+                ops.push(Op::Done);
+                err_ops.push(ops);
+            }
+        }
+        Ok(Self { context, all_ops, err_ops })
     }
+}
 
-    if subargs.tabular {
-        for (_, s) in &sensors {
-            print!(" {:>12}", s.name.to_uppercase());
-        }
-
-        println!();
-
-        for (_, s) in &sensors {
-            print!(" {:>12}", s.kind.to_string().to_uppercase());
-        }
-
-        println!();
-    }
-
-    loop {
-        let start = Instant::now();
+impl<'a> SensorReader for HiffySensorReader<'a> {
+    fn run(
+        &mut self,
+        _hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<SensorData> {
         let mut rval = vec![];
         let mut errs = vec![];
 
-        for ops in &all_ops {
-            let results = context.run(core, ops.as_slice(), None)?;
+        for ops in &self.all_ops {
+            let results = self.context.run(core, ops.as_slice(), None)?;
 
             for r in results {
                 if let Ok(val) = r {
@@ -286,8 +314,8 @@ fn print(
             }
         }
 
-        for ops in &err_ops {
-            let results = context.run(core, ops.as_slice(), None)?;
+        for ops in &self.err_ops {
+            let results = self.context.run(core, ops.as_slice(), None)?;
 
             for r in results {
                 if let Ok(val) = r {
@@ -301,6 +329,147 @@ fn print(
         if errs.is_empty() {
             errs = vec![None; rval.len()];
         }
+
+        Ok(SensorData { values: rval, errors: errs })
+    }
+}
+
+/// Reader for sensor data that pulls it out of RAM directly
+struct RamSensorReader {
+    /// Position of `LAST_READING` in global RAM
+    last_reading: HubrisVariable,
+    last_reading_buf: Vec<u8>,
+
+    /// Position of `DATA_VALUE` in global RAM
+    data_value: HubrisVariable,
+    data_value_buf: Vec<u8>,
+
+    /// Position of `NERRORS` in global RAM
+    nerrors: HubrisVariable,
+    nerrors_buf: Vec<u8>,
+
+    /// Indexes of sensors that we care about
+    ///
+    /// We'll read the entire array (for simplicity) then filter just the ones
+    /// that matter
+    sensors: Vec<usize>,
+}
+
+#[derive(Copy, Clone, reflect::Load)]
+enum LastReading {
+    DataOnly,
+    ErrorOnly,
+    Data,
+    Error,
+}
+
+impl RamSensorReader {
+    fn new(
+        hubris: &HubrisArchive,
+        sensors: &[(usize, HubrisSensor)],
+    ) -> Result<Self> {
+        let find_var = |name| {
+            hubris
+                .qualified_variables()
+                .find(|&(n, _)| n == format!("task_sensor::main::{name}"))
+                .ok_or_else(|| anyhow!("could not find {name}"))
+                .map(|(_, v)| *v)
+        };
+        let last_reading = find_var("LAST_READING")?;
+        let data_value = find_var("DATA_VALUE")?;
+        let nerrors = find_var("NERRORS")?;
+
+        Ok(Self {
+            last_reading,
+            last_reading_buf: vec![0u8; last_reading.size],
+            data_value,
+            data_value_buf: vec![0u8; data_value.size],
+            nerrors,
+            nerrors_buf: vec![0u8; nerrors.size],
+            sensors: sensors.iter().map(|(i, _)| *i).collect(),
+        })
+    }
+
+    fn unpack_array<T: Load + Copy>(
+        &self,
+        hubris: &HubrisArchive,
+        buf: &[u8],
+        var: HubrisVariable,
+    ) -> Result<Vec<T>> {
+        let v =
+            reflect::load_value(hubris, buf, hubris.lookup_type(var.goff)?, 0)?;
+        let out = doppel::MaybeUninit::<Vec<T>>::from_value(&v)?;
+        Ok(self.sensors.iter().map(|i| out.value[*i]).collect())
+    }
+}
+
+impl SensorReader for RamSensorReader {
+    fn run(
+        &mut self,
+        hubris: &HubrisArchive,
+        core: &mut dyn Core,
+    ) -> Result<SensorData> {
+        core.read_8(self.data_value.addr, &mut self.data_value_buf)?;
+        core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
+        core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
+
+        let data_values = self.unpack_array::<f32>(
+            hubris,
+            &self.data_value_buf,
+            self.data_value,
+        )?;
+
+        let last_reading = self.unpack_array::<Option<LastReading>>(
+            hubris,
+            &self.last_reading_buf,
+            self.last_reading,
+        )?;
+
+        // Clear data values that aren't valid (according to `last_reading`)
+        let data_values = data_values
+            .into_iter()
+            .zip(last_reading)
+            .map(|(data, valid)| match valid {
+                Some(LastReading::Data | LastReading::DataOnly) => Some(data),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let nerrors = self
+            .unpack_array::<u32>(hubris, &self.nerrors_buf, self.nerrors)?
+            .into_iter()
+            .map(Option::Some)
+            .collect();
+
+        Ok(SensorData { values: data_values, errors: nerrors })
+    }
+}
+
+fn print(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    sensors: &[(usize, HubrisSensor)],
+    subargs: &SensorsArgs,
+    reader: &mut dyn SensorReader,
+) -> Result<()> {
+    if subargs.tabular {
+        for (_, s) in sensors {
+            print!(" {:>12}", s.name.to_uppercase());
+        }
+
+        println!();
+
+        for (_, s) in sensors {
+            print!(" {:>12}", s.kind.to_string().to_uppercase());
+        }
+
+        println!();
+    }
+
+    loop {
+        let start = Instant::now();
+        let SensorData { values: rval, errors: errs } =
+            reader.run(hubris, core)?;
 
         if subargs.tabular {
             for val in rval {
@@ -323,7 +492,7 @@ fn print(
 
             println!();
 
-            for ((_, s), val, err) in izip!(&sensors, &rval, &errs) {
+            for ((_, s), val, err) in izip!(sensors, &rval, &errs) {
                 print!("{:20} {:13} ", s.name, s.kind.to_string());
 
                 if let Some(val) = val {
@@ -341,7 +510,7 @@ fn print(
                     // along with the knowledge that all counters are encoded
                     // in the number of bits for error counts.
                     //
-                    let nbits = nerrbits / etypes.len();
+                    let nbits = NUM_ERR_BITS / etypes.len();
                     let mask = (1 << nbits) - 1;
 
                     for i in 0..nfields {
@@ -465,13 +634,38 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    if core.is_dump() {
-        bail!("cannot query sensor data from a dump");
+    if hubris.manifest.sensors.is_empty() {
+        bail!("no sensors found");
     }
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut sensors = vec![];
+    for (i, s) in hubris.manifest.sensors.iter().enumerate() {
+        if !specification.matches(hubris, s, i) {
+            continue;
+        }
+        sensors.push((i, s.clone()));
+    }
 
-    print(hubris, core, &subargs, &mut context, &specification)?;
+    let mut reader: Box<dyn SensorReader> = match subargs.backend {
+        Some(Backend::Hiffy) => {
+            if core.is_dump() {
+                bail!("cannot use hiffy backend on dump");
+            }
+            let context = HiffyContext::new(hubris, core, subargs.timeout)?;
+            Box::new(HiffySensorReader::new(hubris, &sensors, context)?)
+        }
+        Some(Backend::Readmem) => {
+            Box::new(RamSensorReader::new(hubris, &sensors)?)
+        }
+        None if core.is_dump() => {
+            Box::new(RamSensorReader::new(hubris, &sensors)?)
+        }
+        None => match HiffyContext::new(hubris, core, subargs.timeout) {
+            Ok(ctx) => Box::new(HiffySensorReader::new(hubris, &sensors, ctx)?),
+            Err(_) => Box::new(RamSensorReader::new(hubris, &sensors)?),
+        },
+    };
+    print(hubris, core, &sensors, &subargs, &mut *reader)?;
 
     Ok(())
 }
