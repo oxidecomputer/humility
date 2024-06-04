@@ -55,7 +55,9 @@ struct SensorsArgs {
 
     /// use the given backend to read sensor data
     ///
-    /// [default: `hiffy` if present, otherwise `readmem`]
+    /// By default, will try to use `hiffy`, and will fall back to `readmem` if
+    /// the `hiffy`-based backend fails (e.g. on network-connected targets
+    /// without the `udprpc` task)
     #[clap(long, short, value_enum)]
     backend: Option<Backend>,
 
@@ -355,12 +357,12 @@ impl RamSensorReader {
         hubris: &HubrisArchive,
         sensors: &[(usize, HubrisSensor)],
     ) -> Result<Self> {
-        let find_var = |v| {
+        let find_var = |name| {
             hubris
                 .qualified_variables()
-                .find(|&(n, _v)| n == format!("task_sensor::main::{v}"))
-                .ok_or_else(|| anyhow!("could not find DATA_VALUE"))
-                .map(|(_name, v)| *v)
+                .find(|&(n, _)| n == format!("task_sensor::main::{name}"))
+                .ok_or_else(|| anyhow!("could not find {name}"))
+                .map(|(_, v)| *v)
         };
         let last_reading = find_var("LAST_READING")?;
         let data_value = find_var("DATA_VALUE")?;
@@ -391,7 +393,7 @@ impl RamSensorReader {
             0,
         )?;
         let Value::Struct(vs) = vs else {
-            bail!("expected a MaybeUnint struct, not {vs:?}");
+            bail!("expected a MaybeUninit struct, not {vs:?}");
         };
         let Value::Array(vs) =
             vs.get("value").ok_or_else(|| anyhow!("missing `value` member"))?
