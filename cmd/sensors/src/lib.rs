@@ -428,7 +428,7 @@ impl SensorReader for RamSensorReader {
         // Clear data values that aren't valid (according to `last_reading`)
         let data_values = data_values
             .into_iter()
-            .zip(last_reading.into_iter())
+            .zip(last_reading)
             .map(|(data, valid)| match valid {
                 Some(LastReading::Data | LastReading::DataOnly) => Some(data),
                 _ => None,
