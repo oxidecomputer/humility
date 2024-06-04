@@ -134,47 +134,24 @@ fn read_qualified_state_buf(
     Ok(Some(HostStateBuf::from_value(&as_static_cell.cell.value)?))
 }
 
-fn print_escaped_ascii(mut bytes: &[u8]) {
+fn format_escaped_ascii(mut bytes: &[u8]) -> String {
     // Drop trailing NULs to avoid escaping them and cluttering up our output.
     while let Some((&b'\0', prefix)) = bytes.split_last() {
         bytes = prefix;
     }
 
-    if bytes.is_empty() {
-        println!("Message contains no non-NUL bytes, not printing.");
-        return;
-    } else {
-        println!("Message is {} bytes long:", bytes.len());
-    }
-
-    let mut buf = String::new();
-    for &b in bytes {
-        match b {
-            b'\\' => {
-                // Escape any backslashes in the original, so that any escapes
-                // _we_ emit are unambiguous.
-                buf.push_str("\\\\");
-            }
-            b'\n' | b'\r' | b'\t' | 0x20..=0x7E => {
-                // Pass through basic text characters that we expect we might
-                // see in a message.
-                buf.push(b as char);
-            }
-            _ => {
-                // Escape any other non-printable characters.
-                buf.push_str("\\x");
-                buf.push_str(&format!("{b:02X}"));
-            }
-        }
-    }
-    println!("{buf}");
+    bytes
+        .iter()
+        .flat_map(|&b| core::ascii::escape_default(b))
+        .map(char::from)
+        .collect()
 }
 
 fn host_boot_fail(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     // Try old name:
     let d = read_uqvar(hubris, core, SEPARATE_HOST_BOOT_FAIL_NAME)?;
     if let Some(d) = d {
-        print_escaped_ascii(&d);
+        println!("{}", format_escaped_ascii(&d));
         return Ok(());
     }
     // Try new name
@@ -182,11 +159,15 @@ fn host_boot_fail(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
         .ok_or_else(|| {
             anyhow!(
                 "Could not find host boot variables under any known name; \
-            is this a Gimlet image?"
+                    is this a Gimlet image?"
             )
         })?;
 
-    print_escaped_ascii(&buf.last_boot_fail[..]);
+    if buf.last_boot_fail.iter().all(|b| *b == 0) {
+        println!("No boot failure message appears to be recorded (all NUL)");
+    } else {
+        println!("{}", format_escaped_ascii(&buf.last_boot_fail[..]));
+    }
 
     Ok(())
 }
@@ -241,7 +222,7 @@ fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
         .ok_or_else(|| {
             anyhow!(
                 "Could not find host boot variables under any known name; \
-            is this a Gimlet image?"
+                    is this a Gimlet image?"
             )
         })?;
 
@@ -299,6 +280,7 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     let ipd_pc = p.ipd_pc;
     let ipd_fp = p.ipd_fp;
     let ipd_rp = p.ipd_rp;
+    let ipd_message = format_escaped_ascii(&p.ipd_message);
 
     println!("ipd_error:   {ipd_error}");
     println!("ipd_cpuid:   {ipd_cpuid}");
@@ -307,14 +289,7 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     println!("ipd_pc:      {ipd_pc:#x}");
     println!("ipd_fp:      {ipd_fp:#x}");
     println!("ipd_rp:      {ipd_rp:#x}");
-
-    match std::str::from_utf8(&p.ipd_message) {
-        Ok(s) => println!("ipd_message: {}", s.trim_matches('\0')),
-        Err(e) => println!(
-            "ipd_message: {:?}\n  (could not decode: {e})",
-            p.ipd_message
-        ),
-    }
+    println!("ipd_message: {ipd_message}");
     println!("ipd_stackid: {}", p.ipd_stackidx);
     println!("stack trace:");
     let syms: Vec<String> = p
