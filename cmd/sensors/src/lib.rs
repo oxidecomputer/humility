@@ -55,9 +55,11 @@ struct SensorsArgs {
 
     /// use the given backend to read sensor data
     ///
-    /// By default, will try to use `hiffy`, and will fall back to `readmem` if
-    /// the `hiffy`-based backend fails (e.g. on network-connected targets
-    /// without the `udprpc` task)
+    /// By default, this will try to make sensible choices:
+    /// - On live systems, it tries to use `hiffy`, falling back to `readmem` if
+    ///   the `hiffy`-based backend fails (e.g. on network-connected targets
+    ///   without the `udprpc` task)
+    /// - On dumps, it will use the `readmem` backend
     #[clap(long, short, value_enum)]
     backend: Option<Backend>,
 
