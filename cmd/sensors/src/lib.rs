@@ -663,10 +663,6 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    if core.is_dump() {
-        bail!("cannot query sensor data from a dump");
-    }
-
     if hubris.manifest.sensors.is_empty() {
         bail!("no sensors found");
     }
@@ -681,10 +677,16 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
 
     let mut reader: Box<dyn SensorReader> = match subargs.backend {
         Some(Backend::Hiffy) => {
+            if core.is_dump() {
+                bail!("cannot use hiffy backend on dump");
+            }
             let context = HiffyContext::new(hubris, core, subargs.timeout)?;
             Box::new(HiffySensorReader::new(hubris, &sensors, context)?)
         }
         Some(Backend::Readmem) => {
+            Box::new(RamSensorReader::new(hubris, &sensors)?)
+        }
+        None if core.is_dump() => {
             Box::new(RamSensorReader::new(hubris, &sensors)?)
         }
         None => match HiffyContext::new(hubris, core, subargs.timeout) {
