@@ -399,6 +399,25 @@ pub struct UnsafeCell {
     pub value: Value,
 }
 
+pub struct MaybeUninit<T> {
+    pub value: T,
+}
+
+impl<T: humility::reflect::Load> humility::reflect::Load for MaybeUninit<T> {
+    fn from_value(v: &Value) -> Result<Self> {
+        let v_struct = v.as_struct()?;
+        anyhow::ensure!(
+            v_struct.name().starts_with("MaybeUninit"),
+            "expected MaybeUninit, got {:?}",
+            v_struct.name()
+        );
+        let value = v_struct
+            .get("value")
+            .ok_or_else(|| anyhow!("missing `value` member"))?;
+        T::from_value(value).map(|value| Self { value })
+    }
+}
+
 /// Double of the struct from `udprpc`
 #[derive(Copy, Clone, Debug, AsBytes)]
 #[repr(C)]

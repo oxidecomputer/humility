@@ -2068,6 +2068,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-doppel",
  "humility-hiffy",
  "humility-idol",
  "indexmap 1.9.3",

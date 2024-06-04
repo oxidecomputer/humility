@@ -29,9 +29,10 @@ use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect::{Base, Value};
+use humility::reflect::{self, Load};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use itertools::izip;
@@ -354,6 +355,14 @@ struct RamSensorReader {
     sensors: Vec<usize>,
 }
 
+#[derive(Copy, Clone, reflect::Load)]
+enum LastReading {
+    DataOnly,
+    ErrorOnly,
+    Data,
+    Error,
+}
+
 impl RamSensorReader {
     fn new(
         hubris: &HubrisArchive,
@@ -381,28 +390,16 @@ impl RamSensorReader {
         })
     }
 
-    fn unpack_array<T, F: Fn(&Value) -> Result<T>>(
+    fn unpack_array<T: Load + Copy>(
         &self,
         hubris: &HubrisArchive,
         buf: &[u8],
         var: HubrisVariable,
-        f: F,
     ) -> Result<Vec<T>> {
-        let vs = humility::reflect::load_value(
-            hubris,
-            buf,
-            hubris.lookup_type(var.goff)?,
-            0,
-        )?;
-        let Value::Struct(vs) = vs else {
-            bail!("expected a MaybeUninit struct, not {vs:?}");
-        };
-        let Value::Array(vs) =
-            vs.get("value").ok_or_else(|| anyhow!("missing `value` member"))?
-        else {
-            bail!("expected an array, not {vs:?}");
-        };
-        self.sensors.iter().map(|i| f(&vs[*i])).collect()
+        let v =
+            reflect::load_value(hubris, buf, hubris.lookup_type(var.goff)?, 0)?;
+        let out = doppel::MaybeUninit::<Vec<T>>::from_value(&v)?;
+        Ok(self.sensors.iter().map(|i| out.value[*i]).collect())
     }
 }
 
@@ -416,61 +413,33 @@ impl SensorReader for RamSensorReader {
         core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
         core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
 
-        let mut data_values = self.unpack_array(
+        let data_values = self.unpack_array::<f32>(
             hubris,
             &self.data_value_buf,
             self.data_value,
-            |v| {
-                let Value::Base(Base::F32(f)) = v else {
-                    bail!("expected an f32");
-                };
-                Ok(Some(*f))
-            },
         )?;
 
-        let data_valid = self.unpack_array(
+        let last_reading = self.unpack_array::<Option<LastReading>>(
             hubris,
             &self.last_reading_buf,
             self.last_reading,
-            |v| {
-                let Value::Enum(e) = v else {
-                    bail!("expected an enum, not {v:?}");
-                };
-                let r = match e.disc() {
-                    "Some" => {
-                        let Some(Value::Tuple(t)) = e.contents() else {
-                            bail!("expected a tuple inside the enum");
-                        };
-                        let Value::Enum(e) = &t[0] else {
-                            bail!("expected an enum inside the tuple");
-                        };
-                        match e.disc() {
-                            "Data" | "DataOnly" => true,
-                            "Error" | "ErrorOnly" => false,
-                            s => bail!("invalid discriminant '{s}'"),
-                        }
-                    }
-                    "None" => false,
-                    s => bail!("invalid discriminant '{s}'"),
-                };
-                Ok(r)
-            },
         )?;
 
         // Clear data values that aren't valid (according to `last_reading`)
-        for (data, valid) in data_values.iter_mut().zip(data_valid.iter()) {
-            if !valid {
-                *data = None;
-            }
-        }
+        let data_values = data_values
+            .into_iter()
+            .zip(last_reading.into_iter())
+            .map(|(data, valid)| match valid {
+                Some(LastReading::Data | LastReading::DataOnly) => Some(data),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
 
-        let nerrors =
-            self.unpack_array(hubris, &self.nerrors_buf, self.nerrors, |v| {
-                let Value::Base(Base::U32(e)) = v else {
-                    bail!("expected NERRORS member to be u32");
-                };
-                Ok(Some(*e))
-            })?;
+        let nerrors = self
+            .unpack_array::<u32>(hubris, &self.nerrors_buf, self.nerrors)?
+            .into_iter()
+            .map(Option::Some)
+            .collect();
 
         Ok(SensorData { values: data_values, errors: nerrors })
     }

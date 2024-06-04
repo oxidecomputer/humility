@@ -348,6 +348,15 @@ impl Base {
         }
     }
 
+    /// "Downcasts" this to a `f32`, returning `None` if it isn't one.
+    pub fn as_f32(&self) -> Option<f32> {
+        if let Self::F32(x) = *self {
+            Some(x)
+        } else {
+            None
+        }
+    }
+
     /// Checks whether this is a type that should be printed in hex (with a
     /// leading '0x' prefix), returing true if that's reasonable.
     ///
@@ -1013,6 +1022,12 @@ impl Load for u32 {
 impl Load for u64 {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_u64().ok_or_else(|| anyhow!("not a u64: {:?}", v))
+    }
+}
+
+impl Load for f32 {
+    fn from_value(v: &Value) -> Result<Self> {
+        v.as_base()?.as_f32().ok_or_else(|| anyhow!("not a f32: {:?}", v))
     }
 }
 
