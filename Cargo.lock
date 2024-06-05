@@ -1263,7 +1263,6 @@ dependencies = [
  "humility-cmd-tasks",
  "humility-cmd-test",
  "humility-cmd-tofino-eeprom",
- "humility-cmd-update",
  "humility-cmd-validate",
  "humility-cmd-vpd",
  "humility-cmd-writeword",
@@ -2190,21 +2189,6 @@ dependencies = [
  "humility-core",
  "humility-hiffy",
  "humility-idol",
- "indicatif",
- "parse_int",
-]
-
-[[package]]
-name = "humility-cmd-update"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 3.2.23",
- "humility-cli",
- "humility-cmd",
- "humility-hiffy",
- "humility-idol",
- "humility-log",
  "indicatif",
  "parse_int",
 ]
