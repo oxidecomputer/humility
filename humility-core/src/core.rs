@@ -959,7 +959,9 @@ impl GDBCore {
             // We are done when we have our closing delimter followed by
             // the two byte checksum.
             //
-            if result.find(GDB_PACKET_END) == Some(result.len() - 3) {
+            if result.len() >= 3
+                && result.find(GDB_PACKET_END) == Some(result.len() - 3)
+            {
                 break;
             }
         }
