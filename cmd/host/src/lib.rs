@@ -236,11 +236,14 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     if let Some(time) = data.time {
         let t = time.duration_since(std::time::UNIX_EPOCH).unwrap();
         let dt: DateTime<Utc> = time.into();
-        println!("time:      {:.9} ({})", t.as_secs_f64(), dt.to_rfc3339());
+        let ns = t.subsec_nanos();
+        println!("time:      {}.{ns:09} ({})", t.as_secs(), dt.to_rfc3339());
     }
 
     if let Some(hrtime) = data.hrtime {
-        println!("hrtime:    {hrtime}");
+        let s = hrtime / 1_000_000_000;
+        let ns = hrtime % 1_000_000_000;
+        println!("hrtime:    {s}.{ns:09}");
     }
 
     println!("addr:      {:#x}", data.addr);

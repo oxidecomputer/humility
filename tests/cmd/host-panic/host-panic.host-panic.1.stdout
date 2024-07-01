@@ -4,7 +4,7 @@ error:     0
 cpuid:     0
 thread:    0xfffffffffbe9f9a0
 time:      0.000000000 (1970-01-01T00:00:00+00:00)
-hrtime:    0
+hrtime:    0.000000000
 addr:      0x7f5ab148
 pc:        0xfffffffffbc5fb45
 fp:        0xfffffffffbea5620

@@ -3,8 +3,8 @@ cause:     IPCC_PANIC_CALL
 error:     0
 cpuid:     56
 thread:    0xfffff78810cadc20
-time:      536112572.713000357 (1986-12-28T00:09:32.713000368+00:00)
-hrtime:    659559749693
+time:      536112572.713000368 (1986-12-28T00:09:32.713000368+00:00)
+hrtime:    659.559749693
 addr:      0x0
 pc:        0xfffffffff81ed821
 fp:        0xfffff78810cac820
