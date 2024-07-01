@@ -3,6 +3,7 @@ cause:     IPCC_PANIC_CALL
 error:     0
 cpuid:     56
 thread:    0xfffff78810cadc20
+raw time:  SystemTime { tv_sec: 536112572, tv_nsec: 713000368 }
 time:      536112572.713000368 (1986-12-28T00:09:32.713000368+00:00)
 hrtime:    659.559749693
 addr:      0x0

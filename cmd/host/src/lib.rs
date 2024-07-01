@@ -237,6 +237,7 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
         let t = time.duration_since(std::time::UNIX_EPOCH).unwrap();
         let dt: DateTime<Utc> = time.into();
         let ns = t.subsec_nanos();
+        println!("raw time:  {time:?}");
         println!("time:      {}.{ns:09} ({})", t.as_secs(), dt.to_rfc3339());
     }
 
