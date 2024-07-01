@@ -10,38 +10,46 @@
 //! ### `humility host last-panic`
 //! Pretty prints the value of `LAST_HOST_PANIC`
 //! ```console
-//! humility: attached to dump
-//! humility: reading LAST_HOST_PANIC
-//! humility: fixing up trimmed initial data
-//! ipd_cause:   IPCC_PANIC_CALL
-//! ipd_error:   0
-//! ipd_cpuid:   58
-//! ipd_thread:  0xfffff78811079c20
-//! ipd_addr:    0x0
-//! ipd_pc:      0xfffffffff7ee48b8
-//! ipd_fp:      0xfffff78811079a50
-//! ipd_rp:      0x0
-//! ipd_message: I/O to pool 'oxp_410e4dfb-b4d1-4d73-8c39-077bf436da3a' appears to be hung.
-//! ipd_stackid: 16
-//! stack trace:
-//!   vdev_deadman+0x108          (0xfffffffff7ee48b8)
-//!   vdev_deadman+0x43           (0xfffffffff7ee47f3)
-//!   spa_deadman+0x84            (0xfffffffff7ed54d4)
-//!   cyclic_softint+0xe1         (0xfffffffffc03e061)
-//!   cbe_low_level+0x20          (0xfffffffffbc0c3f0)
-//!   av_dispatch_softvect+0x72   (0xfffffffffbcc9d12)
-//!   apix_dispatch_softint+0x35  (0xfffffffff7c92545)
-//!   switch_sp_and_call+0x15     (0xfffffffffbc818c5)
-//!   apix_do_softint+0x5a        (0xfffffffff7c925ba)
-//!   apix_do_interrupt+0x2bf     (0xfffffffff7c9306f)
-//!   _interrupt+0xc3             (0xfffffffffbc00233)
-//!   i86_mwait+0x12              (0xfffffffffbc81042)
-//!   cpu_idle_mwait+0x14b        (0xfffffffffbc5131b)
-//!   cpu_idle_adaptive+0x19      (0xfffffffffbc50f39)
-//!   idle+0xa8                   (0xfffffffffbc96c88)
-//!   thread_start+0xb            (0xfffffffffbc838bb)
-//! ipd_dataidx: 0
-//! ipd_data:    [0; 256]
+//! % humility: attached to dump
+//! version:   2 (inferred)
+//! cause:     IPCC_PANIC_TRAP
+//! error:     0
+//! cpuid:     0
+//! thread:    0xfffff78809c74c20
+//! time:      74.639002555 (1970-01-01T00:01:14.639002555+00:00)
+//! hrtime:    74639011110
+//! addr:      0xfffffcf853a0f940
+//! pc:        0xfffffffffbc5fb45
+//! fp:        0xfffff78809c748f0
+//! rp:        0xfffff78809c749e0
+//! registers:
+//!            rdi 0xfffffffffc029d70 rsi 0xfffff78809c749d8 rdx 0xfffffffffc029d70
+//!            rcx                0x0 r8  0xfffffcf931453280 r9                 0x6
+//!            rax                0x0 rbx 0xfffffcf931453280 rbp 0xfffff78809c74b60
+//!            r10                0x1 r11 0xfffffffff7c9c510 r12 0xfffffcf931da7210
+//!            r13 0xfffffcf931453370 r14                0x0 fsb 0xfffffffffc2604e8
+//!            gsb 0xfffff78809c74a90 es                 0x0 fs                 0x0
+//!            gs                 0x0 tra                0x6 err                0x0
+//!            rip 0xfffffffffc029d70 cs                0x30 rfl            0x10246
+//!            rsp 0xfffff78809c74ad8 ss                0x38
+//! message:   BAD TRAP: type=6 (#ud Invalid opcode) rp=fffff78809c749e0 addr=fffffcf853a0f940
+//! stack:
+//!            die+0x105                                (0xfffffffffbc5fb45)
+//!            trap+0x855                               (0xfffffffffbc606f5)
+//!            cmntrap+0xe9                             (0xfffffffffbc49819)
+//!            clock+0x0                                (0xfffffffffc029d70)
+//!            cbe_softclock+0x23                       (0xfffffffffbc0c8b3)
+//!            av_dispatch_softvect+0x72                (0xfffffffffbccbf02)
+//!            apix_dispatch_softint+0x35               (0xfffffffff7c9c545)
+//!            switch_sp_and_call+0x15                  (0xfffffffffbc834b5)
+//!            apix_do_softint+0x5a                     (0xfffffffff7c9c5ba)
+//!            apix_do_interrupt+0x2bf                  (0xfffffffff7c9d06f)
+//!            cmnint+0xc3                              (0xfffffffffbc00233)
+//!            taskq_bucket_extend+0x15b                (0xfffffffffc17a66b)
+//!            taskq_create_common+0x33a                (0xfffffffffc17a19a)
+//!            system_taskq_init+0x4e                   (0xfffffffffc1788de)
+//!            main+0xbb                                (0xfffffffffc0c50bb)
+//!            _locore_start+0x88                       (0xfffffffffbc49708)
 //! ```
 //!
 //! ### `humility host boot-fail`
