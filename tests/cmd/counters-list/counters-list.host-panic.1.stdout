@@ -1,0 +1,14 @@
+control_plane_agent:
+    ADDR        SIZE VARIABLE
+    0x2402b940   664 task_control_plane_agent::CRITICAL
+    0x24029000  1280 task_control_plane_agent::__RINGBUF
+gimlet_inspector:
+    ADDR        SIZE VARIABLE
+    0x2404ce40    12 task_gimlet_inspector::__COUNTERS
+gimlet_seq:
+    ADDR        SIZE VARIABLE
+    0x2403f424    48 drv_gimlet_seq_server::IPC_REQUESTS
+    0x2403e640  3448 drv_gimlet_seq_server::__RINGBUF
+thermal:
+    ADDR        SIZE VARIABLE
+    0x240039e0   912 task_thermal::__RINGBUF

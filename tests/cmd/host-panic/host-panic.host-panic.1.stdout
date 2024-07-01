@@ -1,0 +1,30 @@
+version:   2 (inferred)
+cause:     IPCC_PANIC_TRAP
+error:     0
+cpuid:     0
+thread:    0xfffffffffbe9f9a0
+time:      0.000000000 (1970-01-01T00:00:00+00:00)
+hrtime:    0
+addr:      0x7f5ab148
+pc:        0xfffffffffbc5fb45
+fp:        0xfffffffffbea5620
+rp:        0xfffffffffbea5710
+registers:
+           rdi 0xfffffffffbc2b5b0 rsi 0xfffffffffbea5708 rdx                0x0
+           rcx                0x0 r8  0xfffffffffc00c970 r9                 0x0
+           rax                0x0 rbx                0x0 rbp 0xfffffffffbea5840
+           r10                0x0 r11         0xfffffffc r12 0xfffffffffbe94260
+           r13 0xfffffffffbc49680 r14          0x1840000 fsb 0xfffffffffc00ca06
+           gsb 0xffffffff00000020 es                 0x0 fs                 0x0
+           gs                 0x0 tra                0x6 err                0x0
+           rip 0xfffffffffbc2b5b0 cs                0x30 rfl            0x10046
+           rsp 0xfffffffffbea5808 ss                0x38
+message:   BAD TRAP: type=6 (#ud Invalid opcode) rp=fffffffffbea5710 addr=7f5ab148
+stack:
+           die+0x105                                (0xfffffffffbc5fb45)
+           trap+0x855                               (0xfffffffffbc606f5)
+           cmntrap+0xe9                             (0xfffffffffbc49819)
+           hat_init_finish+0x0                      (0xfffffffffbc2b5b0)
+           startup+0x3f                             (0xfffffffffbc5a43f)
+           main+0x36                                (0xfffffffffc0c5036)
+           _locore_start+0x88                       (0xfffffffffbc49708)

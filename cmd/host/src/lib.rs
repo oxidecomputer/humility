@@ -53,15 +53,15 @@
 //! [0; 4096]
 //! ```
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Result};
+use chrono::{DateTime, Utc};
 use clap::{CommandFactory, Parser};
-use zerocopy::FromBytes;
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel as doppel;
-use humility_log::{msg, warn};
+use humility_log::msg;
 
 #[derive(Parser, Debug)]
 enum HostCommand {
@@ -191,44 +191,6 @@ fn host_boot_fail(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     Ok(())
 }
 
-// Values and structs are defined in usr/src/uts/oxide/sys/kernel_ipcc.h
-// in the `stlouis` branch of `oxidecomputer/illumos-gate`
-const IPCC_PANIC_STACKS: usize = 0x10;
-const IPCC_PANIC_DATALEN: usize = 0x100;
-const IPCC_PANIC_SYMLEN: usize = 0x20;
-const IPCC_PANIC_MSGLEN: usize = 0x80;
-
-#[derive(Copy, Clone, Debug, FromBytes)]
-#[repr(packed)]
-struct IpccPanicData {
-    ipd_version: u8,
-    ipd_cause: u16,
-    ipd_error: u32,
-
-    ipd_cpuid: u32,
-    ipd_thread: u64,
-    ipd_addr: u64,
-    ipd_pc: u64,
-    ipd_fp: u64,
-    ipd_rp: u64,
-
-    ipd_message: [u8; IPCC_PANIC_MSGLEN],
-
-    ipd_stackidx: u8,
-    ipd_stack: [IpccPanicStack; IPCC_PANIC_STACKS],
-
-    ipd_dataidx: u8,
-    ipd_data: [u8; IPCC_PANIC_DATALEN],
-}
-
-#[derive(Copy, Clone, Debug, FromBytes)]
-#[repr(packed)]
-struct IpccPanicStack {
-    ips_symbol: [u8; IPCC_PANIC_SYMLEN],
-    ips_addr: u64,
-    ips_offset: u64,
-}
-
 fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
     // Try original name:
     let d = read_uqvar(hubris, core, SEPARATE_LAST_HOST_PANIC_NAME)?;
@@ -249,101 +211,56 @@ fn host_last_panic(hubris: &HubrisArchive, core: &mut dyn Core) -> Result<()> {
 }
 
 fn print_panic(d: Vec<u8>) -> Result<()> {
-    // Fix for https://github.com/oxidecomputer/hubris/issues/1554
-    //
-    // In some cases, `ipd_cause` is unambiguous based on the first byte;
-    // otherwise, we populate a generic value.
-    let bonus_byte = match d[0] {
-        0x01 => None,
-        0xca => Some(0x11),
-        0x5e => Some(0x00),
-        0xa9 => Some(0x00),
-        0xeb => Some(0xff), // can't distinguish between different 0xeb**
-        b => {
-            warn!("could not decode `ipd_cause`: {b:#04x}");
-            Some(0xff)
+    let data = match ipcc_data::PanicData::from_bytes(d)? {
+        Some(data) => data,
+        None => {
+            msg!("panic information is empty");
+            return Ok(());
         }
     };
-    let d = if let Some(b) = bonus_byte {
-        msg!("fixing up trimmed initial data");
-        let mut next = vec![0x01, b];
-        next.extend(d);
-        next
-    } else {
-        d
-    };
 
-    let p = IpccPanicData::read_from_prefix(d.as_ref())
-        .context("failed to deserialize panic data")?;
-    if p.ipd_version != 0x01 {
-        bail!("unknown `ipd_version` ({})", p.ipd_version);
+    println!("version:   {}", data.version);
+    println!("cause:     {}", data.cause);
+    println!("error:     {}", data.error_code);
+    println!("cpuid:     {}", data.cpuid);
+    println!("thread:    {:#x}", data.thread);
+
+    if let Some(time) = data.time {
+        let t = time.duration_since(std::time::UNIX_EPOCH).unwrap();
+        let dt: DateTime<Utc> = time.into();
+        println!("time:      {:.9} ({})", t.as_secs_f64(), dt.to_rfc3339());
     }
-    println!(
-        "ipd_cause:   {}",
-        match p.ipd_cause {
-            0xca11 => "IPCC_PANIC_CALL".to_owned(),
-            0xa900 => "IPCC_PANIC_TRAP".to_owned(),
-            0x5e00 => "IPCC_PANIC_USERTRAP".to_owned(),
-            0xeb00 => "IPCC_PANIC_EARLYBOOT".to_owned(),
-            0xeb97 => "IPCC_PANIC_EARLYBOOT_PROM".to_owned(),
-            0xeba9 => "IPCC_PANIC_EARLYBOOT_TRAP".to_owned(),
-            0xebff => "IPCC_PANIC_EARLYBOOT_*".to_owned(),
-            b => format!("Unknown `ipd_cause` {b:#06x}"),
+
+    if let Some(hrtime) = data.hrtime {
+        println!("hrtime:    {hrtime}");
+    }
+
+    println!("addr:      {:#x}", data.addr);
+    println!("pc:        {:#x}", data.pc);
+    println!("fp:        {:#x}", data.fp);
+    println!("rp:        {:#x}", data.rp);
+
+    if let Some(registers) = data.registers {
+        let registers = registers.iter().collect::<Vec<_>>();
+
+        println!("registers:");
+
+        for chunk in registers.chunks(3) {
+            print!("          ");
+
+            for (r, v) in chunk {
+                let label: String = format!("{r}").chars().take(3).collect();
+                print!(" {label:3} {v:#18x}");
+            }
+            println!();
         }
-    );
-
-    let ipd_error = p.ipd_error;
-    let ipd_cpuid = p.ipd_cpuid;
-    let ipd_thread = p.ipd_thread;
-    let ipd_addr = p.ipd_addr;
-    let ipd_pc = p.ipd_pc;
-    let ipd_fp = p.ipd_fp;
-    let ipd_rp = p.ipd_rp;
-
-    println!("ipd_error:   {ipd_error}");
-    println!("ipd_cpuid:   {ipd_cpuid}");
-    println!("ipd_thread:  {ipd_thread:#x}");
-    println!("ipd_addr:    {ipd_addr:#x}");
-    println!("ipd_pc:      {ipd_pc:#x}");
-    println!("ipd_fp:      {ipd_fp:#x}");
-    println!("ipd_rp:      {ipd_rp:#x}");
-
-    match std::str::from_utf8(&p.ipd_message) {
-        Ok(s) => println!("ipd_message: {}", s.trim_matches('\0')),
-        Err(e) => println!(
-            "ipd_message: {:?}\n  (could not decode: {e})",
-            p.ipd_message
-        ),
-    }
-    println!("ipd_stackid: {}", p.ipd_stackidx);
-    println!("stack trace:");
-    let syms: Vec<String> = p
-        .ipd_stack
-        .iter()
-        .map(|s| {
-            let sym = match std::str::from_utf8(&s.ips_symbol) {
-                Ok(s) => s.to_owned(),
-                Err(e) => format!("<could not decode {:?}: {e}>", s.ips_symbol),
-            };
-            let offset = s.ips_offset;
-            format!("{}+{offset:#x}", sym.trim_matches('\0'))
-        })
-        .collect();
-    let width = syms.iter().map(|s| s.len()).max().unwrap_or(0);
-    for (sym, s) in syms.iter().zip(p.ipd_stack.iter()) {
-        let addr = s.ips_addr;
-        println!("  {sym:width$}  ({addr:#016x})");
     }
 
-    println!("ipd_dataidx: {}", p.ipd_dataidx);
-    print!("ipd_data:    ");
-    if p.ipd_data.iter().all(|&c| c == 0) {
-        println!("[0; {}]", p.ipd_data.len());
-    } else {
-        match std::str::from_utf8(&p.ipd_data) {
-            Ok(s) => println!("{}", s.trim_matches('\0')),
-            Err(_e) => println!("{:?}", p.ipd_data),
-        }
+    println!("message:   {}", data.message.unwrap_or("<none>".to_string()));
+    println!("stack:");
+
+    for f in data.stack {
+        println!("           {:<40} ({:#016x})", f, f.address);
     }
 
     Ok(())

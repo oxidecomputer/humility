@@ -1,0 +1,288 @@
+drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+ fn HostFlash::page_program() ..................................... 34304 calls
+    clients:
+    task hiffy (0 restarts) ............................ = 0 ....... = 34304 ok
+
+ fn HostFlash::hash() ............................................... 512 calls
+    clients:
+    task hiffy (0 restarts) ............................ = 0 ......... = 512 ok
+
+ fn HostFlash::sector_erase() ....................................... 134 calls
+    clients:
+    task hiffy (0 restarts) ............................ = 0 ......... = 134 ok
+
+ fn HostFlash::get_mux() ............................................. 16 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 .......... = 16 ok
+
+ fn HostFlash::set_mux() .............................................. 8 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ........... + 5 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 3 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 8 ok
+
+ fn HostFlash::get_dev() .............................................. 3 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 3 ok
+
+
+drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+ fn Sequencer::get_state() ......................................... 4246 calls
+    clients:
+    task thermal (0 restarts) .......................... + 0 ........ + 2920 ok
+    task power (0 restarts) ............................ + 0 ........ + 1313 ok
+    task host_sp_comms (0 restarts) .................... + 0 .......... + 13 ok
+                                                         ---          ------
+    totals:                                              = 0 err      = 4246 ok
+
+ fn Sequencer::set_state() ............................................ 2 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 2 ok
+
+
+drv_hash_api::__HASH_CLIENT_COUNTERS
+ fn Hash::update() ............................................... 131072 calls
+    clients:
+    task hf (0 restarts) ............................... = 0 ...... = 131072 ok
+
+ fn Hash::init_sha256() ............................................. 512 calls
+    clients:
+    task hf (0 restarts) ............................... = 0 ......... = 512 ok
+
+ fn Hash::finalize_sha256() ......................................... 512 calls
+    clients:
+    task hf (0 restarts) ............................... = 0 ......... = 512 ok
+
+
+drv_spi_api::__SPI_CLIENT_COUNTERS
+ fn Spi::exchange() .............................................. 130637 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ...... + 130626 ok
+    task net (0 restarts) .............................. + 0 ........... + 8 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 3 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 130637 ok
+
+ fn Spi::write() .................................................... 592 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ......... + 530 ok
+    task net (0 restarts) .............................. + 0 .......... + 62 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 592 ok
+
+ fn Spi::lock() ....................................................... 4 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 4 ok
+
+ fn Spi::release() .................................................... 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_set_reset() ........................................ 266958 calls
+    clients:
+    task spi2_driver (0 restarts) ...................... + 0 ...... + 261416 ok
+    task i2c_driver (0 restarts) ....................... + 0 ........ + 5492 ok
+    task gimlet_seq (0 restarts) ....................... + 0 .......... + 19 ok
+    task hf (0 restarts) ............................... + 0 .......... + 18 ok
+    task net (0 restarts) .............................. + 0 ........... + 8 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 3 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+    task user_leds (0 restarts) ........................ + 0 ........... + 1 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 266958 ok
+
+ fn Sys::gpio_read_input() ........................................ 33218 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... + 0 ....... + 32309 ok
+    task i2c_driver (0 restarts) ....................... + 0 ......... + 909 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 33218 ok
+
+ fn Sys::gpio_configure_raw() ..................................... 16975 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 ....... + 16885 ok
+    task spi2_driver (0 restarts) ...................... + 0 .......... + 40 ok
+    task gimlet_seq (0 restarts) ....................... + 0 .......... + 21 ok
+    task net (0 restarts) .............................. + 0 .......... + 13 ok
+    task hf (0 restarts) ............................... + 0 ........... + 6 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 4 ok
+    task spd (0 restarts) .............................. + 0 ........... + 2 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 2 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+    task user_leds (0 restarts) ........................ + 0 ........... + 1 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 16975 ok
+
+ fn Sys::enable_clock_raw() ......................................... 526 calls
+    clients:
+    task hash_driver (0 restarts) ...................... + 0 ......... + 513 ok
+    task net (0 restarts) .............................. + 0 ........... + 4 ok
+    task i2c_driver (0 restarts) ....................... + 0 ........... + 3 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task spd (0 restarts) .............................. + 0 ........... + 1 ok
+    task hf (0 restarts) ............................... + 0 ........... + 1 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 526 ok
+
+ fn Sys::leave_reset_raw() .......................................... 524 calls
+    clients:
+    task hash_driver (0 restarts) ...................... + 0 ......... + 513 ok
+    task i2c_driver (0 restarts) ....................... + 0 ........... + 3 ok
+    task net (0 restarts) .............................. + 0 ........... + 2 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task spd (0 restarts) .............................. + 0 ........... + 1 ok
+    task hf (0 restarts) ............................... + 0 ........... + 1 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 524 ok
+
+ fn Sys::enter_reset_raw() .......................................... 517 calls
+    clients:
+    task hash_driver (0 restarts) ...................... + 0 ......... + 513 ok
+    task net (0 restarts) .............................. + 0 ........... + 2 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 517 ok
+
+ fn Sys::disable_clock_raw() ........................................ 513 calls
+    clients:
+    task hash_driver (0 restarts) ...................... = 0 ......... = 513 ok
+
+ fn Sys::read_uid() ................................................... 3 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 3 ok
+
+ fn Sys::gpio_irq_configure() ......................................... 3 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 3 ok
+
+ fn Sys::gpio_irq_control() ........................................... 3 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 3 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::set_state() ................................................ 13 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 .......... = 13 ok
+
+ fn Jefe::get_state() ................................................. 4 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 2 ok
+    task spd (0 restarts) .............................. + 0 ........... + 2 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 4 ok
+
+ fn Jefe::set_reset_reason() .......................................... 1 calls
+    clients:
+    task sys (0 restarts) .............................. = 0 ........... = 1 ok
+
+
+task_net_api::__NET_CLIENT_COUNTERS
+ fn Net::send_packet() ............................................. 2909 calls
+    clients:
+    task udpbroadcast (0 restarts) ..................... = 0 ........ = 2909 ok
+
+ fn Net::recv_packet() ................................................ 4 calls
+    clients:
+    task gimlet_inspector (0 restarts) ................................. + 0 ok
+    - Err(QueueEmpty) .................................. + 1 ..................
+    task udpecho (0 restarts) .......................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 1 ..................
+    task dump_agent (0 restarts) ....................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 1 ..................
+    task udprpc (0 restarts) ........................................... + 0 ok
+    - Err(QueueEmpty) .................................. + 1 ..................
+                                                         ---             ---
+    totals:                                              = 4 err         = 0 ok
+
+ fn Net::get_spare_mac_addresses() .................................... 3 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 3 ok
+
+ fn Net::get_mac_address() ............................................ 2 calls
+    clients:
+    task udpbroadcast (0 restarts) ..................... + 0 ........... + 1 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::get_spd_data() ....................................... 27840 calls
+    clients:
+    task spd (0 restarts) .............................. = 0 ....... = 27840 ok
+
+ fn Packrat::get_spd_present() .................................... 13968 calls
+    clients:
+    task spd (0 restarts) .............................. + 0 ....... + 13920 ok
+    task host_sp_comms (0 restarts) .................... + 0 .......... + 48 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 13968 ok
+
+ fn Packrat::get_full_spd_data() ..................................... 48 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 .......... = 48 ok
+
+ fn Packrat::set_spd_eeprom() ........................................ 32 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 .......... = 32 ok
+
+ fn Packrat::get_identity() .......................................... 21 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... + 0 .......... + 20 ok
+    task udpbroadcast (0 restarts) ..................... + 0 ........... + 1 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 21 ok
+
+ fn Packrat::get_next_boot_host_startup_options() ..................... 3 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 3 ok
+
+ fn Packrat::get_mac_address_block() .................................. 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+ fn Packrat::set_mac_address_block() .................................. 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+ fn Packrat::set_identity() ........................................... 1 calls
+    clients:
+    task gimlet_seq (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+task_sensor_api::__SENSOR_CLIENT_COUNTERS
+ fn Sensor::post() ............................................... 157281 calls
+    clients:
+    task power (0 restarts) ............................ + 0 ...... + 106201 ok
+    task thermal (0 restarts) .......................... + 0 ....... + 51080 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 157281 ok
+
+ fn Sensor::get_reading() ......................................... 43064 calls
+    clients:
+    task thermal (0 restarts) ...................................... = 33579 ok
+    - Err(NotPresent) ............................... + 9465 ..................
+    - Err(DeviceError) ................................. + 6 ..................
+    - Err(DeviceTimeout) .............................. + 14 ..................
+                                                      ------         -------
+    totals:                                           = 9485 err     = 33579 ok
+
+ fn Sensor::nodata() .............................................. 16957 calls
+    clients:
+    task thermal (0 restarts) .......................... + 0 ....... + 10240 ok
+    task power (0 restarts) ............................ + 0 ........ + 6717 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 16957 ok
+
+

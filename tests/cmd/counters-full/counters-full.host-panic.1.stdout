@@ -1,0 +1,222 @@
+control_plane_agent
+ |
+ +---> task_control_plane_agent::CRITICAL:
+ |         0 Empty
+ |         0 SetPowerState
+ +---> task_control_plane_agent::__RINGBUF:
+           0 BarcodeParseError
+           0 Rx
+           0 SendError
+           0 MgsMessage(_)
+           0 |     MgsMessage(Discovery)
+           0 |     MgsMessage(IgnitionState)
+           0 |     MgsMessage(BulkIgnitionState)
+           0 |     MgsMessage(IgnitionLinkEvents)
+           0 |     MgsMessage(BulkIgnitionLinkEvents)
+           0 |     MgsMessage(ClearIgnitionLinkEvents)
+           0 |     MgsMessage(IgnitionCommand)
+           0 |     MgsMessage(SpState)
+           0 |     MgsMessage(SerialConsoleAttach)
+           0 |     MgsMessage(SerialConsoleWrite)
+           0 |     MgsMessage(SerialConsoleKeepAlive)
+           0 |     MgsMessage(SerialConsoleDetach)
+           0 |     MgsMessage(UpdatePrepare)
+           0 |     MgsMessage(UpdateChunk)
+           0 |     MgsMessage(UpdateStatus)
+           0 |     MgsMessage(UpdateAbort)
+           0 |     MgsMessage(GetPowerState)
+           0 |     MgsMessage(SetPowerState)
+           0 |     MgsMessage(Inventory)
+           0 |     MgsMessage(HostPhase2Data)
+           0 |     MgsMessage(MgsError)
+           0 |     MgsMessage(GetStartupOptions)
+           0 |     MgsMessage(SetStartupOptions)
+           0 |     MgsMessage(ComponentDetails)
+           0 |     MgsMessage(ComponentClearStatus)
+           0 |     MgsMessage(ComponentGetActiveSlot)
+           0 |     MgsMessage(ComponentSetActiveSlot)
+           0 |     MgsMessage(SerialConsoleBreak)
+           0 |     MgsMessage(SendHostNmi)
+           0 |     MgsMessage(SetIpccKeyValue)
+           0 |     MgsMessage(ReadRotPage)
+           0 |     MgsMessage(VpdLockStatus)
+           0 UsartTxFull
+           0 UsartRxOverrun
+           0 UsartRxBufferDataDropped
+           0 SerialConsoleSend
+           0 UpdatePartial
+           0 UpdateComplete
+           0 HostFlashSectorsErased
+           0 ExpectedRspTimeout
+           0 RotReset
+           0 SprotCabooseSize
+           0 ReadCaboose
+           0 GotCabooseChunk
+           0 ReadRotPage
+           2 IpcRequest(_)
+           0 |     IpcRequest(FetchHostPhase2Data)
+           0 |     IpcRequest(GetHostPhase2Data)
+           1 +---> IpcRequest(GetStartupOptions)
+           1 +---> IpcRequest(SetStartupOptions)
+           0 |     IpcRequest(Identity)
+           0 |     IpcRequest(GetInstallinatorImageId)
+           0 |     IpcRequest(GetUartClient)
+           0 |     IpcRequest(SetHumilityUartClient(_))
+           0 |         SetHumilityUartClient(Mgs)
+           0 |         SetHumilityUartClient(Humility)
+           0 |     IpcRequest(UartRead)
+           0 |     IpcRequest(UartWrite)
+           0 VpdLockStatus
+gimlet_inspector
+ |
+ +---> task_gimlet_inspector::__COUNTERS:
+           0 RecvPacket
+           0 RequestRejected
+           0 Respond
+gimlet_seq
+ |
+ +---> drv_gimlet_seq_server::IPC_REQUESTS:
+ |      3020 GetState
+ |        11 SetState(_)
+ |         5 +---> SetState(A2)
+ |         0 |     SetState(A2PlusFans)
+ |         0 |     SetState(A1)
+ |         6 +---> SetState(A0)
+ |         0 |     SetState(A0PlusHP)
+ |         0 |     SetState(A0Thermtrip)
+ |         0 |     SetState(A0Reset)
+ |         0 FansOn
+ |         0 FansOff
+ |         0 SendHardwareNmi
+ |         0 ReadFpgaRegs
+ +---> drv_gimlet_seq_server::__RINGBUF:
+           1 Ice40Rails
+           1 IdentValid
+           1 ChecksumValid
+           1 Reprogram
+           1 Programmed
+           1 Programming
+           1 Ice40PowerGoodV1P2
+           1 Ice40PowerGoodV3P3
+           1 RailsOff
+           1 Ident
+           1 A2Status
+           6 A2
+           0 A0FailureDetails
+           0 A0Failed(_)
+           0 |     A0Failed(IllegalTransition)
+           0 |     A0Failed(MuxToHostCPUFailed)
+           0 |     A0Failed(MuxToSPFailed)
+           0 |     A0Failed(ReadRegsFailed)
+           0 |     A0Failed(CPUNotPresent)
+           0 |     A0Failed(UnrecognizedCPU)
+           0 |     A0Failed(A1Timeout)
+           0 |     A0Failed(A0TimeoutGroupC)
+           0 |     A0Failed(A0Timeout)
+           0 |     A0Failed(I2cFault)
+           0 |     A0Failed(ServerRestarted)
+         612 A1Status
+           6 CPUPresent
+           6 Coretype
+        2082 A0Status
+          90 A0Power
+           1 NICPowerEnableLow
+           6 RailsOn
+           6 UartEnabled
+           6 A0
+          11 SetState
+          12 UpdateState(_)
+           5 +---> UpdateState(A2)
+           0 |     UpdateState(A2PlusFans)
+           0 |     UpdateState(A1)
+           6 +---> UpdateState(A0)
+           1 +---> UpdateState(A0PlusHP)
+           0 |     UpdateState(A0Thermtrip)
+           0 |     UpdateState(A0Reset)
+         446 ClockConfigWrite
+           1 ClockConfigSuccess
+       86476 Status
+          11 PGStatus
+          11 SMStatus
+           0 ResetCounts
+          11 PowerControl
+          11 InterruptFlags
+          27 V3P3SysA0VOut
+           0 SpdBankAbsent
+           0 SpdAbsent
+           1 SpdDimmsFound
+           0 I2cFault(_)
+           0 |     I2cFault(BadResponse)
+           0 |     I2cFault(BadArg)
+           0 |     I2cFault(NoDevice)
+           0 |     I2cFault(BadController)
+           0 |     I2cFault(ReservedAddress)
+           0 |     I2cFault(BadPort)
+           0 |     I2cFault(NoRegister)
+           0 |     I2cFault(BadMux)
+           0 |     I2cFault(BadSegment)
+           0 |     I2cFault(MuxNotFound)
+           0 |     I2cFault(SegmentNotFound)
+           0 |     I2cFault(SegmentDisconnected)
+           0 |     I2cFault(MuxDisconnected)
+           0 |     I2cFault(MuxMissing)
+           0 |     I2cFault(BadMuxRegister)
+           0 |     I2cFault(BusReset)
+           0 |     I2cFault(BusResetMux)
+           0 |     I2cFault(BusLocked)
+           0 |     I2cFault(BusLockedMux)
+           0 |     I2cFault(ControllerBusy)
+           0 |     I2cFault(BusError)
+           0 |     I2cFault(BadDeviceState)
+           0 |     I2cFault(OperationNotSupported)
+           0 |     I2cFault(IllegalLeaseCount)
+           0 |     I2cFault(TooMuchData)
+           0 StartFailed(_)
+           0 |     StartFailed(IllegalTransition)
+           0 |     StartFailed(MuxToHostCPUFailed)
+           0 |     StartFailed(MuxToSPFailed)
+           0 |     StartFailed(ReadRegsFailed)
+           0 |     StartFailed(CPUNotPresent)
+           0 |     StartFailed(UnrecognizedCPU)
+           0 |     StartFailed(A1Timeout)
+           0 |     StartFailed(A0TimeoutGroupC)
+           0 |     StartFailed(A0Timeout)
+           0 |     StartFailed(I2cFault)
+           0 |     StartFailed(ServerRestarted)
+thermal
+ |
+ +---> task_thermal::__RINGBUF:
+           1 Start
+           1 ThermalMode(_)
+           0 |     ThermalMode(Off)
+           0 |     ThermalMode(Manual)
+           1 +---> ThermalMode(Auto)
+          27 AutoState(_)
+          14 +---> AutoState(Boot)
+          13 +---> AutoState(Running)
+           0 |     AutoState(Overheated)
+           0 |     AutoState(Uncontrollable)
+           0 FanReadFailed
+           0 MiscReadFailed
+           0 SensorReadFailed
+           0 PostFailed
+        1033 ControlPwm
+          13 PowerModeChanged
+           0 PowerDownFailed
+           0 ControlError(_)
+           0 |     ControlError(InvalidFan)
+           0 |     ControlError(InvalidPWM)
+           0 |     ControlError(DeviceError)
+           0 |     ControlError(NotInManualMode)
+           0 |     ControlError(NotInAutoMode)
+           0 |     ControlError(AlreadyInAutoMode)
+           0 |     ControlError(InvalidWatchdogTime)
+           0 |     ControlError(InvalidParameter)
+           0 |     ControlError(InvalidIndex)
+           0 |     ControlError(ServerDeath)
+           0 FanPresenceUpdateFailed
+           6 FanAdded
+           0 FanRemoved
+           0 PowerDownAt
+           0 AddedDynamicInput
+           0 RemovedDynamicInput
