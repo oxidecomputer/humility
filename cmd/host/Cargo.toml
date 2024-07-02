@@ -9,7 +9,8 @@ description = "Pretty-printing of host state"
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
-zerocopy.workspace = true
+chrono.workspace = true
+ipcc-data.workspace = true
 
 humility.workspace = true
 humility-cmd.workspace = true

@@ -14,6 +14,7 @@ parse_int.workspace = true
 
 humility-cli.workspace = true
 humility-cmd.workspace = true
+humility-doppel.workspace = true
 humility-hiffy.workspace = true
 humility-i2c.workspace = true
 humility-log.workspace = true

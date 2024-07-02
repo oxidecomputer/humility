@@ -231,6 +231,7 @@ fn make_all_tests() -> Result<()> {
             "counters",
             "--output json",
         ),
+        Test::witharg(Kind::Postmortem, "host-panic", "host", "last-panic"),
     ];
 
     make_tests(&tests, Kind::Postmortem)?;

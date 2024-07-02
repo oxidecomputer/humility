@@ -107,8 +107,10 @@
 //!
 
 use humility::hubris::*;
+use humility::{reflect, reflect::Load};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_log::msg;
@@ -279,16 +281,54 @@ fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
     ops.push(Op::DropN(4));
 }
 
-fn spd_lookup(hubris: &HubrisArchive) -> Result<Option<HubrisVariable>> {
-    match hubris.lookup_variables("SPD_DATA") {
-        Ok(variables) => {
-            if variables.len() > 1 {
-                bail!("more than one SPD_DATA?");
-            }
+//
+// Our SPD data is sitting in packrat, so we'll specify just enough of the
+// embedded structures to get at it.
+//
+static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
-            Ok(Some(variables[0]))
+#[derive(Load, Debug)]
+struct GimletStaticBufs {
+    spd_data: Vec<u8>,
+}
+
+#[derive(Load, Debug)]
+struct PackratStaticBufs {
+    gimlet_bufs: GimletStaticBufs,
+}
+
+fn spd_lookup(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+) -> Result<Option<Vec<u8>>> {
+    if let Ok(variables) = hubris.lookup_variables("SPD_DATA") {
+        if variables.len() > 1 {
+            bail!("more than one SPD_DATA?");
         }
-        Err(_) => Ok(None),
+
+        let var = variables[0];
+        let mut buf: Vec<u8> = vec![0u8; var.size];
+
+        core.halt()?;
+        core.read_8(var.addr, &mut buf)?;
+        core.run()?;
+
+        Ok(Some(buf))
+    } else if let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) {
+        let var_ty = hubris.lookup_type(var.goff)?;
+        let mut buf: Vec<u8> = vec![0u8; var.size];
+
+        core.halt()?;
+        core.read_8(var.addr, &mut buf)?;
+        core.run()?;
+
+        let v = reflect::load_value(hubris, &buf, var_ty, 0)?;
+        let as_static_cell = doppel::ClaimOnceCell::from_value(&v)?;
+
+        let p = PackratStaticBufs::from_value(&as_static_cell.cell.value)?;
+        Ok(Some(p.gimlet_bufs.spd_data))
+    } else {
+        Ok(None)
     }
 }
 
@@ -296,18 +336,8 @@ pub fn spd_any(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
 ) -> Result<bool> {
-    match spd_lookup(hubris)? {
-        Some(spd_data) => {
-            let mut bytes = vec![0u8; spd_data.size];
-
-            core.halt()?;
-            let rval = core.read_8(spd_data.addr, &mut bytes);
-            core.run()?;
-
-            rval?;
-
-            Ok(bytes.iter().any(|&datum| datum != 0))
-        }
+    match spd_lookup(hubris, core)? {
+        Some(spd_data) => Ok(spd_data.iter().any(|&datum| datum != 0)),
         None => Ok(false),
     }
 }
@@ -324,30 +354,23 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
     // to find the `SPD_DATA` variable.
     //
     if subargs.bus.is_none() && subargs.controller.is_none() {
-        let spd_data = spd_lookup(hubris)?
+        let spd_data = spd_lookup(hubris, core)?
             .ok_or_else(|| anyhow!("no bus specified and no SPD_DATA found"))?;
 
-        if spd_data.size % SPD_SIZE != 0 {
+        if spd_data.len() % SPD_SIZE != 0 {
             bail!(
                 "SPD_DATA is {} bytes; expected even multiple of {SPD_SIZE}",
-                spd_data.size,
+                spd_data.len(),
             );
         }
 
-        let nspd = spd_data.size / SPD_SIZE;
-        let mut bytes = vec![0u8; spd_data.size];
-
-        core.halt()?;
-        let rval = core.read_8(spd_data.addr, &mut bytes);
-        core.run()?;
-
-        rval?;
+        let nspd = spd_data.len() / SPD_SIZE;
 
         let mut header = true;
 
         for addr in 0..nspd {
             let offs = addr * SPD_SIZE;
-            let data = &bytes[offs..offs + SPD_SIZE];
+            let data = &spd_data[offs..offs + SPD_SIZE];
 
             if !data.iter().any(|&datum| datum != 0) {
                 continue;

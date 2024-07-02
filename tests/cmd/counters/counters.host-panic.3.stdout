@@ -1,0 +1,333 @@
+control_plane_agent
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32h7_update_api::__UPDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         1 enable_clock_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ |         1 gpio_configure_raw
+ +---> drv_user_leds_api::__USERLEDS_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::CRITICAL:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_validate_api::__VALIDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_vpd_api::__VPD_CLIENT_COUNTERS:
+       <no counts recorded>
+dump_agent
+ |
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           1 recv_packet(Err(QueueEmpty))
+gimlet_inspector
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_gimlet_inspector::__COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           1 recv_packet(Err(QueueEmpty))
+gimlet_seq
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |         5 set_mux(Ok)
+ +---> drv_gimlet_seq_server::__RINGBUF:
+ |     32294 Status
+ |      1027 A0Status
+ |       446 ClockConfigWrite
+ |       306 A1Status
+ |        45 A0Power
+ |        13 V3P3SysA0VOut
+ |         5 UpdateState(A0)
+ |         5 UpdateState(A0PlusHP)
+ |         2 UpdateState(A2)
+ |         7 NICPowerEnableLow
+ |         6 InterruptFlags
+ |         6 PowerControl
+ |         6 SMStatus
+ |         6 PGStatus
+ |         6 SetState
+ |         3 A0
+ |         3 A2
+ |         3 UartEnabled
+ |         3 RailsOn
+ |         3 CPUPresent(true)
+ |         3 Coretype
+ |         2 NICStatus
+ |         1 Ice40Rails
+ |         1 ChecksumValid(false)
+ |         1 SpdDimmsFound
+ |         1 A2Status
+ |         1 Ident
+ |         1 RailsOff
+ |         1 ClockConfigSuccess
+ |         1 Ice40PowerGoodV3P3(true)
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 Programmed
+ |         1 IdentValid(false)
+ |         1 Programming
+ |         1 Reprogram(true)
+ +---> drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
+ |      4246 get_state
+ |         5 set_state(Ok)
+ |         1 set_state(Err(Runtime(IllegalTransition)))
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |    130626 exchange(Ok)
+ |       530 write(Ok)
+ |         4 lock(Ok)
+ |         1 release(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |     32309 gpio_read_input
+ |        21 gpio_configure_raw
+ |        19 gpio_set_reset
+ |         3 gpio_irq_configure
+ |         3 gpio_irq_control(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |        13 set_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          32 set_spd_eeprom
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)
+hash_driver
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+         513 enable_clock_raw(Ok)
+         513 disable_clock_raw(Ok)
+         513 enter_reset_raw(Ok)
+         513 leave_reset_raw(Ok)
+hf
+ |
+ +---> drv_hash_api::__HASH_CLIENT_COUNTERS:
+ |    131072 update(Ok)
+ |       512 init_sha256(Ok)
+ |       512 finalize_sha256(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+          18 gpio_set_reset
+           6 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 leave_reset_raw(Ok)
+hiffy
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |     34304 page_program(Ok)
+ |       512 hash(Ok)
+ |       134 sector_erase(Ok)
+ +---> drv_hash_api::__HASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+       <no counts recorded>
+host_sp_comms
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |        16 get_mux(Ok)
+ |         3 set_mux(Ok)
+ |         3 get_dev(Ok)
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |        13 get_state
+ |         2 set_state(Ok)
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |         3 exchange(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         3 gpio_set_reset
+ |         3 read_uid
+ |         2 gpio_configure_raw
+ |         1 enable_clock_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ +---> task_control_plane_agent_api::__CONTROLPLANEAGENT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_host_sp_comms::__RINGBUF:
+ |       216 Request(GetInventoryData)
+ |        17 Request(GetIdentity)
+ |        17 Request(KeyLookup)
+ |         3 Request(GetBootStorageUnit)
+ |         3 Request(GetMacAddresses)
+ |         3 Request(GetStatus)
+ |         2 Request(HostPanic)
+ |         1 Request(RequestReboot)
+ |         1 Request(AckSpStart)
+ |       216 Response(InventoryData(Ok))
+ |        17 Response(Identity)
+ |        11 Response(KeyLookupResult(Ok))
+ |         6 Response(KeyLookupResult(NoValueForKey))
+ |         3 Response(Ack)
+ |         3 Response(BootStorageUnit)
+ |         3 Response(MacAddresses)
+ |         3 Response(Status)
+ |        16 HfMux
+ |         5 JefeNotification(A0)
+ |         5 JefeNotification(A0PlusHP)
+ |         3 JefeNotification(A2)
+ |         2 ParseError(Cobs)
+ |         1 SetState(A2)
+ |         1 SetState(A0)
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |         3 get_spare_mac_addresses
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          48 get_spd_present
+          48 get_full_spd_data
+          20 get_identity(Ok)
+           3 get_next_boot_host_startup_options
+i2c_driver
+ |
+ +---> drv_stm32xx_i2c::__RINGBUF:
+ |   1726142 Write
+ |   1557564 WriteWait
+ |   1416272 Read
+ |    932036 Wait
+ |    313804 ReadWait
+ |       220 Reset
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+       16885 gpio_configure_raw
+        5492 gpio_set_reset
+         909 gpio_read_input
+           3 enable_clock_raw(Ok)
+           3 leave_reset_raw(Ok)
+net
+ |
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |        62 write(Ok)
+ |         8 exchange(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |        13 gpio_configure_raw
+ |         8 gpio_set_reset
+ |         4 enable_clock_raw(Ok)
+ |         2 enter_reset_raw(Ok)
+ |         2 leave_reset_raw(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         2 get_state
+ +---> task_net::__COUNTERS:
+ |      8745 Iter
+ |      2917 TimerWake
+ |      2909 IpActivity
+ +---> task_net::mgmt::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 get_mac_address_block(Ok)
+power
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |      1313 get_state
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+      106201 post
+        6717 nodata
+spd
+ |
+ +---> drv_stm32xx_i2c::__RINGBUF:
+ |    111217 TxReg
+ |     88060 RxReg
+ |     68689 WaitTx
+ |     58252 WaitRx
+ |     43921 Addr
+ |     29281 WaitAddr
+ |     27840 Tx
+ |     14640 AddrMatch
+ |     14400 Rx
+ |     14112 RepeatedStart(true)
+ |       768 RxNack
+ |       576 TxBogus
+ |       528 Stop
+ |       384 AddrNack
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         2 gpio_configure_raw
+ |         1 enable_clock_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         2 get_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+       27840 get_spd_data
+       13920 get_spd_present
+spi2_driver
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |   2225416 Tx
+ |   2225416 Rx
+ |   1631247 WaitISR
+ |    130637 Start(exchange)
+ |       592 Start(write)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+      261416 gpio_set_reset
+          40 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+sprot
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           4 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+           1 gpio_set_reset
+sys
+ |
+ +---> drv_stm32xx_sys::__EXTI_IRQ_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+           1 set_reset_reason
+thermal
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |      2920 get_state
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     51080 post
+ |     33579 get_reading(Ok)
+ |      9465 get_reading(Err(NotPresent))
+ |        14 get_reading(Err(DeviceTimeout))
+ |         6 get_reading(Err(DeviceError))
+ |     10240 nodata
+ +---> task_thermal::__RINGBUF:
+        1460 ControlPwm
+          20 SensorReadFailed
+          10 AutoState(Boot)
+           9 AutoState(Running)
+          16 MiscReadFailed
+          11 FanReadFailed
+           9 PowerModeChanged
+           6 FanAdded
+           1 Start
+           1 ThermalMode(Auto)
+           1 ControlError(DeviceError)
+           1 FanControllerInitialized
+udpbroadcast
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |      2909 send_packet(Ok)
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 get_identity(Ok)
+udpecho
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           1 recv_packet(Err(QueueEmpty))
+udprpc
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+           1 recv_packet(Err(QueueEmpty))
+user_leds
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           1 gpio_configure_raw
+           1 gpio_set_reset

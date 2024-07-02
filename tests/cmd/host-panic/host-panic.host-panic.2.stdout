@@ -1,0 +1,57 @@
+version:   2 (inferred)
+cause:     IPCC_PANIC_CALL
+error:     0
+cpuid:     56
+thread:    0xfffff78810cadc20
+time:      536112572.713000368 (1986-12-28T00:09:32.713000368+00:00)
+hrtime:    659.559749693
+addr:      0x0
+pc:        0xfffffffff81ed821
+fp:        0xfffff78810cac820
+rp:        0x0
+message:   dtrace: panic action at probe fbt:genunix:kmem_cache_alloc:entry (ecb fffffcfa303728f0)
+stack:
+           dtrace_action_panic+0x81                         (0xfffffffff81ed821)
+           dtrace_probe+0x84c                               (0xfffffffff81ee7cc)
+           fbt_invop+0xc7                                   (0xfffffffff7d45367)
+           dtrace_invop+0x4a                                (0xfffffffffbc2813a)
+           invoptrap+0xe3                                   (0xfffffffffbc7ce83)
+           desballoc+0x4a                                   (0xfffffffffc12f00a)
+           igb_rx_recycle+0x5a                              (0xfffffffff7f3448a)
+           dblk_lastfree_desb+0x28                          (0xfffffffffc12ec68)
+           freemsg+0x7d                                     (0xfffffffffc12e8bd)
+           icmp_pkt_err_ok_v6+0xdb                          (0xfffffffff800c4ab)
+           icmp_unreachable_v6+0x41                         (0xfffffffff800cc21)
+           ip_fanout_send_icmp_v6+0x187                     (0xfffffffff800dde7)
+           ip_fanout_udp_multi_v6+0x675                     (0xfffffffff800e465)
+           ip_fanout_v6+0xac4                               (0xfffffffff807ae84)
+           ip_input_multicast_v6+0x81                       (0xfffffffff8079be1)
+           ip_input_local_v6+0x3e                           (0xfffffffff8079b5e)
+           ire_recv_multicast_v6+0xe0                       (0xfffffffff8079780)
+           ill_input_short_v6+0x537                         (0xfffffffff80783f7)
+           ip_input_common_v6+0x279                         (0xfffffffff80779c9)
+           ip_input_v6+0x2b                                 (0xfffffffff807770b)
+           ip_rput_v6+0x73                                  (0xfffffffff800ecf3)
+           putnext+0x2d5                                    (0xfffffffffbcaa395)
+           dld_str_rx_fastpath+0x34                         (0xfffffffff7d1b3c4)
+           i_dls_link_rx+0x305                              (0xfffffffff7c0d625)
+           mac_rx_deliver+0x3d                              (0xfffffffff7c34a7d)
+           mac_rx_soft_ring_process+0x1df                   (0xfffffffff7c34c8f)
+           mac_rx_srs_proto_fanout+0x1d4                    (0xfffffffff7c30304)
+           mac_rx_srs_drain+0x295                           (0xfffffffff7c31965)
+           mac_rx_srs_process+0x485                         (0xfffffffff7c32c55)
+           mac_rx_common+0x20e                              (0xfffffffff7c2ecae)
+           mac_rx+0xc6                                      (0xfffffffff7c2ea66)
+           mac_rx_ring+0x2b                                 (0xfffffffff7c2e97b)
+           igb_intr_rx_work+0x5c                            (0xfffffffff7f3256c)
+           igb_intr_rx+0x15                                 (0xfffffffff7f329b5)
+           apix_dispatch_by_vector+0x8c                     (0xfffffffff7c9cd1c)
+           apix_dispatch_lowlevel+0x29                      (0xfffffffff7c9cd99)
+           switch_sp_and_call+0x15                          (0xfffffffffbc834b5)
+           apix_do_interrupt+0xf2                           (0xfffffffff7c9cea2)
+           cmnint+0xc3                                      (0xfffffffffbc00233)
+           i86_mwait+0x12                                   (0xfffffffffbc82c32)
+           cpu_idle_mwait+0x14b                             (0xfffffffffbc5248b)
+           cpu_idle_adaptive+0x19                           (0xfffffffffbc520a9)
+           idle+0xa8                                        (0xfffffffffbc988e8)
+           thread_start+0xb                                 (0xfffffffffbc8553b)
