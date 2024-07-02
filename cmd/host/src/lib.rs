@@ -62,7 +62,7 @@
 //! ```
 
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
@@ -234,7 +234,9 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     println!("thread:    {:#x}", data.thread);
 
     if let Some(time) = data.time {
-        let dt: DateTime<Utc> = time.system_time.into();
+        let dt = DateTime::from_timestamp(time.sec as i64, time.nsec)
+            .ok_or_else(|| anyhow!("invalid timestamp"))?;
+
         println!(
             "time:      {}.{:09} ({})",
             time.sec,
