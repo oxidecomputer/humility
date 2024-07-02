@@ -234,14 +234,16 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     println!("thread:    {:#x}", data.thread);
 
     if let Some(time) = data.time {
-        let t = time.duration_since(std::time::UNIX_EPOCH).unwrap();
-        let dt: DateTime<Utc> = time.into();
-        let ns = t.subsec_nanos();
-        println!("raw time:  {time:?}");
-        println!("time:      {}.{ns:09} ({})", t.as_secs(), dt.to_rfc3339());
+        let dt: DateTime<Utc> = time.system_time.into();
+        println!(
+            "time:      {}.{:09} ({})",
+            time.sec,
+            time.nsec,
+            dt.to_rfc3339()
+        );
     }
 
-    if let Some(hrtime) = data.hrtime {
+    if let Some(ipcc_data::MonotonicNanoseconds(hrtime)) = data.hrtime {
         let s = hrtime / 1_000_000_000;
         let ns = hrtime % 1_000_000_000;
         println!("hrtime:    {s}.{ns:09}");
@@ -268,11 +270,14 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
         }
     }
 
-    println!("message:   {}", data.message.unwrap_or("<none>".to_string()));
+    println!(
+        "message:   {}",
+        data.message.unwrap_or_else(|| "<none>".to_string())
+    );
     println!("stack:");
 
     for f in data.stack {
-        println!("           {:<40} ({:#016x})", f, f.address);
+        println!("           {:<48} ({:#016x})", f, f.address);
     }
 
     Ok(())

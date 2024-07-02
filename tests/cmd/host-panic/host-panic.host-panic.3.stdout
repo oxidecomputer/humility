@@ -9,6 +9,6 @@ fp:        0xfffff7880f515e30
 rp:        0x0
 message:   forced crash dump initiated at user request
 stack:
-           kadmin+0x62f                             (0xfffffffffc1869ef)
-           uadmin+0x11d                             (0xfffffffffc186b2d)
-           brand_sys_syscall32+0x186                (0xfffffffffbc00736)
+           kadmin+0x62f                                     (0xfffffffffc1869ef)
+           uadmin+0x11d                                     (0xfffffffffc186b2d)
+           brand_sys_syscall32+0x186                        (0xfffffffffbc00736)
