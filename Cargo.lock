@@ -2612,7 +2612,7 @@ dependencies = [
 [[package]]
 name = "ipcc-data"
 version = "0.0.1"
-source = "git+https://github.com/oxidecomputer/ipcc-data#e8a80901626b4e8b07da848bb4d4c257613124b1"
+source = "git+https://github.com/oxidecomputer/ipcc-data#9a3c5659ed75b597deba9c23ccc71434d03e957b"
 dependencies = [
  "anyhow",
  "binrw",
