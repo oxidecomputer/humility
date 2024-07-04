@@ -1,0 +1,110 @@
+control_plane_agent:
+    ADDR        SIZE VARIABLE
+    0x240343e8   616 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+    0x24034650    76 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+    0x2403469c  6980 drv_sprot_api::__SPROT_CLIENT_COUNTERS
+    0x240361e0   812 drv_stm32h7_update_api::__UPDATE_CLIENT_COUNTERS
+    0x2403650c    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+    0x24036550    32 drv_user_leds_api::__USERLEDS_CLIENT_COUNTERS
+    0x24034150   664 task_control_plane_agent::CRITICAL
+    0x24031000  1288 task_control_plane_agent::__RINGBUF
+    0x24036570   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+    0x240367b0   200 task_net_api::__NET_CLIENT_COUNTERS
+    0x24036878    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+    0x240368b0    88 task_sensor_api::__SENSOR_CLIENT_COUNTERS
+    0x24036908    32 task_validate_api::__VALIDATE_CLIENT_COUNTERS
+    0x24036928   344 task_vpd_api::__VPD_CLIENT_COUNTERS
+dump_agent:
+    ADDR        SIZE VARIABLE
+    0x240413a8  6980 drv_sprot_api::__SPROT_CLIENT_COUNTERS
+    0x24042eec   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+    0x2404312c   200 task_net_api::__NET_CLIENT_COUNTERS
+gimlet_inspector:
+    ADDR        SIZE VARIABLE
+    0x2405ae4c    76 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+    0x2405ae40    12 task_gimlet_inspector::__COUNTERS
+    0x2405ae98   200 task_net_api::__NET_CLIENT_COUNTERS
+gimlet_seq:
+    ADDR        SIZE VARIABLE
+    0x2404a43c   616 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+    0x24049578  3496 drv_gimlet_seq_server::__RINGBUF
+    0x2404a38c   176 drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS
+    0x2404a8f0    52 drv_spi_api::__SPI_CLIENT_COUNTERS
+    0x2404a924    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+    0x2404a968   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+    0x2404aba8    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+hash_driver:
+    ADDR        SIZE VARIABLE
+    0x24055800    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+hf:
+    ADDR        SIZE VARIABLE
+    0x24054bb8    96 drv_hash_api::__HASH_CLIENT_COUNTERS
+    0x24054c18    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+hiffy:
+    ADDR        SIZE VARIABLE
+    0x2400ecd0   616 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+    0x2400ef38    96 drv_hash_api::__HASH_CLIENT_COUNTERS
+    0x2400ef98    52 drv_spi_api::__SPI_CLIENT_COUNTERS
+    0x2400efcc    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+host_sp_comms:
+    ADDR        SIZE VARIABLE
+    0x24028178   616 drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+    0x240283e0    76 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+    0x2402842c    52 drv_spi_api::__SPI_CLIENT_COUNTERS
+    0x24028460    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+    0x24028570   180 task_control_plane_agent_api::__CONTROLPLANEAGENT_CLIENT_COUNTERS
+    0x240213d8  2992 task_host_sp_comms::__RINGBUF
+    0x24028624   200 task_net_api::__NET_CLIENT_COUNTERS
+    0x240286ec    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+i2c_driver:
+    ADDR        SIZE VARIABLE
+    0x24058a64   884 drv_stm32xx_i2c::__RINGBUF
+    0x24058dd8    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+net:
+    ADDR        SIZE VARIABLE
+    0x24019eac    52 drv_spi_api::__SPI_CLIENT_COUNTERS
+    0x24019ee0    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+    0x24019ff0   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+    0x24012be0    12 task_net::__COUNTERS
+    0x24012900   736 task_net::mgmt::__RINGBUF
+    0x2401a230    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+power:
+    ADDR        SIZE VARIABLE
+    0x2404642c    76 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+    0x24046478    88 task_sensor_api::__SENSOR_CLIENT_COUNTERS
+spd:
+    ADDR        SIZE VARIABLE
+    0x2405948c   884 drv_stm32xx_i2c::__RINGBUF
+    0x24059800    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+    0x24059844   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+    0x24059a84    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+spi2_driver:
+    ADDR        SIZE VARIABLE
+    0x24056368  1068 drv_stm32h7_spi_server_core::__RINGBUF
+    0x24056794    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+sprot:
+    ADDR        SIZE VARIABLE
+    0x2403c000  1068 drv_stm32h7_spi_server_core::__RINGBUF
+    0x2403d33c    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+sys:
+    ADDR        SIZE VARIABLE
+    0x2405b380     8 drv_stm32xx_sys::__EXTI_IRQ_COUNTERS
+    0x2405b388   576 task_jefe_api::__JEFE_CLIENT_COUNTERS
+thermal:
+    ADDR        SIZE VARIABLE
+    0x24003dc0    76 drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+    0x24003e0c    88 task_sensor_api::__SENSOR_CLIENT_COUNTERS
+    0x240039c8  1016 task_thermal::__RINGBUF
+udpbroadcast:
+    ADDR        SIZE VARIABLE
+    0x24057800   200 task_net_api::__NET_CLIENT_COUNTERS
+    0x240578c8    56 task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+udpecho:
+    ADDR        SIZE VARIABLE
+    0x2404f004   200 task_net_api::__NET_CLIENT_COUNTERS
+udprpc:
+    ADDR        SIZE VARIABLE
+    0x2404d000   200 task_net_api::__NET_CLIENT_COUNTERS
+user_leds:
+    ADDR        SIZE VARIABLE
+    0x2405c380    68 drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS

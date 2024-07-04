@@ -1,0 +1,80 @@
+control_plane_agent
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+       <no counts recorded>
+gimlet_inspector
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+       <no counts recorded>
+gimlet_seq
+ |
+ +---> drv_gimlet_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |         3 set_mux(Ok)
+ +---> drv_gimlet_seq_server::__RINGBUF:
+ |     11877 Status
+ |       681 A0Status
+ |       446 ClockConfigWrite
+ |       204 A1Status
+ |        30 A0Power
+ |         7 V3P3SysA0VOut
+ |         2 UpdateState(A0)
+ |         1 UpdateState(A2)
+ |         1 UpdateState(A0PlusHP)
+ |         3 InterruptFlags
+ |         3 PowerControl
+ |         3 SMStatus
+ |         3 PGStatus
+ |         3 SetState
+ |         2 A0
+ |         2 A2
+ |         2 UartEnabled
+ |         2 RailsOn
+ |         2 CPUPresent(true)
+ |         2 Coretype
+ |         1 A2Status
+ |         1 Programming
+ |         1 IdentValid(false)
+ |         1 SpdDimmsFound
+ |         1 ChecksumValid(false)
+ |         1 Ice40Rails
+ |         1 Ident
+ |         1 RailsOff
+ |         1 ClockConfigSuccess
+ |         1 Ice40PowerGoodV3P3(true)
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 NICPowerEnableLow
+ |         1 Reprogram(true)
+ |         1 Programmed
+ +---> drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
+ |       667 get_state
+ |         3 set_state(Ok)
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |     48456 exchange(Ok)
+ |       530 write(Ok)
+ |         4 lock(Ok)
+ |         1 release(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |     11889 gpio_read_input
+ |        18 gpio_configure_raw
+ |        17 gpio_set_reset
+ |         2 gpio_irq_configure
+ |         2 gpio_irq_control(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         5 set_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          32 set_spd_eeprom
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)
+host_sp_comms
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+           5 get_state
+           2 set_state(Ok)
+power
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+         206 get_state
+thermal
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+         456 get_state

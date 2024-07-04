@@ -1,0 +1,167 @@
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x080002e7     744 r----- -  kernel
+-          0x080002e8 - 0x08004733   17KiB r-x--- -  kernel
+-          0x08004734 - 0x080061bb    6KiB r----- -  kernel
+-          0x080061c0 - 0x08007fff    7KiB rw---- -  kernel
+0x08005f64 0x08008000 - 0x0800ffff   32KiB r-x--- 19 control_plane_agent
+0x08005f70 0x08010000 - 0x0801ffff   64KiB r-x--- 19 control_plane_agent
+0x08005d60 0x08020000 - 0x08027fff   32KiB r-x--- 10 gimlet_seq
+0x08005d6c 0x08028000 - 0x0802ffff   32KiB r-x--- 10 gimlet_seq
+0x08005b5c 0x08030000 - 0x0803ffff   64KiB r-x--- 1  net
+0x08005b68 0x08040000 - 0x08043fff   16KiB r-x--- 1  net
+0x08005c04 0x08044000 - 0x08047fff   16KiB r-x--- 4  i2c_driver
+0x08005eb0 0x08048000 - 0x0804ffff   32KiB r-x--- 16 host_sp_comms
+0x08005ebc 0x08050000 - 0x08051fff    8KiB r-x--- 16 host_sp_comms
+0x08005e38 0x08052000 - 0x08053fff    8KiB r-x--- 14 update_server
+0x08005e44 0x08054000 - 0x080547ff    2KiB r-x--- 14 update_server
+0x08005e50 0x08054800 - 0x08054bff    1KiB r-x--- 14 update_server
+0x08005ed4 0x08054c80 - 0x08054cff     128 r-x--- 17 udpecho
+0x08005ee0 0x08054d00 - 0x08054dff     256 r-x--- 17 udpecho
+0x08005eec 0x08054e00 - 0x08054fff     512 r-x--- 17 udpecho
+0x08005ef8 0x08055000 - 0x08055fff    4KiB r-x--- 17 udpecho
+0x08005f04 0x08056000 - 0x08056fff    4KiB r-x--- 17 udpecho
+0x08005b8c 0x08057000 - 0x080573ff    1KiB r-x--- 2  sys
+0x08005b98 0x08057400 - 0x080575ff     512 r-x--- 2  sys
+0x08005ba4 0x08057600 - 0x080576ff     256 r-x--- 2  sys
+0x08005f1c 0x08057800 - 0x08057fff    2KiB r-x--- 18 udpbroadcast
+0x08005f28 0x08058000 - 0x08058fff    4KiB r-x--- 18 udpbroadcast
+0x08005f34 0x08059000 - 0x080593ff    1KiB r-x--- 18 udpbroadcast
+0x08005f40 0x08059400 - 0x080595ff     512 r-x--- 18 udpbroadcast
+0x08005f4c 0x08059600 - 0x0805963f      64 r-x--- 18 udpbroadcast
+0x08005fd0 0x08059840 - 0x0805987f      64 r-x--- 21 validate
+0x08005fdc 0x08059880 - 0x080598ff     128 r-x--- 21 validate
+0x08005fe8 0x08059900 - 0x080599ff     256 r-x--- 21 validate
+0x08005ff4 0x08059a00 - 0x08059bff     512 r-x--- 21 validate
+0x08006000 0x08059c00 - 0x08059fff    1KiB r-x--- 21 validate
+0x0800600c 0x0805a000 - 0x0805bfff    8KiB r-x--- 21 validate
+0x08005cac 0x0805c000 - 0x0805ffff   16KiB r-x--- 7  thermal
+0x08005cb8 0x08060000 - 0x08060fff    4KiB r-x--- 7  thermal
+0x08005cc4 0x08061000 - 0x080617ff    2KiB r-x--- 7  thermal
+0x08005cd0 0x08061800 - 0x08061bff    1KiB r-x--- 7  thermal
+0x0800606c 0x08061c00 - 0x08061dff     512 r-x--- 23 user_leds
+0x08006078 0x08061e00 - 0x08061fff     512 r-x--- 23 user_leds
+0x08006084 0x08062000 - 0x0806203f      64 r-x--- 23 user_leds
+0x08006090 0x08062040 - 0x0806205f      32 r-x--- 23 user_leds
+0x08006144 0x08062060 - 0x0806207f      32 r-x--- 26 idle
+0x08006150 0x08062080 - 0x080620bf      64 r-x--- 26 idle
+0x08005e68 0x08062180 - 0x080621ff     128 r-x--- 15 sensor
+0x08005e74 0x08062200 - 0x080623ff     512 r-x--- 15 sensor
+0x08005e80 0x08062400 - 0x080627ff    1KiB r-x--- 15 sensor
+0x08005e8c 0x08062800 - 0x08062fff    2KiB r-x--- 15 sensor
+0x08005e98 0x08063000 - 0x08063fff    4KiB r-x--- 15 sensor
+0x08005b08 0x08064000 - 0x08065fff    8KiB r-x--- 0  jefe
+0x08005b14 0x08066000 - 0x080663ff    1KiB r-x--- 0  jefe
+0x08005b20 0x08066400 - 0x080665ff     512 r-x--- 0  jefe
+0x08005f88 0x080666c0 - 0x080666ff      64 r-x--- 20 sprot
+0x08005f94 0x08066700 - 0x080667ff     256 r-x--- 20 sprot
+0x08005fa0 0x08066800 - 0x08066fff    2KiB r-x--- 20 sprot
+0x08005fac 0x08067000 - 0x08067fff    4KiB r-x--- 20 sprot
+0x08005fb8 0x08068000 - 0x0806ffff   32KiB r-x--- 20 sprot
+0x080060a8 0x08070000 - 0x08073fff   16KiB r-x--- 24 dump_agent
+0x080060b4 0x08074000 - 0x080741ff     512 r-x--- 24 dump_agent
+0x080060c0 0x08074200 - 0x080742ff     256 r-x--- 24 dump_agent
+0x080060fc 0x080743a0 - 0x080743bf      32 r-x--- 25 sbrmi
+0x08006108 0x080743c0 - 0x080743ff      64 r-x--- 25 sbrmi
+0x08006114 0x08074400 - 0x080747ff    1KiB r-x--- 25 sbrmi
+0x08006120 0x08074800 - 0x08074fff    2KiB r-x--- 25 sbrmi
+0x0800612c 0x08075000 - 0x080757ff    2KiB r-x--- 25 sbrmi
+0x08005c64 0x08075800 - 0x08075fff    2KiB r-x--- 6  packrat
+0x08005c70 0x08076000 - 0x08076fff    4KiB r-x--- 6  packrat
+0x08005c7c 0x08077000 - 0x080773ff    1KiB r-x--- 6  packrat
+0x08005c88 0x08077400 - 0x080774ff     256 r-x--- 6  packrat
+0x08005c94 0x08077500 - 0x0807751f      32 r-x--- 6  packrat
+0x08005c1c 0x08077b20 - 0x08077b3f      32 r-x--- 5  spd
+0x08005c28 0x08077b40 - 0x08077b7f      64 r-x--- 5  spd
+0x08005c34 0x08077b80 - 0x08077bff     128 r-x--- 5  spd
+0x08005c40 0x08077c00 - 0x08077fff    1KiB r-x--- 5  spd
+0x08005c4c 0x08078000 - 0x08079fff    8KiB r-x--- 5  spd
+0x08005d30 0x0807a000 - 0x0807bfff    8KiB r-x--- 9  hiffy
+0x08005d3c 0x0807c000 - 0x0807ffff   16KiB r-x--- 9  hiffy
+0x08005d48 0x08080000 - 0x080800ff     256 r-x--- 9  hiffy
+0x08006024 0x08080480 - 0x080804ff     128 r-x--- 22 vpd
+0x08006030 0x08080500 - 0x080805ff     256 r-x--- 22 vpd
+0x0800603c 0x08080600 - 0x080807ff     512 r-x--- 22 vpd
+0x08006048 0x08080800 - 0x08080fff    2KiB r-x--- 22 vpd
+0x08006054 0x08081000 - 0x08081fff    4KiB r-x--- 22 vpd
+0x08005df0 0x08082000 - 0x08083fff    8KiB r-x--- 13 hf
+0x08005dfc 0x08084000 - 0x08084fff    4KiB r-x--- 13 hf
+0x08005e08 0x08085000 - 0x080853ff    1KiB r-x--- 13 hf
+0x08005e14 0x08085400 - 0x0808543f      64 r-x--- 13 hf
+0x08006168 0x080854a0 - 0x080854bf      32 r-x--- 27 udprpc
+0x08006174 0x080854c0 - 0x080854ff      64 r-x--- 27 udprpc
+0x08006180 0x08085500 - 0x080855ff     256 r-x--- 27 udprpc
+0x0800618c 0x08085600 - 0x080857ff     512 r-x--- 27 udprpc
+0x08006198 0x08085800 - 0x08085fff    2KiB r-x--- 27 udprpc
+0x080061a4 0x08086000 - 0x08087fff    8KiB r-x--- 27 udprpc
+0x08005dc0 0x08088000 - 0x08089fff    8KiB r-x--- 12 hash_driver
+0x08005dcc 0x0808a000 - 0x0808a0ff     256 r-x--- 12 hash_driver
+0x08005dd8 0x0808a100 - 0x0808a11f      32 r-x--- 12 hash_driver
+0x08005bbc 0x0808ace0 - 0x0808acff      32 r-x--- 3  spi2_driver
+0x08005bc8 0x0808ad00 - 0x0808adff     256 r-x--- 3  spi2_driver
+0x08005bd4 0x0808ae00 - 0x0808afff     512 r-x--- 3  spi2_driver
+0x08005be0 0x0808b000 - 0x0808bfff    4KiB r-x--- 3  spi2_driver
+0x08005bec 0x0808c000 - 0x0808dfff    8KiB r-x--- 3  spi2_driver
+0x08005d84 0x0808e000 - 0x0808ffff    8KiB r-x--- 11 gimlet_inspector
+0x08005d90 0x08090000 - 0x080903ff    1KiB r-x--- 11 gimlet_inspector
+0x08005d9c 0x08090400 - 0x0809047f     128 r-x--- 11 gimlet_inspector
+0x08005da8 0x08090480 - 0x0809049f      32 r-x--- 11 gimlet_inspector
+0x08005ce8 0x08090fe0 - 0x08090fff      32 r-x--- 8  power
+0x08005cf4 0x08091000 - 0x08091fff    4KiB r-x--- 8  power
+0x08005d00 0x08092000 - 0x08093fff    8KiB r-x--- 8  power
+0x08005d0c 0x08094000 - 0x08097fff   16KiB r-x--- 8  power
+0x08005d18 0x08098000 - 0x08099fff    8KiB r-x--- 8  power
+0x08005a24 0x0809a000 - 0x0809a0ff     256 r----- 19 control_plane_agent
+0x08005e2c 0x08100000 - 0x081fffff 1024KiB rw--me 14 [bank2] update_server
+0x08005ad8 0x1ff00000 - 0x1ff1ffff  128KiB rw-d-- 2  [system_flash] sys
+-          0x24000000 - 0x240003ff    1KiB rw---- -  kernel
+-          0x24000400 - 0x24000403       4 rw---- -  kernel
+-          0x24000408 - 0x24001fff    6KiB rw---- -  kernel
+0x08005cdc 0x24002000 - 0x24003fff    8KiB rw---- 7  thermal
+0x08005ca0 0x24004000 - 0x24007fff   16KiB rw---- 6  packrat
+0x08005d54 0x24008000 - 0x2400ffff   32KiB rw---- 9  hiffy
+0x08005b74 0x24010000 - 0x2401ffff   64KiB rw---- 1  net
+0x08005ec8 0x24020000 - 0x24027fff   32KiB rw---- 16 host_sp_comms
+0x08005f7c 0x24028000 - 0x2402ffff   32KiB rw---- 19 control_plane_agent
+0x08005fc4 0x24030000 - 0x24037fff   32KiB rw---- 20 sprot
+0x080060cc 0x24038000 - 0x24039fff    8KiB rw---- 24 dump_agent
+0x080061b0 0x2403a000 - 0x2403bfff    8KiB rw---- 27 udprpc
+0x08005d24 0x2403c000 - 0x2403dfff    8KiB rw---- 8  power
+0x08005d78 0x2403e000 - 0x2403ffff    8KiB rw---- 10 gimlet_seq
+0x08005f10 0x24040000 - 0x24041fff    8KiB rw---- 17 udpecho
+0x08005ea4 0x24042000 - 0x24043fff    8KiB rw---- 15 sensor
+0x08006018 0x24044000 - 0x24044fff    4KiB rw---- 21 validate
+0x08005e5c 0x24045000 - 0x24045fff    4KiB rw---- 14 update_server
+0x08005e20 0x24046000 - 0x24046fff    4KiB rw---- 13 hf
+0x08005de4 0x24047000 - 0x24047fff    4KiB rw---- 12 hash_driver
+0x08005bf8 0x24048000 - 0x24048fff    4KiB rw---- 3  spi2_driver
+0x08005c10 0x24049000 - 0x24049fff    4KiB rw---- 4  i2c_driver
+0x08005c58 0x2404a000 - 0x2404afff    4KiB rw---- 5  spd
+0x08005f58 0x2404b000 - 0x2404bfff    4KiB rw---- 18 udpbroadcast
+0x08005b2c 0x2404c000 - 0x2404c7ff    2KiB rw---- 0  jefe
+0x08005db4 0x2404c800 - 0x2404cfff    2KiB rw---- 11 gimlet_inspector
+0x08006138 0x2404d000 - 0x2404d7ff    2KiB rw---- 25 sbrmi
+0x08006060 0x2404d800 - 0x2404dbff    1KiB rw---- 22 vpd
+0x0800609c 0x2404dc00 - 0x2404dfff    1KiB rw---- 23 user_leds
+0x08005bb0 0x2404e000 - 0x2404e3ff    1KiB rw---- 2  sys
+0x0800615c 0x2404e400 - 0x2404e4ff     256 rw---- 26 idle
+0x08005b80 0x30000000 - 0x30003fff   16KiB rw--m- 1  net
+0x08005b38 0x30020000 - 0x3003ffff  128KiB rw--me 0  [sram2] jefe, dump_agent
+0x08005b44 0x30040000 - 0x30047fff   32KiB rw--me 0  [sram3] jefe, dump_agent
+0x08005b50 0x38000000 - 0x3800ffff   64KiB rw--me 0  [sram4] jefe, dump_agent
+0x08005ac0 0x40003800 - 0x40003bff    1KiB rw-d-- 3  [spi2] spi2_driver
+0x08005a78 0x40005400 - 0x400057ff    1KiB rw-d-- 5  [i2c1] spd
+0x08005a84 0x40005800 - 0x40005bff    1KiB rw-d-- 4  [i2c2] i2c_driver
+0x08005a90 0x40005c00 - 0x40005fff    1KiB rw-d-- 4  [i2c3] i2c_driver
+0x08005af0 0x40007800 - 0x40007bff    1KiB rw-d-- 16 [uart7] host_sp_comms
+0x08005afc 0x40011000 - 0x400113ff    1KiB rw-d-- 19 [usart1] control_plane_agent
+0x08005acc 0x40013400 - 0x400137ff    1KiB rw-d-- 20 [spi4] sprot
+0x08005ae4 0x40014400 - 0x400147ff    1KiB rw-d-- 1  [tim16] net
+0x08005a3c 0x40028000 - 0x40028fff    4KiB rw-d-- 1  [eth] net
+0x08005a48 0x40029000 - 0x400293ff    1KiB rw-d-- 1  [eth_dma] net
+0x08005a6c 0x48021400 - 0x480223ff    4KiB rw-d-- 12 [hash] hash_driver
+0x08005a54 0x52002000 - 0x52003fff    8KiB rw-d-- 14 [flash_controller] update_server
+0x08005aa8 0x52005000 - 0x52005fff    4KiB rw-d-- 13 [quadspi] hf
+0x08005a9c 0x58001c00 - 0x58001fff    1KiB rw-d-- 4  [i2c4] i2c_driver
+0x08005a60 0x58020000 - 0x58023fff   16KiB rw-d-- 2  [gpios] sys
+0x08005ab4 0x58024400 - 0x580247ff    1KiB rw-d-- 2  [rcc] sys
+0x08005a30 0x5c001000 - 0x5c00107f     128 rw-d-- 16 [dbgmcu] host_sp_comms

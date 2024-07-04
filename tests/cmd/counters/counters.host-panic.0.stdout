@@ -1,0 +1,62 @@
+control_plane_agent
+ |
+ +---> task_control_plane_agent::CRITICAL:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::__RINGBUF:
+       <no counts recorded>
+gimlet_inspector
+ |
+ +---> task_gimlet_inspector::__COUNTERS:
+       <no counts recorded>
+gimlet_seq
+ |
+ +---> drv_gimlet_seq_server::IPC_REQUESTS:
+ |      3089 GetState
+ |         2 SetState(A0)
+ |         1 SetState(A2)
+ +---> drv_gimlet_seq_server::__RINGBUF:
+       18972 Status
+         663 A0Status
+         446 ClockConfigWrite
+         204 A1Status
+          30 A0Power
+           4 UpdateState(A0)
+           4 UpdateState(A0PlusHP)
+           1 UpdateState(A2)
+           7 V3P3SysA0VOut
+           6 NICPowerEnableLow
+           3 InterruptFlags
+           3 PowerControl
+           3 SMStatus
+           3 PGStatus
+           3 SetState
+           2 UartEnabled
+           2 RailsOn
+           2 A2
+           2 CPUPresent
+           2 Coretype
+           2 A0
+           1 ClockConfigSuccess
+           1 Ice40Rails
+           1 Programming
+           1 IdentValid
+           1 Ice40PowerGoodV1P2
+           1 Reprogram
+           1 ChecksumValid
+           1 Programmed
+           1 A2Status
+           1 Ident
+           1 RailsOff
+           1 Ice40PowerGoodV3P3
+           1 SpdDimmsFound
+thermal
+ |
+ +---> task_thermal::__RINGBUF:
+        1049 ControlPwm
+           7 AutoState(Boot)
+           6 AutoState(Running)
+           6 PowerModeChanged
+           6 FanAdded
+           4 SensorReadFailed
+           1 Start
+           1 ThermalMode(Auto)

@@ -1,0 +1,10 @@
+humility: attached to dump
+humility: WARNING: RecvError matches more than one enum: task_net_api::RecvError as GOFF 0x00026dd1 (object 2), smoltcp::socket::udp::RecvError as GOFF 0x0004ebe0 (object 2)
+humility: WARNING: SendError matches more than one enum: smoltcp::socket::udp::SendError as GOFF 0x00002867 (object 2), task_net_api::SendError as GOFF 0x00026df5 (object 2)
+humility: WARNING: SpiError matches more than one enum: drv_spi_api::SpiError as GOFF 0x000073b7 (object 4), gateway_messages::sp_to_mgs::SpiError as GOFF 0x000102bf (object 4)
+humility: WARNING: SpiError matches more than one enum: drv_spi_api::SpiError as GOFF 0x000073b7 (object 4), gateway_messages::sp_to_mgs::SpiError as GOFF 0x000102bf (object 4)
+humility: WARNING: SpiError matches more than one enum: drv_spi_api::SpiError as GOFF 0x000073b7 (object 4), gateway_messages::sp_to_mgs::SpiError as GOFF 0x000102bf (object 4)
+humility: WARNING: SpiError matches more than one enum: drv_spi_api::SpiError as GOFF 0x000073b7 (object 4), gateway_messages::sp_to_mgs::SpiError as GOFF 0x000102bf (object 4)
+humility: WARNING: SpiError matches more than one enum: drv_spi_api::SpiError as GOFF 0x000073b7 (object 4), gateway_messages::sp_to_mgs::SpiError as GOFF 0x000102bf (object 4)
+humility: WARNING: couldn't find type (Result<f32, NoData>, u64) for Sensor.get_raw_reading
+humility: WARNING: couldn't find type (NoData, u64) for Sensor.get_last_nodata
