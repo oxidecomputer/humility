@@ -234,14 +234,14 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     println!("thread:    {:#x}", data.thread);
 
     if let Some(time) = data.time {
-        let dt = DateTime::from_timestamp(time.sec as i64, time.nsec)
-            .ok_or_else(|| anyhow!("invalid timestamp"))?;
-
         println!(
             "time:      {}.{:09} ({})",
             time.sec,
             time.nsec,
-            dt.to_rfc3339()
+            match DateTime::from_timestamp(time.sec as i64, time.nsec) {
+                Some(dt) => dt.to_rfc3339(),
+                None => format!("invalid timestamp {time:?}"),
+            },
         );
     }
 
