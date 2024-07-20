@@ -88,6 +88,51 @@ pub enum DumpArea {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#[derive(Default, Debug)]
+pub struct DumpBreakdown {
+    pub total: u32,
+    pub used: u32,
+    pub headers: u32,
+    pub segment_headers: u32,
+    pub data_headers: u32,
+    pub registers: u32,
+
+    pub compressed: u32,
+    pub uncompressed: u32,
+    pub segment_padding: u32,
+    pub inverted: u32,
+    pub orphaned: u32,
+}
+
+impl DumpBreakdown {
+    fn new(headers: Vec<DumpAreaHeader>, total: u32) -> Self {
+        Self {
+            total,
+            used: headers.iter().fold(0, |sum, header| sum + header.length),
+            headers: (headers.len() * size_of::<DumpAreaHeader>()) as u32,
+            segment_headers: headers.iter().fold(0, |sum, header| {
+                sum + header.nsegments as u32
+                    * size_of::<DumpSegmentHeader>() as u32
+            }),
+            orphaned: headers
+                .iter()
+                .fold(0, |sum, header| sum + (header.length - header.written)),
+            ..Default::default()
+        }
+    }
+
+    fn add_data(&mut self, compressed: u16, uncompressed: u16, padding: usize) {
+        self.data_headers += size_of::<DumpSegmentData>() as u32;
+        self.compressed += compressed as u32;
+        self.uncompressed += uncompressed as u32;
+        self.segment_padding += padding as u32;
+
+        if compressed > uncompressed {
+            self.inverted += (compressed - uncompressed) as u32;
+        }
+    }
+}
+
 //
 // When using the dump agent, we create our own ersatz Core
 //
@@ -154,14 +199,17 @@ impl DumpAgentCore {
         }
     }
 
-    pub fn process_dump(
+    fn process_dump(
         &mut self,
-        header: &DumpAreaHeader,
+        headers: Vec<DumpAreaHeader>,
+        total: u32,
         dump: &Vec<u8>,
         task: Option<DumpTask>,
-    ) -> Result<()> {
+    ) -> Result<DumpBreakdown> {
+        let header = headers[0];
         let nsegments = header.nsegments;
         let mut offset = nsegments as usize * size_of::<DumpSegmentHeader>();
+        let mut breakdown = DumpBreakdown::new(headers, total);
 
         if offset > dump.len() {
             bail!("in situ dump is short; missing {nsegments} segments");
@@ -211,6 +259,7 @@ impl DumpAgentCore {
                         );
                     }
 
+                    breakdown.registers += size_of::<DumpRegister>() as u32;
                     offset += size_of::<DumpRegister>();
                     continue;
                 }
@@ -239,6 +288,12 @@ impl DumpAgentCore {
                     {
                         offset += 1;
                     }
+
+                    breakdown.add_data(
+                        data.compressed_length,
+                        data.uncompressed_length,
+                        offset - limit,
+                    );
                 }
 
                 DumpSegment::Unknown(signature) => {
@@ -250,7 +305,7 @@ impl DumpAgentCore {
             }
         }
 
-        Ok(())
+        Ok(breakdown)
     }
 }
 
@@ -472,8 +527,12 @@ pub trait DumpAgentExt {
         // Collect chunks into a single vec
         let mut out_data: Vec<u8> = out.into_iter().flatten().collect();
 
-        // Because we read in chunks, we may have extra data at the end here
-        out_data.resize(offset, 0u8);
+        //
+        // Because we read in chunks, we may have extra data at the end here;
+        // truncate our returned data to be the length of the written data
+        // minus the size of the header (it isn't present in out_data).
+        //
+        out_data.truncate((header.written as usize).saturating_sub(size));
 
         Ok((header, out_data))
     }
@@ -516,14 +575,15 @@ pub trait DumpAgentExt {
         area: Option<DumpArea>,
         out: &mut DumpAgentCore,
         verbose: bool,
-    ) -> Result<Option<DumpTask>> {
-        let (base, headers, task) = {
-            // Read dump headers until the first empty header (DUMPER_NONE)
-            let all = self.read_dump_headers(false)?;
+    ) -> Result<(Option<DumpTask>, DumpBreakdown)> {
+        let (total, base, headers, task) = {
+            let all = self.read_dump_headers(true)?;
 
-            if all.is_empty() {
+            if !all.iter().any(|&(h, _)| h.dumper != humpty::DUMPER_NONE) {
                 bail!("no dumps are present");
             }
+
+            let total = all.iter().fold(0, |sum, &(h, _)| sum + h.length);
 
             let area = match area {
                 None => None,
@@ -538,8 +598,10 @@ pub trait DumpAgentExt {
 
             match area {
                 None | Some(0) if all[0].1.is_none() => (
+                    total,
                     0usize,
                     all.iter()
+                        .filter(|&(h, _)| h.dumper != humpty::DUMPER_NONE)
                         .map(|(h, _t)| *h)
                         .collect::<Vec<DumpAreaHeader>>(),
                     None,
@@ -552,7 +614,7 @@ pub trait DumpAgentExt {
                             bail!("area {ndx} is invalid (--list to list)");
                         }
                         Some((task, headers)) => {
-                            (ndx, headers.clone(), Some(*task))
+                            (total, ndx, headers.clone(), Some(*task))
                         }
                     }
                 }
@@ -563,11 +625,12 @@ pub trait DumpAgentExt {
             }
         };
 
-        let total = headers.iter().fold(0, |sum, header| sum + header.written);
+        let written =
+            headers.iter().fold(0, |sum, header| sum + header.written);
 
         let started = Instant::now();
         let bar = if verbose {
-            let bar = ProgressBar::new(total as u64);
+            let bar = ProgressBar::new(written as u64);
             bar.set_style(ProgressStyle::default_bar().template(
                 "humility: pulling [{bar:30}] {bytes}/{total_bytes}",
             ));
@@ -596,7 +659,7 @@ pub trait DumpAgentExt {
         if verbose {
             msg!(
                 "pulled {} in {}",
-                HumanBytes(total as u64),
+                HumanBytes(written as u64),
                 HumanDuration(started.elapsed())
             );
         }
@@ -604,9 +667,9 @@ pub trait DumpAgentExt {
         //
         // We have a dump!  On to processing...
         //
-        out.process_dump(&headers[0], &contents, task)?;
+        let breakdown = out.process_dump(headers, total, &contents, task)?;
 
-        Ok(task)
+        Ok((task, breakdown))
     }
 }
 
