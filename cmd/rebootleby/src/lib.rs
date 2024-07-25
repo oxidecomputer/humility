@@ -42,10 +42,17 @@ fn rebootleby(context: &mut ExecutionContext) -> Result<()> {
     let mut zip =
         ZipArchive::new(bundle_reader).context("opening bundle file as ZIP")?;
 
-    let img_bootleby = {
+    let img_bootleby = if zip.file_names().any(|x| x == "bootleby.bin") {
         let mut entry = zip
             .by_name("bootleby.bin")
             .context("can't find bootleby.bin in bundle")?;
+        let mut data = vec![];
+        entry.read_to_end(&mut data).context("reading bootleby.bin")?;
+        data
+    } else {
+        let mut entry = zip
+            .by_name("img/final.bin")
+            .context("can't find bootleby.bin or img/final.bin in bundle")?;
         let mut data = vec![];
         entry.read_to_end(&mut data).context("reading bootleby.bin")?;
         data
