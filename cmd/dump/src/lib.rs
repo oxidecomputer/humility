@@ -65,7 +65,7 @@
 //! ```
 //!
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -213,7 +213,7 @@ fn emulate_dump(
 
     let mut rnum = 0;
 
-    let r = humpty::dump::<anyhow::Error, 1536, { humpty::DUMPER_EMULATED }>(
+    let r = humpty::dump::<anyhow::Error, 1024, { humpty::DUMPER_EMULATED }>(
         base,
         task,
         || {
@@ -619,9 +619,19 @@ fn dump_via_agent(
             agent.core().set_timeout(std::time::Duration::new(60, 0))?;
 
             //
-            // Tell the thing to take a dump
+            // Tell the thing to take a dump.
             //
-            agent.take_dump()?;
+            if let Err(err) = agent.take_dump() {
+                use humpty::DUMPER_NONE;
+
+                if let Ok(all) = agent.read_dump_headers(true) {
+                    if !all.iter().any(|&(h, _)| h.dumper == DUMPER_NONE) {
+                        return Err(err).context("potentially out of space");
+                    }
+                }
+
+                return Err(err);
+            }
         }
 
         //
