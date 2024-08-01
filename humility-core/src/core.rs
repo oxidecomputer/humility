@@ -626,7 +626,7 @@ impl Core for OpenOCDCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
+        let result = self.sendcmd(&format!("read_memory 0x{:x} 32 1", addr))?;
         Ok(parse_int::parse::<u32>(&result)?)
     }
 
