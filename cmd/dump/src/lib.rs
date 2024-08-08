@@ -97,7 +97,7 @@ struct DumpArgs {
     timeout: u32,
 
     /// show dump agent status
-    #[clap(long, conflicts_with_all = &["simulation", "task", "all"])]
+    #[clap(long, conflicts_with_all = &["simulation", "task", "extract-all"])]
     dump_agent_status: bool,
 
     /// force use of the dump agent when directly attached with a debug probe
@@ -111,12 +111,12 @@ struct DumpArgs {
     /// force manual initiation, leaving target halted
     #[clap(
         long, requires = "force-dump-agent",
-        conflicts_with_all = &["all", "task"]
+        conflicts_with_all = &["extract-all", "task"]
     )]
     force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
-    #[clap(long, conflicts_with_all = &["simulation", "task", "all"])]
+    #[clap(long, conflicts_with_all = &["simulation", "task", "extract-all"])]
     force_read: bool,
 
     /// initialize dump state, clearing any dump at the dump agent
@@ -141,7 +141,7 @@ struct DumpArgs {
     /// in addition to simulating the dumper, generate a stock dump
     #[clap(
         long, requires = "simulation",
-        conflicts_with_all = &["task", "all"],
+        conflicts_with_all = &["task", "extract-all"],
         value_name = "filename",
     )]
     stock_dumpfile: Option<String>,
@@ -154,7 +154,7 @@ struct DumpArgs {
     /// simulates a single-task dump
     #[clap(
         long,
-        conflicts_with_all = &["area", "stock-dumpfile", "list"],
+        conflicts_with_all = &["extract", "stock-dumpfile", "list"],
         requires = "simulate-dumper",
         value_name = "task",
     )]
@@ -163,7 +163,7 @@ struct DumpArgs {
     /// dumps a single task
     #[clap(
         long,
-        conflicts_with_all = &["simulation", "list", "area"],
+        conflicts_with_all = &["simulation", "list", "extract"],
         value_name = "task",
     )]
     task: Option<String>,
@@ -179,7 +179,7 @@ struct DumpArgs {
     #[clap(
         long,
         alias = "all",
-        conflicts_with_all = &["simulation", "list", "area", "task"]
+        conflicts_with_all = &["simulation", "list", "extract", "task"]
     )]
     extract_all: bool,
 
@@ -188,7 +188,7 @@ struct DumpArgs {
     leave_halted: bool,
 
     /// list all dump areas
-    #[clap(long, short, conflicts_with_all = &["simulation", "area"])]
+    #[clap(long, short, conflicts_with_all = &["simulation", "extract"])]
     list: bool,
 
     /// print dump breakdown
