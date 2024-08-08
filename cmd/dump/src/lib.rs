@@ -65,7 +65,7 @@
 //! ```
 //!
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -333,8 +333,6 @@ fn get_dump_agent<'a>(
 }
 
 fn print_dump_breakdown(breakdown: &DumpBreakdown) {
-    println!("{breakdown:#?}");
-
     let w = 30;
     let w2 = 10;
 
@@ -622,15 +620,37 @@ fn dump_via_agent(
             // Tell the thing to take a dump.
             //
             if let Err(err) = agent.take_dump() {
-                use humpty::DUMPER_NONE;
-
+                //
+                // If that fails, it may be because we ran out of space.  Check
+                // our dump headers; if all of them are consumed, assume
+                // that we ran out of space -- and if any of them are consumed,
+                // process whatever we find (some dump is better than none!) and
+                // warn accordingly.
+                //
                 if let Ok(all) = agent.read_dump_headers(true) {
-                    if !all.iter().any(|&(h, _)| h.dumper == DUMPER_NONE) {
-                        return Err(err).context("potentially out of space");
-                    }
-                }
+                    let c = all
+                        .iter()
+                        .filter(|&&(h, _)| h.dumper != humpty::DUMPER_NONE)
+                        .count();
 
-                return Err(err);
+                    if c == all.len() {
+                        humility::warn!(
+                            "dump has indicated failure ({err:?}), but this is \
+                            likely due to space exhaustion; \
+                            dump will be extracted but may be incomplete!"
+                        );
+                    } else if c != 0 {
+                        humility::warn!(
+                            "dump has indicated failure ({err:?}), but some dump \
+                            contents appear to have been written; \
+                            dump will be extracted but may be incomplete!"
+                        );
+                    } else {
+                        return Err(err);
+                    }
+                } else {
+                    return Err(err);
+                }
             }
         }
 
@@ -712,8 +732,6 @@ fn dump_list(
             .iter()
             .filter(|&(h, _)| h.dumper != humpty::DUMPER_NONE)
             .fold(0, |ttl, (h, _)| ttl + h.written);
-
-        println!("{:#x?}", headers);
 
         println!("{:>4} {:21} {:<10} {size}", 0, "<system>", "-");
         return Ok(());
