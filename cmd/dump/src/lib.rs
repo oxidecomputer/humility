@@ -401,7 +401,7 @@ fn dump_via_agent(
     // will discover the task when we actually read our dump headers, so
     // leave it as None for now...
     //
-    let task = match &subargs.simulate_task_dump {
+    let mut task = match &subargs.simulate_task_dump {
         Some(task) => {
             if !subargs.simulate_dumper {
                 bail!("--simulate-task-dump requires --simulate-dumper");
@@ -657,7 +657,8 @@ fn dump_via_agent(
         //
         // If we're here, we have a dump in situ -- time to pull it.
         //
-        let (task, breakdown) = agent.read_dump(area, &mut out, true)?;
+        let (t, breakdown) = agent.read_dump(area, &mut out, true)?;
+        task = t;
 
         print_dump_breakdown(&breakdown);
 
@@ -802,11 +803,13 @@ fn dump_all(
 
             let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
             let started = Some(Instant::now());
-            let (task, _breakdown) = agent.read_dump(
+            let (task, breakdown) = agent.read_dump(
                 Some(DumpArea::ByIndex(*area)),
                 &mut out,
                 true,
             )?;
+            print_dump_breakdown(&breakdown);
+
             assert!(task.is_some());
             hubris.dump(&mut out, task, Some(&dumpfile), started)?;
         }
