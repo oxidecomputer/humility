@@ -187,8 +187,13 @@ struct DumpArgs {
     #[clap(long, conflicts_with = "simulation")]
     leave_halted: bool,
 
+    /// list all dump areas
     #[clap(long, short, conflicts_with_all = &["simulation", "area"])]
     list: bool,
+
+    /// print dump breakdown
+    #[clap(long)]
+    print_dump_breakdown: bool,
 
     dumpfile: Option<String>,
 }
@@ -332,20 +337,35 @@ fn get_dump_agent<'a>(
     }
 }
 
+fn read_dump<'a>(
+    agent: &mut Box<dyn DumpAgent + 'a>,
+    area: Option<DumpArea>,
+    out: &mut DumpAgentCore,
+    subargs: &DumpArgs,
+) -> Result<Option<DumpTask>> {
+    let (task, breakdown) = agent.read_dump(area, out, true)?;
+
+    if subargs.print_dump_breakdown {
+        print_dump_breakdown(&breakdown);
+    }
+
+    Ok(task)
+}
+
 fn print_dump_breakdown(breakdown: &DumpBreakdown) {
     let w = 30;
     let w2 = 10;
 
     let mut total = 0;
 
-    println!("Dump breakdown:");
+    humility::msg!("Dump breakdown:");
 
     let print_val = |str, val| {
-        println!("  {str:<w$} => {val}");
+        humility::msg!("  {str:<w$} => {val}");
     };
 
     let print_signed_val = |str, val| {
-        println!("  {str:<w$} => {val}");
+        humility::msg!("  {str:<w$} => {val}");
     };
 
     let mut print_perc = |str, val, acct| {
@@ -356,7 +376,7 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown) {
             ("total", (val as f32 / breakdown.total as f32) * 100.0)
         };
 
-        println!("  {str:<w$} => {val:<w2$} {perc:>6.2}% of {label}");
+        humility::msg!("  {str:<w$} => {val:<w2$} {perc:>6.2}% of {label}");
     };
 
     print_val("total dump area", breakdown.total);
@@ -369,7 +389,7 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown) {
     print_perc("data padding", breakdown.segment_padding, true);
     print_perc("orphaned", breakdown.orphaned, true);
 
-    println!(
+    humility::msg!(
         "  -------------------------------------\
         --------------------------------"
     );
@@ -378,7 +398,7 @@ fn print_dump_breakdown(breakdown: &DumpBreakdown) {
     print_val("total accounted", total);
     print_signed_val("unaccounted dump area", unaccounted);
 
-    println!();
+    humility::msg!("");
 
     print_val("uncompressed size", breakdown.uncompressed);
     print_val("compressed size", breakdown.compressed);
@@ -539,9 +559,7 @@ fn dump_via_agent(
             {
                 bail!(
                     "there appears to already be one or more dumps in situ; \
-                    list them with --list, clear them with \
-                    --initialize-dump-agent, or force them to be overwritten \
-                    with --force-overwrite"
+                    list them with --list and extract them with --extract-all"
                 )
             }
 
@@ -657,10 +675,7 @@ fn dump_via_agent(
         //
         // If we're here, we have a dump in situ -- time to pull it.
         //
-        let (t, breakdown) = agent.read_dump(area, &mut out, true)?;
-        task = t;
-
-        print_dump_breakdown(&breakdown);
+        task = read_dump(&mut agent, area, &mut out, subargs)?;
 
         //
         // If this was a whole-system dump, we will leave our state initialized
@@ -703,10 +718,11 @@ fn dump_task_via_agent(
         bail!("cannot dump supervisor");
     }
     let area = agent.dump_task(ndx)?;
-    let (task, _breakdown) = agent.read_dump(
+    let task = read_dump(
+        &mut agent,
         Some(DumpArea::ByIndex(area as usize)),
         &mut out,
-        true,
+        subargs,
     )?;
     assert!(task.is_some());
     hubris.dump(&mut out, task, subargs.dumpfile.as_deref(), started)?;
@@ -803,12 +819,12 @@ fn dump_all(
 
             let mut out = DumpAgentCore::new(HubrisFlashMap::new(hubris)?);
             let started = Some(Instant::now());
-            let (task, breakdown) = agent.read_dump(
+            let task = read_dump(
+                &mut agent,
                 Some(DumpArea::ByIndex(*area)),
                 &mut out,
-                true,
+                subargs,
             )?;
-            print_dump_breakdown(&breakdown);
 
             assert!(task.is_some());
             hubris.dump(&mut out, task, Some(&dumpfile), started)?;
