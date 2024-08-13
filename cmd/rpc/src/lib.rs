@@ -60,7 +60,7 @@ use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
@@ -312,9 +312,16 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
         .collect::<Vec<_>>();
 
     let mut seen = BTreeSet::new();
-    for t in threads {
-        let out = t.join().unwrap()?;
-        seen.extend(out.into_iter());
+    for (i, t) in threads.into_iter().enumerate() {
+        let port = ports[i];
+        match t.join().unwrap() {
+            Ok(out) => {
+                seen.extend(out.into_iter());
+            }
+            Err(e) => {
+                humility::warn!("thread for port {port} failed: {e:?}");
+            }
+        }
     }
     if seen.is_empty() {
         humility::msg!("timed out, exiting");
@@ -410,8 +417,11 @@ impl<'a> RpcClient<'a> {
         let mut packet = header.as_bytes().to_vec();
         packet.extend(payload.iter());
 
-        self.socket.send(&packet)?;
-        let n = self.socket.recv(&mut self.buf)?;
+        self.socket.send(&packet).context("unable to send packet")?;
+        let n = self
+            .socket
+            .recv(&mut self.buf)
+            .context("unable to receive packet")?;
         let buf = &self.buf[..n];
 
         if buf[0] != 0 {
@@ -453,10 +463,12 @@ fn rpc_call(
     let timeout = Duration::from_millis(u64::from(timeout));
 
     for &ip in &ips {
-        let mut client = RpcClient::new(hubris, ip, timeout)?;
-        let result = client.call(op, args)?;
+        let mut client = RpcClient::new(hubris, ip, timeout)
+            .context("unable to create RpcClient")?;
+        let result = client.call(op, args).context("unable to make call")?;
         print!("{:25} ", ip);
-        humility_hiffy::hiffy_print_result(hubris, op, result)?;
+        humility_hiffy::hiffy_print_result(hubris, op, result)
+            .context("unable to print result")?;
     }
 
     Ok(())
@@ -547,7 +559,8 @@ fn rpc_run(context: &mut ExecutionContext) -> Result<()> {
         };
 
         let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
-        rpc_call(hubris, &op, &args, ips, subargs.timeout)?;
+        rpc_call(hubris, &op, &args, ips, subargs.timeout)
+            .context("failed to make RPC call")?;
 
         return Ok(());
     }
