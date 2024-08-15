@@ -1525,10 +1525,11 @@ fn open_probe_from_selector(
     {
         if selector.serial_number.is_some() {
             bail!(
-                "Could not find probe {}. Because a serial number is present, \
-                this may be due to not running humility with permission to \
-                read USB device serial numbers; if not root already, run again \
-                as root?",
+                "Could not find probe {}.\n\
+                \n\
+                Because a serial number is present, this may be due to not \
+                running humility with permission to read USB device serial \
+                numbers; if not root already, run again as root?",
                 selector
             );
         } else {
