@@ -1514,6 +1514,31 @@ fn get_usb_probe(index: Option<usize>) -> Result<probe_rs::DebugProbeInfo> {
     }
 }
 
+fn open_probe_from_selector(
+    selector: probe_rs::DebugProbeSelector,
+) -> Result<probe_rs::Probe> {
+    let res = probe_rs::Probe::open(selector.clone());
+
+    if let Err(probe_rs::DebugProbeError::ProbeCouldNotBeCreated(
+        probe_rs::ProbeCreationError::NotFound,
+    )) = res
+    {
+        if selector.serial_number.is_some() {
+            bail!(
+                "Could not find probe {}. Because a serial number is present, \
+                this may be due to not running humility with permission to \
+                read USB device serial numbers; if not root already, run again \
+                as root?",
+                selector
+            );
+        } else {
+            bail!("Could not find probe {}.", selector);
+        }
+    }
+
+    res.map_err(|e| e.into())
+}
+
 #[rustfmt::skip::macros(anyhow, bail)]
 pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
     let (probe, index) = parse_probe(probe);
@@ -1556,7 +1581,7 @@ pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
                 let vid = selector.vendor_id;
                 let pid = selector.product_id;
                 let serial = selector.serial_number.clone();
-                let probe = probe_rs::Probe::open(selector)?;
+                let probe = open_probe_from_selector(selector)?;
                 let name = probe.get_name();
 
                 crate::msg!("Opened {vidpid} via {name}");
@@ -1669,7 +1694,7 @@ pub fn attach_to_chip(
                 let pid = selector.product_id;
                 let serial = selector.serial_number.clone();
 
-                let probe = probe_rs::Probe::open(selector)?;
+                let probe = open_probe_from_selector(selector)?;
                 let name = probe.get_name();
 
                 //
