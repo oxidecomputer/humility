@@ -2962,7 +2962,7 @@ impl HubrisArchive {
                 Some((addr, sym)) if pc < *addr + sym.size => {
                     Some(HubrisStackSymbol {
                         addr: sym.addr,
-                        name: sym.demangled_name.to_owned(),
+                        name: &sym.demangled_name,
                         goff: Some(sym.goff),
                     })
                 }
@@ -2970,7 +2970,7 @@ impl HubrisArchive {
                     Some((addr, (name, len))) if pc < *addr + *len => {
                         Some(HubrisStackSymbol {
                             addr: *addr,
-                            name: name.to_owned(),
+                            name,
                             goff: None,
                         })
                     }
@@ -6356,8 +6356,8 @@ pub enum HubrisTarget {
 
 /// Lightweight stack symbol with either DWARF or ELF symbol info
 #[derive(Clone, Debug)]
-pub struct HubrisStackSymbol {
-    pub name: String,
+pub struct HubrisStackSymbol<'a> {
+    pub name: &'a str,
     pub addr: u32,
     pub goff: Option<HubrisGoff>,
 }
@@ -6365,7 +6365,7 @@ pub struct HubrisStackSymbol {
 #[derive(Clone, Debug)]
 pub struct HubrisStackFrame<'a> {
     pub cfa: u32,
-    pub sym: Option<HubrisStackSymbol>,
+    pub sym: Option<HubrisStackSymbol<'a>>,
     pub registers: BTreeMap<ARMRegister, u32>,
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
