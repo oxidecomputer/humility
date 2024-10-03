@@ -135,6 +135,10 @@ struct TasksArgs {
     #[clap(long, short)]
     stack: bool,
 
+    /// use saved frame pointer to guess at stack trace
+    #[clap(long, requires = "stack")]
+    guess: bool,
+
     /// show line number information with stack backtrace
     #[clap(long, short, requires = "stack")]
     line: bool,
@@ -193,6 +197,7 @@ fn tasks(context: &mut ExecutionContext) -> Result<()> {
         subargs.registers,
         subargs.stack,
         subargs.line,
+        subargs.guess,
         subargs.spin,
         subargs.verbose,
         subargs.task,
@@ -207,6 +212,7 @@ pub fn print_tasks(
     registers: bool,
     stack: bool,
     line: bool,
+    guess: bool,
     spin: bool,
     verbose: bool,
     task_arg: Option<String>,
@@ -426,6 +432,24 @@ pub fn print_tasks(
                     }
                     Err(e) => {
                         writeln!(w, "   could not read registers: {e:?}")?;
+                        if stack {
+                            if guess {
+                                match stack_guess(
+                                    w, core, hubris, t, task_value, &desc,
+                                ) {
+                                    Ok(stack) => printer.print(hubris, &stack),
+                                    Err(e) => writeln!(
+                                        w,
+                                        "   stack unwind failed: {e:?}"
+                                    )?,
+                                }
+                            } else {
+                                writeln!(
+                                    w,
+                                    "   use `--guess` to guess at stack trace"
+                                )?;
+                            }
+                        }
                     }
                 }
             }
@@ -470,6 +494,53 @@ pub fn print_tasks(
     }
 
     Ok(())
+}
+
+fn stack_guess<'a>(
+    w: &'a mut dyn Write,
+    core: &'a mut dyn Core,
+    hubris: &'a HubrisArchive,
+    t: HubrisTask,
+    task_value: &'a reflect::Value,
+    desc: &'a TaskDesc,
+) -> Result<Vec<HubrisStackFrame<'a>>> {
+    writeln!(w, "   guessing at stack trace using saved frame pointer")?;
+    let reflect::Value::Struct(s) = &task_value else {
+        bail!("invalid type for task_value")
+    };
+    let Some(reflect::Value::Struct(save)) = s.get("save") else {
+        bail!("invalid type for save")
+    };
+    let Some(reflect::Value::Base(reflect::Base::U32(addr))) = save.get("r7")
+    else {
+        bail!("invalid type for r7")
+    };
+    let pc = core.read_word_32(*addr + 4)? & !1;
+
+    let mut regs = BTreeMap::new();
+    regs.insert(ARMRegister::R7, *addr);
+    regs.insert(ARMRegister::LR, *addr);
+
+    // Provide a dummy stack value to pick the
+    // correct memory region
+    regs.insert(ARMRegister::SP, desc.initial_stack);
+
+    // See if the previous instruction was a branch;
+    // if so, use that as a fake PC
+    regs.insert(
+        ARMRegister::PC,
+        if let Some(HubrisTarget::Call(t)) =
+            pc.checked_sub(4).and_then(|pc| hubris.instr_target(pc))
+        {
+            t + 4
+        } else {
+            pc
+        },
+    );
+
+    let initial = desc.initial_stack;
+
+    hubris.stack(core, t, initial, &regs)
 }
 
 #[derive(Copy, Clone, Debug)]

@@ -388,6 +388,7 @@ ID TASK                       GEN PRI STATE
 
  6 spi_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
+   use `--guess` to guess at stack trace
    |
    +-----------> 0x200005e8 Task {
                     save: SavedState {

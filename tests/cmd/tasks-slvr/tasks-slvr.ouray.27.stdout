@@ -834,6 +834,7 @@ ID TASK                       GEN PRI STATE
 
 13 idle                         0   5 RUNNING
    could not read registers: register PC not found in dump
+   use `--guess` to guess at stack trace
    |
    +-----------> 0x20000ae0 Task {
                     save: SavedState {

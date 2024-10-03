@@ -258,6 +258,7 @@ ID TASK                       GEN PRI STATE
 
  4 i2c_driver                  52   2 FAULT: stack overflow; sp=0x200027a8 (was: ready)
    could not read registers: read of 32 bytes from invalid address: 0x200027a8
+   use `--guess` to guess at stack trace
    |
    +-----------> 0x20000490 Task {
                     save: SavedState {

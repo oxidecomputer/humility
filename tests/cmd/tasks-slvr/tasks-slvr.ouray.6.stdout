@@ -194,6 +194,7 @@ ID TASK                       GEN PRI STATE
 
  4 i2c_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
+   use `--guess` to guess at stack trace
    |
    +-----------> 0x20000348 Task {
                     save: SavedState {

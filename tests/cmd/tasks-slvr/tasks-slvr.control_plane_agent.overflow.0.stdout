@@ -2,6 +2,7 @@ system time = 6193
 ID TASK                       GEN PRI STATE    
 19 control_plane_agent          1   6 FAULT: stack overflow; sp=0x2402ff90 (was: ready)
    could not read registers: read of 32 bytes from invalid address: 0x2402ff90
+   use `--guess` to guess at stack trace
    |
    +-----------> 0x24001108 Task {
                     save: SavedState {

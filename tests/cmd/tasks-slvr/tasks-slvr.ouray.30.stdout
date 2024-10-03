@@ -386,6 +386,7 @@ ID TASK                       GEN PRI STATE
 
  6 spi_driver                   0   2 notif: bit0(irq84)
    could not read registers: register PC not found in dump
+   use `--guess` to guess at stack trace
    |
    +-----------> 0x20000610 Task {
                     save: SavedState {
