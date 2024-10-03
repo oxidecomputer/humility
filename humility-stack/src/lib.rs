@@ -55,14 +55,13 @@ impl StackPrinter {
                 }
             }
 
-            if let Some(sym) = frame.sym {
-                println!(
-                    "0x{:08x} 0x{:08x} {}",
-                    frame.cfa, *pc, sym.demangled_name
-                );
+            if let Some(sym) = &frame.sym {
+                println!("0x{:08x} 0x{:08x} {}", frame.cfa, *pc, sym.name);
 
                 if self.line {
-                    if let Some(src) = hubris.lookup_src(sym.goff) {
+                    if let Some(src) =
+                        sym.goff.and_then(|g| hubris.lookup_src(g))
+                    {
                         print_indent();
                         println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
                     }

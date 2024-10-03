@@ -2959,14 +2959,29 @@ impl HubrisArchive {
             // Lookup the DWARF symbol associated with our PC
             //
             let sym = match self.dsyms.range(..=pc).next_back() {
-                Some((addr, sym)) if pc < *addr + sym.size => Some(sym),
-                _ => None,
+                Some((addr, sym)) if pc < *addr + sym.size => {
+                    Some(HubrisStackSymbol {
+                        addr: sym.addr,
+                        name: sym.demangled_name.to_owned(),
+                        goff: Some(sym.goff),
+                    })
+                }
+                _ => match self.esyms.range(..=pc).next_back() {
+                    Some((addr, (name, len))) if pc < *addr + *len => {
+                        Some(HubrisStackSymbol {
+                            addr: *addr,
+                            name: name.to_owned(),
+                            goff: None,
+                        })
+                    }
+                    _ => None,
+                },
             };
 
             //
             // Determine if there is, in fact, an inlined stack here.
             //
-            let inlined = match sym {
+            let inlined = match &sym {
                 Some(sym) => {
                     let mut inlined = self.instr_inlined(pc, sym.addr);
                     inlined.reverse();
@@ -6339,10 +6354,18 @@ pub enum HubrisTarget {
     Return,
 }
 
+/// Lightweight stack symbol with either DWARF or ELF symbol info
+#[derive(Clone, Debug)]
+pub struct HubrisStackSymbol {
+    pub name: String,
+    pub addr: u32,
+    pub goff: Option<HubrisGoff>,
+}
+
 #[derive(Clone, Debug)]
 pub struct HubrisStackFrame<'a> {
     pub cfa: u32,
-    pub sym: Option<&'a HubrisSymbol>,
+    pub sym: Option<HubrisStackSymbol>,
     pub registers: BTreeMap<ARMRegister, u32>,
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
