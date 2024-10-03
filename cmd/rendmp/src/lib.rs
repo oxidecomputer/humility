@@ -2693,6 +2693,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
                 }
             }
         }
+        bar.finish_and_clear();
     }
 
     Ok(())

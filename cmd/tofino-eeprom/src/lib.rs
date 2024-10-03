@@ -99,7 +99,7 @@ impl<'a> EepromHandler<'a> {
             }
             bar.set_position(offset as u64);
         }
-
+        bar.finish_and_clear();
         Ok(out)
     }
 

@@ -254,6 +254,7 @@ impl<'a> AuxFlashHandler<'a> {
             bar.set_position(offset as u64);
         }
         bar.set_position(out.len() as u64);
+        bar.finish_and_clear();
 
         Ok(out)
     }
@@ -349,6 +350,7 @@ impl<'a> AuxFlashHandler<'a> {
             bar.set_position(offset as u64);
         }
         bar.set_position(data.len() as u64);
+        bar.finish_and_clear();
         humility::msg!("done");
         Ok(())
     }
