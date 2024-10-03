@@ -236,7 +236,11 @@ ID TASK                       GEN PRI STATE
 
  5 log                          0   3 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: failed to read cfa 0x20004000, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x20003ffc) below range (HubrisRegion { daddr: Some(80047d0), base: 20004000, size: 1000, attr: HubrisRegionAttr { read: true, write: true, execute: true, device: false, dma: false, external: false }, tasks: [Task(6)] })
    |
    +-----------> 0x20000358 Task {
                     save: SavedState {

@@ -194,7 +194,11 @@ ID TASK                       GEN PRI STATE
 
  4 i2c_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x20002400 0x08014130 main
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:248
+   |
    |
    +-----------> 0x20000348 Task {
                     save: SavedState {

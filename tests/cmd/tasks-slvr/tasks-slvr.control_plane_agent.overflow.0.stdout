@@ -2,7 +2,30 @@ system time = 6193
 ID TASK                       GEN PRI STATE    
 19 control_plane_agent          1   6 FAULT: stack overflow; sp=0x2402ff90 (was: ready)
    could not read registers: read of 32 bytes from invalid address: 0x2402ff90
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x24030090 0x08027790 drv_lpc55_update_api::_::<impl serde::de::Deserialize for drv_lpc55_update_api::RotBootInfo>::deserialize
+   |                 @ /hubris/drv/lpc55-update-api/src/lib.rs:102
+   |      0x24030198 0x0802883c <core::result::Result<T,E> as core::ops::try_trait::Try>::branch
+   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/result.rs:1985
+   |      0x24030198 0x0802882e hubpack::de::deserialize
+   |                 @ /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hubpack-0.1.2/src/de.rs:22
+   |      0x24030198 0x0802883c drv_sprot_api::SpRot::rot_boot_info
+   |      0x24030890 0x0801c218 <task_control_plane_agent::mgs_handler::MgsHandler as gateway_messages::sp_impl::SpHandler>::sp_state
+   |                 @ /hubris/task/control-plane-agent/src/mgs_gimlet.rs:556
+   |      0x24030890 0x0801c2aa gateway_messages::sp_impl::handle_mgs_request
+   |                 @ /git/management-gateway-service-749acba834b73294/1885b52/gateway-messages/src/sp_impl.rs:684
+   |      0x24031000 0x08023c8c <core::option::Option<T> as core::ops::try_trait::Try>::branch
+   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/option.rs:2476
+   |      0x24031000 0x08023628 gateway_messages::sp_impl::handle_message
+   |                 @ /git/management-gateway-service-749acba834b73294/1885b52/gateway-messages/src/sp_impl.rs:402
+   |      0x24031000 0x08022b32 <task_control_plane_agent::ServerImpl as idol_runtime::NotificationHandler>::handle_notification
+   |                 @ /hubris/task/control-plane-agent/src/main.rs:253
+   |      0x24031000 0x080229f8 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/52c3758/runtime/src/lib.rs:228
+   |      0x24031000 0x08023c8c main
+   |                 @ /hubris/task/control-plane-agent/src/main.rs:216
+   |
    |
    +-----------> 0x24001108 Task {
                     save: SavedState {

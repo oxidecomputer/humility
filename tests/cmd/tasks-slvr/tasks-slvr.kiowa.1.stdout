@@ -194,7 +194,11 @@ ID TASK                       GEN PRI STATE
 
  4 i2c_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: failed to read cfa 0x20002400, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x200023fc) below range (HubrisRegion { daddr: Some(8004b1c), base: 20002400, size: 400, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false, external: false }, tasks: [Task(5)] })
    |
    +-----------> 0x20000328 Task {
                     save: SavedState {

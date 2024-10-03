@@ -96,7 +96,8 @@ ID TASK                       GEN PRI STATE
 
  2 usart_driver                 0   2 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +-----------> 0x200001e8 Task {
                     save: SavedState {

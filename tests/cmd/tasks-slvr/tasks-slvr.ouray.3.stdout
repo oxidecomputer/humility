@@ -192,7 +192,10 @@ ID TASK                       GEN PRI STATE
 
  4 ping                         1   4 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x20002200 0x00000000
+   |
    |
    +-----------> 0x200002c8 Task {
                     save: SavedState {

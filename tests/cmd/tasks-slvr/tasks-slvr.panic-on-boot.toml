@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.panic-on-boot tasks -slvr"
+args = "-d hubris.core.panic-on-boot tasks -slvr --guess"
 
 status.code = 1

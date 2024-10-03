@@ -6,5 +6,5 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.sprot_status tasks -slvr"
+args = "-d hubris.core.sprot_status tasks -slvr --guess"
 

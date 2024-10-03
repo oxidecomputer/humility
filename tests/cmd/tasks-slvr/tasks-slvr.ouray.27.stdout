@@ -834,7 +834,15 @@ ID TASK                       GEN PRI STATE
 
 13 idle                         0   5 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x2000a900 0x08044054 cortex_m::asm::inline::__wfi
+   |                 @ /home/bmc/.cargo/registry/src/github.com-1ecc6299db9ec823/cortex-m-0.7.2/src/../asm/inline.rs:181
+   |      0x2000a900 0x08044054 cortex_m::asm::wfi
+   |                 @ /home/bmc/.cargo/registry/src/github.com-1ecc6299db9ec823/cortex-m-0.7.2/src/asm.rs:54
+   |      0x2000a900 0x08044054 main
+   |                 @ /home/bmc/hubris/task-idle/src/main.rs:9
+   |
    |
    +-----------> 0x20000ae0 Task {
                     save: SavedState {

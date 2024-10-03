@@ -2,7 +2,41 @@ system time = 76648
 ID TASK                       GEN PRI STATE    
  8 power                        0   6 FAULT: stack overflow; sp=0x24043fa0 (was: ready)
    could not read registers: read of 32 bytes from invalid address: 0x24043fa0
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x24044040 0x08088a20 core::fmt::write
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/fmt/mod.rs:1195
+   |      0x24044090 0x08088a20 core::fmt::write
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/fmt/mod.rs:1195
+   |      0x240440e0 0x0808a8e8 <core::panic::panic_info::PanicInfo as core::fmt::Display>::fmt
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/panic/panic_info.rs:152
+   |      0x240440e0 0x0808a93c <&T as core::fmt::Display>::fmt
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/fmt/mod.rs:2373
+   |      0x24044130 0x08088a20 core::fmt::write
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/fmt/mod.rs:1195
+   |      0x24044168 0x0808a9c8 core::fmt::Write::write_fmt
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/fmt/mod.rs:191
+   |      0x240441a0 0x0808abbc rust_begin_unwind
+   |                 @ /hubris/sys/userlib/src/lib.rs:1298
+   |      0x240441c0 0x08087fca core::panicking::panic_fmt
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/panicking.rs:50
+   |      0x240441e8 0x080895dc drv_i2c_api::I2cDevice::response_code
+   |                 @ /hubris/drv/i2c-api/src/lib.rs:128
+   |      0x24044240 0x080897b6 drv_i2c_api::I2cDevice::read_reg
+   |                 @ /hubris/drv/i2c-api/src/lib.rs:158
+   |      0x240449c8 0x08084a86 <drv_i2c_devices::bmr491::Bmr491 as drv_i2c_devices::TempSensor<drv_i2c_devices::bmr491::Error>>::read_temperature
+   |                 @ /hubris/drv/i2c-devices/src/bmr491.rs:95
+   |      0x240449c8 0x08084a86 task_power::Device::read_temperature
+   |                 @ /hubris/task/power/src/main.rs:101
+   |      0x240449c8 0x08084958 task_power::ServerImpl::handle_timer_fired
+   |                 @ /hubris/task/power/src/main.rs:439
+   |      0x240449c8 0x08084958 <task_power::ServerImpl as idol_runtime::NotificationHandler>::handle_notification
+   |                 @ /hubris/task/power/src/main.rs:627
+   |      0x240449c8 0x08084906 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/f86afe0/runtime/src/lib.rs:228
+   |      0x240449c8 0x08084a90 main
+   |                 @ /hubris/task/power/src/main.rs:411
+   |
    |
    +-----------> 0x240009d0 Task {
                     save: SavedState {

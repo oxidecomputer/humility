@@ -386,7 +386,11 @@ ID TASK                       GEN PRI STATE
 
  6 spi_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x200033e8 0x0801c094 main
+   |                 @ /home/bmc/hubris/drv/stm32h7-spi-server/src/main.rs:74
+   |
    |
    +-----------> 0x20000610 Task {
                     save: SavedState {

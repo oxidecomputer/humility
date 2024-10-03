@@ -6,5 +6,5 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.in_bootloader.0 tasks -slvr"
+args = "-d hubris.core.in_bootloader.0 tasks -slvr --guess"
 

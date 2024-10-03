@@ -2,7 +2,8 @@ system time = 120445
 ID TASK                       GEN PRI STATE    
  0 runner                       0   0 RUNNING
    could not read registers: register PC not found in dump
-   use `--guess` to guess at stack trace
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: Do not have unwind info for the given address.
    |
    +-----------> 0x200000a8 Task {
                     save: SavedState {
