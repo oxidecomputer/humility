@@ -7,4 +7,4 @@
 fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.control_plane_agent.overflow.0 counters ipc --client gimlet_seq --client net"
-
+status.code = 1
