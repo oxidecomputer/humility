@@ -300,7 +300,9 @@ ID TASK                       GEN PRI STATE
    |                 @ /hubris/sys/userlib/src/lib.rs:368
    |      0x240591e8 0x0808e0c4 core::ops::function::FnOnce::call_once
    |                 @ /rustc/4fd4797c2654977f545c9a91e2aa4e6cdbb38919/library/core/src/ops/function.rs:250
-   |      0x240592e8 0x0808db12
+   |      0x240592e8 0x0808db12 core::ptr::read_volatile
+   |                 @ /rustc/4fd4797c2654977f545c9a91e2aa4e6cdbb38919/library/core/src/ptr/mod.rs:1667
+   |      0x240592e8 0x0808db12 drv_stm32xx_i2c::I2cController::operate_as_target
    |      0x24059380 0x0808e2f4 main
    |                 @ /hubris/task/spd/src/main.rs:81
    |
