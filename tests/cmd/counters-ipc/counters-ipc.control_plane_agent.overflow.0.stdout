@@ -1,0 +1,36 @@
+drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS
+ fn Sequencer::get_state() ............................................ 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::enable_clock_raw() ........................................... 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+ fn Sys::leave_reset_raw() ............................................ 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+ fn Sys::gpio_configure_raw() ......................................... 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+
+task_net_api::__NET_CLIENT_COUNTERS
+ fn Net::recv_packet() ................................................ 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+ fn Net::get_mac_address() ............................................ 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::get_identity() ........................................... 1 calls
+    clients:
+    task control_plane_agent ........................... = 0 ........... = 1 ok
+
+

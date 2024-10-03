@@ -1,0 +1,10 @@
+task,variable,variant,count
+control_plane_agent,drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS,get_state,1
+control_plane_agent,drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS,enable_clock_raw(Ok),1
+control_plane_agent,drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS,leave_reset_raw(Ok),1
+control_plane_agent,drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS,gpio_configure_raw,1
+control_plane_agent,task_control_plane_agent::__RINGBUF,Rx,1
+control_plane_agent,task_control_plane_agent::__RINGBUF,MgsMessage(SpState),1
+control_plane_agent,task_net_api::__NET_CLIENT_COUNTERS,recv_packet(Ok),1
+control_plane_agent,task_net_api::__NET_CLIENT_COUNTERS,get_mac_address,1
+control_plane_agent,task_packrat_api::__PACKRAT_CLIENT_COUNTERS,get_identity(Ok),1

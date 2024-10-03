@@ -1,0 +1,2 @@
+ID TASK                STACKBASE  STACKSIZE   MAXDEPTH     MARGIN
+19 control_plane_agent 0x24030000       4096       4092          4

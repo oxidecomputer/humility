@@ -1,0 +1,9 @@
+humility: ring buffer task_control_plane_agent::CRITICAL in control_plane_agent:
+humility: ring buffer task_control_plane_agent::__RINGBUF in control_plane_agent:
+   TOTAL VARIANT
+       1 Rx
+       1 MgsMessage(SpState)
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  561        1        1 Rx(UdpMetadata { addr: Ipv6(Ipv6Address([ 0xfe, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xaa, 0x40, 0x25, 0xff, 0xfe, 0x5, 0x7, 0x2 ])), port: 0x56ce, size: 0xa, vid: Sidecar2 })
+   1  123        1        1 MgsMessage(SpState)
+humility: ring buffer task_control_plane_agent::update::rot::__RINGBUF in control_plane_agent:
