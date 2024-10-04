@@ -83,12 +83,15 @@ fn gdb(context: &mut ExecutionContext) -> Result<()> {
     let gdb_script_path = work_dir.path().join("script.gdb");
     // We moved the gdb file out of the hubris archive because it was
     // preventing reproducible builds. An extraction is non fatal
-    let _ = hubris.extract_file_to("debug/script.gdb", &gdb_script_path);
+    let r = hubris.extract_file_to("debug/script.gdb", &gdb_script_path);
 
     if let Some(path) = subargs.gdb_script {
         // It's possible we overwrite the script in the old archive but
         // that seems like behavior someone would want when actively
-        // passing in a path!
+        // passing in a path; print a warning to that effect
+        if r.is_okay() {
+            warn!("--gdb_script is overriding GDB script in archive");
+        }
         std::fs::copy(path, &gdb_script_path)?;
     }
 
