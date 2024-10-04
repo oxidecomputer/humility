@@ -1607,6 +1607,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-cmd-openocd",
+ "humility-core",
  "tempfile",
 ]
 
