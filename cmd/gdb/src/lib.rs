@@ -47,6 +47,10 @@ struct GdbArgs {
     /// specifies the probe serial number to use with OpenOCD
     #[clap(long, requires = "run_openocd")]
     serial: Option<String>,
+
+    #[clap(long)]
+    /// Path to gdb script to run
+    gdb_script: Option<String>,
 }
 
 fn gdb(context: &mut ExecutionContext) -> Result<()> {
@@ -75,12 +79,23 @@ fn gdb(context: &mut ExecutionContext) -> Result<()> {
             &work_dir.path().join("openocd.gdb"),
         )
         .context("GDB config missing. Is your Hubris build too old?")?;
-    hubris
-        .extract_file_to(
-            "debug/script.gdb",
-            &work_dir.path().join("script.gdb"),
-        )
-        .context("GDB script missing. Is your Hubris build too old?")?;
+
+    let gdb_script_path = work_dir.path().join("script.gdb");
+    // We moved the gdb file out of the hubris archive because it was
+    // preventing reproducible builds. An extraction is non fatal
+    let _ = hubris.extract_file_to("debug/script.gdb", &gdb_script_path);
+
+    if let Some(path) = subargs.gdb_script {
+        // It's possible we overwrite the script in the old archive but
+        // that seems like behavior someone would want when actively
+        // passing in a path!
+        std::fs::copy(path, &gdb_script_path)?;
+    }
+
+    if !gdb_script_path.exists() {
+        bail!("GDB script missing; recent archives don't include it. Pass --gdb-script or use xtask gdb");
+    }
+
     hubris
         .extract_file_to("img/final.elf", &work_dir.path().join("final.elf"))?;
 
