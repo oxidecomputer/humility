@@ -89,8 +89,8 @@ fn gdb(context: &mut ExecutionContext) -> Result<()> {
         // It's possible we overwrite the script in the old archive but
         // that seems like behavior someone would want when actively
         // passing in a path; print a warning to that effect
-        if r.is_okay() {
-            warn!("--gdb_script is overriding GDB script in archive");
+        if r.is_ok() {
+            humility::warn!("--gdb_script is overriding GDB script in archive");
         }
         std::fs::copy(path, &gdb_script_path)?;
     }
