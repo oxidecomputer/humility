@@ -76,7 +76,7 @@ fn make_tests(tests: &[Test], kind: Kind) -> Result<()> {
 
         if let Some(f) = path.file_name() {
             if let Some(s) = f.to_str() {
-                if let Some(name) = s.strip_prefix(&kind.prefix()) {
+                if let Some(name) = s.strip_prefix(kind.prefix()) {
                     input.push((name.to_string(), s.to_string()));
                 }
             }
@@ -112,7 +112,7 @@ fn make_tests(tests: &[Test], kind: Kind) -> Result<()> {
                 let testcmd = if let Some(arg) = test.arg {
                     format!("{} {arg}", test.cmd)
                 } else {
-                    format!("{}", test.cmd)
+                    test.cmd.to_string()
                 };
 
                 writeln!(
