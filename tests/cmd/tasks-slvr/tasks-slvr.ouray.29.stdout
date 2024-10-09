@@ -386,6 +386,10 @@ ID TASK                       GEN PRI STATE
 
  6 spi_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x200033e8 0x00000000
+   |
    |
    +-----------> 0x20000610 Task {
                     save: SavedState {

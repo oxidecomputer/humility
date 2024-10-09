@@ -306,7 +306,8 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
         writeln!(out, "==== Task state")?;
 
         cmd_tasks::print_tasks(
-            &mut out, core, hubris, false, false, false, false, false, None,
+            &mut out, core, hubris, false, false, false, false, false, false,
+            None,
         )?;
     }
     println!("Ran a total of {} cases", ran_cases);

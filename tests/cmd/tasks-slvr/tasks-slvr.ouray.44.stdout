@@ -258,6 +258,39 @@ ID TASK                       GEN PRI STATE
 
  4 i2c_driver                  52   2 FAULT: stack overflow; sp=0x200027a8 (was: ready)
    could not read registers: read of 32 bytes from invalid address: 0x200027a8
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x20002838 0x080160ac <userlib::panic::PrefixWrite as core::fmt::Write>::write_str
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:882
+   |      0x20002840 0x08016160 <&mut W as core::fmt::Write>::write_str
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/fmt/mod.rs:190
+   |      0x20002898 0x080154ca core::fmt::write
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/fmt/mod.rs:1077
+   |      0x200028d0 0x0801559c <&T as core::fmt::Display>::fmt
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/fmt/mod.rs:2012
+   |      0x20002928 0x08015484 core::fmt::write
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/fmt/mod.rs:1077
+   |      0x20002978 0x08015fbc <core::panic::PanicInfo as core::fmt::Display>::fmt
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/panic.rs:168
+   |      0x20002978 0x08016012 <&T as core::fmt::Display>::fmt
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/fmt/mod.rs:2012
+   |      0x200029d0 0x08015484 core::fmt::write
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/fmt/mod.rs:1077
+   |      0x20002a08 0x08016148 core::fmt::Write::write_fmt
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/fmt/mod.rs:183
+   |      0x20002ab8 0x08016386 rust_begin_unwind
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:874
+   |      0x20002ad0 0x08014d7e core::panicking::panic_fmt
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/panicking.rs:77
+   |      0x20002af8 0x08014c1a core::panicking::panic
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/panicking.rs:39
+   |      0x20002b28 0x08014b38 drv_stm32h7_i2c_server::configure_port
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:500
+   |      0x20002c00 0x08014406 drv_stm32h7_i2c_server::configure_muxes
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:598
+   |      0x20002c00 0x08014438 main
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:188
+   |
    |
    +-----------> 0x20000490 Task {
                     save: SavedState {

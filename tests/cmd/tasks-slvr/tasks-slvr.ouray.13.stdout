@@ -258,6 +258,29 @@ ID TASK                       GEN PRI STATE
 
  4 i2c_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x200022e8 0x08015ee0 drv_stm32h7_i2c::max7358::write_reg
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c/src/max7358.rs:90
+   |      0x20002310 0x08016212 <drv_stm32h7_i2c::max7358::Max7358 as drv_stm32h7_i2c::I2cMuxDriver>::enable_segment
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c/src/max7358.rs:164
+   |      0x20002400 0x080147aa drv_stm32h7_i2c_server::configure_mux::{{closure}}
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:110
+   |      0x20002400 0x080147aa drv_stm32h7_i2c_server::find_mux
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:75
+   |      0x20002400 0x080147aa drv_stm32h7_i2c_server::configure_mux
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:102
+   |      0x20002400 0x0801451c drv_stm32h7_i2c_server::main::{{closure}}
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:315
+   |      0x20002400 0x0801451c userlib::hl::recv_without_notification::{{closure}}
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:123
+   |      0x20002400 0x080144c2 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:78
+   |      0x20002400 0x080144c2 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:116
+   |      0x20002400 0x080147c4 main
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:172
+   |
    |
    +-----------> 0x20000488 Task {
                     save: SavedState {

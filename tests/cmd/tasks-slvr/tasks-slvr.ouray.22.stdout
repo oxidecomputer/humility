@@ -386,6 +386,8 @@ ID TASK                       GEN PRI STATE
 
  6 spi_driver                   0   2 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: read of 4 bytes from invalid address: 0x80010003
    |
    +-----------> 0x20000610 Task {
                     save: SavedState {

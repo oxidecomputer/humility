@@ -6,6 +6,6 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.ouray.62 tasks -slvr"
+args = "-d hubris.core.ouray.62 tasks -slvr --guess"
 
 status.code = 1

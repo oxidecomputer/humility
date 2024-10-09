@@ -6,5 +6,5 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.kiowa.50 tasks -slvr"
+args = "-d hubris.core.kiowa.50 tasks -slvr --guess"
 

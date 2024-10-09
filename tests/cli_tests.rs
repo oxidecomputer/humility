@@ -190,7 +190,7 @@ fn make_all_tests() -> Result<()> {
         Test::witharg(Kind::Postmortem, "sensors-read", "sensors", ""),
         Test::basic(Kind::Postmortem, "stackmargin"),
         Test::basic(Kind::Postmortem, "tasks"),
-        Test::witharg(Kind::Postmortem, "tasks-slvr", "tasks", "-slvr"),
+        Test::witharg(Kind::Postmortem, "tasks-slvr", "tasks", "-slvr --guess"),
         Test::basic(Kind::Postmortem, "counters"),
         Test::witharg(Kind::Postmortem, "counters-list", "counters", "list"),
         Test::witharg(Kind::Postmortem, "counters-full", "counters", "--full"),

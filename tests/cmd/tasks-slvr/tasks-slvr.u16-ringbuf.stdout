@@ -2,6 +2,14 @@ system time = 23233
 ID TASK                       GEN PRI STATE    
 10 gimlet_seq                  12   4 FAULT: stack overflow; sp=0x24047fc0 (was: ready)
    could not read registers: read of 32 bytes from invalid address: 0x24047fc0
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x240480c0 0x0807afd4 drv_gimlet_seq_server::ringbuf_entry_v3p3_sys_a0_vout
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:1398
+   |      0x240482b0 0x0807a4c0 drv_gimlet_seq_server::ServerImpl<S>::set_state_internal
+   |      0x24048640 0x08079c2a main
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:145
+   |
    |
    +-----------> 0x24000b20 Task {
                     save: SavedState {

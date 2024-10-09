@@ -6,7 +6,7 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.kiowa.17 tasks -slvr"
+args = "-d hubris.core.kiowa.17 tasks -slvr --guess"
 
 #
 # This dump is somehow short by exactly 6K -- which results in an error

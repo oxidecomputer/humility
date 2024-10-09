@@ -324,6 +324,19 @@ ID TASK                       GEN PRI STATE
 
  5 spd                         61   2 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x20002ba0 0x080190d8 rust_begin_unwind
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:874
+   |      0x20002bb8 0x080182b2 core::panicking::panic_fmt
+   |                 @ /rustc/2987785df3d46d5ff144a5c67fbb8f5cca798d78//library/core/src/panicking.rs:77
+   |      0x20002bf0 0x08018190 core::panicking::panic_bounds_check
+   |                 @ /rustc/2987785df3d46d5ff144a5c67fbb8f5cca798d78//library/core/src/panicking.rs:64
+   |      0x20002bf8 0x08018110 task_spd::Ringbuf<T,_>::entry
+   |                 @ /home/bmc/hubris/task-spd/src/main.rs:114
+   |      0x20002c00 0x080180fa main
+   |                 @ /home/bmc/hubris/task-spd/src/main.rs:117
+   |
    |
    +-----------> 0x200004f8 Task {
                     save: SavedState {

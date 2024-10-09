@@ -244,6 +244,8 @@ ID TASK                       GEN PRI STATE
 
  5 i2c_target                   0   2 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: read of 4 bytes from invalid address: 0x4
    |
    +-----------> 0x200003b8 Task {
                     save: SavedState {

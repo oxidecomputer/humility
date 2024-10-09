@@ -6,5 +6,5 @@
 #
 fs.base = "../cores"
 bin.name = "humility"
-args = "-d hubris.core.duplicate_HostFlash_hash_REPLY tasks -slvr"
+args = "-d hubris.core.duplicate_HostFlash_hash_REPLY tasks -slvr --guess"
 

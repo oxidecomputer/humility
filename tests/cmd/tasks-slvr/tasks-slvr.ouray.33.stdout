@@ -2,6 +2,10 @@ system time = 289452420
 ID TASK                       GEN PRI STATE    
  0 jefe                         0   0 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   |
+   +--->  0x20001400 0x00000000
+   |
    |
    +-----------> 0x200001a8 Task {
                     save: SavedState {

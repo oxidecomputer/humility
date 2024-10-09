@@ -96,6 +96,11 @@ ID TASK                       GEN PRI STATE
 
  2 usart_driver                 0   2 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: failed to read cfa 0x20001be0, offset 0xfffffffffffffffc: []
+
+Caused by:
+    address (0x20001bdc) below range (HubrisRegion { daddr: Some(800476c), base: 20001c00, size: 400, attr: HubrisRegionAttr { read: true, write: true, execute: true, device: false, dma: false, external: false }, tasks: [Task(3)] })
    |
    +-----------> 0x200001e8 Task {
                     save: SavedState {

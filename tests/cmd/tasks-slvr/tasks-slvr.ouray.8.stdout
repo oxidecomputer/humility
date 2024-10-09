@@ -528,6 +528,8 @@ ID TASK                       GEN PRI STATE
 
 11 idle                         0   5 RUNNING
    could not read registers: register PC not found in dump
+   guessing at stack trace using saved frame pointer
+   stack unwind failed: read of 4 bytes from invalid address: 0x4
    |
    +-----------> 0x20000678 Task {
                     save: SavedState {
