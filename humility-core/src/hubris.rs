@@ -799,7 +799,7 @@ impl HubrisArchive {
         // is less than our base.
         //
         for (&(addr, _depth), (len, goff, origin)) in
-            self.inlined.range(..=(pc, std::isize::MAX)).rev()
+            self.inlined.range(..=(pc, isize::MAX)).rev()
         {
             if addr + len < base {
                 break;
@@ -3046,7 +3046,7 @@ impl HubrisArchive {
             return Ok(v.size);
         }
 
-        if self.ptrtypes.get(&goff).is_some() {
+        if self.ptrtypes.contains_key(&goff) {
             return Ok(4);
         }
 
@@ -3970,7 +3970,7 @@ impl HubrisObjectLoader {
             // If this is a zero-sized symbol or not against an allocated
             // section (e.g., .idolatry), we don't want to keep track of it.
             //
-            if sym.st_size == 0 || allocs.get(&sym.st_shndx).is_none() {
+            if sym.st_size == 0 || !allocs.contains(&sym.st_shndx) {
                 continue;
             }
 

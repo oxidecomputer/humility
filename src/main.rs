@@ -19,7 +19,7 @@ mod cmd;
 mod cmd_repl;
 
 fn main() -> Result<()> {
-    let (commands, m, args) = match parse_args(&mut std::env::args_os()) {
+    let (commands, m, args) = match parse_args(std::env::args_os()) {
         Some(s) => s,
         None => std::process::exit(1),
     };

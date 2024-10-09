@@ -157,7 +157,7 @@ fn rpc_listen_one(
     interface: u32,
     port: u32,
 ) -> Result<BTreeSet<Target>> {
-    let socket = match UdpSocket::bind(&format!("[::]:{port}")) {
+    let socket = match UdpSocket::bind(format!("[::]:{port}")) {
         Ok(s) => s,
         Err(e) => {
             if e.kind() == std::io::ErrorKind::PermissionDenied {

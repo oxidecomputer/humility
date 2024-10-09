@@ -270,7 +270,7 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
                         Ok("progressing")
                     }
                 })
-                .map_or_else(|_| "unable to step", |s| s)
+                .unwrap_or("unable to step")
                 .to_string();
             core.run()?;
             rval
