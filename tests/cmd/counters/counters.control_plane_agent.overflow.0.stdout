@@ -1,0 +1,34 @@
+control_plane_agent
+ |
+ +---> drv_gimlet_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |         1 get_state
+ +---> drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32h7_update_api::__UPDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         1 enable_clock_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ |         1 gpio_configure_raw
+ +---> drv_user_leds_api::__USERLEDS_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::CRITICAL:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::__RINGBUF:
+ |         1 Rx
+ |         1 MgsMessage(SpState)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |         1 recv_packet(Ok)
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |         1 get_identity(Ok)
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_validate_api::__VALIDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_vpd_api::__VPD_CLIENT_COUNTERS:
+       <no counts recorded>

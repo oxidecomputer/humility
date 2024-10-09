@@ -1,0 +1,22 @@
+humility: attached to dump
+humility: WARNING: couldn't find type Option<(Result<f32, NoData>, u64)> for Sensor.get_raw_reading
+humility: WARNING: couldn't find type Option<(NoData, u64)> for Sensor.get_last_nodata
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
+humility: WARNING: SprotError matches more than one enum: attest_data::messages::SprotError as GOFF 0x00039350 (object 21), drv_sprot_api::error::SprotError as GOFF 0x00044a4a (object 21)
