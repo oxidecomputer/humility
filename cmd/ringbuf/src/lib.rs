@@ -161,7 +161,7 @@ fn ringbuf_dump(
             // system, and can't easily be compared. Therefore, sort them by the
             // value of the counter, so the most frequently recorded variants
             // are displayed first.
-            counters.sort_unstable_by(
+            counters.sort_by(
                 &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
                     a.total().cmp(&b.total()).reverse()
                 },

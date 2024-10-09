@@ -512,14 +512,12 @@ fn counters_dump_csv(
 ) {
     // Sort the counters.
     match opts.sort {
-        Some(Order::Value) => counters.sort_unstable_by(
+        Some(Order::Value) => counters.sort_by(
             &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
                 a.total().cmp(&b.total()).reverse()
             },
         ),
-        Some(Order::Alpha) => {
-            counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b))
-        }
+        Some(Order::Alpha) => counters.sort_by(&mut |a, _, b, _| a.cmp(b)),
         _ => {}
     }
 
@@ -574,13 +572,13 @@ fn counter_dump(counters: &mut Counters, opts: &Options, pad: &str) {
         // Therefore, sort by value by default, so the highest-valued counters
         // are shown first.
         Options { sort: Some(Order::Value), .. }
-        | Options { sort: None, full: false, .. } => counters.sort_unstable_by(
+        | Options { sort: None, full: false, .. } => counters.sort_by(
             &mut |_, a: &CounterVariant, _, b: &CounterVariant| {
                 a.total().cmp(&b.total()).reverse()
             },
         ),
         Options { sort: Some(Order::Alpha), .. } => {
-            counters.sort_unstable_by(&mut |a, _, b, _| a.cmp(b))
+            counters.sort_by(&mut |a, _, b, _| a.cmp(b))
         }
     }
 

@@ -10,29 +10,29 @@ humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
        5 UpdateState(A2)
        1 UpdateState(A0PlusHP)
       11 SetState
-      11 InterruptFlags
-      11 PowerControl
-      11 SMStatus
       11 PGStatus
-       6 UartEnabled
-       6 RailsOn
+      11 SMStatus
+      11 PowerControl
+      11 InterruptFlags
        6 A2
        6 CPUPresent
        6 Coretype
+       6 RailsOn
+       6 UartEnabled
        6 A0
-       1 Reprogram
        1 Ice40Rails
-       1 NICPowerEnableLow
-       1 Programming
        1 IdentValid
-       1 Ice40PowerGoodV1P2
-       1 ClockConfigSuccess
        1 ChecksumValid
+       1 Reprogram
        1 Programmed
-       1 A2Status
-       1 Ident
-       1 RailsOff
+       1 Programming
+       1 Ice40PowerGoodV1P2
        1 Ice40PowerGoodV3P3
+       1 RailsOff
+       1 Ident
+       1 A2Status
+       1 NICPowerEnableLow
+       1 ClockConfigSuccess
        1 SpdDimmsFound
  NDX LINE      GEN    COUNT PAYLOAD
  101  729        1       11 A0Status(0x1)

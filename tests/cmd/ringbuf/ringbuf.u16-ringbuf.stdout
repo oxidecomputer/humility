@@ -1,7 +1,7 @@
 humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
    TOTAL VARIANT
      446 ClockConfigWrite
-       1 SetState
+       1 Ice40Rails
        1 IdentValid(false)
        1 ChecksumValid(false)
        1 Reprogram(true)
@@ -13,10 +13,10 @@ humility: ring buffer drv_gimlet_seq_server::__RINGBUF in gimlet_seq:
        1 Ident
        1 A2Status
        1 A2
-       1 SpdDimmsFound
-       1 V3P3SysA0VOut
+       1 SetState
        1 ClockConfigSuccess
-       1 Ice40Rails
+       1 V3P3SysA0VOut
+       1 SpdDimmsFound
  NDX LINE      GEN    COUNT PAYLOAD
    0  264        1        1 Ice40Rails(true, true)
    1  293        1        1 Ice40PowerGoodV1P2(true)
