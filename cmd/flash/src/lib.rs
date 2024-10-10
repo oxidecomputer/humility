@@ -121,12 +121,17 @@ fn force_openocd(
     };
 
     let payload = match &config.program {
-        FlashProgram::OpenOcd(payload) => payload,
-        _ => {
+        Some(FlashProgram::OpenOcd(payload)) => payload,
+        Some(other) => {
             bail!(
                 "cannot force OpenOCD for non-OpenOCD \
-                flash configuration: {:?}",
-                config.program
+                flash configuration: {other:?}",
+            );
+        }
+        None => {
+            bail!(
+                "cannot force OpenOCD, this archive was \
+                built after support was removed"
             );
         }
     };

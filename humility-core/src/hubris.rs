@@ -40,7 +40,7 @@ const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
-const MAX_HUBRIS_VERSION: u32 = 8;
+const MAX_HUBRIS_VERSION: u32 = 9;
 
 #[derive(Default, Debug, Serialize)]
 pub struct HubrisManifest {
@@ -498,8 +498,12 @@ pub enum FlashArgument {
 
 #[derive(Debug, Deserialize)]
 pub struct HubrisFlashMeta {
-    pub program: FlashProgram,
+    /// Legacy flash program. Not included in new archives.
+    pub program: Option<FlashProgram>,
+    /// Arguments for legacy flash program, or empty if not used.
+    #[serde(default)]
     pub args: Vec<FlashArgument>,
+    /// Chip name used by probe-rs.
     pub chip: Option<String>,
 }
 
@@ -1548,25 +1552,20 @@ impl HubrisArchive {
             }};
         }
 
-        let mut flash = String::new();
-
-        archive
-            .by_name("img/flash.ron")
-            .map_err(|_| {
-                anyhow!(
+        let flash_ron = archive.by_name("img/flash.ron").map_err(|_| {
+            anyhow!(
                 "could not find img/flash.ron in archive; \
                 does archive pre-date addition of flash information?"
             )
-            })?
-            .read_to_string(&mut flash)?;
+        })?;
 
-        let config: HubrisFlashMeta = ron::from_str(&flash)?;
+        let config: HubrisFlashMeta = ron::de::from_reader(flash_ron)?;
 
         // This is incredibly ugly! It also gives us backwards compatibility!
         let chip: Option<String> = match config.chip {
             Some(ref chip) => Some(chip.to_string()),
             None => match &config.program {
-                FlashProgram::PyOcd(args) => {
+                Some(FlashProgram::PyOcd(args)) => {
                     let s69 = regex::Regex::new(r"lpc55s69").unwrap();
                     let s28 = regex::Regex::new(r"lpc55s28").unwrap();
                     let mut c: Option<String> = None;
@@ -1589,7 +1588,7 @@ impl HubrisArchive {
                     }
                     c
                 }
-                FlashProgram::OpenOcd(ref a) => match a {
+                Some(FlashProgram::OpenOcd(ref a)) => match a {
                     FlashProgramConfig::Payload(d) => {
                         let h7 =
                             regex::Regex::new(r"find target/stm32h7").unwrap();
@@ -1624,6 +1623,10 @@ impl HubrisArchive {
                     }
                     _ => bail!("Unexpected config?"),
                 },
+                None => {
+                    bail!("archive flash.ron is missing both probe-rs chip \
+                        name and legacy flash config");
+                }
             },
         };
 

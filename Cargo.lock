@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "humility"
-version = "0.11.11"
+version = "0.11.12"
 dependencies = [
  "anyhow",
  "bitfield",
