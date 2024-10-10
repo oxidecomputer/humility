@@ -61,31 +61,31 @@ gimlet_seq
  |         2 UpdateState(A0PlusHP)
  |         3 NICPowerEnableLow
  |         2 V3P3SysA0VOut
- |         1 RailsOn
- |         1 SetState
+ |         1 Ice40Rails
+ |         1 IdentValid(false)
+ |         1 ChecksumValid(false)
+ |         1 Reprogram(true)
+ |         1 Programmed
+ |         1 Programming
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 Ice40PowerGoodV3P3(true)
  |         1 RailsOff
  |         1 Ident
  |         1 A2Status
  |         1 A2
- |         1 SpdDimmsFound
- |         1 ChecksumValid(false)
  |         1 CPUPresent(true)
  |         1 Coretype
- |         1 IdentValid(false)
- |         1 Ice40PowerGoodV1P2(true)
- |         1 Ice40Rails
+ |         1 RailsOn
  |         1 UartEnabled
  |         1 A0
- |         1 Ice40PowerGoodV3P3(true)
- |         1 Programming
- |         1 Programmed
+ |         1 SetState
  |         1 ClockConfigSuccess
- |         1 Reprogram(true)
  |         1 PGStatus
  |         1 SMStatus
  |         1 NICStatus
- |         1 InterruptFlags
  |         1 PowerControl
+ |         1 InterruptFlags
+ |         1 SpdDimmsFound
  +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
  |     67580 exchange(Ok)
  |       530 write(Ok)

@@ -366,15 +366,15 @@ fn lookup<'a>(
 ///
 /// The humility hiffy cmd accepts multiple encodings of array arguments:
 /// - When passed a string of characters like `--arguments array=5432` the
-/// string is passed to the operation 'as_bytes'. An idol op that takes a
-/// 4 byte array will receive [ 53, 52, 51, 50 ] given the argument string
-/// above. This is intended as a mechanism for passing ASCII characters to a
-/// task.
+///   string is passed to the operation 'as_bytes'. An idol op that takes a
+///   4 byte array will receive [ 53, 52, 51, 50 ] given the argument string
+///   above. This is intended as a mechanism for passing ASCII characters to a
+///   task.
 /// - To pass an array that's interpreted as the decimal representation of
-/// bytes instead of ASCII, provide the array as a string enclosed in square
-/// brackets with each array element separated by a space. The argument string
-/// `--argument array=[37 1 255 127]` will result in the task receiving the
-/// byte array `[ 37, 1, 255, 127 ]`.
+///   bytes instead of ASCII, provide the array as a string enclosed in square
+///   brackets with each array element separated by a space. The argument string
+///   `--argument array=[37 1 255 127]` will result in the task receiving the
+///   byte array `[ 37, 1, 255, 127 ]`.
 fn bytes_from_str(value: &str) -> Result<Vec<u8>> {
     if value.starts_with('[') && value.ends_with(']') {
         // use double ended iterator to drop first and last chars

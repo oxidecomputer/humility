@@ -14,6 +14,7 @@
 //! - Sidecar
 //! - PSC
 //! - `gimletlet-mgmt`
+//!
 //! These PCAs have the KSZ8463 switch + VSC85x2 PHY which is our standard
 //! management network interface.
 //!

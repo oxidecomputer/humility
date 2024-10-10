@@ -63,9 +63,9 @@
 //! The derived `Load` impls do not require _exact_ type match. In particular,
 //!
 //! - A struct will match even if it contains more fields than your Rust
-//! version, and
+//!   version, and
 //! - An enum will match even if you define variants that don't exist in the
-//! program.
+//!   program.
 //!
 //! This is deliberate, and is intended to help interpret programs across ABI
 //! changes. If you implement a `Load` impl by hand, you should try to emulate
@@ -508,9 +508,9 @@ impl Struct {
 
     /// Returns a reference to the value of the member named `name`, if it
     /// exists, or `None`, if no member with that name exists.
-    pub fn get<Q: ?Sized>(&self, name: &Q) -> Option<&Value>
+    pub fn get<Q>(&self, name: &Q) -> Option<&Value>
     where
-        Q: std::hash::Hash + indexmap::Equivalent<String>,
+        Q: std::hash::Hash + indexmap::Equivalent<String> + ?Sized,
     {
         self.members.get(name).map(Box::as_ref)
     }
@@ -600,7 +600,7 @@ impl Format for Tuple {
         // Is this a bitflags-generated type? If so, just format it as a binary
         // value.
         if self.name().contains("InternalBitFlags") {
-            if let Some(flags) = self.1.get(0).and_then(|v| v.as_base().ok()) {
+            if let Some(flags) = self.1.first().and_then(|v| v.as_base().ok()) {
                 write!(out, "{flags:#b}")?;
                 return Ok(());
             }

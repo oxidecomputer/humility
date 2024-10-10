@@ -10,28 +10,28 @@ gimlet_seq
          102 A1Status
           15 A0Power
            2 V3P3SysA0VOut
-           1 SMStatus
-           1 SetState
+           1 Ice40Rails
+           1 IdentValid
+           1 ChecksumValid
+           1 Reprogram
+           1 Programmed
+           1 Programming
+           1 Ice40PowerGoodV1P2
+           1 Ice40PowerGoodV3P3
            1 RailsOff
            1 Ident
            1 A2Status
            1 A2
-           1 SpdDimmsFound
-           1 Ice40PowerGoodV1P2
-           1 IdentValid
            1 CPUPresent
            1 Coretype
-           1 Programmed
-           1 Ice40Rails
-           1 InterruptFlags
            1 RailsOn
            1 UartEnabled
-           1 Ice40PowerGoodV3P3
-           1 UpdateState(A0)
            1 A0
-           1 Reprogram
+           1 SetState
+           1 UpdateState(A0)
            1 ClockConfigSuccess
-           1 ChecksumValid
            1 PGStatus
-           1 Programming
+           1 SMStatus
            1 PowerControl
+           1 InterruptFlags
+           1 SpdDimmsFound

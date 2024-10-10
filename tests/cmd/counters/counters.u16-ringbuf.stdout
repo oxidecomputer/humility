@@ -4,7 +4,7 @@ gimlet_seq
  |     <no counts recorded>
  +---> drv_gimlet_seq_server::__RINGBUF:
  |       446 ClockConfigWrite
- |         1 SetState
+ |         1 Ice40Rails
  |         1 IdentValid(false)
  |         1 ChecksumValid(false)
  |         1 Reprogram(true)
@@ -16,10 +16,10 @@ gimlet_seq
  |         1 Ident
  |         1 A2Status
  |         1 A2
- |         1 SpdDimmsFound
- |         1 V3P3SysA0VOut
+ |         1 SetState
  |         1 ClockConfigSuccess
- |         1 Ice40Rails
+ |         1 V3P3SysA0VOut
+ |         1 SpdDimmsFound
  +---> drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
  |     <no counts recorded>
  +---> drv_spi_api::__SPI_CLIENT_COUNTERS:

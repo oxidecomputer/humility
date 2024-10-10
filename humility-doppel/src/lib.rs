@@ -483,7 +483,7 @@ impl Counters {
         self.counts.values().map(CounterVariant::total).sum()
     }
 
-    pub fn sort_unstable_by(
+    pub fn sort_by(
         &mut self,
         cmp: &mut impl FnMut(
             &String,
@@ -494,10 +494,10 @@ impl Counters {
     ) {
         for v in self.counts.values_mut() {
             if let CounterVariant::Nested(ref mut c) = v {
-                c.sort_unstable_by(cmp);
+                c.sort_by(cmp);
             }
         }
-        self.counts.sort_unstable_by(cmp);
+        self.counts.sort_by(cmp);
     }
 
     pub fn display_padded<'a>(

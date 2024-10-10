@@ -203,7 +203,7 @@ impl DumpAgentCore {
         &mut self,
         headers: Vec<DumpAreaHeader>,
         total: u32,
-        dump: &Vec<u8>,
+        dump: &[u8],
         task: Option<DumpTask>,
     ) -> Result<DumpBreakdown> {
         let header = headers[0];

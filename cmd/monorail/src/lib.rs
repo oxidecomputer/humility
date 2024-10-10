@@ -756,7 +756,7 @@ fn monorail_status(
         Value::Enum(m) => {
             let mode = m.disc().to_uppercase();
             let speed = m.contents().and_then(|speed| match speed {
-                Value::Tuple(t) => t.get(0).map(|t| match t {
+                Value::Tuple(t) => t.first().map(|t| match t {
                     Value::Enum(t) => t.disc().replace("Speed", ""),
                     v => panic!("Expected enum, got {:?}", v),
                 }),

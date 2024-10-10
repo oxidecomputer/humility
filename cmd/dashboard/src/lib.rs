@@ -79,7 +79,7 @@ impl StatefulList {
 
     fn previous(&mut self) {
         self.state.select(match self.state.selected() {
-            Some(ndx) if ndx == 0 => Some(self.n - 1),
+            Some(0) => Some(self.n - 1),
             Some(ndx) => Some(ndx - 1),
             None => Some(0),
         });
@@ -114,8 +114,6 @@ trait Attributes {
     fn decrease(&mut self, _ndx: usize) -> Option<u8> {
         None
     }
-
-    fn clear(&mut self) {}
 }
 
 struct TempGraph;
@@ -184,12 +182,6 @@ impl Attributes for FanGraph {
 
         self.0[ndx] = if nval >= 0 { nval as u8 } else { 0 };
         Some(self.0[ndx])
-    }
-
-    fn clear(&mut self) {
-        for val in self.0.iter_mut() {
-            *val = 0;
-        }
     }
 }
 

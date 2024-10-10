@@ -1040,7 +1040,7 @@ impl GDBCore {
                 //
                 let val = u64::from_le_bytes(buf[..].try_into().unwrap());
 
-                if val > std::u32::MAX.into() {
+                if val > u32::MAX.into() {
                     Err(anyhow!("bad 64-bit return on cmd {}: {}", cmd, rstr))
                 } else {
                     Ok(val as u32)

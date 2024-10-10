@@ -60,31 +60,31 @@ gimlet_seq
  |         2 UpdateState(A0)
  |         1 UpdateState(A2)
  |         1 UpdateState(A0PlusHP)
- |         3 InterruptFlags
- |         3 PowerControl
- |         3 SMStatus
- |         3 PGStatus
  |         3 SetState
- |         2 A0
+ |         3 PGStatus
+ |         3 SMStatus
+ |         3 PowerControl
+ |         3 InterruptFlags
  |         2 A2
- |         2 UartEnabled
- |         2 RailsOn
  |         2 CPUPresent(true)
  |         2 Coretype
- |         1 A2Status
- |         1 Programming
- |         1 IdentValid(false)
- |         1 SpdDimmsFound
- |         1 ChecksumValid(false)
+ |         2 RailsOn
+ |         2 UartEnabled
+ |         2 A0
  |         1 Ice40Rails
- |         1 Ident
- |         1 RailsOff
- |         1 ClockConfigSuccess
- |         1 Ice40PowerGoodV3P3(true)
- |         1 Ice40PowerGoodV1P2(true)
- |         1 NICPowerEnableLow
+ |         1 IdentValid(false)
+ |         1 ChecksumValid(false)
  |         1 Reprogram(true)
  |         1 Programmed
+ |         1 Programming
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 Ice40PowerGoodV3P3(true)
+ |         1 RailsOff
+ |         1 Ident
+ |         1 A2Status
+ |         1 NICPowerEnableLow
+ |         1 ClockConfigSuccess
+ |         1 SpdDimmsFound
  +---> drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
  |       667 get_state
  |         3 set_state(Ok)
