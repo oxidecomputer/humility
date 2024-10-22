@@ -1559,7 +1559,9 @@ impl HubrisArchive {
             )
         })?;
 
-        let config: HubrisFlashMeta = ron::de::from_reader(flash_ron)?;
+        let config: HubrisFlashMeta = ron::options::Options::default()
+            .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+            .from_reader(flash_ron)?;
 
         // This is incredibly ugly! It also gives us backwards compatibility!
         let chip: Option<String> = match config.chip {
