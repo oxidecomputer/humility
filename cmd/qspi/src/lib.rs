@@ -149,6 +149,7 @@ struct QspiArgs {
     /// specify flash address in bytes
     #[clap(long, short, value_name = "address",
         parse(try_from_str = parse_int::parse),
+        conflicts_with("writefile"),
     )]
     addr: Option<usize>,
 
@@ -251,6 +252,7 @@ fn deltas(
     device: &QspiDevice,
     filename: &str,
     compare: &[(u32, Vec<u8>)],
+    base_addr: u32,
     mut diff: impl FnMut(u32, &[u8]) -> Result<()>,
 ) -> Result<()> {
     let filelen = fs::metadata(filename)?.len() as u32;
@@ -261,8 +263,9 @@ fn deltas(
     for (c, result) in compare {
         let mut buf = vec![0u8; device.sector_size as usize];
 
-        if offset != *c {
-            bail!("mismatched offset; expected {}, found {}", offset, c);
+        let addr = base_addr + offset;
+        if addr != *c {
+            bail!("mismatched offset; expected {addr}, found {c}");
         }
 
         let len = if offset + device.sector_size > filelen {
@@ -278,7 +281,7 @@ fn deltas(
         let sum = hasher.finalize();
 
         if !sum.iter().eq(result.iter()) {
-            diff(offset, &buf[..len as usize])?;
+            diff(addr, &buf[..len as usize])?;
         }
 
         offset += device.sector_size;
@@ -811,7 +814,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             let results = context.run(core, ops.as_slice(), Some(&buf))?;
 
             if updates % update_cycle == 0 {
-                bar.set_position((address).into());
+                bar.set_position((nbytes - (end_address - address)).into());
             }
             updates += 1;
 
@@ -852,7 +855,13 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         // We are going to hash the contents to find the differences, and
         // then erase/flash the different sectors.
         //
-        let mut address = 0u32;
+        let base_addr = subargs.addr.unwrap_or(0) as u32;
+        if base_addr % SECTOR_SIZE != 0 {
+            bail!(
+                "base address (`--addr {base_addr:#x}`) must be divisible by \
+                 sector size ({SECTOR_SIZE:#x})"
+            );
+        }
         let mut sums = vec![];
 
         let bar = ProgressBar::new(filelen as u64);
@@ -862,29 +871,26 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
                 .template("humility: hashing [{bar:30}] {bytes}/{total_bytes}"),
         );
 
+        let mut offset = 0u32;
         loop {
             let mut ops = vec![];
-            let max = 8;
-            let mut laps = 0;
-            let base = address;
+            bar.set_position(offset as u64);
+            let base = base_addr + offset;
 
-            bar.set_position(address.into());
-
-            loop {
-                let len = if address + SECTOR_SIZE > filelen {
-                    filelen - address
+            for _lap in 0..8 {
+                let len = if offset + SECTOR_SIZE > filelen {
+                    filelen - offset
                 } else {
                     SECTOR_SIZE
                 };
 
-                ops.push(Op::Push32(address));
+                ops.push(Op::Push32(base_addr + offset));
                 ops.push(Op::Push32(len));
                 ops.push(Op::Call(qspi_hash.id));
 
-                laps += 1;
-                address += len;
+                offset += len;
 
-                if address >= filelen || laps >= max {
+                if offset >= filelen {
                     break;
                 }
             }
@@ -910,7 +916,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
                 }
             }
 
-            if address + SECTOR_SIZE >= filelen {
+            if offset + SECTOR_SIZE >= filelen {
                 break;
             }
         }
@@ -921,8 +927,8 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let mut bufs: Vec<Vec<u8>> = vec![];
         let mut nbytes = 0;
 
-        deltas(&device, &filename, &sums, |offset, buf| {
-            sectors.push(offset);
+        deltas(&device, &filename, &sums, base_addr, |addr, buf| {
+            sectors.push(addr);
             bufs.push(buf.to_vec());
             nbytes += buf.len();
             Ok(())
