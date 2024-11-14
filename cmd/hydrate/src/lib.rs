@@ -13,6 +13,7 @@
 
 use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, IntoApp, Parser};
+use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
@@ -30,6 +31,7 @@ struct Args {
 }
 
 struct DryCore {
+    flash: HubrisFlashMap,
     mem: BTreeMap<u32, Vec<u8>>,
 }
 
@@ -81,7 +83,20 @@ impl humility::core::Core for DryCore {
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
-        todo!()
+        if self.flash.read(addr, data).is_some() {
+            return Ok(());
+        }
+
+        let Some((base, mem)) = self.mem.range(0..=addr).next_back() else {
+            bail!("addr {addr:#08x} is below memory range");
+        };
+        let offset = (addr - base) as usize;
+        let end = offset + data.len();
+        if end > mem.len() {
+            bail!("region is not large enough; {end:#x} > {:#x}", mem.len());
+        }
+        data.copy_from_slice(&mem[offset..end]);
+        Ok(())
     }
 }
 
@@ -140,7 +155,6 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
         mem.insert(addr, v);
     }
 
-    let mut core = DryCore { mem };
     msg!("read dehydrated crash dump");
     msg!("  task index: {task_id}");
     msg!("  crash time: {timestamp}");
@@ -148,8 +162,8 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     msg!("  board:      {bord}");
     msg!("  git commit: {gitc}");
     msg!("  version:    {}", vers.as_deref().unwrap_or("[missing]"));
-    msg!("  {} memory regions:", core.mem.len());
-    for (k, v) in &core.mem {
+    msg!("  {} memory regions:", mem.len());
+    for (k, v) in &mem {
         msg!("    {k:#08x}: {} bytes", v.len());
     }
 
@@ -162,11 +176,9 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
         .image_id()
         .ok_or_else(|| anyhow!("missing image ID in archive"))?;
     if archive_id != expected_id {
-        bail!(
-            "image ID mismatch: expected {expected_id:?} (from archive), \
-             got {archive_id:?} (from raw dump)"
-        );
+        bail!("image ID mismatch: archive ID is {expected_id:02x?}");
     }
+    let mut core = DryCore { mem, flash: HubrisFlashMap::new(archive)? };
 
     archive.dump(
         &mut core,
