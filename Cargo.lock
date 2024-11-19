@@ -1291,6 +1291,7 @@ dependencies = [
  "humility-cmd-manifest",
  "humility-cmd-map",
  "humility-cmd-monorail",
+ "humility-cmd-mwocp",
  "humility-cmd-net",
  "humility-cmd-openocd",
  "humility-cmd-pmbus",
@@ -1820,6 +1821,29 @@ dependencies = [
  "regex",
  "vsc7448-info",
  "vsc7448-types",
+]
+
+[[package]]
+name = "humility-cmd-mwocp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.23",
+ "colored",
+ "hif",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-hiffy",
+ "humility-i2c",
+ "humility-idol",
+ "humility-pmbus",
+ "indicatif",
+ "num-derive",
+ "num-traits",
+ "parse_int",
+ "pmbus",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3157,7 +3181,6 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.3"
-source = "git+https://github.com/oxidecomputer/pmbus#a2f2e687c6bb4f6131aab20cce2068fb71029a1f"
 dependencies = [
  "anyhow",
  "convert_case",

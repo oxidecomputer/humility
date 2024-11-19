@@ -71,6 +71,7 @@ members = [
     "cmd/manifest",
     "cmd/map",
     "cmd/monorail",
+    "cmd/mwocp",
     "cmd/net",
     "cmd/openocd",
     "cmd/pmbus",
@@ -107,7 +108,8 @@ hif = { git = "https://github.com/oxidecomputer/hif" }
 humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.3" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
-pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
+# pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
+pmbus = { path = "/home/bcantrill/pmbus" }
 spd = { git = "https://github.com/oxidecomputer/spd" }
 serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
 tlvc = { git = "https://github.com/oxidecomputer/tlvc" }
@@ -175,6 +177,7 @@ cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
+cmd-mwocp = { path = "./cmd/mwocp", package = "humility-cmd-mwocp" }
 cmd-net = { path = "./cmd/net", package = "humility-cmd-net" }
 cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
@@ -323,6 +326,7 @@ cmd-lsusb = { workspace = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
+cmd-mwocp = { workspace = true }
 cmd-net = { workspace = true }
 cmd-openocd = { workspace = true }
 cmd-pmbus = { workspace = true }
