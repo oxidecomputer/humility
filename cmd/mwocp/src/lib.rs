@@ -20,7 +20,7 @@ use clap::{CommandFactory, Parser};
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
-use pmbus::commands::mwocp68::CommandCode;
+use pmbus::commands::mwocp68::*;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
@@ -109,12 +109,12 @@ const MWOCP68_MFR_MODEL: &str = "MWOCP68-3600-D-RM";
 const MWOCP68_BOOT_LOADER_KEY: &str = "InVe";
 const MWOCP68_PRODUCT_KEY: &str = "M5813-0000000000";
 const MWOCP68_KEY_DELAY: u64 = 3;
-const MWOCP68_BOOT_DELAY: u64 = 4;
-const MWOCP68_RESET_DELAY: u64 = 4;
+const MWOCP68_BOOT_DELAY: u64 = 1;
+const MWOCP68_RESET_DELAY: u64 = 2;
 const MWOCP68_BLOCK_LENGTH: usize = 32;
-const MWOCP68_FIRST_BLOCK_DELAY: u64 = 1;
 const MWOCP68_BLOCK_DELAY_MS: u8 = 100;
-const MWOCP68_CHECKSUM_DELAY: u64 = 1;
+const MWOCP68_CHECKSUM_DELAY: u64 = 2;
+const MWOCP68_REBOOT_DELAY: u64 = 5;
 
 fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
@@ -235,9 +235,44 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         Ok(())
     };
 
+    let boot_loader_status_result = |result: &Result<Vec<u8>, IpcError>| -> Result<
+        BOOT_LOADER_STATUS::CommandData,
+    > {
+        match result {
+            &Err(err) => {
+                bail!(
+                    "failed to read boot loader status: {}",
+                    i2c_read.strerror(err)
+                );
+            }
+            &Ok(ref result) => {
+                match BOOT_LOADER_STATUS::CommandData::from_slice(result) {
+                    Some(command) => Ok(command),
+                    None => {
+                        bail!("failed to read boot loader status: {result:?}");
+                    }
+                }
+            }
+        }
+    };
+
+    let check_boot_loader = |result, mode| -> Result<()> {
+        let bl = boot_loader_status_result(result)?;
+
+        match bl.get_mode() {
+            Some(m) if m == mode => Ok(()),
+            Some(m) => {
+                bail!("expected mode to be {mode:?}, found {m:?}");
+            }
+            None => {
+                bail!("expected mode to be {mode:?}, found illegal mode");
+            }
+        }
+    };
+
     //
     // First, confirm that we're talking to a Murata device, that the
-    // revision is what we expect XXX.
+    // revision is what we expect
     //
     let mut ops = base.clone();
 
@@ -296,6 +331,11 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
     println!("{:?}", results);
 
+    //
+    // We expect to NOT be in boot loader mode.
+    //
+    check_boot_loader(&results[1], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
+
     msg!("sleeping for {MWOCP68_KEY_DELAY} seconds...");
     thread::sleep(std::time::Duration::from_secs(MWOCP68_KEY_DELAY));
 
@@ -326,6 +366,8 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
     println!("{:?}", results);
 
+    check_boot_loader(&results[1], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
+
     msg!("sleeping for {MWOCP68_KEY_DELAY} seconds...");
     thread::sleep(std::time::Duration::from_secs(MWOCP68_KEY_DELAY));
 
@@ -345,10 +387,8 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
     println!("{results:x?}");
 
-    /*
     msg!("sleeping for {MWOCP68_BOOT_DELAY} seconds...");
     thread::sleep(std::time::Duration::from_secs(MWOCP68_BOOT_DELAY));
-    */
 
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
@@ -357,7 +397,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{results:x?}");
+    check_boot_loader(&results[0], BOOT_LOADER_STATUS::Mode::BootLoader)?;
 
     msg!("indicating write start...");
     let mut ops = base.clone();
@@ -367,10 +407,13 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Push32(2));
     ops.push(Op::Call(i2c_write.id));
 
+    let results = context.run(core, ops.as_slice(), None)?;
+    println!("{results:x?}");
+
     let start = SystemTime::now();
 
     msg!("sleeping for {MWOCP68_RESET_DELAY} seconds...");
-    //    thread::sleep(std::time::Duration::from_secs(MWOCP68_RESET_DELAY));
+    thread::sleep(std::time::Duration::from_secs(MWOCP68_RESET_DELAY));
 
     let mut offs = 0;
     let mut cksum = 0u32;
@@ -382,9 +425,9 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         );
     }
 
-    msg!("writing first block");
+    msg!("writing");
 
-    let mut chunksize = 1;
+    let chunksize = 10;
 
     while offs < bytes.len() {
         let mut data = vec![];
@@ -393,11 +436,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 
         ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
         ops.push(Op::PushNone);
-        ops.push(Op::Call(i2c_read.id));
-        ops.push(Op::DropN(2));
-
-        ops.push(Op::Push(CommandCode::STATUS_BYTE as u8));
-        ops.push(Op::Push(1));
         ops.push(Op::Call(i2c_read.id));
         ops.push(Op::DropN(2));
 
@@ -424,11 +462,16 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
             ops.push(Op::Call(i2c_bulk_write.id));
             ops.push(Op::DropN(2));
 
-            /*
             ops.push(Op::Push(MWOCP68_BLOCK_DELAY_MS));
             ops.push(Op::Call(sleep.id));
             ops.push(Op::Drop);
-            */
+
+            ops.push(Op::Drop);
+            ops.push(Op::Push(CommandCode::STATUS_CML as u8));
+            ops.push(Op::Push(1));
+            ops.push(Op::Call(i2c_read.id));
+            ops.push(Op::DropN(2));
+            ops.push(Op::PushNone);
         }
 
         ops.push(Op::Done);
@@ -438,17 +481,14 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         //
         let results = context.run(core, ops.as_slice(), Some(&data))?;
         println!("{:?} {results:x?}", SystemTime::now().duration_since(start));
-        println!("wrote {offs} of {}", bytes.len());
 
-        if chunksize == 1 {
-            //
-            // The documentation indicates that there needs to be a three
-            // second delay between the first and second block (?)
-            //
-            msg!("sleeping {MWOCP68_FIRST_BLOCK_DELAY} seconds");
-            // thread::sleep(std::time::Duration::from_secs(MWOCP68_FIRST_BLOCK_DELAY));
-            chunksize = 40;
+        for r in results {
+            if let Err(_) = r {
+                bail!("failed!");
+            }
         }
+
+        println!("wrote {offs} of {}", bytes.len());
     }
 
     //
@@ -460,8 +500,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Push(2));
     ops.push(Op::Push((cksum & 0xff) as u8));
     ops.push(Op::Push(((cksum >> 8) & 0xff) as u8));
-    // ops.push(Op::Push(0x12));
-    // ops.push(Op::Push(0x34));
 
     ops.push(Op::Push32(3));
     ops.push(Op::Call(i2c_write.id));
@@ -470,23 +508,51 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     println!("{:?} {results:x?}", SystemTime::now().duration_since(start));
     let check = SystemTime::now();
 
-    // msg!("sleeping {MWOCP68_CHECKSUM_DELAY} seconds");
-    // thread::sleep(std::time::Duration::from_secs(MWOCP68_CHECKSUM_DELAY));
+    msg!("sleeping {MWOCP68_CHECKSUM_DELAY} seconds");
+    thread::sleep(std::time::Duration::from_secs(MWOCP68_CHECKSUM_DELAY));
 
-    loop {
-        let mut ops = base.clone();
-        ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
-        ops.push(Op::PushNone);
-        ops.push(Op::Call(i2c_read.id));
-        ops.push(Op::Done);
+    let mut ops = base.clone();
+    ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
+    ops.push(Op::PushNone);
+    ops.push(Op::Call(i2c_read.id));
+    ops.push(Op::Done);
+    let results = context.run(core, ops.as_slice(), None)?;
 
-        let results = context.run(core, ops.as_slice(), None)?;
-        println!(
-            "{:?} {:?} {results:x?}",
-            SystemTime::now().duration_since(start),
-            SystemTime::now().duration_since(check)
-        );
+    let status = boot_loader_status_result(&results[0])?;
+
+    match status.get_checksum_successful() {
+        Some(BOOT_LOADER_STATUS::ChecksumSuccessful::Successful) => {
+            msg!("checksum successful!");
+        }
+        Some(BOOT_LOADER_STATUS::ChecksumSuccessful::NotSuccessful) => {
+            bail!("checksum was not successful!");
+        }
+        None => panic!(),
     }
+
+    msg!("resetting PSU...");
+
+    let mut ops = base.clone();
+    ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
+    ops.push(Op::Push(1));
+    ops.push(Op::Push(0x3));
+    ops.push(Op::Push32(2));
+    ops.push(Op::Call(i2c_write.id));
+
+    let results = context.run(core, ops.as_slice(), None)?;
+    println!("{results:x?}");
+
+    msg!("sleeping {MWOCP68_REBOOT_DELAY} seconds");
+    thread::sleep(std::time::Duration::from_secs(MWOCP68_REBOOT_DELAY));
+
+    let mut ops = base.clone();
+    ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
+    ops.push(Op::PushNone);
+    ops.push(Op::Call(i2c_read.id));
+    ops.push(Op::Done);
+
+    let results = context.run(core, ops.as_slice(), None)?;
+    check_boot_loader(&results[0], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
 
     Ok(())
 }
