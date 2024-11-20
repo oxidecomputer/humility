@@ -2525,7 +2525,7 @@ impl HubrisArchive {
                     }
 
                     core.read_8(taddr, &mut indices).context(format!(
-                        "failed to read region desriptors for task {} at 0x{:x}",
+                        "failed to read region descriptors for task {} at 0x{:x}",
                         i, taddr)
                     )?;
 
