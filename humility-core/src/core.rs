@@ -626,8 +626,8 @@ impl Core for OpenOCDCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
-        Ok(result.parse::<u32>()?)
+        let result = self.sendcmd(&format!("read_memory 0x{:x} 32 1", addr))?;
+        Ok(parse_int::parse::<u32>(&result)?)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
@@ -671,10 +671,12 @@ impl Core for OpenOCDCore {
         // in strict alphabetical order by index (!!).  (That is, index 100
         // comes before, say, index 11.)
         //
+        // In some cases the output may have index as decimal, but value
+        // as 0x-prefixed hexadecimal.
         for val in result.split(' ') {
             match index {
                 None => {
-                    let idx = val.parse::<usize>()?;
+                    let idx = parse_int::parse::<usize>(val)?;
 
                     if idx >= data.len() {
                         bail!("\"{}\": illegal index {}", cmd, idx);
@@ -689,7 +691,7 @@ impl Core for OpenOCDCore {
                 }
 
                 Some(idx) => {
-                    data[idx] = val.parse::<u8>()?;
+                    data[idx] = parse_int::parse::<u8>(val)?;
                     index = None;
                 }
             }
