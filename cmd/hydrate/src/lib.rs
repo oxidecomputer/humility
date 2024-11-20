@@ -107,6 +107,20 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     let mut z = zip::ZipArchive::new(f)?;
 
     let mut s = String::new();
+    z.by_name("meta.json")?.read_to_string(&mut s)?;
+    #[derive(serde::Deserialize)]
+    struct Meta {
+        version: u64,
+    }
+    let meta: Meta = serde_json::from_str(&s)?;
+    if meta.version != 1 {
+        bail!(
+            "invalid version in `meta.json`: expected 1, got {}",
+            meta.version
+        );
+    }
+
+    let mut s = String::new();
     z.by_name("TASK_INDEX")?.read_to_string(&mut s)?;
     let task_id: u16 = s.trim().parse()?;
 

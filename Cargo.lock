@@ -1709,6 +1709,7 @@ dependencies = [
  "indexmap 1.9.3",
  "parse_int",
  "serde",
+ "serde_json",
  "zerocopy",
  "zip",
 ]

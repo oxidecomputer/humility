@@ -20,5 +20,6 @@ humpty.workspace = true
 indexmap.workspace = true
 parse_int.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 zerocopy.workspace = true
 zip.workspace = true
