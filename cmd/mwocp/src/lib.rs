@@ -329,7 +329,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{:?}", results);
 
     //
     // We expect to NOT be in boot loader mode.
@@ -364,7 +363,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{:?}", results);
 
     check_boot_loader(&results[1], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
 
@@ -385,7 +383,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{results:x?}");
 
     msg!("sleeping for {MWOCP68_BOOT_DELAY} seconds...");
     thread::sleep(std::time::Duration::from_secs(MWOCP68_BOOT_DELAY));
@@ -408,7 +405,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Call(i2c_write.id));
 
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{results:x?}");
 
     let start = SystemTime::now();
 
@@ -425,9 +421,15 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         );
     }
 
-    msg!("writing");
-
     let chunksize = 10;
+
+    let started = Instant::now();
+    let bar = ProgressBar::new(bytes.len() as u64);
+    bar.set_style(
+        ProgressStyle::default_bar().template(
+            "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
+        ),
+    );
 
     while offs < bytes.len() {
         let mut data = vec![];
@@ -480,7 +482,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         // Away it goes!
         //
         let results = context.run(core, ops.as_slice(), Some(&data))?;
-        println!("{:?} {results:x?}", SystemTime::now().duration_since(start));
 
         for r in results {
             if let Err(_) = r {
@@ -488,8 +489,17 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
             }
         }
 
-        println!("wrote {offs} of {}", bytes.len());
+        bar.set_position(offs as u64);
     }
+
+    bar.finish_and_clear();
+
+    msg!(
+        "flashed {} in {}",
+        HumanBytes(bytes.len() as u64),
+        HumanDuration(started.elapsed())
+    );
+
 
     //
     // Now send the checksum.
@@ -505,7 +515,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Call(i2c_write.id));
     ops.push(Op::Done);
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{:?} {results:x?}", SystemTime::now().duration_since(start));
     let check = SystemTime::now();
 
     msg!("sleeping {MWOCP68_CHECKSUM_DELAY} seconds");
@@ -540,7 +549,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Call(i2c_write.id));
 
     let results = context.run(core, ops.as_slice(), None)?;
-    println!("{results:x?}");
 
     msg!("sleeping {MWOCP68_REBOOT_DELAY} seconds");
     thread::sleep(std::time::Duration::from_secs(MWOCP68_REBOOT_DELAY));
