@@ -1,0 +1,26 @@
+[package]
+name = "humility-cmd-mwocp"
+version = "0.1.0"
+edition = "2021"
+description = "Murata power shelf operations"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+colored.workspace = true
+hif.workspace = true
+indicatif.workspace = true
+num-derive.workspace = true
+num-traits.workspace = true
+parse_int.workspace = true
+pmbus.workspace = true
+zerocopy.workspace = true
+
+humility-cli.workspace = true
+humility-cmd.workspace = true
+humility-hiffy.workspace = true
+humility-i2c.workspace = true
+humility-idol.workspace = true
+humility-pmbus.workspace = true
+humility.workspace = true
+

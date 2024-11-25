@@ -17,7 +17,7 @@ name = "humility"
 #
 # Be sure to check in and push all of the files that change.  Happy versioning!
 #
-version = "0.11.13"
+version = "0.11.14"
 authors = ["Bryan Cantrill <bryan@oxide.computer>"]
 edition = "2018"
 license = "MPL-2.0"
@@ -71,6 +71,7 @@ members = [
     "cmd/manifest",
     "cmd/map",
     "cmd/monorail",
+    "cmd/mwocp",
     "cmd/net",
     "cmd/openocd",
     "cmd/pmbus",
@@ -175,6 +176,7 @@ cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }
 cmd-manifest = { path = "./cmd/manifest", package = "humility-cmd-manifest" }
 cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
+cmd-mwocp = { path = "./cmd/mwocp", package = "humility-cmd-mwocp" }
 cmd-net = { path = "./cmd/net", package = "humility-cmd-net" }
 cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
@@ -323,6 +325,7 @@ cmd-lsusb = { workspace = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
+cmd-mwocp = { workspace = true }
 cmd-net = { workspace = true }
 cmd-openocd = { workspace = true }
 cmd-pmbus = { workspace = true }
