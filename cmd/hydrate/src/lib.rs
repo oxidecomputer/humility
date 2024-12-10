@@ -17,7 +17,7 @@
 //! By default, this writes to `hubris.core.TASK_NAME.N` (where `N` is the
 //! lowest available value); use `--out` to specify a different path name.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgGroup, IntoApp, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
@@ -117,7 +117,9 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     let mut z = zip::ZipArchive::new(f)?;
 
     let mut s = String::new();
-    z.by_name("dump.json")?.read_to_string(&mut s)?;
+    z.by_name("dump.json")?
+        .read_to_string(&mut s)
+        .with_context(|| "could not find `dump.json` in the ZIP archive")?;
 
     #[derive(serde::Deserialize)]
     struct DumpInfo {
@@ -152,8 +154,9 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
         .collect::<Vec<_>>();
     for f in mem_files {
         let num = f.strip_suffix(".bin").unwrap().strip_prefix("0x").unwrap();
-        let addr = u32::from_str_radix(num, 16)?;
-        let mut data = z.by_name(&f)?;
+        let addr = u32::from_str_radix(num, 16)
+            .with_context(|| format!("invalid hex string: {num}"))?;
+        let mut data = z.by_name(&f).unwrap();
         let mut v = vec![];
         data.read_to_end(&mut v)?;
         mem.insert(addr, v);
