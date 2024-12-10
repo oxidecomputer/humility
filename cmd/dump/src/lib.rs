@@ -80,6 +80,7 @@ use humpty::DumpTask;
 use indicatif::{HumanBytes, HumanDuration, ProgressBar, ProgressStyle};
 use num_traits::FromPrimitive;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::time::Instant;
 
 #[derive(Clone, Parser, Debug)]
@@ -144,7 +145,7 @@ struct DumpArgs {
         conflicts_with_all = &["task", "extract-all"],
         value_name = "filename",
     )]
-    stock_dumpfile: Option<String>,
+    stock_dumpfile: Option<PathBuf>,
 
     /// emulate in situ dumper by reading directly from target and writing
     /// compressed memory back to agent's dump region
@@ -195,7 +196,7 @@ struct DumpArgs {
     #[clap(long)]
     print_dump_breakdown: bool,
 
-    dumpfile: Option<String>,
+    dumpfile: Option<PathBuf>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -812,8 +813,8 @@ fn dump_all(
             };
 
             let dumpfile = (0..)
-                .map(|i| format!("hubris.core.{task_name}.{i}"))
-                .find(|f| std::fs::File::open(f).is_err())
+                .map(|i| PathBuf::from(format!("hubris.core.{task_name}.{i}")))
+                .find(|f| !f.exists())
                 .unwrap();
             humility::msg!("dumping {task_name} (area {area})");
 
