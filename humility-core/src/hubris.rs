@@ -3733,7 +3733,11 @@ impl HubrisArchive {
             (HubrisType::Union(lt), HubrisType::Union(rt)) => {
                 lt.differs(self, rt)
             }
-            (HubrisType::Ptr(l), HubrisType::Ptr(r)) => self.differ(l, r),
+            (HubrisType::Ptr(l), HubrisType::Ptr(r)) => {
+                let pointee_l = self.lookup_ptrtype(l)?;
+                let pointee_r = self.lookup_ptrtype(r)?;
+                self.differ(pointee_l, pointee_r)
+            }
             _ => Ok(true),
         }
     }
