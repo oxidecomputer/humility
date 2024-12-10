@@ -372,7 +372,7 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
                 .arg("sign")
                 .arg(key_name)
                 .arg("--kind=debug-authn-challenge")
-                .arg(format!("--beacon={beacon}"))
+                .arg(format!("--debug-authn-beacon={beacon}"))
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .spawn()
