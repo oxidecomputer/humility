@@ -117,51 +117,29 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     let mut z = zip::ZipArchive::new(f)?;
 
     let mut s = String::new();
-    z.by_name("meta.json")?.read_to_string(&mut s)?;
+    z.by_name("dump.json")?.read_to_string(&mut s)?;
+
     #[derive(serde::Deserialize)]
-    struct Meta {
-        version: u64,
+    struct DumpInfo {
+        format: u64,
+        task_index: u16,
+        crash_time: u64,
+        board_name: String,
+        git_commit: String,
+        archive_id: String,
+        fw_version: Option<String>,
     }
-    let meta: Meta = serde_json::from_str(&s)?;
-    if meta.version != 1 {
-        bail!(
-            "invalid version in `meta.json`: expected 1, got {}",
-            meta.version
+    let info: DumpInfo = serde_json::from_str(&s)?;
+    if info.format != 1 {
+        humility_log::warn!(
+            "unexpected format in `dump.json`: expected 1, got {}",
+            info.format
         );
     }
 
-    let mut s = String::new();
-    z.by_name("TASK_INDEX")?.read_to_string(&mut s)?;
-    let task_id: u16 = s.trim().parse()?;
-
-    let mut s = String::new();
-    z.by_name("TIMESTAMP")?.read_to_string(&mut s)?;
-    let timestamp: u64 = s.trim().parse()?;
-
-    let mut bord = String::new();
-    z.by_name("BORD")?.read_to_string(&mut bord)?;
-    bord.pop(); // remove newline
-
-    let mut gitc = String::new();
-    z.by_name("GITC")?.read_to_string(&mut gitc)?;
-    gitc.pop(); // remove newline
-
-    let vers = match z.by_name("VERS") {
-        Ok(mut v) => {
-            let mut s = String::new();
-            v.read_to_string(&mut s)?;
-            s.pop();
-            Some(s)
-        }
-        Err(zip::result::ZipError::FileNotFound) => None,
-        Err(e) => return Err(e.into()),
-    };
-
-    let mut s = String::new();
-    z.by_name("ARCHIVE_ID")?.read_to_string(&mut s)?;
     let mut archive_id = [0u8; 8];
     for (i, b) in archive_id.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&s[i * 2..][..2], 16)?;
+        *b = u8::from_str_radix(&info.archive_id[i * 2..][..2], 16)?;
     }
 
     // We have to collect filenames separately, because we can't iterate over
@@ -182,12 +160,12 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     }
 
     msg!("read dehydrated crash dump");
-    msg!("  task index: {task_id}");
-    msg!("  crash time: {timestamp}");
+    msg!("  task index: {}", info.task_index);
+    msg!("  crash time: {}", info.crash_time);
     msg!("  archive id: {archive_id:02x?}");
-    msg!("  board:      {bord}");
-    msg!("  git commit: {gitc}");
-    msg!("  version:    {}", vers.as_deref().unwrap_or("[missing]"));
+    msg!("  board:      {}", info.board_name);
+    msg!("  git commit: {}", info.git_commit);
+    msg!("  version:    {}", info.fw_version.as_deref().unwrap_or("[missing]"));
     msg!("  {} memory regions:", mem.len());
     for (k, v) in &mem {
         msg!("    {k:#08x}: {} bytes", v.len());
@@ -212,9 +190,9 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
         &mut core,
         Some(humpty::DumpTask {
             magic: humpty::DUMP_TASK_MAGIC,
-            id: task_id,
+            id: info.task_index,
             pad: 0u32,
-            time: timestamp,
+            time: info.crash_time,
         }),
         subargs.out.as_deref(),
         Some(std::time::Instant::now()),
