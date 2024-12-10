@@ -10,6 +10,12 @@
 //! ```console
 //! $ humility -a build-grapefruit-image-default.zip hydrate hubris.dry.0
 //! ```
+//!
+//! The archive is required, because the raw memory dump does not contain debug
+//! information.
+//!
+//! By default, this writes to `hubris.core.TASK_NAME.N` (where `N` is the
+//! lowest available value); use `--out` to specify a different path name.
 
 use anyhow::{anyhow, bail, Result};
 use clap::{ArgGroup, IntoApp, Parser};
@@ -26,6 +32,10 @@ use std::{collections::BTreeMap, io::Read, path::PathBuf};
     group = ArgGroup::new("target").multiple(false)
 )]
 struct Args {
+    /// Path to write the resulting dump
+    #[clap(short, long)]
+    out: Option<PathBuf>,
+
     /// Path to the raw memory dump
     file: PathBuf,
 }
@@ -154,6 +164,8 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
         *b = u8::from_str_radix(&s[i * 2..][..2], 16)?;
     }
 
+    // We have to collect filenames separately, because we can't iterate over
+    // `file_names` and read them with `ZipArchive::by_name` simultaneously.
     let mut mem = BTreeMap::new();
     let mem_files = z
         .file_names()
@@ -182,15 +194,17 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     }
 
     // compare archive ID
-    if context.cli.archive.is_none() {
-        bail!("must provide an archive");
-    }
-    let archive = context.archive.as_ref().unwrap();
+    let Some(archive) = &context.archive else {
+        bail!("could not get archive");
+    };
     let expected_id = archive
         .image_id()
         .ok_or_else(|| anyhow!("missing image ID in archive"))?;
     if archive_id != expected_id {
-        bail!("image ID mismatch: archive ID is {expected_id:02x?}");
+        bail!(
+            "image ID mismatch: archive ID is {expected_id:02x?}, \
+             dump ID wants {archive_id:02x?}"
+        );
     }
     let mut core = DryCore { mem, flash: HubrisFlashMap::new(archive)? };
 
@@ -202,7 +216,7 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
             pad: 0u32,
             time: timestamp,
         }),
-        None,
+        subargs.out.as_deref(),
         Some(std::time::Instant::now()),
     )
 }
