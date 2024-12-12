@@ -15,6 +15,9 @@ use humility_cli::{Cli, ExecutionContext};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 use reedline::DefaultPrompt;
 use reedline::Span;
 use reedline::Suggestion;
@@ -99,6 +102,15 @@ fn repl(context: &mut ExecutionContext) -> Result<()> {
 
     println!("Welcome to the humility REPL! Try out some subcommands, or 'quit' to quit!");
 
+    let is_running = Arc::new(AtomicBool::new(true));
+    let stop_signal = is_running.clone();
+
+    ctrlc::set_handler(move || {
+        stop_signal.store(false, Ordering::SeqCst);
+        println!("\nAborted repeat.");
+    })
+    .expect("Error setting Ctrl-C handler");
+
     loop {
         let sig = line_editor.read_line(&prompt)?;
 
@@ -113,9 +125,19 @@ fn repl(context: &mut ExecutionContext) -> Result<()> {
                     "history" => {
                         line_editor.print_history()?;
                     }
-                    user_input => {
-                        let result = eval(context, user_input)?;
-                        println!("{result}");
+                    _ => {
+                        if let Some(command) = buffer.strip_prefix("repeat ") {
+                            println!("Repeating command: {}", command);
+                            is_running.store(true, Ordering::SeqCst);
+                            while is_running.load(Ordering::SeqCst) {
+                                let result = eval(context, command)?;
+                                println!("{result}");
+                            }
+                        } else {
+                            // Handle normal input
+                            let result = eval(context, buffer)?;
+                            println!("{result}");
+                        }
                     }
                 }
             }

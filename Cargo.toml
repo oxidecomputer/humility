@@ -371,6 +371,7 @@ indicatif = { workspace = true }
 colored = { workspace = true }
 indexmap = { workspace = true }
 reedline = { workspace = true }
+ctrlc.workspace = true
 
 [patch.crates-io]
 libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }

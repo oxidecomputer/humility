@@ -49,6 +49,12 @@
 //! in the background; your code is still running in the background while you
 //! use the repl!
 //!
+//! To repeatedly run a command, prefix it with `repeat`, for example:
+//!
+//! humility> repeat tasks
+//!
+//! and interrupt with ^C to return to the prompt.
+//!
 //! Finally, as you can see, `quit` will quit the repl. There is also a
 //! `history` command, which will show you recent commands you've put into the
 //! prompt.

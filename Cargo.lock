@@ -1257,6 +1257,7 @@ dependencies = [
  "clap 3.2.23",
  "colored",
  "csv",
+ "ctrlc",
  "env_logger",
  "fallible-iterator",
  "hif",
