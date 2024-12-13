@@ -94,6 +94,9 @@ enum DebugMailboxCmd {
         /// Authentication beacon (UM11126 §51.7)
         #[clap(long, default_value_t = 0, parse(try_from_str = parse_int::parse))]
         beacon: u16,
+        /// Use ssh-agent to authenticate to permslip
+        #[clap(long)]
+        sshauth: bool,
     },
 }
 
@@ -357,7 +360,7 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
 
             let _ = write_req(&mut iface, &dm_port, DMCommand::ExitDM, &[])?;
         }
-        DebugMailboxCmd::AuthOnline { key_name, beacon } => {
+        DebugMailboxCmd::AuthOnline { key_name, beacon, sshauth } => {
             // Get the challenge from the chip.
             alive(&mut iface, &dm_port, true)?;
             let dac = write_req(
@@ -368,11 +371,18 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
             )?;
 
             // Ask permission-slip to sign it.
-            let mut permslip = Process::new("permslip")
+            let mut permslip = Process::new("permslip");
+            permslip
                 .arg("sign")
                 .arg(key_name)
                 .arg("--kind=debug-authn-challenge")
-                .arg(format!("--beacon={beacon}"))
+                .arg(format!("--debug-authn-beacon={beacon}"));
+
+            if sshauth {
+                permslip.arg("--sshauth");
+            }
+
+            let mut permslip = permslip
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .spawn()
