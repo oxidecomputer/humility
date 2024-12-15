@@ -262,6 +262,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility manifest](#humility-manifest): print archive manifest
 - [humility map](#humility-map): print memory map, with association of regions to tasks
 - [humility monorail](#humility-monorail): Management network control and debugging
+- [humility mwocp](#humility-mwocp): Murata power shelf operations
 - [humility net](#humility-net): Management network device-side control and debugging
 - [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
@@ -1772,6 +1773,37 @@ commands to interact with VSC7448 registers.
 
 PHY register names are also found in the
 [`vsc7448-pac` crate](https://github.com/oxidecomputer/vsc7448/tree/master/vsc7448-pac/src/phy).
+
+
+### `humility mwocp`
+
+`humility mwocp` allows for flashing the MWOCP68 family of PSUs with a
+firmware payload specified via the `--flash` option.
+
+Like `humility pmbus`, a device can be specified via an address (along
+with an I2C bus or controller and port) or via a PMBus rail.  Note that
+either the 54V or 12V rail can be used; it is only used to identify the
+PSU.
+
+```console
+$ humility mwocp -r V54_PSU1 -f ./FW_M5813_F1_v0_7_62.bin
+humility: starting update; revision is currently 0701-0701-0000
+humility: writing boot loader key
+humility: sleeping for 3 seconds...
+...
+humility: flashed 32.00KB in 2 minutes
+humility: sending checksum (0x0036f1c7)
+humility: sleeping for 2 seconds...
+humility: checksum successful!
+humility: resetting PSU
+humility: sleeping for 5 seconds...
+humility: update complete; revision is now 0762-0701-0000
+```
+
+Note that the MWOCP68 itself may reject firmware that is self-consistent
+(i.e., valid checksum) but invalid; in this case, an error won't be
+indicated, but the revision will not change across the update.
+
 
 
 ### `humility net`
