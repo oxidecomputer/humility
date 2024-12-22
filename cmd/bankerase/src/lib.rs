@@ -63,8 +63,7 @@ fn bankerasecmd(context: &mut ExecutionContext) -> Result<()> {
     };
 
     humility::msg!("attaching with chip set to {chip:x?}");
-    let mut c =
-        humility_probes_core::attach_for_flashing(probe, hubris, &chip)?;
+    let mut c = humility_probes_core::attach_for_flashing(probe, &chip)?;
     let core = c.as_mut();
 
     let ihex = tempfile::NamedTempFile::new()?;

@@ -269,7 +269,6 @@ pub fn print_tasks(
         }
 
         let mut tasks = vec![];
-        let mut panicked = false;
         let mut regs = HashMap::new();
 
         for i in 0..task_count {
@@ -300,18 +299,6 @@ pub fn print_tasks(
             }
 
             tasks.push((i, addr, task_value, task));
-
-            if let TaskState::Faulted { fault, .. } = task.state {
-                if fault == doppel::FaultInfo::Panic {
-                    panicked = true;
-                }
-            }
-        }
-
-        let keep_halted = stack || registers || panicked;
-
-        if !keep_halted {
-            core.run()?;
         }
 
         writeln!(
@@ -480,9 +467,7 @@ pub fn print_tasks(
             )?;
         }
 
-        if keep_halted {
-            core.run()?;
-        }
+        core.run()?;
 
         if task_arg.is_some() && !found {
             bail!("\"{}\" is not a valid task", task_arg.unwrap());
