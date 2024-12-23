@@ -219,7 +219,6 @@ pub fn print_tasks(
 ) -> Result<()> {
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
-    let ticks = if core.is_net() { None } else { Some(hubris.ticks(core)?) };
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -236,6 +235,9 @@ pub fn print_tasks(
 
     loop {
         core.halt()?;
+
+        let ticks =
+            if core.is_net() { None } else { Some(hubris.ticks(core)?) };
 
         let cur = hubris.current_task(core)?;
         let task_dump = hubris.task_dump();
