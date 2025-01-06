@@ -40,9 +40,9 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
                 "Need a chip to do a soft reset or halt after reset"
             )
         })?;
-        humility::core::attach_to_chip(probe, hubris, Some(&chip))?
+        humility_probes_core::attach_to_chip(probe, hubris, Some(&chip))?
     } else {
-        humility::core::attach_to_probe(probe)?
+        humility_probes_core::attach_to_probe(probe)?
     };
 
     let r = if subargs.halt {

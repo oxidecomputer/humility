@@ -27,7 +27,6 @@ parse_int.workspace = true
 rayon.workspace = true
 regex.workspace = true
 ron.workspace = true
-rusb.workspace = true
 rustc-demangle.workspace = true
 scroll.workspace = true
 serde.workspace = true
@@ -36,12 +35,6 @@ thiserror.workspace = true
 toml.workspace = true
 zerocopy.workspace = true
 zip.workspace = true
-
-#
-# We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
-# that we can float necessary patches on probe-rs.
-#
-probe-rs.workspace = true
 
 #
 # We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,

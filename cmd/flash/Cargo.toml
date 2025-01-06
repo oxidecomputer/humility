@@ -9,6 +9,7 @@ humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
+humility-probes-core = { workspace = true }
 cmd-auxflash = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
