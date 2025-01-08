@@ -100,7 +100,7 @@ ipcc-data = { git = "https://github.com/oxidecomputer/ipcc-data" }
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
 # that we can float necessary patches on probe-rs.
 #
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.12.0" }
+probe-rs = { version = "0.25.0" }
 
 #
 # We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,
@@ -260,7 +260,3 @@ debug = true
 inherits = "release"
 debug = false
 debug-assertions = true
-
-[patch.crates-io]
-libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
-hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }

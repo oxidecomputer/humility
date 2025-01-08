@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use ::probe_rs::{
+use ::probe_rs::probe::{
     DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
     ProbeCreationError,
 };
+use ::probe_rs::Permissions;
 use humility::core::{Core, ProbeError};
 
 use anyhow::{anyhow, bail, Result};
@@ -37,7 +38,8 @@ fn parse_probe(probe: &str) -> (&str, Option<usize>) {
 }
 
 fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
-    let probes = Probe::list_all();
+    let lister = ::probe_rs::probe::list::Lister::new();
+    let probes = lister.list_all();
 
     if probes.is_empty() {
         return Err(ProbeError::NoProbeFound.into());
@@ -64,7 +66,8 @@ fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
 }
 
 fn open_probe_from_selector(selector: DebugProbeSelector) -> Result<Probe> {
-    let res = Probe::open(selector.clone());
+    let lister = ::probe_rs::probe::list::Lister::new();
+    let res = lister.open(selector.clone());
 
     if let Err(DebugProbeError::ProbeCouldNotBeCreated(
         ProbeCreationError::NotFound,
@@ -95,20 +98,7 @@ pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
         "usb" => {
             let probe_info = get_usb_probe(index)?;
 
-            let res = probe_info.open();
-
-            if let Err(DebugProbeError::Usb(Some(ref err))) = res {
-                if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
-                    if *rcode == rusb::Error::Busy {
-                        bail!(
-                            "USB link in use; is OpenOCD or \
-                            another debugger running?"
-                        );
-                    }
-                }
-            }
-
-            let probe = res?;
+            let probe = probe_info.open()?;
 
             crate::msg!("Opened probe {}", probe_info.identifier);
             Ok(Box::new(unattached::UnattachedCore::new(
@@ -154,33 +144,30 @@ pub fn attach_to_chip(
         "usb" => {
             let probe_info = get_usb_probe(index)?;
 
-            let res = probe_info.open();
-
-            if let Err(DebugProbeError::Usb(Some(ref err))) = res {
-                if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
-                    if *rcode == rusb::Error::Busy {
-                        bail!(
-                            "USB link in use; is OpenOCD or \
-                            another debugger running?"
-                        );
-                    }
-                }
-            }
-
-            let probe = res?;
+            let probe = probe_info.open()?;
 
             let name = probe.get_name();
             //
             // probe-rs needs us to specify a chip that it knows about -- but
             // it only really uses this information for flashing the part.  If
             // we are attaching to the part for not pusposes of flashing, we
-            // specify a generic ARMv7-M (but then we also indicate that can't
+
+            // specify a generic Cortex-M3 (but then we also indicate that can't
             // flash to assure that we can fail explicitly should flashing be
             // attempted).
             //
             let (session, can_flash) = match chip {
-                Some(chip) => (probe.attach(chip)?, true),
-                None => (probe.attach("armv7m")?, false),
+                Some(chip) => (
+                    probe.attach(chip, Permissions::new().allow_erase_all())?,
+                    true,
+                ),
+                None => (
+                    probe.attach(
+                        "Cortex-M3",
+                        Permissions::new().allow_erase_all(),
+                    )?,
+                    false,
+                ),
             };
 
             crate::msg!("attached via {name}");
@@ -246,11 +233,23 @@ pub fn attach_to_chip(
 
                 //
                 // See the block comment in the generic "usb" attach for
-                // why we use armv7m here.
+                // why we use Cortex-M3 here.
                 //
                 let (session, can_flash) = match chip {
-                    Some(chip) => (probe.attach(chip)?, true),
-                    None => (probe.attach("armv7m")?, false),
+                    Some(chip) => (
+                        probe.attach(
+                            chip,
+                            Permissions::new().allow_erase_all(),
+                        )?,
+                        true,
+                    ),
+                    None => (
+                        probe.attach(
+                            "Cortex-M3",
+                            Permissions::new().allow_erase_all(),
+                        )?,
+                        false,
+                    ),
                 };
 
                 crate::msg!("attached to {vidpid} via {name}");

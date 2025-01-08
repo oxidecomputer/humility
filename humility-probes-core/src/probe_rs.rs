@@ -99,7 +99,7 @@ impl Core for ProbeCore {
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
             if addr + 4 < range.0 + range.1 {
                 let mut core = self.session.core(0)?;
-                return core.read_word_32(addr).with_context(|| {
+                return core.read_word_32(addr.into()).with_context(|| {
                     format!(
                         "failed to perform unhalted word read at address \
                         {addr:#x}",
@@ -109,7 +109,7 @@ impl Core for ProbeCore {
         }
 
         self.halt_and_read(|core| {
-            rval = core.read_word_32(addr).with_context(|| {
+            rval = core.read_word_32(addr.into()).with_context(|| {
                 format!(
                     "failed to perform halted word read at address {addr:#x}"
                 )
@@ -130,7 +130,7 @@ impl Core for ProbeCore {
         if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
             if addr + (data.len() as u32) < range.0 + range.1 {
                 let mut core = self.session.core(0)?;
-                return core.read_8(addr, data).with_context(|| {
+                return core.read_8(addr.into(), data).with_context(|| {
                     format!(
                         "failed to perform unhalted read at address \
                         {addr:#x} for length {}",
@@ -141,7 +141,7 @@ impl Core for ProbeCore {
         }
 
         self.halt_and_read(|core| {
-            core.read_8(addr, data).with_context(|| {
+            core.read_8(addr.into(), data).with_context(|| {
                 format!(
                     "failed to perform halted read at address \
                     {addr:#x} for length {}",
@@ -155,7 +155,7 @@ impl Core for ProbeCore {
         let mut core = self.session.core(0)?;
         use num_traits::ToPrimitive;
 
-        Ok(core.read_core_reg(Into::<probe_rs::CoreRegisterAddress>::into(
+        Ok(core.read_core_reg(Into::<probe_rs::RegisterId>::into(
             ARMRegister::to_u16(&reg).unwrap(),
         ))?)
     }
@@ -165,7 +165,7 @@ impl Core for ProbeCore {
         use num_traits::ToPrimitive;
 
         core.write_core_reg(
-            Into::<probe_rs::CoreRegisterAddress>::into(
+            Into::<probe_rs::RegisterId>::into(
                 ARMRegister::to_u16(&reg).unwrap(),
             ),
             value,
@@ -176,13 +176,13 @@ impl Core for ProbeCore {
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
-        core.write_word_32(addr, data)?;
+        core.write_word_32(addr.into(), data)?;
         Ok(())
     }
 
     fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()> {
         let mut core = self.session.core(0)?;
-        core.write_8(addr, data)?;
+        core.write_8(addr.into(), data)?;
         Ok(())
     }
 
@@ -240,18 +240,17 @@ impl Core for ProbeCore {
 
         let bar = ProgressBar::new(0);
         let progress = flashing::FlashProgress::new(move |event| match event {
-            flashing::ProgressEvent::Initialized { flash_layout } => {
-                progress.borrow_mut().total_erase = flash_layout
-                    .sectors()
-                    .iter()
-                    .map(|s| s.size() as usize)
-                    .sum();
+            flashing::ProgressEvent::Initialized {
+                chip_erase: _,
+                phases,
+                restore_unwritten: _,
+            } => {
+                // XXX please check this
+                progress.borrow_mut().total_erase =
+                    phases[0].sectors().iter().map(|s| s.size() as usize).sum();
 
-                progress.borrow_mut().total_write = flash_layout
-                    .pages()
-                    .iter()
-                    .map(|s| s.size() as usize)
-                    .sum();
+                progress.borrow_mut().total_write =
+                    phases[0].pages().iter().map(|s| s.size() as usize).sum();
 
                 bar.set_style(ProgressStyle::default_bar().template(
                     "humility: erasing [{bar:30}] {bytes}/{total_bytes}",
@@ -287,7 +286,7 @@ impl Core for ProbeCore {
         });
 
         let mut options = flashing::DownloadOptions::default();
-        options.progress = Some(&progress);
+        options.progress = Some(progress);
 
         if let Err(e) = flashing::download_file_with_options(
             &mut self.session,
