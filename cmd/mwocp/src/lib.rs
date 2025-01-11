@@ -295,14 +295,16 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     check_str_result(&results[1], "MFR_MODEL", MWOCP68_MFR_MODEL)?;
 
     let revision = str_result(&results[2], "MFR_REVISION")?;
-    msg!("starting update; revision is currently {revision}");
 
     let bytes = if let Some(filename) = subargs.flash {
         fs::read(filename)?
     } else {
+        msg!("revision is currently {revision}");
         msg!("to flash a new image, specify it via --flash");
         return Ok(());
     };
+
+    msg!("starting update; revision is currently {revision}");
 
     //
     // We're going to perform the process outlined by Murata, albeit in a very
