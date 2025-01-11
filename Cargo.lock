@@ -1282,6 +1282,7 @@ dependencies = [
  "humility-cmd-hash",
  "humility-cmd-hiffy",
  "humility-cmd-host",
+ "humility-cmd-hydrate",
  "humility-cmd-i2c",
  "humility-cmd-ibc",
  "humility-cmd-itm",
@@ -1690,6 +1691,28 @@ dependencies = [
  "humility-doppel",
  "humility-log",
  "ipcc-data",
+]
+
+[[package]]
+name = "humility-cmd-hydrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.23",
+ "colored",
+ "hubpack",
+ "humility-arch-arm",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-log",
+ "humpty",
+ "indexmap 1.9.3",
+ "parse_int",
+ "serde",
+ "serde_json",
+ "zerocopy",
+ "zip",
 ]
 
 [[package]]

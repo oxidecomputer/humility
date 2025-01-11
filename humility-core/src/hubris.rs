@@ -16,7 +16,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Cursor;
 use std::mem::size_of;
 use std::num::TryFromIntError;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::{self, FromStr};
 use std::time::Instant;
 
@@ -2525,7 +2525,7 @@ impl HubrisArchive {
                     }
 
                     core.read_8(taddr, &mut indices).context(format!(
-                        "failed to read region desriptors for task {} at 0x{:x}",
+                        "failed to read region descriptors for task {} at 0x{:x}",
                         i, taddr)
                     )?;
 
@@ -3227,7 +3227,7 @@ impl HubrisArchive {
         &self,
         core: &mut dyn crate::core::Core,
         task: Option<DumpTask>,
-        dumpfile: Option<&str>,
+        dumpfile: Option<&Path>,
         started: Option<Instant>,
     ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
@@ -3315,8 +3315,8 @@ impl HubrisArchive {
                 };
 
                 (0..)
-                    .map(|i| format!("{prefix}{i}"))
-                    .find(|f| std::fs::File::open(f).is_err())
+                    .map(|i| PathBuf::from(format!("{prefix}{i}")))
+                    .find(|f| !f.exists())
                     .unwrap()
             }
         };
@@ -3327,7 +3327,7 @@ impl HubrisArchive {
         let mut file =
             OpenOptions::new().write(true).create_new(true).open(&filename)?;
 
-        msg!("dumping to {filename}");
+        msg!("dumping to {filename:?}");
 
         file.iowrite_with(header, ctx)?;
 
@@ -3733,7 +3733,11 @@ impl HubrisArchive {
             (HubrisType::Union(lt), HubrisType::Union(rt)) => {
                 lt.differs(self, rt)
             }
-            (HubrisType::Ptr(l), HubrisType::Ptr(r)) => self.differ(l, r),
+            (HubrisType::Ptr(l), HubrisType::Ptr(r)) => {
+                let pointee_l = self.lookup_ptrtype(l)?;
+                let pointee_r = self.lookup_ptrtype(r)?;
+                self.differ(pointee_l, pointee_r)
+            }
             _ => Ok(true),
         }
     }

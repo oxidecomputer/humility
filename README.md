@@ -252,6 +252,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility hash](#humility-hash): Access to the HASH block
 - [humility hiffy](#humility-hiffy): manipulate HIF execution
 - [humility host](#humility-host): Pretty-printing of host state
+- [humility hydrate](#humility-hydrate): Rehydrate a bare memory dump
 - [humility i2c](#humility-i2c): scan for and read I2C devices
 - [humility ibc](#humility-ibc): interface to the BMR491 power regulator
 - [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
@@ -1064,6 +1065,22 @@ humility: reading LAST_HOST_BOOT_FAIL
 ```
 
 
+### `humility hydrate`
+
+`humility hydrate` combines a raw memory dump (obtained from MGS) and a
+Hubris archive, forming a proper Hubris dump.
+
+```console
+$ humility -a build-grapefruit-image-default.zip hydrate hubris.dry.0
+```
+
+The archive is required, because the raw memory dump does not contain debug
+information.
+
+By default, this writes to `hubris.core.TASK_NAME.N` (where `N` is the
+lowest available value); use `--out` to specify a different path name.
+
+
 ### `humility i2c`
 
 On platforms that have I<sup>2</sup>C support, `humility i2c` can be used
@@ -1769,6 +1786,7 @@ It is fully functional on
 - Sidecar
 - PSC
 - `gimletlet-mgmt`
+
 These PCAs have the KSZ8463 switch + VSC85x2 PHY which is our standard
 management network interface.
 
