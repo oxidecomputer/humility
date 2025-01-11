@@ -267,17 +267,6 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         }
     };
 
-    let check_results =
-        |results: &Vec<Result<Vec<u8>, IpcError>>| -> Result<()> {
-            for (ndx, result) in results.iter().enumerate() {
-                if result.is_err() {
-                    bail!("failed: call {ndx}: {result:?}");
-                }
-            }
-
-            Ok(())
-        };
-
     //
     // Before we do something that we might regret, confirm that we're talking
     // to a Murata device of our expected model.
