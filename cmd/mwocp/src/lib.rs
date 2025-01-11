@@ -4,7 +4,32 @@
 
 //! ## `humility mwocp`
 //!
-//! `humility mwocp` allows for flashing the MWOCP68 family of PSUs.
+//! `humility mwocp` allows for flashing the MWOCP68 family of PSUs with a
+//! firmware payload specified via the `--flash` option.
+//!
+//! Like `humility pmbus`, a device can be specified via an address (along
+//! with an I2C bus or controller and port) or via a PMBus rail.  Note that
+//! either the 54V or 12V rail can be used; it is only used to identify the
+//! PSU.
+//!
+//! ```console
+//! $ humility mwocp -r V54_PSU1 -f ./FW_M5813_F1_v0_7_62.bin
+//! humility: starting update; revision is currently 0701-0701-0000
+//! humility: writing boot loader key
+//! humility: sleeping for 3 seconds...
+//! ...
+//! humility: flashed 32.00KB in 2 minutes
+//! humility: sending checksum (0x0036f1c7)
+//! humility: sleeping for 2 seconds...
+//! humility: checksum successful!
+//! humility: resetting PSU
+//! humility: sleeping for 5 seconds...
+//! humility: update complete; revision is now 0762-0701-0000
+//! ```
+//!
+//! Note that the MWOCP68 itself may reject firmware that is self-consistent
+//! (i.e., valid checksum) but invalid; in this case, an error won't be
+//! indicated, but the revision will not change across the update.
 //!
 
 use humility::hubris::*;
@@ -20,7 +45,7 @@ use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
 use pmbus::commands::mwocp68::*;
-use std::fs::{self};
+use std::fs;
 use std::thread;
 use std::time::Instant;
 
@@ -166,6 +191,17 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 
     base.push(Op::Push(address));
 
+    let check_results =
+        |results: &Vec<Result<Vec<u8>, IpcError>>| -> Result<()> {
+            for r in results {
+                if r.is_err() {
+                    bail!("failed during update: {results:?}");
+                }
+            }
+
+            Ok(())
+        };
+
     let str_result =
         |result: &Result<Vec<u8>, IpcError>, what| -> Result<String> {
             match *result {
@@ -189,6 +225,11 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         }
 
         Ok(())
+    };
+
+    let delay = |s| {
+        msg!("sleeping for {s} second{}...", if s != 1 { "s" } else { "" });
+        thread::sleep(std::time::Duration::from_secs(s));
     };
 
     let boot_loader_status_result = |result: &Result<Vec<u8>, IpcError>| -> Result<
@@ -238,8 +279,8 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         };
 
     //
-    // First, confirm that we're talking to a Murata device, that the
-    // revision is what we expect
+    // Before we do something that we might regret, confirm that we're talking
+    // to a Murata device of our expected model.
     //
     let mut ops = base.clone();
 
@@ -265,7 +306,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     check_str_result(&results[1], "MFR_MODEL", MWOCP68_MFR_MODEL)?;
 
     let revision = str_result(&results[2], "MFR_REVISION")?;
-    msg!("MFR_REVISION is {revision}");
+    msg!("starting update; revision is currently {revision}");
 
     let bytes = if let Some(filename) = subargs.flash {
         fs::read(filename)?
@@ -275,9 +316,8 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     };
 
     //
-    // The sequence here is outlined in depth in both the documentation and
-    // in the Hubris MWOCP68 driver code that does this in situ -- and it
-    // starts with writing the boot loader key.
+    // We're going to perform the process outlined by Murata, albeit in a very
+    // straightline fashion.  First, write the boot loader key...
     //
     msg!("writing boot loader key");
 
@@ -306,9 +346,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     // We expect to NOT be in boot loader mode.
     //
     check_boot_loader(&results[1], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
-
-    msg!("sleeping for {MWOCP68_KEY_DELAY} seconds...");
-    thread::sleep(std::time::Duration::from_secs(MWOCP68_KEY_DELAY));
+    delay(MWOCP68_KEY_DELAY);
 
     //
     // Now write the product key.  Goofily, this is NOT a block write, but
@@ -336,12 +374,10 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
     check_boot_loader(&results[1], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
-
-    msg!("sleeping for {MWOCP68_KEY_DELAY} seconds...");
-    thread::sleep(std::time::Duration::from_secs(MWOCP68_KEY_DELAY));
+    delay(MWOCP68_KEY_DELAY);
 
     //
-    // And now we can boot into the primary bootloader.
+    // And now we can boot into the primary bootloader (0x12).
     //
     msg!("booting into primary boot loader");
     let mut ops = base.clone();
@@ -356,9 +392,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
     check_results(&results)?;
-
-    msg!("sleeping for {MWOCP68_BOOT_DELAY} seconds...");
-    thread::sleep(std::time::Duration::from_secs(MWOCP68_BOOT_DELAY));
+    delay(MWOCP68_BOOT_DELAY);
 
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
@@ -369,7 +403,10 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
     check_boot_loader(&results[0], BOOT_LOADER_STATUS::Mode::BootLoader)?;
 
-    msg!("indicating write start...");
+    //
+    // Now indicate that we want to start to write the firmware (0x1).
+    //
+    msg!("indicating write start");
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
     ops.push(Op::Push(1));
@@ -379,9 +416,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
     check_results(&results)?;
-
-    msg!("sleeping for {MWOCP68_RESET_DELAY} seconds...");
-    thread::sleep(std::time::Duration::from_secs(MWOCP68_RESET_DELAY));
+    delay(MWOCP68_RESET_DELAY);
 
     let mut offs = 0;
     let mut cksum = 0u32;
@@ -393,6 +428,11 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         );
     }
 
+    //
+    // We're in the build loader; write the flash in 32-byte blocks with the
+    // requisite inter-write delay of 100 ms (!).  We do 10 of these in a go
+    // so we can update our progress bar.
+    //
     let chunksize = 10;
 
     let started = Instant::now();
@@ -482,8 +522,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
     check_results(&results)?;
 
-    msg!("sleeping {MWOCP68_CHECKSUM_DELAY} seconds");
-    thread::sleep(std::time::Duration::from_secs(MWOCP68_CHECKSUM_DELAY));
+    delay(MWOCP68_CHECKSUM_DELAY);
 
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
@@ -491,7 +530,11 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     ops.push(Op::Call(i2c_read.id));
     ops.push(Op::Done);
     let results = context.run(core, ops.as_slice(), None)?;
+    check_results(&results)?;
 
+    //
+    // If that's successful, we can bounce the PSU!
+    //
     let status = boot_loader_status_result(&results[0])?;
 
     match status.get_checksum_successful() {
@@ -504,7 +547,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
         None => panic!(),
     }
 
-    msg!("resetting PSU...");
+    msg!("resetting PSU");
 
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
@@ -516,9 +559,13 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
     check_results(&results)?;
 
-    msg!("sleeping {MWOCP68_REBOOT_DELAY} seconds");
-    thread::sleep(std::time::Duration::from_secs(MWOCP68_REBOOT_DELAY));
+    delay(MWOCP68_REBOOT_DELAY);
 
+    //
+    // Finally, confirm that we are no longer in boot loader mode (that is,
+    // that the PSU did indeed reset) and print our (hopefully updated!)
+    // revision.
+    //
     let mut ops = base.clone();
     ops.push(Op::Push(CommandCode::BOOT_LOADER_STATUS as u8));
     ops.push(Op::PushNone);
@@ -534,9 +581,9 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
     check_boot_loader(&results[0], BOOT_LOADER_STATUS::Mode::NotBootLoader)?;
-
     let revision = str_result(&results[1], "MFR_REVISION")?;
-    msg!("after update, MFR_REVISION is {revision}");
+
+    msg!("update complete; revision is now {revision}");
 
     Ok(())
 }
