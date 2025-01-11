@@ -2201,14 +2201,14 @@ fn pmbus_main(
     };
 
     let (mode, ndx) = if cmds[base] == vout {
-        let mode = match results[base] {
+        match results[base] {
             Err(code) => {
-                bail!("can't read VOUT_MODE: {}", worker.decode_read_err(code));
+                (None, base + 1)
             }
-            Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
-        };
-
-        (Some(mode), base + 1)
+            Ok(ref val) => {
+                (Some(VOUT_MODE::CommandData::from_slice(val).unwrap()), base + 1)
+            }
+        }
     } else {
         (None, base)
     };
