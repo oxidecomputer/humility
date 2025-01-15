@@ -146,14 +146,6 @@ impl Core for DumpCore {
         bail!("can't step a dump");
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        bail!("cannot enable SWV on a dump");
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        bail!("cannot read SWV on a dump");
-    }
-
     fn is_dump(&self) -> bool {
         true
     }

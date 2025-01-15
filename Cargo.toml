@@ -31,7 +31,6 @@ members = [
     "cmd/doc",
     "cmd/dump",
     "cmd/tofino-eeprom",
-    "cmd/etm",
     "cmd/exec",
     "cmd/extract",
     "cmd/flash",
@@ -45,7 +44,6 @@ members = [
     "cmd/rpc",
     "cmd/i2c",
     "cmd/ibc",
-    "cmd/itm",
     "cmd/jefe",
     "cmd/lpc55gpio",
     "cmd/lsusb",
@@ -139,7 +137,6 @@ cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugm
 cmd-doc = { path = "./cmd/doc", package = "humility-cmd-doc" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-tofino-eeprom = { path = "./cmd/tofino-eeprom", package = "humility-cmd-tofino-eeprom" }
-cmd-etm = { path = "./cmd/etm", package = "humility-cmd-etm" }
 cmd-exec = { path = "./cmd/exec", package = "humility-cmd-exec" }
 cmd-extract = { path = "./cmd/extract", package = "humility-cmd-extract" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
@@ -152,7 +149,6 @@ cmd-host = { path = "./cmd/host", package = "humility-cmd-host" }
 cmd-hydrate = { path = "./cmd/hydrate", package = "humility-cmd-hydrate" }
 cmd-i2c = { path = "./cmd/i2c", package = "humility-cmd-i2c" }
 cmd-ibc = { path = "./cmd/ibc", package = "humility-cmd-ibc" }
-cmd-itm = { path = "./cmd/itm", package = "humility-cmd-itm" }
 cmd-jefe = { path = "./cmd/jefe", package = "humility-cmd-jefe" }
 cmd-lpc55gpio = { path = "./cmd/lpc55gpio", package = "humility-cmd-lpc55gpio" }
 cmd-lsusb = { path = "./cmd/lsusb", package = "humility-cmd-lsusb" }

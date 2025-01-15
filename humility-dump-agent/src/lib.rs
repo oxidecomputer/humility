@@ -349,14 +349,6 @@ impl Core for DumpAgentCore {
         bail!("can't step over dump agent");
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        bail!("cannot enable SWV over dump agent");
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        bail!("cannot read SWV over dump agent");
-    }
-
     fn load(&mut self, _path: &Path) -> Result<()> {
         bail!("cannot load flash over dump agent");
     }

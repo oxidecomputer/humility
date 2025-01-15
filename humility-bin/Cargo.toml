@@ -46,7 +46,6 @@ cmd-debugmailbox = { workspace = true, optional = true }
 cmd-doc = { workspace = true }
 cmd-dump = { workspace = true }
 cmd-tofino-eeprom = { workspace = true }
-cmd-etm = { workspace = true }
 cmd-exec = { workspace = true }
 cmd-extract = { workspace = true }
 cmd-flash = { workspace = true, optional = true }
@@ -59,7 +58,6 @@ cmd-hiffy = { workspace = true }
 cmd-hydrate = { workspace = true }
 cmd-i2c = { workspace = true }
 cmd-ibc = { workspace = true }
-cmd-itm = { workspace = true }
 cmd-jefe = { workspace = true }
 cmd-lpc55gpio = { workspace = true }
 cmd-lsusb = { workspace = true, optional = true }
