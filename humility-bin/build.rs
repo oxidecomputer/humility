@@ -45,6 +45,12 @@ fn dcmds() -> Vec<CommandDescription> {{
             metadata.packages.iter().find(|p| &p.id == id).unwrap().clone();
 
         if let Some(cmd) = package.name.strip_prefix("humility-cmd-") {
+            if std::env::var_os("CARGO_FEATURE_PROBES").is_none() &&
+                // These are everything that can potentially pull in libusb
+                package.dependencies.iter().any(|d| d.name == "probe-rs" || d.name == "humility-probes-core" || d.name == "rusb")
+            {
+                continue;
+            }
             cmds.insert(cmd.to_string().replace('-', "_"));
         }
     }

@@ -1,32 +1,11 @@
-[package]
-name = "humility"
-
+# Looking to bump the humility version? Check `humility-bin`
 #
-# If you are about to update the Humility version (and well you should!) note
-# that there are a few tests that implicitly depend on it.  Fortunately,
-# trycmd makes it easy to update all of these at once; after changing the
-# version, utter:
-#
-#   TRYCMD_TEST="tests/cmd/*trycmd" TRYCMD=overwrite cargo test
-#
-# That will fail, but the files that result in the test failure should be
-# overwritten with the new result -- and `git diff` should show something
-# reasonable.  A subsequent test run should succeed:
-#
-#   TRYCMD_TEST="tests/cmd/*trycmd" cargo test
-#
-# Be sure to check in and push all of the files that change.  Happy versioning!
-#
-version = "0.11.14"
-authors = ["Bryan Cantrill <bryan@oxide.computer>"]
-edition = "2018"
-license = "MPL-2.0"
-rust-version = "1.68"
 
 [workspace]
 members = [
     "humility-arch-arm",
     "humility-arch-cortex",
+    "humility-bin",
     "humility-cmd",
     "humility-cli",
     "humility-core",
@@ -40,6 +19,7 @@ members = [
     "humility-net-core",
     "humility-pmbus",
     "humility-stack",
+    "humility-probes-core",
     "cmd/apptable",
     "cmd/auxflash",
     "cmd/bankerase",
@@ -101,6 +81,7 @@ members = [
     "cmd/writeword",
     "xtask",
 ]
+resolver = "2"
 
 [workspace.dependencies]
 # `git`-based deps
@@ -134,7 +115,7 @@ capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
 humility = { path = "./humility-core", package = "humility-core" }
 humility-arch-arm = { path = "./humility-arch-arm" }
 humility-cortex = { path = "./humility-arch-cortex" }
-humility-cmd = { path = "./humility-cmd" }
+humility-cmd = { path = "./humility-cmd", default-features = false }
 humility-cli = { path = "./humility-cli" }
 humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
@@ -146,6 +127,7 @@ humility_load_derive = { path = "./load_derive" }
 humility-log = { path = "./humility-log" }
 humility-net-core = { path = "./humility-net-core" }
 humility-pmbus = { path = "./humility-pmbus" }
+humility-probes-core = { path = "./humility-probes-core" }
 humility-stack = { path = "./humility-stack" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
@@ -285,102 +267,6 @@ inherits = "release"
 debug = false
 debug-assertions = true
 
-[build-dependencies]
-cargo_metadata = { workspace = true }
-anyhow = { workspace = true }
-
-[dependencies]
-pmbus = { workspace = true }
-hif = { workspace = true }
-spd = { workspace = true }
-humility = { workspace = true }
-humility-cortex = { workspace = true }
-humility-cmd = { workspace = true }
-humility-cli = { workspace = true }
-cmd-apptable = { workspace = true }
-cmd-auxflash = { workspace = true }
-cmd-bankerase = { workspace = true }
-cmd-console-proxy = { workspace = true } 
-cmd-counters = { workspace = true }
-cmd-dashboard = { workspace = true }
-cmd-diagnose = { workspace = true }
-cmd-debugmailbox = { workspace = true }
-cmd-doc = { workspace = true }
-cmd-dump = { workspace = true }
-cmd-tofino-eeprom = { workspace = true }
-cmd-etm = { workspace = true }
-cmd-exec = { workspace = true }
-cmd-extract = { workspace = true }
-cmd-flash = { workspace = true }
-cmd-gdb = { workspace = true }
-cmd-gimlet = { workspace = true }
-cmd-gpio = { workspace = true }
-cmd-hash = { workspace = true }
-cmd-host = { workspace = true }
-cmd-hiffy = { workspace = true }
-cmd-hydrate = { workspace = true }
-cmd-i2c = { workspace = true }
-cmd-ibc = { workspace = true }
-cmd-itm = { workspace = true }
-cmd-jefe = { workspace = true }
-cmd-lpc55gpio = { workspace = true }
-cmd-lsusb = { workspace = true }
-cmd-manifest = { workspace = true }
-cmd-map = { workspace = true }
-cmd-monorail = { workspace = true }
-cmd-mwocp = { workspace = true }
-cmd-net = { workspace = true }
-cmd-openocd = { workspace = true }
-cmd-pmbus = { workspace = true }
-cmd-power = { workspace = true }
-cmd-powershelf = { workspace = true }
-cmd-probe = { workspace = true }
-cmd-qspi = { workspace = true }
-cmd-readmem = { workspace = true }
-cmd-readvar = { workspace = true }
-cmd-rebootleby.workspace = true
-cmd-registers = { workspace = true }
-cmd-reset = { workspace = true }
-cmd-rencm = { workspace = true }
-cmd-rendmp = { workspace = true }
-cmd-ringbuf = { workspace = true }
-cmd-rpc = { workspace = true }
-cmd-sbrmi = { workspace = true }
-cmd-sensors = { workspace = true }
-cmd-spctrl = { workspace = true }
-cmd-spd = { workspace = true }
-cmd-spi = { workspace = true }
-cmd-stackmargin = { workspace = true }
-cmd-stmsecure = { workspace = true }
-cmd-tasks = { workspace = true }
-cmd-test = { workspace = true }
-cmd-validate = { workspace = true }
-cmd-vpd = { workspace = true }
-cmd-writeword = { workspace = true }
-
-fallible-iterator = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }
-bitfield = { workspace = true }
-clap = { workspace = true }
-csv = { workspace = true }
-serde = { workspace = true }
-parse_int = { workspace = true }
-multimap = { workspace = true }
-num-traits = { workspace = true }
-num-derive = { workspace = true }
-jep106 = { workspace = true }
-toml = { workspace = true }
-anyhow = { workspace = true }
-scroll = { workspace = true }
-indicatif = { workspace = true }
-colored = { workspace = true }
-indexmap = { workspace = true }
-reedline = { workspace = true }
-
 [patch.crates-io]
 libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
 hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }
-
-[dev-dependencies]
-trycmd = { workspace = true }

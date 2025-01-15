@@ -63,6 +63,27 @@ pub enum CommandKind {
     Raw,
 }
 
+#[cfg(feature = "probes")]
+pub fn attach_probe(
+    args: &Cli,
+    hubris: &HubrisArchive,
+) -> Result<Box<dyn Core>> {
+    let probe = match &args.probe {
+        Some(p) => p,
+        None => "auto",
+    };
+
+    humility_probes_core::attach(probe, hubris)
+}
+
+#[cfg(not(feature = "probes"))]
+pub fn attach_probe(
+    _args: &Cli,
+    _hubris: &HubrisArchive,
+) -> Result<Box<dyn Core>> {
+    bail!("Did not build with probes!");
+}
+
 pub fn attach_live(
     args: &Cli,
     hubris: &HubrisArchive,
@@ -72,12 +93,7 @@ pub fn attach_live(
     } else if args.ip.is_some() {
         attach_net(args, hubris)
     } else {
-        let probe = match &args.probe {
-            Some(p) => p,
-            None => "auto",
-        };
-
-        humility::core::attach(probe, hubris)
+        attach_probe(args, hubris)
     }
 }
 

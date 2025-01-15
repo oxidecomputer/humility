@@ -51,12 +51,19 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "probes")]
+static PROBES_ENABLED: &str = "";
+
+#[cfg(not(feature = "probes"))]
+static PROBES_ENABLED: &str = "probeless";
+
 pub(crate) fn version(cli: &Cli) -> Option<String> {
     if cli.version {
         Some(format!(
-            "{} {}",
+            "{} {} {}",
             env!("CARGO_BIN_NAME"),
-            env!("CARGO_PKG_VERSION")
+            env!("CARGO_PKG_VERSION"),
+            PROBES_ENABLED
         ))
     } else {
         None

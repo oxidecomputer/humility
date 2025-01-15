@@ -17,5 +17,4 @@ tempfile = { workspace = true }
 path-slash = { workspace = true }
 ihex = { workspace = true }
 zip.workspace = true
-probe-rs.workspace = true
 log.workspace = true

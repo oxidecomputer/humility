@@ -1248,8 +1248,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility"
-version = "0.11.14"
+name = "humility-arch-arm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "capstone",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
+name = "humility-bin"
+version = "0.12.1"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1342,16 +1352,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-arch-arm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "capstone",
- "num-derive",
- "num-traits",
-]
-
-[[package]]
 name = "humility-cli"
 version = "0.1.0"
 dependencies = [
@@ -1373,6 +1373,7 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-net-core",
+ "humility-probes-core",
 ]
 
 [[package]]
@@ -1416,6 +1417,7 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-cortex",
+ "humility-probes-core",
  "ihex",
  "parse_int",
  "path-slash",
@@ -1533,7 +1535,6 @@ dependencies = [
  "lzss",
  "num-traits",
  "parse_int",
- "probe-rs",
  "zerocopy",
  "zip",
 ]
@@ -1590,6 +1591,7 @@ dependencies = [
  "humility-cmd-auxflash",
  "humility-core",
  "humility-cortex",
+ "humility-probes-core",
  "ihex",
  "num-traits",
  "parse_int",
@@ -2027,7 +2029,6 @@ dependencies = [
  "log",
  "parse_int",
  "path-slash",
- "probe-rs",
  "tempfile",
  "zip",
 ]
@@ -2104,6 +2105,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-probes-core",
 ]
 
 [[package]]
@@ -2376,11 +2378,9 @@ dependencies = [
  "num-derive",
  "num-traits",
  "parse_int",
- "probe-rs",
  "rayon",
  "regex",
  "ron 0.7.1",
- "rusb",
  "rustc-demangle",
  "scroll",
  "serde",
@@ -2508,6 +2508,24 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "humility-core",
+]
+
+[[package]]
+name = "humility-probes-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-arch-arm",
+ "humility-core",
+ "humpty",
+ "indicatif",
+ "log",
+ "num-derive",
+ "num-traits",
+ "parse_int",
+ "probe-rs",
+ "rusb",
+ "thiserror",
 ]
 
 [[package]]

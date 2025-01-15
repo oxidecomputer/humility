@@ -16,7 +16,6 @@ log.workspace = true
 lzss.workspace = true
 num-traits.workspace = true
 parse_int.workspace = true
-probe-rs.workspace = true
 zerocopy.workspace = true
 zip.workspace = true
 

@@ -1,0 +1,21 @@
+[package]
+name = "humility-probes-core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+humpty.workspace = true
+
+humility.workspace = true
+humility-arch-arm.workspace = true
+indicatif.workspace = true
+log.workspace = true
+num-derive.workspace = true
+num-traits.workspace = true
+parse_int.workspace = true
+probe-rs.workspace = true
+thiserror.workspace = true
+rusb.workspace = true

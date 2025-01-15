@@ -1,0 +1,129 @@
+#
+# If you are about to update the Humility version (and well you should!) note
+# that there are a few tests that implicitly depend on it.  Fortunately,
+# trycmd makes it easy to update all of these at once; after changing the
+# version, utter:
+#
+#   TRYCMD_TEST="tests/cmd/*trycmd" TRYCMD=overwrite cargo test
+#
+# That will fail, but the files that result in the test failure should be
+# overwritten with the new result -- and `git diff` should show something
+# reasonable.  A subsequent test run should succeed:
+#
+#   TRYCMD_TEST="tests/cmd/*trycmd" cargo test
+#
+# Be sure to check in and push all of the files that change.  Happy versioning!
+#
+
+[package]
+name = "humility-bin"
+version = "0.12.1"
+edition = "2021"
+license = "MPL-2.0"
+rust-version = "1.68"
+
+[build-dependencies]
+cargo_metadata = { workspace = true }
+anyhow = { workspace = true }
+
+# Any dependency marked with option is to allow compiling without libusb
+[dependencies]
+pmbus = { workspace = true }
+hif = { workspace = true }
+spd = { workspace = true }
+humility = { workspace = true }
+humility-cortex = { workspace = true }
+humility-cmd = { workspace = true, default-features = false }
+humility-cli = { workspace = true }
+cmd-apptable = { workspace = true }
+cmd-auxflash = { workspace = true }
+cmd-bankerase = { workspace = true, optional = true }
+cmd-console-proxy = { workspace = true }
+cmd-counters = { workspace = true }
+cmd-dashboard = { workspace = true }
+cmd-diagnose = { workspace = true }
+cmd-debugmailbox = { workspace = true, optional = true }
+cmd-doc = { workspace = true }
+cmd-dump = { workspace = true }
+cmd-tofino-eeprom = { workspace = true }
+cmd-etm = { workspace = true }
+cmd-exec = { workspace = true }
+cmd-extract = { workspace = true }
+cmd-flash = { workspace = true, optional = true }
+cmd-gdb = { workspace = true }
+cmd-gimlet = { workspace = true }
+cmd-gpio = { workspace = true }
+cmd-hash = { workspace = true }
+cmd-host = { workspace = true }
+cmd-hiffy = { workspace = true }
+cmd-hydrate = { workspace = true }
+cmd-i2c = { workspace = true }
+cmd-ibc = { workspace = true }
+cmd-itm = { workspace = true }
+cmd-jefe = { workspace = true }
+cmd-lpc55gpio = { workspace = true }
+cmd-lsusb = { workspace = true, optional = true }
+cmd-manifest = { workspace = true }
+cmd-map = { workspace = true }
+cmd-monorail = { workspace = true }
+cmd-mwocp = { workspace = true }
+cmd-net = { workspace = true }
+cmd-openocd = { workspace = true }
+cmd-pmbus = { workspace = true }
+cmd-power = { workspace = true }
+cmd-powershelf = { workspace = true }
+cmd-probe = { workspace = true }
+cmd-qspi = { workspace = true }
+cmd-readmem = { workspace = true }
+cmd-readvar = { workspace = true }
+cmd-rebootleby.workspace = true
+cmd-registers = { workspace = true }
+cmd-reset = { workspace = true, optional = true }
+cmd-rencm = { workspace = true }
+cmd-rendmp = { workspace = true }
+cmd-ringbuf = { workspace = true }
+cmd-rpc = { workspace = true }
+cmd-sbrmi = { workspace = true }
+cmd-sensors = { workspace = true }
+cmd-spctrl = { workspace = true }
+cmd-spd = { workspace = true }
+cmd-spi = { workspace = true }
+cmd-stackmargin = { workspace = true }
+cmd-stmsecure = { workspace = true }
+cmd-tasks = { workspace = true }
+cmd-test = { workspace = true }
+cmd-validate = { workspace = true }
+cmd-vpd = { workspace = true }
+cmd-writeword = { workspace = true }
+
+fallible-iterator = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+bitfield = { workspace = true }
+clap = { workspace = true }
+csv = { workspace = true }
+serde = { workspace = true }
+parse_int = { workspace = true }
+multimap = { workspace = true }
+num-traits = { workspace = true }
+num-derive = { workspace = true }
+jep106 = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+scroll = { workspace = true }
+indicatif = { workspace = true }
+colored = { workspace = true }
+indexmap = { workspace = true }
+reedline = { workspace = true }
+
+[dev-dependencies]
+trycmd = { workspace = true }
+
+[features]
+default = ["probes"]
+probes = ["humility-cmd/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-bankerase", "cmd-debugmailbox"]
+
+[[bin]]
+name = "humility"
+path = "src/main.rs"
+
