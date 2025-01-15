@@ -213,25 +213,6 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        use probe_rs::architecture::arm::swo::SwoConfig;
-
-        let config = SwoConfig::new(0).set_baud(2_000_000);
-        self.session.setup_swv(0, &config)?;
-
-        //
-        // Because the probe can have sticky errors, we perform one read
-        // (and discard the results) to assure that any further errors
-        // are legit.
-        //
-        let _discard = self.session.read_swo();
-        Ok(())
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        Ok(self.session.read_swo()?)
-    }
-
     fn load(&mut self, path: &Path) -> Result<()> {
         #[derive(Debug, Default)]
         struct LoadProgress {

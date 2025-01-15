@@ -10,16 +10,11 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
 use std::time::Duration;
-use std::time::Instant;
 
 const OPENOCD_COMMAND_DELIMITER: u8 = 0x1a;
-const OPENOCD_TRACE_DATA_BEGIN: &str = "type target_trace data ";
-const OPENOCD_TRACE_DATA_END: &str = "\r\n";
 
 pub struct OpenOCDCore {
     stream: TcpStream,
-    swv: bool,
-    last_swv: Option<Instant>,
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -67,7 +62,7 @@ impl OpenOCDCore {
                 anyhow!("can't connect to OpenOCD on port 6666; is it running?")
             })?;
 
-        Ok(Self { stream, swv: false, last_swv: None })
+        Ok(Self { stream })
     }
 }
 
@@ -177,83 +172,6 @@ impl Core for OpenOCDCore {
         }
 
         Err(anyhow!("\"{}\": malformed return value: {:?}", cmd, rval))
-    }
-
-    fn init_swv(&mut self) -> Result<()> {
-        self.swv = true;
-        self.sendcmd("tpiu config disable")?;
-
-        //
-        // XXX: This assumes STM32F4's 16Mhz clock
-        //
-        self.sendcmd("tpiu config internal - uart on 16000000")?;
-        self.sendcmd("tcl_trace on")?;
-
-        Ok(())
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        if !self.swv {
-            self.init_swv()?
-        }
-
-        let mut rbuf = vec![0; 8192];
-        let mut swv: Vec<u8> = Vec::with_capacity(8192);
-
-        if let Some(last_swv) = self.last_swv {
-            //
-            // When we read from SWV from OpenOCD, it will block until data
-            // becomes available.  To better approximate the (non-blocking)
-            // behavior we see on a directly attached debugger, we return a
-            // zero byte read if it has been less than 100 ms since our last
-            // read -- relying on OpenOCD to buffer things a bit.
-            //
-            if last_swv.elapsed().as_secs_f64() < 0.1 {
-                return Ok(swv);
-            }
-        }
-
-        let rval = self.stream.read(&mut rbuf)?;
-        self.last_swv = Some(Instant::now());
-
-        if rbuf[rval - 1] != OPENOCD_COMMAND_DELIMITER {
-            bail!("missing trace data delimiter: {:?}", rval);
-        }
-
-        //
-        // OpenOCD can sometimes send multiple command delimters -- or
-        // none at all.
-        //
-        if rval == 1 {
-            return Ok(swv);
-        }
-
-        let rstr = if rbuf[0] == OPENOCD_COMMAND_DELIMITER {
-            std::str::from_utf8(&rbuf[1..rval - 1])?
-        } else {
-            std::str::from_utf8(&rbuf[0..rval - 1])?
-        };
-
-        if !rstr.starts_with(OPENOCD_TRACE_DATA_BEGIN) {
-            bail!("bogus trace data (bad start): {:?}", rstr);
-        }
-
-        if !rstr.ends_with(OPENOCD_TRACE_DATA_END) {
-            bail!("bogus trace data (bad end): {:?}", rstr);
-        }
-
-        let begin = OPENOCD_TRACE_DATA_BEGIN.len();
-        let end = rstr.len() - OPENOCD_TRACE_DATA_END.len();
-
-        for i in (begin..end).step_by(2) {
-            if i + 1 >= end {
-                bail!("short trace data: {:?}", rval);
-            }
-
-            swv.push(u8::from_str_radix(&rstr[i..=i + 1], 16)?);
-        }
-
-        Ok(swv)
     }
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
