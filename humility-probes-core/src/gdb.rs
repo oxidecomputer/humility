@@ -328,14 +328,6 @@ impl Core for GDBCore {
         Ok(())
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        Err(anyhow!("GDB target does not support SWV"))
-    }
-
     fn load(&mut self, _path: &Path) -> Result<()> {
         bail!("Flash loading is not supported with GDB");
     }

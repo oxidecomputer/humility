@@ -219,7 +219,6 @@ pub fn print_tasks(
 ) -> Result<()> {
     let (base, task_count) = hubris.task_table(core)?;
     log::debug!("task table: {:#x?}, count: {}", base, task_count);
-    let ticks = if core.is_net() { None } else { Some(hubris.ticks(core)?) };
 
     let task_t = hubris.lookup_struct_byname("Task")?;
     let save = task_t.lookup_member("save")?.offset;
@@ -236,6 +235,9 @@ pub fn print_tasks(
 
     loop {
         core.halt()?;
+
+        let ticks =
+            if core.is_net() { None } else { Some(hubris.ticks(core)?) };
 
         let cur = hubris.current_task(core)?;
         let task_dump = hubris.task_dump();
@@ -269,7 +271,6 @@ pub fn print_tasks(
         }
 
         let mut tasks = vec![];
-        let mut panicked = false;
         let mut regs = HashMap::new();
 
         for i in 0..task_count {
@@ -300,18 +301,6 @@ pub fn print_tasks(
             }
 
             tasks.push((i, addr, task_value, task));
-
-            if let TaskState::Faulted { fault, .. } = task.state {
-                if fault == doppel::FaultInfo::Panic {
-                    panicked = true;
-                }
-            }
-        }
-
-        let keep_halted = stack || registers || panicked;
-
-        if !keep_halted {
-            core.run()?;
         }
 
         writeln!(
@@ -480,9 +469,7 @@ pub fn print_tasks(
             )?;
         }
 
-        if keep_halted {
-            core.run()?;
-        }
+        core.run()?;
 
         if task_arg.is_some() && !found {
             bail!("\"{}\" is not a valid task", task_arg.unwrap());

@@ -385,14 +385,6 @@ impl Core for NetCore {
         bail!("can't step over network");
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        bail!("cannot enable SWV over network");
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        bail!("cannot read SWV over network");
-    }
-
     fn load(&mut self, _path: &Path) -> Result<()> {
         bail!("cannot load flash over network");
     }

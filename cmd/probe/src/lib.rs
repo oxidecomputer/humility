@@ -94,7 +94,6 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::debug::*;
-use humility_cortex::itm::*;
 use humility_cortex::scs::*;
 
 #[derive(Parser, Debug)]
@@ -317,33 +316,6 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
 
         humility::msg!("{:>12} => {}", component.0, addrs);
     }
-
-    print(
-        "ITM status",
-        match coreinfo.address(CoreSightComponent::ITM) {
-            None => "absent".to_string(),
-            Some(_) => {
-                let mut itm = vec![];
-
-                if DEMCR::read(core)?.trcena() {
-                    itm.push("TRCENA enabled");
-                } else {
-                    itm.push("TRCENA disabled");
-                }
-
-                if ITM_TCR::read(core)?.itm_enable() {
-                    itm.push("TCR enabled")
-                } else {
-                    itm.push("TCR disabled")
-                }
-
-                let s = format!("TER=0x{:x}", u32::from(ITM_TER::read(core)?));
-
-                itm.push(&s);
-                itm.join(", ")
-            }
-        },
-    );
 
     if !dhcsr.halted() {
         core.halt()?;

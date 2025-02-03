@@ -1282,7 +1282,6 @@ dependencies = [
  "humility-cmd-diagnose",
  "humility-cmd-doc",
  "humility-cmd-dump",
- "humility-cmd-etm",
  "humility-cmd-exec",
  "humility-cmd-extract",
  "humility-cmd-flash",
@@ -1295,7 +1294,6 @@ dependencies = [
  "humility-cmd-hydrate",
  "humility-cmd-i2c",
  "humility-cmd-ibc",
- "humility-cmd-itm",
  "humility-cmd-jefe",
  "humility-cmd-lpc55gpio",
  "humility-cmd-lsusb",
@@ -1540,21 +1538,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-cmd-etm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 3.2.23",
- "csv",
- "humility-cli",
- "humility-cmd",
- "humility-core",
- "humility-cortex",
- "log",
- "parse_int",
-]
-
-[[package]]
 name = "humility-cmd-exec"
 version = "0.1.0"
 dependencies = [
@@ -1750,20 +1733,6 @@ dependencies = [
  "parse_int",
  "pmbus",
  "zerocopy",
-]
-
-[[package]]
-name = "humility-cmd-itm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 3.2.23",
- "csv",
- "humility-cli",
- "humility-cmd",
- "humility-core",
- "humility-cortex",
- "parse_int",
 ]
 
 [[package]]

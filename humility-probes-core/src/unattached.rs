@@ -73,14 +73,6 @@ impl Core for UnattachedCore {
         bail!("Core::step unimplemented when unattached!");
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        bail!("Core::init_swv unimplemented when unattached!");
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        bail!("Core::read_swv unimplemented when unattached!");
-    }
-
     fn load(&mut self, _path: &Path) -> Result<()> {
         bail!("Core::load unimplemented when unattached!");
     }

@@ -69,8 +69,6 @@ impl humility::core::Core for DryCore {
     unsupported!(op_done());
     unsupported!(op_start());
     unsupported!(read_reg(_reg: ARMRegister) -> Result<u32>);
-    unsupported!(init_swv());
-    unsupported!(read_swv() -> Result<Vec<u8>>);
     unsupported!(write_reg(_reg: ARMRegister, _value: u32));
     unsupported!(write_word_32(_addr: u32, _data: u32));
     unsupported!(reset_and_halt(_dur: std::time::Duration));

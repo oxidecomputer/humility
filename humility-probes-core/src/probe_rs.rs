@@ -19,7 +19,6 @@ pub struct ProbeCore {
     pub vendor_id: u16,
     pub product_id: u16,
     pub serial_number: Option<String>,
-    unhalted_reads: bool,
     halted: u32,
     unhalted_read: BTreeMap<u32, u32>,
     can_flash: bool,
@@ -32,7 +31,6 @@ impl ProbeCore {
         vendor_id: u16,
         product_id: u16,
         serial_number: Option<String>,
-        unhalted_reads: bool,
         can_flash: bool,
     ) -> Self {
         Self {
@@ -41,7 +39,6 @@ impl ProbeCore {
             vendor_id,
             product_id,
             serial_number,
-            unhalted_reads,
             halted: 0,
             unhalted_read: humility_arch_arm::unhalted_read_regions(),
             can_flash,
@@ -54,24 +51,20 @@ impl ProbeCore {
     ) -> Result<()> {
         let mut core = self.session.core(0)?;
 
-        if self.unhalted_reads {
-            func(&mut core)
+        let halted = if self.halted == 0 && !core.core_halted()? {
+            core.halt(std::time::Duration::from_millis(1000))?;
+            true
         } else {
-            let halted = if self.halted == 0 && !core.core_halted()? {
-                core.halt(std::time::Duration::from_millis(1000))?;
-                true
-            } else {
-                false
-            };
+            false
+        };
 
-            let rval = func(&mut core);
+        let rval = func(&mut core);
 
-            if halted {
-                core.run()?;
-            }
-
-            rval
+        if halted {
+            core.run()?;
         }
+
+        rval
     }
 }
 
@@ -213,25 +206,6 @@ impl Core for ProbeCore {
         Ok(())
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        use probe_rs::architecture::arm::swo::SwoConfig;
-
-        let config = SwoConfig::new(0).set_baud(2_000_000);
-        self.session.setup_swv(0, &config)?;
-
-        //
-        // Because the probe can have sticky errors, we perform one read
-        // (and discard the results) to assure that any further errors
-        // are legit.
-        //
-        let _discard = self.session.read_swo();
-        Ok(())
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        Ok(self.session.read_swo()?)
-    }
-
     fn load(&mut self, path: &Path) -> Result<()> {
         #[derive(Debug, Default)]
         struct LoadProgress {
@@ -332,17 +306,13 @@ impl Core for ProbeCore {
     }
 
     fn op_start(&mut self) -> Result<()> {
-        if !self.unhalted_reads {
-            self.halt()?;
-        }
+        self.halt()?;
 
         Ok(())
     }
 
     fn op_done(&mut self) -> Result<()> {
-        if !self.unhalted_reads {
-            self.run()?;
-        }
+        self.run()?;
 
         Ok(())
     }

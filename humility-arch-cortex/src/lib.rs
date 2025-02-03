@@ -4,11 +4,8 @@
 
 pub mod debug;
 pub mod dwt;
-pub mod etm;
-pub mod itm;
 pub mod scs;
 pub mod swo;
-pub mod tpiu;
 
 #[macro_use]
 extern crate num_derive;

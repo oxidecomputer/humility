@@ -70,14 +70,6 @@ impl Core for ArchiveCore {
         bail!("can't step an archive");
     }
 
-    fn init_swv(&mut self) -> Result<()> {
-        bail!("cannot enable SWV with an archive");
-    }
-
-    fn read_swv(&mut self) -> Result<Vec<u8>> {
-        bail!("cannot read SWV with an archive");
-    }
-
     fn load(&mut self, _path: &Path) -> Result<()> {
         bail!("cannot load flash to an archive");
     }

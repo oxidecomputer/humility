@@ -145,7 +145,6 @@ pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
 #[rustfmt::skip::macros(anyhow, bail)]
 pub fn attach_to_chip(
     probe: &str,
-    hubris: &HubrisArchive,
     chip: Option<&str>,
 ) -> Result<Box<dyn Core>> {
     let (probe, index) = parse_probe(probe);
@@ -191,7 +190,6 @@ pub fn attach_to_chip(
                 probe_info.vendor_id,
                 probe_info.product_id,
                 probe_info.serial_number,
-                hubris.unhalted_reads(),
                 can_flash,
             )))
         }
@@ -209,15 +207,15 @@ pub fn attach_to_chip(
         }
 
         "auto" => {
-            if let Ok(probe) = attach_to_chip("ocd", hubris, chip) {
+            if let Ok(probe) = attach_to_chip("ocd", chip) {
                 return Ok(probe);
             }
 
-            if let Ok(probe) = attach_to_chip("jlink", hubris, chip) {
+            if let Ok(probe) = attach_to_chip("jlink", chip) {
                 return Ok(probe);
             }
 
-            attach_to_chip("usb", hubris, chip)
+            attach_to_chip("usb", chip)
         }
 
         "ocdgdb" => {
@@ -256,13 +254,7 @@ pub fn attach_to_chip(
                 crate::msg!("attached to {vidpid} via {name}");
 
                 Ok(Box::new(probe_rs::ProbeCore::new(
-                    session,
-                    name,
-                    vid,
-                    pid,
-                    serial,
-                    hubris.unhalted_reads(),
-                    can_flash,
+                    session, name, vid, pid, serial, can_flash,
                 )))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {probe}")),
@@ -270,17 +262,13 @@ pub fn attach_to_chip(
     }
 }
 
-pub fn attach_for_flashing(
-    probe: &str,
-    hubris: &HubrisArchive,
-    chip: &str,
-) -> Result<Box<dyn Core>> {
-    attach_to_chip(probe, hubris, Some(chip))
+pub fn attach_for_flashing(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+    attach_to_chip(probe, Some(chip))
 }
 
 pub fn attach(probe: &str, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
     match hubris.chip() {
-        Some(s) => attach_to_chip(probe, hubris, Some(&s)),
-        None => attach_to_chip(probe, hubris, None),
+        Some(s) => attach_to_chip(probe, Some(&s)),
+        None => attach_to_chip(probe, None),
     }
 }

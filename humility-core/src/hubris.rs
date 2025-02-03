@@ -3679,14 +3679,6 @@ impl HubrisArchive {
         }
     }
 
-    pub fn unhalted_reads(&self) -> bool {
-        if let Some(ref target) = self.manifest.target {
-            target != "thumbv6m-none-eabi"
-        } else {
-            false
-        }
-    }
-
     /// Reads the auxiliary flash data from a Hubris archive
     ///
     /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
