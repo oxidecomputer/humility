@@ -242,7 +242,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
 - [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
-- [humility etm](#humility-etm): commands for ARM's Embedded Trace Macrocell (ETM)
 - [humility exec](#humility-exec): execute command within context of an environment
 - [humility extract](#humility-extract): extract all or part of a Hubris archive
 - [humility flash](#humility-flash): flash archive onto attached device
@@ -255,7 +254,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility hydrate](#humility-hydrate): Rehydrate a bare memory dump
 - [humility i2c](#humility-i2c): scan for and read I2C devices
 - [humility ibc](#humility-ibc): interface to the BMR491 power regulator
-- [humility itm](#humility-itm): commands for ARM's Instrumentation Trace Macrocell (ITM)
 - [humility jefe](#humility-jefe): influence jefe externally
 - [humility lpc55gpio](#humility-lpc55gpio): LPC55 GPIO pin manipulation
 - [humility lsusb](#humility-lsusb): List all USB devices visible to Humility
@@ -638,13 +636,6 @@ ID TASK                       GEN PRI STATE
 24 dump_agent                   0   4 wait: reply from sprot/gen0
 25 idle                         0   8 RUNNING
 ```
-
-
-
-### `humility etm`
-
-Enables and operates upon the Embedded Trace Macrocell (ETM) found in
-some ARM Cortex-M parts.
 
 
 
@@ -1276,37 +1267,6 @@ The log doesn't appear to be _completely_ reliable, especially with
 respect to timestamps, so take it with a grain of salt and with the
 datasheet close at hand.  For example, the machine in the example above
 had **not** be up for 777 days (or, for that matter, for 4,969).
-
-
-
-### `humility itm`
-
-`humility itm` consumes data from the Instrumentation Trace Macrocell
-(ITM) present in many ARM Cortex-M variants.  ITM is problematic in many
-dimensions: it is lossy; it requires knowledge of the target's clocking to
-configure properly; it relies on functionality (SWO/SWV) that is often
-buggy in chip debuggers; it isn't present everywhere (Cortex-M0+ in
-particular doesn't have ITM).  So in general, ITM isn't what Hubris
-programmers should be looking for:  those developing code and wishing to
-see if and how that code is executed should prefer ring buffers to
-ITM-based instrumentation.  (See the documentation for `humility ringbuf`
-for details.)
-
-That said, ITM remains the best way to get certain messages from the
-Hubris kernel (e.g., boot and panic messages); use `humility itm -ea` to
-enable ITM and attach to the connected device.  For example, if running
-with the `ping` task, one will see messages from `jefe` restarting it:
-
-```console
-$ humility -a /path/to/my/hubris-archive.zip itm -ea
-humility: attached via ST-Link
-humility: core halted
-humility: core resumed
-humility: ITM synchronization packet found at offset 6
-Task #7 Divide-by-zero
-Task #7 Memory fault at address 0x0
-Task #7 Divide-by-zero
-```
 
 
 
