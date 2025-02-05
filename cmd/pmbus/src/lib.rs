@@ -1232,6 +1232,11 @@ fn writes(
         worker.end_device();
     }
 
+    if subargs.dryrun {
+        worker.dry_run();
+        return Ok(());
+    }
+
     //
     // Now go back through our devices checking results -- and creating our
     // next batch of work, if any.
@@ -1420,6 +1425,9 @@ trait PmbusWorker {
     /// Performs the given write operation
     fn write(&mut self, code: u8, op: &WriteOp);
 
+    /// Displays dry-run output
+    fn dry_run(&self);
+
     /// Executes queued-up commands, returning the result
     fn run(&mut self) -> Result<Vec<Result<Vec<u8>, IpcError>>>;
 
@@ -1501,6 +1509,10 @@ impl PmbusWorker for I2cWorker<'_> {
         self.ops.push(Op::Done);
         let ops = std::mem::take(&mut self.ops);
         self.context.run(self.core, &ops, None)
+    }
+
+    fn dry_run(&self) {
+        println!("{:#?}", self.ops);
     }
 
     fn decode_read_err(&self, code: IpcError) -> String {
@@ -1871,6 +1883,10 @@ impl PmbusWorker for IdolWorker<'_> {
             out_with_rail.push(out);
         }
         Ok(out_with_rail)
+    }
+
+    fn dry_run(&self) {
+        println!("{:#?}", self.ops);
     }
 }
 

@@ -17,7 +17,7 @@
 
 [package]
 name = "humility-bin"
-version = "0.12.1"
+version = "0.12.2"
 edition = "2021"
 license = "MPL-2.0"
 rust-version = "1.68"
@@ -64,6 +64,7 @@ cmd-lsusb = { workspace = true, optional = true }
 cmd-manifest = { workspace = true }
 cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
+cmd-mwocp = { workspace = true }
 cmd-net = { workspace = true }
 cmd-openocd = { workspace = true }
 cmd-pmbus = { workspace = true }
