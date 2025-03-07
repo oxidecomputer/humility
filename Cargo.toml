@@ -248,6 +248,7 @@ termimad = "0.21"
 termios = "0.3" # not usable on windows!
 thiserror = "1.0"
 toml = "0.5"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 trycmd = "0.13.2"
 winapi = "0.3.9"
 zerocopy = "0.6.1"
