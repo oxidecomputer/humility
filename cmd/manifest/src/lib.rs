@@ -123,6 +123,21 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         id += 1;
     }
 
+    // We've had problems with variables getting optimized out of hiffy
+    if hubris.modules().any(|x| x.name == "hiffy") {
+        let _ = hubris.lookup_variable("HIFFY_VERSION_MAJOR")?;
+        let _ = hubris.lookup_variable("HIFFY_VERSION_MINOR")?;
+        let _ = hubris.lookup_variable("HIFFY_VERSION_PATCH")?;
+        let _ = hubris.lookup_variable("HIFFY_READY")?;
+        let _ = hubris.lookup_variable("HIFFY_KICK")?;
+        let _ = hubris.lookup_variable("HIFFY_RSTACK")?;
+        let _ = hubris.lookup_variable("HIFFY_REQUESTS")?;
+        let _ = hubris.lookup_variable("HIFFY_ERRORS")?;
+        let _ = hubris.lookup_variable("HIFFY_FAILURE")?;
+        // We can't check for `HIFFY_SCRATCH` or `HIFFY_DATA`
+        // as some old archives didn't include it
+    }
+
     if !manifest.i2c_buses.is_empty() {
         let mut controllers = HashSet::new();
 
