@@ -1194,6 +1194,14 @@ fn writes(
     let writecmds = subargs.writes.as_ref().unwrap();
     let writes = validate_writes(writecmds, device)?;
 
+    let vout = CommandCode::VOUT_MODE as u8;
+    let mut mode_op = None;
+
+    device.command(vout, |cmd| match cmd.read_op() {
+        pmbus::Operation::Illegal => {}
+        op => mode_op = Some(op),
+    });
+
     //
     // First up, we are going to do any reads that we need to perform, along
     // with any operations to set a command (SendByte) as well as set an
@@ -1210,9 +1218,11 @@ fn writes(
         }
 
         //
-        // Now our VOUT_MODE
+        // If VOUT_MODE is a legal operation, read it
         //
-        worker.read(CommandCode::VOUT_MODE as u8, pmbus::Operation::ReadByte);
+        if let Some(mode_op) = mode_op {
+            worker.read(vout, mode_op);
+        }
 
         for (&code, (_cmd, op)) in &writes {
             match op {
@@ -1263,9 +1273,11 @@ fn writes(
         }
 
         //
-        // Step over the mode.
+        // Step over the mode if it's present.
         //
-        ndx += 1;
+        if mode_op.is_some() {
+            ndx += 1;
+        }
 
         for (&_code, (cmd, op)) in &writes {
             match op {
@@ -1312,16 +1324,29 @@ fn writes(
             ndx += 1;
         }
 
-        let mode = match results[ndx] {
-            Err(code) => {
-                bail!("bad VOUT_MODE on {harg}: {}", worker.decode_read_err(code));
+        let mode = if mode_op.is_some() {
+            match results[ndx] {
+                Err(code) => {
+                    bail!(
+                        "bad VOUT_MODE on {harg}: {}",
+                        worker.decode_read_err(code)
+                    );
+                }
+                Ok(ref v) => {
+                    ndx += 1;
+                    Some(VOUT_MODE::CommandData::from_slice(v).unwrap())
+                }
             }
-            Ok(ref val) => VOUT_MODE::CommandData::from_slice(val).unwrap(),
+        } else {
+            None
         };
 
-        ndx += 1;
-
-        let getmode = || mode;
+        let getmode = || match mode {
+            Some(mode) => mode,
+            None => {
+                panic!("unexpected call to get VOutMode");
+            }
+        };
 
         for (&code, (cmd, op)) in &writes {
             if let WriteOp::Modify(size, set) = op {
