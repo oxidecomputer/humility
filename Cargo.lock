@@ -1253,7 +1253,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "capstone",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
 ]
 
@@ -1337,7 +1337,7 @@ dependencies = [
  "jep106",
  "log",
  "multimap",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parse_int",
  "pmbus",
@@ -1833,7 +1833,7 @@ dependencies = [
  "humility-idol",
  "humility-pmbus",
  "indicatif",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parse_int",
  "pmbus",
@@ -2054,7 +2054,7 @@ dependencies = [
  "humility-idol",
  "humility-pmbus",
  "indicatif",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parse_int",
  "pmbus",
@@ -2344,7 +2344,7 @@ dependencies = [
  "libc",
  "log",
  "multimap",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parse_int",
  "rayon",
@@ -2371,7 +2371,7 @@ dependencies = [
  "jep106",
  "log",
  "multimap",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "paste 0.1.18",
 ]
@@ -2489,7 +2489,7 @@ dependencies = [
  "humpty",
  "indicatif",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parse_int",
  "probe-rs",
@@ -2942,6 +2942,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3196,7 +3207,7 @@ dependencies = [
  "anyhow",
  "convert_case",
  "libm",
- "num-derive",
+ "num-derive 0.3.3",
  "num-traits",
  "ron 0.8.0",
  "serde",
@@ -3810,7 +3821,7 @@ name = "spd"
 version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/spd#e37e79f6d7d4805b8a6a8c4d37699c4bd60222ea"
 dependencies = [
- "num-derive",
+ "num-derive 0.3.3",
  "num-traits",
 ]
 
