@@ -57,7 +57,7 @@ impl<'a> JefeVariables<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         timeout: u32,
-    ) -> Result<JefeVariables> {
+    ) -> Result<JefeVariables<'a>> {
         Ok(Self {
             hubris,
             ready: Self::variable(hubris, "JEFE_EXTERNAL_READY", true)?,
