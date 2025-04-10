@@ -742,12 +742,7 @@ fn summarize_rail(
         None
     };
 
-    let getmode = || match mode {
-        Some(mode) => mode,
-        None => {
-            panic!("unexpected call to VOutMode");
-        }
-    };
+    let getmode = || mode.expect("unexpected call to get VOutMode");
 
     assert_eq!(calls[base], CommandCode::STATUS_WORD as u8);
 
@@ -1341,12 +1336,7 @@ fn writes(
             None
         };
 
-        let getmode = || match mode {
-            Some(mode) => mode,
-            None => {
-                panic!("unexpected call to get VOutMode");
-            }
-        };
+        let getmode = || mode.expect("unexpected call to get VOutMode");
 
         for (&code, (cmd, op)) in &writes {
             if let WriteOp::Modify(size, set) = op {
@@ -2238,12 +2228,7 @@ fn pmbus_main(
         (None, base)
     };
 
-    let getmode = || match mode {
-        Some(mode) => mode,
-        None => {
-            panic!("unexpected call to get VOutMode");
-        }
-    };
+    let getmode = || mode.expect("unexpected call to get VOutMode");
 
     for i in ndx..results.len() {
         let mut r = Ok(());
