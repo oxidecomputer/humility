@@ -351,7 +351,7 @@ enum RendmpGenThree {
     RAA229132 = 0x96,
     RAA229325 = 0x88,
     RAA229613 = 0x8A,
-    RAA229620 = 0x9B,
+    RAA229620A = 0x9B,
     RAA229621 = 0x9C,
     RAA229625 = 0x8B,
     RAA229628 = 0x8D,
