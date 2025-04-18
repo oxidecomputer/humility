@@ -524,6 +524,14 @@ impl RendmpDevice {
         .to_le_bytes()
     }
 
+    fn bank_status_len(&self) -> u8 {
+        match self {
+            RendmpDevice::RendmpGenTwo(_)
+            | RendmpDevice::RendmpGenTwoFive(_) => 8,
+            RendmpDevice::RendmpGenThree(_) => 4,
+        }
+    }
+
     fn check_programmer_status(&self, status: u16) -> Result<()> {
         if status & 0b0_0000_0001 == 1 {
             Ok(())
@@ -543,10 +551,6 @@ impl RendmpDevice {
         status: &[u8],
     ) -> Result<Vec<Option<RendmpBankStatus>>> {
         let mut rval = vec![];
-
-        if status.len() != 8 {
-            bail!("short bank status");
-        }
 
         for s in status {
             rval.push(RendmpBankStatus::from_u8(s & 0b1111));
@@ -2594,9 +2598,10 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         //
         loop {
             let mut ops = base.clone();
+            let bank_len = hex.device.bank_status_len();
 
             dmaread_ops(&mut ops, hex.device.programmer_status_addr(), 2);
-            dmaread_ops(&mut ops, hex.device.bank_status_addr(), 8);
+            dmaread_ops(&mut ops, hex.device.bank_status_addr(), bank_len);
             ops.push(Op::Done);
 
             let results = context.run(core, ops.as_slice(), None)?;
@@ -2611,7 +2616,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
 
                 Ok(result) => {
                     if result.len() != 2 {
-                        bail!("bad length on status: {:x?}", result);
+                        bail!("bad length on status: {result:x?}");
                     }
 
                     u16::from_le_bytes(result[0..2].try_into().unwrap())
@@ -2623,7 +2628,13 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
                     bail!("bank status failed: {}", i2c_read.strerror(*err));
                 }
 
-                Ok(result) => hex.device.bank_status(result)?,
+                Ok(result) => {
+                    if result.len() != bank_len as usize {
+                        bail!("bad bank status: {result:x?}");
+                    }
+
+                    hex.device.bank_status(result)?
+                }
             };
 
             for (ndx, bank) in banks.iter().enumerate() {
