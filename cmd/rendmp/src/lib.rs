@@ -550,6 +550,8 @@ impl RendmpDevice {
     ) -> Result<Vec<Option<RendmpBankStatus>>> {
         let mut rval = vec![];
 
+        assert_eq!(status.len(), self.bank_status_len() as usize);
+
         for s in status {
             rval.push(RendmpBankStatus::from_u8(s & 0b1111));
             rval.push(RendmpBankStatus::from_u8((s >> 4) & 0b1111));
