@@ -509,8 +509,7 @@ impl RendmpDevice {
 
     fn programmer_status_addr(&self) -> [u8; 2] {
         match self {
-            RendmpDevice::GenTwo(_)
-            | RendmpDevice::GenTwoFive(_) => 0x0707u16,
+            RendmpDevice::GenTwo(_) | RendmpDevice::GenTwoFive(_) => 0x0707u16,
             RendmpDevice::GenThree(_) => 0x007eu16,
         }
         .to_le_bytes()
@@ -518,8 +517,7 @@ impl RendmpDevice {
 
     fn bank_status_addr(&self) -> [u8; 2] {
         match self {
-            RendmpDevice::GenTwo(_)
-            | RendmpDevice::GenTwoFive(_) => 0x0709u16,
+            RendmpDevice::GenTwo(_) | RendmpDevice::GenTwoFive(_) => 0x0709u16,
             RendmpDevice::GenThree(_) => 0x007fu16,
         }
         .to_le_bytes()
@@ -527,8 +525,7 @@ impl RendmpDevice {
 
     fn bank_status_len(&self) -> u8 {
         match self {
-            RendmpDevice::GenTwo(_)
-            | RendmpDevice::GenTwoFive(_) => 8,
+            RendmpDevice::GenTwo(_) | RendmpDevice::GenTwoFive(_) => 8,
             RendmpDevice::GenThree(_) => 4,
         }
     }
