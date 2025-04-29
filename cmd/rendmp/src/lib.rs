@@ -332,10 +332,46 @@ enum RendmpGenTwoFive {
     RAA229618 = 0x99,
 }
 
+#[derive(Copy, Clone, Debug, FromPrimitive)]
+enum RendmpGenThree {
+    ISL69260 = 0x81,
+    RAA228113 = 0x90,
+    RAA228234 = 0xAF,
+    RAA228236 = 0xAE,
+    RAA228924 = 0x8F,
+    RAA228926 = 0x8E,
+    RAA228928 = 0xB4,
+    RAA228929 = 0xB2,
+    RAA228930 = 0xB3,
+    RAA228931 = 0xB5,
+    RAA228932 = 0xB6,
+    RAA229126 = 0x82,
+    RAA229130 = 0x97,
+    RAA229131 = 0x98,
+    RAA229132 = 0x96,
+    RAA229325 = 0x88,
+    RAA229613 = 0x8A,
+    RAA229620A = 0x9B,
+    RAA229621 = 0x9C,
+    RAA229625 = 0x8B,
+    RAA229628 = 0x8D,
+    RAA229629 = 0xA4,
+    RAA229631 = 0xA2,
+    RAA229638 = 0x9D,
+    RAA229724 = 0x7F,
+    RAA229725 = 0xB1,
+    RAA229726 = 0x80,
+    RAA229817 = 0x86,
+    RAA229828 = 0x87,
+    RAA228238 = 0xB8,
+}
+
 #[derive(Copy, Clone, Debug)]
+#[allow(clippy::enum_variant_names)]
 enum RendmpDevice {
-    RendmpGenTwo(RendmpGenTwo),
-    RendmpGenTwoFive(RendmpGenTwoFive),
+    GenTwo(RendmpGenTwo),
+    GenTwoFive(RendmpGenTwoFive),
+    GenThree(RendmpGenThree),
 }
 
 /// Results of the open-pin register
@@ -352,8 +388,9 @@ enum PinState {
 impl std::fmt::Display for RendmpDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            RendmpDevice::RendmpGenTwo(d) => write!(f, "{:?}", d),
-            RendmpDevice::RendmpGenTwoFive(d) => write!(f, "{:?}", d),
+            RendmpDevice::GenTwo(d) => write!(f, "{:?}", d),
+            RendmpDevice::GenTwoFive(d) => write!(f, "{:?}", d),
+            RendmpDevice::GenThree(d) => write!(f, "{:?}", d),
         }
     }
 }
@@ -387,14 +424,25 @@ impl RendmpDevice {
     fn from_id(id: u8) -> Result<Self> {
         let g2 = RendmpGenTwo::from_u8(id);
         let g2p5 = RendmpGenTwoFive::from_u8(id);
+        let g3 = RendmpGenThree::from_u8(id);
 
-        match (g2, g2p5) {
-            (Some(d), None) => Ok(RendmpDevice::RendmpGenTwo(d)),
-            (None, Some(d)) => Ok(RendmpDevice::RendmpGenTwoFive(d)),
-            (Some(d1), Some(d2)) => {
-                panic!("id {:x} matches both {:?} and {:?}", id, d1, d2);
+        match (g2, g2p5, g3) {
+            (Some(d), None, None) => Ok(RendmpDevice::GenTwo(d)),
+            (None, Some(d), None) => Ok(RendmpDevice::GenTwoFive(d)),
+            (None, None, Some(d)) => Ok(RendmpDevice::GenThree(d)),
+            (Some(d1), Some(d2), None) => {
+                panic!("id {id:x} matches both {d1:?} and {d2:?}");
             }
-            (None, None) => {
+            (Some(d1), None, Some(d2)) => {
+                panic!("id {id:x} matches both {d1:?} and {d2:?}");
+            }
+            (None, Some(d1), Some(d2)) => {
+                panic!("id {id:x} matches both {d1:?} and {d2:?}");
+            }
+            (Some(d1), Some(d2), Some(d3)) => {
+                panic!("id {id:x} matches {d1:?}, {d2:?} and {d3:?}");
+            }
+            (None, None, None) => {
                 bail!("unknown device id 0x{:x}", id);
             }
         }
@@ -422,8 +470,9 @@ impl RendmpDevice {
         const NUM_CONFIGS: usize = 1;
 
         match self {
-            RendmpDevice::RendmpGenTwo(_) => 290 + (358 * NUM_CONFIGS),
-            RendmpDevice::RendmpGenTwoFive(_) => 273 + (309 * NUM_CONFIGS),
+            RendmpDevice::GenTwo(_) => 290 + (358 * NUM_CONFIGS),
+            RendmpDevice::GenTwoFive(_) => 273 + (309 * NUM_CONFIGS),
+            RendmpDevice::GenThree(_) => 12 + (363 * NUM_CONFIGS),
         }
     }
 
@@ -434,33 +483,51 @@ impl RendmpDevice {
     //
     fn crc_line(&self) -> usize {
         match self {
-            RendmpDevice::RendmpGenTwo(_) => 600,
-            RendmpDevice::RendmpGenTwoFive(_) => 526,
+            RendmpDevice::GenTwo(_) => 600,
+            RendmpDevice::GenTwoFive(_) => 526,
+            RendmpDevice::GenThree(_) => 290,
         }
     }
 
     fn slot_addr(&self) -> [u8; 2] {
         match self {
-            RendmpDevice::RendmpGenTwo(_) => 0x00c2u16,
-            RendmpDevice::RendmpGenTwoFive(_) => 0x00c4u16,
+            RendmpDevice::GenTwo(_) => 0x00c2u16,
+            RendmpDevice::GenTwoFive(_) => 0x00c4u16,
+            RendmpDevice::GenThree(_) => 0x0035u16,
         }
         .to_le_bytes()
     }
 
     fn crc_addr(&self) -> [u8; 2] {
         match self {
-            RendmpDevice::RendmpGenTwo(_) => 0x003fu16,
-            RendmpDevice::RendmpGenTwoFive(_) => 0x003cu16,
+            RendmpDevice::GenTwo(_) => 0x003fu16,
+            RendmpDevice::GenTwoFive(_) => 0x003cu16,
+            RendmpDevice::GenThree(_) => 0x0094u16,
         }
         .to_le_bytes()
     }
 
     fn programmer_status_addr(&self) -> [u8; 2] {
-        0x0707u16.to_le_bytes()
+        match self {
+            RendmpDevice::GenTwo(_) | RendmpDevice::GenTwoFive(_) => 0x0707u16,
+            RendmpDevice::GenThree(_) => 0x007eu16,
+        }
+        .to_le_bytes()
     }
 
     fn bank_status_addr(&self) -> [u8; 2] {
-        0x0709u16.to_le_bytes()
+        match self {
+            RendmpDevice::GenTwo(_) | RendmpDevice::GenTwoFive(_) => 0x0709u16,
+            RendmpDevice::GenThree(_) => 0x007fu16,
+        }
+        .to_le_bytes()
+    }
+
+    fn bank_status_len(&self) -> u8 {
+        match self {
+            RendmpDevice::GenTwo(_) | RendmpDevice::GenTwoFive(_) => 8,
+            RendmpDevice::GenThree(_) => 4,
+        }
     }
 
     fn check_programmer_status(&self, status: u16) -> Result<()> {
@@ -483,9 +550,7 @@ impl RendmpDevice {
     ) -> Result<Vec<Option<RendmpBankStatus>>> {
         let mut rval = vec![];
 
-        if status.len() != 8 {
-            bail!("short bank status");
-        }
+        assert_eq!(status.len(), self.bank_status_len() as usize);
 
         for s in status {
             rval.push(RendmpBankStatus::from_u8(s & 0b1111));
@@ -2533,9 +2598,10 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         //
         loop {
             let mut ops = base.clone();
+            let bank_len = hex.device.bank_status_len();
 
             dmaread_ops(&mut ops, hex.device.programmer_status_addr(), 2);
-            dmaread_ops(&mut ops, hex.device.bank_status_addr(), 8);
+            dmaread_ops(&mut ops, hex.device.bank_status_addr(), bank_len);
             ops.push(Op::Done);
 
             let results = context.run(core, ops.as_slice(), None)?;
@@ -2550,7 +2616,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
 
                 Ok(result) => {
                     if result.len() != 2 {
-                        bail!("bad length on status: {:x?}", result);
+                        bail!("bad length on status: {result:x?}");
                     }
 
                     u16::from_le_bytes(result[0..2].try_into().unwrap())
@@ -2562,7 +2628,13 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
                     bail!("bank status failed: {}", i2c_read.strerror(*err));
                 }
 
-                Ok(result) => hex.device.bank_status(result)?,
+                Ok(result) => {
+                    if result.len() != bank_len as usize {
+                        bail!("bad bank status: {result:x?}");
+                    }
+
+                    hex.device.bank_status(result)?
+                }
             };
 
             for (ndx, bank) in banks.iter().enumerate() {
