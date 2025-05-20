@@ -3202,7 +3202,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "pmbus"
 version = "0.1.7"
-source = "git+https://github.com/oxidecomputer/pmbus?branch=mkeeter/lm5066i-part#44e8c5bde072b5329e5ec216de67e566c8942739"
+source = "git+https://github.com/oxidecomputer/pmbus#1eb632c84bd62b939880192d23cef09ea5a76c66"
 dependencies = [
  "anyhow",
  "convert_case",
