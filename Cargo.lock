@@ -1274,7 +1274,6 @@ dependencies = [
  "humility-cmd",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
- "humility-cmd-bankerase",
  "humility-cmd-console-proxy",
  "humility-cmd-counters",
  "humility-cmd-dashboard",
@@ -1403,23 +1402,6 @@ dependencies = [
  "log",
  "parse_int",
  "tlvc",
-]
-
-[[package]]
-name = "humility-cmd-bankerase"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 3.2.23",
- "humility-cli",
- "humility-cmd",
- "humility-core",
- "humility-cortex",
- "humility-probes-core",
- "ihex",
- "parse_int",
- "path-slash",
- "tempfile",
 ]
 
 [[package]]
