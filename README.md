@@ -203,7 +203,7 @@ option to humility.
 
 The above definition -- when provided via `--environment` or
 `HUMILITY_ENVIRONMENT` -- would allow one to (say) run `humility --target
-grimey tasks` or `humility --target lucky --image-name imagea tasks`.
+grimey tasks` or `humility --target lucky --archive-name imagea tasks`.
 In addition to `probe` and `archive`, one may also specify
 associated commands in a `cmds` object that contains a mapping of names to
 commands to execute.  For example:
