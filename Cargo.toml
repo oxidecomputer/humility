@@ -22,7 +22,6 @@ members = [
     "humility-probes-core",
     "cmd/apptable",
     "cmd/auxflash",
-    "cmd/bankerase",
     "cmd/console-proxy",
     "cmd/counters",
     "cmd/dashboard",
@@ -129,7 +128,6 @@ humility-probes-core = { path = "./humility-probes-core" }
 humility-stack = { path = "./humility-stack" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
-cmd-bankerase = { path = "./cmd/bankerase", package = "humility-cmd-bankerase" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }

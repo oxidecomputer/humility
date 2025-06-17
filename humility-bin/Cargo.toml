@@ -37,7 +37,6 @@ humility-cmd = { workspace = true, default-features = false }
 humility-cli = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
-cmd-bankerase = { workspace = true, optional = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
@@ -119,7 +118,7 @@ trycmd = { workspace = true }
 
 [features]
 default = ["probes"]
-probes = ["humility-cmd/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-bankerase", "cmd-debugmailbox"]
+probes = ["humility-cmd/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-debugmailbox"]
 
 [[bin]]
 name = "humility"
