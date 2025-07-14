@@ -152,6 +152,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "apml-rs"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/apml-rs#5544c50ca3f1b77d6724c70cda10b0dd28cf9d9f"
+dependencies = [
+ "hubpack",
+ "serde",
+]
+
+[[package]]
 name = "array-init"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1304,6 +1313,7 @@ dependencies = [
  "hif",
  "humility-cli",
  "humility-cmd",
+ "humility-cmd-apml21",
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
  "humility-cmd-console-proxy",
@@ -1349,6 +1359,7 @@ dependencies = [
  "humility-cmd-ringbuf",
  "humility-cmd-rpc",
  "humility-cmd-sbrmi10",
+ "humility-cmd-sbrmi21",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -1403,6 +1414,28 @@ dependencies = [
  "humility-core",
  "humility-net-core",
  "humility-probes-core",
+]
+
+[[package]]
+name = "humility-cmd-apml21"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "apml-rs",
+ "bitvec",
+ "clap 3.2.23",
+ "colored",
+ "hif",
+ "hubpack",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "parse_int",
+ "raw-cpuid",
+ "termimad 0.21.1",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2132,6 +2165,26 @@ name = "humility-cmd-sbrmi10"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap 3.2.23",
+ "colored",
+ "hif",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "parse_int",
+ "raw-cpuid",
+ "termimad 0.21.1",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-cmd-sbrmi21"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitvec",
  "clap 3.2.23",
  "colored",
  "hif",

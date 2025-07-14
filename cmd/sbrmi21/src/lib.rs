@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! ## `humility sbrmi10`
+//! ## `humility sbrmi21`
 //!
 //! Print out information retrieved via AMD's sideband remote management
 //! interface (SB-RMI).  This interface is somewhat limited in its utility,
@@ -89,26 +89,27 @@
 //! desired target thread; full MCA information can similarly be retrieved
 //! using the `--mca` option and specifyin a desired thread.
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use bitvec::prelude as bv;
 use clap::{ArgGroup, CommandFactory, Parser};
 use colored::Colorize;
-use hif::*;
+use hif;
 use humility::core::Core;
-use humility::hubris::*;
+use humility::hubris::HubrisArchive;
 use humility::reflect;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
-use humility_hiffy::*;
+use humility_hiffy::HiffyContext;
 use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Parser, Debug)]
 #[clap(
-    name = "sbrmi10", about = env!("CARGO_PKG_DESCRIPTION"),
+    name = "sbrmi21", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("command").multiple(false).required(false)
 )]
 struct SbrmiArgs {
@@ -124,7 +125,7 @@ struct SbrmiArgs {
         long, short, parse(try_from_str = parse_int::parse),
         requires = "command",
     )]
-    thread: Option<u8>,
+    thread: Option<u32>,
 
     /// run/interpret CPUID on target thread
     #[clap(long, short, group = "command")]
@@ -139,11 +140,11 @@ fn call_cpuid(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    thread: u8,
+    thread: u32,
     eax: u32,
     ecx: u32,
 ) -> Result<CpuIdResult> {
-    let op = hubris.get_idol_command("Sbrmi10.cpuid")?;
+    let op = hubris.get_idol_command("SbRmi21.cpuid")?;
     let mut ops = vec![];
 
     let payload = op.payload(&[
@@ -153,7 +154,7 @@ fn call_cpuid(
     ])?;
 
     context.idol_call_ops(&op, &payload, &mut ops)?;
-    ops.push(Op::Done);
+    ops.push(hif::Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
     let result = context.idol_result(&op, &results[0])?;
@@ -178,7 +179,7 @@ fn cpuid(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    thread: Option<u8>,
+    thread: Option<u32>,
 ) -> Result<()> {
     let thread = thread.unwrap_or(0);
 
@@ -186,9 +187,9 @@ fn cpuid(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
         context: &'a mut HiffyContext<'b>,
-        thread: u8,
+        thread: u32,
     }
-    impl SbrmiWorkspace<'_, '_> {
+    impl<'a, 'b> SbrmiWorkspace<'a, 'b> {
         fn cpuid2(&mut self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
             match call_cpuid(
                 self.hubris,
@@ -214,7 +215,7 @@ fn cpuid(
     struct WorkspaceRef<'a, 'b> {
         cell: Rc<RefCell<SbrmiWorkspace<'a, 'b>>>,
     }
-    impl raw_cpuid::CpuIdReader for WorkspaceRef<'_, '_> {
+    impl<'a, 'b> raw_cpuid::CpuIdReader for WorkspaceRef<'a, 'b> {
         fn cpuid2(&self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
             let mut r = self.cell.borrow_mut();
             r.cpuid2(eax, ecx)
@@ -235,20 +236,14 @@ fn cpuid(
     Ok(())
 }
 
-fn threadmap(arr: &reflect::Array) -> Result<HashSet<u8>> {
-    let mut rval = HashSet::new();
-
-    for (base, elem) in arr.iter().enumerate() {
-        let val = elem.as_base()?.as_u8().unwrap();
-
-        for bit in 0..8 {
-            if val & (1 << bit) != 0 {
-                rval.insert(((base * 8) + bit) as u8);
-            }
-        }
-    }
-
-    Ok(rval)
+fn threadmap(arr: &reflect::Array) -> Result<bv::BitVec> {
+    use bitvec::view::BitView;
+    use reflect::Load;
+    let debits =
+        arr.iter().map(|v| u8::from_value(v).unwrap()).collect::<Vec<_>>();
+    let bs = debits.view_bits::<bv::Lsb0>();
+    let bv = bv::BitVec::from_iter(bs.iter());
+    Ok(bv)
 }
 
 #[allow(non_camel_case_types, dead_code)]
@@ -365,7 +360,7 @@ fn mca(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    thread: u8,
+    thread: u32,
     mcg_cap: u64,
     all_mca: bool,
 ) -> Result<()> {
@@ -373,7 +368,7 @@ fn mca(
     // This is all a little dirty.
     //
     let nbanks = (mcg_cap & 0xff) as u8;
-    let op = hubris.get_idol_command("Sbrmi10.rdmsr64")?;
+    let op = hubris.get_idol_command("SbRmi21.rdmsr64")?;
     let mut ops = vec![];
     let thread_name = format!("thread 0x{thread:x} ({thread})");
 
@@ -395,7 +390,7 @@ fn mca(
         context.idol_call_ops(&op, &payload, &mut ops)?;
     }
 
-    ops.push(Op::Done);
+    ops.push(hif::Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
 
@@ -452,7 +447,7 @@ fn mca(
             context.idol_call_ops(&op, &payload, &mut ops)?;
         }
 
-        ops.push(Op::Done);
+        ops.push(hif::Op::Done);
 
         let reg_results = context.run(core, ops.as_slice(), None)?;
         let mut values = HashMap::new();
@@ -472,10 +467,10 @@ fn mca(
             let name = format!("{:?}", reg);
             println!("    {name:14} 0x{v:016x}");
 
-            if let Msr::MCA_STATUS(_) = reg
-                && v == 0
-            {
-                continue;
+            if let Msr::MCA_STATUS(_) = reg {
+                if v == 0 {
+                    continue;
+                }
             }
 
             if let Some(fields) = reg.fields() {
@@ -531,32 +526,32 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 
     let mut ops = vec![];
 
-    let nthreads = hubris.get_idol_command("Sbrmi10.nthreads")?;
+    let nthreads = hubris.get_idol_command("SbRmi21.nthreads")?;
     context.idol_call_ops(&nthreads, &[], &mut ops)?;
 
-    let enabled = hubris.get_idol_command("Sbrmi10.enabled")?;
+    let enabled = hubris.get_idol_command("SbRmi21.enabled")?;
     context.idol_call_ops(&enabled, &[], &mut ops)?;
 
-    let alert = hubris.get_idol_command("Sbrmi10.alert")?;
+    let alert = hubris.get_idol_command("SbRmi21.alert")?;
     context.idol_call_ops(&alert, &[], &mut ops)?;
 
-    let mcg_cap = hubris.get_idol_command("Sbrmi10.rdmsr64")?;
+    // let mcg_cap = hubris.get_idol_command("SbRmi21.rdmsr64")?;
 
-    let payload = mcg_cap.payload(&[
-        ("thread", idol::IdolArgument::Scalar(0_u64)),
-        ("msr", idol::IdolArgument::Scalar(Msr::MCG_CAP.into())),
-    ])?;
+    // let payload = mcg_cap.payload(&[
+    //     ("thread", idol::IdolArgument::Scalar(0_u64)),
+    //     ("msr", idol::IdolArgument::Scalar(Msr::MCG_CAP.into())),
+    // ])?;
 
-    context.idol_call_ops(&mcg_cap, &payload, &mut ops)?;
+    // context.idol_call_ops(&mcg_cap, &payload, &mut ops)?;
 
-    ops.push(Op::Done);
+    ops.push(hif::Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
 
     let nthreads = context
         .idol_result(&nthreads, &results[0])?
         .as_base()?
-        .as_u8()
+        .as_u32()
         .unwrap();
 
     let result = context.idol_result(&enabled, &results[1])?;
@@ -565,17 +560,17 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
     let result = context.idol_result(&alert, &results[2])?;
     let alert = threadmap(result.as_struct()?["value"].as_array()?)?;
 
-    let mcg_cap = context
-        .idol_result(&mcg_cap, &results[3])?
-        .as_base()?
-        .as_u64()
-        .unwrap();
+    // let mcg_cap = context
+    //     .idol_result(&mcg_cap, &results[3])?
+    //     .as_base()?
+    //     .as_u64()
+    //     .unwrap();
 
-    if subargs.mca {
-        let thread = subargs.thread.unwrap();
-        mca(hubris, core, &mut context, thread, mcg_cap, true)?;
-        return Ok(());
-    }
+    // if subargs.mca {
+    //     let thread = subargs.thread.unwrap();
+    //     mca(hubris, core, &mut context, thread, mcg_cap, true)?;
+    //     return Ok(());
+    // }
 
     print!(" THR");
 
@@ -585,33 +580,31 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 
     println!();
 
-    for row in 0..8 {
-        print!("0x{:02x}", (row * 16));
-
-        for col in 0..16 {
-            let thread = (row * 16) + col as u8;
-
-            if thread < nthreads {
-                if alert.contains(&thread) {
-                    print!("{:>4}", "MCE".red());
-                } else if enabled.contains(&thread) {
-                    print!("{:>4}", "ok".green());
+    let maxthr = nthreads as usize;
+    for thread_base in (0..256).step_by(16) {
+        print!("0x{:02x}", thread_base);
+        for offset in 0..16 {
+            let thread = thread_base + offset;
+            let glyph = if thread < maxthr {
+                if alert[thread] {
+                    "MCE".red()
+                } else if enabled[thread] {
+                    "ok".green()
                 } else {
-                    print!("{:>4}", "?".blue());
+                    "?".blue()
                 }
             } else {
-                print!("{:>4}", "-");
-            }
+                "-".into()
+            };
+            print!("{glyph:>4}");
         }
-
         println!();
     }
-
     println!();
 
-    for thread in alert {
-        mca(hubris, core, &mut context, thread, mcg_cap, false)?;
-    }
+    // for thread in alert {
+    //     mca(hubris, core, &mut context, thread, mcg_cap, false)?;
+    // }
 
     Ok(())
 }
@@ -619,7 +612,7 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 pub fn init() -> Command {
     Command {
         app: SbrmiArgs::command(),
-        name: "sbrmi10",
+        name: "sbrmi21",
         run: sbrmi,
         kind: CommandKind::Attached {
             archive: Archive::Required,

@@ -34,6 +34,7 @@ humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cmd = { workspace = true, default-features = false }
 humility-cli = { workspace = true }
+cmd-apml21 = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-console-proxy = { workspace = true }
@@ -80,6 +81,7 @@ cmd-rendmp = { workspace = true }
 cmd-ringbuf = { workspace = true }
 cmd-rpc = { workspace = true }
 cmd-sbrmi10 = { workspace = true }
+cmd-sbrmi21 = { workspace = true }
 cmd-sensors = { workspace = true }
 cmd-spctrl = { workspace = true }
 cmd-spd = { workspace = true }

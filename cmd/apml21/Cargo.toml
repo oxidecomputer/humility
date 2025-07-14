@@ -1,0 +1,24 @@
+[package]
+name = "humility-cmd-apml21"
+version = "0.1.0"
+edition = "2021"
+description = "APML via SB-RMI (v2.1)"
+
+[dependencies]
+apml-rs.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+colored.workspace = true
+hif.workspace = true
+hubpack.workspace = true
+parse_int.workspace = true
+raw-cpuid.workspace = true
+termimad.workspace = true
+zerocopy.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+bitvec = "1.0.1"

@@ -12,6 +12,7 @@ use ::idol::syntax::{AttributedTy, Operation, RecvStrategy, Reply};
 use anyhow::{Context, Result, anyhow, bail};
 use hubpack::SerializedSize;
 use humility::hubris::*;
+use humility::reflect;
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::fmt;
@@ -30,6 +31,8 @@ pub struct IdolOperation<'a> {
 #[derive(Debug)]
 pub enum IdolArgument<'a> {
     String(&'a str),
+    Value(reflect::Value),
+    Array(Vec<u8>),
     Scalar(u64),
 }
 
@@ -510,19 +513,23 @@ fn call_arg(
                 );
             }
             match value {
-                IdolArgument::String(value) => {
-                    let bytes = bytes_from_str(value)?;
+                IdolArgument::String(_) | IdolArgument::Array(_) => {
+                    let bytes = match value {
+                        IdolArgument::String(s) => bytes_from_str(s)?,
+                        IdolArgument::Array(arr) => arr.clone(),
+                        _ => unreachable!(),
+                    };
                     if bytes.len() != count {
                         bail!(
-                            "Cannot convert '{value}' to [u8; {count}]; \
+                            "Cannot convert '{value:?}' to [u8; {count}]; \
                              wrong length"
-                        );
+                        )
                     }
                     let dest = &mut buf[member.offset..member.offset + count];
                     dest.copy_from_slice(&bytes);
                 }
-                IdolArgument::Scalar(v) => {
-                    bail!("Cannot convert scalar {v} to [u8; {count}]")
+                IdolArgument::Value(_) | IdolArgument::Scalar(_) => {
+                    bail!("Cannot convert scalar {value:?} to [u8; {count}]")
                 }
             }
         }
@@ -574,6 +581,7 @@ fn serialize_arg(
             let value = match value {
                 IdolArgument::String(value) => value.to_string(),
                 IdolArgument::Scalar(value) => format!("{}", value),
+                _ => bail!("Array and Value encodings are not supported"),
             };
 
             match (base.encoding, base.size) {
@@ -613,6 +621,12 @@ fn serialize_arg(
                 IdolArgument::Scalar(_) => {
                     bail!("expected a variant name for {arg}")
                 }
+                IdolArgument::Value(_) => {
+                    bail!("value not supported yet")
+                }
+                IdolArgument::Array(_) => {
+                    bail!("array not supported yet")
+                }
             };
 
             // Find the variant and its index.
@@ -633,7 +647,7 @@ fn serialize_arg(
                     )
                 })?;
 
-            // Ensure `variant` has no associated data. We assume if
+            // Ensure `variant` has no associated data.  We assume if
             // `variant.goff` is `None`, the variant has no associated data.
             if let Some(variant_goff) = variant.goff {
                 let variant_t =
@@ -701,11 +715,15 @@ fn serialize_arg(
                 );
             }
             match value {
-                IdolArgument::String(value) => {
-                    let bytes = bytes_from_str(value)?;
+                IdolArgument::String(_) | IdolArgument::Array(_) => {
+                    let bytes = match value {
+                        IdolArgument::String(value) => bytes_from_str(value)?,
+                        IdolArgument::Array(arr) => arr.clone(),
+                        _ => unreachable!(),
+                    };
                     if bytes.len() != count {
                         bail!(
-                            "Cannot convert '{value}' to [u8; {count}]; \
+                            "Cannot convert '{value:?}' to [u8; {count}]; \
                              wrong length"
                         );
                     }

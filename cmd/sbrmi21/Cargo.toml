@@ -1,0 +1,22 @@
+[package]
+name = "humility-cmd-sbrmi21"
+version = "0.1.0"
+edition = "2021"
+description = "Sideband Remote Management Interface (SB-RMI) commands (v2.1)"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+colored.workspace = true
+hif.workspace = true
+parse_int.workspace = true
+raw-cpuid.workspace = true
+termimad.workspace = true
+zerocopy.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true
+bitvec = "1.0.1"
