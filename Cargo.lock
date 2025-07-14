@@ -1317,6 +1317,7 @@ dependencies = [
  "humility-cmd-ringbuf",
  "humility-cmd-rpc",
  "humility-cmd-sbrmi10",
+ "humility-cmd-sbrmi21",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -2099,6 +2100,26 @@ name = "humility-cmd-sbrmi10"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap 3.2.23",
+ "colored",
+ "hif",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "parse_int",
+ "raw-cpuid",
+ "termimad 0.21.1",
+ "zerocopy",
+]
+
+[[package]]
+name = "humility-cmd-sbrmi21"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitvec",
  "clap 3.2.23",
  "colored",
  "hif",
