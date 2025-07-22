@@ -577,6 +577,10 @@ pub trait DumpAgentExt {
 
             let total = all.iter().fold(0, |sum, &(h, _)| sum + h.length);
 
+            if all.len() == 0 {
+                bail!("could not read dump; no dump found?");
+            }
+
             let area = match area {
                 None => None,
                 Some(DumpArea::ByIndex(ndx)) => Some(ndx),
