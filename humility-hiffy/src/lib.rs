@@ -184,8 +184,16 @@ impl<'a> HiffyContext<'a> {
     }
 
     fn definition(hubris: &'a HubrisArchive, name: &str) -> Result<HubrisGoff> {
+        // Depending on compiler version, definitions may be in either
+        // `self.definitions` or `self.variables`, so we'll check in both
+        // places.  Behavior depends on whether the linker included a symbol for
+        // an otherwise-unused variable marked as `#[used]`; this changed in
+        // rust-lang/rust#140872
+        //
+        // See hubris#2169 for more details
         let goff = hubris
             .lookup_definition(name)
+            .or_else(|_| hubris.lookup_variable(name).map(|v| &v.goff))
             .context("expected hiffy definition not found")?;
 
         Ok(*goff)
