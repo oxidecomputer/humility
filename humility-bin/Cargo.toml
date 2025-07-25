@@ -80,7 +80,7 @@ cmd-rencm = { workspace = true }
 cmd-rendmp = { workspace = true }
 cmd-ringbuf = { workspace = true }
 cmd-rpc = { workspace = true }
-cmd-sbrmi = { workspace = true }
+cmd-sbrmi10 = { workspace = true }
 cmd-sensors = { workspace = true }
 cmd-spctrl = { workspace = true }
 cmd-spd = { workspace = true }

@@ -1,8 +1,8 @@
 [package]
-name = "humility-cmd-sbrmi"
+name = "humility-cmd-sbrmi10"
 version = "0.1.0"
 edition = "2021"
-description = "Sideband Remote Management Interface (SB-RMI) commands"
+description = "Sideband Remote Management Interface (SB-RMI v1.0) commands"
 
 [dependencies]
 anyhow.workspace = true

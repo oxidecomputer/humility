@@ -1316,7 +1316,7 @@ dependencies = [
  "humility-cmd-reset",
  "humility-cmd-ringbuf",
  "humility-cmd-rpc",
- "humility-cmd-sbrmi",
+ "humility-cmd-sbrmi10",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
  "humility-cmd-spd",
@@ -2095,7 +2095,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-cmd-sbrmi"
+name = "humility-cmd-sbrmi10"
 version = "0.1.0"
 dependencies = [
  "anyhow",
