@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! ## `humility sbrmi`
+//! ## `humility sbrmi10`
 //!
 //! Print out information retrieved via AMD's sideband remote management
 //! interface (SB-RMI).  This interface is somewhat limited in its utility,
@@ -143,7 +143,7 @@ fn call_cpuid(
     eax: u32,
     ecx: u32,
 ) -> Result<CpuIdResult> {
-    let op = hubris.get_idol_command("Sbrmi.cpuid")?;
+    let op = hubris.get_idol_command("Sbrmi10.cpuid")?;
     let mut ops = vec![];
 
     let payload = op.payload(&[
@@ -373,7 +373,7 @@ fn mca(
     // This is all a little dirty.
     //
     let nbanks = (mcg_cap & 0xff) as u8;
-    let op = hubris.get_idol_command("Sbrmi.rdmsr64")?;
+    let op = hubris.get_idol_command("Sbrmi10.rdmsr64")?;
     let mut ops = vec![];
     let thread_name = format!("thread 0x{thread:x} ({thread})");
 
@@ -531,16 +531,16 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 
     let mut ops = vec![];
 
-    let nthreads = hubris.get_idol_command("Sbrmi.nthreads")?;
+    let nthreads = hubris.get_idol_command("Sbrmi10.nthreads")?;
     context.idol_call_ops(&nthreads, &[], &mut ops)?;
 
-    let enabled = hubris.get_idol_command("Sbrmi.enabled")?;
+    let enabled = hubris.get_idol_command("Sbrmi10.enabled")?;
     context.idol_call_ops(&enabled, &[], &mut ops)?;
 
-    let alert = hubris.get_idol_command("Sbrmi.alert")?;
+    let alert = hubris.get_idol_command("Sbrmi10.alert")?;
     context.idol_call_ops(&alert, &[], &mut ops)?;
 
-    let mcg_cap = hubris.get_idol_command("Sbrmi.rdmsr64")?;
+    let mcg_cap = hubris.get_idol_command("Sbrmi10.rdmsr64")?;
 
     let payload = mcg_cap.payload(&[
         ("thread", idol::IdolArgument::Scalar(0_u64)),
@@ -619,7 +619,7 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 pub fn init() -> Command {
     Command {
         app: SbrmiArgs::command(),
-        name: "sbrmi",
+        name: "sbrmi10",
         run: sbrmi,
         kind: CommandKind::Attached {
             archive: Archive::Required,
