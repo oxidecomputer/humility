@@ -1259,7 +1259,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.12.6"
+version = "0.12.7"
 dependencies = [
  "anyhow",
  "bitfield",
@@ -1558,6 +1558,7 @@ dependencies = [
  "humility-cortex",
  "humility-probes-core",
  "ihex",
+ "measurement-token",
  "num-traits",
  "parse_int",
  "path-slash",
@@ -2789,6 +2790,11 @@ checksum = "39e2b9a6124e5200c13bb5c5d1124bf93b451bff69b651912810039e36ca97eb"
 dependencies = [
  "void",
 ]
+
+[[package]]
+name = "measurement-token"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/lpc55_support#936f7d55b76d35165816f6f876f9fa9390fd4f5a"
 
 [[package]]
 name = "memchr"

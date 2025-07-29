@@ -87,9 +87,10 @@ hif = { git = "https://github.com/oxidecomputer/hif" }
 humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.3" }
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
+measurement-token = { git = "https://github.com/oxidecomputer/lpc55_support", default-features = false }
 pmbus = { git = "https://github.com/oxidecomputer/pmbus" }
-spd = { git = "https://github.com/oxidecomputer/spd" }
 serialport = { git = "https://github.com/jgallagher/serialport-rs", branch = "illumos-support" }
+spd = { git = "https://github.com/oxidecomputer/spd" }
 tlvc = { git = "https://github.com/oxidecomputer/tlvc" }
 tlvc-text = {git = "https://github.com/oxidecomputer/tlvc"}
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
