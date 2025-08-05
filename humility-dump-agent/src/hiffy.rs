@@ -59,7 +59,7 @@ impl<'a> HiffyDumpAgent<'a> {
     }
 }
 
-impl<'a> DumpAgent for HiffyDumpAgent<'a> {
+impl DumpAgent for HiffyDumpAgent<'_> {
     fn core(&mut self) -> &mut dyn Core {
         self.core
     }

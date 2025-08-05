@@ -280,7 +280,6 @@ enum Subcmd {
         ///
         /// * "json": outputs counters in JSON format, suitable for use with
         ///   other tools.
-
         #[clap(long, short, value_enum, default_value_t = Output::Text)]
         output: Output,
     },

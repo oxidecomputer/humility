@@ -679,7 +679,7 @@ impl DumpAgentExt for &mut dyn DumpAgent {
     }
 }
 
-impl<'a> DumpAgentExt for Box<dyn DumpAgent + 'a> {
+impl DumpAgentExt for Box<dyn DumpAgent + '_> {
     fn read_generic<I, F>(
         &mut self,
         mut areas: I,
