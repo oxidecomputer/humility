@@ -2900,7 +2900,7 @@ impl HubrisArchive {
 
         loop {
             let bases = gimli::BaseAddresses::default();
-            let mut ctx = gimli::UninitializedUnwindContext::new();
+            let mut ctx = gimli::UnwindContext::new();
             let pc = *frameregs.get(&ARMRegister::PC).unwrap();
 
             //
@@ -3899,7 +3899,7 @@ impl HubrisObjectLoader {
         }
 
         let text = elf.section_headers.iter().find(|sh| {
-            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+            if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
                 name == ".text"
             } else {
                 false
@@ -3933,11 +3933,8 @@ impl HubrisObjectLoader {
                 continue;
             }
 
-            let name = match elf.strtab.get(sym.st_name) {
-                Some(n) => n?,
-                None => {
-                    bail!("bad symbol in {}: {}", object, sym.st_name);
-                }
+            let Some(name) = elf.strtab.get_at(sym.st_name) else {
+                bail!("bad symbol in {}: {}", object, sym.st_name);
             };
 
             //
@@ -4061,7 +4058,7 @@ impl HubrisObjectLoader {
 
         if task == HubrisTask::Kernel {
             let apptable = elf.section_headers.iter().find(|sh| {
-                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
                     name == ".hubris_app_table"
                 } else {
                     false
@@ -4211,32 +4208,28 @@ impl HubrisObjectLoader {
     ) -> Result<()> {
         // Load all of the sections. This "load" operation just gets the data in
         // RAM -- since we've already loaded the Elf file, this can't fail.
-        let dwarf = gimli::Dwarf::<&[u8]>::load(
+        let loader = |id: gimli::SectionId| {
             // Load the normal DWARF section(s) from our Elf image.
-            |id| {
-                let sec_result = elf.section_headers.iter().find(|sh| {
-                    if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
-                        name == id.name()
-                    } else {
-                        false
-                    }
-                });
-                if let Some(sec) = sec_result {
-                    let offset = sec.sh_offset as usize;
-                    let size = sec.sh_size as usize;
-                    buffer.get(offset..offset + size).ok_or_else(|| {
-                        anyhow!("bad offset/size for ELF section {}", id.name())
-                    })
+            let sec_result = elf.section_headers.iter().find(|sh| {
+                if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
+                    name == id.name()
                 } else {
-                    Ok(&[])
+                    false
                 }
-            },
-            // We don't have a supplemental object file.
-            |_| Ok(&[]),
-        )?;
+            });
+            if let Some(sec) = sec_result {
+                let offset = sec.sh_offset as usize;
+                let size = sec.sh_size as usize;
+                buffer.get(offset..offset + size).ok_or_else(|| {
+                    anyhow!("bad offset/size for ELF section {}", id.name())
+                })
+            } else {
+                Ok([].as_slice())
+            }
+        };
 
-        // Borrow all sections wrapped in EndianSlices
-        let dwarf = dwarf.borrow(|section| {
+        let dwarf_sections = gimli::DwarfSections::load(loader)?;
+        let dwarf: gimli::Dwarf<_> = dwarf_sections.borrow(|section| {
             gimli::EndianSlice::new(section, gimli::LittleEndian)
         });
 
@@ -4416,7 +4409,7 @@ impl HubrisObjectLoader {
             .section_headers
             .iter()
             .find(|sh| {
-                if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+                if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
                     name == id
                 } else {
                     false
@@ -4445,7 +4438,7 @@ impl HubrisObjectLoader {
         // If we have an idolatry definition, load that.
         //
         let idol = elf.section_headers.iter().find(|sh| {
-            if let Some(Ok(name)) = elf.shdr_strtab.get(sh.sh_name) {
+            if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
                 name == ".idolatry"
             } else {
                 false
@@ -5326,7 +5319,10 @@ impl HubrisObjectLoader {
                 gimli::AttributeValue::RangeListsRef(r),
             ) = (attr.name(), attr.value())
             {
-                let raw_ranges = dwarf.ranges.raw_ranges(r, unit.encoding())?;
+                let raw_ranges = dwarf.ranges.raw_ranges(
+                    gimli::RangeListsOffset(r.0),
+                    unit.encoding(),
+                )?;
                 let raw_ranges: Vec<_> = raw_ranges.collect()?;
 
                 for r in raw_ranges {
@@ -6333,7 +6329,7 @@ impl<'a> From<&'a HubrisUnion> for HubrisType<'a> {
     }
 }
 
-impl<'a> std::fmt::Display for HubrisType<'a> {
+impl std::fmt::Display for HubrisType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             HubrisType::Struct(ty) => write!(f, "struct {}", ty.name),
@@ -6365,6 +6361,7 @@ pub struct HubrisStackSymbol<'a> {
 
 #[derive(Clone, Debug)]
 pub struct HubrisStackFrame<'a> {
+    /// Canonical frame address
     pub cfa: u32,
     pub sym: Option<HubrisStackSymbol<'a>>,
     pub registers: BTreeMap<ARMRegister, u32>,

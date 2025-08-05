@@ -129,7 +129,7 @@ impl<'a> UdpDumpAgent<'a> {
     }
 }
 
-impl<'a> DumpAgent for UdpDumpAgent<'a> {
+impl DumpAgent for UdpDumpAgent<'_> {
     fn read_generic(
         &mut self,
         areas: &mut dyn Iterator<Item = (u8, u32)>,

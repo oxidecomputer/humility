@@ -293,7 +293,7 @@ impl<'a> HiffySensorReader<'a> {
     }
 }
 
-impl<'a> SensorReader for HiffySensorReader<'a> {
+impl SensorReader for HiffySensorReader<'_> {
     fn run(
         &mut self,
         _hubris: &HubrisArchive,
