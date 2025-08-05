@@ -10,7 +10,6 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-#[derive(Debug)]
 pub struct JefeVariables<'a> {
     #[allow(unused)]
     hubris: &'a HubrisArchive,
