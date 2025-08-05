@@ -5,6 +5,7 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
+addr2line.workspace = true
 anyhow.workspace = true
 bitfield.workspace = true
 clap.workspace = true
