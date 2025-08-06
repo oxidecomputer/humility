@@ -2518,6 +2518,7 @@ version = "0.1.0"
 dependencies = [
  "humility-arch-arm",
  "humility-core",
+ "regex",
 ]
 
 [[package]]
