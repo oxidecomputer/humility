@@ -4266,7 +4266,10 @@ impl HubrisObjectLoader {
         elf: &goblin::elf::Elf,
     ) -> Result<()> {
         // Load all of the sections. This "load" operation just gets the data in
-        // RAM -- since we've already loaded the Elf file, this can't fail.
+        // RAM -- since we've already loaded the Elf file, this can't fail.  We
+        // do end up copying the data into an `EndianArcSlice`, because the
+        // DWARF info needs to persist in the `addr2line::Context` (so it can't
+        // be borrowed from ourself).
         let loader = |id: gimli::SectionId| -> Result<_> {
             // Load the normal DWARF section(s) from our Elf image.
             let sec_result = elf.section_headers.iter().find(|sh| {
