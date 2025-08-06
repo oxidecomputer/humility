@@ -29,6 +29,12 @@ impl StackPrinter {
             print!("{:indent$}{}{:right$}", "", bar, "");
         };
 
+        // Generated code has long paths; we'll patch them up here
+        let pattern =
+            regex::Regex::new(r"/hubris/target/[a-zA-Z0-9\-]+/release/build/")
+                .unwrap();
+        let fixup_file = |input| pattern.replace_all(input, "/build/");
+
         for (ndx, frame) in stack.iter().enumerate() {
             let pc = frame.registers.get(&ARMRegister::PC).unwrap();
 
@@ -37,7 +43,13 @@ impl StackPrinter {
                     println!("0x{:08x} 0x{:08x} {}", frame.cfa, *pc, p.func);
                     if self.line {
                         print_indent();
-                        println!("{:11}@ {}:{}:{}", "", p.file, p.line, p.col);
+                        println!(
+                            "{:11}@ {}:{}:{}",
+                            "",
+                            fixup_file(&p.file),
+                            p.line,
+                            p.col
+                        );
                     }
                     if ndx + 1 < stack.len() || i + 1 < pos.len() {
                         print_indent();
