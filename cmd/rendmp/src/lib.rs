@@ -1169,8 +1169,8 @@ fn get_pin_states(
     let (open, mask) = match dev {
         SupportedDevice::ISL68224 => (values[0] as u64, values[1] as u64),
         SupportedDevice::RAA229618 => {
-            let open = values[0] as u64 | (values[1] as u64) << 32;
-            let mask = values[2] as u64 | (values[3] as u64) << 32;
+            let open = values[0] as u64 | ((values[1] as u64) << 32);
+            let mask = values[2] as u64 | ((values[3] as u64) << 32);
             (open, mask)
         }
     };
