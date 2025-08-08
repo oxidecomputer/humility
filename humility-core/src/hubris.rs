@@ -2918,33 +2918,22 @@ impl HubrisArchive {
                     warn!("addr2line wants to load extern data");
                     pos_valid = false;
                 }
-                addr2line::LookupResult::Output(Ok(mut v)) => {
-                    while let Ok(Some(f)) = v.next() {
-                        // Record a position if we have func + file:line:col
-                        if let (Some(loc), Some(func)) =
-                            (&f.location, &f.function)
-                        {
-                            if let (
-                                Some(file),
-                                Some(line),
-                                Some(col),
-                                Some(func),
-                            ) = (
-                                loc.file,
-                                loc.line,
-                                loc.column,
-                                func.demangle().ok(),
-                            ) {
-                                pos.push(HubrisSrcPosition {
-                                    file: file.to_string(),
-                                    func: func.to_string(),
-                                    line,
-                                    col,
-                                });
+                addr2line::LookupResult::Output(Ok(mut v)) => loop {
+                    match v.next() {
+                        Ok(Some(f)) => {
+                            if let Some(f) = decode_frame(f) {
+                                pos.push(f);
+                            } else {
+                                pos_valid = false;
                             }
                         }
+                        Ok(None) => break,
+                        Err(e) => {
+                            warn!("addr2line returned error: {e}");
+                            pos_valid = false;
+                        }
                     }
-                }
+                },
                 addr2line::LookupResult::Output(Err(e)) => {
                     warn!("addr2line lookup failed: {e}");
                     pos_valid = false;
@@ -6671,6 +6660,31 @@ impl ExternRegions {
             ExternRegions::ByAddress(map) => map.get(&address),
             _ => None,
         }
+    }
+}
+
+/// Decode from an `addr2line` frame into a `HubrisSrcPosition`
+///
+/// This function is *conservative*: it only returns a value if we have file,
+/// function (demangled), line, and column all available.
+fn decode_frame(
+    f: addr2line::Frame<gimli::EndianArcSlice<gimli::LittleEndian>>,
+) -> Option<HubrisSrcPosition> {
+    if let (Some(loc), Some(func)) = (&f.location, &f.function) {
+        if let (Some(file), Some(line), Some(col), Some(func)) =
+            (loc.file, loc.line, loc.column, func.demangle().ok())
+        {
+            Some(HubrisSrcPosition {
+                file: file.to_string(),
+                func: func.to_string(),
+                line,
+                col,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
     }
 }
 
