@@ -15,8 +15,8 @@
         |
         +--->  0x20000eb0 0x00001e72 core::option::Option<T>::expect
                0x20000eb0 0x00001e72 kern::task::select
-               0x20000f58 0x00002074 kern::syscalls::syscall_entry::{{closure}}
-               0x20000f58 0x00002048 kern::arch::arm_m::with_task_table
+               0x20000f58 0x00002dce kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x00002dce kern::arch::arm_m::with_task_table
                0x20000f58 0x00002dce syscall_entry
                0x20000f58 0x00003636 SVCall
 

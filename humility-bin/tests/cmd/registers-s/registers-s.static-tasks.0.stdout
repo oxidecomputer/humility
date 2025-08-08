@@ -19,10 +19,10 @@
                0x200002f0 0x08001516 kern::task::Task::set_healthy_state
                0x20000398 0x080020dc <kern::task::NextTask as core::cmp::PartialEq>::eq
                0x20000398 0x080020dc kern::task::NextTask::combine
-               0x20000398 0x080020ce kern::syscalls::send
-               0x20000398 0x08001ac6 kern::syscalls::safe_syscall_entry
-               0x20000398 0x08001ac6 kern::syscalls::syscall_entry::{{closure}}
-               0x20000398 0x08001ab0 kern::startup::with_task_table
+               0x20000398 0x080020dc kern::syscalls::send
+               0x20000398 0x080020dc kern::syscalls::safe_syscall_entry
+               0x20000398 0x080020dc kern::syscalls::syscall_entry::{{closure}}
+               0x20000398 0x080020dc kern::startup::with_task_table
                0x20000398 0x080020dc syscall_entry
                0x20000398 0x08003326 SVCall
 

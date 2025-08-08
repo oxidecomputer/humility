@@ -5,26 +5,35 @@ ID TASK                       GEN PRI STATE
    guessing at stack trace using saved frame pointer
    |
    +--->  0x24030090 0x08027790 drv_lpc55_update_api::_::<impl serde::de::Deserialize for drv_lpc55_update_api::RotBootInfo>::deserialize
-   |                 @ /hubris/drv/lpc55-update-api/src/lib.rs:102
+   |                 @ /hubris/drv/lpc55-update-api/src/lib.rs:102:0
    |      0x24030198 0x0802883c <core::result::Result<T,E> as core::ops::try_trait::Try>::branch
-   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/result.rs:1985
-   |      0x24030198 0x0802882e hubpack::de::deserialize
-   |                 @ /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hubpack-0.1.2/src/de.rs:22
+   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/result.rs:1986:15
+   |      0x24030198 0x0802883c hubpack::de::deserialize
+   |                 @ /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hubpack-0.1.2/src/de.rs:24:15
    |      0x24030198 0x0802883c drv_sprot_api::SpRot::rot_boot_info
-   |      0x24030890 0x0801c218 <task_control_plane_agent::mgs_handler::MgsHandler as gateway_messages::sp_impl::SpHandler>::sp_state
-   |                 @ /hubris/task/control-plane-agent/src/mgs_gimlet.rs:556
+   |                 @ /build/drv-sprot-api-d527bfef7e248efa/out/client_stub.rs:805:48
+   |      0x24030890 0x0801c2aa core::result::Result<T,E>::map
+   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/result.rs:770:15
+   |      0x24030890 0x0801c2aa task_control_plane_agent::mgs_common::MgsCommon::sp_state
+   |                 @ /hubris/task/control-plane-agent/src/mgs_common.rs:134:18
+   |      0x24030890 0x0801c2aa <task_control_plane_agent::mgs_handler::MgsHandler as gateway_messages::sp_impl::SpHandler>::sp_state
+   |                 @ /hubris/task/control-plane-agent/src/mgs_gimlet.rs:558:9
    |      0x24030890 0x0801c2aa gateway_messages::sp_impl::handle_mgs_request
-   |                 @ /git/management-gateway-service-749acba834b73294/1885b52/gateway-messages/src/sp_impl.rs:684
+   |                 @ /git/management-gateway-service-749acba834b73294/1885b52/gateway-messages/src/sp_impl.rs:769:32
    |      0x24031000 0x08023c8c <core::option::Option<T> as core::ops::try_trait::Try>::branch
-   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/option.rs:2476
-   |      0x24031000 0x08023628 gateway_messages::sp_impl::handle_message
-   |                 @ /git/management-gateway-service-749acba834b73294/1885b52/gateway-messages/src/sp_impl.rs:402
-   |      0x24031000 0x08022b32 <task_control_plane_agent::ServerImpl as idol_runtime::NotificationHandler>::handle_notification
-   |                 @ /hubris/task/control-plane-agent/src/main.rs:253
-   |      0x24031000 0x080229f8 idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/52c3758/runtime/src/lib.rs:228
+   |                 @ /rustc/c52c23b6f44cd19718721a5e3b2eeb169e9c96ff/library/core/src/option.rs:2477:15
+   |      0x24031000 0x08023c8c gateway_messages::sp_impl::handle_message
+   |                 @ /git/management-gateway-service-749acba834b73294/1885b52/gateway-messages/src/sp_impl.rs:413:58
+   |      0x24031000 0x08023c8c task_control_plane_agent::NetHandler::handle_received_packet
+   |                 @ /hubris/task/control-plane-agent/src/main.rs:577:26
+   |      0x24031000 0x08023c8c task_control_plane_agent::NetHandler::run_until_blocked
+   |                 @ /hubris/task/control-plane-agent/src/main.rs:544:21
+   |      0x24031000 0x08023c8c <task_control_plane_agent::ServerImpl as idol_runtime::NotificationHandler>::handle_notification
+   |                 @ /hubris/task/control-plane-agent/src/main.rs:266:13
+   |      0x24031000 0x08023c8c idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/52c3758/runtime/src/lib.rs:265:13
    |      0x24031000 0x08023c8c main
-   |                 @ /hubris/task/control-plane-agent/src/main.rs:216
+   |                 @ /hubris/task/control-plane-agent/src/main.rs:222:9
    |
    |
    +-----------> 0x24001108 Task {

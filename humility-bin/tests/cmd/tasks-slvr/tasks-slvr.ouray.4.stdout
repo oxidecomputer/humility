@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 recv, notif: bit0
    |
    +--->  0x20001318 0x08011cda userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
-   |      0x20001400 0x080101ca userlib::sys_recv
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:207
-   |      0x20001400 0x080101c2 userlib::sys_recv_open
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:163
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:267:5
+   |      0x20001400 0x080101da userlib::sys_recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:233:5
+   |      0x20001400 0x080101da userlib::sys_recv_open
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:167:11
    |      0x20001400 0x080101da main
-   |                 @ /home/bmc/hubris-fixes/task-jefe/src/main.rs:80
+   |                 @ /home/bmc/hubris-fixes/task-jefe/src/main.rs:87:23
    |
    |
    +--->   R0 = 0x08012454   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x200013d4
@@ -49,15 +49,17 @@ ID TASK                       GEN PRI STATE
  1 rcc_driver                   0   1 recv
    |
    +--->  0x200017d8 0x08018e22 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
-   |      0x20001800 0x0801806e userlib::sys_recv
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:207
-   |      0x20001800 0x0801806e userlib::hl::recv
-   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:78
-   |      0x20001800 0x0801806e userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:116
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:267:5
+   |      0x20001800 0x0801807c userlib::sys_recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:233:5
+   |      0x20001800 0x0801807c userlib::sys_recv_open
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:167:11
+   |      0x20001800 0x0801807c userlib::hl::recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:88:14
+   |      0x20001800 0x0801807c userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:123:5
    |      0x20001800 0x0801807c main
-   |                 @ /home/bmc/hubris-fixes/drv/stm32f4-rcc/src/main.rs:100
+   |                 @ /home/bmc/hubris-fixes/drv/stm32f4-rcc/src/main.rs:114:9
    |
    |
    +--->   R0 = 0x200017e0   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200017e4
@@ -133,15 +135,17 @@ Caused by:
  3 user_leds                    0   2 recv
    |
    +--->  0x20001fb8 0x08020fc2 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
-   |      0x20002000 0x0802009c userlib::sys_recv
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:207
-   |      0x20002000 0x0802009c userlib::hl::recv
-   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:78
-   |      0x20002000 0x0802009c userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:116
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:267:5
+   |      0x20002000 0x080200aa userlib::sys_recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:233:5
+   |      0x20002000 0x080200aa userlib::sys_recv_open
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:167:11
+   |      0x20002000 0x080200aa userlib::hl::recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:88:14
+   |      0x20002000 0x080200aa userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris-fixes/userlib/src/hl.rs:123:5
    |      0x20002000 0x080200aa main
-   |                 @ /home/bmc/hubris-fixes/drv/user-leds/src/main.rs:69
+   |                 @ /home/bmc/hubris-fixes/drv/user-leds/src/main.rs:76:9
    |
    |
    +--->   R0 = 0x20001fc4   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20001fdc
@@ -181,11 +185,11 @@ Caused by:
  4 ping                         1   4 wait: reply from usart_driver/gen0
    |
    +--->  0x200021a8 0x08024f50 userlib::sys_send_stub
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:124
-   |      0x20002200 0x08024090 task_ping::uart_send
-   |                 @ /home/bmc/hubris-fixes/task-ping/src/main.rs:64
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:125:5
+   |      0x20002200 0x080240b2 task_ping::uart_send
+   |                 @ /home/bmc/hubris-fixes/task-ping/src/main.rs:68:10
    |      0x20002200 0x080240b2 main
-   |                 @ /home/bmc/hubris-fixes/task-ping/src/main.rs:39
+   |                 @ /home/bmc/hubris-fixes/task-ping/src/main.rs:48:9
    |
    |
    +--->   R0 = 0x200021dc   R1 = 0x00000061   R2 = 0x00000000   R3 = 0x00000000
@@ -225,11 +229,13 @@ Caused by:
  5 pong                         0   3 recv, notif: bit0(T+336)
    |
    +--->  0x200027b8 0x08026d36 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:260
-   |      0x20002800 0x0802608a userlib::sys_recv
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:207
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:267:5
+   |      0x20002800 0x08026098 userlib::sys_recv
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:233:5
+   |      0x20002800 0x08026098 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:167:11
    |      0x20002800 0x08026098 main
-   |                 @ /home/bmc/hubris-fixes/task-pong/src/main.rs:7
+   |                 @ /home/bmc/hubris-fixes/task-pong/src/main.rs:20:23
    |
    |
    +--->   R0 = 0x200027c4   R1 = 0x00000010   R2 = 0x00000001   R3 = 0x200027d8
@@ -269,7 +275,7 @@ Caused by:
  6 idle                         0   5 ready
    |
    +--->  0x20002900 0x08028001 _start
-   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:806
+   |                 @ /home/bmc/hubris-fixes/userlib/src/lib.rs:812:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000

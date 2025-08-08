@@ -14,11 +14,11 @@
    SP = 0x20002b70 <- i2c_driver: 0x20002800+0x370
         |
         +--->  0x20002b80 0x08015ac8 userlib::sys_irq_control_stub
-               0x20002c00 0x080148e2 drv_stm32h7_i2c::I2cController::write_read
-               0x20002c00 0x08014658 drv_stm32h7_i2c_server::main::{{closure}}
-               0x20002c00 0x08014658 userlib::hl::recv_without_notification::{{closure}}
-               0x20002c00 0x080142d4 userlib::hl::recv
-               0x20002c00 0x080142d4 userlib::hl::recv_without_notification
+               0x20002c00 0x08014920 drv_stm32h7_i2c::I2cController::write_read
+               0x20002c00 0x08014920 drv_stm32h7_i2c_server::main::{{closure}}
+               0x20002c00 0x08014920 userlib::hl::recv_without_notification::{{closure}}
+               0x20002c00 0x08014920 userlib::hl::recv
+               0x20002c00 0x08014920 userlib::hl::recv_without_notification
                0x20002c00 0x08014920 main
                0x20002c00 0x0801404e _start
 

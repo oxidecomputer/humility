@@ -5,10 +5,13 @@ ID TASK                       GEN PRI STATE
    guessing at stack trace using saved frame pointer
    |
    +--->  0x240480c0 0x0807afd4 drv_gimlet_seq_server::ringbuf_entry_v3p3_sys_a0_vout
-   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:1398
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:1398:0
    |      0x240482b0 0x0807a4c0 drv_gimlet_seq_server::ServerImpl<S>::set_state_internal
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:675:19
+   |      0x24048640 0x08079c2a drv_gimlet_seq_server::ServerImpl<S>::init
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:491:9
    |      0x24048640 0x08079c2a main
-   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:145
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:150:11
    |
    |
    +-----------> 0x24000b20 Task {

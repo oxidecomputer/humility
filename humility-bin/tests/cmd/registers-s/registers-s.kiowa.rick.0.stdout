@@ -14,16 +14,16 @@
    SP = 0x20001508 <- jefe: 0x20001000+0x508
         |
         +--->  0x200015c0 0x080081fa <core::result::Result<T,E> as core::ops::try::Try>::into_result
-               0x200015c0 0x080081f2 <&mut ssmarshal::Deserializer as serde::de::EnumAccess>::variant_seed
-               0x200015c0 0x080081f2 serde::de::EnumAccess::variant
-               0x200015c0 0x080081f2 <abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize::__Visitor as serde::de::Visitor>::visit_enum
-               0x200015c0 0x080081f2 <&mut ssmarshal::Deserializer as serde::de::Deserializer>::deserialize_enum
-               0x200015c0 0x080081f2 abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize
-               0x200015c0 0x080081ee ssmarshal::deserialize
-               0x200015c0 0x080081e6 userlib::kipc::read_task_status
+               0x200015c0 0x080081fa <&mut ssmarshal::Deserializer as serde::de::EnumAccess>::variant_seed
+               0x200015c0 0x080081fa serde::de::EnumAccess::variant
+               0x200015c0 0x080081fa <abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize::__Visitor as serde::de::Visitor>::visit_enum
+               0x200015c0 0x080081fa <&mut ssmarshal::Deserializer as serde::de::Deserializer>::deserialize_enum
+               0x200015c0 0x080081fa abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize
+               0x200015c0 0x080081fa ssmarshal::deserialize
+               0x200015c0 0x080081fa userlib::kipc::read_task_status
                0x200015c0 0x080081fa task_jefe::check_tasks
-               0x20001600 0x0800890a task_jefe::main::{{closure}}
-               0x20001600 0x0800889c userlib::hl::recv
+               0x20001600 0x08008916 task_jefe::main::{{closure}}
+               0x20001600 0x08008916 userlib::hl::recv
                0x20001600 0x08008916 main
                0x20001600 0x0800804e _start
 

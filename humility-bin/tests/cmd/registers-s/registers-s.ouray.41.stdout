@@ -15,7 +15,7 @@
         |
         +--->  0x20001360 0x00011d80 __aeabi_memset4
                0x20001400 0x00010220 userlib::sys_send
-               0x20001400 0x0001021a userlib::kipc::read_task_status
+               0x20001400 0x00010220 userlib::kipc::read_task_status
                0x20001400 0x00010220 main
                0x20001400 0x0001004e _start
 
