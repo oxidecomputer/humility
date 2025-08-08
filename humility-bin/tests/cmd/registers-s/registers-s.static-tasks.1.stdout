@@ -14,10 +14,10 @@
    SP = 0x200002a0 <- kernel: 0x20000000+0x2a0
         |
         +--->  0x200002b0 0x08001a6a <core::iter::adapters::chain::Chain<A,B> as core::iter::traits::iterator::Iterator>::next
-               0x200002f0 0x08001850 kern::task::priority_scan
+               0x200002f0 0x0800187e kern::task::priority_scan
                0x200002f0 0x0800187e kern::task::select
-               0x20000398 0x08001ac6 kern::syscalls::syscall_entry::{{closure}}
-               0x20000398 0x08001ab0 kern::startup::with_task_table
+               0x20000398 0x080026e0 kern::syscalls::syscall_entry::{{closure}}
+               0x20000398 0x080026e0 kern::startup::with_task_table
                0x20000398 0x080026e0 syscall_entry
                0x20000398 0x08003328 SVCall
 

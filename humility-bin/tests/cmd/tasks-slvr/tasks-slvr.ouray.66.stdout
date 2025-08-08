@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 recv, notif: bit0 bit1(T+97)
    |
    +--->  0x20005538 0x00011efe userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x20005600 0x000101ee userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x20005600 0x000101ee userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:168
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x20005600 0x000101fe userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x20005600 0x000101fe userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
    |      0x20005600 0x000101fe main
-   |                 @ /home/bmc/hubris/task-jefe/src/main.rs:94
+   |                 @ /home/bmc/hubris/task-jefe/src/main.rs:119:23
    |
    |
    +--->   R0 = 0x00012818   R1 = 0x00000000   R2 = 0x00000003   R3 = 0x200055dc
@@ -65,15 +65,15 @@ ID TASK                       GEN PRI STATE
  1 hiffy                        0   3 notif: bit31(T+101)
    |
    +--->  0x20008580 0x0001a13a userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
    |      0x20008800 0x000182d2 userlib::sys_get_timer
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:692
-   |      0x20008800 0x000182b4 userlib::hl::sleep_until
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:622
-   |      0x20008800 0x00018294 userlib::hl::sleep_for
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:647
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:697:9
+   |      0x20008800 0x000182d2 userlib::hl::sleep_until
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:637:12
+   |      0x20008800 0x000182d2 userlib::hl::sleep_for
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:648:5
    |      0x20008800 0x000182d2 main
-   |                 @ /home/bmc/hubris/task-hiffy/src/main.rs:75
+   |                 @ /home/bmc/hubris/task-hiffy/src/main.rs:92:9
    |
    |
    +--->   R0 = 0x0001ab7c   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200087b0
@@ -129,7 +129,7 @@ ID TASK                       GEN PRI STATE
  2 idle                         0   5 RUNNING
    |
    +--->  0x2000c900 0x00042056 main
-   |                 @ /home/bmc/hubris/task-idle/src/main.rs:9
+   |                 @ /home/bmc/hubris/task-idle/src/main.rs:10:5
    |
    |
    +--->   R0 = 0x2000c900   R1 = 0x2000c900   R2 = 0x00000000   R3 = 0x00000000
@@ -185,15 +185,17 @@ ID TASK                       GEN PRI STATE
  3 syscon_driver                0   2 recv
    |
    +--->  0x200063c0 0x00020d2a userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x200063e8 0x00020094 userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x200063e8 0x00020094 userlib::hl::recv
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:79
-   |      0x200063e8 0x00020094 userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:117
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x200063e8 0x000200a2 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x200063e8 0x000200a2 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
+   |      0x200063e8 0x000200a2 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:89:14
+   |      0x200063e8 0x000200a2 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:124:5
    |      0x200063e8 0x000200a2 main
-   |                 @ /home/bmc/hubris/drv/lpc55-syscon/src/main.rs:153
+   |                 @ /home/bmc/hubris/drv/lpc55-syscon/src/main.rs:169:9
    |
    |
    +--->   R0 = 0x200063c8   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200063cc
@@ -249,17 +251,17 @@ ID TASK                       GEN PRI STATE
  4 gpio_driver                  0   2 recv
    |
    +--->  0x200067a8 0x000258da userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x200067e8 0x000240d4 userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x200067e8 0x000240d4 userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:168
-   |      0x200067e8 0x000240d4 userlib::hl::recv
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:79
-   |      0x200067e8 0x000240d4 userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:117
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x200067e8 0x000240e2 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x200067e8 0x000240e2 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
+   |      0x200067e8 0x000240e2 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:89:14
+   |      0x200067e8 0x000240e2 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:124:5
    |      0x200067e8 0x000240e2 main
-   |                 @ /home/bmc/hubris/drv/lpc55-gpio/src/main.rs:63
+   |                 @ /home/bmc/hubris/drv/lpc55-gpio/src/main.rs:168:9
    |
    |
    +--->   R0 = 0x200067c0   R1 = 0x0000000c   R2 = 0x00000000   R3 = 0x200067cc
@@ -315,17 +317,17 @@ ID TASK                       GEN PRI STATE
  5 user_leds                    0   2 recv
    |
    +--->  0x20006bb0 0x00028f7e userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x20006be8 0x000280c6 userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x20006be8 0x000280c6 userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:168
-   |      0x20006be8 0x000280c6 userlib::hl::recv
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:79
-   |      0x20006be8 0x000280c6 userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:117
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x20006be8 0x000280d4 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x20006be8 0x000280d4 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
+   |      0x20006be8 0x000280d4 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:89:14
+   |      0x20006be8 0x000280d4 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:124:5
    |      0x20006be8 0x000280d4 main
-   |                 @ /home/bmc/hubris/drv/user-leds/src/main.rs:69
+   |                 @ /home/bmc/hubris/drv/user-leds/src/main.rs:76:9
    |
    |
    +--->   R0 = 0x20006bb8   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20006bc0
@@ -381,13 +383,13 @@ ID TASK                       GEN PRI STATE
  6 usart_driver                 0   2 recv, notif: bit0(irq14)
    |
    +--->  0x20006fb0 0x0002d15e userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x20006fe8 0x0002c176 userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x20006fe8 0x0002c176 userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:168
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x20006fe8 0x0002c184 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x20006fe8 0x0002c184 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
    |      0x20006fe8 0x0002c184 main
-   |                 @ /home/bmc/hubris/drv/lpc55-usart/src/main.rs:42
+   |                 @ /home/bmc/hubris/drv/lpc55-usart/src/main.rs:99:23
    |
    |
    +--->   R0 = 0x0002d698   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x20006fc0
@@ -443,17 +445,17 @@ ID TASK                       GEN PRI STATE
  7 i2c_driver                   0   2 recv
    |
    +--->  0x200073b8 0x0003133c userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x200073e8 0x0003012e userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x200073e8 0x0003012e userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:168
-   |      0x200073e8 0x0003012e userlib::hl::recv
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:79
-   |      0x200073e8 0x0003012e userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:117
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x200073e8 0x0003013e userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x200073e8 0x0003013e userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
+   |      0x200073e8 0x0003013e userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:89:14
+   |      0x200073e8 0x0003013e userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:124:5
    |      0x200073e8 0x0003013e main
-   |                 @ /home/bmc/hubris/drv/lpc55-i2c/src/main.rs:54
+   |                 @ /home/bmc/hubris/drv/lpc55-i2c/src/main.rs:86:9
    |
    |
    +--->   R0 = 0x200073ca   R1 = 0x00000001   R2 = 0x00000000   R3 = 0x200073cc
@@ -509,11 +511,17 @@ ID TASK                       GEN PRI STATE
  8 rng_driver                   0   2 recv
    |
    +--->  0x200077b8 0x00034f1e userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x200077e8 0x000340b4 userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x200077e8 0x000340c2 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x200077e8 0x000340c2 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
+   |      0x200077e8 0x000340c2 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:89:14
+   |      0x200077e8 0x000340c2 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:124:5
    |      0x200077e8 0x000340c2 main
-   |                 @ /home/bmc/hubris/drv/lpc55-rng/src/main.rs:47
+   |                 @ /home/bmc/hubris/drv/lpc55-rng/src/main.rs:59:9
    |
    |
    +--->   R0 = 0x200077bc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x200077c0
@@ -569,15 +577,15 @@ ID TASK                       GEN PRI STATE
  9 spi_driver                   0   2 recv, notif: bit0(irq59)
    |
    +--->  0x20007b68 0x00039594 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x20007be8 0x00038256 userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
-   |      0x20007be8 0x00038256 userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:168
-   |      0x20007be8 0x00038256 userlib::hl::recv
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:79
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x20007be8 0x00038264 userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x20007be8 0x00038264 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
+   |      0x20007be8 0x00038264 userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:89:14
    |      0x20007be8 0x00038264 main
-   |                 @ /home/bmc/hubris/drv/lpc55-spi-server/src/main.rs:70
+   |                 @ /home/bmc/hubris/drv/lpc55-spi-server/src/main.rs:115:9
    |
    |
    +--->   R0 = 0x00039b38   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x20007b80
@@ -633,11 +641,11 @@ ID TASK                       GEN PRI STATE
 10 ping                        44   4 wait: reply from usart_driver/gen0
    |
    +--->  0x20007f98 0x0003cfa0 userlib::sys_send_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:129
-   |      0x20007fe8 0x0003c098 task_ping::uart_send
-   |                 @ /home/bmc/hubris/task-ping/src/main.rs:56
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:130:5
+   |      0x20007fe8 0x0003c0c2 task_ping::uart_send
+   |                 @ /home/bmc/hubris/task-ping/src/main.rs:60:10
    |      0x20007fe8 0x0003c0c2 main
-   |                 @ /home/bmc/hubris/task-ping/src/main.rs:31
+   |                 @ /home/bmc/hubris/task-ping/src/main.rs:40:9
    |
    |
    +--->   R0 = 0x20007fc4   R1 = 0x20007fb8   R2 = 0x00000000   R3 = 0x00000000
@@ -693,11 +701,13 @@ ID TASK                       GEN PRI STATE
 11 pong                         0   3 recv, notif: bit0(T+97)
    |
    +--->  0x2000c398 0x0003ed02 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:265
-   |      0x2000c3e8 0x0003e0ac userlib::sys_recv
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:212
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:272:5
+   |      0x2000c3e8 0x0003e0bc userlib::sys_recv
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:238:5
+   |      0x2000c3e8 0x0003e0bc userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:172:11
    |      0x2000c3e8 0x0003e0bc main
-   |                 @ /home/bmc/hubris/task-pong/src/main.rs:9
+   |                 @ /home/bmc/hubris/task-pong/src/main.rs:22:23
    |
    |
    +--->   R0 = 0x2000c3ac   R1 = 0x00000010   R2 = 0x00000001   R3 = 0x2000c3c0
@@ -753,7 +763,7 @@ ID TASK                       GEN PRI STATE
 12 spam                         0   3 not started
    |
    +--->  0x2000c7e8 0x00040001 _start
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:766
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000

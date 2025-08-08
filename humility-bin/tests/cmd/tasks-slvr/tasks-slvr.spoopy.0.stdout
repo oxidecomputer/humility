@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 recv, notif: bit0 bit1(T+36)
    |
    +--->  0x20014538 0x0805d54c userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20014600 0x0805c2b8 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20014600 0x0805c2b8 userlib::sys_recv_open
-   |                 @ /hubris/sys/userlib/src/lib.rs:236
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20014600 0x0805c2ca userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20014600 0x0805c2ca userlib::sys_recv_open
+   |                 @ /hubris/sys/userlib/src/lib.rs:240:11
    |      0x20014600 0x0805c2ca main
-   |                 @ /hubris//task/jefe/src/main.rs:106
+   |                 @ /hubris/task/jefe/src/main.rs:132:23
    |
    |
    +--->   R0 = 0x0805dbf4   R1 = 0x00000000   R2 = 0x00000003   R3 = 0x200145dc
@@ -65,13 +65,13 @@ ID TASK                       GEN PRI STATE
  1 net                          0   2 recv, notif: bit0(irq61) bit1(T+179)
    |
    +--->  0x200028a8 0x0802e7f8 userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20002ed8 0x080257ee userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20002ed8 0x080257ee idol_runtime::dispatch_n
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:242
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20002ed8 0x080257fe userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20002ed8 0x080257fe idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:250:20
    |      0x20002ed8 0x080257fe main
-   |                 @ /hubris//task/net/src/main.rs:99
+   |                 @ /hubris/task/net/src/main.rs:180:13
    |
    |
    +--->   R0 = 0x20002c98   R1 = 0x0000001c   R2 = 0x00000003   R3 = 0x20002d38
@@ -127,13 +127,13 @@ ID TASK                       GEN PRI STATE
  2 sys                          0   1 recv
    |
    +--->  0x20017b50 0x080625d6 userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20017b80 0x08062090 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20017b80 0x08062090 idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:169
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20017b80 0x0806209e userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20017b80 0x0806209e idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:174:20
    |      0x20017b80 0x0806209e main
-   |                 @ /hubris//drv/stm32xx-sys/src/main.rs:73
+   |                 @ /hubris/drv/stm32xx-sys/src/main.rs:131:9
    |
    |
    +--->   R0 = 0x20017b58   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x20017b60
@@ -189,13 +189,13 @@ ID TASK                       GEN PRI STATE
  3 spi4_driver                  0   2 recv
    |
    +--->  0x20014ae8 0x08041c30 userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20014b68 0x08040684 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20014b68 0x08040684 idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:169
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20014b68 0x0804069e userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20014b68 0x0804069e idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:174:20
    |      0x20014b68 0x0804069e main
-   |                 @ /hubris//drv/stm32h7-spi-server/src/main.rs:59
+   |                 @ /hubris/drv/stm32h7-spi-server/src/main.rs:119:9
    |
    |
    +--->   R0 = 0x20014b02   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x20014b04
@@ -251,13 +251,13 @@ ID TASK                       GEN PRI STATE
  4 spi2_driver                  0   2 recv
    |
    +--->  0x200152e0 0x08045d58 userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20015368 0x08044656 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20015368 0x08044656 idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:169
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20015368 0x08044670 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20015368 0x08044670 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:174:20
    |      0x20015368 0x08044670 main
-   |                 @ /hubris//drv/stm32h7-spi-server/src/main.rs:59
+   |                 @ /hubris/drv/stm32h7-spi-server/src/main.rs:119:9
    |
    |
    +--->   R0 = 0x20015302   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x20015304
@@ -313,17 +313,17 @@ ID TASK                       GEN PRI STATE
  5 i2c_driver                   0   2 recv
    |
    +--->  0x20015a58 0x0804a06c userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20015b80 0x0804868e userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20015b80 0x0804868e userlib::sys_recv_open
-   |                 @ /hubris/sys/userlib/src/lib.rs:236
-   |      0x20015b80 0x0804868e userlib::hl::recv
-   |                 @ /hubris/sys/userlib/src/hl.rs:83
-   |      0x20015b80 0x0804868e userlib::hl::recv_without_notification
-   |                 @ /hubris/sys/userlib/src/hl.rs:121
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20015b80 0x0804869e userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20015b80 0x0804869e userlib::sys_recv_open
+   |                 @ /hubris/sys/userlib/src/lib.rs:240:11
+   |      0x20015b80 0x0804869e userlib::hl::recv
+   |                 @ /hubris/sys/userlib/src/hl.rs:93:14
+   |      0x20015b80 0x0804869e userlib::hl::recv_without_notification
+   |                 @ /hubris/sys/userlib/src/hl.rs:128:5
    |      0x20015b80 0x0804869e main
-   |                 @ /hubris//drv/stm32h7-i2c-server/src/main.rs:148
+   |                 @ /hubris/drv/stm32h7-i2c-server/src/main.rs:177:9
    |
    |
    +--->   R0 = 0x20015b48   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20015b58
@@ -379,13 +379,13 @@ ID TASK                       GEN PRI STATE
  6 spd                          0   2 notif: bit0(irq31/irq32)
    |
    +--->  0x20004250 0x0804deee userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
    |      0x20004270 0x0804c674 core::ops::function::FnOnce::call_once
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/ops/function.rs:227
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/ops/function.rs:227:5
    |      0x200042a8 0x0804c444 drv_stm32h7_i2c::I2cController::operate_as_target
-   |                 @ /hubris/drv/stm32h7-i2c/src/lib.rs:743
+   |                 @ /hubris/drv/stm32h7-i2c/src/lib.rs:905:17
    |      0x20004380 0x0804ce46 main
-   |                 @ /hubris//task/spd/src/main.rs:194
+   |                 @ /hubris/task/spd/src/main.rs:414:5
    |
    |
    +--->   R0 = 0x0804e58c   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x20004254
@@ -441,13 +441,13 @@ ID TASK                       GEN PRI STATE
  7 thermal                      0   3 recv, notif: bit0(T+943)
    |
    +--->  0x200166c0 0x0805f512 userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20016780 0x0805e1fa userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20016780 0x0805e1fa idol_runtime::dispatch_n
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:242
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20016780 0x0805e20c userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20016780 0x0805e20c idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:250:20
    |      0x20016780 0x0805e20c main
-   |                 @ /hubris//task/thermal/src/main.rs:212
+   |                 @ /hubris/task/thermal/src/main.rs:245:9
    |
    |
    +--->   R0 = 0x2001675e   R1 = 0x00000002   R2 = 0x00000001   R3 = 0x20016760
@@ -503,15 +503,15 @@ ID TASK                       GEN PRI STATE
  8 power                        0   3 notif: bit31(T+618)
    |
    +--->  0x200123c8 0x0805229e userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
    |      0x20012800 0x08050322 userlib::sys_get_timer
-   |                 @ /hubris//sys/userlib/src/lib.rs:1055
-   |      0x20012800 0x08050300 userlib::hl::sleep_until
-   |                 @ /hubris//sys/userlib/src/hl.rs:610
-   |      0x20012800 0x080502de userlib::hl::sleep_for
-   |                 @ /hubris//sys/userlib/src/hl.rs:635
+   |                 @ /hubris/sys/userlib/src/lib.rs:1060:9
+   |      0x20012800 0x08050322 userlib::hl::sleep_until
+   |                 @ /hubris/sys/userlib/src/hl.rs:625:12
+   |      0x20012800 0x08050322 userlib::hl::sleep_for
+   |                 @ /hubris/sys/userlib/src/hl.rs:636:5
    |      0x20012800 0x08050322 main
-   |                 @ /hubris//task/power/src/main.rs:232
+   |                 @ /hubris/task/power/src/main.rs:239:9
    |
    |
    +--->   R0 = 0x08052b9c   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x200127d8
@@ -567,19 +567,19 @@ ID TASK                       GEN PRI STATE
  9 hiffy                        0   3 notif: bit31(T+172)
    |
    +--->  0x20008140 0x0800b672 userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
    |      0x20008180 0x0800b6e2 userlib::sys_get_timer
-   |                 @ /hubris//sys/userlib/src/lib.rs:1055
-   |      0x20008180 0x0800b6bc userlib::hl::sleep_until
-   |                 @ /hubris//sys/userlib/src/hl.rs:610
+   |                 @ /hubris/sys/userlib/src/lib.rs:1060:9
+   |      0x20008180 0x0800b6e2 userlib::hl::sleep_until
+   |                 @ /hubris/sys/userlib/src/hl.rs:625:12
    |      0x20008180 0x0800b6e2 userlib::hl::sleep_for
-   |                 @ /hubris//sys/userlib/src/hl.rs:635
+   |                 @ /hubris/sys/userlib/src/hl.rs:636:5
    |      0x20008400 0x0800911c core::sync::atomic::atomic_sub
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:2401
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:2409:23
    |      0x20008400 0x0800911c core::sync::atomic::AtomicU32::fetch_sub
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:1772
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:1774:26
    |      0x20008400 0x0800911c main
-   |                 @ /hubris//task/hiffy/src/main.rs:99
+   |                 @ /hubris/task/hiffy/src/main.rs:117:9
    |
    |
    +--->   R0 = 0x0800c77c   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x20008148
@@ -635,13 +635,13 @@ ID TASK                       GEN PRI STATE
 10 gimlet_seq                   0   3 recv
    |
    +--->  0x200134f0 0x080135da userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20013640 0x0801088c userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20013640 0x0801088c idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:169
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20013640 0x0801089c userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20013640 0x0801089c idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:174:20
    |      0x20013640 0x0801089c main
-   |                 @ /hubris//drv/gimlet-seq-server/src/main.rs:58
+   |                 @ /hubris/drv/gimlet-seq-server/src/main.rs:297:9
    |
    |
    +--->   R0 = 0x20013517   R1 = 0x00000001   R2 = 0x00000000   R3 = 0x20013530
@@ -697,13 +697,13 @@ ID TASK                       GEN PRI STATE
 11 hf                           0   3 recv
    |
    +--->  0x20016df8 0x0805582c userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20016f80 0x0805436e userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20016f80 0x0805436e idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:169
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20016f80 0x0805437e userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20016f80 0x0805437e idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:174:20
    |      0x20016f80 0x0805437e main
-   |                 @ /hubris//drv/gimlet-hf-server/src/main.rs:70
+   |                 @ /hubris/drv/gimlet-hf-server/src/main.rs:145:9
    |
    |
    +--->   R0 = 0x20016e30   R1 = 0x00000008   R2 = 0x00000000   R3 = 0x20016f60
@@ -759,13 +759,13 @@ ID TASK                       GEN PRI STATE
 12 sensor                       0   3 recv, notif: bit0(T+936)
    |
    +--->  0x20017388 0x08060bbe userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20017780 0x080600aa userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20017780 0x080600aa idol_runtime::dispatch_n
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:242
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20017780 0x080600b8 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20017780 0x080600b8 idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/4e12855/runtime/src/lib.rs:250:20
    |      0x20017780 0x080600b8 main
-   |                 @ /hubris//task/sensor/src/main.rs:95
+   |                 @ /hubris/task/sensor/src/main.rs:111:9
    |
    |
    +--->   R0 = 0x20017768   R1 = 0x00000008   R2 = 0x00000001   R3 = 0x20017580
@@ -821,11 +821,11 @@ ID TASK                       GEN PRI STATE
 13 udpecho                      0   3 notif: bit0
    |
    +--->  0x20010e08 0x0805957e userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
    |      0x20011000 0x080587e4 core::result::Result<T,E>::unwrap
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/result.rs:1296
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/result.rs:1297:9
    |      0x20011000 0x080587e4 main
-   |                 @ /hubris//task/udpecho/src/main.rs:14
+   |                 @ /hubris/task/udpecho/src/main.rs:36:17
    |
    |
    +--->   R0 = 0x08059b2c   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x20010fdc
@@ -881,7 +881,7 @@ ID TASK                       GEN PRI STATE
 14 idle                         0   5 RUNNING
    |
    +--->  0x20017d00 0x08062856 main
-   |                 @ /hubris//task/idle/src/main.rs:13
+   |                 @ /hubris/task/idle/src/main.rs:14:5
    |
    |
    +--->   R0 = 0x20017d00   R1 = 0x20017d00   R2 = 0x00000000   R3 = 0x00000000

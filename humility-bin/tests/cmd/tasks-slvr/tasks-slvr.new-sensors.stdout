@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 recv, notif: bit0 bit1(T+63)
    |
    +--->  0x24002520 0x0800973e userlib::sys_recv_stub
-   |                 @ /hubris/sys/userlib/src/lib.rs:333
-   |      0x24002600 0x08008308 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:281
-   |      0x24002600 0x08008308 idol_runtime::dispatch_n
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/f01add5/runtime/src/lib.rs:261
+   |                 @ /hubris/sys/userlib/src/lib.rs:388:13
+   |      0x24002600 0x08008316 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:307:8
+   |      0x24002600 0x08008316 idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/f01add5/runtime/src/lib.rs:269:20
    |      0x24002600 0x08008316 main
-   |                 @ /hubris/task/jefe/src/main.rs:120
+   |                 @ /hubris/task/jefe/src/main.rs:143:9
    |
    |
    +--->   R0 = 0x24002598   R1 = 0x00000008   R2 = 0x00000003   R3 = 0x240025d8
@@ -61,7 +61,7 @@ ID TASK                       GEN PRI STATE
  1 idle                         0   9 RUNNING
    |
    +--->  0x24002900 0x0800a052 main
-   |                 @ /hubris/task/idle/src/main.rs:13
+   |                 @ /hubris/task/idle/src/main.rs:14:5
    |
    |
    +--->   R0 = 0x24002900   R1 = 0x24002900   R2 = 0x00000000   R3 = 0x00000000

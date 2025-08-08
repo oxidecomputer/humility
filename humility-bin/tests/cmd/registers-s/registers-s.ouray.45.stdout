@@ -15,10 +15,10 @@
         |
         +--->  0x20000eb0 0x080035b0 kern::syscalls::borrow_lease
                0x20000f58 0x080021e0 <core::result::Result<T,E> as core::ops::try::Try>::into_result
-               0x20000f58 0x08002198 kern::syscalls::borrow_read
-               0x20000f58 0x08002078 kern::syscalls::safe_syscall_entry
-               0x20000f58 0x08002078 kern::syscalls::syscall_entry::{{closure}}
-               0x20000f58 0x0800204c kern::arch::arm_m::with_task_table
+               0x20000f58 0x080021e0 kern::syscalls::borrow_read
+               0x20000f58 0x080021e0 kern::syscalls::safe_syscall_entry
+               0x20000f58 0x080021e0 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x080021e0 kern::arch::arm_m::with_task_table
                0x20000f58 0x080021e0 syscall_entry
                0x20000f58 0x0800375e SVCall
 

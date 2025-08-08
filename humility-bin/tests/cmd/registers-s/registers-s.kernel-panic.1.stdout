@@ -14,7 +14,7 @@
    SP = 0x24000288 <- kernel: 0x24000000+0x288
         |
         +--->  0x240002c0 0x080019ac kern::fail::die_impl
-               0x240002d0 0x080019d0 kern::fail::die
+               0x240002d0 0x080019d4 kern::fail::die
                0x240002d0 0x080019d4 rust_begin_unwind
                0x240002f0 0x080006da core::panicking::panic_fmt
                0x24000318 0x0800105a core::panicking::panic

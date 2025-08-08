@@ -3,29 +3,29 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 RUNNING
    |
    +--->  0x200015c0 0x080081fa <core::result::Result<T,E> as core::ops::try::Try>::into_result
-   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1635
-   |      0x200015c0 0x080081f2 <&mut ssmarshal::Deserializer as serde::de::EnumAccess>::variant_seed
-   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:778
-   |      0x200015c0 0x080081f2 serde::de::EnumAccess::variant
-   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/serde-1.0.129/src/de/mod.rs:1978
-   |      0x200015c0 0x080081f2 <abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize::__Visitor as serde::de::Visitor>::visit_enum
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/abi/src/lib.rs:297
-   |      0x200015c0 0x080081f2 <&mut ssmarshal::Deserializer as serde::de::Deserializer>::deserialize_enum
-   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:732
-   |      0x200015c0 0x080081f2 abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/abi/src/lib.rs:297
-   |      0x200015c0 0x080081ee ssmarshal::deserialize
-   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:130
-   |      0x200015c0 0x080081e6 userlib::kipc::read_task_status
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/kipc.rs:7
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1636:9
+   |      0x200015c0 0x080081fa <&mut ssmarshal::Deserializer as serde::de::EnumAccess>::variant_seed
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:779:21
+   |      0x200015c0 0x080081fa serde::de::EnumAccess::variant
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/serde-1.0.129/src/de/mod.rs:1982:9
+   |      0x200015c0 0x080081fa <abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize::__Visitor as serde::de::Visitor>::visit_enum
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/abi/src/lib.rs:297:45
+   |      0x200015c0 0x080081fa <&mut ssmarshal::Deserializer as serde::de::Deserializer>::deserialize_enum
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:737:9
+   |      0x200015c0 0x080081fa abi::_::<impl serde::de::Deserialize for abi::TaskState>::deserialize
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/abi/src/lib.rs:297:45
+   |      0x200015c0 0x080081fa ssmarshal::deserialize
+   |                 @ /home/kc8apf/.cargo/registry/src/github.com-1ecc6299db9ec823/ssmarshal-1.0.0/src/lib.rs:132:15
+   |      0x200015c0 0x080081fa userlib::kipc::read_task_status
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/kipc.rs:14:5
    |      0x200015c0 0x080081fa task_jefe::check_tasks
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:89
-   |      0x20001600 0x0800890a task_jefe::main::{{closure}}
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:150
-   |      0x20001600 0x0800889c userlib::hl::recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:94:15
+   |      0x20001600 0x08008916 task_jefe::main::{{closure}}
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:152:21
+   |      0x20001600 0x08008916 userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:92:9
    |      0x20001600 0x08008916 main
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:132
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-jefe/src/main.rs:146:9
    |
    |
    +--->   R0 = 0x20001580   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000001
@@ -81,15 +81,17 @@ ID TASK                       GEN PRI STATE
  1 rcc_driver                   0   1 recv
    |
    +--->  0x20001bd8 0x0800ce66 userlib::sys_recv_stub
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
-   |      0x20001c00 0x0800c06c userlib::sys_recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
-   |      0x20001c00 0x0800c06c userlib::hl::recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
-   |      0x20001c00 0x0800c06c userlib::hl::recv_without_notification
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:117
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:272:5
+   |      0x20001c00 0x0800c07a userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:238:5
+   |      0x20001c00 0x0800c07a userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:172:11
+   |      0x20001c00 0x0800c07a userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:89:14
+   |      0x20001c00 0x0800c07a userlib::hl::recv_without_notification
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:124:5
    |      0x20001c00 0x0800c07a main
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc/src/main.rs:108
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc/src/main.rs:122:9
    |
    |
    +--->   R0 = 0x20001be0   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20001be4
@@ -145,17 +147,17 @@ ID TASK                       GEN PRI STATE
  2 gpio_driver                  0   2 recv
    |
    +--->  0x20001fc0 0x0800f012 userlib::sys_recv_stub
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
-   |      0x20002000 0x0800e166 userlib::sys_recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
-   |      0x20002000 0x0800e166 userlib::sys_recv_open
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:168
-   |      0x20002000 0x0800e166 userlib::hl::recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
-   |      0x20002000 0x0800e166 userlib::hl::recv_without_notification
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:117
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:272:5
+   |      0x20002000 0x0800e176 userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:238:5
+   |      0x20002000 0x0800e176 userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:172:11
+   |      0x20002000 0x0800e176 userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:89:14
+   |      0x20002000 0x0800e176 userlib::hl::recv_without_notification
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:124:5
    |      0x20002000 0x0800e176 main
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-gpio/src/main.rs:143
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-gpio/src/main.rs:152:9
    |
    |
    +--->   R0 = 0x20001fd0   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x20001fd8
@@ -211,15 +213,15 @@ ID TASK                       GEN PRI STATE
  3 usart_driver                 0   2 recv, notif: bit0(irq39)
    |
    +--->  0x200023c0 0x08010fe6 userlib::sys_recv_stub
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
-   |      0x20002400 0x0801018e userlib::sys_recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
-   |      0x20002400 0x0801018e userlib::sys_recv_open
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:168
-   |      0x20002400 0x0801018e userlib::hl::recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:272:5
+   |      0x20002400 0x0801019e userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:238:5
+   |      0x20002400 0x0801019e userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:172:11
+   |      0x20002400 0x0801019e userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:89:14
    |      0x20002400 0x0801019e main
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-usart/src/main.rs:48
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-usart/src/main.rs:89:9
    |
    |
    +--->   R0 = 0x080114f0   R1 = 0x00000000   R2 = 0x00000001   R3 = 0x200023d8
@@ -275,17 +277,17 @@ ID TASK                       GEN PRI STATE
  4 i2c_driver                   0   2 recv
    |
    +--->  0x20002b20 0x0801622a userlib::sys_recv_stub
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:265
-   |      0x20002c00 0x080144ce userlib::sys_recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:212
-   |      0x20002c00 0x080144ce userlib::sys_recv_open
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:168
-   |      0x20002c00 0x080144ce userlib::hl::recv
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:79
-   |      0x20002c00 0x080144ce userlib::hl::recv_without_notification
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:117
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:272:5
+   |      0x20002c00 0x080144de userlib::sys_recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:238:5
+   |      0x20002c00 0x080144de userlib::sys_recv_open
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:172:11
+   |      0x20002c00 0x080144de userlib::hl::recv
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:89:14
+   |      0x20002c00 0x080144de userlib::hl::recv_without_notification
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:124:5
    |      0x20002c00 0x080144de main
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-i2c-server/src/main.rs:179
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-i2c-server/src/main.rs:508:9
    |
    |
    +--->   R0 = 0x20002bcc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20002bdc
@@ -341,29 +343,29 @@ ID TASK                       GEN PRI STATE
  5 spd                         14   2 FAULT: panicked at 'called `Result::unwrap()` on an `Err` value: BadArg', drv/stm32h7-rcc-api/src/lib.rs:56:50 (was: ready)
    |
    +--->  0x20003268 0x080198e6 userlib::sys_panic_stub
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:655
-   |      0x20003318 0x0801992e userlib::sys_panic
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:646
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:656:5
+   |      0x20003318 0x08019934 userlib::sys_panic
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:647:14
    |      0x20003318 0x08019934 rust_begin_unwind
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:833
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:855:5
    |      0x20003330 0x0801892a core::panicking::panic_fmt
-   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/panicking.rs:77
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/panicking.rs:92:14
    |      0x20003370 0x08019122 core::result::unwrap_failed
-   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82//library/core/src/result.rs:1354
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1355:5
    |      0x20003380 0x080195b8 core::result::Result<T,E>::unwrap
-   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1034
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/result.rs:1037:23
    |      0x200033d0 0x08019506 core::cell::Cell<T>::get
-   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/cell.rs:433
+   |                 @ /rustc/7f4afdf0255600306bf67432da722c7b5d2cbf82/library/core/src/cell.rs:436:18
    |      0x200033d0 0x08019506 userlib::hl::send_with_retry
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:504
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/hl.rs:525:27
    |      0x200033d0 0x08019506 drv_stm32h7_rcc_api::Rcc::leave_reset_raw
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc-api/src/lib.rs:143
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc-api/src/lib.rs:154:9
    |      0x200033d0 0x08019506 drv_stm32h7_rcc_api::Rcc::leave_reset
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc-api/src/lib.rs:137
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-rcc-api/src/lib.rs:140:9
    |      0x200033d0 0x08019506 drv_stm32h7_i2c::I2cController::enable
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-i2c/src/lib.rs:182
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/drv/stm32h7-i2c/src/lib.rs:184:9
    |      0x20003400 0x080186c0 main
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-spd/src/main.rs:53
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/task-spd/src/main.rs:119:5
    |
    |
    +--->   R0 = 0x20003270   R1 = 0x00000067   R2 = 0x00000000   R3 = 0x00000001
@@ -422,7 +424,7 @@ ID TASK                       GEN PRI STATE
  6 spi2_driver                  0   2 ready
    |
    +--->  0x200043e8 0x0801c001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -478,7 +480,7 @@ ID TASK                       GEN PRI STATE
  7 spi4_driver                  0   2 ready
    |
    +--->  0x200053e8 0x08020001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -534,7 +536,7 @@ ID TASK                       GEN PRI STATE
  8 user_leds                    0   2 ready
    |
    +--->  0x20006400 0x08024001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -590,7 +592,7 @@ ID TASK                       GEN PRI STATE
  9 pong                         0   3 ready
    |
    +--->  0x20006800 0x08026001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -646,7 +648,7 @@ ID TASK                       GEN PRI STATE
 10 thermal                      0   3 ready
    |
    +--->  0x20008800 0x08030001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -702,7 +704,7 @@ ID TASK                       GEN PRI STATE
 11 power                        0   3 ready
    |
    +--->  0x2000a800 0x08040001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -758,7 +760,7 @@ ID TASK                       GEN PRI STATE
 12 hiffy                        0   3 ready
    |
    +--->  0x2000c800 0x08050001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -814,7 +816,7 @@ ID TASK                       GEN PRI STATE
 13 idle                         0   5 ready
    |
    +--->  0x20010100 0x08058001 _start
-   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:766
+   |                 @ /home/kc8apf/Projects/oxidecomputer/hubris/userlib/src/lib.rs:772:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000

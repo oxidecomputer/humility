@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 runner                       0   0 ready
    |
    +--->  0x20001598 0x0800a48e userlib::sys_send_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
-   |      0x20001640 0x080083ac test_runner::start_test
-   |                 @ /home/bmc/hubris/test/test-runner/src/main.rs:296
-   |      0x20001640 0x080082ec test_runner::test_run
-   |                 @ /home/bmc/hubris/test/test-runner/src/main.rs:119
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:126:5
+   |      0x20001640 0x080083d4 test_runner::start_test
+   |                 @ /home/bmc/hubris/test/test-runner/src/main.rs:300:5
+   |      0x20001640 0x080083d4 test_runner::test_run
+   |                 @ /home/bmc/hubris/test/test-runner/src/main.rs:150:9
    |      0x20001640 0x080083d4 main
-   |                 @ /home/bmc/hubris/test/test-runner/src/main.rs:228
+   |                 @ /home/bmc/hubris/test/test-runner/src/main.rs:230:9
    |
    |
    +--->   R0 = 0x20001608   R1 = 0x00010003   R2 = 0x80000000   R3 = 0x00000000
@@ -65,11 +65,11 @@ ID TASK                       GEN PRI STATE
  1 suite                       18   2 ready
    |
    +--->  0x20002510 0x080155a6 userlib::sys_send_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:126:5
    |      0x20002570 0x08010a94 test_suite::test_fault
-   |                 @ /home/bmc/hubris/test/test-suite/src/main.rs:143
+   |                 @ /home/bmc/hubris/test/test-suite/src/main.rs:147:10
    |      0x200025a8 0x08010e3e test_suite::test_fault_badtaskop
-   |                 @ /home/bmc/hubris/test/test-suite/src/main.rs:265
+   |                 @ /home/bmc/hubris/test/test-suite/src/main.rs:275:5
    |      0x20002640 0x080120e6 test_suite::main::{{closure}}
    |                 @ /home/bmc/hubris/test/test-suite/src/main.rs:861
    |      0x20002640 0x080120e6 userlib::hl::recv_without_notification::{{closure}}
@@ -135,19 +135,19 @@ ID TASK                       GEN PRI STATE
  2 assist                      18   1 RUNNING
    |
    +--->  0x20003558 0x08019d46 userlib::sys_send_stub
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:125
-   |      0x20003640 0x08018434 userlib::kipc::read_task_status
-   |                 @ /home/bmc/hubris/userlib/src/kipc.rs:7
-   |      0x20003640 0x08018370 test_assist::main::{{closure}}
-   |                 @ /home/bmc/hubris/test/test-assist/src/main.rs:163
-   |      0x20003640 0x08018370 userlib::hl::recv_without_notification::{{closure}}
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:123
-   |      0x20003640 0x080182c0 userlib::hl::recv
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:78
-   |      0x20003640 0x080182c0 userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/userlib/src/hl.rs:116
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:126:5
+   |      0x20003640 0x0801845a userlib::kipc::read_task_status
+   |                 @ /home/bmc/hubris/userlib/src/kipc.rs:13:5
+   |      0x20003640 0x0801845a test_assist::main::{{closure}}
+   |                 @ /home/bmc/hubris/test/test-assist/src/main.rs:230:33
+   |      0x20003640 0x0801845a userlib::hl::recv_without_notification::{{closure}}
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:123:47
+   |      0x20003640 0x0801845a userlib::hl::recv
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:100:29
+   |      0x20003640 0x0801845a userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/userlib/src/hl.rs:123:5
    |      0x20003640 0x0801845a main
-   |                 @ /home/bmc/hubris/test/test-assist/src/main.rs:139
+   |                 @ /home/bmc/hubris/test/test-assist/src/main.rs:161:9
    |
    |
    +--->   R0 = 0x2000361c   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -203,7 +203,7 @@ ID TASK                       GEN PRI STATE
  3 idle                         0   3 ready
    |
    +--->  0x20004100 0x0801c001 _start
-   |                 @ /home/bmc/hubris/userlib/src/lib.rs:807
+   |                 @ /home/bmc/hubris/userlib/src/lib.rs:813:5
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000

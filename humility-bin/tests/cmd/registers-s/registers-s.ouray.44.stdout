@@ -14,17 +14,17 @@
    SP = 0x20000e60 <- kernel: 0x20000000+0xe60
         |
         +--->  0x20000eb0 0x08003400 core::num::<impl u32>::wrapping_sub
-               0x20000eb0 0x080033fa <abi::RegionDesc as kern::app::RegionDescExt>::covers
-               0x20000eb0 0x080033f8 kern::task::Task::can_access::{{closure}}
-               0x20000eb0 0x080033e6 <core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::any
-               0x20000eb0 0x080033d4 kern::task::Task::can_access
-               0x20000eb0 0x080033d4 kern::task::Task::can_read
+               0x20000eb0 0x08003400 <abi::RegionDesc as kern::app::RegionDescExt>::covers
+               0x20000eb0 0x08003400 kern::task::Task::can_access::{{closure}}
+               0x20000eb0 0x08003400 <core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::any
+               0x20000eb0 0x08003400 kern::task::Task::can_access
+               0x20000eb0 0x08003400 kern::task::Task::can_read
                0x20000eb0 0x08003400 kern::syscalls::borrow_lease
                0x20000f58 0x08002640 <core::result::Result<T,E> as core::ops::try::Try>::into_result
-               0x20000f58 0x0800262c kern::syscalls::borrow_write
-               0x20000f58 0x0800201c kern::syscalls::safe_syscall_entry
-               0x20000f58 0x0800201c kern::syscalls::syscall_entry::{{closure}}
-               0x20000f58 0x08001ff0 kern::arch::arm_m::with_task_table
+               0x20000f58 0x08002640 kern::syscalls::borrow_write
+               0x20000f58 0x08002640 kern::syscalls::safe_syscall_entry
+               0x20000f58 0x08002640 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x08002640 kern::arch::arm_m::with_task_table
                0x20000f58 0x08002640 syscall_entry
                0x20000f58 0x08003642 SVCall
 

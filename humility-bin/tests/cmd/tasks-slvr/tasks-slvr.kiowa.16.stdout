@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 recv, notif: bit0 bit1(T+79)
    |
    +--->  0x20013538 0x08031484 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20013600 0x080302be userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20013600 0x080302be userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:192
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20013600 0x080302d0 userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20013600 0x080302d0 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:196:11
    |      0x20013600 0x080302d0 main
-   |                 @ /home/bmc/hubris/task/jefe/src/main.rs:98
+   |                 @ /home/bmc/hubris/task/jefe/src/main.rs:124:23
    |
    |
    +--->   R0 = 0x08031a64   R1 = 0x00000000   R2 = 0x00000003   R3 = 0x200135dc
@@ -65,13 +65,13 @@ ID TASK                       GEN PRI STATE
  1 rcc_driver                   0   1 recv
    |
    +--->  0x20015bd8 0x0804cd72 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20015c00 0x0804c06e userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20015c00 0x0804c06e idol_runtime::dispatch
-   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:137
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20015c00 0x0804c07c userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20015c00 0x0804c07c idol_runtime::dispatch
+   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:142:20
    |      0x20015c00 0x0804c07c main
-   |                 @ /home/bmc/hubris/drv/stm32h7-rcc/src/main.rs:120
+   |                 @ /home/bmc/hubris/drv/stm32h7-rcc/src/main.rs:135:9
    |
    |
    +--->   R0 = 0x20015bdc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20015be0
@@ -127,17 +127,17 @@ ID TASK                       GEN PRI STATE
  2 gpio_driver                  0   2 recv
    |
    +--->  0x20015fc8 0x0804ef8e userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20016000 0x0804e194 userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20016000 0x0804e194 userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:192
-   |      0x20016000 0x0804e194 userlib::hl::recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:83
-   |      0x20016000 0x0804e194 userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:121
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20016000 0x0804e1a4 userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20016000 0x0804e1a4 userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:196:11
+   |      0x20016000 0x0804e1a4 userlib::hl::recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:93:14
+   |      0x20016000 0x0804e1a4 userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:128:5
    |      0x20016000 0x0804e1a4 main
-   |                 @ /home/bmc/hubris/drv/stm32h7-gpio/src/main.rs:155
+   |                 @ /home/bmc/hubris/drv/stm32h7-gpio/src/main.rs:164:9
    |
    |
    +--->   R0 = 0x20015fd0   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x20015fd8
@@ -193,13 +193,13 @@ ID TASK                       GEN PRI STATE
  3 spi4_driver                  0   2 recv
    |
    +--->  0x20001368 0x080359c4 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x200013e8 0x0803451e userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x200013e8 0x0803451e idol_runtime::dispatch
-   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:137
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x200013e8 0x08034536 userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x200013e8 0x08034536 idol_runtime::dispatch
+   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:142:20
    |      0x200013e8 0x08034536 main
-   |                 @ /home/bmc/hubris/drv/stm32h7-spi-server/src/main.rs:56
+   |                 @ /home/bmc/hubris/drv/stm32h7-spi-server/src/main.rs:125:9
    |
    |
    +--->   R0 = 0x20001382   R1 = 0x00000002   R2 = 0x00000000   R3 = 0x20001384
@@ -255,7 +255,7 @@ ID TASK                       GEN PRI STATE
  4 spi2_driver                  0   2 recv
    |
    +--->  0x20012368 0x08039ac8 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
    |      0x200123e8 0x080384e4 userlib::sys_recv
    |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
    |      0x200123e8 0x080384e4 idol_runtime::dispatch
@@ -317,17 +317,17 @@ ID TASK                       GEN PRI STATE
  5 i2c_driver                   0   2 recv
    |
    +--->  0x20013ad8 0x0803e154 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20013c00 0x0803c68a userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20013c00 0x0803c68a userlib::sys_recv_open
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:192
-   |      0x20013c00 0x0803c68a userlib::hl::recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:83
-   |      0x20013c00 0x0803c68a userlib::hl::recv_without_notification
-   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:121
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20013c00 0x0803c69a userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20013c00 0x0803c69a userlib::sys_recv_open
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:196:11
+   |      0x20013c00 0x0803c69a userlib::hl::recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:93:14
+   |      0x20013c00 0x0803c69a userlib::hl::recv_without_notification
+   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:128:5
    |      0x20013c00 0x0803c69a main
-   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:150
+   |                 @ /home/bmc/hubris/drv/stm32h7-i2c-server/src/main.rs:179:9
    |
    |
    +--->   R0 = 0x20013bc8   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20013bd8
@@ -381,7 +381,7 @@ ID TASK                       GEN PRI STATE
                 }
 
  6 spd                          0   2 RUNNING
-   stack unwind failed: failed to read cfa 0x9, offset 0xfffffffffffffffc: [HubrisStackFrame { cfa: 200042d0, sym: Some(HubrisStackSymbol { name: "userlib::sys_recv_stub", addr: 8041f8a, goff: Some(HubrisGoff { object: 7, goff: 13d7c }) }), registers: {R0: 8042778, R1: 0, R2: 1, R3: 200042d4, R4: 200043a8, R5: 0, R6: 1e00, R7: 200042e8, R8: 40005400, R9: 0, R10: 2000450c, R11: 1, R12: 0, SP: 200042d0, LR: 8040675, PC: 8041f9e, PSR: 41000000}, inlined: Some([]) }, HubrisStackFrame { cfa: 200042f0, sym: Some(HubrisStackSymbol { name: "core::ops::function::FnOnce::call_once", addr: 8040660, goff: Some(HubrisGoff { object: 7, goff: ecf }) }), registers: {R0: 8042778, R1: 0, R2: 1, R3: 200042d4, R4: 200043a8, R5: 0, R6: 1e00, R7: 1, R8: 40005400, R9: 0, R10: 2000450c, R11: 1, R12: 0, SP: 200042f0, LR: 804044b, PC: 8040674, PSR: 41000000}, inlined: Some([]) }]
+   stack unwind failed: failed to read cfa 0x9, offset 0xfffffffffffffffc: [HubrisStackFrame { cfa: 200042d0, sym: Some(HubrisStackSymbol { name: "userlib::sys_recv_stub", addr: 8041f8a, goff: Some(HubrisGoff { object: 7, goff: 13d7c }) }), pos: Some([HubrisSrcPosition { file: "/home/bmc/hubris/sys/userlib/src/lib.rs", func: "userlib::sys_recv_stub", line: 127, col: 5 }]), registers: {R0: 8042778, R1: 0, R2: 1, R3: 200042d4, R4: 200043a8, R5: 0, R6: 1e00, R7: 200042e8, R8: 40005400, R9: 0, R10: 2000450c, R11: 1, R12: 0, SP: 200042d0, LR: 8040675, PC: 8041f9e, PSR: 41000000}, inlined: Some([]) }, HubrisStackFrame { cfa: 200042f0, sym: Some(HubrisStackSymbol { name: "core::ops::function::FnOnce::call_once", addr: 8040660, goff: Some(HubrisGoff { object: 7, goff: ecf }) }), pos: Some([HubrisSrcPosition { file: "/rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/ops/function.rs", func: "core::ops::function::FnOnce::call_once", line: e3, col: 5 }]), registers: {R0: 8042778, R1: 0, R2: 1, R3: 200042d4, R4: 200043a8, R5: 0, R6: 1e00, R7: 1, R8: 40005400, R9: 0, R10: 2000450c, R11: 1, R12: 0, SP: 200042f0, LR: 804044b, PC: 8040674, PSR: 41000000}, inlined: Some([]) }]
 
 Caused by:
     address (0x5) below range (HubrisRegion { daddr: Some(800766c), base: 20004000, size: 4000, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false, external: false }, tasks: [Task(6)] })
@@ -439,13 +439,13 @@ Caused by:
  7 thermal                      0   3 ready
    |
    +--->  0x200026c0 0x08013796 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20002800 0x080104c6 userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20002800 0x080104c6 idol_runtime::dispatch_n
-   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:201
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20002800 0x080104d6 userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20002800 0x080104d6 idol_runtime::dispatch_n
+   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:209:20
    |      0x20002800 0x080104d6 main
-   |                 @ /home/bmc/hubris/task/thermal/src/main.rs:223
+   |                 @ /home/bmc/hubris/task/thermal/src/main.rs:264:9
    |
    |
    +--->   R0 = 0x200027c8   R1 = 0x00000004   R2 = 0x00000001   R3 = 0x20002790
@@ -499,7 +499,7 @@ Caused by:
                 }
 
  8 power                        0   3 ready
-   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: [HubrisStackFrame { cfa: 200143e0, sym: Some(HubrisStackSymbol { name: "userlib::sys_recv_stub", addr: 80512fa, goff: Some(HubrisGoff { object: 9, goff: 1c35b }) }), registers: {R0: 8051bdc, R1: 0, R2: 80000000, R3: 2001448c, R4: 0, R5: ffff, R6: 80000000, R7: 0, R8: 0, R9: 0, R10: 8051bdc, R11: 1, R12: 0, SP: 200143e0, LR: 8050163, PC: 8051302, PSR: 41000000}, inlined: Some([]) }]
+   stack unwind failed: failed to read cfa 0x8, offset 0xfffffffffffffffc: [HubrisStackFrame { cfa: 200143e0, sym: Some(HubrisStackSymbol { name: "userlib::sys_recv_stub", addr: 80512fa, goff: Some(HubrisGoff { object: 9, goff: 1c35b }) }), pos: Some([HubrisSrcPosition { file: "/home/bmc/hubris/sys/userlib/src/lib.rs", func: "userlib::sys_recv_stub", line: 127, col: 5 }]), registers: {R0: 8051bdc, R1: 0, R2: 80000000, R3: 2001448c, R4: 0, R5: ffff, R6: 80000000, R7: 0, R8: 0, R9: 0, R10: 8051bdc, R11: 1, R12: 0, SP: 200143e0, LR: 8050163, PC: 8051302, PSR: 41000000}, inlined: Some([]) }]
 
 Caused by:
     address (0x4) below range (HubrisRegion { daddr: Some(80076ac), base: 20014000, size: 800, attr: HubrisRegionAttr { read: true, write: true, execute: false, device: false, dma: false, external: false }, tasks: [Task(8)] })
@@ -557,19 +557,19 @@ Caused by:
  9 hiffy                        0   3 ready
    |
    +--->  0x20008140 0x0800b5e2 userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
    |      0x20008180 0x0800b652 userlib::sys_get_timer
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:723
-   |      0x20008180 0x0800b62c userlib::hl::sleep_until
-   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:610
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:728:9
+   |      0x20008180 0x0800b652 userlib::hl::sleep_until
+   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:625:12
    |      0x20008180 0x0800b652 userlib::hl::sleep_for
-   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:635
+   |                 @ /home/bmc/hubris/sys/userlib/src/hl.rs:636:5
    |      0x20008400 0x08009124 core::sync::atomic::atomic_sub
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:2401
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:2409:23
    |      0x20008400 0x08009124 core::sync::atomic::AtomicU32::fetch_sub
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:1772
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/sync/atomic.rs:1774:26
    |      0x20008400 0x08009124 main
-   |                 @ /home/bmc/hubris/task/hiffy/src/main.rs:84
+   |                 @ /home/bmc/hubris/task/hiffy/src/main.rs:102:9
    |
    |
    +--->   R0 = 0x0800c85c   R1 = 0x00000000   R2 = 0x80000000   R3 = 0x20008148
@@ -625,13 +625,13 @@ Caused by:
 10 gimlet_seq                   0   3 recv
    |
    +--->  0x200102b8 0x080235ce userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20010400 0x080208e2 userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20010400 0x080208e2 idol_runtime::dispatch
-   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:137
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20010400 0x080208ea userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20010400 0x080208ea idol_runtime::dispatch
+   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:142:20
    |      0x20010400 0x080208ea main
-   |                 @ /home/bmc/hubris/drv/gimlet-seq-server/src/main.rs:51
+   |                 @ /home/bmc/hubris/drv/gimlet-seq-server/src/main.rs:291:9
    |
    |
    +--->   R0 = 0x200102d7   R1 = 0x00000001   R2 = 0x00000000   R3 = 0x200102f0
@@ -687,13 +687,13 @@ Caused by:
 11 hf                           0   3 recv
    |
    +--->  0x20014e98 0x080456fc userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x20015000 0x08044274 userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x20015000 0x08044274 idol_runtime::dispatch
-   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:137
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x20015000 0x08044284 userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x20015000 0x08044284 idol_runtime::dispatch
+   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:142:20
    |      0x20015000 0x08044284 main
-   |                 @ /home/bmc/hubris/drv/gimlet-hf-server/src/main.rs:36
+   |                 @ /home/bmc/hubris/drv/gimlet-hf-server/src/main.rs:318:9
    |
    |
    +--->   R0 = 0x20014ebc   R1 = 0x00000004   R2 = 0x00000000   R3 = 0x20014fe0
@@ -749,13 +749,13 @@ Caused by:
 12 sensor                       0   3 ready
    |
    +--->  0x20015588 0x08048c6a userlib::sys_recv_stub
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:288
-   |      0x200157d0 0x080480aa userlib::sys_recv
-   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:236
-   |      0x200157d0 0x080480aa idol_runtime::dispatch_n
-   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:201
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:295:5
+   |      0x200157d0 0x080480b8 userlib::sys_recv
+   |                 @ /home/bmc/hubris/sys/userlib/src/lib.rs:262:8
+   |      0x200157d0 0x080480b8 idol_runtime::dispatch_n
+   |                 @ /home/bmc/.cargo/git/checkouts/idolatry-1ebf1c2fd2f30300/2b5b5bb/runtime/src/lib.rs:209:20
    |      0x200157d0 0x080480b8 main
-   |                 @ /home/bmc/hubris/task/sensor/src/main.rs:98
+   |                 @ /home/bmc/hubris/task/sensor/src/main.rs:114:9
    |
    |
    +--->   R0 = 0x200157b8   R1 = 0x00000008   R2 = 0x00000001   R3 = 0x200156a8
@@ -811,7 +811,7 @@ Caused by:
 13 idle                         0   5 ready
    |
    +--->  0x20016100 0x08052056 main
-   |                 @ /home/bmc/hubris/task/idle/src/main.rs:13
+   |                 @ /home/bmc/hubris/task/idle/src/main.rs:14:5
    |
    |
    +--->   R0 = 0x20016100   R1 = 0x20016100   R2 = 0x00000000   R3 = 0x00000000
