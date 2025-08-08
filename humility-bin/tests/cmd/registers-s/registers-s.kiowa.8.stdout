@@ -16,9 +16,9 @@
         +--->  0x20000f58 0x08002914 <kern::arch::arm_m::SavedState as kern::task::ArchState>::arg2
                0x20000f58 0x08002914 kern::task::AsReplyArgs<&T>::message
                0x20000f58 0x08002914 kern::syscalls::reply
-               0x20000f58 0x080022c0 kern::syscalls::safe_syscall_entry
-               0x20000f58 0x080022c0 kern::syscalls::syscall_entry::{{closure}}
-               0x20000f58 0x08002294 kern::arch::arm_m::with_task_table
+               0x20000f58 0x08002914 kern::syscalls::safe_syscall_entry
+               0x20000f58 0x08002914 kern::syscalls::syscall_entry::{{closure}}
+               0x20000f58 0x08002914 kern::arch::arm_m::with_task_table
                0x20000f58 0x08002914 syscall_entry
                0x20000f58 0x0800397a SVCall
 

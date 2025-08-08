@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 recv, notif: bit0 bit1(T+14)
    |
    +--->  0x20000ab8 0x08003ba0 userlib::sys_recv_stub
-   |                 @ /hubris/sys/userlib/src/lib.rs:333
-   |      0x20000b60 0x080031f0 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:281
-   |      0x20000b60 0x080031f0 idol_runtime::dispatch_n
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/f01add5/runtime/src/lib.rs:261
+   |                 @ /hubris/sys/userlib/src/lib.rs:342:13
+   |      0x20000b60 0x08003204 userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:307:8
+   |      0x20000b60 0x08003204 idol_runtime::dispatch_n
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/f01add5/runtime/src/lib.rs:269:20
    |      0x20000b60 0x08003204 main
-   |                 @ /hubris/task/jefe/src/main.rs:120
+   |                 @ /hubris/task/jefe/src/main.rs:143:9
    |
    |
    +--->   R0 = 0x20000b00   R1 = 0x00000008   R2 = 0x00000003   R3 = 0x20000b38
@@ -45,11 +45,11 @@ ID TASK                       GEN PRI STATE
  1 idle                         0   5 RUNNING
    |
    +--->  0x20000840 0x08002f40 cortex_m::asm::inline::__wfi
-   |                 @ /crates.io/cortex-m-0.7.5/src/../asm/inline.rs:190
+   |                 @ /crates.io/cortex-m-0.7.5/src/../asm/inline.rs:191:5
    |      0x20000840 0x08002f40 cortex_m::asm::wfi
-   |                 @ /crates.io/cortex-m-0.7.5/src/asm.rs:54
+   |                 @ /crates.io/cortex-m-0.7.5/src/asm.rs:55:5
    |      0x20000840 0x08002f40 main
-   |                 @ /hubris/task/idle/src/main.rs:13
+   |                 @ /hubris/task/idle/src/main.rs:28:13
    |
    |
    +--->   R0 = 0x20000840   R1 = 0x20000840   R2 = 0x00000000   R3 = 0x00000000

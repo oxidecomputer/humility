@@ -14,16 +14,16 @@
    SP = 0x20002ae0 <- i2c_driver: 0x20002800+0x2e0
         |
         +--->  0x20002af0 0x08016408 userlib::sys_irq_control_stub
-               0x20002b20 0x08015b9c drv_stm32h7_i2c::I2cController::write_read
-               0x20002b20 0x08015b9c drv_stm32h7_i2c::ltc4306::write_reg_u8
+               0x20002b20 0x08015bc0 drv_stm32h7_i2c::I2cController::write_read
+               0x20002b20 0x08015bc0 drv_stm32h7_i2c::ltc4306::write_reg_u8
                0x20002b20 0x08015bc0 <drv_stm32h7_i2c::ltc4306::Ltc4306 as drv_stm32h7_i2c::I2cMuxDriver>::enable_segment
-               0x20002c00 0x08014852 drv_stm32h7_i2c_server::configure_mux::{{closure}}
-               0x20002c00 0x08014830 drv_stm32h7_i2c_server::find_mux
-               0x20002c00 0x08014830 drv_stm32h7_i2c_server::configure_mux
-               0x20002c00 0x0801476e drv_stm32h7_i2c_server::main::{{closure}}
-               0x20002c00 0x0801476e userlib::hl::recv_without_notification::{{closure}}
-               0x20002c00 0x0801447a userlib::hl::recv
-               0x20002c00 0x0801447a userlib::hl::recv_without_notification
+               0x20002c00 0x080148a8 drv_stm32h7_i2c_server::configure_mux::{{closure}}
+               0x20002c00 0x080148a8 drv_stm32h7_i2c_server::find_mux
+               0x20002c00 0x080148a8 drv_stm32h7_i2c_server::configure_mux
+               0x20002c00 0x080148a8 drv_stm32h7_i2c_server::main::{{closure}}
+               0x20002c00 0x080148a8 userlib::hl::recv_without_notification::{{closure}}
+               0x20002c00 0x080148a8 userlib::hl::recv
+               0x20002c00 0x080148a8 userlib::hl::recv_without_notification
                0x20002c00 0x080148a8 main
                0x20002c00 0x0801404e _start
 

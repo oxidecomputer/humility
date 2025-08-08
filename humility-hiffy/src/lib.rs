@@ -28,7 +28,6 @@ enum State {
     ResultsConsumed,
 }
 
-#[derive(Debug)]
 pub struct HiffyContext<'a> {
     hubris: &'a HubrisArchive,
     ready: &'a HubrisVariable,

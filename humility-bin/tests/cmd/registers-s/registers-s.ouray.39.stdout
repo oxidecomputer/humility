@@ -13,8 +13,8 @@
   R12 = 0x0000ff9c
    SP = 0x20001278 <- jefe: 0x20001000+0x278
         |
-        +--->  0x20001290 0x000115ae cortex_m::itm::write_words
-               0x20001290 0x000115aa cortex_m::itm::write_aligned
+        +--->  0x20001290 0x000115b6 cortex_m::itm::write_words
+               0x20001290 0x000115b6 cortex_m::itm::write_aligned
                0x20001290 0x000115b6 cortex_m::itm::write_all
                0x20001298 0x0001013e <&mut W as core::fmt::Write>::write_str
                0x200012f0 0x000110f0 core::fmt::write

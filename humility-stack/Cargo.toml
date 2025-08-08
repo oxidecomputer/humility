@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 humility.workspace = true
 humility-arch-arm.workspace = true
+regex.workspace = true

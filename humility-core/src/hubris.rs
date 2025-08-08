@@ -596,7 +596,6 @@ impl Namespaces {
     }
 }
 
-#[derive(Debug)]
 pub struct HubrisArchive {
     // the entire archive
     archive: Vec<u8>,
@@ -637,6 +636,12 @@ pub struct HubrisArchive {
 
     // DWARF call frame debugging sections: task to raw bytes
     frames: HashMap<HubrisTask, Vec<u8>>,
+
+    /// addr2line contexts
+    addr2line: HashMap<
+        HubrisTask,
+        addr2line::Context<gimli::EndianArcSlice<gimli::LittleEndian>>,
+    >,
 
     // DWARF source code: goff to file/line
     src: HashMap<HubrisGoff, HubrisSrc>,
@@ -731,6 +736,7 @@ impl HubrisArchive {
             structs: HashMap::new(),
             structs_byname: MultiMap::new(),
             enums: HashMap::new(),
+            addr2line: HashMap::new(),
             enums_byname: MultiMap::new(),
             arrays: HashMap::new(),
             variables: MultiMap::new(),
@@ -1432,6 +1438,7 @@ impl HubrisArchive {
         self.structs_byname.extend(loader.structs_byname);
         self.arrays.extend(loader.arrays);
         self.basetypes.extend(loader.basetypes);
+        self.addr2line.extend(loader.addr2line);
         self.basetypes_byname.extend(loader.basetypes_byname);
         self.ptrtypes.extend(loader.ptrtypes);
         self.inlined.extend(loader.inlined);
@@ -2903,6 +2910,38 @@ impl HubrisArchive {
             let mut ctx = gimli::UnwindContext::new();
             let pc = *frameregs.get(&ARMRegister::PC).unwrap();
 
+            // Look up the `addr2line` info for the current pc
+            let mut pos = vec![];
+            let mut pos_valid = true;
+            match self.addr2line[&task].find_frames(u64::from(pc)) {
+                addr2line::LookupResult::Load { .. } => {
+                    warn!("addr2line wants to load extern data");
+                    pos_valid = false;
+                }
+                addr2line::LookupResult::Output(Ok(mut v)) => loop {
+                    match v.next() {
+                        Ok(Some(f)) => {
+                            if let Some(f) = decode_frame(f) {
+                                pos.push(f);
+                            } else {
+                                pos_valid = false;
+                            }
+                        }
+                        Ok(None) => break,
+                        Err(e) => {
+                            warn!("addr2line returned error: {e}");
+                            pos_valid = false;
+                        }
+                    }
+                },
+                addr2line::LookupResult::Output(Err(e)) => {
+                    warn!("addr2line lookup failed: {e}");
+                    pos_valid = false;
+                }
+            }
+            let pos =
+                if pos.is_empty() || !pos_valid { None } else { Some(pos) };
+
             //
             // Now we want to iterate up our frames
             //
@@ -3002,6 +3041,7 @@ impl HubrisArchive {
                 cfa,
                 sym,
                 inlined,
+                pos,
                 registers: frameregs.clone(),
             });
 
@@ -3761,6 +3801,12 @@ struct HubrisObjectLoader {
     // DWARF call frame debugging sections: task to raw bytes
     frames: HashMap<HubrisTask, Vec<u8>>,
 
+    /// addr2line contexts
+    addr2line: HashMap<
+        HubrisTask,
+        addr2line::Context<gimli::EndianArcSlice<gimli::LittleEndian>>,
+    >,
+
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
 
@@ -3848,6 +3894,7 @@ impl HubrisObjectLoader {
             enums: HashMap::new(),
             enums_byname: MultiMap::new(),
             frames: HashMap::new(),
+            addr2line: HashMap::new(),
             inlined: BTreeMap::new(),
             instrs: HashMap::new(),
             loaded: BTreeMap::new(),
@@ -4095,7 +4142,7 @@ impl HubrisObjectLoader {
             }
         }
 
-        self.load_object_dwarf(buffer, &elf)
+        self.load_object_dwarf(task, buffer, &elf)
             .context(format!("{}: failed to load DWARF", object))?;
 
         self.load_object_frames(task, buffer, &elf)
@@ -4203,12 +4250,16 @@ impl HubrisObjectLoader {
 
     fn load_object_dwarf(
         &mut self,
+        task: HubrisTask,
         buffer: &[u8],
         elf: &goblin::elf::Elf,
     ) -> Result<()> {
         // Load all of the sections. This "load" operation just gets the data in
-        // RAM -- since we've already loaded the Elf file, this can't fail.
-        let loader = |id: gimli::SectionId| {
+        // RAM -- since we've already loaded the Elf file, this can't fail.  We
+        // do end up copying the data into an `EndianArcSlice`, because the
+        // DWARF info needs to persist in the `addr2line::Context` (so it can't
+        // be borrowed from ourself).
+        let loader = |id: gimli::SectionId| -> Result<_> {
             // Load the normal DWARF section(s) from our Elf image.
             let sec_result = elf.section_headers.iter().find(|sh| {
                 if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
@@ -4220,18 +4271,22 @@ impl HubrisObjectLoader {
             if let Some(sec) = sec_result {
                 let offset = sec.sh_offset as usize;
                 let size = sec.sh_size as usize;
-                buffer.get(offset..offset + size).ok_or_else(|| {
+                let s = buffer.get(offset..offset + size).ok_or_else(|| {
                     anyhow!("bad offset/size for ELF section {}", id.name())
-                })
+                })?;
+                Ok(gimli::EndianArcSlice::new(
+                    std::sync::Arc::from(s),
+                    gimli::LittleEndian,
+                ))
             } else {
-                Ok([].as_slice())
+                Ok(gimli::EndianArcSlice::new(
+                    std::sync::Arc::from([].as_slice()),
+                    gimli::LittleEndian,
+                ))
             }
         };
 
-        let dwarf_sections = gimli::DwarfSections::load(loader)?;
-        let dwarf: gimli::Dwarf<_> = dwarf_sections.borrow(|section| {
-            gimli::EndianSlice::new(section, gimli::LittleEndian)
-        });
+        let dwarf = gimli::Dwarf::load(loader)?;
 
         // Iterate over the compilation units.
         let mut iter = dwarf.units();
@@ -4393,6 +4448,8 @@ impl HubrisObjectLoader {
                 bail!("missing subrange for array {}", array);
             }
         }
+
+        self.addr2line.insert(task, addr2line::Context::from_dwarf(dwarf)?);
 
         Ok(())
     }
@@ -4572,10 +4629,7 @@ impl HubrisObjectLoader {
     fn dwarf_goff<R: gimli::Reader<Offset = usize>>(
         &self,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> HubrisGoff {
         let goff = match entry.offset().to_unit_section_offset(unit) {
             gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
@@ -4587,12 +4641,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_union<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -4631,12 +4682,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_member<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         parent: HubrisGoff,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
@@ -4738,10 +4786,7 @@ impl HubrisObjectLoader {
     fn dwarf_value_goff<R: gimli::Reader<Offset = usize>>(
         &self,
         unit: &gimli::Unit<R>,
-        value: &gimli::AttributeValue<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        value: &gimli::AttributeValue<R, usize>,
     ) -> Option<HubrisGoff> {
         let goff = match value {
             gimli::AttributeValue::UnitRef(offs) => {
@@ -4764,10 +4809,7 @@ impl HubrisObjectLoader {
     fn dwarf_variant<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         parent: HubrisGoff,
     ) -> Result<()> {
         let goff = self.dwarf_goff(unit, entry);
@@ -4799,10 +4841,7 @@ impl HubrisObjectLoader {
     fn dwarf_enum<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         goff: HubrisGoff,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
@@ -4848,12 +4887,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_enum_variant<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         parent: HubrisGoff,
     ) -> Result<()> {
         let goff = self.dwarf_goff(unit, entry);
@@ -4908,12 +4944,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_const_enum<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         goff: HubrisGoff,
         namespace: Option<NamespaceId>,
     ) -> Result<()> {
@@ -4966,10 +4999,7 @@ impl HubrisObjectLoader {
     fn dwarf_array<R: gimli::Reader<Offset = usize>>(
         &mut self,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         parent: HubrisGoff,
         array: Option<HubrisGoff>,
     ) -> Result<()> {
@@ -4997,12 +5027,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_basetype<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -5053,7 +5080,7 @@ impl HubrisObjectLoader {
         }
 
         if let Some(name) = name {
-            self.basetypes_byname.insert(String::from(name), goff);
+            self.basetypes_byname.insert(name, goff);
         }
 
         Ok(())
@@ -5061,12 +5088,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_ptrtype<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -5085,7 +5109,7 @@ impl HubrisObjectLoader {
             }
         }
 
-        let name = name.unwrap_or("<UNNAMED>").to_string();
+        let name = name.unwrap_or_else(|| "<UNNAMED>".to_string());
 
         if let Some(underlying) = underlying {
             self.ptrtypes.insert(goff, (name, underlying));
@@ -5094,13 +5118,10 @@ impl HubrisObjectLoader {
         Ok(())
     }
 
-    fn dwarf_namespace(
+    fn dwarf_namespace<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        dwarf: &gimli::Dwarf<R>,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         depth: isize,
         namespace: &mut Vec<(NamespaceId, isize)>,
     ) -> Result<()> {
@@ -5115,7 +5136,7 @@ impl HubrisObjectLoader {
                 if let Some(name) = dwarf_name(dwarf, attr.value()) {
                     namespace.push((
                         self.namespaces.allocate(
-                            name,
+                            &name,
                             namespace.last().map(|(id, _)| *id),
                         ),
                         depth,
@@ -5133,10 +5154,7 @@ impl HubrisObjectLoader {
         &mut self,
         dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let mut file = None;
@@ -5206,12 +5224,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_struct<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         namespace: Option<NamespaceId>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
@@ -5257,10 +5272,7 @@ impl HubrisObjectLoader {
         &mut self,
         dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
         depth: isize,
     ) -> Result<()> {
         //
@@ -5350,12 +5362,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_subprogram<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
         let mut name = None;
         let mut linkage_name = None;
@@ -5392,7 +5401,7 @@ impl HubrisObjectLoader {
 
         if let Some(name) = name {
             let demangled_name = if let Some(ln) = linkage_name {
-                demangle_name(ln)
+                demangle_name(&ln)
             } else {
                 name.to_string()
             };
@@ -5404,7 +5413,7 @@ impl HubrisObjectLoader {
                     self.dsyms.insert(
                         addr as u32,
                         HubrisSymbol {
-                            name: name.to_string(),
+                            name,
                             demangled_name,
                             size: len as u32,
                             addr: addr as u32,
@@ -5423,12 +5432,9 @@ impl HubrisObjectLoader {
 
     fn dwarf_variable<R: gimli::Reader<Offset = usize>>(
         &mut self,
-        dwarf: &gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
+        dwarf: &gimli::Dwarf<R>,
         unit: &gimli::Unit<R>,
-        entry: &gimli::DebuggingInformationEntry<
-            gimli::EndianSlice<gimli::LittleEndian>,
-            usize,
-        >,
+        entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
         let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
@@ -5570,21 +5576,21 @@ impl HubrisObjectLoader {
         }
 
         if let (Some(name), Some(tgoff)) = (name, tgoff) {
-            let linkage = linkage_name.unwrap_or(name);
+            let linkage = linkage_name.as_ref().unwrap_or(&name);
 
             if let Some(syms) = self.esyms_byname.get_vec(linkage) {
                 for &(addr, size) in syms {
                     if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr)
                     {
                         e.insert(HubrisSymbol {
-                            name: String::from(name),
-                            demangled_name: demangle_name(name),
+                            name: name.clone(),
+                            demangled_name: demangle_name(&name),
                             size,
                             addr,
                             goff,
                         });
                         self.variables.insert(
-                            String::from(name),
+                            name.clone(),
                             HubrisVariable {
                                 goff: tgoff,
                                 addr,
@@ -5614,14 +5620,14 @@ impl HubrisObjectLoader {
                 );
                 if let btree_map::Entry::Vacant(e) = self.dsyms.entry(addr) {
                     e.insert(HubrisSymbol {
-                        name: String::from(name),
-                        demangled_name: demangle_name(name),
+                        name: name.clone(),
+                        demangled_name: demangle_name(&name),
                         size,
                         addr,
                         goff,
                     });
                     self.variables.insert(
-                        String::from(name),
+                        name.clone(),
                         HubrisVariable {
                             goff: tgoff,
                             addr,
@@ -5644,7 +5650,7 @@ impl HubrisObjectLoader {
                     );
                 }
             } else {
-                self.definitions.insert(String::from(name), tgoff);
+                self.definitions.insert(name, tgoff);
             }
         }
 
@@ -6360,11 +6366,24 @@ pub struct HubrisStackSymbol<'a> {
 }
 
 #[derive(Clone, Debug)]
+pub struct HubrisSrcPosition {
+    pub file: String,
+    pub func: String,
+    pub line: u32,
+    pub col: u32,
+}
+
+#[derive(Clone, Debug)]
 pub struct HubrisStackFrame<'a> {
     /// Canonical frame address
     pub cfa: u32,
+    /// Symbol for the relevant function
     pub sym: Option<HubrisStackSymbol<'a>>,
+    /// Position as decoded by `addr2line` (empty if unknown)
+    pub pos: Option<Vec<HubrisSrcPosition>>,
+    /// Register state at this point in the stack
     pub registers: BTreeMap<ARMRegister, u32>,
+    /// Inlined functions in the stack
     pub inlined: Option<Vec<HubrisInlined<'a>>>,
 }
 
@@ -6644,6 +6663,31 @@ impl ExternRegions {
     }
 }
 
+/// Decode from an `addr2line` frame into a `HubrisSrcPosition`
+///
+/// This function is *conservative*: it only returns a value if we have file,
+/// function (demangled), line, and column all available.
+fn decode_frame(
+    f: addr2line::Frame<gimli::EndianArcSlice<gimli::LittleEndian>>,
+) -> Option<HubrisSrcPosition> {
+    if let (Some(loc), Some(func)) = (&f.location, &f.function) {
+        if let (Some(file), Some(line), Some(col), Some(func)) =
+            (loc.file, loc.line, loc.column, func.demangle().ok())
+        {
+            Some(HubrisSrcPosition {
+                file: file.to_string(),
+                func: func.to_string(),
+                line,
+                col,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
 //
 // When looking up a type by name, it is possible that we are looking for a
 // type that is present, but more explicitly scoped than the name we're using
@@ -6676,15 +6720,14 @@ fn try_scoped<'a>(
     }
 }
 
-fn dwarf_name<'a>(
-    dwarf: &'a gimli::Dwarf<gimli::EndianSlice<gimli::LittleEndian>>,
-    value: gimli::AttributeValue<gimli::EndianSlice<gimli::LittleEndian>>,
-) -> Option<&'a str> {
+fn dwarf_name<R: gimli::Reader<Offset = usize>>(
+    dwarf: &gimli::Dwarf<R>,
+    value: gimli::AttributeValue<R>,
+) -> Option<String> {
     match value {
         gimli::AttributeValue::DebugStrRef(strref) => {
             let dstring = dwarf.debug_str.get_str(strref).ok()?;
-            let ddstring = str::from_utf8(dstring.slice()).ok()?;
-            Some(ddstring)
+            dstring.to_string().ok().map(|s| s.to_string())
         }
         _ => None,
     }

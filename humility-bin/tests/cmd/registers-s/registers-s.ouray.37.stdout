@@ -13,8 +13,8 @@
   R12 = 0x00000018 <- kernel: __EXCEPTIONS+0x10
    SP = 0x20000e80 <- kernel: 0x20000000+0xe80
         |
-        +--->  0x20000ea0 0x00001eca <core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::next
-               0x20000ea0 0x00001eca <core::iter::adapters::enumerate::Enumerate<I> as core::iter::traits::iterator::Iterator>::next
+        +--->  0x20000ea0 0x00001ecc <core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::next
+               0x20000ea0 0x00001ecc <core::iter::adapters::enumerate::Enumerate<I> as core::iter::traits::iterator::Iterator>::next
                0x20000ea0 0x00001ecc kern::arch::arm_m::apply_memory_protection
                0x20000eb0 0x0000355e kern::arch::arm_m::set_current_task
                0x20000eb0 0x0000355e kern::syscalls::switch_to

@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  1 net                          0   5 FAULT: panicked at 'MAC RX watchdog', task/net/src/main.rs:268:41 (was: ready)
    |
    +--->  0x24008cd0 0x0803038a userlib::sys_panic_stub
-   |                 @ /hubris/sys/userlib/src/lib.rs:990
-   |      0x24008d08 0x080303c0 userlib::sys_panic
-   |                 @ /hubris/sys/userlib/src/lib.rs:982
+   |                 @ /hubris/sys/userlib/src/lib.rs:1017:13
+   |      0x24008d08 0x080303c4 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:983:14
    |      0x24008d08 0x080303c4 rust_begin_unwind
-   |                 @ /hubris/sys/userlib/src/lib.rs:1298
+   |                 @ /hubris/sys/userlib/src/lib.rs:1437:5
    |      0x24008d28 0x08028ac6 core::panicking::panic_fmt
-   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/panicking.rs:50
+   |                 @ /rustc/95a3a7277b44bbd2dd3485703d9a05f64652b60e/library/core/src/panicking.rs:65:14
    |      0x24009798 0x080270b2 main
    |                 @ /hubris/task/net/src/main.rs:147
    |
