@@ -30,7 +30,7 @@ fn make_readme() -> Result<()> {
             let description = match package.description {
                 Some(description) => description,
                 None => {
-                    bail!("{} is missing \"description\" in manifest", cmd);
+                    bail!("{cmd} is missing \"description\" in manifest");
                 }
             };
 
@@ -61,11 +61,7 @@ fn make_readme() -> Result<()> {
     writeln!(output, "## Commands\n")?;
 
     for (cmd, (description, _)) in &cmds {
-        writeln!(
-            output,
-            "- [humility {}](#humility-{}): {}",
-            cmd, cmd, description
-        )?;
+        writeln!(output, "- [humility {cmd}](#humility-{cmd}): {description}",)?;
     }
 
     for (cmd, (_, path)) in &cmds {
@@ -86,13 +82,11 @@ fn make_readme() -> Result<()> {
         // We are prescriptive about what we expect this output to look like.
         //
 
-        let header = format!("### `humility {}`\n", cmd);
+        let header = format!("### `humility {cmd}`\n");
         if !contents.starts_with(&header) {
             bail!(
-                "documentation for {} is malformed: \
-                must begin with '{}'",
-                cmd,
-                header
+                "documentation for {cmd} is malformed: \
+                must begin with '{header}'",
             );
         }
 

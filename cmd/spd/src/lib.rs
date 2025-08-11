@@ -239,13 +239,13 @@ fn dump_spd(
     print!("   +---->   ");
 
     for i in 0..width {
-        print!(" {:02x}", i);
+        print!(" {i:02x}");
     }
 
     println!();
 
     for offs in (0..SPD_SIZE).step_by(width) {
-        print!("    0x{:03x} | ", offs);
+        print!("    0x{offs:03x} | ");
 
         for i in 0..width {
             print!(" {:02x}", buf[offs + i]);

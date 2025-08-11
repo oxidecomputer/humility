@@ -231,7 +231,7 @@ impl Completer for ClapCompleter {
 
                     for arg in command.app.get_arguments() {
                         if let Some(short) = arg.get_short() {
-                            let value = format!("-{}", short);
+                            let value = format!("-{short}");
                             if value.starts_with(last_word) {
                                 completions.push(Suggestion {
                                     value,
@@ -246,7 +246,7 @@ impl Completer for ClapCompleter {
                         }
 
                         if let Some(long) = arg.get_long() {
-                            let value = format!("--{}", long);
+                            let value = format!("--{long}");
                             // if we only have a '-', that's a short option, not a long one
                             if (last_word != "-")
                                 && value.starts_with(last_word)

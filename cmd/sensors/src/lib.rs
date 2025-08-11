@@ -171,7 +171,7 @@ fn list(hubris: &HubrisArchive, spec: &SensorSpecification) -> Result<()> {
                 let device = &hubris.manifest.i2c_devices[*device];
 
                 let mux = match (device.mux, device.segment) {
-                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (Some(m), Some(s)) => format!("{m}:{s}"),
                     (None, None) => "-".to_string(),
                     (_, _) => "?:?".to_string(),
                 };
@@ -474,7 +474,7 @@ fn print(
         if subargs.tabular {
             for val in rval {
                 if let Some(val) = val {
-                    print!(" {:>12.2}", val);
+                    print!(" {val:>12.2}");
                 } else {
                     print!(" {:>12}", "-");
                 }
@@ -487,7 +487,7 @@ fn print(
             print!("{:20} {:13} {:>13}", "NAME", "KIND", "VALUE");
 
             for e in etypes {
-                print!(" {:>5}", e);
+                print!(" {e:>5}");
             }
 
             println!();
@@ -496,7 +496,7 @@ fn print(
                 print!("{:20} {:13} ", s.name, s.kind.to_string());
 
                 if let Some(val) = val {
-                    print!(" {:12.2}", val);
+                    print!(" {val:12.2}");
                 } else {
                     print!(" {:>12}", "-");
                 }
@@ -516,9 +516,9 @@ fn print(
                     for i in 0..nfields {
                         let v = (err >> (i * nbits)) & mask;
                         if v < mask {
-                            print!(" {:>5}", v);
+                            print!(" {v:>5}");
                         } else {
-                            print!(" {:>4}+", mask);
+                            print!(" {mask:>4}+");
                         }
                     }
                 } else {

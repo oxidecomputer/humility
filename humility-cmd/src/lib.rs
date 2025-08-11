@@ -274,7 +274,7 @@ impl Dumper {
                         let c = line[i - offs] as char;
 
                         if c.is_ascii() && !c.is_ascii_control() {
-                            print!("{}", c);
+                            print!("{c}");
                         } else {
                             print!(".");
                         }

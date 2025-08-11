@@ -116,7 +116,7 @@ fn spctrl(context: &mut ExecutionContext) -> Result<()> {
 
             let results = context.run(core, ops.as_slice(), Some(&arr))?;
 
-            println!("{:x?}", results);
+            println!("{results:x?}");
         }
         SpCtrlCmd::Read { addr, nbytes } => {
             ops.push(Op::Push32(addr));
@@ -134,7 +134,7 @@ fn spctrl(context: &mut ExecutionContext) -> Result<()> {
 
                 return Ok(());
             } else {
-                println!("{:x?}", results);
+                println!("{results:x?}");
             }
         }
         SpCtrlCmd::Init => {
@@ -144,7 +144,7 @@ fn spctrl(context: &mut ExecutionContext) -> Result<()> {
 
             let results = context.run(core, ops.as_slice(), None)?;
 
-            println!("{:?}", results);
+            println!("{results:?}");
         }
     }
 

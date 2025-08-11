@@ -225,14 +225,14 @@ fn i2c_done(
         print!("{:<8}", "ADDR");
 
         for i in 0..16 {
-            print!(" 0x{:x}", i);
+            print!(" 0x{i:x}");
         }
 
         println!();
 
         for i in 0..128 {
             if i % 16 == 0 {
-                print!("0x{:02x}    ", i);
+                print!("0x{i:02x}    ");
             }
 
             if subargs.scanreg.is_some() && i < results.len() {
@@ -294,14 +294,14 @@ fn i2c_done(
         print!("{:<5}", "ADDR");
 
         for i in 0..16 {
-            print!(" 0x{:x}", i);
+            print!(" 0x{i:x}");
         }
 
         println!();
 
         for i in 0..256 {
             if i % 16 == 0 {
-                print!("0x{:02x} ", i);
+                print!("0x{i:02x} ");
             }
 
             if i >= results.len() {

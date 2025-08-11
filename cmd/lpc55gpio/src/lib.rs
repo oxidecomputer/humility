@@ -300,13 +300,13 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
                     Ok(ref val) => {
                         let arr: &[u8; 2] = val[0..2].try_into()?;
                         let v = u16::from_le_bytes(*arr);
-                        format!("{}", v)
+                        format!("{v}")
                     }
                 }
             );
         }
     } else {
-        println!("{:?}", results);
+        println!("{results:?}");
     }
 
     Ok(())

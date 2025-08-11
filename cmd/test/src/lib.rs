@@ -136,7 +136,7 @@ impl TestResult {
         match self {
             TestResult::Ok => "ok".to_string(),
             TestResult::Fail => "fail".to_string(),
-            TestResult::Unknown(s) => format!("unknown: {}", s),
+            TestResult::Unknown(s) => format!("unknown: {s}"),
         }
     }
 }
@@ -183,7 +183,7 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
             let mut i = 0;
 
             loop {
-                filename = format!("hubris.testout.{}", i);
+                filename = format!("hubris.testout.{i}");
 
                 if let Ok(_f) = std::fs::File::open(&filename) {
                     i += 1;
@@ -217,7 +217,7 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
     let test_array =
         core.read_word_32(test_slice.addr + (data_ptr_data.offset as u32))?;
 
-    println!("Total test cases: {}", test_len);
+    println!("Total test cases: {test_len}");
     // This the (&str, &(dyn Fn() + Send + Sync)) which is also secretly a struct
     // We only care about the first entry (&str)
     let array_entry_ptr = hubris.lookup_ptrtype(data_ptr_data.goff)?;
@@ -242,11 +242,11 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
 
         if let Some(ref expected) = subargs.single {
             if expected != test_name {
-                println!("skipping {}", test_name);
+                println!("skipping {test_name}");
                 continue;
             }
         }
-        print!("humility: running {} ...", test_name);
+        print!("humility: running {test_name} ...");
         ran_cases += 1;
 
         let ops =
@@ -265,10 +265,10 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
                     TestResult::Fail
                 }
             }
-            Err(e) => TestResult::Unknown(format!("{}", e)),
+            Err(e) => TestResult::Unknown(format!("{e}")),
         };
 
-        println!("{:#}", result);
+        println!("{result:#}");
         writeln!(
             out,
             "==== Test {} result: {:?}",
@@ -282,8 +282,8 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
             None,
         )?;
     }
-    println!("Ran a total of {} cases", ran_cases);
-    println!("Wrote test output to {}", filename);
+    println!("Ran a total of {ran_cases} cases");
+    println!("Wrote test output to {filename}");
 
     Ok(())
 }

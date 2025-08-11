@@ -131,11 +131,11 @@ impl Attributes for TempGraph {
     }
 
     fn axis_value(&self, val: f64) -> String {
-        format!("{:2.0}°", val)
+        format!("{val:2.0}°")
     }
 
     fn legend_value(&self, val: f64) -> String {
-        format!("{:4.2}°", val)
+        format!("{val:4.2}°")
     }
 }
 
@@ -165,7 +165,7 @@ impl Attributes for FanGraph {
     }
 
     fn legend_value(&self, val: f64) -> String {
-        format!("{:.0}", val)
+        format!("{val:.0}")
     }
 
     fn increase(&mut self, ndx: usize) -> Option<u8> {
@@ -200,11 +200,11 @@ impl Attributes for CurrentGraph {
     }
 
     fn axis_value(&self, val: f64) -> String {
-        format!("{:2.2}A", val)
+        format!("{val:2.2}A")
     }
 
     fn legend_value(&self, val: f64) -> String {
-        format!("{:3.2}A", val)
+        format!("{val:3.2}A")
     }
 }
 
@@ -552,7 +552,7 @@ impl<'a> Dashboard<'a> {
 
                     for val in raw {
                         if let Some(val) = val {
-                            write!(output, "{:.2},", val)?;
+                            write!(output, "{val:.2},")?;
                         } else {
                             write!(output, ",")?;
                         }
@@ -1004,7 +1004,7 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
                 format!("{:<20}", s.name),
                 Style::default().fg(s.color),
             ),
-            Span::styled(format!("{:>8}", val), Style::default().fg(s.color)),
+            Span::styled(format!("{val:>8}"), Style::default().fg(s.color)),
         ])));
     }
 

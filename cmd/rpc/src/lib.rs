@@ -272,7 +272,7 @@ fn rpc_listen_one(
                     | std::io::ErrorKind::TimedOut => {
                         break;
                     }
-                    e => panic!("Got error {:?}", e),
+                    e => panic!("Got error {e:?}"),
                 }
             }
         }
@@ -346,7 +346,7 @@ fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
     for target in seen {
         for (i, byte) in target.mac.iter().enumerate() {
             print!("{}", if i == 0 { "" } else { ":" });
-            print!("{:02x}", byte)
+            print!("{byte:02x}")
         }
         print!(" {:25} ", target.ip);
         if target.image_id == image_id {
@@ -466,7 +466,7 @@ fn rpc_call(
         let mut client = RpcClient::new(hubris, ip, timeout)
             .context("unable to create RpcClient")?;
         let result = client.call(op, args).context("unable to make call")?;
-        print!("{:25} ", ip);
+        print!("{ip:25} ");
         humility_hiffy::hiffy_print_result(hubris, op, result)
             .context("unable to print result")?;
     }

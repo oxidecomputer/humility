@@ -120,7 +120,7 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
                 format!("b{}:{}", pos.0 + width.0 - 1, pos.0)
             };
 
-            let value = format!("{}", value);
+            let value = format!("{value}");
 
             println!("     | {:6} {:<34} <= {}", bits, value, field.name());
         },

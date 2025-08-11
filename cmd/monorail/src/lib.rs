@@ -478,11 +478,11 @@ fn monorail_phy_read(
                 .as_base()?
                 .as_u16()
                 .ok_or_else(|| anyhow!("Could not get U16 from {:?}", v))?;
-            println!("Got result {:#x}", value);
+            println!("Got result {value:#x}");
             pretty_print_fields(value as u32, &reg.fields, 0);
         }
         Err(e) => {
-            println!("Got error: {}", e);
+            println!("Got error: {e}");
         }
     }
     Ok(())
@@ -598,7 +598,7 @@ fn monorail_phy_dump(
         for r in page.reg_start..page.reg_end {
             let v: Vec<u8> = iter.next().unwrap().unwrap();
             let value = u16::from_le_bytes([v[0], v[1]]);
-            print!("  {:>2}: {:#06x}", r, value);
+            print!("  {r:>2}: {value:#06x}");
 
             let raw_name = format!("{}:{}", page.page, r);
             let parsed = parse_phy_register(&raw_name).unwrap();
@@ -758,28 +758,28 @@ fn monorail_status(
             let speed = m.contents().and_then(|speed| match speed {
                 Value::Tuple(t) => t.first().map(|t| match t {
                     Value::Enum(t) => t.disc().replace("Speed", ""),
-                    v => panic!("Expected enum, got {:?}", v),
+                    v => panic!("Expected enum, got {v:?}"),
                 }),
-                v => panic!("Expected tuple, got {:?}", v),
+                v => panic!("Expected tuple, got {v:?}"),
             });
             (mode, speed.unwrap_or_else(|| "--".to_owned()))
         }
-        v => panic!("Expected enum, got {:?}", v),
+        v => panic!("Expected enum, got {v:?}"),
     };
     // Extracts a device name from a reflected value, e.g. "DEV1G_0"
     let decode_dev = |value: &Value| match value {
         Value::Tuple(dev) => {
             let d = match &dev[0] {
                 Value::Enum(d) => d.disc(),
-                d => panic!("Could not get enum from {:?}", d),
+                d => panic!("Could not get enum from {d:?}"),
             };
             let n = match &dev[1] {
                 Value::Base(Base::U8(n)) => n,
-                d => panic!("Could not get U8 from {:?}", d),
+                d => panic!("Could not get U8 from {d:?}"),
             };
             format!("{}_{}", d.to_uppercase(), n)
         }
-        dev => panic!("Expected tuple, got {:?}", dev),
+        dev => panic!("Expected tuple, got {dev:?}"),
     };
 
     let fmt_link = |v: &Value| match v {
@@ -805,7 +805,7 @@ fn monorail_status(
         if !ports.is_empty() && !ports.contains(&port) {
             continue;
         }
-        print!(" {:<3} | ", port);
+        print!(" {port:<3} | ");
         match port_value {
             Ok(v) => {
                 let s = v.as_struct()?;
@@ -823,7 +823,7 @@ fn monorail_status(
                             speed,
                         )
                     }
-                    v => panic!("Expected Struct, got {:?}", v),
+                    v => panic!("Expected Struct, got {v:?}"),
                 };
                 let fmt_mode = match mode.as_str() {
                     "SGMII" => mode.cyan(),
@@ -859,7 +859,7 @@ fn monorail_status(
                 assert_eq!(s.name(), "PhyStatus");
                 let phy_ty = match &s["ty"] {
                     Value::Enum(e) => e.disc().to_uppercase(),
-                    v => panic!("Expected struct, got {:?}", v),
+                    v => panic!("Expected struct, got {v:?}"),
                 };
                 println!(
                     "{:<6}  {:<8}  {:<10}",
@@ -964,7 +964,7 @@ fn monorail_mac_table(
             }
         } else {
             // Log the error but keep going for other entries in the table
-            println!("Got error result: {:?}", r);
+            println!("Got error result: {r:?}");
         }
     }
     println!(" {} |        {}", "PORT".bold(), "MAC".bold());
@@ -972,7 +972,7 @@ fn monorail_mac_table(
     for (port, macs) in &mac_table {
         for (i, mac) in macs.iter().enumerate() {
             if i == 0 {
-                print!("{:>5} | ", port);
+                print!("{port:>5} | ");
             } else {
                 print!("      | ");
             }
@@ -980,7 +980,7 @@ fn monorail_mac_table(
                 if i > 0 {
                     print!(":");
                 }
-                print!("{:02x}", m);
+                print!("{m:02x}");
             }
             println!();
         }
@@ -1028,19 +1028,19 @@ fn monorail_counters(
         Value::Struct(s) => {
             let mc = match &s["multicast"] {
                 Value::Base(Base::U32(v)) => *v,
-                v => panic!("Expected U32, got {:?}", v),
+                v => panic!("Expected U32, got {v:?}"),
             };
             let uc = match &s["unicast"] {
                 Value::Base(Base::U32(v)) => *v,
-                v => panic!("Expected U32, got {:?}", v),
+                v => panic!("Expected U32, got {v:?}"),
             };
             let bc = match &s["broadcast"] {
                 Value::Base(Base::U32(v)) => *v,
-                v => panic!("Expected U32, got {:?}", v),
+                v => panic!("Expected U32, got {v:?}"),
             };
             (mc, uc, bc)
         }
-        s => panic!("Expected Struct, got {:?}", s),
+        s => panic!("Expected Struct, got {s:?}"),
     };
 
     match value {
@@ -1159,7 +1159,7 @@ fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
             println!("Register address: {:#x}", reg.address());
 
             if let Some(v) = value {
-                println!("Register value: {:#x}", v);
+                println!("Register value: {v:#x}");
                 pretty_print_fields(v, reg.fields(), 0);
             } else {
                 println!("  bits |    field");

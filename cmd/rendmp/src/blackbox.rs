@@ -22,7 +22,7 @@ fn format_faults<T: Into<u32> + std::fmt::Binary + Copy>(
 
     let size = std::mem::size_of::<T>() * 8;
     if faults.is_empty() {
-        write!(f, "{v:0width$b} ()", width = size)
+        write!(f, "{v:0size$b} ()")
     } else {
         write!(f, "{v:0width$b} {}", faults.join(" | "), width = size)
     }

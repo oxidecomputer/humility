@@ -336,6 +336,6 @@ pub fn unhalted_read_regions() -> BTreeMap<u32, u32> {
 
 impl std::fmt::Display for ARMRegister {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.pad(&format!("{:?}", self))
+        formatter.pad(&format!("{self:?}"))
     }
 }

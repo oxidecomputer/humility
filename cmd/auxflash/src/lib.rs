@@ -189,7 +189,7 @@ impl<'a> AuxFlashHandler<'a> {
         println!(" {} | {}", "slot".bold(), "status".bold());
         println!("------|----------------------------");
         for i in 0..slot_count {
-            print!("  {:>3} | ", i);
+            print!("  {i:>3} | ");
             match self.slot_status(i) {
                 Err(e) => {
                     println!("Error: {}", e.to_string().red());
@@ -203,11 +203,11 @@ impl<'a> AuxFlashHandler<'a> {
                     }
                     if verbose {
                         for byte in v {
-                            print!("{:0>2x}", byte);
+                            print!("{byte:0>2x}");
                         }
                     } else {
                         for byte in &v[0..4] {
-                            print!("{:0>2x}", byte);
+                            print!("{byte:0>2x}");
                         }
                         print!("...");
                     }

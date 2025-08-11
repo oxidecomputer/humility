@@ -815,7 +815,7 @@ pub fn stm32_chipname(partno: u32) -> String {
         0x480 => "STM32H7A3/STM32H7B3/STM32H7B0",
         0x495 => "STM32WB55xx",
         _ => {
-            return format!("<Unknown STM32 chip 0x{:x}>", partno);
+            return format!("<Unknown STM32 chip 0x{partno:x}>");
         }
     }
     .to_string()

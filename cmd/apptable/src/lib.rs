@@ -102,7 +102,7 @@ fn apptablecmd(context: &mut ExecutionContext) -> Result<()> {
     let mut offs = app.size;
 
     for i in 0..region_count {
-        let str = format!("RegionDesc[0x{:x}]", i);
+        let str = format!("RegionDesc[{i:#x}]");
 
         if offs + region.size > apptable.len() {
             appbail!(&str, offs + region.size);
@@ -118,7 +118,7 @@ fn apptablecmd(context: &mut ExecutionContext) -> Result<()> {
     }
 
     for i in 0..task_count {
-        let str = format!("TaskDesc[0x{:x}]", i);
+        let str = format!("TaskDesc[{i:#x}]");
 
         if offs + task.size > apptable.len() {
             appbail!(&str, offs + task.size);
@@ -134,7 +134,7 @@ fn apptablecmd(context: &mut ExecutionContext) -> Result<()> {
     }
 
     for i in 0..irq_count {
-        let str = format!("Interrupt[0x{:x}]", i);
+        let str = format!("Interrupt[{i:#x}]");
 
         if offs + interrupt.size > apptable.len() {
             appbail!(&str, offs + interrupt.size);

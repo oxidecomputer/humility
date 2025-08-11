@@ -285,7 +285,7 @@ impl<'a> IbcHandler<'a> {
         }
         println!("  EVENT_ID            {:#06x}", e.event_id.get());
 
-        println!("  STATUS_WORD         {:#06x}", status_word);
+        println!("  STATUS_WORD         {status_word:#06x}");
         for (bit, name) in [
             (0, "System event"),
             (1, "CML fault"),
@@ -372,8 +372,8 @@ impl<'a> IbcHandler<'a> {
             if value == 0 && !verbose {
                 continue;
             }
-            let v = format!("{:#04x}", value);
-            print!("  {: <18}  ", name);
+            let v = format!("{value:#04x}");
+            print!("  {name: <18}  ");
             if value == 0 {
                 println!("{}", v.dimmed());
             } else {

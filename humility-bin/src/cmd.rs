@@ -48,7 +48,7 @@ pub fn subcommand(
 
     let command = commands
         .get(cmd)
-        .with_context(|| format!("command {} not found", cmd))?;
+        .with_context(|| format!("command {cmd} not found"))?;
 
     let mut hubris = HubrisArchive::new().context("failed to initialize")?;
 
@@ -68,12 +68,12 @@ pub fn subcommand(
     if archive != Archive::Ignored {
         if let Some(archive) = &context.cli.archive {
             hubris.load(archive, doneness).with_context(|| {
-                format!("failed to load archive \"{}\"", archive)
+                format!("failed to load archive \"{archive}\"")
             })?;
         } else if let Some(dump) = &context.cli.dump {
             hubris
                 .load_dump(dump, doneness)
-                .with_context(|| format!("failed to load dump \"{}\"", dump))?;
+                .with_context(|| format!("failed to load dump \"{dump}\""))?;
         }
     }
 

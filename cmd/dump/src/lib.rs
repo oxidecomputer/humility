@@ -848,7 +848,7 @@ fn dump_agent_status(
 ) -> Result<()> {
     let mut agent = get_dump_agent(hubris, core, subargs)?;
     let headers = agent.read_dump_headers(true)?;
-    println!("{:#x?}", headers);
+    println!("{headers:#x?}");
 
     Ok(())
 }

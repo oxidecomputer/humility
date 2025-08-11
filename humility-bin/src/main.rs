@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     };
 
     if let Some(s) = version(&args) {
-        println!("{}", s);
+        println!("{s}");
         std::process::exit(0);
     };
 
@@ -44,7 +44,7 @@ fn main() -> Result<()> {
     };
 
     if let Err(err) = cmd::subcommand(&mut context, &commands) {
-        eprintln!("humility {} failed: {:?}", subcmd, err);
+        eprintln!("humility {subcmd} failed: {err:?}");
         std::process::exit(1);
     }
 

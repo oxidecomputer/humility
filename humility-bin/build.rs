@@ -59,10 +59,9 @@ fn dcmds() -> Vec<CommandDescription> {{
         writeln!(
             output,
             r##"        CommandDescription {{
-            init: cmd_{}::init,
-            docmsg: "For additional documentation, run \"humility doc {}\"."
+            init: cmd_{cmd}::init,
+            docmsg: "For additional documentation, run \"humility doc {cmd}\"."
         }},"##,
-            cmd, cmd
         )?;
     }
 

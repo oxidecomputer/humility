@@ -513,7 +513,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         ops.push(Op::Push32(addr));
         ops.push(Op::Push32(nbytes));
         ops.push(Op::Call(qspi_hash.id));
-        hash_name = format!("{:06x}..{:06x}", addr, nbytes);
+        hash_name = format!("{addr:06x}..{nbytes:06x}");
         (None, qspi_hash)
     } else if subargs.erase {
         let addr = subargs.addr.unwrap() as u32;
@@ -745,11 +745,11 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         // The default can/should be done in `#[clap(...` for "address"
         // if that works for the other users of the -a flag.
         let mut address = subargs.addr.unwrap_or(0) as u32;
-        println!("addr={:?}", address);
+        println!("addr={address:?}");
 
         let nbytes =
             optional_nbytes(core, &mut context, &qspi_read_id, subargs.nbytes)?;
-        println!("nbytes={:?}", nbytes);
+        println!("nbytes={nbytes:?}");
 
         //
         // Low-level reads are in units less than or equal to
@@ -785,11 +785,8 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
 
         let end_address = address + nbytes;
         // let mut out_address = address;
-        println!(
-            "address={}, chunk={}, end_address={}",
-            address, chunk, end_address
-        );
-        println!("max_chunks={}", max_chunks);
+        println!("address={address}, chunk={chunk}, end_address={end_address}",);
+        println!("max_chunks={max_chunks}");
         assert!(max_chunks > 0);
         loop {
             let mut ops = vec![];
@@ -856,7 +853,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         // then erase/flash the different sectors.
         //
         let base_addr = subargs.addr.unwrap_or(0) as u32;
-        if base_addr % SECTOR_SIZE != 0 {
+        if !base_addr.is_multiple_of(SECTOR_SIZE) {
             bail!(
                 "base address (`--addr {base_addr:#x}`) must be divisible by \
                  sector size ({SECTOR_SIZE:#x})"
@@ -1045,7 +1042,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             if mem::size_of::<DeviceIdData>() == results.len() {
                 let did: DeviceIdData =
                     unsafe { std::ptr::read(results.as_ptr() as *const _) };
-                println!("{}", did);
+                println!("{did}");
             } else {
                 println!(
                     "Unexpected result length: {} != {}",
@@ -1056,9 +1053,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         }
     } else if subargs.hash {
         if let Ok(buf) = &results[0] {
-            print!("{}: ", hash_name);
+            print!("{hash_name}: ");
             for byte in buf {
-                print!("{:02x}", byte);
+                print!("{byte:02x}");
             }
             println!();
         }
@@ -1066,7 +1063,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    println!("{:x?}", results);
+    println!("{results:x?}");
 
     Ok(())
 }

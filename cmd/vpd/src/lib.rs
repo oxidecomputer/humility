@@ -237,7 +237,7 @@ fn list(
         use humility::reflect::Value::Base;
 
         let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
+            (Some(m), Some(s)) => format!("{m}:{s}"),
             (None, None) => "-".to_string(),
             (_, _) => "?:?".to_string(),
         };
@@ -264,7 +264,7 @@ fn list(
                 }
                 .to_string(),
                 Some(Ok(r)) => format!("<{r:?}>").to_string(),
-                Some(Err(err)) => format!("<{}>", err).to_string(),
+                Some(Err(err)) => format!("<{err}>").to_string(),
                 None => "(too old)".to_string(),
             },
         );
@@ -359,7 +359,7 @@ fn vpd_write(
         let file = fs::File::open(filename)?;
 
         let p = tlvc_text::load(file).with_context(|| {
-            format!("failed to parse {} as VPD input", filename)
+            format!("failed to parse {filename} as VPD input")
         })?;
 
         tlvc_text::pack(&p)

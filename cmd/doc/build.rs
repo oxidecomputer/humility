@@ -75,7 +75,7 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
         //
         // We are prescriptive about what we expect this output to look like.
         //
-        let header = format!("### `humility {}`\n", cmd);
+        let header = format!("### `humility {cmd}`\n");
         ensure!(
             contents.starts_with(&header),
             "documentation for {cmd} is malformed: \
@@ -83,7 +83,7 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
         );
         ensure!(contents.len() > 1, "no documentation for {cmd}");
 
-        write!(output, "        m.insert(\"{}\", r##\"", cmd)?;
+        write!(output, "        m.insert(\"{cmd}\", r##\"")?;
 
         output.write_all(&contents.as_bytes()[1..])?;
 
@@ -124,7 +124,7 @@ Run `humility doc` with the specified command name for details on each command.
     )?;
 
     for (cmd, (description, _)) in &cmds {
-        writeln!(output, "- `humility {}`: {}", cmd, description)?;
+        writeln!(output, "- `humility {cmd}`: {description}")?;
     }
 
     writeln!(output, "\n\"##\n}}")?;

@@ -56,8 +56,7 @@ fn doc(context: &mut ExecutionContext) -> Result<()> {
 
     if let Some(ref cmd) = subargs.command {
         skin.print_text(&format!(
-            "For all command line flags, run `humility {} --help`.",
-            cmd
+            "For all command line flags, run `humility {cmd} --help`."
         ));
     }
 

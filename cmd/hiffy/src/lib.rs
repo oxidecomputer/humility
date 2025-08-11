@@ -179,10 +179,10 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
 
                 let last = ops.peek().is_none();
                 let c = if last { "" } else { "|" };
-                let margin = format!("  {:<8}", c);
+                let margin = format!("  {c:<8}");
 
                 print_args(&op, module, margin);
-                println!("  {}", c);
+                println!("  {c}");
             }
         }
     }
@@ -312,10 +312,10 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
         if let Some(data) = output {
             if let Some(out) = &subargs.output {
                 std::fs::write(out, &data)
-                    .context(format!("Could not write to {}", out))?;
+                    .context(format!("Could not write to {out}"))?;
                 println!("Wrote {} bytes to '{}'", data.len(), out);
             } else if subargs.hex {
-                println!("Data: {:x?}", data);
+                println!("Data: {data:x?}");
             } else {
                 Dumper::new().dump(&data, 0x0);
             }

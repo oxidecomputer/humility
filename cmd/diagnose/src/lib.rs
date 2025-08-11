@@ -73,13 +73,13 @@ enum Condition {
 /// need.
 impl std::fmt::Display for Condition {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "\n[{:?}]", self)
+        write!(f, "\n[{self:?}]")
     }
 }
 
 /// Generates a report section header.
 fn section(title: &str) {
-    println!("\n--- {} ---\n", title);
+    println!("\n--- {title} ---\n");
 }
 
 fn diagnose(context: &mut ExecutionContext) -> Result<()> {
@@ -202,7 +202,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     // Check for any time reversal.
     let delta_ticks = ticks_1.checked_sub(ticks_0);
     if let Some(t) = delta_ticks {
-        println!("Core halted after {} more ticks.", t);
+        println!("Core halted after {t} more ticks.");
     } else {
         println!(
             "{}: The kernel timestamp has rewound.\n\
@@ -223,8 +223,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
         // corruption.
         if ticks_1 < 100 {
             println!(
-                "With a ticks value of {} the reboot is most likely.",
-                ticks_1
+                "With a ticks value of {ticks_1} the reboot is most likely."
             );
         }
     }
@@ -282,9 +281,9 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
 
             // Report previous or current faults.
             if let TaskState::Faulted { fault, .. } = after.state {
-                println!("- current fault is {:?}", fault);
+                println!("- current fault is {fault:?}");
             } else if let TaskState::Faulted { fault, .. } = before.state {
-                println!("- note: fault from earlier was {:?}", fault);
+                println!("- note: fault from earlier was {fault:?}");
             } else {
                 println!("- fault cause undetermined so far");
                 // Add it to our list. Unless it's the supervisor. In that case,
@@ -307,7 +306,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
         println!("Requesting that the supervisor stop restarting:");
         core.run()?;
         for &(name, i) in &tasks_worth_holding {
-            println!("- {}", name);
+            println!("- {name}");
             humility_jefe::send_request(
                 hubris,
                 core,
@@ -334,10 +333,10 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
                     name,
                     i
                 );
-                println!("- Fault: {:?}", fault);
-                println!("- State before fault: {:?}", original_state);
+                println!("- Fault: {fault:?}");
+                println!("- State before fault: {original_state:?}");
             } else {
-                println!("Failed to catch task {} (#{}) in the act.", name, i);
+                println!("Failed to catch task {name} (#{i}) in the act.");
             }
         }
     }
@@ -347,7 +346,7 @@ fn diagnose(context: &mut ExecutionContext) -> Result<()> {
         let rval = hubris.dump(core, None, None, None);
 
         if let Err(e) = rval {
-            println!("Coredump failed: {}", e);
+            println!("Coredump failed: {e}");
         }
     }
 

@@ -73,7 +73,7 @@ impl Core for OpenOCDCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
+        let result = self.sendcmd(&format!("mrw 0x{addr:x}"))?;
         Ok(result.parse::<u32>()?)
     }
 
@@ -175,7 +175,7 @@ impl Core for OpenOCDCore {
     }
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
-        self.sendcmd(&format!("mww 0x{:x} 0x{:x}", addr, data))?;
+        self.sendcmd(&format!("mww 0x{addr:x} 0x{data:x}"))?;
         Ok(())
     }
 

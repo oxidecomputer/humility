@@ -168,11 +168,11 @@ fn stmsecure_status(core: &mut dyn Core) -> Result<()> {
     let sec_start = ((scar_cur1 & 0x0000_0FFF) << 8) | 0x0800_0000;
     let sec_end = (((scar_cur1 & 0x00FF_F000) >> 16) << 8) | 0x0800_00ff;
 
-    println!("Sec bit: {}", sec_en);
-    println!("Start: {:x}", sec_start);
-    println!("End: {:x}", sec_end);
-    println!("Erase on regression: {}", dmes1);
-    println!("RDP: {:x}", rdp);
+    println!("Sec bit: {sec_en}");
+    println!("Start: {sec_start:x}");
+    println!("End: {sec_end:x}");
+    println!("Erase on regression: {dmes1}");
+    println!("RDP: {rdp:x}");
     Ok(())
 }
 

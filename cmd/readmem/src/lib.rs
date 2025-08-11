@@ -239,7 +239,7 @@ fn readmem(context: &mut ExecutionContext) -> Result<()> {
                         " <- {}{}+0x{:x}",
                         match hubris.instr_mod(val) {
                             Some(module) if module != "kernel" => {
-                                format!("{}:", module)
+                                format!("{module}:")
                             }
                             _ => "".to_string(),
                         },

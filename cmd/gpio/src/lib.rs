@@ -287,7 +287,7 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
                         print!("{:7}", "Pin");
 
                         for i in 0..16 {
-                            print!("{:4}", i);
+                            print!("{i:4}");
                         }
 
                         println!();
@@ -321,7 +321,7 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
             }
         }
     } else {
-        println!("{:?}", results);
+        println!("{results:?}");
     }
 
     Ok(())

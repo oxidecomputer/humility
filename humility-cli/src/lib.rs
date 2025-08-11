@@ -251,7 +251,7 @@ impl ExecutionContext {
                 }
 
                 if let Err(err) = Environment::validate(env) {
-                    eprintln!("failed to parse environment: {:?}", err);
+                    eprintln!("failed to parse environment: {err:?}");
                     std::process::exit(1);
                 }
 

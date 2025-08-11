@@ -101,7 +101,7 @@ fn exec(context: &mut ExecutionContext) -> Result<()> {
 
     if subargs.list {
         let printcmd = |target, cmd| {
-            println!("{:14} {}", target, cmd);
+            println!("{target:14} {cmd}");
         };
 
         printcmd("NAME", "COMMAND");

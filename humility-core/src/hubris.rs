@@ -231,7 +231,7 @@ pub struct HubrisConfigAuxflash {
 
 impl HubrisConfigAuxflash {
     pub fn slot_size_bytes(&self) -> Result<usize> {
-        if self.memory_size % self.slot_count != 0 {
+        if !self.memory_size.is_multiple_of(self.slot_count) {
             bail!("Cannot evenly divide auxflash into slots");
         }
         Ok(self.memory_size / self.slot_count)
@@ -920,12 +920,12 @@ impl HubrisArchive {
                 if idx == 0 {
                     Ok(name.clone())
                 } else {
-                    Ok(format!("{}#{}", name, idx))
+                    Ok(format!("{name}#{idx}"))
                 }
             } else if idx == 0 {
                 Ok(d.device.clone())
             } else {
-                Ok(format!("{}#{}", d.device, idx))
+                Ok(format!("{}#{idx}", d.device))
             }
         };
         let get_sensor = |d: &HubrisConfigI2cDevice,
@@ -1080,7 +1080,7 @@ impl HubrisArchive {
                 if let Some(ref interrupts) = p.interrupts {
                     for (interrupt, irq) in interrupts {
                         named_interrupts
-                            .insert(format!("{}.{}", name, interrupt), *irq);
+                            .insert(format!("{name}.{interrupt}"), *irq);
                     }
                 }
             }
@@ -1515,21 +1515,21 @@ impl HubrisArchive {
                     "1" => bail!("Invalid archive version 'v1'"),
                     // Otherwise, expect an integer
                     v => v.parse().with_context(|| {
-                        format!("Failed to parse version string {}", v)
+                        format!("Failed to parse version string {v}")
                     })?,
                 };
                 if archive_version > MAX_HUBRIS_VERSION {
                     bail!("\
                         Hubris archive version is unsupported.\n\
-                        Humility supports v{} and earlier; archive is v{}.\n\
-                        Please update Humility.",
-                        MAX_HUBRIS_VERSION, v)
+                        Humility supports v{MAX_HUBRIS_VERSION} and earlier; \
+                        archive is v{v}.\nPlease update Humility."
+                    )
                 }
             }
             None => {
                 bail!(
-                    "Could not parse hubris archive version from '{}'",
-                    comment)
+                    "Could not parse hubris archive version from '{comment}'",
+                )
             }
         }
         Ok(())
@@ -1652,7 +1652,7 @@ impl HubrisArchive {
     }
 
     fn load_registers(&mut self, r: &[u8]) -> Result<()> {
-        if r.len() % 8 != 0 {
+        if !r.len().is_multiple_of(8) {
             bail!("bad length {} in registers note", r.len());
         }
 
@@ -2152,8 +2152,7 @@ impl HubrisArchive {
 
             let mut id = vec![0; nbytes];
             core.read_8(addr, &mut id[0..nbytes]).context(format!(
-                "failed to read image ID at 0x{:x}; board mismatch?",
-                addr
+                "failed to read image ID at {addr:#x}; board mismatch?",
             ))?;
 
             let deltas = id
@@ -2165,8 +2164,8 @@ impl HubrisArchive {
             if deltas > 0 || id.len() != imageid.1.len() {
                 bail!(
                     "image ID in archive ({:x?}) does not equal \
-                    ID at 0x{:x} ({:x?})",
-                    imageid.1, imageid.0, id,
+                    ID at 0x{:x} ({id:x?})",
+                    imageid.1, imageid.0,
                 );
             }
         } else if let Some(archive) = &self.apptable {
@@ -2176,8 +2175,8 @@ impl HubrisArchive {
 
             let mut apptable = vec![0; nbytes];
             core.read_8(addr, &mut apptable[0..nbytes]).context(format!(
-                "failed to read .hubris_app_table at 0x{:x}; board mismatch?",
-                addr
+                "failed to read .hubris_app_table at {addr:#x}; \
+                 board mismatch?",
             ))?;
 
             let deltas = apptable
@@ -2188,8 +2187,7 @@ impl HubrisArchive {
 
             if deltas > 0 || apptable.len() != archive.1.len() {
                 bail!(
-                    "apptable at 0x{:x} does not match archive apptable",
-                    addr
+                    "apptable at {addr:#x} does not match archive apptable",
                 );
             }
         } else {
@@ -2223,7 +2221,7 @@ impl HubrisArchive {
         // We're not booted -- let's see if we've panicked.
         //
         if let Some(epitaph) = self.epitaph(core)? {
-            bail!("kernel has panicked on boot: {}", epitaph);
+            bail!("kernel has panicked on boot: {epitaph}");
         }
 
         //
@@ -2246,10 +2244,9 @@ impl HubrisArchive {
                 //
                 if self.instr_mod(pc).is_none() {
                     bail!(
-                        "target does not appear booted and PC 0x{:x} is \
+                        "target does not appear booted and PC {pc:#x} is \
                         unknown; is system executing boot ROM or other \
                         program?",
-                        pc
                     );
                 }
             } else {
@@ -2524,10 +2521,12 @@ impl HubrisArchive {
                         bail!("task {} has bad regions addr 0x{:x}", i, taddr);
                     }
 
-                    core.read_8(taddr, &mut indices).context(format!(
-                        "failed to read region descriptors for task {} at 0x{:x}",
-                        i, taddr)
-                    )?;
+                    core.read_8(taddr, &mut indices).with_context(|| {
+                        format!(
+                            "failed to read region descriptors for task {i} \
+                             at {taddr:#x}",
+                        )
+                    })?;
 
                     if size == 1 {
                         for ndx in &indices {
@@ -2551,7 +2550,7 @@ impl HubrisArchive {
                             // Check that the reference is properly aligned for
                             // the RegionDesc type.
                             let offset = ndx - rdescs.addr;
-                            if offset as usize % rdesc.size != 0 {
+                            if !(offset as usize).is_multiple_of(rdesc.size) {
                                 bail!("task {i} has misaligned reference at \
                                       {ndx:#x}");
                             }
@@ -2773,7 +2772,7 @@ impl HubrisArchive {
         // R4-R11 are found in the structure.
         //
         for r in 4..=11 {
-            let rname = format!("r{}", r);
+            let rname = format!("r{r}");
             let o = state.lookup_member(&rname)?.offset;
             let val = u32::from_le_bytes(regs[o..o + 4].try_into().unwrap());
 
@@ -2941,8 +2940,8 @@ impl HubrisArchive {
                     )
                     .with_context(|| {
                         format!(
-                            "failed to read cfa 0x{:x}, offset 0x{:x}: {:x?}",
-                            cfa, offset, rval
+                            "failed to read cfa {cfa:#x}, offset {offset:#x}: \
+                             {rval:x?}",
                         )
                     })?,
                     _ => {
@@ -3148,12 +3147,12 @@ impl HubrisArchive {
 
         Some(if region.attr.device {
             if let Some(p) = self.lookup_peripheral_byaddr(region.base) {
-                format!("[{}]+0x{:x}", p, offset)
+                format!("[{p}]+{offset:#x}")
             } else {
                 format!("[0x{:x}]+0x{:x}", region.base, offset)
             }
         } else if region.tasks.len() != 1 {
-            format!("<{:x?}>", region)
+            format!("<{region:x?}>")
         } else if let Some(sval) = self.instr_sym(val) {
             format!(
                 "{}: {}+0x{:x}",
@@ -4099,10 +4098,10 @@ impl HubrisObjectLoader {
         }
 
         self.load_object_dwarf(buffer, &elf)
-            .context(format!("{}: failed to load DWARF", object))?;
+            .context(format!("{object}: failed to load DWARF"))?;
 
         self.load_object_frames(task, buffer, &elf)
-            .context(format!("{}: failed to load debug frames", object))?;
+            .context(format!("{object}: failed to load debug frames"))?;
 
         let iface = self.load_object_idolatry(object, buffer, &elf)?;
 
@@ -5666,7 +5665,7 @@ impl HubrisTask {
     pub fn id(&self) -> String {
         match self {
             HubrisTask::Kernel => "-".to_string(),
-            HubrisTask::Task(id) => format!("{}", id),
+            HubrisTask::Task(id) => id.to_string(),
         }
     }
     /// Returns the inner `u32` from a `Task` variant.
@@ -5686,7 +5685,7 @@ impl fmt::Display for HubrisTask {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             HubrisTask::Kernel => write!(f, "kernel"),
-            HubrisTask::Task(id) => write!(f, "Task #{}", id),
+            HubrisTask::Task(id) => write!(f, "Task #{id}"),
         }
     }
 }
@@ -6384,12 +6383,12 @@ impl HubrisSrc {
         format!(
             "{}{}{}",
             if let Some(dir) = &self.comp_directory {
-                format!("{}/", dir)
+                format!("{dir}/")
             } else {
                 "".to_string()
             },
             if let Some(dir) = &self.directory {
-                format!("{}/", dir)
+                format!("{dir}/")
             } else {
                 "".to_string()
             },
@@ -6427,9 +6426,8 @@ impl HubrisModule {
                         .map(|g| {
                             let ns = hubris.structs.get(g).unwrap().namespace;
 
-                            if let Ok(Some(name)) = hubris
-                                .namespaces
-                                .to_full_name(ns, &name.to_string())
+                            if let Ok(Some(name)) =
+                                hubris.namespaces.to_full_name(ns, name)
                             {
                                 format!("{name} as {g}")
                             } else {
@@ -6474,9 +6472,8 @@ impl HubrisModule {
                         .map(|g| {
                             let n = hubris.enums.get(g).unwrap().namespace;
 
-                            if let Ok(Some(name)) = hubris
-                                .namespaces
-                                .to_full_name(n, &name.to_string())
+                            if let Ok(Some(name)) =
+                                hubris.namespaces.to_full_name(n, name)
                             {
                                 format!("{name} as {g}")
                             } else {
@@ -6667,7 +6664,7 @@ fn try_scoped<'a>(
     } else {
         use regex::Regex;
 
-        let expr = format!("^{}$", search);
+        let expr = format!("^{search}$");
         let re = Regex::new(&expr).unwrap();
 
         let matched: Vec<_> =

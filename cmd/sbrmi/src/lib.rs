@@ -203,7 +203,7 @@ fn cpuid(
                     // We unfortunately have no ability to fail, so we
                     // just bail all the way out.
                     //
-                    eprintln!("humility sbrmi failed: {:?}", e);
+                    eprintln!("humility sbrmi failed: {e:?}");
                     std::process::exit(1);
                 }
                 Ok(result) => result,
@@ -469,7 +469,7 @@ fn mca(
         for reg in &allregs {
             let v = *(values.get(reg).unwrap());
 
-            let name = format!("{:?}", reg);
+            let name = format!("{reg:?}");
             println!("    {name:14} 0x{v:016x}");
 
             if let Msr::MCA_STATUS(_) = reg {
@@ -580,7 +580,7 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
     print!(" THR");
 
     for row in 0..16 {
-        print!(" 0x{:1x}", row);
+        print!(" 0x{row:1x}");
     }
 
     println!();

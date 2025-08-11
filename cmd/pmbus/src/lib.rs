@@ -403,13 +403,13 @@ fn print_result(
     };
 
     let name = command.name();
-    let cmdstr = format!("0x{:02x} {:<25}", code, name);
+    let cmdstr = format!("0x{code:02x} {name:<25}");
 
     fn printchar(val: u8) {
         let c = val as char;
 
         if c.is_ascii() && !c.is_ascii_control() {
-            print!("{}", c);
+            print!("{c}");
         } else {
             print!(".");
         }
@@ -424,13 +424,13 @@ fn print_result(
 
         Ok(val) => {
             if val.is_empty() && subargs.errors {
-                println!("{} Timed out", cmdstr);
+                println!("{cmdstr} Timed out");
                 return Ok(());
             }
 
             if let Some(nbytes) = nbytes {
                 if val.len() != nbytes {
-                    println!("{} Short read: {:x?}", cmdstr, val);
+                    println!("{cmdstr} Short read: {val:x?}");
                     return Ok(());
                 }
             }
@@ -439,7 +439,7 @@ fn print_result(
             let mut interpreted = false;
 
             let printraw = |interpret: bool| {
-                print!("{}", cmdstr);
+                print!("{cmdstr}");
 
                 if nbytes.is_none() {
                     let w = 8;
@@ -513,14 +513,14 @@ fn print_result(
                     format!("b{}:{}", pos.0 + width.0 - 1, pos.0)
                 };
 
-                let value = format!("{}", value);
+                let value = format!("{value}");
 
                 println!("     | {:6} {:<30} <= {}", bits, value, field.name());
                 printed = true;
             });
 
             if err.is_err() && subargs.errors {
-                println!("{} {:?}", cmdstr, err);
+                println!("{cmdstr} {err:?}");
             }
 
             if !interpreted {
@@ -802,13 +802,13 @@ fn summarize_rail(
                 let err =
                     driver.interpret(code, val, getmode, |field, value| {
                         if !field.bitfield() {
-                            write!(&mut str, "{}", value).unwrap();
+                            write!(&mut str, "{value}").unwrap();
                             interpreted = true;
                         }
                     });
 
                 if err.is_err() {
-                    print!(" {:>width$?}", err, width = width);
+                    print!(" {err:>width$?}");
                     continue;
                 }
 
@@ -819,7 +819,7 @@ fn summarize_rail(
                     }
                 }
 
-                print!(" {:>width$}", str, width = width);
+                print!(" {str:>width$}");
             }
         }
     }
@@ -1068,7 +1068,7 @@ impl WriteOp {
                     pmbus::Operation::WriteWord => 2,
                     pmbus::Operation::WriteWord32 => 4,
                     _ => {
-                        panic!("unexpected operation {:?}", op);
+                        panic!("unexpected operation {op:?}");
                     }
                 };
 
@@ -1920,7 +1920,7 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
         for device in &hubris.manifest.i2c_devices {
             if let HubrisI2cDeviceClass::Pmbus { rails } = &device.class {
                 let mux = match (device.mux, device.segment) {
-                    (Some(m), Some(s)) => format!("{}:{}", m, s),
+                    (Some(m), Some(s)) => format!("{m}:{s}"),
                     (None, None) => "-".to_string(),
                     (_, _) => "?:?".to_string(),
                 };
@@ -2177,7 +2177,7 @@ fn pmbus_main(
                 | pmbus::Operation::ReadBlock
         ) {
             if subargs.dryrun {
-                println!("0x{:02x} {:?}", code, cmd);
+                println!("0x{code:02x} {cmd:?}");
             }
 
             worker.read(code, op);

@@ -163,11 +163,11 @@ fn force_openocd(
         // thing work instead of shouting about it and then doing it
         // anyway.)
         //
-        writeln!(conf, "interface hla\nhla_serial {}", serial)?;
+        writeln!(conf, "interface hla\nhla_serial {serial}")?;
     }
 
     if let FlashProgramConfig::Payload(ref payload) = payload {
-        write!(conf, "{}", payload)?;
+        write!(conf, "{payload}")?;
     } else {
         bail!("unexpected OpenOCD payload: {:?}", payload);
     }
@@ -195,7 +195,7 @@ fn force_openocd(
                 flash.arg(val);
             }
             FlashArgument::FormattedPayload(ref pre, ref post) => {
-                flash.arg(format!("{} {} {}", pre, srec_path, post));
+                flash.arg(format!("{pre} {srec_path} {post}"));
             }
             FlashArgument::Config => {
                 flash.arg(&conf_path);

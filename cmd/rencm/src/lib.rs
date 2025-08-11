@@ -509,7 +509,7 @@ pub fn idt8a3xxxx_payload<E>(
 
     let preprocess = |windex, bytes| {
         if !subargs.generate {
-            print!("{:>3}: ", windex);
+            print!("{windex:>3}: ");
             dumper.dump(bytes, 0);
         }
     };
@@ -517,7 +517,7 @@ pub fn idt8a3xxxx_payload<E>(
     let postprocess = |bytes: &[u8], unknown: bool, addr: u16| {
         if subargs.generate {
             if unknown {
-                println!("        // Unknown write to 0x{:04x}", addr);
+                println!("        // Unknown write to 0x{addr:04x}");
             }
 
             print!("        &[");
@@ -529,7 +529,7 @@ pub fn idt8a3xxxx_payload<E>(
                     print!(" ");
                 }
 
-                print!("0x{:02x},", val);
+                print!("0x{val:02x},");
             }
 
             println!("\n        ],\n");
@@ -548,7 +548,7 @@ pub fn idt8a3xxxx_payload<E>(
         if !subargs.generate {
             println!("{:5}{} = {}", "", attr, val);
         } else {
-            println!("        // {} = {}", attr, val);
+            println!("        // {attr} = {val}");
         }
     };
 
@@ -566,7 +566,7 @@ pub fn idt8a3xxxx_payload<E>(
             }
 
             base = (bytes[2] as u16) << 8;
-            print_value("PAGE_ADDR".to_string(), format!("0x{:04x}", base));
+            print_value("PAGE_ADDR".to_string(), format!("0x{base:04x}"));
 
             //
             // We might have more data here...
@@ -585,8 +585,8 @@ pub fn idt8a3xxxx_payload<E>(
         let addr = base + bytes[boffs] as u16;
         boffs += 1;
 
-        print_attr("base", format!("0x{:04x}", base));
-        print_attr("addr", format!("0x{:04x}", addr));
+        print_attr("base", format!("0x{base:04x}"));
+        print_attr("addr", format!("0x{addr:04x}"));
 
         let mut current = addr;
         let mut unknown = true;
@@ -598,14 +598,14 @@ pub fn idt8a3xxxx_payload<E>(
                 let offset = current - module.base[*ndx];
 
                 let which = if module.base.len() > 1 {
-                    format!("[{}]", ndx)
+                    format!("[{ndx}]")
                 } else {
                     "".to_string()
                 };
 
                 print_attr("module", format!("{}{}", module.name, which));
-                print_attr("offset", format!("0x{:x}", offset));
-                print_attr("boffs", format!("0x{:x}", boffs));
+                print_attr("offset", format!("0x{offset:x}"));
+                print_attr("boffs", format!("0x{boffs:x}"));
                 print_attr("len", format!("0x{:x}", bytes.len()));
 
                 let size = register.contents.size() as u16;
@@ -616,8 +616,8 @@ pub fn idt8a3xxxx_payload<E>(
                     break;
                 } else {
                     let roffset = offset - register.offset;
-                    print_attr("size", format!("0x{:x}", size));
-                    print_attr("roffset", format!("0x{:x}", roffset));
+                    print_attr("size", format!("0x{size:x}"));
+                    print_attr("roffset", format!("0x{roffset:x}"));
 
                     let size = (size - (offset - register.offset)) as usize;
 

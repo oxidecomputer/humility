@@ -112,7 +112,7 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         }
 
         let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
+            (Some(m), Some(s)) => format!("{m}:{s}"),
             (None, None) => "-".to_string(),
             (_, _) => "?:?".to_string(),
         };
@@ -242,7 +242,7 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
                             "Unavailable" => "unavailable".yellow(),
                             _ => format!("<{}>", variant.name).red(),
                         },
-                        None => format!("Err(0x{:x?})", e).red(),
+                        None => format!("Err(0x{e:x?})").red(),
                     })
                 } else {
                     Err(anyhow!("unexpected error type {:?}", op.error))
@@ -252,7 +252,7 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
         }?;
 
         let mux = match (device.mux, device.segment) {
-            (Some(m), Some(s)) => format!("{}:{}", m, s),
+            (Some(m), Some(s)) => format!("{m}:{s}"),
             (None, None) => "-".to_string(),
             (_, _) => "?:?".to_string(),
         };

@@ -307,7 +307,7 @@ fn spi(context: &mut ExecutionContext) -> Result<()> {
         }
     }
 
-    println!("{:x?}", results);
+    println!("{results:x?}");
 
     Ok(())
 }

@@ -68,7 +68,7 @@ impl<'a> IdolOperation<'a> {
         let (task, op, code) = lookup(hubris, interface, operation, task)?;
         let name = (interface.to_string(), operation.to_string());
 
-        let t = format!("{}_{}_ARGS", interface, operation);
+        let t = format!("{interface}_{operation}_ARGS");
         let module = hubris.lookup_module(task)?;
         let args = module.lookup_struct_byname(hubris, &t)?;
         let (ok, error) = lookup_reply(hubris, module, operation)?;
@@ -387,8 +387,7 @@ fn bytes_from_str(value: &str) -> Result<Vec<u8>> {
         for element in value.split(' ') {
             let element = element.trim();
             let byte: u8 = element.parse().context(format!(
-                "cannot parse \"{}\" as u8 (is it base 10?)",
-                element
+                "cannot parse \"{element}\" as u8 (is it base 10?)"
             ))?;
             bytes.push(byte);
         }
@@ -574,7 +573,7 @@ fn serialize_arg(
             // it into a string then immediately reparse it.
             let value = match value {
                 IdolArgument::String(value) => value.to_string(),
-                IdolArgument::Scalar(value) => format!("{}", value),
+                IdolArgument::Scalar(value) => format!("{value}"),
             };
 
             match (base.encoding, base.size) {

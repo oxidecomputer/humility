@@ -424,7 +424,7 @@ impl core::fmt::LowerHex for Base {
             // This should match the list of variants that return `false`
             // in Base::supports_hex.
             Self::U0 | Self::F32(_) | Self::F64(_) | Self::Bool(_) => {
-                panic!("Cannot format {} as hex", self)
+                panic!("Cannot format {self} as hex")
             }
         }
     }
@@ -448,7 +448,7 @@ impl core::fmt::Binary for Base {
             Self::I128(x) => Binary::fmt(&x, f),
 
             Self::U0 | Self::F32(_) | Self::F64(_) | Self::Bool(_) => {
-                panic!("Cannot format {} as binary", self)
+                panic!("Cannot format {self} as binary")
             }
         }
     }
@@ -463,9 +463,9 @@ impl Format for Base {
     ) -> Result<()> {
         // Special case for booleans, because "0xfalse" looks silly
         if fmt.hex && self.supports_hex() {
-            write!(out, "0x{:x}", self)?;
+            write!(out, "{self:#x}")?;
         } else {
-            write!(out, "{}", self)?;
+            write!(out, "{self}")?;
         }
         Ok(())
     }
@@ -500,7 +500,7 @@ impl Struct {
     pub fn check_members(&self, names: &[&str]) -> Result<()> {
         for &n in names {
             if !self.members.contains_key(n) {
-                bail!("member missing from struct: {}", n);
+                bail!("member missing from struct: {n}");
             }
         }
         Ok(())
@@ -547,7 +547,7 @@ impl Format for Struct {
                 write!(out, "{:1$}", " ", fmt.indent)?;
             }
 
-            write!(out, "{}: ", name)?;
+            write!(out, "{name}: ")?;
 
             value.format(hubris, fmt, out)?;
 
@@ -795,7 +795,7 @@ pub fn load_value(
         HubrisType::Union(t) => load_union(hubris, buf, t, addr),
     };
     r.with_context(|| {
-        format!("loading value of type {} at address {:#x}", ty, addr)
+        format!("loading value of type {ty} at address {addr:#x}")
     })
 }
 
@@ -964,7 +964,7 @@ pub fn load_base(buf: &[u8], ty: &HubrisBasetype, addr: usize) -> Result<Base> {
         (Float, 4) => Base::F32(f32::from_le_bytes(buf.try_into().unwrap())),
         (Float, 8) => Base::F64(f64::from_le_bytes(buf.try_into().unwrap())),
 
-        _ => panic!("unexpected basetype: {:?}", ty),
+        _ => panic!("unexpected basetype: {ty:?}"),
     };
     Ok(v)
 }
@@ -1118,7 +1118,7 @@ pub fn deserialize_value<'a>(
         HubrisType::Ptr(t) => {
             deserialize_ptr(buf, t).map(|(v, b)| (Value::Ptr(v), b))
         }
-        _ => panic!("{:?}", ty),
+        _ => panic!("{ty:?}"),
     }
 }
 
@@ -1158,11 +1158,8 @@ fn deserialize_struct_or_tuple<'a>(
         // Assume that tuple fields were serialized in order
         let mut contents = vec![];
         for i in 0..ty.members.len() {
-            let m = ty
-                .members
-                .iter()
-                .find(|m| m.name == format!("__{}", i))
-                .unwrap();
+            let m =
+                ty.members.iter().find(|m| m.name == format!("__{i}")).unwrap();
             let mty = hubris.lookup_type(m.goff)?;
             let out = deserialize_value(hubris, buf, mty)?;
             contents.push(out.0);
@@ -1287,7 +1284,7 @@ fn deserialize_base<'a>(
             (Base::F64(v), buf)
         }
 
-        _ => panic!("unexpected basetype: {:?}", ty),
+        _ => panic!("unexpected basetype: {ty:?}"),
     };
     Ok((v, buf))
 }

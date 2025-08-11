@@ -98,7 +98,7 @@ fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
         println!(
             "{:10} 0x{:08x} - 0x{:08x} {:>7} {}{}{}{}{}{} {:2} {}",
             match region.daddr {
-                Some(daddr) => format!("0x{:08x}", daddr),
+                Some(daddr) => format!("0x{daddr:08x}"),
                 None => "-".to_owned(),
             },
             region.base,
@@ -117,15 +117,15 @@ fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
             region.tasks[0].id(),
             if region.attr.device {
                 if let Some(p) = hubris.lookup_peripheral_byaddr(region.base) {
-                    format!("[{}] {}", p, name)
+                    format!("[{p}] {name}")
                 } else {
-                    format!("[??] {}", name)
+                    format!("[??] {name}")
                 }
             } else if region.attr.external {
                 if let Some(e) = hubris.lookup_external_byaddr(region.base) {
-                    format!("[{}] {}", e, name)
+                    format!("[{e}] {name}")
                 } else {
-                    format!("[??] {}", name)
+                    format!("[??] {name}")
                 }
             } else {
                 name.to_string()

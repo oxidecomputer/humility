@@ -201,10 +201,7 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
                     let results =
                         context.run(core, ops.as_slice(), Some(buf))?;
                     if let Err(err) = &results[0] {
-                        println!(
-                            "Fail at index={}: results={:#?}",
-                            index, results
-                        );
+                        println!("Fail at index={index}: results={results:#?}",);
                         return Err(anyhow!("update fails: {:?}", err));
                     }
                     ops.clear();
@@ -254,7 +251,7 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
                 print_hash(buf);
             }
             Err(err) => {
-                println!("Error returned: {}", err);
+                println!("Error returned: {err}");
             }
         }
         return Ok(());
@@ -279,11 +276,11 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
             }
         );
         for byte in v1.iter().take(256 / 8) {
-            print!("{:02x}", byte);
+            print!("{byte:02x}");
         }
         println!(" result");
         for byte in correct.iter().take(256 / 8) {
-            print!("{:02x}", byte);
+            print!("{byte:02x}");
         }
         println!(" correct");
     };
@@ -468,7 +465,7 @@ fn print_hash(buf: &[u8]) {
             println!("Warning: return len != 256 bits");
         }
         for byte in buf {
-            print!("{:02x}", byte);
+            print!("{byte:02x}");
         }
         println!();
     } else {

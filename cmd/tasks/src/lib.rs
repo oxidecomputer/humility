@@ -168,7 +168,7 @@ fn print_regs(
         let reg = ARMRegister::from_usize(r).unwrap();
 
         if r != 0 && r % 4 == 0 {
-            write!(w, "   {}    ", bar)?;
+            write!(w, "   {bar}    ")?;
         }
 
         write!(w, "  {:>3} = 0x{:08x}", reg, regs.get(&reg).unwrap())?;
@@ -285,7 +285,7 @@ pub fn print_tasks(
 
             let task_value: reflect::Value =
                 reflect::load(hubris, &taskblock, task_t, offs).with_context(
-                    || format!("loading task control block for task {}", i),
+                    || format!("loading task control block for task {i}"),
                 )?;
             let task: Task = Task::from_value(&task_value)?;
 
@@ -451,7 +451,7 @@ pub fn print_tasks(
                     ..HubrisPrintFormat::default()
                 };
 
-                write!(w, "   |\n   +-----------> {:#08x} ", addr)?;
+                write!(w, "   |\n   +-----------> {addr:#08x} ")?;
                 task_value.format(hubris, fmt, &mut std::io::stdout())?;
                 writeln!(w, "\n")?;
             }
@@ -653,10 +653,10 @@ fn explain_fault_info(
             write!(w, "illegal instruction")?;
         }
         FaultInfo::InvalidOperation(bits) => {
-            write!(w, "general fault, cfsr=0x{:x}", bits)?;
+            write!(w, "general fault, cfsr=0x{bits:x}")?;
         }
         FaultInfo::StackOverflow { address } => {
-            write!(w, "stack overflow; sp=0x{:x}", address)?;
+            write!(w, "stack overflow; sp=0x{address:x}")?;
         }
         FaultInfo::Injected(task) => {
             write!(w, "killed by ")?;
@@ -665,7 +665,7 @@ fn explain_fault_info(
         FaultInfo::MemoryAccess { address, source } => {
             write!(w, "mem fault (")?;
             if let Some(addr) = address {
-                write!(w, "precise: 0x{:x}", addr)?;
+                write!(w, "precise: 0x{addr:x}")?;
             } else {
                 write!(w, "imprecise")?;
             }
@@ -676,7 +676,7 @@ fn explain_fault_info(
         FaultInfo::BusError { address, source } => {
             write!(w, "bus fault (")?;
             if let Some(addr) = address {
-                write!(w, "precise: 0x{:x}", addr)?;
+                write!(w, "precise: 0x{addr:x}")?;
             } else {
                 write!(w, "imprecise")?;
             }
@@ -696,7 +696,7 @@ fn explain_fault_info(
             core.read_8(msg_base, &mut buf)?;
             match std::str::from_utf8(&buf) {
                 Ok(msg) => {
-                    write!(w, "{}", msg)?;
+                    write!(w, "{msg}")?;
                 }
                 Err(_) => {
                     write!(w, "panic with invalid message")?;
@@ -704,7 +704,7 @@ fn explain_fault_info(
             }
         }
         FaultInfo::FromServer(task_id, reason) => {
-            write!(w, "reply fault: task id {}, reason {:?}", task_id, reason)?;
+            write!(w, "reply fault: task id {task_id}, reason {reason:?}")?;
         }
     }
     Ok(())

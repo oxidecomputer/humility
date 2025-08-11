@@ -388,9 +388,9 @@ enum PinState {
 impl std::fmt::Display for RendmpDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            RendmpDevice::GenTwo(d) => write!(f, "{:?}", d),
-            RendmpDevice::GenTwoFive(d) => write!(f, "{:?}", d),
-            RendmpDevice::GenThree(d) => write!(f, "{:?}", d),
+            RendmpDevice::GenTwo(d) => write!(f, "{d:?}"),
+            RendmpDevice::GenTwoFive(d) => write!(f, "{d:?}"),
+            RendmpDevice::GenThree(d) => write!(f, "{d:?}"),
         }
     }
 }
@@ -453,7 +453,7 @@ impl RendmpDevice {
 
         for i in 0..255u8 {
             if let Ok(d) = Self::from_id(i) {
-                if search == format!("{}", d) {
+                if search == format!("{d}") {
                     return Ok(d);
                 }
             }
@@ -795,25 +795,25 @@ pub fn {}_payload<E>(
             Address::Dma(addr) => {
                 let p = addr.to_le_bytes();
 
-                println!("        // DMAADDR = 0x{:04x}", addr);
+                println!("        // DMAADDR = 0x{addr:04x}");
                 println!(
                     "        &[ 0x{:02x}, 0x{:02x}, 0x{:02x} ],\n",
                     dmaaddr, p[0], p[1]
                 );
 
                 println!("        // DMAFIX = {:x?}", packet.payload);
-                print!("        &[ 0x{:02x}, ", dmafix);
+                print!("        &[ 0x{dmafix:02x}, ");
             }
 
             Address::Pmbus(code, name) => {
                 println!("        // {} = {:x?}", name, packet.payload);
 
-                print!("        &[ 0x{:02x}, ", code);
+                print!("        &[ 0x{code:02x}, ");
             }
         }
 
         for byte in &packet.payload {
-            print!("0x{:02x}, ", byte);
+            print!("0x{byte:02x}, ");
         }
 
         println!("],\n");
@@ -2685,7 +2685,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         let mut i = 0;
 
         let filename = loop {
-            filename = format!("hubris.rendmp.dump.{}", i);
+            filename = format!("hubris.rendmp.dump.{i}");
 
             if let Ok(_f) = fs::File::open(&filename) {
                 i += 1;

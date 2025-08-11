@@ -79,6 +79,8 @@ members = [
     "xtask",
 ]
 resolver = "2"
+
+[workspace.package]
 rust-version = "1.82"
 
 [workspace.dependencies]

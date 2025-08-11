@@ -205,7 +205,7 @@ impl GDBCore {
             GDBServer::JLink => 2331,
         };
 
-        let host = format!("127.0.0.1:{}", port);
+        let host = format!("127.0.0.1:{port}");
         let addr = host.parse()?;
         let timeout = Duration::from_millis(100);
 
@@ -242,7 +242,7 @@ impl Core for GDBCore {
     }
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
-        self.send_32(&format!("m{:x},4", addr))
+        self.send_32(&format!("m{addr:x},4"))
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {

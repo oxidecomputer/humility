@@ -253,7 +253,7 @@ fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
     for (port, macs) in &mac_table {
         for (i, mac) in macs.iter().enumerate() {
             if i == 0 {
-                print!("{:>5} | ", port);
+                print!("{port:>5} | ");
             } else {
                 print!("      | ");
             }
@@ -261,7 +261,7 @@ fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
                 if i > 0 {
                     print!(":");
                 }
-                print!("{:02x}", m);
+                print!("{m:02x}");
             }
             println!();
         }
@@ -406,7 +406,7 @@ fn net_counters_table(s: &Struct) -> Result<()> {
     let k_rx = s["ksz8463_rx"].as_array()?;
     let value = |k: &Struct, s: &str| {
         let k = k[s].as_base().unwrap().as_u32().unwrap();
-        let out = format!("{:>6}", k);
+        let out = format!("{k:>6}");
         if k > 0 {
             if s.contains("ERR") {
                 out.red()
@@ -456,7 +456,7 @@ fn net_counters_table(s: &Struct) -> Result<()> {
 
     let value = |v: &Struct, s: &str| {
         let v = v[s].as_base().unwrap().as_u16().unwrap();
-        let out = format!("{:>6}", v);
+        let out = format!("{v:>6}");
         if v > 0 {
             if s.contains("good") {
                 out.green()

@@ -70,7 +70,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
     }
 
     let print = |what, val| {
-        println!("{:>12} => {}", what, val);
+        println!("{what:>12} => {val}");
     };
 
     let size = |task| hubris.lookup_module(task).unwrap().memsize;
@@ -186,7 +186,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 
         for (ndx, device) in manifest.i2c_devices.iter().enumerate() {
             let mux = match (device.mux, device.segment) {
-                (Some(m), Some(s)) => format!("{}:{}", m, s),
+                (Some(m), Some(s)) => format!("{m}:{s}"),
                 (None, None) => "-".to_string(),
                 (_, _) => "?:?".to_string(),
             };
@@ -219,7 +219,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         if bytes_per_slot % ONE_MIB == 0 {
             println!(" ({} MiB/slot)", bytes_per_slot / ONE_MIB);
         } else {
-            println!(" ({} bytes/slot)", bytes_per_slot);
+            println!(" ({bytes_per_slot} bytes/slot)");
         }
     }
 
@@ -234,7 +234,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 
         for (ndx, s) in manifest.sensors.iter().enumerate() {
             let device = match &s.device {
-                HubrisSensorDevice::I2c(ndx) => format!("i2c id={}", ndx),
+                HubrisSensorDevice::I2c(ndx) => format!("i2c id={ndx}"),
                 HubrisSensorDevice::Other(dev, _) => dev.to_string(),
             };
             println!(

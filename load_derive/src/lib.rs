@@ -47,7 +47,7 @@ fn gen_enum(
             syn::Fields::Unnamed(fields) => {
                 let len = fields.unnamed.len();
                 let field_lets = fields.unnamed.iter().enumerate().map(|(i, fld)| {
-                    let name = syn::Ident::new(&format!("field_{}", i), fld.span());
+                    let name = syn::Ident::new(&format!("field_{i}"), fld.span());
                     let fty = &fld.ty;
                     quote_spanned!(fld.span()=>
                         let #name: #fty = humility::reflect::Load::from_value(&contents[#i])?;
@@ -58,10 +58,8 @@ fn gen_enum(
 
                 let field_uses =
                     fields.unnamed.iter().enumerate().map(|(i, fld)| {
-                        let name = syn::Ident::new(
-                            &format!("field_{}", i),
-                            fld.span(),
-                        );
+                        let name =
+                            syn::Ident::new(&format!("field_{i}"), fld.span());
                         quote_spanned!(fld.span()=> #name,)
                     });
                 let field_uses =
@@ -163,7 +161,7 @@ fn gen_unnamed_struct(
 ) -> proc_macro2::TokenStream {
     let len = fields.unnamed.len();
     let field_lets = fields.unnamed.iter().enumerate().map(|(i, fld)| {
-        let name = syn::Ident::new(&format!("field_{}", i), fld.span());
+        let name = syn::Ident::new(&format!("field_{i}"), fld.span());
         let fty = &fld.ty;
         quote_spanned!(fld.span()=>
             let #name: #fty = humility::reflect::Load::from_value(&v[#i])?;
@@ -172,7 +170,7 @@ fn gen_unnamed_struct(
     let field_lets = field_lets.collect::<proc_macro2::TokenStream>();
 
     let field_uses = fields.unnamed.iter().enumerate().map(|(i, fld)| {
-        let name = syn::Ident::new(&format!("field_{}", i), fld.span());
+        let name = syn::Ident::new(&format!("field_{i}"), fld.span());
         quote_spanned!(fld.span()=> #name,)
     });
     let field_uses = field_uses.collect::<proc_macro2::TokenStream>();

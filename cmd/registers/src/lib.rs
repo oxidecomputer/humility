@@ -156,7 +156,7 @@ struct RegistersArgs {
 }
 
 fn print_reg(reg: ARMRegister, val: u32, fields: &[ARMRegisterField]) {
-    print!("{:>5} = 0x{:08x} <- ", reg, val);
+    print!("{reg:>5} = 0x{val:08x} <- ");
     let indent = 5 + "= 0x00000000 <- ".len();
 
     for i in (0..32).step_by(4).rev() {
@@ -310,7 +310,7 @@ fn registers(context: &mut ExecutionContext) -> Result<()> {
             val,
             if !reg.is_floating_point() {
                 match hubris.explain(&regions, val) {
-                    Some(explain) => format!(" <- {}", explain),
+                    Some(explain) => format!(" <- {explain}"),
                     None => "".to_string(),
                 }
             } else {

@@ -243,7 +243,7 @@ fn make_all_tests() -> Result<()> {
 #[test]
 fn cli_tests() {
     if let Err(err) = make_all_tests() {
-        panic!("make_tests() failed: {:?}", err);
+        panic!("make_tests() failed: {err:?}");
     }
 
     match std::env::var_os("TRYCMD_TEST") {

@@ -145,7 +145,7 @@ fn gdb(context: &mut ExecutionContext) -> Result<()> {
             cmd.arg("-c")
                 .arg("interface hla")
                 .arg("-c")
-                .arg(format!("hla_serial {}", serial));
+                .arg(format!("hla_serial {serial}"));
         }
         cmd.current_dir(work_dir.path());
         cmd.stdin(Stdio::piped());

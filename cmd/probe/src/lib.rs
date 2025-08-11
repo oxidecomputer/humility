@@ -285,7 +285,7 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
         .components
         .keys()
         .filter(|k| k.displayable())
-        .map(|k| (format!("{:?}", k), *k))
+        .map(|k| (format!("{k:?}"), *k))
         .collect::<Vec<(String, CoreSightComponent)>>();
 
     sorted.sort();
@@ -361,7 +361,7 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
             format!("{:x}", val),
             if reg.is_general_purpose() {
                 match hubris.explain(&regions, val) {
-                    Some(explain) => format!("  <- {}", explain),
+                    Some(explain) => format!("  <- {explain}"),
                     None => "".to_string(),
                 }
             } else {
