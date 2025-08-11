@@ -79,6 +79,7 @@ members = [
     "xtask",
 ]
 resolver = "2"
+rust-version = "1.82"
 
 [workspace.dependencies]
 # `git`-based deps

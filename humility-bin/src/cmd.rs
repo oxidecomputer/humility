@@ -62,9 +62,7 @@ pub fn subcommand(
         CommandKind::Detached { archive, .. } => {
             (*archive, HubrisArchiveDoneness::Cook)
         }
-        CommandKind::Raw { .. } => {
-            (Archive::Required, HubrisArchiveDoneness::Raw)
-        }
+        CommandKind::Raw => (Archive::Required, HubrisArchiveDoneness::Raw),
     };
 
     if archive != Archive::Ignored {
@@ -112,6 +110,6 @@ pub fn subcommand(
 
             (run)(context)
         }
-        CommandKind::Raw { .. } => (run)(context),
+        CommandKind::Raw => (run)(context),
     }
 }

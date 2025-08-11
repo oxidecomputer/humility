@@ -583,7 +583,7 @@ impl Namespaces {
     fn to_full_name(
         &self,
         id: Option<NamespaceId>,
-        name: &String,
+        name: &str,
     ) -> Result<Option<String>> {
         let mut n = self.to_full(id)?;
 
@@ -895,7 +895,7 @@ impl HubrisArchive {
                     .unwrap()
                     .sensors
                     .as_ref()
-                    .map_or(true, |s| s.contains(&kind))
+                    .is_none_or(|s| s.contains(&kind))
             {
                 if let Some(rails) = &d.power.as_ref().unwrap().rails {
                     if idx < rails.len() {
