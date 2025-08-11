@@ -790,7 +790,7 @@ impl HubrisArchive {
         })
     }
 
-    pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined> {
+    pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined<'_>> {
         let mut inlined: Vec<HubrisInlined> = vec![];
 
         //
@@ -1821,7 +1821,7 @@ impl HubrisArchive {
         }
     }
 
-    pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType> {
+    pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType<'_>> {
         let r = self
             .lookup_struct(goff)
             .map(HubrisType::Struct)
@@ -2840,7 +2840,7 @@ impl HubrisArchive {
         task: HubrisTask,
         limit: u32,
         regs: &BTreeMap<ARMRegister, u32>,
-    ) -> Result<Vec<HubrisStackFrame>> {
+    ) -> Result<Vec<HubrisStackFrame<'_>>> {
         let regions = self.regions(core)?;
         let sp = regs
             .get(&ARMRegister::SP)

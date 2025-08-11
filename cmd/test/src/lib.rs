@@ -162,34 +162,6 @@ impl fmt::Display for TestResult {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum TestRunResult {
-    Pass,
-    Fail,
-    Unknown(String),
-}
-
-impl From<&str> for TestRunResult {
-    fn from(input: &str) -> Self {
-        match input {
-            "pass" => TestRunResult::Pass,
-            "FAIL" => TestRunResult::Fail,
-            _ => TestRunResult::Unknown(input.to_owned()),
-        }
-    }
-}
-
-#[rustfmt::skip::macros(write)]
-impl fmt::Display for TestRunResult {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            TestRunResult::Pass => "pass".green(),
-            TestRunResult::Fail => "fail".red(),
-            TestRunResult::Unknown(ref _str) => "unknown".bold(),
-        })
-    }
-}
-
 fn test(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
