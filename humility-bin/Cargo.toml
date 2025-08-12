@@ -20,7 +20,6 @@ name = "humility-bin"
 version = "0.12.7"
 edition = "2021"
 license = "MPL-2.0"
-rust-version = "1.68"
 
 [build-dependencies]
 cargo_metadata = { workspace = true }

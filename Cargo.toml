@@ -79,7 +79,9 @@ members = [
     "xtask",
 ]
 resolver = "2"
-rust-version = "1.82"
+
+[workspace.package]
+rust-version = "1.82" # if this changes, edit ci.yaml as well!
 
 [workspace.dependencies]
 # `git`-based deps

@@ -6427,9 +6427,8 @@ impl HubrisModule {
                         .map(|g| {
                             let ns = hubris.structs.get(g).unwrap().namespace;
 
-                            if let Ok(Some(name)) = hubris
-                                .namespaces
-                                .to_full_name(ns, &name.to_string())
+                            if let Ok(Some(name)) =
+                                hubris.namespaces.to_full_name(ns, name)
                             {
                                 format!("{name} as {g}")
                             } else {
@@ -6474,9 +6473,8 @@ impl HubrisModule {
                         .map(|g| {
                             let n = hubris.enums.get(g).unwrap().namespace;
 
-                            if let Ok(Some(name)) = hubris
-                                .namespaces
-                                .to_full_name(n, &name.to_string())
+                            if let Ok(Some(name)) =
+                                hubris.namespaces.to_full_name(n, name)
                             {
                                 format!("{name} as {g}")
                             } else {
