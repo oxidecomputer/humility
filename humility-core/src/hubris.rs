@@ -583,7 +583,7 @@ impl Namespaces {
     fn to_full_name(
         &self,
         id: Option<NamespaceId>,
-        name: &String,
+        name: &str,
     ) -> Result<Option<String>> {
         let mut n = self.to_full(id)?;
 
@@ -790,7 +790,7 @@ impl HubrisArchive {
         })
     }
 
-    pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined> {
+    pub fn instr_inlined(&self, pc: u32, base: u32) -> Vec<HubrisInlined<'_>> {
         let mut inlined: Vec<HubrisInlined> = vec![];
 
         //
@@ -895,7 +895,7 @@ impl HubrisArchive {
                     .unwrap()
                     .sensors
                     .as_ref()
-                    .map_or(true, |s| s.contains(&kind))
+                    .is_none_or(|s| s.contains(&kind))
             {
                 if let Some(rails) = &d.power.as_ref().unwrap().rails {
                     if idx < rails.len() {
@@ -1821,7 +1821,7 @@ impl HubrisArchive {
         }
     }
 
-    pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType> {
+    pub fn lookup_type(&self, goff: HubrisGoff) -> Result<HubrisType<'_>> {
         let r = self
             .lookup_struct(goff)
             .map(HubrisType::Struct)
@@ -2840,7 +2840,7 @@ impl HubrisArchive {
         task: HubrisTask,
         limit: u32,
         regs: &BTreeMap<ARMRegister, u32>,
-    ) -> Result<Vec<HubrisStackFrame>> {
+    ) -> Result<Vec<HubrisStackFrame<'_>>> {
         let regions = self.regions(core)?;
         let sp = regs
             .get(&ARMRegister::SP)
@@ -6427,9 +6427,8 @@ impl HubrisModule {
                         .map(|g| {
                             let ns = hubris.structs.get(g).unwrap().namespace;
 
-                            if let Ok(Some(name)) = hubris
-                                .namespaces
-                                .to_full_name(ns, &name.to_string())
+                            if let Ok(Some(name)) =
+                                hubris.namespaces.to_full_name(ns, name)
                             {
                                 format!("{name} as {g}")
                             } else {
@@ -6474,9 +6473,8 @@ impl HubrisModule {
                         .map(|g| {
                             let n = hubris.enums.get(g).unwrap().namespace;
 
-                            if let Ok(Some(name)) = hubris
-                                .namespaces
-                                .to_full_name(n, &name.to_string())
+                            if let Ok(Some(name)) =
+                                hubris.namespaces.to_full_name(n, name)
                             {
                                 format!("{name} as {g}")
                             } else {

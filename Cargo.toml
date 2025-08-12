@@ -80,6 +80,9 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+rust-version = "1.82" # if this changes, edit ci.yaml as well!
+
 [workspace.dependencies]
 # `git`-based deps
 gimlet-inspector-protocol = { git = "https://github.com/oxidecomputer/gimlet-inspector-protocol" }

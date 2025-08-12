@@ -89,7 +89,7 @@ fn validate_single_archive() {
     }
     "#;
 
-    let v: IndexMap<String, Environment> = serde_json::from_str(&data).unwrap();
+    let v: IndexMap<String, Environment> = serde_json::from_str(data).unwrap();
 
     let _b = v.get("board1").unwrap().archive(&None);
 }
@@ -109,7 +109,7 @@ fn validate_multi_archive() {
     }
     "#;
 
-    let v: IndexMap<String, Environment> = serde_json::from_str(&data).unwrap();
+    let v: IndexMap<String, Environment> = serde_json::from_str(data).unwrap();
 
     let _b = v.get("board1").unwrap().archive(&Some("name1".to_string()));
     let _b = v.get("board1").unwrap().archive(&Some("name2".to_string()));

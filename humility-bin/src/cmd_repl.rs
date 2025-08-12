@@ -41,29 +41,29 @@ impl Prompt {
 }
 
 impl reedline::Prompt for Prompt {
-    fn render_prompt_left(&self) -> Cow<str> {
+    fn render_prompt_left(&self) -> Cow<'_, str> {
         Cow::from(&self.prefix)
     }
 
-    fn render_prompt_right(&self) -> Cow<str> {
+    fn render_prompt_right(&self) -> Cow<'_, str> {
         self.default_prompt.render_prompt_right()
     }
 
     fn render_prompt_indicator(
         &self,
         prompt_mode: reedline::PromptEditMode,
-    ) -> Cow<str> {
+    ) -> Cow<'_, str> {
         self.default_prompt.render_prompt_indicator(prompt_mode)
     }
 
-    fn render_prompt_multiline_indicator(&self) -> Cow<str> {
+    fn render_prompt_multiline_indicator(&self) -> Cow<'_, str> {
         self.default_prompt.render_prompt_multiline_indicator()
     }
 
     fn render_prompt_history_search_indicator(
         &self,
         history_search: reedline::PromptHistorySearch,
-    ) -> Cow<str> {
+    ) -> Cow<'_, str> {
         self.default_prompt
             .render_prompt_history_search_indicator(history_search)
     }

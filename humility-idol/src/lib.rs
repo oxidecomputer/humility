@@ -865,11 +865,11 @@ pub fn lookup_reply<'a>(
 
 /// Extention trait to add `get_idol_command` to a `HubrisArchive`
 pub trait HubrisIdol {
-    fn get_idol_command(&self, name: &str) -> Result<IdolOperation>;
+    fn get_idol_command(&self, name: &str) -> Result<IdolOperation<'_>>;
 }
 
 impl HubrisIdol for HubrisArchive {
-    fn get_idol_command(&self, name: &str) -> Result<IdolOperation> {
+    fn get_idol_command(&self, name: &str) -> Result<IdolOperation<'_>> {
         let mut iter = name.split('.');
         let interface = iter
             .next()

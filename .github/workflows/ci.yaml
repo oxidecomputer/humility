@@ -25,6 +25,11 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: "1.82" # must match Cargo.toml
+          override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
@@ -74,6 +79,11 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
@@ -88,6 +98,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+          override: true
       - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
