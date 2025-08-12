@@ -190,6 +190,7 @@ cmd-vpd = { path = "./cmd/vpd", package = "humility-cmd-vpd" }
 cmd-writeword = { path = "./cmd/writeword", package = "humility-cmd-writeword" }
 
 # crates.io deps
+addr2line = "0.25"
 anyhow = { version = "1.0.44", features = ["backtrace"] }
 atty = "0.2"
 bitfield = "0.13.2"

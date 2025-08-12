@@ -14,10 +14,10 @@
    SP = 0x20000f10 <- kernel: 0x20000000+0xf10
         |
         +--->  0x20000f18 0x0800383e kern::arch::arm_m::disable_irq
-               0x20000f58 0x08003b56 kern::arch::arm_m::DefaultHandler::{{closure}}::{{closure}}
-               0x20000f58 0x08003b48 kern::arch::arm_m::with_irq_table
-               0x20000f58 0x08003b48 kern::arch::arm_m::DefaultHandler::{{closure}}
-               0x20000f58 0x08003b3c kern::arch::arm_m::with_task_table
+               0x20000f58 0x08003b6e kern::arch::arm_m::DefaultHandler::{{closure}}::{{closure}}
+               0x20000f58 0x08003b6e kern::arch::arm_m::with_irq_table
+               0x20000f58 0x08003b6e kern::arch::arm_m::DefaultHandler::{{closure}}
+               0x20000f58 0x08003b6e kern::arch::arm_m::with_task_table
                0x20000f58 0x08003b6e DefaultHandler
 
    LR = 0x08003b6f <- kernel: DefaultHandler+0x63

@@ -3,13 +3,13 @@ ID TASK                       GEN PRI STATE
  0 jefe                         0   0 wait: send to jefe/gen0
    |
    +--->  0x20013538 0x0803554c userlib::sys_recv_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:332
-   |      0x20013600 0x080342b8 userlib::sys_recv
-   |                 @ /hubris/sys/userlib/src/lib.rs:280
-   |      0x20013600 0x080342b8 userlib::sys_recv_open
-   |                 @ /hubris/sys/userlib/src/lib.rs:236
+   |                 @ /hubris/sys/userlib/src/lib.rs:387:13
+   |      0x20013600 0x080342ca userlib::sys_recv
+   |                 @ /hubris/sys/userlib/src/lib.rs:306:8
+   |      0x20013600 0x080342ca userlib::sys_recv_open
+   |                 @ /hubris/sys/userlib/src/lib.rs:240:11
    |      0x20013600 0x080342ca main
-   |                 @ /hubris//task/jefe/src/main.rs:106
+   |                 @ /hubris/task/jefe/src/main.rs:132:23
    |
    |
    +--->   R0 = 0x08035bf4   R1 = 0x00000000   R2 = 0x00000003   R3 = 0x200135dc
@@ -65,23 +65,23 @@ ID TASK                       GEN PRI STATE
  1 sys                          0   1 FAULT: illegal instruction (was: ready)
    |
    +--->  0x20015330 0x0803e60a userlib::sys_panic_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:990
-   |      0x20015338 0x0803e610 userlib::sys_panic
-   |                 @ /hubris//sys/userlib/src/lib.rs:982
+   |                 @ /hubris/sys/userlib/src/lib.rs:1017:13
+   |      0x20015338 0x0803e618 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:983:14
    |      0x20015338 0x0803e618 rust_begin_unwind
-   |                 @ /hubris//sys/userlib/src/lib.rs:1445
+   |                 @ /hubris/sys/userlib/src/lib.rs:1446:5
    |      0x20015340 0x0803e47c core::panicking::panic_fmt
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:88
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:103:14
    |      0x20015348 0x0803e486 core::panicking::panic
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:39
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:50:5
    |      0x20015350 0x0803e46c drv_stm32xx_sys::idl::InOrderSysImpl::closed_recv_fail
-   |                 @ /hubris/target/thumbv7em-none-eabihf/release/build/drv-stm32xx-sys-c6d586730361d51c/out/server_stub.rs:244
-   |      0x20015380 0x0803e402 drv_stm32xx_sys::idl::<impl idol_runtime::Server<drv_stm32xx_sys::idl::SysOperation> for (core::marker::PhantomData<drv_stm32xx_sys::idl::SysOperation>,&mut S)>::closed_recv_fail
-   |                 @ /hubris/target/thumbv7em-none-eabihf/release/build/drv-stm32xx-sys-c6d586730361d51c/out/server_stub.rs:308
-   |      0x20015380 0x0803e090 idol_runtime::dispatch
-   |                 @ /git/idolatry-1ebf1c2fd2f30300/add88a5/runtime/src/lib.rs:169
+   |                 @ /build/drv-stm32xx-sys-c6d586730361d51c/out/server_stub.rs:245:9
+   |      0x20015380 0x0803e406 drv_stm32xx_sys::idl::<impl idol_runtime::Server<drv_stm32xx_sys::idl::SysOperation> for (core::marker::PhantomData<drv_stm32xx_sys::idl::SysOperation>,&mut S)>::closed_recv_fail
+   |                 @ /build/drv-stm32xx-sys-c6d586730361d51c/out/server_stub.rs:309:9
+   |      0x20015380 0x0803e406 idol_runtime::dispatch
+   |                 @ /git/idolatry-1ebf1c2fd2f30300/add88a5/runtime/src/lib.rs:177:13
    |      0x20015380 0x0803e406 main
-   |                 @ /hubris//drv/stm32xx-sys/src/main.rs:73
+   |                 @ /hubris/drv/stm32xx-sys/src/main.rs:131:9
    |
    |
    +--->   R0 = 0x0803e674   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x20015360
@@ -140,15 +140,15 @@ ID TASK                       GEN PRI STATE
  2 i2c_driver                   0   2 FAULT: illegal instruction (was: ready)
    |
    +--->  0x20013a48 0x0802995a userlib::sys_panic_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:990
-   |      0x20013a80 0x08029992 userlib::sys_panic
-   |                 @ /hubris//sys/userlib/src/lib.rs:982
+   |                 @ /hubris/sys/userlib/src/lib.rs:1017:13
+   |      0x20013a80 0x08029996 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:983:14
    |      0x20013a80 0x08029996 rust_begin_unwind
-   |                 @ /hubris//sys/userlib/src/lib.rs:1298
+   |                 @ /hubris/sys/userlib/src/lib.rs:1437:5
    |      0x20013a98 0x08028e62 core::panicking::panic_fmt
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:88
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:103:14
    |      0x20013ac0 0x080291d4 core::panicking::panic
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:39
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:50:5
    |      0x20013b80 0x08028af8 main
    |                 @ /hubris//drv/stm32h7-i2c-server/src/main.rs:149
    |
@@ -209,15 +209,15 @@ ID TASK                       GEN PRI STATE
  3 spi_driver                   0   2 FAULT: illegal instruction (was: ready)
    |
    +--->  0x20014278 0x0802dcaa userlib::sys_panic_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:990
-   |      0x200142b0 0x0802dce2 userlib::sys_panic
-   |                 @ /hubris//sys/userlib/src/lib.rs:982
+   |                 @ /hubris/sys/userlib/src/lib.rs:1017:13
+   |      0x200142b0 0x0802dce6 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:983:14
    |      0x200142b0 0x0802dce6 rust_begin_unwind
-   |                 @ /hubris//sys/userlib/src/lib.rs:1298
+   |                 @ /hubris/sys/userlib/src/lib.rs:1437:5
    |      0x200142c8 0x0802d272 core::panicking::panic_fmt
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:88
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:103:14
    |      0x200142f0 0x0802d626 core::panicking::panic
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:39
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:50:5
    |      0x20014370 0x0802c3bc main
    |                 @ /hubris//drv/stm32h7-spi-server/src/main.rs:59
    |
@@ -278,21 +278,21 @@ ID TASK                       GEN PRI STATE
  4 user_leds                    0   2 FAULT: illegal instruction (was: ready)
    |
    +--->  0x200156f0 0x0803ebf2 userlib::sys_panic_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:990
-   |      0x200156f8 0x0803ebf8 userlib::sys_panic
-   |                 @ /hubris//sys/userlib/src/lib.rs:982
+   |                 @ /hubris/sys/userlib/src/lib.rs:1017:13
+   |      0x200156f8 0x0803ec00 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:983:14
    |      0x200156f8 0x0803ec00 rust_begin_unwind
-   |                 @ /hubris//sys/userlib/src/lib.rs:1445
+   |                 @ /hubris/sys/userlib/src/lib.rs:1446:5
    |      0x20015700 0x0803eaa8 core::panicking::panic_fmt
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:88
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:103:14
    |      0x20015708 0x0803eab2 core::panicking::panic
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:39
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:50:5
    |      0x20015740 0x0803eb42 drv_stm32xx_sys_api::Sys::gpio_set_reset
-   |                 @ /hubris/target/thumbv7em-none-eabihf/release/build/drv-stm32xx-sys-api-8f1eaa8811658a88/out/client_stub.rs:316
-   |      0x20015780 0x0803e86a drv_user_leds::enable_led_pins
-   |                 @ /hubris//drv/user-leds/src/main.rs:397
+   |                 @ /build/drv-stm32xx-sys-api-8f1eaa8811658a88/out/client_stub.rs:367:13
+   |      0x20015780 0x0803e8a2 drv_user_leds::enable_led_pins
+   |                 @ /hubris/drv/user-leds/src/main.rs:405:9
    |      0x20015780 0x0803e8a2 main
-   |                 @ /hubris//drv/user-leds/src/main.rs:111
+   |                 @ /hubris/drv/user-leds/src/main.rs:112:5
    |
    |
    +--->   R0 = 0x0803ec8a   R1 = 0x00000005   R2 = 0x00000000   R3 = 0x00000004
@@ -351,15 +351,15 @@ ID TASK                       GEN PRI STATE
  5 pong                         0   3 FAULT: illegal instruction (was: ready)
    |
    +--->  0x20015b20 0x0803f1fa userlib::sys_panic_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:990
-   |      0x20015b28 0x0803f200 userlib::sys_panic
-   |                 @ /hubris//sys/userlib/src/lib.rs:982
+   |                 @ /hubris/sys/userlib/src/lib.rs:1017:13
+   |      0x20015b28 0x0803f208 userlib::sys_panic
+   |                 @ /hubris/sys/userlib/src/lib.rs:983:14
    |      0x20015b28 0x0803f208 rust_begin_unwind
-   |                 @ /hubris//sys/userlib/src/lib.rs:1445
+   |                 @ /hubris/sys/userlib/src/lib.rs:1446:5
    |      0x20015b30 0x0803f160 core::panicking::panic_fmt
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:88
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:103:14
    |      0x20015b38 0x0803f16a core::panicking::panic
-   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c//library/core/src/panicking.rs:39
+   |                 @ /rustc/ac2d9fc509e36d1b32513744adf58c34bcc4f43c/library/core/src/panicking.rs:50:5
    |      0x20015b80 0x0803f132 main
    |                 @ /hubris//task/pong/src/main.rs:13
    |
@@ -420,17 +420,17 @@ ID TASK                       GEN PRI STATE
  6 uartecho                     0   3 RUNNING
    |
    +--->  0x20010728 0x080372ae userlib::sys_send_stub
-   |                 @ /hubris//sys/userlib/src/lib.rs:154
-   |      0x20010800 0x0803621c drv_stm32xx_sys_api::Sys::enable_clock_raw
-   |                 @ /hubris/target/thumbv7em-none-eabihf/release/build/drv-stm32xx-sys-api-f1c4139af0e99a98/out/client_stub.rs:30
-   |      0x20010800 0x0803621c drv_stm32xx_sys_api::Sys::enable_clock
-   |                 @ /hubris//drv/stm32xx-sys-api/src/lib.rs:43
-   |      0x20010800 0x0803621c drv_stm32h7_usart::Usart::turn_on
-   |                 @ /hubris//drv/stm32h7-usart/src/lib.rs:39
-   |      0x20010800 0x080361fa task_uartecho::configure_uart_device
-   |                 @ /hubris//task/uartecho/src/main.rs:167
+   |                 @ /hubris/sys/userlib/src/lib.rs:194:13
+   |      0x20010800 0x08036244 drv_stm32xx_sys_api::Sys::enable_clock_raw
+   |                 @ /build/drv-stm32xx-sys-api-f1c4139af0e99a98/out/client_stub.rs:64:12
+   |      0x20010800 0x08036244 drv_stm32xx_sys_api::Sys::enable_clock
+   |                 @ /hubris/drv/stm32xx-sys-api/src/lib.rs:46:9
+   |      0x20010800 0x08036244 drv_stm32h7_usart::Usart::turn_on
+   |                 @ /hubris/drv/stm32h7-usart/src/lib.rs:48:9
+   |      0x20010800 0x08036244 task_uartecho::configure_uart_device
+   |                 @ /hubris/task/uartecho/src/main.rs:243:5
    |      0x20010800 0x08036244 main
-   |                 @ /hubris//task/uartecho/src/main.rs:44
+   |                 @ /hubris/task/uartecho/src/main.rs:45:16
    |
    |
    +--->   R0 = 0x20010778   R1 = 0x000003fe   R2 = 0x00000000   R3 = 0x00000000
@@ -486,7 +486,7 @@ ID TASK                       GEN PRI STATE
  7 hiffy                        0   4 ready
    |
    +--->  0x20008800 0x08008001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -542,7 +542,7 @@ ID TASK                       GEN PRI STATE
  8 hf                           0   3 ready
    |
    +--->  0x20014f80 0x08030001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -598,7 +598,7 @@ ID TASK                       GEN PRI STATE
  9 net                          0   3 ready
    |
    +--->  0x200050e0 0x08010001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -654,7 +654,7 @@ ID TASK                       GEN PRI STATE
 10 udpecho                      0   4 ready
    |
    +--->  0x20003000 0x08038001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -710,7 +710,7 @@ ID TASK                       GEN PRI STATE
 11 validate                     0   3 ready
    |
    +--->  0x20011400 0x08020001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -766,7 +766,7 @@ ID TASK                       GEN PRI STATE
 12 idle                         0   5 ready
    |
    +--->  0x20015f00 0x0803f401 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -822,7 +822,7 @@ ID TASK                       GEN PRI STATE
 13 rng_driver                   0   3 ready
    |
    +--->  0x20015d00 0x0803a001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000
@@ -878,7 +878,7 @@ ID TASK                       GEN PRI STATE
 14 update_server                0   3 ready
    |
    +--->  0x20012800 0x0803c001 _start
-   |                 @ /hubris//sys/userlib/src/lib.rs:1167
+   |                 @ /hubris/sys/userlib/src/lib.rs:1225:13
    |
    |
    +--->   R0 = 0x00000000   R1 = 0x00000000   R2 = 0x00000000   R3 = 0x00000000

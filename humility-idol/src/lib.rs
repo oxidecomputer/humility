@@ -16,7 +16,6 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use std::fmt;
 
-#[derive(Debug)]
 pub struct IdolOperation<'a> {
     hubris: &'a HubrisArchive,
     pub name: (String, String),
