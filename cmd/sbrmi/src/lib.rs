@@ -188,7 +188,7 @@ fn cpuid(
         context: &'a mut HiffyContext<'b>,
         thread: u8,
     }
-    impl<'a, 'b> SbrmiWorkspace<'a, 'b> {
+    impl SbrmiWorkspace<'_, '_> {
         fn cpuid2(&mut self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
             match call_cpuid(
                 self.hubris,
@@ -214,7 +214,7 @@ fn cpuid(
     struct WorkspaceRef<'a, 'b> {
         cell: Rc<RefCell<SbrmiWorkspace<'a, 'b>>>,
     }
-    impl<'a, 'b> raw_cpuid::CpuIdReader for WorkspaceRef<'a, 'b> {
+    impl raw_cpuid::CpuIdReader for WorkspaceRef<'_, '_> {
         fn cpuid2(&self, eax: u32, ecx: u32) -> raw_cpuid::CpuIdResult {
             let mut r = self.cell.borrow_mut();
             r.cpuid2(eax, ecx)

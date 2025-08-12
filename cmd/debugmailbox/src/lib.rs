@@ -238,7 +238,7 @@ fn write_req<'a>(
     }
 
     while response_len > 0 {
-        write_request_reg(probe, addr, response_len << 16 | ACK_TOKEN)
+        write_request_reg(probe, addr, (response_len << 16) | ACK_TOKEN)
             .context("ACKing response data")?;
 
         let b = read_return(probe, addr).context("Reading response data")?;
