@@ -39,7 +39,7 @@ execute = false  # let's assume XN until proven otherwise
 
 [tasks.runner]
 path = "../test-runner"
-name = "test-runner"
+bin-crate = "test-runner"
 priority = 0
 requires = {flash = 16384, ram = 4096}
 start = true
@@ -47,7 +47,7 @@ features = ["itm"]
 
 [tasks.suite]
 path = "../test-suite"
-name = "test-suite"
+bin-crate = "test-suite"
 priority = 2
 requires = {flash = 32768, ram = 4096}
 start = true
@@ -55,7 +55,7 @@ features = ["itm"]
 
 [tasks.assist]
 path = "../test-assist"
-name = "test-assist"
+bin-crate = "test-assist"
 priority = 1
 requires = {flash = 16384, ram = 4096}
 start = true
@@ -63,7 +63,7 @@ features = ["itm"]
 
 [tasks.idle]
 path = "../../task-idle"
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 3
 requires = {flash = 256, ram = 256}
 stacksize = 256

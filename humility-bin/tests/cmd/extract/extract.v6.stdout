@@ -12,7 +12,7 @@ features = ["g070"]
 stacksize = 640
 
 [tasks.jefe]
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 max-sizes = {flash = 4096, ram = 512}
 start = true
@@ -21,7 +21,7 @@ stacksize = 352
 notifications = ["timer", "fault"]
 
 [tasks.sys]
-name = "drv-stm32xx-sys"
+bin-crate = "drv-stm32xx-sys"
 features = ["g070"]
 priority = 1
 max-sizes = {flash = 2048, ram = 256}
@@ -31,7 +31,7 @@ stacksize = 256
 task-slots = ["jefe"]
 
 [tasks.usart_driver]
-name = "drv-stm32g0-usart"
+bin-crate = "drv-stm32g0-usart"
 features = ["g070"]
 priority = 2
 max-sizes = {flash = 4096, ram = 256}
@@ -43,7 +43,7 @@ task-slots = ["sys"]
 stacksize = 256
 
 [tasks.idle]
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 5
 max-sizes = {flash = 128, ram = 64}
 stacksize = 64

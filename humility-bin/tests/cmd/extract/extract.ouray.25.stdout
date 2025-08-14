@@ -47,7 +47,7 @@ dma = true
 
 [tasks.jefe]
 path = "../task-jefe"
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 requires = {flash = 16384, ram = 1024}
 start = true
@@ -56,7 +56,7 @@ stacksize = 1000
 
 [tasks.rcc_driver]
 path = "../drv/stm32h7-rcc"
-name = "drv-stm32h7-rcc"
+bin-crate = "drv-stm32h7-rcc"
 priority = 1
 requires = {flash = 8192, ram = 1024}
 uses = ["rcc"]
@@ -64,7 +64,7 @@ start = true
 
 [tasks.gpio_driver]
 path = "../drv/stm32h7-gpio"
-name = "drv-stm32h7-gpio"
+bin-crate = "drv-stm32h7-gpio"
 priority = 2
 requires = {flash = 8192, ram = 1024}
 uses = ["gpios1", "gpios2", "gpios3"]
@@ -72,7 +72,7 @@ start = true
 
 [tasks.usart_driver]
 path = "../drv/stm32h7-usart"
-name = "drv-stm32h7-usart"
+bin-crate = "drv-stm32h7-usart"
 features = ["h743"]
 priority = 2
 requires = { flash = 8192, ram = 1024}
@@ -82,7 +82,7 @@ interrupts = {39 = 1}
 
 [tasks.i2c_driver]
 path = "../drv/stm32h7-i2c-server"
-name = "drv-stm32h7-i2c-server"
+bin-crate = "drv-stm32h7-i2c-server"
 features = ["h743", "itm"]
 priority = 2
 requires = {flash = 16384, ram = 2048}
@@ -99,7 +99,7 @@ start = true
 
 [tasks.spd]
 path = "../task-spd"
-name = "task-spd"
+bin-crate = "task-spd"
 features = ["h743", "itm"]
 priority = 2
 requires = {flash = 16384, ram = 2048}
@@ -112,7 +112,7 @@ start = true
 
 [tasks.spi_driver]
 path = "../drv/stm32h7-spi-server"
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 2
 requires = {flash = 16384, ram = 1024}
 uses = ["spi2", "spi4"]
@@ -122,7 +122,7 @@ stacksize = 1000
 
 [tasks.spi]
 path = "../task-spi"
-name = "task-spi"
+bin-crate = "task-spi"
 features = ["itm"]
 priority = 3
 requires = {flash = 8192, ram = 2048}
@@ -130,7 +130,7 @@ start = true
 
 [tasks.user_leds]
 path = "../drv/user-leds"
-name = "drv-user-leds"
+bin-crate = "drv-user-leds"
 features = ["stm32h7"]
 priority = 2
 requires = {flash = 8192, ram = 1024}
@@ -138,14 +138,14 @@ start = true
 
 [tasks.pong]
 path = "../task-pong"
-name = "task-pong"
+bin-crate = "task-pong"
 priority = 3
 requires = {flash = 8192, ram = 1024}
 start = true
 
 [tasks.i2c_debug]
 path = "../task-i2c"
-name = "task-i2c"
+bin-crate = "task-i2c"
 features = ["itm"]
 priority = 3
 requires = {flash = 32768, ram = 8192 }
@@ -153,7 +153,7 @@ start = true
 
 [tasks.thermal]
 path = "../task-thermal"
-name = "task-thermal"
+bin-crate = "task-thermal"
 features = ["itm"]
 priority = 3
 requires = {flash = 65536, ram = 8192 }
@@ -162,7 +162,7 @@ start = true
 
 [tasks.net]
 path = "../task-net"
-name = "task-net"
+bin-crate = "task-net"
 priority = 2
 requires = {flash = 16384, ram = 2048, sram1 = 32768}
 sections = {eth_bulk = "sram1"}
@@ -172,7 +172,7 @@ interrupts = {61 = 0b1}
 
 [tasks.idle]
 path = "../task-idle"
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 5
 requires = {flash = 256, ram = 256}
 stacksize = 256
