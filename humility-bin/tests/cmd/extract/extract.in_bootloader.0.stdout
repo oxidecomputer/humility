@@ -20,7 +20,7 @@ requires = {flash = 32768, ram = 8192}
 features = ["itm"]
 
 [tasks.jefe]
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 max-sizes = {flash = 8192, ram = 2048}
 start = true
@@ -33,7 +33,7 @@ on-state-change = {net = {bit-number = 3}}
 reset-reason-owner = "sys"
 
 [tasks.net]
-name = "task-net"
+bin-crate = "task-net"
 stacksize = 4640
 priority = 5
 features = ["mgmt", "h753", "gimlet", "vlan"]
@@ -45,7 +45,7 @@ interrupts = {"eth.irq" = 0b1}
 task-slots = ["sys", { spi_driver = "spi2_driver" }, "jefe"]
 
 [tasks.sys]
-name = "drv-stm32xx-sys"
+bin-crate = "drv-stm32xx-sys"
 features = ["h753"]
 priority = 1
 max-sizes = {flash = 2048, ram = 1024}
@@ -54,7 +54,7 @@ start = true
 task-slots = ["jefe"]
 
 [tasks.spi4_driver]
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 3
 max-sizes = {flash = 16384, ram = 2048}
 features = ["spi4", "h753"]
@@ -68,7 +68,7 @@ task-slots = ["sys"]
 global_config = "spi4"
 
 [tasks.spi2_driver]
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 3
 max-sizes = {flash = 16384, ram = 2048}
 features = ["spi2", "h753"]
@@ -82,7 +82,7 @@ task-slots = ["sys"]
 global_config = "spi2"
 
 [tasks.i2c_driver]
-name = "drv-stm32h7-i2c-server"
+bin-crate = "drv-stm32h7-i2c-server"
 features = ["h753", "itm"]
 priority = 3
 max-sizes = {flash = 16384, ram = 2048}
@@ -99,7 +99,7 @@ task-slots = ["sys"]
 "i2c4.error" = 0b0000_1000
 
 [tasks.spd]
-name = "task-spd"
+bin-crate = "task-spd"
 features = ["h753", "itm"]
 priority = 2
 max-sizes = {flash = 16384, ram = 16384}
@@ -112,7 +112,7 @@ task-slots = ["sys", "i2c_driver"]
 "i2c1.error" = 0b0000_0001
 
 [tasks.thermal]
-name = "task-thermal"
+bin-crate = "task-thermal"
 features = ["itm", "gimlet"]
 priority = 5
 max-sizes = {flash = 32768, ram = 8192 }
@@ -121,7 +121,7 @@ start = true
 task-slots = ["i2c_driver", "sensor", "gimlet_seq", "jefe"]
 
 [tasks.power]
-name = "task-power"
+bin-crate = "task-power"
 features = ["itm", "gimlet"]
 priority = 6
 max-sizes = {flash = 16384, ram = 4096 }
@@ -130,7 +130,7 @@ start = true
 task-slots = ["i2c_driver", "sensor", "gimlet_seq"]
 
 [tasks.hiffy]
-name = "task-hiffy"
+bin-crate = "task-hiffy"
 features = ["h753", "stm32h7", "itm", "i2c", "gpio", "spi", "qspi", "hash"]
 priority = 5
 max-sizes = {flash = 32768, ram = 32768 }
@@ -139,7 +139,7 @@ start = true
 task-slots = ["sys", "hf", "i2c_driver", "hash_driver"]
 
 [tasks.gimlet_seq]
-name = "drv-gimlet-seq-server"
+bin-crate = "drv-gimlet-seq-server"
 features = ["h753"]
 priority = 4
 max-sizes = {flash = 65536, ram = 4096 }
@@ -152,7 +152,7 @@ fpga_image = "fpga-b.bin"
 register_defs = "gimlet-regs-b.json"
 
 [tasks.hash_driver]
-name = "drv-stm32h7-hash-server"
+bin-crate = "drv-stm32h7-hash-server"
 features = ["h753"]
 priority = 2
 max-sizes = {flash = 16384, ram=4096 }
@@ -163,7 +163,7 @@ interrupts = {"hash.irq" = 1}
 task-slots = ["sys"]
 
 [tasks.hf]
-name = "drv-gimlet-hf-server"
+bin-crate = "drv-gimlet-hf-server"
 features = ["h753", "hash"]
 priority = 3
 max-sizes = {flash = 16384, ram = 2048 }
@@ -174,7 +174,7 @@ interrupts = {"quadspi.irq" = 1}
 task-slots = ["sys", "hash_driver"]
 
 [tasks.sensor]
-name = "task-sensor"
+bin-crate = "task-sensor"
 features = ["itm"]
 priority = 4
 max-sizes = {flash = 8192, ram = 2048 }
@@ -182,7 +182,7 @@ stacksize = 1920        # Sensor data is stored on the stack
 start = true
 
 [tasks.udpecho]
-name = "task-udpecho"
+bin-crate = "task-udpecho"
 priority = 6
 max-sizes = {flash = 16384, ram = 8192}
 stacksize = 4096
@@ -191,7 +191,7 @@ task-slots = ["net"]
 features = ["vlan"]
 
 [tasks.udpbroadcast]
-name = "task-udpbroadcast"
+bin-crate = "task-udpbroadcast"
 priority = 6
 max-sizes = {flash = 16384, ram = 8192}
 stacksize = 2048
@@ -200,7 +200,7 @@ task-slots = ["net"]
 features = ["vlan"]
 
 [tasks.validate]
-name = "task-validate"
+bin-crate = "task-validate"
 priority = 5
 max-sizes = {flash = 16384, ram = 4096 }
 stacksize = 1000 
@@ -208,7 +208,7 @@ start = true
 task-slots = ["i2c_driver"]
 
 [tasks.idle]
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 7
 max-sizes = {flash = 128, ram = 256}
 stacksize = 256

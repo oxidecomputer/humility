@@ -13,7 +13,7 @@ requires = {flash = 51712, ram = 4096}
 features = ["dice-self"]
 
 [tasks.jefe]
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 max-sizes = {flash = 8192, ram = 2048}
 start = true
@@ -25,7 +25,7 @@ notifications = ["fault", "timer"]
 request_reset = ["update_server"]
 
 [tasks.hiffy]
-name = "task-hiffy"
+bin-crate = "task-hiffy"
 priority = 6
 features = ["lpc55", "gpio", "spctrl", "update"]
 max-sizes = {flash = 32768, ram = 16384 }
@@ -34,14 +34,14 @@ start = true
 task-slots = ["gpio_driver", "swd", "update_server"]
 
 [tasks.idle]
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 7
 max-sizes = {flash = 128, ram = 256}
 stacksize = 256
 start = true
 
 [tasks.update_server]
-name = "lpc55-update-server"
+bin-crate = "lpc55-update-server"
 priority = 3
 max-sizes = {flash = 16384, ram = 4096, usbsram = 4096}
 stacksize = 2048
@@ -53,7 +53,7 @@ interrupts = {"flash_controller.irq" = "flash-irq", "hash_crypt.irq" = "hashcryp
 task-slots = [{"syscon" = "syscon_driver"}, "jefe"]
 
 [tasks.syscon_driver]
-name = "drv-lpc55-syscon"
+bin-crate = "drv-lpc55-syscon"
 priority = 2
 max-sizes = {flash = 8192, ram = 2048}
 uses = ["syscon", "anactrl", "pmc"]
@@ -61,7 +61,7 @@ start = true
 task-slots = ["jefe"]
 
 [tasks.gpio_driver]
-name = "drv-lpc55-gpio"
+bin-crate = "drv-lpc55-gpio"
 priority = 3
 max-sizes = {flash = 8192, ram = 2048}
 uses = ["gpio", "iocon"]
@@ -69,7 +69,7 @@ start = true
 task-slots = ["syscon_driver"]
 
 [tasks.sprot]
-name = "drv-lpc55-sprot-server"
+bin-crate = "drv-lpc55-sprot-server"
 priority = 6
 max-sizes = {flash = 32768, ram = 32768}
 uses = ["flexcomm8", "bootrom"]
@@ -97,7 +97,7 @@ pins = [
 ]
 
 [tasks.swd]
-name = "drv-lpc55-swd"
+bin-crate = "drv-lpc55-swd"
 priority = 4
 max-sizes = {flash = 16384, ram = 4096}
 uses = ["flexcomm5", "iocon"]
@@ -130,7 +130,7 @@ pins = [
 spi_num = 5
 
 [tasks.dumper]
-name = "task-dumper"
+bin-crate = "task-dumper"
 priority = 5
 max-sizes = {flash = 16384, ram = 4096}
 start = true
@@ -140,7 +140,7 @@ task-slots = ["swd"]
 # We intentionally do not start this task to avoid conflicts with the SP
 # debug connection.
 [tasks.sp_measure]
-name = "task-sp-measure"
+bin-crate = "task-sp-measure"
 priority = 6
 max-sizes = {flash = 131072, ram = 8192}
 task-slots = ["swd"]
