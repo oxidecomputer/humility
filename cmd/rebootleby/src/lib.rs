@@ -247,8 +247,8 @@ impl FlashHack<'_> {
     }
 
     fn clear_status_flags(&mut self) -> Result<()> {
-        self.poke(INT_CLR_STATUS, 0xF) // don't and_check this it's
-        // write-1-to-clear
+        // don't poke_and_check this, it's write-1-to-clear
+        self.poke(INT_CLR_STATUS, 0xF)
     }
 
     fn set_word_range(&mut self, start: u32, end: u32) -> Result<()> {

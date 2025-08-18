@@ -728,7 +728,7 @@ fn monorail_status(
             ops.push(Op::DropN(4)); // Cleanup
         }
         ops.push(Op::Done); // Finish
-        //
+
         let mut results = context.run(core, ops.as_slice(), None)?;
         let phy_results = results.split_off(NUM_PORTS as usize);
         let port_results = results;
