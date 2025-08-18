@@ -196,7 +196,7 @@ use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolArgument, IdolOperation};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use indexmap::IndexMap;
@@ -338,12 +338,12 @@ fn print_command(
 
     let fields = |field: &dyn Field| {
         let bits = field.bits();
-        let nbits = bits.1 .0 as usize;
+        let nbits = bits.1.0 as usize;
 
         let b = if nbits == 1 {
-            format!("b{}", bits.0 .0)
+            format!("b{}", bits.0.0)
         } else {
-            format!("b{}:{}", bits.0 .0 + bits.1 .0 - 1, bits.0 .0)
+            format!("b{}:{}", bits.0.0 + bits.1.0 - 1, bits.0.0)
         };
 
         if field.bitfield() {
@@ -484,7 +484,7 @@ fn print_result(
 
             let err = device.interpret(code, val, mode, |field, value| {
                 if !field.bitfield() {
-                    let width = (field.bits().1 .0 / 4) as usize;
+                    let width = (field.bits().1.0 / 4) as usize;
 
                     println!(
                        "{} 0x{:0width$x} = {}",
@@ -570,7 +570,7 @@ fn prepare_write(
 
     for i in 0..writes.len() {
         if !replaced[i] {
-            bail!("failed to replace {} at position {}", name, writes[i].0 .0);
+            bail!("failed to replace {} at position {}", name, writes[i].0.0);
         }
     }
 
@@ -777,11 +777,7 @@ fn summarize_rail(
 
                 let str = format!("{}", faults.len());
 
-                if !faults.is_empty() {
-                    str.red()
-                } else {
-                    str.green()
-                }
+                if !faults.is_empty() { str.red() } else { str.green() }
             }
             None => "-".yellow(),
         }
@@ -1103,7 +1099,7 @@ fn validate_writes(
 
         if let Some((code, op)) = all.get(cmd) {
             match rval.get_mut(code) {
-                Some((_, WriteOp::Modify(_, ref mut writes))) => {
+                Some((_, WriteOp::Modify(_, writes))) => {
                     assert!(*op != pmbus::Operation::SendByte);
                     writes.push(validate_write(
                         device, cmd, *code, field, value,

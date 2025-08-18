@@ -14,7 +14,7 @@
 //! into things the _application_ may think are fishy -- only general behaviors
 //! at the OS level, like faults.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;

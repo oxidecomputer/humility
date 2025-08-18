@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use std::cell::RefCell;
@@ -10,8 +10,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::rc::Rc;
 
-use probe_rs::flashing;
 use probe_rs::MemoryInterface;
+use probe_rs::flashing;
 
 pub struct ProbeCore {
     pub session: probe_rs::Session,

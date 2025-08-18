@@ -90,7 +90,7 @@
 //! Controller I2C3, device 0x48, register 0x4 = 0x1f
 //! ```
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility_cli::{ExecutionContext, Subcommand};

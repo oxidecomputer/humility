@@ -19,9 +19,9 @@ use reedline::DefaultPrompt;
 use reedline::Span;
 use reedline::Suggestion;
 use reedline::{
-    default_emacs_keybindings, ColumnarMenu, Completer, EditCommand, Emacs,
-    FileBackedHistory, KeyCode, KeyModifiers, Keybindings, Reedline,
-    ReedlineEvent, ReedlineMenu, Signal,
+    ColumnarMenu, Completer, EditCommand, Emacs, FileBackedHistory, KeyCode,
+    KeyModifiers, Keybindings, Reedline, ReedlineEvent, ReedlineMenu, Signal,
+    default_emacs_keybindings,
 };
 
 use crate::{cmd, version};
@@ -97,7 +97,9 @@ fn repl(context: &mut ExecutionContext) -> Result<()> {
 
     let prompt = Prompt::new();
 
-    println!("Welcome to the humility REPL! Try out some subcommands, or 'quit' to quit!");
+    println!(
+        "Welcome to the humility REPL! Try out some subcommands, or 'quit' to quit!"
+    );
 
     loop {
         let sig = line_editor.read_line(&prompt)?;

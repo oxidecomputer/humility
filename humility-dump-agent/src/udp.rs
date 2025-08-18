@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 use crate::DumpAgent;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use humility::core::{Core, NetAgent};
 use rand::Rng;
 
@@ -23,10 +23,10 @@ impl<'a> UdpDumpAgent<'a> {
         &mut self,
         msg: humpty::udp::Request,
     ) -> Result<Result<humpty::udp::Response, humpty::udp::Error>> {
-        use humpty::udp::{version, Header, RequestMessage, ResponseMessage};
-        let mut rng = rand::thread_rng();
+        use humpty::udp::{Header, RequestMessage, ResponseMessage, version};
+        let mut rng = rand::rng();
         let header =
-            Header { version: version::CURRENT, message_id: rng.gen() };
+            Header { version: version::CURRENT, message_id: rng.random() };
         let mut buf = vec![
             0u8;
             std::cmp::max(

@@ -13,7 +13,7 @@
 //! properties of all 6 shelves requires calling this command 6 time (with
 //! indices 0 through 5).
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::IntoApp;
 use clap::Parser;
 use hif::*;

@@ -9,7 +9,7 @@
 //! the contents of an archive.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisPrintFormat;
 use humility_cli::{ExecutionContext, Subcommand};

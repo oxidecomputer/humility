@@ -60,11 +60,11 @@ use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv6Addr, ToSocketAddrs, UdpSocket};
 use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
-use humility::net::{decode_iface, ScopedV6Addr};
+use humility::net::{ScopedV6Addr, decode_iface};
 use humility::{hubris::*, reflect};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};

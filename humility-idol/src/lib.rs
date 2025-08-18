@@ -9,7 +9,7 @@
 //! function to easily look up an Idol command by name.
 
 use ::idol::syntax::{AttributedTy, Operation, RecvStrategy, Reply};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use hubpack::SerializedSize;
 use humility::hubris::*;
 use indexmap::IndexMap;

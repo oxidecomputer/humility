@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 use bitfield::bitfield;
 use humility::core::Core;
@@ -218,29 +218,17 @@ impl CFSR {
 
     pub fn get_ufsr(&self) -> Option<UFSR> {
         let ufsr = UFSR::from(self.ufsr() as u16);
-        if ufsr.has_fault() {
-            Some(ufsr)
-        } else {
-            None
-        }
+        if ufsr.has_fault() { Some(ufsr) } else { None }
     }
 
     pub fn get_bfsr(&self) -> Option<BFSR> {
         let bfsr = BFSR::from(self.bfsr() as u8);
-        if bfsr.has_fault() {
-            Some(bfsr)
-        } else {
-            None
-        }
+        if bfsr.has_fault() { Some(bfsr) } else { None }
     }
 
     pub fn get_mmfsr(&self) -> Option<MMFSR> {
         let mmfsr = MMFSR::from(self.mmfsr() as u8);
-        if mmfsr.has_fault() {
-            Some(mmfsr)
-        } else {
-            None
-        }
+        if mmfsr.has_fault() { Some(mmfsr) } else { None }
     }
 }
 
@@ -318,10 +306,16 @@ impl std::fmt::Debug for BFSR {
             write!(f, "Imprecise data access error, ")?;
         }
         if self.unstkerr() {
-            write!(f, "Bus Error during exception return unstacking (check your  stack usage), ")?;
+            write!(
+                f,
+                "Bus Error during exception return unstacking (check your  stack usage), "
+            )?;
         }
         if self.stkerr() {
-            write!(f, "Bus Error during exception entry stacking (check your stack usage), ")?;
+            write!(
+                f,
+                "Bus Error during exception entry stacking (check your stack usage), "
+            )?;
         }
         if self.lsperr() {
             write!(f, "Bus Error during FP lazy state preservation")?;
@@ -359,7 +353,10 @@ impl std::fmt::Debug for MMFSR {
             write!(f, "MM Fault during FP state preservation, ")?;
         }
         if self.mstkerr() {
-            write!(f, "MM Fault during exception entry stacking (check your stack usage), ")?;
+            write!(
+                f,
+                "MM Fault during exception entry stacking (check your stack usage), "
+            )?;
         }
         if self.munstkerr() {
             write!(

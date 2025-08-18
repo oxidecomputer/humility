@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
@@ -22,12 +22,14 @@ impl Environment {
         match &self.archive {
             Value::String(s) => {
                 if archive_name.is_some() {
-                    bail!("an archive name was specified but there is only one archive");
+                    bail!(
+                        "an archive name was specified but there is only one archive"
+                    );
                 }
                 Ok(s.to_string())
             }
             Value::Object(obj) => {
-                if let Some(ref n) = archive_name {
+                if let Some(n) = archive_name {
                     match obj
                         .get(n)
                         .ok_or_else(|| anyhow!("Couldn't find archive {}", n))?

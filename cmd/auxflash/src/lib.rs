@@ -9,7 +9,7 @@
 //! This subcommand should be rarely used; `humility flash` will automatically
 //! program auxiliary flash when needed.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use humility_cli::{ExecutionContext, Subcommand};

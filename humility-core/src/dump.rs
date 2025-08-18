@@ -4,7 +4,7 @@
 
 use crate::core::Core;
 use crate::hubris::HubrisArchive;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use goblin::elf::Elf;
 use humility_arch_arm::ARMRegister;
 use std::collections::{BTreeMap, HashMap};

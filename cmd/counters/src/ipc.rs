@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::{load_counters, taskname, Options, Order, LIST_HINT};
-use anyhow::{bail, Result};
+use super::{LIST_HINT, Options, Order, load_counters, taskname};
+use anyhow::{Result, bail};
 use colored::{ColoredString, Colorize};
 use humility::core::Core;
 use humility::hubris::*;
@@ -72,7 +72,7 @@ impl Args {
                     continue;
                 }
 
-                let gen = task_table
+                let generation = task_table
                     .get(task.task() as usize)
                     .map(|task| task.generation);
                 // Only select counters matching the provided filter, if there is
@@ -103,7 +103,7 @@ impl Args {
                         .entry(method)
                         .or_default()
                         .0
-                        .insert((taskname, gen), count);
+                        .insert((taskname, generation), count);
                 }
             }
         }
@@ -231,7 +231,7 @@ impl fmt::Display for IpcIface<'_> {
             // error total must be displayed.
             let mut formatted_errors = 0;
 
-            for ((task, gen), ctrs) in &ctrs.0 {
+            for ((task, generation), ctrs) in &ctrs.0 {
                 let total = ctrs.total();
                 // Skip displaying a task if it has no counts and we're not in
                 // alt mode (`--full`).
@@ -246,9 +246,9 @@ impl fmt::Display for IpcIface<'_> {
                 // sign for this task's counts.
                 let sign = if formatted_tasks > 1 { "+" } else { "=" };
                 let ok_str = fmt_oks(ok, format!("{sign} {ok}",));
-                let restarts = match gen {
-                    Some(GenOrRestartCount::Gen(gen)) => {
-                        format!(" (gen {gen:?})")
+                let restarts = match generation {
+                    Some(GenOrRestartCount::Gen(generation)) => {
+                        format!(" (gen {generation:?})")
                     }
                     Some(GenOrRestartCount::RestartCount(restarts)) => {
                         format!(" ({restarts} restarts)")
@@ -470,19 +470,11 @@ fn fmt_err_variant(
 }
 
 fn fmt_oks(ok: usize, ok_str: String) -> ColoredString {
-    if ok > 0 {
-        ok_str.green()
-    } else {
-        ok_str.dimmed()
-    }
+    if ok > 0 { ok_str.green() } else { ok_str.dimmed() }
 }
 
 fn fmt_errs(errs: impl Into<usize>, err_str: String) -> ColoredString {
-    if errs.into() > 0 {
-        err_str.red()
-    } else {
-        err_str.dimmed()
-    }
+    if errs.into() > 0 { err_str.red() } else { err_str.dimmed() }
 }
 
 impl Ipc<'_> {
@@ -512,7 +504,7 @@ impl Ipc<'_> {
 fn ipc_error_count(ctr: &CounterVariant) -> usize {
     match ctr {
         CounterVariant::Single(_) => 0,
-        CounterVariant::Nested(ref ctrs) => {
+        CounterVariant::Nested(ctrs) => {
             ctrs.counts.get("Err").map(|c| c.total()).unwrap_or(0)
         }
     }

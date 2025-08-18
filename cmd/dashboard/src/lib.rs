@@ -12,7 +12,7 @@
 //! graphed by the dashboard.
 //!
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use crossterm::{
     event::{
@@ -21,8 +21,8 @@ use crossterm::{
     },
     execute,
     terminal::{
-        disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
-        LeaveAlternateScreen,
+        EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
+        enable_raw_mode,
     },
 };
 use hif::*;
@@ -33,6 +33,7 @@ use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use ratatui::{
+    Frame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -42,7 +43,6 @@ use ratatui::{
         Axis, Block, Borders, Chart, Dataset, List, ListItem, ListState,
         Paragraph,
     },
-    Frame, Terminal,
 };
 use std::fs::File;
 use std::io;
@@ -862,7 +862,9 @@ fn power_ops(
             &mut ops,
         )?;
     } else {
-        bail!("Could not find Sequencer.set_state or Sequencer.set_tofino_seq_policy");
+        bail!(
+            "Could not find Sequencer.set_state or Sequencer.set_tofino_seq_policy"
+        );
     };
     ops.push(Op::Done);
 

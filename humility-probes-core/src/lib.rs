@@ -8,7 +8,7 @@ use ::probe_rs::{
 };
 use humility::core::{Core, ProbeError};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use humility::hubris::HubrisArchive;
 use humility::msg;
 

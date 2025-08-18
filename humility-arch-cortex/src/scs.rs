@@ -5,7 +5,7 @@
 use crate::debug::*;
 use crate::register;
 use crate::register_offs;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bitfield::bitfield;
 use humility::core::Core;
 use multimap::MultiMap;

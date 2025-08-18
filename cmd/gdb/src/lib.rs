@@ -24,7 +24,7 @@ use cmd_openocd::get_probe_serial;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command as HumilityCmd, CommandKind};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 
 #[derive(Parser, Debug)]
@@ -96,7 +96,9 @@ fn gdb(context: &mut ExecutionContext) -> Result<()> {
     }
 
     if !gdb_script_path.exists() {
-        bail!("GDB script missing; recent archives don't include it. Pass --gdb-script or use xtask gdb");
+        bail!(
+            "GDB script missing; recent archives don't include it. Pass --gdb-script or use xtask gdb"
+        );
     }
 
     hubris

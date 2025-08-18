@@ -39,7 +39,7 @@
 //! VSC8552; this is indicated with `--` in the relevant table positions.
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
@@ -312,11 +312,7 @@ fn net_status(context: &mut ExecutionContext) -> Result<()> {
     let vsc_sgmii = to_bool_vec("vsc85x2_sgmii_link_up")?;
 
     let up_down = |b| {
-        if b {
-            " UP ".green()
-        } else {
-            "DOWN".red()
-        }
+        if b { " UP ".green() } else { "DOWN".red() }
     };
 
     // ASCII-art drawing of the network
@@ -408,11 +404,7 @@ fn net_counters_table(s: &Struct) -> Result<()> {
         let k = k[s].as_base().unwrap().as_u32().unwrap();
         let out = format!("{:>6}", k);
         if k > 0 {
-            if s.contains("ERR") {
-                out.red()
-            } else {
-                out.green()
-            }
+            if s.contains("ERR") { out.red() } else { out.green() }
         } else {
             out.normal()
         }
@@ -458,11 +450,7 @@ fn net_counters_table(s: &Struct) -> Result<()> {
         let v = v[s].as_base().unwrap().as_u16().unwrap();
         let out = format!("{:>6}", v);
         if v > 0 {
-            if s.contains("good") {
-                out.green()
-            } else {
-                out.red()
-            }
+            if s.contains("good") { out.green() } else { out.red() }
         } else {
             out.normal()
         }

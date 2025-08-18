@@ -111,7 +111,7 @@
 //! These options can naturally be combined, e.g. `humility tasks -slvr`.
 //!
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;

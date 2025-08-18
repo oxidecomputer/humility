@@ -89,7 +89,7 @@
 //! desired target thread; full MCA information can similarly be retrieved
 //! using the `--mca` option and specifyin a desired thread.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{ArgGroup, CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;

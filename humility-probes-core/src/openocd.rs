@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::probe_rs::CORE_MAX_READSIZE;
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{Result, anyhow, bail, ensure};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use std::io::{Read, Write};

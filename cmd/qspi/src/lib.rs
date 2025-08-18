@@ -95,7 +95,7 @@ use std::io::{BufWriter, Read, Write};
 use std::mem;
 use std::time::Instant;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 

@@ -27,7 +27,7 @@
 //! stack overflow!
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::ExecutionContext;

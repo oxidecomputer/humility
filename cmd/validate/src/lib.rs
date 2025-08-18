@@ -42,7 +42,7 @@
 //! ```
 //!
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;

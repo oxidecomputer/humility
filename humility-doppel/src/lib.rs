@@ -33,7 +33,7 @@
 //! breaking compatibility, and the application can have struct fields we don't
 //! interpret.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use humility::reflect::{self, Base, Load, Ptr, Value};
 use indexmap::IndexMap;
 use std::convert::TryInto;
@@ -493,7 +493,7 @@ impl Counters {
         ) -> std::cmp::Ordering,
     ) {
         for v in self.counts.values_mut() {
-            if let CounterVariant::Nested(ref mut c) = v {
+            if let CounterVariant::Nested(c) = v {
                 c.sort_by(cmp);
             }
         }
@@ -629,7 +629,7 @@ impl CounterVariant {
                     f.write_str(")")?;
                 }
             }
-            CounterVariant::Nested(ref counts) if f.alternate() => {
+            CounterVariant::Nested(counts) if f.alternate() => {
                 write!(f, "{pad}{total:>total_len$} ")?;
                 print_arrow(f)?;
                 write!(f, "{prefix}{name}(_)",)?;
@@ -638,7 +638,7 @@ impl CounterVariant {
                 }
                 counts.fmt_padded(pad, &format!("{name}("), indent + 4, f)?;
             }
-            CounterVariant::Nested(ref counts) => {
+            CounterVariant::Nested(counts) => {
                 counts.fmt_padded(
                     pad,
                     &format!("{prefix}{name}("),

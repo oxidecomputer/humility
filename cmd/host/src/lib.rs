@@ -61,7 +61,7 @@
 //! [0; 4096]
 //! ```
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 

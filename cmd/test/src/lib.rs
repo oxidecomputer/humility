@@ -90,7 +90,7 @@
 //! recommendation is to extend the state that is captured.
 //!
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
@@ -157,7 +157,7 @@ impl fmt::Display for TestResult {
         write!(f, "{}", match self {
             TestResult::Ok => "ok".green(),
             TestResult::Fail => "fail".red(),
-            TestResult::Unknown(ref _str) => "unknown".bold(),
+            TestResult::Unknown(..) => "unknown".bold(),
         })
     }
 }

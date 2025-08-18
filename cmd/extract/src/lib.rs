@@ -129,7 +129,7 @@
 //! to prevent accidental blasts of binary content to the console.)
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Command, CommandKind};

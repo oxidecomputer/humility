@@ -79,7 +79,7 @@
 use indexmap::IndexMap;
 use std::convert::TryInto;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 
 use crate::core::Core;
 use crate::hubris::{
@@ -305,56 +305,32 @@ pub enum Base {
 impl Base {
     /// "Downcasts" this to a `bool`, returning `None` if it isn't one.
     pub fn as_bool(&self) -> Option<bool> {
-        if let Self::Bool(x) = *self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::Bool(x) = *self { Some(x) } else { None }
     }
 
     /// "Downcasts" this to a `u8`, returning `None` if it isn't one.
     pub fn as_u8(&self) -> Option<u8> {
-        if let Self::U8(x) = *self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::U8(x) = *self { Some(x) } else { None }
     }
 
     /// "Downcasts" this to a `u16`, returning `None` if it isn't one.
     pub fn as_u16(&self) -> Option<u16> {
-        if let Self::U16(x) = *self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::U16(x) = *self { Some(x) } else { None }
     }
 
     /// "Downcasts" this to a `u32`, returning `None` if it isn't one.
     pub fn as_u32(&self) -> Option<u32> {
-        if let Self::U32(x) = *self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::U32(x) = *self { Some(x) } else { None }
     }
 
     /// "Downcasts" this to a `u64`, returning `None` if it isn't one.
     pub fn as_u64(&self) -> Option<u64> {
-        if let Self::U64(x) = *self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::U64(x) = *self { Some(x) } else { None }
     }
 
     /// "Downcasts" this to a `f32`, returning `None` if it isn't one.
     pub fn as_f32(&self) -> Option<f32> {
-        if let Self::F32(x) = *self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::F32(x) = *self { Some(x) } else { None }
     }
 
     /// Checks whether this is a type that should be printed in hex (with a

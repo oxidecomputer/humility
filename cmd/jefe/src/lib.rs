@@ -94,12 +94,12 @@
 //! As with tasks held by `--hold`, use `--release`/`-r` to set the task back to
 //! normal, or `--start`/`-s` to run it once but catch the next fault.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use humility_jefe::{send_request, JefeRequest};
+use humility_jefe::{JefeRequest, send_request};
 use std::num::NonZeroU32;
 
 #[derive(Parser, Debug)]

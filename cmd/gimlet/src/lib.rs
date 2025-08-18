@@ -16,7 +16,7 @@
 use std::net::{SocketAddrV6, UdpSocket};
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, IntoApp, Parser};
 use humility::net::ScopedV6Addr;
 use humility_cli::{ExecutionContext, Subcommand};

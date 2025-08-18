@@ -10,7 +10,7 @@
 //! the command name -- and run `humility --help` to list all commands.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{IntoApp, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};

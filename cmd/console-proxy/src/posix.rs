@@ -10,9 +10,9 @@ use std::os::unix::io::AsRawFd;
 use std::time::Duration;
 use std::{io, thread};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
-use crossbeam_channel::{select, Sender};
+use crossbeam_channel::{Sender, select};
 use picocom_map::RemapRules;
 use termios::Termios;
 

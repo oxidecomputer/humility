@@ -15,7 +15,7 @@
 //! these, use the `--phase-current` option.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;

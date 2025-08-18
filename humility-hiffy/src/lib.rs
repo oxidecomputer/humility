@@ -4,7 +4,7 @@
 
 //! Interface to the `hiffy` task, which allows execution of HIF programs
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;

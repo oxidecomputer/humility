@@ -151,7 +151,7 @@ use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolOperation};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
@@ -161,9 +161,9 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, OpenOptions};
-use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::Write;
+use std::io::prelude::*;
 use std::thread;
 use std::time::{Duration, Instant};
 use zerocopy::{AsBytes, FromBytes};
@@ -2642,9 +2642,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
                     None => {
                         bail!("banks {:x?}: bank {} invalid", banks, ndx);
                     }
-                    Some(ref bank)
-                        if *bank != RendmpBankStatus::BankUnaffected =>
-                    {
+                    Some(bank) if *bank != RendmpBankStatus::BankUnaffected => {
                         humility::msg!("bank {ndx}: {bank}");
                     }
                     _ => {}

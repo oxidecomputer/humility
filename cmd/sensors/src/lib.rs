@@ -24,7 +24,7 @@
 //! `--tabular`.  In its default output (with one sensor per row), error
 //! counts are also displayed.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;

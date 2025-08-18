@@ -6,7 +6,7 @@
 
 use std::{collections::VecDeque, str::FromStr};
 
-use anyhow::{bail, ensure, Error, Result};
+use anyhow::{Error, Result, bail, ensure};
 
 mod raw {
     pub(super) const CR: u8 = b'\r';

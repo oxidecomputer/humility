@@ -118,7 +118,7 @@ use std::fs::File;
 use std::io::Write;
 use std::str;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 
