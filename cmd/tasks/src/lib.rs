@@ -277,10 +277,10 @@ pub fn print_tasks(
             let addr = base + i * task_t.size as u32;
             let offs = i as usize * task_t.size;
 
-            if let Some(HubrisTask::Task(ndx)) = task_dump {
-                if ndx != i {
-                    continue;
-                }
+            if let Some(HubrisTask::Task(ndx)) = task_dump
+                && ndx != i
+            {
+                continue;
             }
 
             let task_value: reflect::Value =

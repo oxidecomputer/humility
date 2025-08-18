@@ -359,10 +359,10 @@ fn print_command(
 
                 println!("     | {:6} {:30} <- {}", "", v, val.desc());
 
-                if let Some(last) = last {
-                    if last >= val.raw() {
-                        panic!("values are out of order");
-                    }
+                if let Some(last) = last
+                    && last >= val.raw()
+                {
+                    panic!("values are out of order");
                 }
 
                 last = Some(val.raw());
@@ -428,11 +428,11 @@ fn print_result(
                 return Ok(());
             }
 
-            if let Some(nbytes) = nbytes {
-                if val.len() != nbytes {
-                    println!("{} Short read: {:x?}", cmdstr, val);
-                    return Ok(());
-                }
+            if let Some(nbytes) = nbytes
+                && val.len() != nbytes
+            {
+                println!("{} Short read: {:x?}", cmdstr, val);
+                return Ok(());
             }
 
             let mut printed = false;

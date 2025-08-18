@@ -77,10 +77,10 @@ impl Args {
                     .map(|task| task.generation);
                 // Only select counters matching the provided filter, if there is
                 // one.
-                if let Some(ref name) = opts.name {
-                    if !varname.contains(name) {
-                        continue;
-                    }
+                if let Some(ref name) = opts.name
+                    && !varname.contains(name)
+                {
+                    continue;
                 }
 
                 let def = hubris.lookup_struct(var.goff)?;

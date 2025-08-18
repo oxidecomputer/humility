@@ -15,7 +15,7 @@
 //!   However, unlike `UdpDumpAgent`, it would be using the `udprpc` task to
 //!   execute HIF calls; our goal is to remove that task from production images.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use core::mem::size_of;
 use humility::{core::Core, hubris::HubrisFlashMap, msg};
 use humility_arch_arm::ARMRegister;

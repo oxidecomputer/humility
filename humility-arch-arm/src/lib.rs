@@ -201,10 +201,10 @@ fn instr_operands(cs: &Capstone, instr: &capstone::Insn) -> Vec<ARMRegister> {
     let mut rval: Vec<ARMRegister> = Vec::new();
 
     for op in detail.arch_detail().operands() {
-        if let arch::ArchOperand::ArmOperand(op) = op {
-            if let arch::arm::ArmOperandType::Reg(id) = op.op_type {
-                rval.push(id.into());
-            }
+        if let arch::ArchOperand::ArmOperand(op) = op
+            && let arch::arm::ArmOperandType::Reg(id) = op.op_type
+        {
+            rval.push(id.into());
         }
     }
 
@@ -311,10 +311,10 @@ pub fn presyscall_pushes(
 // if the bit is set, the needed realignment is 4 -- not 1 or 2.)
 //
 pub fn exception_stack_realign(regs: &BTreeMap<ARMRegister, u32>) -> u32 {
-    if let Some(psr) = regs.get(&ARMRegister::PSR) {
-        if (psr & (1 << 9)) != 0 {
-            return 4;
-        }
+    if let Some(psr) = regs.get(&ARMRegister::PSR)
+        && (psr & (1 << 9)) != 0
+    {
+        return 4;
     }
 
     0

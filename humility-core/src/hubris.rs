@@ -449,24 +449,22 @@ impl HubrisFlashMap {
     pub fn read(&self, addr: u32, data: &mut [u8]) -> Option<()> {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).next_back()
+            && base <= addr
+            && base + size > addr
         {
-            if base <= addr && base + size > addr {
-                let start = (addr - base) as usize;
-                let roffs = offset + start;
+            let start = (addr - base) as usize;
+            let roffs = offset + start;
 
-                if start + data.len() <= size as usize {
-                    data.copy_from_slice(
-                        &self.contents[roffs..roffs + data.len()],
-                    );
+            if start + data.len() <= size as usize {
+                data.copy_from_slice(&self.contents[roffs..roffs + data.len()]);
 
-                    return Some(());
-                }
-
-                let len = (size as usize) - start;
-                data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
-
-                return self.read(addr + len as u32, &mut data[len..]);
+                return Some(());
             }
+
+            let len = (size as usize) - start;
+            data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
+
+            return self.read(addr + len as u32, &mut data[len..]);
         }
 
         None
@@ -902,13 +900,12 @@ impl HubrisArchive {
                     .sensors
                     .as_ref()
                     .is_none_or(|s| s.contains(&kind))
+                && let Some(rails) = &d.power.as_ref().unwrap().rails
             {
-                if let Some(rails) = &d.power.as_ref().unwrap().rails {
-                    if idx < rails.len() {
-                        return Ok(rails[idx].clone());
-                    } else {
-                        bail!("sensor count exceeds rails for {:?}", d);
-                    }
+                if idx < rails.len() {
+                    return Ok(rails[idx].clone());
+                } else {
+                    bail!("sensor count exceeds rails for {:?}", d);
                 }
             }
 
@@ -4216,13 +4213,13 @@ impl HubrisObjectLoader {
             // before any system call in order to be able to successfully
             // unwind the stack.
             //
-            if let InsnId(ARM_INSN_SVC) = instr.id() {
-                if task != HubrisTask::Kernel {
-                    self.syscall_pushes.insert(
-                        addr + b.len() as u32,
-                        Some(presyscall_pushes(cs, &instrs[0..ndx])?),
-                    );
-                }
+            if let InsnId(ARM_INSN_SVC) = instr.id()
+                && task != HubrisTask::Kernel
+            {
+                self.syscall_pushes.insert(
+                    addr + b.len() as u32,
+                    Some(presyscall_pushes(cs, &instrs[0..ndx])?),
+                );
             }
         }
 
@@ -4553,10 +4550,10 @@ impl HubrisObjectLoader {
                         panic!("missing operand!");
                     });
 
-                    if let arch::ArchOperand::ArmOperand(op) = op {
-                        if let arch::arm::ArmOperandType::Imm(a) = op.op_type {
-                            brel = Some(a as u32);
-                        }
+                    if let arch::ArchOperand::ArmOperand(op) = op
+                        && let arch::arm::ArmOperandType::Imm(a) = op.op_type
+                    {
+                        brel = Some(a as u32);
                     }
                 }
 
@@ -4590,12 +4587,11 @@ impl HubrisObjectLoader {
         //
         if jump {
             for op in detail.arch_detail().operands() {
-                if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
+                if let arch::ArchOperand::ArmOperand(op) = op
+                    && let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
                         op.op_type
-                    {
-                        return Some(HubrisTarget::Return);
-                    }
+                {
+                    return Some(HubrisTarget::Return);
                 }
             }
 
@@ -4609,12 +4605,11 @@ impl HubrisObjectLoader {
         //
         if let InsnId(ARM_INSN_POP) = instr.id() {
             for op in detail.arch_detail().operands() {
-                if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
+                if let arch::ArchOperand::ArmOperand(op) = op
+                    && let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
                         op.op_type
-                    {
-                        return Some(HubrisTarget::Return);
-                    }
+                {
+                    return Some(HubrisTarget::Return);
                 }
             }
         }
@@ -5195,10 +5190,10 @@ impl HubrisObjectLoader {
                 let dir = dwarf.attr_string(unit, dir)?;
                 let dir = dir.to_string_lossy()?;
 
-                if !dir.starts_with('/') {
-                    if let Some(comp_dir) = &unit.comp_dir {
-                        comp = Some(comp_dir.to_string_lossy()?.into_owned());
-                    }
+                if !dir.starts_with('/')
+                    && let Some(comp_dir) = &unit.comp_dir
+                {
+                    comp = Some(comp_dir.to_string_lossy()?.into_owned());
                 }
 
                 directory = Some(dir.into_owned())

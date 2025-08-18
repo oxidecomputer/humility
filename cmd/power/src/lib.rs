@@ -149,21 +149,20 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
         if s.kind == HubrisSensorKind::Voltage {
             let mut phases = None;
 
-            if let Some(ref mut r) = rails {
-                if !r.remove(&s.name) {
-                    continue;
-                }
+            if let Some(ref mut r) = rails
+                && !r.remove(&s.name)
+            {
+                continue;
             }
 
             if let HubrisSensorDevice::I2c(i) = &s.device {
                 let d = &hubris.manifest.i2c_devices[*i];
 
-                if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class {
-                    if let Some(r) = rails.iter().find(|&r| r.name == s.name) {
-                        if let Some(p) = &r.phases {
-                            phases = Some(p);
-                        }
-                    }
+                if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class
+                    && let Some(r) = rails.iter().find(|&r| r.name == s.name)
+                    && let Some(p) = &r.phases
+                {
+                    phases = Some(p);
                 }
             }
 
@@ -190,10 +189,10 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
         }
     }
 
-    if let Some(ref r) = rails {
-        if !r.is_empty() {
-            bail!("unknown rail(s): {r:?}");
-        }
+    if let Some(ref r) = rails
+        && !r.is_empty()
+    {
+        bail!("unknown rail(s): {r:?}");
     }
 
     let mut ndx = 0;
@@ -287,23 +286,23 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
 
         println!();
 
-        if let Some(phase_currents) = &d.phase_currents {
-            if phase_currents.len() > 1 {
-                for (index, value) in phase_currents.iter().enumerate() {
-                    let name = format!("{}.phase-{index}", d.name);
+        if let Some(phase_currents) = &d.phase_currents
+            && phase_currents.len() > 1
+        {
+            for (index, value) in phase_currents.iter().enumerate() {
+                let name = format!("{}.phase-{index}", d.name);
 
-                    if let Some(value) = value {
-                        print!("{name:30} {no:>8} {value:>8.3}");
-                    } else {
-                        print!("{name:30} {no:>8} {err:>8}");
-                    }
-
-                    for _ in 0..3 {
-                        print!(" {no:>8}");
-                    }
-
-                    println!();
+                if let Some(value) = value {
+                    print!("{name:30} {no:>8} {value:>8.3}");
+                } else {
+                    print!("{name:30} {no:>8} {err:>8}");
                 }
+
+                for _ in 0..3 {
+                    print!(" {no:>8}");
+                }
+
+                println!();
             }
         }
     }

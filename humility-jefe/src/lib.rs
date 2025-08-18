@@ -110,10 +110,10 @@ impl<'a> JefeVariables<'a> {
 
         core.run()?;
 
-        if let Some(kicked) = self.kicked {
-            if kicked.elapsed().as_millis() > self.timeout.into() {
-                bail!("operation timed out");
-            }
+        if let Some(kicked) = self.kicked
+            && kicked.elapsed().as_millis() > self.timeout.into()
+        {
+            bail!("operation timed out");
         }
 
         if let Some(cached) = self.cached {

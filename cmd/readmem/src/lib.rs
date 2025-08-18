@@ -131,10 +131,10 @@ use std::path::PathBuf;
 // kibibytes!
 //
 fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
-    if let Ok(s) = std::str::from_utf8(src.as_ref()) {
-        if let Ok(rval) = parse_int::parse::<u64>(s) {
-            return Ok(rval);
-        }
+    if let Ok(s) = std::str::from_utf8(src.as_ref())
+        && let Ok(rval) = parse_int::parse::<u64>(s)
+    {
+        return Ok(rval);
     }
 
     let cfg = parse_size::Config::new();

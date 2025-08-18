@@ -59,10 +59,10 @@ impl<'a> I2cArgs<'a> {
             return false;
         }
 
-        if let Some(address) = self.address {
-            if address != device.address {
-                return false;
-            }
+        if let Some(address) = self.address
+            && address != device.address
+        {
+            return false;
         }
 
         if let Some((m, s)) = self.mux {

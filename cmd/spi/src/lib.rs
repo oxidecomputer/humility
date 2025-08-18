@@ -293,18 +293,18 @@ fn spi(context: &mut ExecutionContext) -> Result<()> {
         },
     )?;
 
-    if subargs.read {
-        if let Ok(results) = &results[0] {
-            if results.len() < discard {
-                bail!("short read: {:x?}", results);
-            }
-
-            let mut dumper = Dumper::new();
-            dumper.size = if subargs.word { 4 } else { 1 };
-            dumper.dump(&results[discard..], addr);
-
-            return Ok(());
+    if subargs.read
+        && let Ok(results) = &results[0]
+    {
+        if results.len() < discard {
+            bail!("short read: {:x?}", results);
         }
+
+        let mut dumper = Dumper::new();
+        dumper.size = if subargs.word { 4 } else { 1 };
+        dumper.dump(&results[discard..], addr);
+
+        return Ok(());
     }
 
     println!("{:x?}", results);

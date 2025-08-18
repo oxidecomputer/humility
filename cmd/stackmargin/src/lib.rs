@@ -86,10 +86,10 @@ fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
     };
 
     for i in 0..size {
-        if let Some(HubrisTask::Task(ndx)) = task_dump {
-            if ndx != i {
-                continue;
-            }
+        if let Some(HubrisTask::Task(ndx)) = task_dump
+            && ndx != i
+        {
+            continue;
         }
 
         let module = hubris.lookup_module(HubrisTask::Task(i))?;

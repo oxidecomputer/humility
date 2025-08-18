@@ -472,10 +472,10 @@ fn mca(
             let name = format!("{:?}", reg);
             println!("    {name:14} 0x{v:016x}");
 
-            if let Msr::MCA_STATUS(_) = reg {
-                if v == 0 {
-                    continue;
-                }
+            if let Msr::MCA_STATUS(_) = reg
+                && v == 0
+            {
+                continue;
             }
 
             if let Some(fields) = reg.fields() {

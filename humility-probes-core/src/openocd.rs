@@ -163,12 +163,11 @@ impl Core for OpenOCDCore {
         let cmd = format!("reg {}", ARMRegister::to_u16(&reg).unwrap());
         let rval = self.sendcmd(&cmd)?;
 
-        if let Some(line) = rval.lines().next() {
-            if let Some(val) = line.split_whitespace().last() {
-                if let Ok(rval) = parse_int::parse::<u32>(val) {
-                    return Ok(rval);
-                }
-            }
+        if let Some(line) = rval.lines().next()
+            && let Some(val) = line.split_whitespace().last()
+            && let Ok(rval) = parse_int::parse::<u32>(val)
+        {
+            return Ok(rval);
         }
 
         Err(anyhow!("\"{}\": malformed return value: {:?}", cmd, rval))

@@ -240,11 +240,11 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
         let test_name =
             std::str::from_utf8(&bytes).unwrap_or("<test name unknown>");
 
-        if let Some(ref expected) = subargs.single {
-            if expected != test_name {
-                println!("skipping {}", test_name);
-                continue;
-            }
+        if let Some(ref expected) = subargs.single
+            && expected != test_name
+        {
+            println!("skipping {}", test_name);
+            continue;
         }
         print!("humility: running {} ...", test_name);
         ran_cases += 1;

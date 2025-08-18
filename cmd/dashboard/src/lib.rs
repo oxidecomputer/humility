@@ -282,18 +282,18 @@ impl Graph {
                 if let Some(datum) = s.raw[offs] {
                     let point = (i as f64, datum as f64);
 
-                    if self.interpolate != 0 {
-                        if let Some(last) = s.data.last() {
-                            let x_delta = point.0 - last.0;
-                            let slope = (point.1 - last.1) / x_delta;
-                            let x_inc = x_delta / self.interpolate as f64;
+                    if self.interpolate != 0
+                        && let Some(last) = s.data.last()
+                    {
+                        let x_delta = point.0 - last.0;
+                        let slope = (point.1 - last.1) / x_delta;
+                        let x_inc = x_delta / self.interpolate as f64;
 
-                            for x in 0..self.interpolate {
-                                s.data.push((
-                                    point.0 + x as f64 * x_inc,
-                                    point.1 + (slope * x_inc),
-                                ));
-                            }
+                        for x in 0..self.interpolate {
+                            s.data.push((
+                                point.0 + x as f64 * x_inc,
+                                point.1 + (slope * x_inc),
+                            ));
                         }
                     }
 
@@ -311,10 +311,10 @@ impl Graph {
         let mut max = None;
 
         for (ndx, s) in self.series.iter().enumerate() {
-            if let Some(selected) = selected {
-                if ndx != selected {
-                    continue;
-                }
+            if let Some(selected) = selected
+                && ndx != selected
+            {
+                continue;
             }
 
             for (_, datum) in &s.data {
@@ -602,20 +602,20 @@ impl<'a> Dashboard<'a> {
     fn increase(&mut self, core: &mut dyn Core) {
         let graph = &mut self.graphs[self.current];
 
-        if let Some(selected) = graph.legend.state.selected() {
-            if let Some(pwm) = graph.attributes.increase(selected) {
-                self.fan_to(core, selected, pwm).unwrap();
-            }
+        if let Some(selected) = graph.legend.state.selected()
+            && let Some(pwm) = graph.attributes.increase(selected)
+        {
+            self.fan_to(core, selected, pwm).unwrap();
         }
     }
 
     fn decrease(&mut self, core: &mut dyn Core) {
         let graph = &mut self.graphs[self.current];
 
-        if let Some(selected) = graph.legend.state.selected() {
-            if let Some(pwm) = graph.attributes.decrease(selected) {
-                self.fan_to(core, selected, pwm).unwrap();
-            }
+        if let Some(selected) = graph.legend.state.selected()
+            && let Some(pwm) = graph.attributes.decrease(selected)
+        {
+            self.fan_to(core, selected, pwm).unwrap();
         }
     }
 
@@ -941,10 +941,10 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
     let selected = graph.legend.state.selected();
 
     for (ndx, s) in graph.series.iter().enumerate() {
-        if let Some(selected) = selected {
-            if ndx != selected {
-                continue;
-            }
+        if let Some(selected) = selected
+            && ndx != selected
+        {
+            continue;
         }
 
         datasets.push(

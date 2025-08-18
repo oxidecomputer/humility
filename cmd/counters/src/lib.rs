@@ -199,7 +199,7 @@
 //! `--client` may be combined with a filter matching counter variable names, to
 //! show only the calls to specific IPC interfaces from specific tasks.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser, ValueEnum};
 use colored::Colorize;
 use humility::core::Core;

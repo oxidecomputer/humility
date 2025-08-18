@@ -130,23 +130,23 @@ impl SensorSpecification<'_> {
     ) -> bool {
         match self {
             SensorSpecification::Params { types, devices, named } => {
-                if let Some(types) = types {
-                    if !types.contains(&s.kind) {
+                if let Some(types) = types
+                    && !types.contains(&s.kind)
+                {
+                    return false;
+                }
+                if let Some(devices) = devices
+                    && let HubrisSensorDevice::I2c(device) = s.device
+                {
+                    let device = &hubris.manifest.i2c_devices[device];
+                    if !devices.contains(&device.device) {
                         return false;
                     }
                 }
-                if let Some(devices) = devices {
-                    if let HubrisSensorDevice::I2c(device) = s.device {
-                        let device = &hubris.manifest.i2c_devices[device];
-                        if !devices.contains(&device.device) {
-                            return false;
-                        }
-                    }
-                }
-                if let Some(named) = named {
-                    if !named.contains(&s.name) {
-                        return false;
-                    }
+                if let Some(named) = named
+                    && !named.contains(&s.name)
+                {
+                    return false;
                 }
                 true
             }

@@ -944,15 +944,15 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             return Ok(());
         }
 
-        if !subargs.write_sector0 {
-            if let Some(i) = sectors.iter().position(|p| *p == 0) {
-                sectors.remove(i);
-                let buf = bufs.remove(i);
-                if buf.iter().any(|c| *c != 0xFF) {
-                    bail!("cannot skip sector 0 with non-empty bytes");
-                } else {
-                    humility::msg!("skipping sector 0");
-                }
+        if !subargs.write_sector0
+            && let Some(i) = sectors.iter().position(|p| *p == 0)
+        {
+            sectors.remove(i);
+            let buf = bufs.remove(i);
+            if buf.iter().any(|c| *c != 0xFF) {
+                bail!("cannot skip sector 0 with non-empty bytes");
+            } else {
+                humility::msg!("skipping sector 0");
             }
         }
         erase(&device, core, &mut context, &sectors)?;

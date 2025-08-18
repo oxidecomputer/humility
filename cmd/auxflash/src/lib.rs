@@ -294,19 +294,16 @@ impl<'a> AuxFlashHandler<'a> {
                 }
             }
         }
-        if let Some(chck_data) = chck_data {
-            if let Ok(Some(chck_slot)) = self.slot_status(slot) {
-                if chck_data == chck_slot {
-                    humility::msg!(
-                        "Slot {slot} is already programmed with our data",
-                    );
-                    if force {
-                        humility::msg!("Reprogramming it anyways!");
-                    } else {
-                        humility::msg!("Skipping reprogramming.");
-                        return Ok(());
-                    }
-                }
+        if let Some(chck_data) = chck_data
+            && let Ok(Some(chck_slot)) = self.slot_status(slot)
+            && chck_data == chck_slot
+        {
+            humility::msg!("Slot {slot} is already programmed with our data",);
+            if force {
+                humility::msg!("Reprogramming it anyways!");
+            } else {
+                humility::msg!("Skipping reprogramming.");
+                return Ok(());
             }
         }
 

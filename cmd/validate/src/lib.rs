@@ -105,10 +105,10 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
     );
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
-        if let Some(hargs) = hargs {
-            if !hargs.matches_device(device) {
-                continue;
-            }
+        if let Some(hargs) = hargs
+            && !hargs.matches_device(device)
+        {
+            continue;
         }
 
         let mux = match (device.mux, device.segment) {
@@ -162,20 +162,20 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
     let mut devices = vec![];
 
     for (ndx, device) in hubris.manifest.i2c_devices.iter().enumerate() {
-        if let Some(id) = subargs.id {
-            if ndx != id {
-                continue;
-            }
+        if let Some(id) = subargs.id
+            && ndx != id
+        {
+            continue;
         }
 
         if let Some(ref hargs) = hargs {
             if !hargs.matches_device(device) {
                 continue;
             }
-        } else if let Some(ref d) = subargs.device {
-            if device.device != *d {
-                continue;
-            }
+        } else if let Some(ref d) = subargs.device
+            && device.device != *d
+        {
+            continue;
         }
 
         devices.push((ndx, device));

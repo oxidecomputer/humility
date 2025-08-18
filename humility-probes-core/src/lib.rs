@@ -97,15 +97,14 @@ pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
 
             let res = probe_info.open();
 
-            if let Err(DebugProbeError::Usb(Some(ref err))) = res {
-                if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
-                    if *rcode == rusb::Error::Busy {
-                        bail!(
+            if let Err(DebugProbeError::Usb(Some(ref err))) = res
+                && let Some(rcode) = err.downcast_ref::<rusb::Error>()
+                && *rcode == rusb::Error::Busy
+            {
+                bail!(
                             "USB link in use; is OpenOCD or \
                             another debugger running?"
                         );
-                    }
-                }
             }
 
             let probe = res?;
@@ -155,15 +154,14 @@ pub fn attach_to_chip(
 
             let res = probe_info.open();
 
-            if let Err(DebugProbeError::Usb(Some(ref err))) = res {
-                if let Some(rcode) = err.downcast_ref::<rusb::Error>() {
-                    if *rcode == rusb::Error::Busy {
-                        bail!(
+            if let Err(DebugProbeError::Usb(Some(ref err))) = res
+                && let Some(rcode) = err.downcast_ref::<rusb::Error>()
+                && *rcode == rusb::Error::Busy
+            {
+                bail!(
                             "USB link in use; is OpenOCD or \
                             another debugger running?"
                         );
-                    }
-                }
             }
 
             let probe = res?;

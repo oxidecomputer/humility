@@ -452,10 +452,10 @@ impl RendmpDevice {
         let search = device.to_uppercase();
 
         for i in 0..255u8 {
-            if let Ok(d) = Self::from_id(i) {
-                if search == format!("{}", d) {
-                    return Ok(d);
-                }
+            if let Ok(d) = Self::from_id(i)
+                && search == format!("{}", d)
+            {
+                return Ok(d);
             }
         }
 
@@ -1016,18 +1016,18 @@ fn check_addr(
 
     if let Some(rail) = &subargs.dev.rail {
         for d in &hubris.manifest.i2c_devices {
-            if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class {
-                if rails.iter().any(|r| r.name == *rail) {
-                    let dev = match d.device.as_str() {
-                        ISL_DEV_NAME => SupportedDevice::ISL68224,
-                        RAA_DEV_NAME => SupportedDevice::RAA229618,
-                        _ => {
-                            bail!("rail {rail} is not a supported device");
-                        }
-                    };
+            if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class
+                && rails.iter().any(|r| r.name == *rail)
+            {
+                let dev = match d.device.as_str() {
+                    ISL_DEV_NAME => SupportedDevice::ISL68224,
+                    RAA_DEV_NAME => SupportedDevice::RAA229618,
+                    _ => {
+                        bail!("rail {rail} is not a supported device");
+                    }
+                };
 
-                    return Ok((d.address, dev));
-                }
+                return Ok((d.address, dev));
             }
         }
 
@@ -1691,10 +1691,10 @@ fn rendmp_phase_check<'a>(
         .collect();
 
     // If phases were specified, be sure that we matched them all
-    if let Some(s) = &specified {
-        if !s.is_empty() {
-            bail!("illegal phase(s) specified: {s:?}");
-        }
+    if let Some(s) = &specified
+        && !s.is_empty()
+    {
+        bail!("illegal phase(s) specified: {s:?}");
     }
 
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
@@ -2451,14 +2451,14 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
                     bail!("bad length on IC_DEVICE_ID: {:x?}", result);
                 }
 
-                if result[1] != hex.ic_device_id[1] {
-                    if let Ok(device) = RendmpDevice::from_id(result[1]) {
-                        bail!(
-                            "device mismatch: expected {}, found {}",
-                            hex.device,
-                            device
-                        );
-                    }
+                if result[1] != hex.ic_device_id[1]
+                    && let Ok(device) = RendmpDevice::from_id(result[1])
+                {
+                    bail!(
+                        "device mismatch: expected {}, found {}",
+                        hex.device,
+                        device
+                    );
                 }
 
                 if result != &hex.ic_device_id[0..4] {

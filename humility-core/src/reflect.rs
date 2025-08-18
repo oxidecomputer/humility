@@ -575,11 +575,11 @@ impl Format for Tuple {
 
         // Is this a bitflags-generated type? If so, just format it as a binary
         // value.
-        if self.name().contains("InternalBitFlags") {
-            if let Some(flags) = self.1.first().and_then(|v| v.as_base().ok()) {
-                write!(out, "{flags:#b}")?;
-                return Ok(());
-            }
+        if self.name().contains("InternalBitFlags")
+            && let Some(flags) = self.1.first().and_then(|v| v.as_base().ok())
+        {
+            write!(out, "{flags:#b}")?;
+            return Ok(());
         }
 
         // We only want to print the tuple name if this is a
