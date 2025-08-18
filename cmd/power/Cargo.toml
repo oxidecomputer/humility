@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-power"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "show power-related information"
 
 [dependencies]

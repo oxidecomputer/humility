@@ -3,13 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use capstone::prelude::*;
-use humility_arch_arm::{presyscall_pushes, ARMRegister};
+use humility_arch_arm::{ARMRegister, presyscall_pushes};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::io::prelude::*;
 
 use std::borrow::Cow;
-use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, btree_map};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
@@ -21,7 +21,7 @@ use std::str::{self, FromStr};
 use std::time::Instant;
 
 use crate::{msg, warn};
-use anyhow::{anyhow, bail, ensure, Context, Result};
+use anyhow::{Context, Result, anyhow, bail, ensure};
 use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
@@ -1597,7 +1597,7 @@ impl HubrisArchive {
                     }
                     c
                 }
-                Some(FlashProgram::OpenOcd(ref a)) => match a {
+                Some(FlashProgram::OpenOcd(a)) => match a {
                     FlashProgramConfig::Payload(d) => {
                         let h7 =
                             regex::Regex::new(r"find target/stm32h7").unwrap();
@@ -1976,7 +1976,7 @@ impl HubrisArchive {
         let index = HubrisTask::Task(index as u32);
         // TODO this is super gross but we don't have the inverse of the tasks
         // mapping at the moment.
-        self.tasks.iter().find(|(_, &i)| i == index).map(|(name, _)| &**name)
+        self.tasks.iter().find(|(_, i)| **i == index).map(|(name, _)| &**name)
     }
 
     pub fn task_table(
@@ -2014,11 +2014,7 @@ impl HubrisArchive {
     }
 
     pub fn ntasks(&self) -> usize {
-        if self.current >= 1 {
-            self.current as usize - 1
-        } else {
-            0
-        }
+        if self.current >= 1 { self.current as usize - 1 } else { 0 }
     }
 
     /// If this is a dump from a single task, returns that task -- or None
@@ -2423,7 +2419,7 @@ impl HubrisArchive {
                 Ok(member) => member,
                 _ => {
                     return Err(anyhow!("struct {} ({}) doesn't contain {}",
-                        s.name, s.goff, field))
+                        s.name, s.goff, field));
                 }
             };
 
@@ -3066,14 +3062,14 @@ impl HubrisArchive {
                 break;
             }
 
-            if let Some(prev) = prev {
-                if prev == cfa {
-                    //
-                    // Our previous frame and our next frame are the same;
-                    // break out.
-                    //
-                    break;
-                }
+            if let Some(prev) = prev
+                && prev == cfa
+            {
+                //
+                // Our previous frame and our next frame are the same;
+                // break out.
+                //
+                break;
             }
 
             prev = Some(cfa);
@@ -6529,11 +6525,7 @@ pub struct HubrisPrintFormat {
 
 impl HubrisPrintFormat {
     pub fn delim(&self) -> &'static str {
-        if self.newline {
-            "\n"
-        } else {
-            " "
-        }
+        if self.newline { "\n" } else { " " }
     }
 }
 
@@ -6712,11 +6704,7 @@ fn try_scoped<'a>(
         let matched: Vec<_> =
             map.keys().filter(|&n| re.is_match(n)).collect::<_>();
 
-        if matched.len() == 1 {
-            Some(matched[0])
-        } else {
-            None
-        }
+        if matched.len() == 1 { Some(matched[0]) } else { None }
     }
 }
 

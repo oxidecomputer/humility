@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-debugmailbox"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "interact with the debug mailbox on the LPC55"
 
 [dependencies]

@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-vpd"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "read or write vital product data (VPD)"
 
 [dependencies]

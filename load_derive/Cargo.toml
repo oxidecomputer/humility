@@ -1,7 +1,7 @@
 [package]
 name = "humility_load_derive"
 version = "0.1.0"
-edition = "2018"
+edition.workspace = true
 
 [lib]
 proc-macro = true

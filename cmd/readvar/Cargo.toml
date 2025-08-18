@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-readvar"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "read and display a specified Hubris variable"
 
 [dependencies]

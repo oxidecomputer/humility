@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-reset"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "Reset the chip using external pins"
 
 [dependencies]

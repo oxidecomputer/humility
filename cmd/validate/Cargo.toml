@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-validate"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "validate presence and operation of devices"
 
 [dependencies]

@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-exec"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "execute command within context of an environment"
 
 [dependencies]

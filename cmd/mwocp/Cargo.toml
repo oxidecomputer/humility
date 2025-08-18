@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-mwocp"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "Murata power shelf operations"
 
 [dependencies]

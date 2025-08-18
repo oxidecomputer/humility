@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-sensors"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "query sensors and sensor data"
 
 [dependencies]

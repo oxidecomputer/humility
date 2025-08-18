@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-gimlet"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "Gimlet-specific diagnostic commands"
 
 [dependencies]
