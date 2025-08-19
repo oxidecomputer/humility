@@ -167,7 +167,7 @@ impl ExecutionContext {
         }
 
         let environment = match (&cli.environment, &cli.target) {
-            (Some(ref env), Some(ref target)) => {
+            (Some(env), Some(target)) => {
                 let env = match Environment::from_file(env, target) {
                     Ok(e) => e,
                     Err(err) => {
@@ -213,7 +213,7 @@ impl ExecutionContext {
                 Some(env)
             }
 
-            (Some(ref env), None) => {
+            (Some(env), None) => {
                 if cli.list_targets {
                     let targets = match Environment::targets(env) {
                         Ok(targets) => targets,

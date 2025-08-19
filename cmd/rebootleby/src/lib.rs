@@ -10,7 +10,7 @@
 //!
 //! !!! Using this can be dangerous and should be undertaken with caution
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
@@ -247,8 +247,8 @@ impl FlashHack<'_> {
     }
 
     fn clear_status_flags(&mut self) -> Result<()> {
-        self.poke(INT_CLR_STATUS, 0xF) // don't and_check this it's
-                                       // write-1-to-clear
+        // don't poke_and_check this, it's write-1-to-clear
+        self.poke(INT_CLR_STATUS, 0xF)
     }
 
     fn set_word_range(&mut self, start: u32, end: u32) -> Result<()> {
@@ -268,7 +268,9 @@ impl FlashHack<'_> {
             if read_back == value {
                 return Ok(());
             }
-            humility::warn!("warning: wrote {value:#x} to address {addr:#x} but read back {read_back:#x}, retrying");
+            humility::warn!(
+                "warning: wrote {value:#x} to address {addr:#x} but read back {read_back:#x}, retrying"
+            );
         }
         bail!("having a damn hard time writing address {addr:#x}, halp");
     }

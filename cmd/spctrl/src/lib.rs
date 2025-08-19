@@ -50,7 +50,7 @@ use humility_hiffy::*;
 
 use std::str;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 

@@ -118,7 +118,7 @@ use std::fs::File;
 use std::io::Write;
 use std::str;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 
@@ -197,10 +197,10 @@ fn dump_spd(
 
     let manufacturer = jep106::JEP106Code::new(jep_cc, jep_id);
 
-    if let Some(address) = subargs.address {
-        if address != addr {
-            return Ok(());
-        }
+    if let Some(address) = subargs.address
+        && address != addr
+    {
+        return Ok(());
     }
 
     if let Some(filename) = &subargs.output {

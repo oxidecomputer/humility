@@ -3,13 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use capstone::prelude::*;
-use humility_arch_arm::{presyscall_pushes, ARMRegister};
+use humility_arch_arm::{ARMRegister, presyscall_pushes};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::io::prelude::*;
 
 use std::borrow::Cow;
-use std::collections::{btree_map, BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, btree_map};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
@@ -21,7 +21,7 @@ use std::str::{self, FromStr};
 use std::time::Instant;
 
 use crate::{msg, warn};
-use anyhow::{anyhow, bail, ensure, Context, Result};
+use anyhow::{Context, Result, anyhow, bail, ensure};
 use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
@@ -449,24 +449,22 @@ impl HubrisFlashMap {
     pub fn read(&self, addr: u32, data: &mut [u8]) -> Option<()> {
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).next_back()
+            && base <= addr
+            && base + size > addr
         {
-            if base <= addr && base + size > addr {
-                let start = (addr - base) as usize;
-                let roffs = offset + start;
+            let start = (addr - base) as usize;
+            let roffs = offset + start;
 
-                if start + data.len() <= size as usize {
-                    data.copy_from_slice(
-                        &self.contents[roffs..roffs + data.len()],
-                    );
+            if start + data.len() <= size as usize {
+                data.copy_from_slice(&self.contents[roffs..roffs + data.len()]);
 
-                    return Some(());
-                }
-
-                let len = (size as usize) - start;
-                data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
-
-                return self.read(addr + len as u32, &mut data[len..]);
+                return Some(());
             }
+
+            let len = (size as usize) - start;
+            data[..len].copy_from_slice(&self.contents[roffs..roffs + len]);
+
+            return self.read(addr + len as u32, &mut data[len..]);
         }
 
         None
@@ -902,13 +900,12 @@ impl HubrisArchive {
                     .sensors
                     .as_ref()
                     .is_none_or(|s| s.contains(&kind))
+                && let Some(rails) = &d.power.as_ref().unwrap().rails
             {
-                if let Some(rails) = &d.power.as_ref().unwrap().rails {
-                    if idx < rails.len() {
-                        return Ok(rails[idx].clone());
-                    } else {
-                        bail!("sensor count exceeds rails for {:?}", d);
-                    }
+                if idx < rails.len() {
+                    return Ok(rails[idx].clone());
+                } else {
+                    bail!("sensor count exceeds rails for {:?}", d);
                 }
             }
 
@@ -1597,7 +1594,7 @@ impl HubrisArchive {
                     }
                     c
                 }
-                Some(FlashProgram::OpenOcd(ref a)) => match a {
+                Some(FlashProgram::OpenOcd(a)) => match a {
                     FlashProgramConfig::Payload(d) => {
                         let h7 =
                             regex::Regex::new(r"find target/stm32h7").unwrap();
@@ -1976,7 +1973,7 @@ impl HubrisArchive {
         let index = HubrisTask::Task(index as u32);
         // TODO this is super gross but we don't have the inverse of the tasks
         // mapping at the moment.
-        self.tasks.iter().find(|(_, &i)| i == index).map(|(name, _)| &**name)
+        self.tasks.iter().find(|(_, i)| **i == index).map(|(name, _)| &**name)
     }
 
     pub fn task_table(
@@ -2014,11 +2011,7 @@ impl HubrisArchive {
     }
 
     pub fn ntasks(&self) -> usize {
-        if self.current >= 1 {
-            self.current as usize - 1
-        } else {
-            0
-        }
+        if self.current >= 1 { self.current as usize - 1 } else { 0 }
     }
 
     /// If this is a dump from a single task, returns that task -- or None
@@ -2423,7 +2416,7 @@ impl HubrisArchive {
                 Ok(member) => member,
                 _ => {
                     return Err(anyhow!("struct {} ({}) doesn't contain {}",
-                        s.name, s.goff, field))
+                        s.name, s.goff, field));
                 }
             };
 
@@ -3066,14 +3059,14 @@ impl HubrisArchive {
                 break;
             }
 
-            if let Some(prev) = prev {
-                if prev == cfa {
-                    //
-                    // Our previous frame and our next frame are the same;
-                    // break out.
-                    //
-                    break;
-                }
+            if let Some(prev) = prev
+                && prev == cfa
+            {
+                //
+                // Our previous frame and our next frame are the same;
+                // break out.
+                //
+                break;
             }
 
             prev = Some(cfa);
@@ -4220,13 +4213,13 @@ impl HubrisObjectLoader {
             // before any system call in order to be able to successfully
             // unwind the stack.
             //
-            if let InsnId(ARM_INSN_SVC) = instr.id() {
-                if task != HubrisTask::Kernel {
-                    self.syscall_pushes.insert(
-                        addr + b.len() as u32,
-                        Some(presyscall_pushes(cs, &instrs[0..ndx])?),
-                    );
-                }
+            if let InsnId(ARM_INSN_SVC) = instr.id()
+                && task != HubrisTask::Kernel
+            {
+                self.syscall_pushes.insert(
+                    addr + b.len() as u32,
+                    Some(presyscall_pushes(cs, &instrs[0..ndx])?),
+                );
             }
         }
 
@@ -4557,10 +4550,10 @@ impl HubrisObjectLoader {
                         panic!("missing operand!");
                     });
 
-                    if let arch::ArchOperand::ArmOperand(op) = op {
-                        if let arch::arm::ArmOperandType::Imm(a) = op.op_type {
-                            brel = Some(a as u32);
-                        }
+                    if let arch::ArchOperand::ArmOperand(op) = op
+                        && let arch::arm::ArmOperandType::Imm(a) = op.op_type
+                    {
+                        brel = Some(a as u32);
                     }
                 }
 
@@ -4594,12 +4587,11 @@ impl HubrisObjectLoader {
         //
         if jump {
             for op in detail.arch_detail().operands() {
-                if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
+                if let arch::ArchOperand::ArmOperand(op) = op
+                    && let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_LR)) =
                         op.op_type
-                    {
-                        return Some(HubrisTarget::Return);
-                    }
+                {
+                    return Some(HubrisTarget::Return);
                 }
             }
 
@@ -4613,12 +4605,11 @@ impl HubrisObjectLoader {
         //
         if let InsnId(ARM_INSN_POP) = instr.id() {
             for op in detail.arch_detail().operands() {
-                if let arch::ArchOperand::ArmOperand(op) = op {
-                    if let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
+                if let arch::ArchOperand::ArmOperand(op) = op
+                    && let arch::arm::ArmOperandType::Reg(RegId(ARM_REG_PC)) =
                         op.op_type
-                    {
-                        return Some(HubrisTarget::Return);
-                    }
+                {
+                    return Some(HubrisTarget::Return);
                 }
             }
         }
@@ -5199,10 +5190,10 @@ impl HubrisObjectLoader {
                 let dir = dwarf.attr_string(unit, dir)?;
                 let dir = dir.to_string_lossy()?;
 
-                if !dir.starts_with('/') {
-                    if let Some(comp_dir) = &unit.comp_dir {
-                        comp = Some(comp_dir.to_string_lossy()?.into_owned());
-                    }
+                if !dir.starts_with('/')
+                    && let Some(comp_dir) = &unit.comp_dir
+                {
+                    comp = Some(comp_dir.to_string_lossy()?.into_owned());
                 }
 
                 directory = Some(dir.into_owned())
@@ -6529,11 +6520,7 @@ pub struct HubrisPrintFormat {
 
 impl HubrisPrintFormat {
     pub fn delim(&self) -> &'static str {
-        if self.newline {
-            "\n"
-        } else {
-            " "
-        }
+        if self.newline { "\n" } else { " " }
     }
 }
 
@@ -6712,11 +6699,7 @@ fn try_scoped<'a>(
         let matched: Vec<_> =
             map.keys().filter(|&n| re.is_match(n)).collect::<_>();
 
-        if matched.len() == 1 {
-            Some(matched[0])
-        } else {
-            None
-        }
+        if matched.len() == 1 { Some(matched[0]) } else { None }
     }
 }
 

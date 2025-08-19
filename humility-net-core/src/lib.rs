@@ -12,7 +12,7 @@
 //! In addition, it contains the contents of flash from the Hubris image,
 //! meaning it can handle flash reads locally.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use humility::{
     core::{Core, NetAgent},
     hubris::{HubrisArchive, HubrisFlashMap, HubrisRegion, HubrisTask},

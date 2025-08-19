@@ -129,7 +129,7 @@
 //! floating point, use the `--floating-point` (`-f`) option.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_arch_arm::{ARMRegister, ARMRegisterField};

@@ -64,17 +64,16 @@ impl StackPrinter {
                         );
                         print_indent();
 
-                        if self.line {
-                            if let Some(src) = hubris.lookup_src(inline.origin)
-                            {
-                                println!(
-                                    "{:11}@ {}:{}",
-                                    "",
-                                    src.fullpath(),
-                                    src.line
-                                );
-                                print_indent();
-                            }
+                        if self.line
+                            && let Some(src) = hubris.lookup_src(inline.origin)
+                        {
+                            println!(
+                                "{:11}@ {}:{}",
+                                "",
+                                src.fullpath(),
+                                src.line
+                            );
+                            print_indent();
                         }
                     }
                 }
@@ -85,16 +84,15 @@ impl StackPrinter {
                     println!("0x{:08x} 0x{:08x}", frame.cfa, *pc);
                 }
 
-                if self.line {
-                    if let Some(src) = frame
+                if self.line
+                    && let Some(src) = frame
                         .sym
                         .as_ref()
                         .and_then(|s| s.goff)
                         .and_then(|g| hubris.lookup_src(g))
-                    {
-                        print_indent();
-                        println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
-                    }
+                {
+                    print_indent();
+                    println!("{:11}@ {}:{}", "", src.fullpath(), src.line);
                 }
                 if ndx + 1 < stack.len() {
                     print_indent();

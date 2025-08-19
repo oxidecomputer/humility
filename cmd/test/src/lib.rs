@@ -90,7 +90,7 @@
 //! recommendation is to extend the state that is captured.
 //!
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
@@ -157,7 +157,7 @@ impl fmt::Display for TestResult {
         write!(f, "{}", match self {
             TestResult::Ok => "ok".green(),
             TestResult::Fail => "fail".red(),
-            TestResult::Unknown(ref _str) => "unknown".bold(),
+            TestResult::Unknown(..) => "unknown".bold(),
         })
     }
 }
@@ -240,11 +240,11 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
         let test_name =
             std::str::from_utf8(&bytes).unwrap_or("<test name unknown>");
 
-        if let Some(ref expected) = subargs.single {
-            if expected != test_name {
-                println!("skipping {}", test_name);
-                continue;
-            }
+        if let Some(ref expected) = subargs.single
+            && expected != test_name
+        {
+            println!("skipping {}", test_name);
+            continue;
         }
         print!("humility: running {} ...", test_name);
         ran_cases += 1;

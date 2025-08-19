@@ -4,7 +4,7 @@
 
 //! Interface to the `hiffy` task, which allows execution of HIF programs
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
@@ -926,14 +926,14 @@ impl<'a> HiffyContext<'a> {
             return self.perform_rpc(core, ops);
         }
 
-        if let Some(data) = data {
-            if data.len() > self.data.size {
-                bail!(
-                    "data size ({}) exceeds maximum data size ({})",
-                    data.len(),
-                    self.data.size
-                );
-            }
+        if let Some(data) = data
+            && data.len() > self.data.size
+        {
+            bail!(
+                "data size ({}) exceeds maximum data size ({})",
+                data.len(),
+                self.data.size
+            );
         }
 
         let mut text: Vec<u8> = vec![];
@@ -1065,10 +1065,10 @@ impl<'a> HiffyContext<'a> {
 
         core.op_done()?;
 
-        if let Some(kicked) = self.kicked {
-            if kicked.elapsed().as_millis() > self.timeout.into() {
-                bail!("operation timed out");
-            }
+        if let Some(kicked) = self.kicked
+            && kicked.elapsed().as_millis() > self.timeout.into()
+        {
+            bail!("operation timed out");
         }
 
         if let Some(cached) = self.cached {

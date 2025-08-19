@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use humility::core::Core;
 use humility::hubris::*;
 use std::num::NonZeroU32;
@@ -110,10 +110,10 @@ impl<'a> JefeVariables<'a> {
 
         core.run()?;
 
-        if let Some(kicked) = self.kicked {
-            if kicked.elapsed().as_millis() > self.timeout.into() {
-                bail!("operation timed out");
-            }
+        if let Some(kicked) = self.kicked
+            && kicked.elapsed().as_millis() > self.timeout.into()
+        {
+            bail!("operation timed out");
         }
 
         if let Some(cached) = self.cached {

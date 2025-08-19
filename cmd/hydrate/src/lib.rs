@@ -17,7 +17,7 @@
 //! By default, this writes to `hubris.core.TASK_NAME.N` (where `N` is the
 //! lowest available value); use `--out` to specify a different path name.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, IntoApp, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;

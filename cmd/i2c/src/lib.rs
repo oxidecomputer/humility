@@ -90,7 +90,7 @@
 //! Controller I2C3, device 0x48, register 0x4 = 0x1f
 //! ```
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility_cli::{ExecutionContext, Subcommand};
@@ -235,16 +235,17 @@ fn i2c_done(
                 print!("0x{:02x}    ", i);
             }
 
-            if subargs.scanreg.is_some() && i < results.len() {
-                if let Ok(val) = &results[i] {
-                    print!("  {:02x}", val[0]);
+            if subargs.scanreg.is_some()
+                && i < results.len()
+                && let Ok(val) = &results[i]
+            {
+                print!("  {:02x}", val[0]);
 
-                    if i % 16 == 15 {
-                        println!();
-                    }
-
-                    continue;
+                if i % 16 == 15 {
+                    println!();
                 }
+
+                continue;
             }
 
             print!(

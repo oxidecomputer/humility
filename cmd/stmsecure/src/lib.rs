@@ -27,7 +27,7 @@
 //! humility stmsecure bank-swap
 //! ```
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;

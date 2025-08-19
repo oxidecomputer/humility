@@ -7,7 +7,7 @@
 //! `humility lsusb` will show you Humility's view of the USB devices available
 //! on the system, to help you choose probes and/or diagnose permissions issues.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};

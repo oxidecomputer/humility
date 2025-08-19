@@ -99,7 +99,7 @@
 //! status.
 //!
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
@@ -446,7 +446,7 @@ fn vpd_read_at(
 ) -> Result<Vec<u8>> {
     let target = match target {
         VpdTarget::Device(target) => *target,
-        VpdTarget::Loopback(ref mut file) => {
+        VpdTarget::Loopback(file) => {
             let mut buffer = vec![];
             file.seek(SeekFrom::Start(offset as u64))?;
             file.read_to_end(&mut buffer)?;

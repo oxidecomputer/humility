@@ -5,7 +5,7 @@
 use crate::core::Core;
 use crate::hubris::HubrisArchive;
 use crate::hubris::HubrisFlashMap;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use humility_arch_arm::ARMRegister;
 use std::path::Path;
 

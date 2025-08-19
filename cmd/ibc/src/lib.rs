@@ -100,15 +100,15 @@
 //! had **not** be up for 777 days (or, for that matter, for 4,969).
 //!
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_idol::{self as idol, HubrisIdol};
 use zerocopy::{
-    byteorder::{BigEndian, U16, U32},
     AsBytes, FromBytes,
+    byteorder::{BigEndian, U16, U32},
 };
 
 use hif::*;

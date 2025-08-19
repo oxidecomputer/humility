@@ -15,7 +15,7 @@ use std::process;
 use humility_cli::{Cli, ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 
 #[derive(Parser, Debug)]

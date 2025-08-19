@@ -16,7 +16,7 @@
 //! Note that `--update` can also take a filename as a parameter.
 //!
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 
 use humility_cli::{ExecutionContext, Subcommand};

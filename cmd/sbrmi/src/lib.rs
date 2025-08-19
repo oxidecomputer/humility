@@ -89,7 +89,7 @@
 //! desired target thread; full MCA information can similarly be retrieved
 //! using the `--mca` option and specifyin a desired thread.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{ArgGroup, CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
@@ -472,10 +472,10 @@ fn mca(
             let name = format!("{:?}", reg);
             println!("    {name:14} 0x{v:016x}");
 
-            if let Msr::MCA_STATUS(_) = reg {
-                if v == 0 {
-                    continue;
-                }
+            if let Msr::MCA_STATUS(_) = reg
+                && v == 0
+            {
+                continue;
             }
 
             if let Some(fields) = reg.fields() {

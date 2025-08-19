@@ -28,14 +28,14 @@ use std::{
     thread::spawn,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
-    architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
     DebugProbeError, Probe,
+    architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
 };
 
 // The debug mailbox registers
@@ -129,13 +129,13 @@ fn poll_raw_ap_register(
                             return Err(DebugProbeError::ArchitectureSpecific(
                                 e.into(),
                             )
-                            .into())
+                            .into());
                         }
                     },
                     Err(e) => {
                         return Err(
                             DebugProbeError::ArchitectureSpecific(e).into()
-                        )
+                        );
                     }
                 }
             }
@@ -345,7 +345,10 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
 
             let dar_bytes = std::fs::read(dar)?;
             if dar_bytes.len() % 4 != 0 {
-                bail!("Debug Authentication Response is not an even number of words ({} bytes)", dar_bytes.len());
+                bail!(
+                    "Debug Authentication Response is not an even number of words ({} bytes)",
+                    dar_bytes.len()
+                );
             }
 
             let mut dar_words = vec![0u32; dar_bytes.len() / 4];
@@ -404,7 +407,10 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
                 .context("Reading permslip stdout")?
                 .stdout;
             if dar_bytes.len() % 4 != 0 {
-                bail!("Debug Authentication Response is not an even number of words ({} bytes)", dar_bytes.len());
+                bail!(
+                    "Debug Authentication Response is not an even number of words ({} bytes)",
+                    dar_bytes.len()
+                );
             }
             let mut dar_words = vec![0u32; dar_bytes.len() / 4];
             LittleEndian::read_u32_into(&dar_bytes, &mut dar_words);

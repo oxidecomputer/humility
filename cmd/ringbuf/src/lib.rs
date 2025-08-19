@@ -62,7 +62,7 @@
 //! See the [`ringbuf`
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;

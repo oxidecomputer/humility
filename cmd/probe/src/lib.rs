@@ -86,7 +86,7 @@
 //! humility:          SPR => 0x7000000
 //! ```
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisValidate;
 use humility_arch_arm::ARMRegister;
@@ -293,11 +293,7 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
     let comp = |k: &(String, CoreSightComponent)| {
         let len = coreinfo.components.get_vec(&k.1).unwrap().len();
 
-        if len > 1 {
-            format!("{}(x{})", k.0, len)
-        } else {
-            k.0.to_string()
-        }
+        if len > 1 { format!("{}(x{})", k.0, len) } else { k.0.to_string() }
     };
 
     let units = sorted.iter().map(comp).collect::<Vec<String>>().join(" ");

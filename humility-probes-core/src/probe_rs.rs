@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use std::cell::RefCell;
@@ -10,8 +10,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::rc::Rc;
 
-use probe_rs::flashing;
 use probe_rs::MemoryInterface;
+use probe_rs::flashing;
 
 pub struct ProbeCore {
     pub session: probe_rs::Session,
@@ -89,16 +89,16 @@ impl Core for ProbeCore {
         log::trace!("reading word at {:x}", addr);
         let mut rval = 0;
 
-        if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
-            if addr + 4 < range.0 + range.1 {
-                let mut core = self.session.core(0)?;
-                return core.read_word_32(addr).with_context(|| {
-                    format!(
-                        "failed to perform unhalted word read at address \
+        if let Some(range) = self.unhalted_read.range(..=addr).next_back()
+            && addr + 4 < range.0 + range.1
+        {
+            let mut core = self.session.core(0)?;
+            return core.read_word_32(addr).with_context(|| {
+                format!(
+                    "failed to perform unhalted word read at address \
                         {addr:#x}",
-                    )
-                });
-            }
+                )
+            });
         }
 
         self.halt_and_read(|core| {
@@ -120,17 +120,17 @@ impl Core for ProbeCore {
                 data.len(), addr, CORE_MAX_READSIZE);
         }
 
-        if let Some(range) = self.unhalted_read.range(..=addr).next_back() {
-            if addr + (data.len() as u32) < range.0 + range.1 {
-                let mut core = self.session.core(0)?;
-                return core.read_8(addr, data).with_context(|| {
-                    format!(
-                        "failed to perform unhalted read at address \
+        if let Some(range) = self.unhalted_read.range(..=addr).next_back()
+            && addr + (data.len() as u32) < range.0 + range.1
+        {
+            let mut core = self.session.core(0)?;
+            return core.read_8(addr, data).with_context(|| {
+                format!(
+                    "failed to perform unhalted read at address \
                         {addr:#x} for length {}",
-                        data.len()
-                    )
-                });
-            }
+                    data.len()
+                )
+            });
         }
 
         self.halt_and_read(|core| {

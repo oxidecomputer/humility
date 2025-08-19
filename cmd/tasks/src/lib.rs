@@ -111,7 +111,7 @@
 //! These options can naturally be combined, e.g. `humility tasks -slvr`.
 //!
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -277,10 +277,10 @@ pub fn print_tasks(
             let addr = base + i * task_t.size as u32;
             let offs = i as usize * task_t.size;
 
-            if let Some(HubrisTask::Task(ndx)) = task_dump {
-                if ndx != i {
-                    continue;
-                }
+            if let Some(HubrisTask::Task(ndx)) = task_dump
+                && ndx != i
+            {
+                continue;
             }
 
             let task_value: reflect::Value =

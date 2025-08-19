@@ -1,7 +1,7 @@
 [package]
 name = "humility-cmd-extract"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "extract all or part of a Hubris archive"
 
 [dependencies]

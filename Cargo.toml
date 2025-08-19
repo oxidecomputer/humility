@@ -82,7 +82,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85" # if this changes, edit ci.yaml as well!
+rust-version = "1.88" # if this changes, edit ci.yaml as well!
 
 [workspace.dependencies]
 # `git`-based deps
@@ -230,7 +230,7 @@ postcard = "0.7.0"
 pretty-hex = "0.4"
 proc-macro2 = "1.0"
 quote = "1.0"
-rand = "0.8"
+rand = "0.9"
 ratatui = "0.23.0"
 raw-cpuid = { version = "11.0.0", features = ["display"] }
 rayon = "1.7"

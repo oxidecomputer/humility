@@ -21,7 +21,7 @@
 //! For more details, see the Humliity documenation on environments.
 //!
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};

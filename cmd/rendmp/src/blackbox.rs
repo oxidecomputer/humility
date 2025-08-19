@@ -184,20 +184,64 @@ impl Display for StatusCml {
         format_faults_desc(
             self.0,
             &[
-                (15, "VOUT", "An output voltage fault or warning has occurred."),
+                (
+                    15,
+                    "VOUT",
+                    "An output voltage fault or warning has occurred.",
+                ),
                 (14, "IOUT", "An output current fault has occurred."),
-                (13, "INPUT", "An input voltage fault or warning has occurred."),
-                (12, "MFR_SPECIFIC", "A manufacturer specific fault or warning has occurred."),
+                (
+                    13,
+                    "INPUT",
+                    "An input voltage fault or warning has occurred.",
+                ),
+                (
+                    12,
+                    "MFR_SPECIFIC",
+                    "A manufacturer specific fault or warning has occurred.",
+                ),
                 (11, "POWER_GOOD#", "The POWER_GOOD signal is negated."),
-                (8, "Unknown", "A fault other than those described in bits [15:9] has occurred."),
+                (
+                    8,
+                    "Unknown",
+                    "A fault other than those described in bits [15:9] has occurred.",
+                ),
                 (7, "Busy", "Device busy and unable to respond."),
-                (6, "OFF", "This bit is asserted if the unit is not providing power to the output, regardless of the reason, including simply not being enabled"),
-                (5, "VOUT_OV_FAULT", "An output overvoltage fault has occurred."),
-                (4, "IOUT_OC_FAULT", "An output overcurrent fault has occurred."),
-                (3, "VIN_UV_FAULT", "An input undervoltage fault has occurred."),
-                (2, "TEMPERATURE", "A temperature fault or warning has occurred."),
-                (1, "CML", "A communications, memory, or logic fault has occurred."),
-                (0, "None of the Above", "A status change other than those listed above has occurred."),
+                (
+                    6,
+                    "OFF",
+                    "This bit is asserted if the unit is not providing power to the output, regardless of the reason, including simply not being enabled",
+                ),
+                (
+                    5,
+                    "VOUT_OV_FAULT",
+                    "An output overvoltage fault has occurred.",
+                ),
+                (
+                    4,
+                    "IOUT_OC_FAULT",
+                    "An output overcurrent fault has occurred.",
+                ),
+                (
+                    3,
+                    "VIN_UV_FAULT",
+                    "An input undervoltage fault has occurred.",
+                ),
+                (
+                    2,
+                    "TEMPERATURE",
+                    "A temperature fault or warning has occurred.",
+                ),
+                (
+                    1,
+                    "CML",
+                    "A communications, memory, or logic fault has occurred.",
+                ),
+                (
+                    0,
+                    "None of the Above",
+                    "A status change other than those listed above has occurred.",
+                ),
             ],
             f,
         )

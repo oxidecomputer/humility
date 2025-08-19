@@ -4,7 +4,7 @@
 
 use crate::core::Core;
 use crate::hubris::HubrisArchive;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use goblin::elf::Elf;
 use humility_arch_arm::ARMRegister;
 use std::collections::{BTreeMap, HashMap};
@@ -78,37 +78,36 @@ impl Core for DumpCore {
 
         if let Some((&base, &(size, offset))) =
             self.regions.range(..=addr).next_back()
+            && base <= addr
+            && addr < (base + size)
         {
-            if base <= addr && addr < (base + size) {
-                if (addr - base) + rsize as u32 > size {
-                    //
-                    // The memory we want to read starts in this region but
-                    // exceeds its bounds -- but if all of the memory we want
-                    // is in fact represented in the dump, we don't want to
-                    // return failure!  We recurse into reading whatever won't
-                    // be satisfied by this region, and (if that succeeds)
-                    // fall through into reading this one.
-                    //
-                    let next = (size - (addr - base)) as usize;
+            if (addr - base) + rsize as u32 > size {
+                //
+                // The memory we want to read starts in this region but
+                // exceeds its bounds -- but if all of the memory we want
+                // is in fact represented in the dump, we don't want to
+                // return failure!  We recurse into reading whatever won't
+                // be satisfied by this region, and (if that succeeds)
+                // fall through into reading this one.
+                //
+                let next = (size - (addr - base)) as usize;
 
-                    if next >= rsize
-                        || self.read_8(base + size, &mut data[next..]).is_err()
-                    {
-                        bail!(
+                if next >= rsize
+                    || self.read_8(base + size, &mut data[next..]).is_err()
+                {
+                    bail!(
                             "0x{:x} is valid, but relative to base (0x{:x}), \
                             offset (0x{:x}) exceeds max (0x{:x})",
                             addr, base, (addr - base) + rsize as u32, size
                         );
-                    }
                 }
-
-                let offs = offset + (addr - base) as usize;
-                self.check_offset(addr, rsize, offs)?;
-
-                data[..rsize]
-                    .copy_from_slice(&self.contents[offs..rsize + offs]);
-                return Ok(());
             }
+
+            let offs = offset + (addr - base) as usize;
+            self.check_offset(addr, rsize, offs)?;
+
+            data[..rsize].copy_from_slice(&self.contents[offs..rsize + offs]);
+            return Ok(());
         }
 
         bail!("read of {} bytes from invalid address: 0x{:x}", rsize, addr);

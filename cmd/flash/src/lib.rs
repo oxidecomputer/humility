@@ -32,7 +32,7 @@
 //! will be programmed after the image is written.  See RFD 311 for more
 //! information about auxiliary flash management.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::{core::Core, hubris::*};
 use humility_cli::{
@@ -166,7 +166,7 @@ fn force_openocd(
         writeln!(conf, "interface hla\nhla_serial {}", serial)?;
     }
 
-    if let FlashProgramConfig::Payload(ref payload) = payload {
+    if let FlashProgramConfig::Payload(payload) = payload {
         write!(conf, "{}", payload)?;
     } else {
         bail!("unexpected OpenOCD payload: {:?}", payload);
@@ -191,10 +191,10 @@ fn force_openocd(
 
     for arg in &config.args {
         match arg {
-            FlashArgument::Direct(ref val) => {
+            FlashArgument::Direct(val) => {
                 flash.arg(val);
             }
-            FlashArgument::FormattedPayload(ref pre, ref post) => {
+            FlashArgument::FormattedPayload(pre, post) => {
                 flash.arg(format!("{} {} {}", pre, srec_path, post));
             }
             FlashArgument::Config => {
@@ -362,7 +362,7 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
                 &subargs,
                 &config.metadata,
                 &config.elf,
-            )
+            );
         }
     };
 
