@@ -64,7 +64,7 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::{Archive, Command, CommandKind};
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -142,10 +142,6 @@ pub fn init() -> Command {
         app: MapArgs::command(),
         name: "map",
         run: mapcmd,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
+        kind: CommandKind::Unattached { archive: Archive::Required },
     }
 }
