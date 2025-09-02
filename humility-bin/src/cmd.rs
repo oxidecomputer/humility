@@ -98,7 +98,26 @@ pub fn subcommand(
                 (run)(context)
             })
         }
-        CommandKind::Unattached { .. } => (run)(context),
+        CommandKind::Unattached { archive } => {
+            if let Some(h) = &context.archive
+                && context.core.is_none()
+                && *archive == Archive::Required
+            {
+                // we'll try both `attach_dump` and `attach_archive` for maximum
+                // flexibility; they're allowed to fail, in which case the
+                // `core` will be left as `None`.
+                context.core = context
+                    .cli
+                    .dump
+                    .as_ref()
+                    .and_then(|dump| humility::core::attach_dump(dump, h).ok())
+                    .or_else(|| humility::core::attach_archive(h).ok());
+                if context.core.is_none() {
+                    humility::warn!("could not attach to dump or archive")
+                }
+            }
+            (run)(context)
+        }
         CommandKind::Detached { .. } => {
             if context.cli.dump.is_some() {
                 bail!("cannot specify a dump for {} command", cmd);
