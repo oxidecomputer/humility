@@ -112,6 +112,9 @@ pub fn subcommand(
                     .as_ref()
                     .and_then(|dump| humility::core::attach_dump(dump, h).ok())
                     .or_else(|| humility::core::attach_archive(h).ok());
+                if context.core.is_none() {
+                    humility::warn!("could not attach to dump or archive")
+                }
             }
             (run)(context)
         }
