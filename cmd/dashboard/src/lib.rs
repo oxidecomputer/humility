@@ -916,7 +916,7 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
     // and a right justified 8 + margins), but we don't want it to consume
     // more than 80%; calculate accordingly.
     //
-    let r = std::cmp::min((30 * 100) / parent.width, 80);
+    let r = std::cmp::min((30u16 * 100).div_ceil(parent.width), 80);
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
