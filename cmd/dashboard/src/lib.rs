@@ -98,12 +98,12 @@ struct Series {
 }
 
 trait Attributes {
-    fn label(&self) -> String;
-    fn legend_label(&self) -> String;
-    fn x_axis_label(&self) -> String {
-        "Time".to_string()
+    fn label(&self) -> &'static str;
+    fn legend_label(&self) -> &'static str;
+    fn x_axis_label(&self) -> &'static str {
+        "Time"
     }
-    fn y_axis_label(&self) -> String;
+    fn y_axis_label(&self) -> &'static str;
     fn axis_value(&self, val: f64) -> String;
     fn legend_value(&self, val: f64) -> String;
 
@@ -119,15 +119,15 @@ trait Attributes {
 struct TempGraph;
 
 impl Attributes for TempGraph {
-    fn label(&self) -> String {
-        "Temperature".to_string()
+    fn label(&self) -> &'static str {
+        "Temperature"
     }
-    fn legend_label(&self) -> String {
-        "Sensors".to_string()
+    fn legend_label(&self) -> &'static str {
+        "Sensors"
     }
 
-    fn y_axis_label(&self) -> String {
-        "Degrees Celsius".to_string()
+    fn y_axis_label(&self) -> &'static str {
+        "Degrees Celsius"
     }
 
     fn axis_value(&self, val: f64) -> String {
@@ -149,15 +149,15 @@ impl FanGraph {
 }
 
 impl Attributes for FanGraph {
-    fn label(&self) -> String {
-        "Fan speed".to_string()
+    fn label(&self) -> &'static str {
+        "Fan speed"
     }
-    fn legend_label(&self) -> String {
-        "Fans".to_string()
+    fn legend_label(&self) -> &'static str {
+        "Fans"
     }
 
-    fn y_axis_label(&self) -> String {
-        "RPM".to_string()
+    fn y_axis_label(&self) -> &'static str {
+        "RPM"
     }
 
     fn axis_value(&self, val: f64) -> String {
@@ -188,15 +188,15 @@ impl Attributes for FanGraph {
 struct CurrentGraph;
 
 impl Attributes for CurrentGraph {
-    fn label(&self) -> String {
-        "Output current".to_string()
+    fn label(&self) -> &'static str {
+        "Output current"
     }
-    fn legend_label(&self) -> String {
-        "Regulators".to_string()
+    fn legend_label(&self) -> &'static str {
+        "Regulators"
     }
 
-    fn y_axis_label(&self) -> String {
-        "Amperes".to_string()
+    fn y_axis_label(&self) -> &'static str {
+        "Amperes"
     }
 
     fn axis_value(&self, val: f64) -> String {
@@ -916,7 +916,7 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
     // and a right justified 8 + margins), but we don't want it to consume
     // more than 80%; calculate accordingly.
     //
-    let r = std::cmp::min((30 * 100) / parent.width, 80);
+    let r = std::cmp::min((30u16 * 100).div_ceil(parent.width), 80);
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
