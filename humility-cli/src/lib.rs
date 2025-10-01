@@ -45,6 +45,11 @@ pub struct Cli {
     #[clap(long, short, group = "hubris")]
     pub probe: Option<String>,
 
+    /// When using a hardware debug probe, set the max speed of the SWD/JTAG
+    /// interface on the debug probe in kilohertz.
+    #[clap(long, short, value_name = "speed_khz")]
+    pub speed: Option<u32>,
+
     /// File that contains the Hubris archive. This may also be set via
     /// the HUMILITY_ARCHIVE environment variable. Run "humility doc" for
     /// more information on Hubris archives.
