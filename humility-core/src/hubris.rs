@@ -2848,7 +2848,6 @@ impl HubrisArchive {
         let pc = regs
             .get(&ARMRegister::PC)
             .ok_or_else(|| anyhow!("PC missing from regs map"))?;
-        println!("sp: {sp:x}\tpc: {pc:x}");
 
         let mut rval: Vec<HubrisStackFrame> = Vec::new();
         let mut frameregs = regs.clone();
@@ -2883,10 +2882,8 @@ impl HubrisArchive {
         // what has been pushed on our stack via asm!().
         //
         if let Some(Some(pushed)) = self.syscall_pushes.get(pc) {
-            println!("  got {pushed:#x?}");
             for (i, &p) in pushed.iter().enumerate() {
                 let val = readval(sp + (i * 4) as u32)?;
-                println!("    reading {p:?} from {:x}", sp + (i * 4) as u32);
                 frameregs.insert(p, val);
             }
 
@@ -2946,12 +2943,8 @@ impl HubrisArchive {
                 &mut ctx,
                 pc as u64,
                 gimli::DebugFrame::cie_from_offset,
-            );
-            println!("got unwindinfo for {pc:#x?}:\n{unwind_info:#x?}");
-            println!("pos is {pos:?}");
-            let unwind_info = unwind_info?;
+            )?;
 
-            println!("got cfa:\n{:#x?}", unwind_info.cfa());
             //
             // Determine the CFA (Canonical Frame Address)
             //

@@ -404,7 +404,6 @@ pub fn print_tasks(
                         if stack {
                             let initial = desc.initial_stack;
 
-                            println!("calling hubris.stack with {regs:x?}");
                             match hubris.stack(core, t, initial, &regs) {
                                 Ok(stack) => printer.print(hubris, &stack),
                                 Err(e) => {
@@ -521,17 +520,31 @@ fn stack_syscall<'a>(
     let mut frameregs = regs.clone();
     for (i, &p) in pushed.iter().enumerate() {
         let val = core.read_word_32(sp + (i * 4) as u32)?;
-        println!("    reading {p:?} from {:x}", sp + (i * 4) as u32);
         frameregs.insert(p, val);
     }
-    // This is a fake value, but it's in the correct region
-    frameregs.insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
+    // Move ourselves up a single frame.  This leaves SP with a fake value, but
+    // it's in the correct region, which is what matters for `hubris.stack`
     frameregs.insert(ARMRegister::PC, *lr);
     frameregs.remove(&ARMRegister::LR);
 
     let initial = desc.initial_stack;
 
-    hubris.stack(core, t, initial, &frameregs)
+    let mut frames = hubris.stack(core, t, initial, &frameregs)?;
+    frames.insert(
+        0,
+        HubrisStackFrame {
+            cfa: *sp,
+            pos: None,
+            sym: Some(HubrisStackSymbol {
+                name: "[syscall stub]",
+                addr: *pc,
+                goff: None,
+            }),
+            registers: regs.clone(),
+            inlined: None,
+        },
+    );
+    Ok(frames)
 }
 
 fn stack_guess<'a>(
@@ -553,22 +566,11 @@ fn stack_guess<'a>(
     else {
         bail!("invalid type for r7")
     };
-    let addr = if *addr == 0 {
-        let Some(reflect::Value::Base(reflect::Base::U32(addr))) =
-            save.get("psp")
-        else {
-            bail!("invalid type for psp: {:x?}", save);
-        };
-        *addr - 4
-    } else {
-        *addr
-    };
-
-    let pc = core.read_word_32(addr + 4)? & !1;
+    let pc = core.read_word_32(*addr + 4)? & !1;
 
     let mut regs = BTreeMap::new();
-    regs.insert(ARMRegister::R7, addr);
-    regs.insert(ARMRegister::LR, addr);
+    regs.insert(ARMRegister::R7, *addr);
+    regs.insert(ARMRegister::LR, *addr);
 
     // Provide a dummy stack value to pick the
     // correct memory region
