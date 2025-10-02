@@ -404,26 +404,17 @@ pub fn print_tasks(
                         if stack {
                             let initial = desc.initial_stack;
 
-                            match hubris.stack(core, t, initial, &regs) {
+                            match hubris.stack(core, t, initial, &regs).or_else(
+                                |_| {
+                                    stack_syscall(core, hubris, t, &desc, &regs)
+                                },
+                            ) {
                                 Ok(stack) => printer.print(hubris, &stack),
                                 Err(e) => {
                                     writeln!(
                                         w,
                                         "   stack unwind failed: {e:?}"
                                     )?;
-                                    if guess {
-                                        match stack_syscall(
-                                            core, hubris, t, &desc, &regs,
-                                        ) {
-                                            Ok(stack) => {
-                                                printer.print(hubris, &stack)
-                                            }
-                                            Err(e) => writeln!(
-                                                w,
-                                                "   stack unwind failed: {e:?}"
-                                            )?,
-                                        }
-                                    }
                                 }
                             }
                         }
