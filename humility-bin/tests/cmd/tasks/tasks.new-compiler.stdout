@@ -1,0 +1,7 @@
+system time = 6611
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: fault timer(T+89)
+ 1 sys                          0   1 recv
+ 2 user_leds                    0   5 recv, notif: timer
+ 3 pong                         0   8 recv, notif: timer(T+389)
+ 4 idle                         0   9 RUNNING

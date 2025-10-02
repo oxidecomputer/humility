@@ -405,8 +405,11 @@ pub fn print_tasks(
                             let initial = desc.initial_stack;
 
                             match hubris.stack(core, t, initial, &regs).or_else(
-                                |_| {
+                                |e| {
+                                    // Restore original error if the syscall
+                                    // stack handler didn't work.
                                     stack_syscall(core, hubris, t, &desc, &regs)
+                                        .map_err(|_| e)
                                 },
                             ) {
                                 Ok(stack) => printer.print(hubris, &stack),

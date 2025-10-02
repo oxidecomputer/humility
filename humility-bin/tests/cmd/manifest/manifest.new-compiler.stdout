@@ -1,0 +1,17 @@
+     version => hubris build archive v10
+     git rev => b068dee683c45a9578a2228668f0a59587cdf6c8-dirty
+    image id => [d7, fd, 9f, 7e, b4, 49, 6a, 59]
+       board => grapefruit
+        name => grapefruit-mini
+       image => default
+      target => thumbv7em-none-eabihf
+    features => measurement-handoff
+  total size => 39K
+ kernel size => 32K
+       tasks => 5
+                ID OBJ TASK                SIZE FEATURES
+                 0   2 sys                 2.6K h753
+                 1   1 jefe                2.3K 
+                 2   5 idle                0.1K 
+                 3   3 user_leds           1.2K stm32h7
+                 4   4 pong                0.6K 
