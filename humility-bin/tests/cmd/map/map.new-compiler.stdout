@@ -1,0 +1,33 @@
+DESC       LOW          HIGH          SIZE ATTR   ID TASK
+-          0x08000000 - 0x080002e7     744 r----- -  kernel
+-          0x080002e8 - 0x08003a77   13KiB r-x--- -  kernel
+-          0x08003a78 - 0x080046fb    3KiB r----- -  kernel
+-          0x08004700 - 0x08007fff   14KiB r----- -  kernel
+0x0800453c 0x08008000 - 0x080087ff    2KiB r-x--- 1  sys
+0x080044b0 0x08008800 - 0x08008fff    2KiB r-x--- 0  jefe
+0x080044c4 0x08009000 - 0x080090ff     256 r-x--- 0  jefe
+0x08004618 0x08009100 - 0x0800913f      64 r-x--- 4  idle
+0x0800462c 0x08009140 - 0x0800915f      32 r-x--- 4  idle
+0x08004564 0x08009160 - 0x0800917f      32 r-x--- 2  user_leds
+0x08004578 0x08009180 - 0x080091ff     128 r-x--- 2  user_leds
+0x0800458c 0x08009200 - 0x080093ff     512 r-x--- 2  user_leds
+0x080045a0 0x08009400 - 0x080095ff     512 r-x--- 2  user_leds
+0x080045c8 0x08009600 - 0x080096ff     256 r-x--- 3  pong
+0x080045dc 0x08009700 - 0x080097ff     256 r-x--- 3  pong
+0x080045f0 0x08009800 - 0x0800981f      32 r-x--- 3  pong
+0x0800449c 0x1ff00000 - 0x1ff1ffff  128KiB rw-d-- 1  [system_flash] sys
+-          0x24000000 - 0x240003ff    1KiB rw---- -  kernel
+-          0x24000400 - 0x24000403       4 rw---- -  kernel
+-          0x24000408 - 0x240007ff    1016 rw---- -  kernel
+0x08004550 0x24000800 - 0x24000fff    2KiB rw---- 1  sys
+0x080044d8 0x24001000 - 0x240013ff    1KiB rw---- 0  jefe
+0x08004604 0x24001400 - 0x240017ff    1KiB rw---- 3  pong
+0x080045b4 0x24001800 - 0x24001bff    1KiB rw---- 2  user_leds
+0x08004640 0x24001c00 - 0x24001dff     512 rw---- 4  idle
+0x080044ec 0x30010000 - 0x3001ffff   64KiB rw--me 0  [sram1] jefe
+0x08004500 0x30020000 - 0x3003ffff  128KiB rw--me 0  [sram2] jefe
+0x08004514 0x30040000 - 0x30047fff   32KiB rw--me 0  [sram3] jefe
+0x08004528 0x38000000 - 0x3800ffff   64KiB rw--me 0  [sram4] jefe
+0x08004488 0x58000400 - 0x580007ff    1KiB rw-d-- 1  [syscfg] sys
+0x08004460 0x58020000 - 0x58023fff   16KiB rw-d-- 1  [gpios] sys
+0x08004474 0x58024400 - 0x580247ff    1KiB rw-d-- 1  [rcc] sys

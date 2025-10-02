@@ -3766,6 +3766,13 @@ impl HubrisArchive {
             _ => Ok(true),
         }
     }
+
+    /// Returns syscall pushes at the given address (or `None`)
+    pub fn syscall_pushes_at(&self, pc: u32) -> Option<&[ARMRegister]> {
+        self.syscall_pushes
+            .get(&pc)
+            .and_then(|p| p.as_ref().map(|p| p.as_slice()))
+    }
 }
 
 /// Loader for a single ELF file

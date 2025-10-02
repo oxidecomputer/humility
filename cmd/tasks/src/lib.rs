@@ -111,7 +111,7 @@
 //! These options can naturally be combined, e.g. `humility tasks -slvr`.
 //!
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -404,7 +404,14 @@ pub fn print_tasks(
                         if stack {
                             let initial = desc.initial_stack;
 
-                            match hubris.stack(core, t, initial, &regs) {
+                            match hubris.stack(core, t, initial, &regs).or_else(
+                                |e| {
+                                    // Restore original error if the syscall
+                                    // stack handler didn't work.
+                                    stack_syscall(core, hubris, t, &desc, &regs)
+                                        .map_err(|_| e)
+                                },
+                            ) {
                                 Ok(stack) => printer.print(hubris, &stack),
                                 Err(e) => {
                                     writeln!(
@@ -481,6 +488,69 @@ pub fn print_tasks(
     }
 
     Ok(())
+}
+
+/// Finds a stack trace when the instruction pointer is in a syscall stub
+///
+/// Functions defined with `naked_asm` do not have unwind info (hubris#2236 /
+/// rust#146736).  For tasks which are in a syscall stub, this prevents our
+/// stack unwinder from making any progress: it can't get the unwind info for
+/// the root stack frame, so can't walk up the stack.
+///
+/// This function assumes that we're at a syscall, and begins stack walking *one
+/// frame up* to escape the tarpit: we use `LR` as the program counter, and
+/// populate register values based on the pushes at syscall entry.
+fn stack_syscall<'a>(
+    core: &'a mut dyn Core,
+    hubris: &'a HubrisArchive,
+    t: HubrisTask,
+    desc: &'a TaskDesc,
+    regs: &'a BTreeMap<ARMRegister, u32>,
+) -> Result<Vec<HubrisStackFrame<'a>>> {
+    let pc = regs
+        .get(&ARMRegister::PC)
+        .ok_or_else(|| anyhow!("PC missing from regs map"))?;
+    let lr = regs
+        .get(&ARMRegister::LR)
+        .ok_or_else(|| anyhow!("LR missing from regs map"))?;
+    let sp = regs
+        .get(&ARMRegister::SP)
+        .ok_or_else(|| anyhow!("SP missing from regs map"))?;
+
+    let Some(pushed) = hubris.syscall_pushes_at(*pc) else {
+        bail!("could not find syscall pushes at {pc:#x?}");
+    };
+
+    // Read pushed register values from the stack
+    let mut frameregs = regs.clone();
+    for (i, &p) in pushed.iter().enumerate() {
+        let val = core.read_word_32(sp + (i * 4) as u32)?;
+        frameregs.insert(p, val);
+    }
+    // Move ourselves up a single frame.  This leaves SP with a fake value, but
+    // it's in the correct region, which is what matters for `hubris.stack(..)`
+    frameregs.insert(ARMRegister::PC, *lr);
+    frameregs.remove(&ARMRegister::LR);
+
+    let mut frames = hubris.stack(core, t, desc.initial_stack, &frameregs)?;
+
+    // Insert a synthetic frame for the syscall stub
+    let name = hubris.instr_sym(*pc).map(|(name, _addr)| name);
+    frames.insert(
+        0,
+        HubrisStackFrame {
+            cfa: *sp,
+            pos: None,
+            sym: Some(HubrisStackSymbol {
+                name: name.unwrap_or("[syscall stub]"),
+                addr: *pc,
+                goff: None,
+            }),
+            registers: regs.clone(),
+            inlined: None,
+        },
+    );
+    Ok(frames)
 }
 
 fn stack_guess<'a>(

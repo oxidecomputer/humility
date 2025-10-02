@@ -1,0 +1,27 @@
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_toggle() ............................................... 13 calls
+    clients:
+    task user_leds (0 restarts) ........................ = 0 .......... = 13 ok
+
+ fn Sys::gpio_configure_raw() ......................................... 1 calls
+    clients:
+    task user_leds (0 restarts) ........................ = 0 ........... = 1 ok
+
+ fn Sys::gpio_set_reset() ............................................. 1 calls
+    clients:
+    task user_leds (0 restarts) ........................ = 0 ........... = 1 ok
+
+
+drv_user_leds_api::__USERLEDS_CLIENT_COUNTERS
+ fn UserLeds::led_toggle() ........................................... 19 calls
+    clients:
+    task pong (0 restarts) ............................................ = 13 ok
+    - Err(NotPresent) .................................. + 6 ..................
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::set_reset_reason() .......................................... 1 calls
+    clients:
+    task sys (0 restarts) .............................. = 0 ........... = 1 ok
+
+

@@ -1,0 +1,132 @@
+INTERFACE                    TASK
+Jefe                         jefe
+  |
+  +--> Jefe.get_state
+  |       <ok>                        u32
+  |
+  +--> Jefe.set_state
+  |       state                       u32
+  |       <ok>                        ()
+  |
+  +--> Jefe.request_reset
+  |       <ok>                        ()
+  |
+  +--> Jefe.get_reset_reason
+  |       <ok>                        ResetReason
+  |
+  +--> Jefe.set_reset_reason
+  |       reason                      ResetReason
+  |       <ok>                        ()
+  |
+  +--> Jefe.reinitialize_dump_areas
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.get_dump_area
+  |       index                       u8
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.claim_dump_area
+  |       <ok>                        humpty::DumpArea
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task
+  |       task_index                  u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.dump_task_region
+  |       task_index                  u32
+  |       address                     u32
+  |       length                      u32
+  |       <ok>                        u8
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.reinitialize_dump_from
+  |       index                       u8
+  |       <ok>                        ()
+  |       <error>                     DumpAgentError
+  |
+  +--> Jefe.restart_me_raw
+          <ok>                        ()
+  
+INTERFACE                    TASK
+Sys                          sys
+  |
+  +--> Sys.enable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.disable_clock_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.enter_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.leave_reset_raw
+  |       peripheral                  u32
+  |       <ok>                        ()
+  |       <error>                     RccError
+  |
+  +--> Sys.gpio_configure_raw
+  |       port                        Port
+  |       pins                        u16
+  |       packed_attributes           u16
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_set_reset
+  |       port                        Port
+  |       set_pins                    u16
+  |       reset_pins                  u16
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_read_input
+  |       port                        Port
+  |       <ok>                        u16
+  |
+  +--> Sys.gpio_toggle
+  |       port                        Port
+  |       pins                        u16
+  |       <ok>                        ()
+  |
+  +--> Sys.read_uid
+  |
+  +--> Sys.gpio_irq_configure
+  |       mask                        u32
+  |       sensitivity                 Edge
+  |       <ok>                        ()
+  |
+  +--> Sys.gpio_irq_control
+          mask                        u32
+          op                          IrqControl
+          <ok>                        bool
+  
+INTERFACE                    TASK
+UserLeds                     user_leds
+  |
+  +--> UserLeds.led_on
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_off
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_toggle
+  |       index                       usize
+  |       <ok>                        ()
+  |       <error>                     LedError
+  |
+  +--> UserLeds.led_blink
+          index                       usize
+          <ok>                        ()
+          <error>                     LedError
+  
