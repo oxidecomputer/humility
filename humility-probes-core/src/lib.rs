@@ -97,7 +97,7 @@ fn open_probe<T: Into<DebugProbeSelector> + Clone>(
         && let Some(rcode) = err.downcast_ref::<rusb::Error>()
         && *rcode == rusb::Error::Busy
     {
-        bail!("USB link in use; is OpenOCD or  another debugger running?");
+        bail!("USB link in use; is OpenOCD or another debugger running?");
     }
 
     let mut probe = res?;
