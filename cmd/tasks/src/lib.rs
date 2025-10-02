@@ -111,7 +111,7 @@
 //! These options can naturally be combined, e.g. `humility tasks -slvr`.
 //!
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -404,6 +404,7 @@ pub fn print_tasks(
                         if stack {
                             let initial = desc.initial_stack;
 
+                            println!("calling hubris.stack with {regs:x?}");
                             match hubris.stack(core, t, initial, &regs) {
                                 Ok(stack) => printer.print(hubris, &stack),
                                 Err(e) => {
@@ -411,6 +412,19 @@ pub fn print_tasks(
                                         w,
                                         "   stack unwind failed: {e:?}"
                                     )?;
+                                    if guess {
+                                        match stack_syscall(
+                                            core, hubris, t, &desc, &regs,
+                                        ) {
+                                            Ok(stack) => {
+                                                printer.print(hubris, &stack)
+                                            }
+                                            Err(e) => writeln!(
+                                                w,
+                                                "   stack unwind failed: {e:?}"
+                                            )?,
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -483,6 +497,43 @@ pub fn print_tasks(
     Ok(())
 }
 
+fn stack_syscall<'a>(
+    core: &'a mut dyn Core,
+    hubris: &'a HubrisArchive,
+    t: HubrisTask,
+    desc: &'a TaskDesc,
+    regs: &'a BTreeMap<ARMRegister, u32>,
+) -> Result<Vec<HubrisStackFrame<'a>>> {
+    let pc = regs
+        .get(&ARMRegister::PC)
+        .ok_or_else(|| anyhow!("PC missing from regs map"))?;
+    let lr = regs
+        .get(&ARMRegister::LR)
+        .ok_or_else(|| anyhow!("LR missing from regs map"))?;
+    let sp = regs
+        .get(&ARMRegister::SP)
+        .ok_or_else(|| anyhow!("SP missing from regs map"))?;
+
+    let Some(pushed) = hubris.syscall_pushes_at(*pc) else {
+        bail!("could not find syscall pushes at {pc:#x?}");
+    };
+
+    let mut frameregs = regs.clone();
+    for (i, &p) in pushed.iter().enumerate() {
+        let val = core.read_word_32(sp + (i * 4) as u32)?;
+        println!("    reading {p:?} from {:x}", sp + (i * 4) as u32);
+        frameregs.insert(p, val);
+    }
+    // This is a fake value, but it's in the correct region
+    frameregs.insert(ARMRegister::SP, sp + (pushed.len() * 4) as u32);
+    frameregs.insert(ARMRegister::PC, *lr);
+    frameregs.remove(&ARMRegister::LR);
+
+    let initial = desc.initial_stack;
+
+    hubris.stack(core, t, initial, &frameregs)
+}
+
 fn stack_guess<'a>(
     w: &'a mut dyn Write,
     core: &'a mut dyn Core,
@@ -502,11 +553,22 @@ fn stack_guess<'a>(
     else {
         bail!("invalid type for r7")
     };
-    let pc = core.read_word_32(*addr + 4)? & !1;
+    let addr = if *addr == 0 {
+        let Some(reflect::Value::Base(reflect::Base::U32(addr))) =
+            save.get("psp")
+        else {
+            bail!("invalid type for psp: {:x?}", save);
+        };
+        *addr - 4
+    } else {
+        *addr
+    };
+
+    let pc = core.read_word_32(addr + 4)? & !1;
 
     let mut regs = BTreeMap::new();
-    regs.insert(ARMRegister::R7, *addr);
-    regs.insert(ARMRegister::LR, *addr);
+    regs.insert(ARMRegister::R7, addr);
+    regs.insert(ARMRegister::LR, addr);
 
     // Provide a dummy stack value to pick the
     // correct memory region
