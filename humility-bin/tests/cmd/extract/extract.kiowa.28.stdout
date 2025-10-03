@@ -40,7 +40,7 @@ execute = false  # let's assume XN until proven otherwise
 
 [tasks.jefe]
 path = "../../task/jefe"
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 requires = {flash = 8192, ram = 2048}
 start = true
@@ -49,7 +49,7 @@ stacksize = 1536
 
 [tasks.sys]
 path = "../../drv/stm32xx-sys"
-name = "drv-stm32xx-sys"
+bin-crate = "drv-stm32xx-sys"
 features = ["h753"]
 priority = 1
 requires = {flash = 2048, ram = 1024}
@@ -58,7 +58,7 @@ start = true
 
 [tasks.spi4_driver]
 path = "../../drv/stm32h7-spi-server"
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 2
 requires = {flash = 16384, ram = 2048}
 features = ["spi4", "h753"]
@@ -73,7 +73,7 @@ global_config = "spi4"
 
 [tasks.spi2_driver]
 path = "../../drv/stm32h7-spi-server"
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 2
 requires = {flash = 16384, ram = 2048}
 features = ["spi2", "h753"]
@@ -88,7 +88,7 @@ global_config = "spi2"
 
 [tasks.i2c_driver]
 path = "../../drv/stm32h7-i2c-server"
-name = "drv-stm32h7-i2c-server"
+bin-crate = "drv-stm32h7-i2c-server"
 features = ["h753", "itm"]
 priority = 2
 requires = {flash = 16384, ram = 2048}
@@ -106,7 +106,7 @@ task-slots = ["sys"]
 
 [tasks.spd]
 path = "../../task/spd"
-name = "task-spd"
+bin-crate = "task-spd"
 features = ["h753", "itm"]
 priority = 2
 requires = {flash = 16384, ram = 16384}
@@ -120,7 +120,7 @@ task-slots = ["sys", "i2c_driver"]
 
 [tasks.thermal]
 path = "../../task/thermal"
-name = "task-thermal"
+bin-crate = "task-thermal"
 features = ["itm", "h753"]
 priority = 3
 requires = {flash = 8192, ram = 2048 }
@@ -130,7 +130,7 @@ task-slots = ["i2c_driver", "sensor"]
 
 [tasks.power]
 path = "../../task/power"
-name = "task-power"
+bin-crate = "task-power"
 features = ["itm", "h753"]
 priority = 3
 requires = {flash = 16384, ram = 4096 }
@@ -140,7 +140,7 @@ task-slots = ["i2c_driver", "sensor", "gimlet_seq"]
 
 [tasks.hiffy]
 path = "../../task/hiffy"
-name = "task-hiffy"
+bin-crate = "task-hiffy"
 features = ["h753", "stm32h7", "itm", "i2c", "gpio", "spi", "qspi"]
 priority = 3
 requires = {flash = 32768, ram = 32768 }
@@ -150,7 +150,7 @@ task-slots = ["sys", "hf", "i2c_driver"]
 
 [tasks.gimlet_seq]
 path = "../../drv/gimlet-seq-server"
-name = "drv-gimlet-seq-server"
+bin-crate = "drv-gimlet-seq-server"
 features = ["h753"]
 priority = 3
 requires = {flash = 65536, ram = 4096 }
@@ -160,7 +160,7 @@ task-slots = ["sys", "i2c_driver", {spi_driver = "spi2_driver"}, "hf"]
 
 [tasks.hf]
 path = "../../drv/gimlet-hf-server"
-name = "drv-gimlet-hf-server"
+bin-crate = "drv-gimlet-hf-server"
 features = ["h753"]
 priority = 3
 requires = {flash = 8192, ram = 2048 }
@@ -172,7 +172,7 @@ task-slots = ["sys"]
 
 [tasks.sensor]
 path = "../../task/sensor"
-name = "task-sensor"
+bin-crate = "task-sensor"
 features = ["itm"]
 priority = 3
 requires = {flash = 8192, ram = 2048 }
@@ -181,7 +181,7 @@ start = true
 
 [tasks.idle]
 path = "../../task/idle"
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 5
 requires = {flash = 128, ram = 256}
 stacksize = 256
