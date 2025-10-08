@@ -145,7 +145,7 @@ pub fn init() -> Command {
         name: "rebootleby",
         run: rebootleby,
         kind: CommandKind::Attached {
-            archive: Archive::Optional,
+            archive: Archive::Ignored,
             attach: Attach::LiveOnly,
             validate: Validate::None,
         },
