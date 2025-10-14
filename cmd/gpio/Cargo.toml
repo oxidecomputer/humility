@@ -9,6 +9,9 @@ hif.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
+lazy_static.workspace = true
+stm32h7 = { workspace = true, features = ["rt", "stm32h753"] }
+zerocopy.workspace = true
 
 humility-cli.workspace = true
 humility-cmd.workspace = true

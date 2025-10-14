@@ -101,6 +101,7 @@ tlvc-text = {git = "https://github.com/oxidecomputer/tlvc"}
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 ipcc-data = { git = "https://github.com/oxidecomputer/ipcc-rs" }
+stm32h7 = { version = "0.14", default-features = false }
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
