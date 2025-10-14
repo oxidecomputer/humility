@@ -101,7 +101,6 @@ tlvc-text = {git = "https://github.com/oxidecomputer/tlvc"}
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 ipcc-data = { git = "https://github.com/oxidecomputer/ipcc-rs" }
-stm32h7 = { version = "0.14", default-features = false }
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
@@ -248,6 +247,7 @@ serde-xml-rs = "0.5.1"
 sha2 = "0.10.1"
 splitty = "0.1.0"
 srec = "0.2"
+stm32h7 = { version = "0.14", features = ["stm32h753"] }
 strum = "0.22"
 strum_macros = "0.22"
 syn = "1.0"
