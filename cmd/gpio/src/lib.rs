@@ -111,7 +111,7 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility_hiffy::IpcError;

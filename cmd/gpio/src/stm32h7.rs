@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use humility_cli::ExecutionContext;
 use humility_hiffy::IpcError;
 use std::fmt;
