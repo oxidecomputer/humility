@@ -6,12 +6,43 @@ use anyhow::{Result, anyhow};
 use humility_cli::ExecutionContext;
 use humility_hiffy::IpcError;
 use std::fmt;
-use std::mem::MaybeUninit;
+use zerocopy::{AsBytes, FromBytes};
 
-use device::gpioa::RegisterBlock;
 use humility_hiffy::HiffyFunction;
 use std::collections::BTreeMap;
-use stm32h7::stm32h753 as device;
+
+/// STM32H7 series GPIO Registers
+///
+/// Pulling these in from any of the available public crates is
+/// problematic. The "stm32h7" crate will prevent us from linking
+/// on Windows and the "stm32-metapac" crate forces us to calculate
+/// offsets for all of the fields in the GPIO Register blocks.
+/// In this case, the code is more readable and easier to maintain
+/// if we just get our information from the ST Micro datasheet: "RM0433".
+#[derive(FromBytes, AsBytes, Copy, Clone)]
+#[repr(C)]
+struct GpioRegisters {
+    /// Mode Register
+    moder: u32, // 0x00
+    /// Output Type Register
+    otyper: u32, // 0x04
+    /// Output Speed Register
+    ospeedr: u32, // 0x08
+    /// Pull-Up/Pull-Down Register
+    pupdr: u32, // 0x0C
+    /// Input Data Register
+    idr: u32, // 0x10
+    /// Output Data Register
+    odr: u32, // 0x14
+    /// Bit Set/Reset Register (write-only)
+    bsrr: u32, // 0x18
+    /// Configuration Lock Register
+    lckr: u32, // 0x1C
+    /// Alternate Function Low Register
+    afrl: u32, // 0x20
+    /// Alternate Function High Register
+    afrh: u32, // 0x24
+}
 
 struct PinConfig {
     mode: String,
@@ -45,12 +76,12 @@ impl fmt::Display for PinConfig {
 /// Store an STM32H7 GPIO group ID ('A', 'B', etc.) and the associated GPIO
 /// configuration register block to avoid repeated IO for each Pin.
 struct ConfigCache {
-    cache: BTreeMap<char, RegisterBlock>,
+    cache: BTreeMap<char, GpioRegisters>,
 }
 
 impl ConfigCache {
     fn new() -> ConfigCache {
-        let cache: BTreeMap<char, RegisterBlock> = BTreeMap::new();
+        let cache: BTreeMap<char, GpioRegisters> = BTreeMap::new();
         Self { cache }
     }
 
@@ -70,7 +101,7 @@ impl ConfigCache {
             Some(rb) => rb,
         };
 
-        let reg = rb.moder.read().bits();
+        let reg = rb.moder;
         let mode = match (reg >> (pin * 2)) & 3 {
             0 => "Input",
             1 => "Output",
@@ -79,14 +110,14 @@ impl ConfigCache {
             _ => unreachable!(),
         };
 
-        let reg = rb.otyper.read().bits();
+        let reg = rb.otyper;
         let otype = match (reg >> pin) & 1 {
             0 => "OutPushPull",
             1 => "OutOpenDrain",
             _ => unreachable!(),
         };
 
-        let reg = rb.ospeedr.read().bits();
+        let reg = rb.ospeedr;
         let speed = match (reg >> (pin * 2)) & 3 {
             0 => "LowSpeed",
             1 => "MediumSpeed",
@@ -95,7 +126,7 @@ impl ConfigCache {
             _ => unreachable!(),
         };
 
-        let reg = rb.pupdr.read().bits();
+        let reg = rb.pupdr;
         let pull = match (reg >> (pin * 2)) & 3 {
             0 => "NoPull",
             1 => "PullUp",
@@ -104,14 +135,14 @@ impl ConfigCache {
             _ => unreachable!(),
         };
 
-        let reg = rb.idr.read().bits();
+        let reg = rb.idr;
         let input = match (reg >> pin) & 1 {
             0 => "InZero",
             1 => "InOne",
             _ => unreachable!(),
         };
 
-        let reg = rb.odr.read().bits();
+        let reg = rb.odr;
         let output = match (reg >> pin) & 1 {
             0 => "OutZero",
             1 => "OutOne",
@@ -119,7 +150,7 @@ impl ConfigCache {
         };
 
         // Note: Bit 16 indicates that the register is locked or unlocked.
-        let reg = rb.lckr.read().bits();
+        let reg = rb.lckr;
         let lock = match (reg >> pin) & 1 {
             0 => "Unlocked",
             1 => "Locked",
@@ -129,10 +160,10 @@ impl ConfigCache {
         let alternate = format!(
             "AF{}",
             if pin < 8 {
-                let reg = rb.afrl.read().bits();
+                let reg = rb.afrl;
                 (reg >> (pin * 4)) & 15
             } else {
-                let reg = rb.afrh.read().bits();
+                let reg = rb.afrh;
                 (reg >> ((pin - 8) * 4)) & 15
             }
         );
@@ -154,17 +185,17 @@ impl ConfigCache {
 fn stm32h753_gpio_registerblock_addr(group: char) -> Option<u32> {
     // Section 11.4: GPIO registers
     match group {
-        'A' => Some(device::GPIOA::ptr() as u32),
-        'B' => Some(device::GPIOB::ptr() as u32),
-        'C' => Some(device::GPIOC::ptr() as u32),
-        'D' => Some(device::GPIOD::ptr() as u32),
-        'E' => Some(device::GPIOE::ptr() as u32),
-        'F' => Some(device::GPIOF::ptr() as u32),
-        'G' => Some(device::GPIOG::ptr() as u32),
-        'H' => Some(device::GPIOH::ptr() as u32),
-        'I' => Some(device::GPIOI::ptr() as u32),
-        'J' => Some(device::GPIOJ::ptr() as u32),
-        'K' => Some(device::GPIOK::ptr() as u32),
+        'A' => Some(0x5802_0000u32),
+        'B' => Some(0x5802_0400u32),
+        'C' => Some(0x5802_0800u32),
+        'D' => Some(0x5802_0C00u32),
+        'E' => Some(0x5802_1000u32),
+        'F' => Some(0x5802_1400u32),
+        'G' => Some(0x5802_1800u32),
+        'H' => Some(0x5802_1C00u32),
+        'I' => Some(0x5802_2000u32),
+        'J' => Some(0x5802_2400u32),
+        'K' => Some(0x5802_2800u32),
         _ => None,
     }
 }
@@ -191,22 +222,16 @@ fn read_gpio_register_block(
     context: &mut ExecutionContext,
     chip: &str,
     group: char,
-) -> Result<RegisterBlock> {
-    let core = &mut **context.core.as_mut().unwrap();
+) -> Result<GpioRegisters> {
+    let core = context.core.as_mut().unwrap();
     chip_has_group(chip, group)?;
     let addr = stm32h753_gpio_registerblock_addr(group)
         .ok_or(anyhow!("no address for GPIO group {}", group))?;
-    let mut buffer = vec![0u8; std::mem::size_of::<RegisterBlock>()];
+    let mut buffer = vec![0u8; std::mem::size_of::<GpioRegisters>()];
     core.read_8(addr, &mut buffer)?;
-
-    let mut rb: MaybeUninit<RegisterBlock> = MaybeUninit::uninit();
-    // SAFETY: Copying data from a HW defined struct into that struct.
-    unsafe {
-        let dest_ptr = rb.as_mut_ptr() as *mut u8;
-        std::ptr::copy_nonoverlapping(buffer.as_ptr(), dest_ptr, buffer.len());
-
-        Ok(rb.assume_init())
-    }
+    let rb = GpioRegisters::read_from_prefix(buffer.as_slice())
+        .ok_or(anyhow!("Slice length is incorrect for GpioRegisters"))?;
+    Ok(rb)
 }
 
 pub fn show_gpio_with_config(
