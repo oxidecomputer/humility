@@ -105,7 +105,7 @@
 //! ```
 //!
 
-mod stm32h753;
+mod stm32h7;
 
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
@@ -122,14 +122,24 @@ fn show_gpio_with_config(
     args: &[(u16, Option<u8>, String)],
     results: &[Result<Vec<u8>, IpcError>],
 ) -> Result<()> {
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = context
+        .archive
+        .as_ref()
+        .ok_or_else(|| anyhow!("Cannot get GPIO config: archive not loaded"))?;
     if let Some(chip) = hubris.chip() {
-        match chip.as_str() {
-            "stm32h7" => {
-                // Call the stm32h753-specific function
-                stm32h753::show_gpio_with_config(context, gpio_input, args, results)
-            }
-            _ => Err(anyhow!("GPIO `--with-config` is not supported for chip '{chip}'")),
+        if chip.to_ascii_lowercase().starts_with("stm32h7") {
+            // Call the stm32h7-specific function
+            stm32h7::show_gpio_with_config(
+                context,
+                gpio_input,
+                chip.as_str(),
+                args,
+                results,
+            )
+        } else {
+            Err(anyhow!(
+                "GPIO `--with-config` is not supported for chip '{chip}'"
+            ))
         }
     } else {
         Err(anyhow!(
@@ -137,7 +147,6 @@ fn show_gpio_with_config(
         ))
     }
 }
-
 
 use std::convert::TryInto;
 
