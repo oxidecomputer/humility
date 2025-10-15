@@ -231,7 +231,7 @@ pub struct HubrisConfigAuxflash {
 
 impl HubrisConfigAuxflash {
     pub fn slot_size_bytes(&self) -> Result<usize> {
-        if self.memory_size % self.slot_count != 0 {
+        if !self.memory_size.is_multiple_of(self.slot_count) {
             bail!("Cannot evenly divide auxflash into slots");
         }
         Ok(self.memory_size / self.slot_count)
@@ -1656,7 +1656,7 @@ impl HubrisArchive {
     }
 
     fn load_registers(&mut self, r: &[u8]) -> Result<()> {
-        if r.len() % 8 != 0 {
+        if !r.len().is_multiple_of(8) {
             bail!("bad length {} in registers note", r.len());
         }
 
@@ -2551,7 +2551,7 @@ impl HubrisArchive {
                             // Check that the reference is properly aligned for
                             // the RegionDesc type.
                             let offset = ndx - rdescs.addr;
-                            if offset as usize % rdesc.size != 0 {
+                            if !(offset as usize).is_multiple_of(rdesc.size) {
                                 bail!("task {i} has misaligned reference at \
                                       {ndx:#x}");
                             }
