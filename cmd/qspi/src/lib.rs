@@ -856,7 +856,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         // then erase/flash the different sectors.
         //
         let base_addr = subargs.addr.unwrap_or(0) as u32;
-        if base_addr % SECTOR_SIZE != 0 {
+        if !base_addr.is_multiple_of(SECTOR_SIZE) {
             bail!(
                 "base address (`--addr {base_addr:#x}`) must be divisible by \
                  sector size ({SECTOR_SIZE:#x})"
