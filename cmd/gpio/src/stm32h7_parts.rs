@@ -167,25 +167,27 @@ impl Stm32H7Part {
             _ => unreachable!(),
         };
 
-        let alternate = format!(
-            "AF{}",
-            if pin < 8 {
-                let reg = rb.afrl;
-                (reg >> (pin * 4)) & 15
-            } else {
-                let reg = rb.afrh;
-                (reg >> ((pin - 8) * 4)) & 15
-            }
-        );
+        let af_value: &[&'static str] = &[
+            "AF0", "AF1", "AF2", "AF3", "AF4", "AF5", "AF6", "AF7", "AF8",
+            "AF9", "AF10", "AF11", "AF12", "AF13", "AF14", "AF15",
+        ];
+
+        let alternate = af_value[if pin < 8 {
+            let reg = rb.afrl;
+            (reg >> (pin * 4)) & 15
+        } else {
+            let reg = rb.afrh;
+            (reg >> ((pin - 8) * 4)) & 15
+        } as usize];
 
         Ok(PinConfig {
-            mode: mode.to_string(),
-            otype: otype.to_string(),
-            speed: speed.to_string(),
-            pull: pull.to_string(),
-            input: input.to_string(),
-            output: output.to_string(),
-            lock: lock.to_string(),
+            mode,
+            otype,
+            speed,
+            pull,
+            input,
+            output,
+            lock,
             alternate,
         })
     }
@@ -500,14 +502,14 @@ pub struct GpioRegisters {
 /// Pin configuration details
 #[derive(Debug)]
 pub struct PinConfig {
-    pub mode: String,
-    pub otype: String,
-    pub speed: String,
-    pub pull: String,
-    pub input: String,
-    pub output: String,
-    pub lock: String,
-    pub alternate: String,
+    pub mode: &'static str,
+    pub otype: &'static str,
+    pub speed: &'static str,
+    pub pull: &'static str,
+    pub input: &'static str,
+    pub output: &'static str,
+    pub lock: &'static str,
+    pub alternate: &'static str,
 }
 
 impl fmt::Display for PinConfig {
