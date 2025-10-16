@@ -37,8 +37,9 @@ use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use itertools::izip;
 use std::collections::HashSet;
+use std::net::{SocketAddr, UdpSocket};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 #[derive(Parser, Debug)]
 #[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -101,6 +102,10 @@ struct SensorsArgs {
         conflicts_with_all = &["types", "devices", "named"],
     )]
     id: Option<Vec<usize>>,
+
+    /// select an influxdb udp endpoint to send sensor data to
+    #[clap(long, value_name = "host")]
+    influx: Option<SocketAddr>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
@@ -466,8 +471,35 @@ fn print(
         println!();
     }
 
+    let sender = if let Some(sock_addr) = subargs.influx {
+        let sock = match sock_addr {
+            SocketAddr::V4(_) => UdpSocket::bind("0.0.0.0:0")?,
+            SocketAddr::V6(_) => UdpSocket::bind(":::0")?,
+        };
+        Some(
+            move |name: &str,
+                  timestamp: u64,
+                  fields: &[(HubrisSensorKind, f32)]|
+                  -> Result<usize> {
+                let field_str: String = fields
+                    .iter()
+                    .map(|f| format!("{}={}", f.0.to_string(), f.1))
+                    .collect::<Vec<String>>()
+                    .join(",");
+                let buf = format!("{name} {field_str} {timestamp}\n");
+                Ok(sock.send_to(buf.as_bytes(), sock_addr)?)
+            },
+        )
+    } else {
+        None
+    };
+
     loop {
         let start = Instant::now();
+        let timestamp =
+            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+        let epoch_nanos = timestamp.as_secs() * 1_000_000_000
+            + timestamp.subsec_nanos() as u64;
         let SensorData { values: rval, errors: errs } =
             reader.run(hubris, core)?;
 
@@ -494,6 +526,16 @@ fn print(
 
             for ((_, s), val, err) in izip!(sensors, &rval, &errs) {
                 print!("{:20} {:13} ", s.name, s.kind.to_string());
+
+                if let Some(ref send_f) = sender {
+                    if let Some(val) = val {
+                        send_f(
+                            &s.name,
+                            epoch_nanos,
+                            vec![(s.kind, *val)].as_slice(),
+                        )?;
+                    }
+                }
 
                 if let Some(val) = val {
                     print!(" {:12.2}", val);
