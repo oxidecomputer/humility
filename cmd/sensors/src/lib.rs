@@ -36,6 +36,7 @@ use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use itertools::izip;
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::net::{SocketAddr, UdpSocket};
 use std::thread;
@@ -481,12 +482,16 @@ fn print(
                   timestamp: u64,
                   fields: &[(HubrisSensorKind, f32)]|
                   -> Result<usize> {
+                // put in influx db ingress format
                 let field_str: String = fields
                     .iter()
                     .map(|f| format!("{}={}", f.0.to_string(), f.1))
                     .collect::<Vec<String>>()
                     .join(",");
                 let buf = format!("{name} {field_str} {timestamp}\n");
+                // we send each line as a separate packet to avoid
+                // fragmentation. it is unlikely one named value will have
+                // enough fields to exceed MTU
                 Ok(sock.send_to(buf.as_bytes(), sock_addr)?)
             },
         )
@@ -494,14 +499,38 @@ fn print(
         None
     };
 
+    // collects fields from the same source together to reduce influx db traffic
+    let mut data_collection: BTreeMap<&str, Vec<(HubrisSensorKind, f32)>> =
+        BTreeMap::new();
+
     loop {
         let start = Instant::now();
-        let timestamp =
-            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-        let epoch_nanos = timestamp.as_secs() * 1_000_000_000
-            + timestamp.subsec_nanos() as u64;
         let SensorData { values: rval, errors: errs } =
             reader.run(hubris, core)?;
+
+        if let Some(ref send_func) = sender {
+            // influx timstamps are in nanoseconds since the epoch
+            let timestamp =
+                SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+            let epoch_nanos = timestamp.as_secs() * 1_000_000_000
+                + timestamp.subsec_nanos() as u64;
+            // add fields
+            for ((_, s), val) in izip!(sensors, &rval) {
+                if let Some(val) = val {
+                    data_collection
+                        .entry(&s.name)
+                        .or_insert(Vec::new())
+                        .push((s.kind, *val));
+                }
+            }
+            // send fields
+            for (k, v) in data_collection.iter_mut() {
+                if !v.is_empty() {
+                    send_func(&k, epoch_nanos, v.as_slice())?;
+                    v.clear(); // empty the field vec after use
+                }
+            }
+        }
 
         if subargs.tabular {
             for val in rval {
@@ -526,16 +555,6 @@ fn print(
 
             for ((_, s), val, err) in izip!(sensors, &rval, &errs) {
                 print!("{:20} {:13} ", s.name, s.kind.to_string());
-
-                if let Some(ref send_f) = sender {
-                    if let Some(val) = val {
-                        send_f(
-                            &s.name,
-                            epoch_nanos,
-                            vec![(s.kind, *val)].as_slice(),
-                        )?;
-                    }
-                }
 
                 if let Some(val) = val {
                     print!(" {:12.2}", val);
