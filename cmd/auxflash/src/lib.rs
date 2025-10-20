@@ -353,7 +353,7 @@ impl<'a> AuxFlashHandler<'a> {
     }
 
     pub fn reset(&mut self) -> Result<()> {
-        self.core.reset()
+        self.core.reset_with_handoff(self.hubris)
     }
 
     pub fn auxflash_write_from_archive(

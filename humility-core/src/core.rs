@@ -69,6 +69,28 @@ pub trait Core {
     /// halt
     fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()>;
 
+    /// Reset the chip, with special handling for measurement handoff
+    ///
+    /// If this image uses handoff to send a measurement token between the RoT
+    /// and SP, this won't work with a debugger physically attached.  To prevent
+    /// the SP from resetting itself, we write a different token which skips
+    /// this reboot loop.  The memory address and token values are pulled from
+    /// the `measurement-token` crate in `lpc55_support`, which is also used in
+    /// the SP firmware.
+    fn reset_with_handoff(&mut self, hubris: &HubrisArchive) -> Result<()> {
+        if hubris.manifest.features.iter().any(|s| s == "measurement-handoff") {
+            self.reset_and_halt(std::time::Duration::from_millis(25))?;
+            crate::msg!("skipping measurement token handoff");
+            self.write_word_32(
+                measurement_token::SP_ADDR as u32,
+                measurement_token::SKIP,
+            )?;
+            self.run()
+        } else {
+            self.reset()
+        }
+    }
+
     /// Called before starting a series of operations.  May halt the target if
     /// the target does not allow operations while not halted.  Should not be
     /// intermixed with [`halt`]/[`run`].

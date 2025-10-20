@@ -21,6 +21,7 @@ idol.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
 log.workspace = true
+measurement-token.workspace = true
 multimap.workspace = true
 num-derive.workspace = true
 num-traits.workspace = true
