@@ -407,23 +407,8 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(delay));
     }
 
-    // If this image uses handoff to send a measurement token between the RoT
-    // and SP, this won't work with a debugger physically attached.  To prevent
-    // the SP from resetting itself, we write a different token which skips this
-    // reboot loop.  The memory address and token values are pulled from the
-    // `measurement-token` crate in `lpc55_support`, which is also used in the
-    // SP firmware.
-    if hubris.manifest.features.iter().any(|s| s == "measurement-handoff") {
-        core.reset_and_halt(std::time::Duration::from_millis(25))?;
-        humility::msg!("skipping measurement token handoff");
-        core.write_word_32(
-            measurement_token::SP_ADDR as u32,
-            measurement_token::SKIP,
-        )?;
-        core.run()?;
-    } else {
-        core.reset()?;
-    }
+    // Reset, using the handoff token if present in the archive
+    core.reset_with_handoff(hubris)?;
 
     // At this point, we can attempt to program the auxiliary flash.  This has
     // to happen *after* the image is flashed and the core is reset, because it

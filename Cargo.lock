@@ -1590,7 +1590,6 @@ dependencies = [
  "humility-cortex",
  "humility-probes-core",
  "ihex",
- "measurement-token",
  "num-traits",
  "parse_int",
  "path-slash",
@@ -2359,6 +2358,7 @@ dependencies = [
  "indicatif",
  "libc",
  "log",
+ "measurement-token",
  "multimap",
  "num-derive 0.4.2",
  "num-traits",
@@ -2828,7 +2828,7 @@ dependencies = [
 [[package]]
 name = "measurement-token"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/lpc55_support#936f7d55b76d35165816f6f876f9fa9390fd4f5a"
+source = "git+https://github.com/oxidecomputer/lpc55_support#b507bc6d5dbebabc1d4c9b1ea3c8f24afd68fcae"
 
 [[package]]
 name = "memchr"

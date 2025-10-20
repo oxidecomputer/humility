@@ -140,10 +140,6 @@ impl<'a> EepromHandler<'a> {
         humility::msg!("done");
         Ok(())
     }
-
-    pub fn reset(&mut self) -> Result<()> {
-        self.core.reset()
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
