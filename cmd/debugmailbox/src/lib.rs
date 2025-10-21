@@ -34,7 +34,7 @@ use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
-    DebugProbeError, Probe,
+    DebugProbeError, DebugProbeSelector, Probe,
     architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
 };
 
@@ -44,6 +44,9 @@ const CSW: u8 = 0x0;
 const REQUEST: u8 = 0x4;
 const RETURN: u8 = 0x8;
 const IDR: u8 = 0xFC;
+
+// Are we talking to the wrong chip?
+const SP_IDR: u32 = 0x54770002;
 
 // See 51.5.5.1.4 of Rev 2.4 of the LPC55 manual
 const DM_ID: u32 = 0x002a_0000;
@@ -273,14 +276,29 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
         bail!("No probes found!");
     }
 
-    let num = subargs.probe_num.unwrap_or(0);
+    let mut probe = match &context.cli.probe {
+        Some(p) => match TryInto::<DebugProbeSelector>::try_into(p.clone()) {
+            Ok(selector) => {
+                let vid = selector.vendor_id;
+                let pid = selector.product_id;
+                let serial = selector.serial_number.clone();
 
-    if num > probes.len() {
-        bail!("Invalid probe number {}", num);
-    }
-
-    // Use the specified probe or the first one found.
-    let mut probe = probes[num].open()?;
+                match probes.clone().into_iter().find(|p| {
+                    p.vendor_id == vid
+                        && p.product_id == pid
+                        && p.serial_number == serial
+                }) {
+                    Some(p) => p.open()?,
+                    None => bail!("Failed to find probe {p}"),
+                }
+            }
+            Err(_) => bail!("{p} is not in vid:pid:serial format"),
+        },
+        None => {
+            // Just use the first probe found
+            probes[0].open()?
+        }
+    };
 
     probe.attach_to_unspecified()?;
     let mut iface = probe
@@ -301,7 +319,13 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
     let val = iface.read_raw_ap_register(dm_port, IDR)?;
 
     if val != DM_ID {
-        bail!("IDR incorrect: {:x}", val);
+        if val == SP_IDR {
+            bail!(
+                "This looks like an STM32H7, not an LPC55, double check your probes"
+            );
+        } else {
+            bail!("IDR incorrect: {val:x}");
+        }
     }
     {
         println!("Looks like a plausible debug mailbox");
@@ -432,9 +456,6 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
 #[derive(Parser, Debug)]
 #[clap(name = "debugmailbox", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct DebugMailboxArgs {
-    /// Which probe to connect
-    probe_num: Option<usize>,
-
     #[clap(subcommand)]
     cmd: DebugMailboxCmd,
 }
