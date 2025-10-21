@@ -289,7 +289,7 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
                         && p.serial_number == serial
                 }) {
                     Some(p) => p.open()?,
-                    None => bail!("Failed to find probe {}", p),
+                    None => bail!("Failed to find probe {p}"),
                 }
             }
             Err(_) => bail!("{p} is not in vid:pid:serial format"),
