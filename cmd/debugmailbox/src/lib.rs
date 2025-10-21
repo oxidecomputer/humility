@@ -324,7 +324,7 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
                 "This looks like an STM32H7, not an LPC55, double check your probes"
             );
         } else {
-            bail!("IDR incorrect: {:x}", val);
+            bail!("IDR incorrect: {val:x}");
         }
     }
     {
