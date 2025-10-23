@@ -21,23 +21,67 @@ struct ResetArgs {
     /// Reset and halt instead of continuing
     #[clap(long, conflicts_with_all = &["soft-reset"])]
     halt: bool,
+    /// Use measurement token handoff (usually decided automatically)
+    #[clap(long, conflicts_with_all = &["soft-reset", "halt"])]
+    use_token: Option<bool>,
 }
 
 fn reset(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ResetArgs::try_parse_from(subargs)?;
 
-    let hubris = context.archive.as_mut().unwrap();
+    // `context.archive` is always `Some(..)` even if we have not specified
+    // anything on the command line or through environment flags. However, if no
+    // archive is specified, then the actual data in the archive is default
+    // constructed (??!).
+    let chip = context.archive.as_mut().unwrap().chip();
 
     let probe = match &context.cli.probe {
         Some(p) => p,
         None => "auto",
     };
 
-    let mut c = if subargs.soft_reset || subargs.halt {
-        let chip = hubris.chip().ok_or_else(|| {
+    enum Behavior<'a> {
+        Halt,
+        ResetWithHandoff(&'a humility::hubris::HubrisArchive),
+        Reset,
+    }
+
+    let behavior = if subargs.halt {
+        Behavior::Halt
+    } else {
+        match subargs.use_token {
+            None => {
+                // Detect bogus archives by looking at the chip member
+                if let Some(archive) = &context.archive
+                    && chip.is_some()
+                {
+                    Behavior::ResetWithHandoff(archive)
+                } else {
+                    Behavior::Reset
+                }
+            }
+            Some(false) => Behavior::Reset,
+            Some(true) => {
+                if let Some(archive) = &context.archive
+                    && chip.is_some()
+                {
+                    Behavior::ResetWithHandoff(archive)
+                } else {
+                    anyhow::bail!(
+                        "Need a Hubris archive to use measurement token handoff"
+                    )
+                }
+            }
+        }
+    };
+
+    let mut c = if subargs.soft_reset
+        || matches!(behavior, Behavior::Halt | Behavior::ResetWithHandoff(..))
+    {
+        let chip = chip.ok_or_else(|| {
             anyhow::anyhow!(
-                "Need a chip to do a soft reset or halt after reset"
+                "Need a chip to do a soft reset, halt after reset, or handoff"
             )
         })?;
         humility_probes_core::attach_to_chip(
@@ -49,10 +93,10 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
         humility_probes_core::attach_to_probe(probe, context.cli.speed)?
     };
 
-    let r = if subargs.halt {
-        c.reset_and_halt(std::time::Duration::from_secs(2))
-    } else {
-        c.reset()
+    let r = match behavior {
+        Behavior::Halt => c.reset_and_halt(std::time::Duration::from_secs(2)),
+        Behavior::ResetWithHandoff(archive) => c.reset_with_handoff(archive),
+        Behavior::Reset => c.reset(),
     };
 
     if r.is_err() {
