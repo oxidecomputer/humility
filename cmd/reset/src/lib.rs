@@ -21,6 +21,9 @@ struct ResetArgs {
     /// Reset and halt instead of continuing
     #[clap(long, conflicts_with_all = &["soft-reset"])]
     halt: bool,
+    /// Use measurement token handoff (usually decided automatically)
+    #[clap(long, conflicts_with_all = &["soft-reset", "halt"])]
+    use_token: Option<bool>,
 }
 
 fn reset(context: &mut ExecutionContext) -> Result<()> {
@@ -52,7 +55,25 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
     let r = if subargs.halt {
         c.reset_and_halt(std::time::Duration::from_secs(2))
     } else {
-        c.reset()
+        match subargs.use_token {
+            None => {
+                if let Some(archive) = &context.archive {
+                    c.reset_with_handoff(archive)
+                } else {
+                    c.reset()
+                }
+            }
+            Some(false) => c.reset(),
+            Some(true) => {
+                if let Some(archive) = &context.archive {
+                    c.reset_with_handoff(archive)
+                } else {
+                    anyhow::bail!(
+                        "Need a Hubris archive to use measurement token handoff"
+                    )
+                }
+            }
+        }
     };
 
     if r.is_err() {
