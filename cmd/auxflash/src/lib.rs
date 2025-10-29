@@ -30,7 +30,7 @@ const READ_CHUNK_SIZE: usize = 256; // limited by HIFFY_SCRATCH_SIZE
 struct AuxFlashArgs {
     /// sets timeout
     #[clap(
-        long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
+        long, short = 'T', default_value_t = 30_000, value_name = "timeout_ms",
         parse(try_from_str = parse_int::parse)
     )]
     timeout: u32,

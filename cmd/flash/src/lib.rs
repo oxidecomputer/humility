@@ -300,7 +300,7 @@ fn get_image_state(
         // Note that we only run this check if we pass the image ID check;
         // otherwise, the Idol / hiffy memory maps are unknown.
         let mut worker =
-            match cmd_auxflash::AuxFlashHandler::new(hubris, core, 15_000) {
+            match cmd_auxflash::AuxFlashHandler::new(hubris, core, 30_000) {
                 Ok(w) => w,
                 Err(e) => {
                     // Halt the core before returning!
@@ -446,7 +446,7 @@ fn program_auxflash(
     core: &mut dyn Core,
     data: &[u8],
 ) -> Result<()> {
-    let mut worker = cmd_auxflash::AuxFlashHandler::new(hubris, core, 15_000)?;
+    let mut worker = cmd_auxflash::AuxFlashHandler::new(hubris, core, 30_000)?;
 
     // At this point, we've already rebooted into the new image.
     //
