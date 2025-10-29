@@ -302,6 +302,7 @@ impl Core for ProbeCore {
     fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.reset_and_halt(dur)?;
+        self.halted += 1;
         Ok(())
     }
 
