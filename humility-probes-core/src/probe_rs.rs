@@ -19,7 +19,7 @@ pub struct ProbeCore {
     pub vendor_id: u16,
     pub product_id: u16,
     pub serial_number: Option<String>,
-    halted: u32,
+    halted: bool,
     unhalted_read: BTreeMap<u32, u32>,
     can_flash: bool,
 }
@@ -39,7 +39,7 @@ impl ProbeCore {
             vendor_id,
             product_id,
             serial_number,
-            halted: 0,
+            halted: false,
             unhalted_read: humility_arch_arm::unhalted_read_regions(),
             can_flash,
         }
@@ -51,7 +51,7 @@ impl ProbeCore {
     ) -> Result<()> {
         let mut core = self.session.core(0)?;
 
-        let halted = if self.halted == 0 && !core.core_halted()? {
+        let halted = if !self.halted && !core.core_halted()? {
             core.halt(std::time::Duration::from_millis(1000))?;
             true
         } else {
@@ -95,8 +95,7 @@ impl Core for ProbeCore {
             let mut core = self.session.core(0)?;
             return core.read_word_32(addr).with_context(|| {
                 format!(
-                    "failed to perform unhalted word read at address \
-                        {addr:#x}",
+                    "failed to perform unhalted word read at address {addr:#x}",
                 )
             });
         }
@@ -127,7 +126,7 @@ impl Core for ProbeCore {
             return core.read_8(addr, data).with_context(|| {
                 format!(
                     "failed to perform unhalted read at address \
-                        {addr:#x} for length {}",
+                     {addr:#x} for length {}",
                     data.len()
                 )
             });
@@ -180,21 +179,20 @@ impl Core for ProbeCore {
     }
 
     fn halt(&mut self) -> Result<()> {
-        if self.halted == 0 {
+        if !self.halted {
             let mut core = self.session.core(0)?;
             core.halt(std::time::Duration::from_millis(1000))?;
+            self.halted = true;
         }
 
-        self.halted += 1;
         Ok(())
     }
 
     fn run(&mut self) -> Result<()> {
-        self.halted -= 1;
-
-        if self.halted == 0 {
+        if self.halted {
             let mut core = self.session.core(0)?;
             core.run()?;
+            self.halted = false;
         }
 
         Ok(())
@@ -302,6 +300,7 @@ impl Core for ProbeCore {
     fn reset_and_halt(&mut self, dur: std::time::Duration) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.reset_and_halt(dur)?;
+        self.halted = true;
         Ok(())
     }
 
@@ -318,12 +317,12 @@ impl Core for ProbeCore {
     }
 
     fn wait_for_halt(&mut self, dur: std::time::Duration) -> Result<()> {
-        if self.halted == 0 {
+        if !self.halted {
             let mut core = self.session.core(0)?;
             core.wait_for_core_halted(dur)?;
+            self.halted = true;
         }
 
-        self.halted += 1;
         Ok(())
     }
 }
