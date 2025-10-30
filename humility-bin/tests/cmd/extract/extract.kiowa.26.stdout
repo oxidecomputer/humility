@@ -51,7 +51,7 @@ dma = true
 
 [tasks.jefe]
 path = "../../task/jefe"
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 requires = {flash = 8192, ram = 2048}
 start = true
@@ -60,7 +60,7 @@ stacksize = 1536
 
 [tasks.sys]
 path = "../../drv/stm32xx-sys"
-name = "drv-stm32xx-sys"
+bin-crate = "drv-stm32xx-sys"
 features = ["h743"]
 priority = 1
 requires = {flash = 2048, ram = 1024}
@@ -69,7 +69,7 @@ start = true
 
 [tasks.usart_driver]
 path = "../../drv/stm32h7-usart"
-name = "drv-stm32h7-usart"
+bin-crate = "drv-stm32h7-usart"
 features = ["h743"]
 priority = 2
 requires = {flash = 8192, ram = 1024}
@@ -80,7 +80,7 @@ task-slots = ["sys"]
 
 [tasks.i2c_driver]
 path = "../../drv/stm32h7-i2c-server"
-name = "drv-stm32h7-i2c-server"
+bin-crate = "drv-stm32h7-i2c-server"
 features = ["h743"]
 priority = 2
 requires = {flash = 16384, ram = 2048}
@@ -94,7 +94,7 @@ task-slots = ["sys"]
 
 [tasks.spi_driver]
 path = "../../drv/stm32h7-spi-server"
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 2
 requires = {flash = 16384, ram = 2048}
 features = ["spi1", "h743"]
@@ -109,7 +109,7 @@ global_config = "spi1"
 
 [tasks.net]
 path = "../../task/net"
-name = "task-net"
+bin-crate = "task-net"
 stacksize = 3800
 priority = 2
 requires = {flash = 65536, ram = 8192, sram1 = 32768}
@@ -121,7 +121,7 @@ task-slots = ["sys"]
 
 [tasks.user_leds]
 path = "../../drv/user-leds"
-name = "drv-user-leds"
+bin-crate = "drv-user-leds"
 features = ["stm32h7"]
 priority = 2
 requires = {flash = 2048, ram = 1024}
@@ -130,7 +130,7 @@ task-slots = ["sys"]
 
 [tasks.ping]
 path = "../../task/ping"
-name = "task-ping"
+bin-crate = "task-ping"
 features = ["uart"]
 priority = 4
 requires = {flash = 8192, ram = 1024}
@@ -139,7 +139,7 @@ task-slots = [{peer = "pong"}, "usart_driver"]
 
 [tasks.pong]
 path = "../../task/pong"
-name = "task-pong"
+bin-crate = "task-pong"
 priority = 3
 requires = {flash = 1024, ram = 1024}
 start = true
@@ -147,7 +147,7 @@ task-slots = ["user_leds"]
 
 [tasks.udpecho]
 path = "../../task/udpecho"
-name = "task-udpecho"
+bin-crate = "task-udpecho"
 priority = 3
 requires = {flash = 16384, ram = 8192}
 stacksize = 4096
@@ -156,7 +156,7 @@ task-slots = ["net"]
 
 [tasks.hiffy]
 path = "../../task/hiffy"
-name = "task-hiffy"
+bin-crate = "task-hiffy"
 features = ["h743", "stm32h7", "itm", "i2c", "gpio", "spi"]
 priority = 3
 requires = {flash = 32768, ram = 32768 }
@@ -166,7 +166,7 @@ task-slots = ["sys", "i2c_driver"]
 
 [tasks.idle]
 path = "../../task/idle"
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 5
 requires = {flash = 128, ram = 256}
 stacksize = 256

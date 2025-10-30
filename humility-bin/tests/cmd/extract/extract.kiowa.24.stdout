@@ -28,7 +28,7 @@ execute = false  # let's assume XN until proven otherwise
 
 [tasks.jefe]
 path = "../../task/jefe"
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 requires = {flash = 8192, ram = 512}
 start = true
@@ -37,7 +37,7 @@ stacksize = 352
 
 [tasks.rcc_driver]
 path = "../../drv/stm32g0-rcc"
-name = "drv-stm32g0-rcc"
+bin-crate = "drv-stm32g0-rcc"
 features = ["g0b1"]
 priority = 1
 requires = {flash = 1024, ram = 1024}
@@ -46,7 +46,7 @@ start = true
 
 [tasks.gpio_driver]
 path = "../../drv/stm32g0-gpio"
-name = "drv-stm32g0-gpio"
+bin-crate = "drv-stm32g0-gpio"
 features = ["g0b1"]
 priority = 2
 requires = {flash = 4096, ram = 1024}
@@ -56,7 +56,7 @@ task-slots = ["rcc_driver"]
 
 [tasks.usart_driver]
 path = "../../drv/stm32g0-usart"
-name = "drv-stm32g0-usart"
+bin-crate = "drv-stm32g0-usart"
 features = ["g0b1"]
 priority = 2
 requires = {flash = 2048, ram = 1024}
@@ -67,7 +67,7 @@ task-slots = ["gpio_driver", "rcc_driver"]
 
 [tasks.user_leds]
 path = "../../drv/user-leds"
-name = "drv-user-leds"
+bin-crate = "drv-user-leds"
 features = ["stm32g0"]
 priority = 2
 requires = {flash = 2048, ram = 1024}
@@ -76,7 +76,7 @@ task-slots = ["gpio_driver"]
 
 [tasks.pong]
 path = "../../task/pong"
-name = "task-pong"
+bin-crate = "task-pong"
 priority = 3
 requires = {flash = 1024, ram = 1024}
 start = true
@@ -84,7 +84,7 @@ task-slots = ["user_leds"]
 
 [tasks.ping]
 path = "../../task/ping"
-name = "task-ping"
+bin-crate = "task-ping"
 features = ["uart"]
 priority = 4
 requires = {flash = 8192, ram = 512}
@@ -94,14 +94,14 @@ task-slots = [{peer = "pong"}, "usart_driver"]
 
 [tasks.hiffy]
 path = "../../task/hiffy"
-name = "task-hiffy"
+bin-crate = "task-hiffy"
 priority = 3
 requires = {flash = 16384, ram = 8192 }
 start = true
 
 [tasks.idle]
 path = "../../task/idle"
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 5
 requires = {flash = 128, ram = 128}
 stacksize = 128
