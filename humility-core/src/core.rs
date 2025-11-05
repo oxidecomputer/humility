@@ -78,7 +78,7 @@ pub trait Core {
     /// the `measurement-token` crate in `lpc55_support`, which is also used in
     /// the SP firmware.
     fn reset_with_handoff(&mut self, hubris: &HubrisArchive) -> Result<()> {
-        if hubris.manifest.features.iter().any(|s| s == "measurement-handoff") {
+        if hubris.wants_reset_handoff_token() {
             self.reset_and_halt(std::time::Duration::from_millis(25))?;
             crate::msg!("skipping measurement token handoff");
             self.write_word_32(

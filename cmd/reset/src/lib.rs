@@ -55,6 +55,7 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
                 // Detect bogus archives by looking at the chip member
                 if let Some(archive) = &context.archive
                     && chip.is_some()
+                    && archive.wants_reset_handoff_token()
                 {
                     Behavior::ResetWithHandoff(archive)
                 } else {
@@ -66,6 +67,12 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
                 if let Some(archive) = &context.archive
                     && chip.is_some()
                 {
+                    if !archive.wants_reset_handoff_token() {
+                        anyhow::bail!(
+                            "--use-token=true was specified, but the archive \
+                             does not have the relevant kernel feature"
+                        );
+                    }
                     Behavior::ResetWithHandoff(archive)
                 } else {
                     anyhow::bail!(
