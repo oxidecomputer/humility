@@ -18,7 +18,7 @@
 [package]
 name = "humility-bin"
 edition.workspace = true
-version = "0.12.9"
+version = "0.12.10"
 license = "MPL-2.0"
 
 [build-dependencies]
