@@ -3773,6 +3773,11 @@ impl HubrisArchive {
             .get(&pc)
             .and_then(|p| p.as_ref().map(|p| p.as_slice()))
     }
+
+    /// Returns `true` if this archive should use a reset handoff token
+    pub fn wants_reset_handoff_token(&self) -> bool {
+        self.manifest.features.iter().any(|s| s == "measurement-handoff")
+    }
 }
 
 /// Loader for a single ELF file
