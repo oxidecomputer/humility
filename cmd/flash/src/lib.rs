@@ -78,6 +78,10 @@ struct FlashArgs {
     /// do not flash, just check if archive has been flashed
     #[clap(long, short = 'C', conflicts_with_all = &["force", "verify"])]
     check: bool,
+
+    /// print every mismatched byte when checking / verifying
+    #[clap(long)]
+    verbose: bool,
 }
 
 fn force_openocd(
@@ -234,7 +238,12 @@ fn validate(
     core: &mut dyn humility::core::Core,
     subargs: &FlashArgs,
 ) -> Result<()> {
-    let r = get_image_state(hubris, core, subargs.verify || subargs.check);
+    let r = get_image_state(
+        hubris,
+        core,
+        subargs.verify || subargs.check,
+        subargs.verbose,
+    );
     if subargs.check {
         core.run()?;
         return r;
@@ -275,6 +284,7 @@ fn get_image_state(
     hubris: &mut HubrisArchive,
     core: &mut dyn humility::core::Core,
     full_check: bool,
+    verbose: bool,
 ) -> Result<()> {
     core.halt()?;
 
@@ -285,9 +295,15 @@ fn get_image_state(
 
     // More rigorous checks if requested
     if full_check {
-        hubris.verify(core).context(
-            "image IDs match, but flash contents do not match archive contents",
-        )?;
+        hubris.verify(core, verbose).with_context(|| {
+            let mut s = "image IDs match, but flash contents do not \
+                         match archive contents"
+                .to_owned();
+            if !verbose {
+                s += ".  Add `--verbose` to see all byte mismatches."
+            }
+            s
+        })?;
     }
 
     if hubris.read_auxflash_data()?.is_some() {

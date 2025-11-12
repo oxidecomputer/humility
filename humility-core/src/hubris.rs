@@ -2263,7 +2263,11 @@ impl HubrisArchive {
         );
     }
 
-    pub fn verify(&self, core: &mut dyn crate::core::Core) -> Result<()> {
+    pub fn verify(
+        &self,
+        core: &mut dyn crate::core::Core,
+        check_all: bool,
+    ) -> Result<()> {
         use indicatif::{HumanBytes, HumanDuration};
         use indicatif::{ProgressBar, ProgressStyle};
 
@@ -2340,7 +2344,7 @@ impl HubrisArchive {
 
         // Third and final pass: read out the actual ranges from the target and
         // see if they match!
-        for (paddr, mut expected_bytes) in phdrs {
+        'outer: for (paddr, mut expected_bytes) in phdrs {
             log::info!(
                 "verifying {} bytes at {:#x}",
                 expected_bytes.len(),
@@ -2359,13 +2363,16 @@ impl HubrisArchive {
                         bar.finish_and_clear();
 
                         log::error!(
-                            "differs at addr 0x{:x}:
-                                found 0x{:x}, expected 0x{:x}",
+                            "differs at addr 0x{:x}: \
+                             found 0x{:x}, expected 0x{:x}",
                             addr + i as u32,
                             buffer[i],
                             expected_bytes[i]
                         );
                         problems += 1;
+                        if !check_all {
+                            break 'outer;
+                        }
                     }
                 }
 
@@ -2379,7 +2386,13 @@ impl HubrisArchive {
         bar.finish_and_clear();
 
         if problems > 0 {
-            bail!("found {problems} problems!");
+            // We only have an accurate problem count if we checked every byte,
+            // which is done when running in `check_all` mode
+            if check_all {
+                bail!("found {problems} problems!");
+            } else {
+                bail!("found problems!");
+            }
         } else {
             msg!(
                 "verified {} in {}",
