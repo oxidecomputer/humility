@@ -39,7 +39,7 @@ execute = false  # let's assume XN until proven otherwise
 
 [tasks.jefe]
 path = "../../task/jefe"
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 requires = {flash = 16384, ram = 2048}
 start = true
@@ -48,7 +48,7 @@ stacksize = 1536
 
 [tasks.rcc_driver]
 path = "../../drv/stm32h7-rcc"
-name = "drv-stm32h7-rcc"
+bin-crate = "drv-stm32h7-rcc"
 features = ["h743"]
 priority = 1
 requires = {flash = 8192, ram = 1024}
@@ -57,7 +57,7 @@ start = true
 
 [tasks.gpio_driver]
 path = "../../drv/stm32h7-gpio"
-name = "drv-stm32h7-gpio"
+bin-crate = "drv-stm32h7-gpio"
 features = ["h743"]
 priority = 2
 requires = {flash = 8192, ram = 1024}
@@ -67,7 +67,7 @@ task-slots = ["rcc_driver"]
 
 [tasks.usart_driver]
 path = "../../drv/stm32h7-usart"
-name = "drv-stm32h7-usart"
+bin-crate = "drv-stm32h7-usart"
 features = ["h743"]
 priority = 2
 requires = {flash = 8192, ram = 1024}
@@ -78,7 +78,7 @@ task-slots = ["gpio_driver", "rcc_driver"]
 
 [tasks.i2c_driver]
 path = "../../drv/stm32h7-i2c-server"
-name = "drv-stm32h7-i2c-server"
+bin-crate = "drv-stm32h7-i2c-server"
 features = ["h743"]
 priority = 2
 requires = {flash = 16384, ram = 2048}
@@ -101,7 +101,7 @@ task-slots = ["gpio_driver", "rcc_driver"]
 #
 [tasks.spi_driver]
 path = "../../drv/stm32h7-spi-server"
-name = "drv-stm32h7-spi-server"
+bin-crate = "drv-stm32h7-spi-server"
 priority = 2
 requires = {flash = 16384, ram = 4096}
 features = ["spi3", "h743"]
@@ -113,7 +113,7 @@ task-slots = ["gpio_driver", "rcc_driver"]
 
 [tasks.user_leds]
 path = "../../drv/user-leds"
-name = "drv-user-leds"
+bin-crate = "drv-user-leds"
 features = ["stm32h7"]
 priority = 2
 requires = {flash = 8192, ram = 1024}
@@ -122,7 +122,7 @@ task-slots = ["gpio_driver"]
 
 [tasks.pong]
 path = "../../task/pong"
-name = "task-pong"
+bin-crate = "task-pong"
 priority = 3
 requires = {flash = 8192, ram = 1024}
 start = true
@@ -130,7 +130,7 @@ task-slots = ["user_leds"]
 
 [tasks.hiffy]
 path = "../../task/hiffy"
-name = "task-hiffy"
+bin-crate = "task-hiffy"
 features = ["h743", "stm32h7", "itm", "i2c", "gpio", "qspi"]
 priority = 3
 requires = {flash = 32768, ram = 32768 }
@@ -140,7 +140,7 @@ task-slots = ["gpio_driver", "hf", "i2c_driver"]
 
 [tasks.hf]
 path = "../../drv/gimlet-hf-server"
-name = "drv-gimlet-hf-server"
+bin-crate = "drv-gimlet-hf-server"
 features = ["h743"]
 priority = 3
 requires = {flash = 16384, ram = 8192 }
@@ -152,7 +152,7 @@ task-slots = ["gpio_driver", "rcc_driver"]
 
 [tasks.idle]
 path = "../../task/idle"
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 5
 requires = {flash = 256, ram = 256}
 stacksize = 256
