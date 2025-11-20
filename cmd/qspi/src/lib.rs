@@ -192,6 +192,10 @@ struct QspiArgs {
     /// persistently selects a storage slot
     #[clap(long, group = "command")]
     set_persistent_slot: Option<u8>,
+
+    /// Target a specific slot
+    #[clap(long)]
+    slot: Option<u8>,
 }
 
 struct QspiDevice {
@@ -484,6 +488,27 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
 
     let subargs = QspiArgs::try_parse_from(subargs)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
+    match subargs.slot {
+        None => humility::msg!("Using existing slot settings"),
+        s @ (Some(0) | Some(1)) => {
+            let s = s.unwrap();
+            humility::msg!("Setting slot to {s}");
+            let out = hiffy_call(
+                hubris,
+                core,
+                &mut context,
+                &hubris.get_idol_command("HostFlash.set_dev")?,
+                &[("dev", IdolArgument::String(&format!("Flash{s}")))],
+                None,
+                None,
+            )?;
+            if let Err(e) = out {
+                bail!("set_dev failed: {e}");
+            }
+        }
+        _ => bail!("Bad slot setting"),
+    }
 
     const SECTOR_SIZE: u32 = 64 * 1024;
     const BLOCK_SIZE: u32 = 256; // Conflating flash block size with hubris scratch buffer.
