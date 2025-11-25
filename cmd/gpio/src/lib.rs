@@ -59,6 +59,7 @@
 //! ```console
 //! $ humility gpio --input
 //! humility: attached via ST-Link V3
+//! Chip: STM32H753ZITx
 //! Pin       0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
 //! -----------------------------------------------------------------------
 //! Port A    0   0   1   0   0   0   0   0   0   0   0   0   0   1   1   1
@@ -68,11 +69,52 @@
 //! Port E    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
 //! Port F    1   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0
 //! Port G    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port H    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port I    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port J    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-//! Port K    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+//! Port H    0   0   .   .   .   .   .   .   .   .   .   .   .   .   .   .
 //! ```
+//!
+//! Note that the chip name is displayed, and GPIO groups are filtered based on
+//! the specific chip variant. For partially populated GPIO groups (like Port H
+//! above with only 2 pins), non-existent pins are shown as `.`
+//!
+//! If a chip name is not in the internal database of chip names, then the
+//! old behavior of this program is used; no GPIO config info will be shown
+//! and it will be assumed that the part has 176 GPIO pins in groups A to K.
+//!
+//! To print input values with STM32H7 series GPIO configuration settings,
+//! use the `--with-config` or `-w` flag with `--input`:
+//!
+//! ```console
+//! $ humility gpio --input --with-config --pins B:0,B:14,E:1
+//! humility: attached to 0483:3754:002F00174741500820383733 via ST-Link V3
+//! Chip: STM32H753ZITx
+//! B:0  = 0 Analog:OutPushPull:LowSpeed:NoPull:AF0:Unlocked:InZero:OutZero
+//! B:14 = 1 Input:OutPushPull:HighSpeed:NoPull:AF5:Unlocked:InOne:OutZero
+//! E:1  = 0 Alternate:OutPushPull:VeryHighSpeed:NoPull:AF12:Unlocked:InZero:OutZero
+//! ```
+//!
+//! If you query pins that don't exist on the chip variant, they will show as `None`:
+//!
+//! ```console
+//! $ humility gpio --input --pins J:4,K:9
+//! humility: attached via ST-Link V3
+//! Chip: STM32H753ZITx
+//! J:4  = None
+//! K:9  = None
+//! ```
+//!
+//! With `--with-config`, non-existent pins or groups show `None` for configuration:
+//!
+//! ```console
+//! $ humility gpio --input --with-config --pins H:5,J:4
+//! humility: attached via ST-Link V3
+//! Chip: STM32H753ZITx
+//! H:5  = 0 None
+//! J:4  = 0 None
+//! ```
+//!
+//! If no pins are specified with `--with-config`, then the pin names, values
+//! and config settings are printed one per line for all available GPIO pins on
+//! the chip variant.
 //!
 //! ### Configure
 //!
@@ -92,14 +134,52 @@
 //! ```
 //!
 
+mod config_cache;
+mod stm32h7;
+mod stm32h7_parts;
+#[cfg(test)]
+mod stm32h7_testdata;
+
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
-use std::str;
 
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
+use humility_hiffy::IpcError;
+
+fn show_gpio_with_config(
+    context: &mut ExecutionContext,
+    gpio_input: &humility_hiffy::HiffyFunction,
+    args: &[(u16, Option<u8>, String)],
+    results: &[Result<Vec<u8>, IpcError>],
+) -> Result<()> {
+    let hubris = context
+        .archive
+        .as_ref()
+        .ok_or_else(|| anyhow!("Cannot get GPIO config: archive not loaded"))?;
+    if let Some(chip) = hubris.chip() {
+        if chip.to_ascii_lowercase().starts_with("stm32h7") {
+            // Call the stm32h7-specific function
+            stm32h7::show_gpio_with_config(
+                context,
+                gpio_input,
+                chip.as_str(),
+                args,
+                results,
+            )
+        } else {
+            Err(anyhow!(
+                "GPIO `--with-config` is not supported for chip '{chip}'"
+            ))
+        }
+    } else {
+        Err(anyhow!(
+            "GPIO `--with-config` is not supported when chip is not specified"
+        ))
+    }
+}
 
 use std::convert::TryInto;
 
@@ -119,6 +199,10 @@ struct GpioArgs {
         conflicts_with_all = &["toggle", "set", "reset", "configure"]
     )]
     input: bool,
+
+    /// show configuration of pins along with their values
+    #[clap(short, long, requires = "input")]
+    with_config: bool,
 
     /// toggle specified pins
     #[clap(
@@ -154,13 +238,13 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     let subargs = GpioArgs::try_parse_from(subargs)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
-    let gpio_toggle = context.get_function("GpioToggle", 2)?;
-    let gpio_set = context.get_function("GpioSet", 2)?;
-    let gpio_reset = context.get_function("GpioReset", 2)?;
-    let gpio_input = context.get_function("GpioInput", 1)?;
-    let gpio_configure = context.get_function("GpioConfigure", 7)?;
+    let gpio_toggle = hiffy_context.get_function("GpioToggle", 2)?;
+    let gpio_set = hiffy_context.get_function("GpioSet", 2)?;
+    let gpio_reset = hiffy_context.get_function("GpioReset", 2)?;
+    let gpio_input = hiffy_context.get_function("GpioInput", 1)?;
+    let gpio_configure = hiffy_context.get_function("GpioConfigure", 7)?;
     let mut configure_args = vec![];
 
     let target = if subargs.toggle {
@@ -257,64 +341,146 @@ fn gpio(context: &mut ExecutionContext) -> Result<()> {
 
     ops.push(Op::Done);
 
-    let results = context.run(core, ops.as_slice(), None)?;
+    let results = hiffy_context.run(core, ops.as_slice(), None)?;
+
+    // Get chip info for filtering and display
+    let chip_name = hubris.chip();
+    let (max_group, chip_part) = if let Some(chip) = &chip_name {
+        if chip.to_ascii_lowercase().starts_with("stm32h7") {
+            use crate::stm32h7_parts::Stm32H7Series;
+            let part = Stm32H7Series::find_part(chip, true);
+
+            // Warn about unknown chips
+            if !part.is_known() {
+                eprintln!(
+                    "Warning: Unknown STM32H7 chip '{}'. Using default GPIO layout (groups A-K).",
+                    chip
+                );
+                eprintln!(
+                    "         Configuration display (--with-config) is not available for unknown chips."
+                );
+            }
+
+            (Some(part.max_group()), Some(part))
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
 
     if subargs.input {
         let mut header = false;
 
-        for (ndx, arg) in args.iter().enumerate() {
-            match arg.1 {
-                Some(pin) => {
-                    println!(
-                        "{}:{:<2} = {}",
-                        arg.2,
-                        pin,
+        if subargs.with_config {
+            // Print chip name
+            if let Some(chip) = &chip_name {
+                println!("Chip: {}", chip);
+            }
+            show_gpio_with_config(context, &gpio_input, &args, &results)?;
+        } else {
+            // Print chip name for grid display too
+            if let Some(chip) = &chip_name {
+                println!("Chip: {}", chip);
+            }
+
+            for (ndx, arg) in args.iter().enumerate() {
+                // Check if this group exists on the chip
+                let group = arg.2.chars().next();
+                let group_exists =
+                    if let (Some(g), Some(max_g)) = (group, max_group) {
+                        g >= 'A' && g <= max_g
+                    } else {
+                        true // If we can't determine, assume it exists
+                    };
+
+                match arg.1 {
+                    Some(pin) => {
+                        // Check if pin exists (group exists and pin within range)
+                        let pin_exists =
+                            if let (Some(g), Some(part)) = (group, chip_part) {
+                                g >= 'A'
+                                    && g <= part.max_group()
+                                    && pin < part.pins_in_group(g)
+                            } else {
+                                group_exists // Fall back to group-level check
+                            };
+
+                        if !pin_exists {
+                            // Pin doesn't exist on this chip
+                            println!("{}:{:<2} = None", arg.2, pin);
+                        } else {
+                            println!(
+                                "{}:{:<2} = {}",
+                                arg.2,
+                                pin,
+                                match results[ndx] {
+                                    Err(code) => {
+                                        gpio_input.strerror(code)
+                                    }
+                                    Ok(ref val) => {
+                                        let arr: &[u8; 2] =
+                                            val[0..2].try_into()?;
+                                        let v = u16::from_le_bytes(*arr);
+                                        format!("{}", (v >> pin) & 1)
+                                    }
+                                }
+                            );
+                        }
+                    }
+
+                    None => {
+                        // Skip ports that don't exist on this chip variant
+                        if !group_exists {
+                            continue;
+                        }
+
+                        if !header {
+                            print!("{:7}", "Pin");
+
+                            for i in 0..16 {
+                                print!("{:4}", i);
+                            }
+
+                            println!();
+
+                            print!("-------");
+
+                            for _i in 0..16 {
+                                print!("----");
+                            }
+
+                            println!();
+                            header = true;
+                        }
+
+                        print!("Port {} ", arg.2);
                         match results[ndx] {
                             Err(code) => {
-                                gpio_input.strerror(code)
+                                println!("{}", gpio_input.strerror(code))
                             }
                             Ok(ref val) => {
                                 let arr: &[u8; 2] = val[0..2].try_into()?;
                                 let v = u16::from_le_bytes(*arr);
-                                format!("{}", (v >> pin) & 1)
+
+                                // Determine how many pins exist in this group
+                                let max_pin = if let (Some(g), Some(part)) =
+                                    (group, chip_part)
+                                {
+                                    part.pins_in_group(g)
+                                } else {
+                                    16 // Default to all 16 if we can't determine
+                                };
+
+                                for i in 0..16 {
+                                    if i < max_pin {
+                                        print!("{:4}", (v >> i) & 1)
+                                    } else {
+                                        print!("   .")
+                                    }
+                                }
+                                println!();
                             }
-                        }
-                    );
-                }
-
-                None => {
-                    if !header {
-                        print!("{:7}", "Pin");
-
-                        for i in 0..16 {
-                            print!("{:4}", i);
-                        }
-
-                        println!();
-
-                        print!("-------");
-
-                        for _i in 0..16 {
-                            print!("----");
-                        }
-
-                        println!();
-                        header = true;
-                    }
-
-                    print!("Port {} ", arg.2);
-                    match results[ndx] {
-                        Err(code) => {
-                            println!("{}", gpio_input.strerror(code))
-                        }
-                        Ok(ref val) => {
-                            let arr: &[u8; 2] = val[0..2].try_into()?;
-                            let v = u16::from_le_bytes(*arr);
-
-                            for i in 0..16 {
-                                print!("{:4}", (v >> i) & 1)
-                            }
-                            println!();
                         }
                     }
                 }

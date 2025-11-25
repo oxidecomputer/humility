@@ -9,6 +9,7 @@ hif.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
+zerocopy.workspace = true
 
 humility-cli.workspace = true
 humility-cmd.workspace = true
