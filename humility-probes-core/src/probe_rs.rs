@@ -294,6 +294,7 @@ impl Core for ProbeCore {
     fn reset(&mut self) -> Result<()> {
         let mut core = self.session.core(0)?;
         core.reset()?;
+        self.halted = false;
         Ok(())
     }
 
