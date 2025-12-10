@@ -164,8 +164,11 @@ use std::fs::{self, OpenOptions};
 use std::io::BufReader;
 use std::io::Write;
 use std::io::prelude::*;
+use std::str::FromStr as _;
 use std::thread;
 use std::time::{Duration, Instant};
+use strum::VariantNames;
+use strum_macros::{Display, EnumString, EnumVariantNames};
 use zerocopy::{AsBytes, FromBytes};
 
 mod blackbox;
@@ -949,7 +952,10 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 }
 
 /// A device which supports open-pin detection and other advanced debug
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(
+    Debug, Copy, Clone, Eq, PartialEq, Display, EnumString, EnumVariantNames,
+)]
+#[strum(ascii_case_insensitive)]
 enum SupportedDevice {
     ISL68224,
     RAA229618,
@@ -991,16 +997,6 @@ impl SupportedDevice {
     }
 }
 
-impl std::fmt::Display for SupportedDevice {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let s = match self {
-            SupportedDevice::ISL68224 => "ISL68224",
-            SupportedDevice::RAA229618 => "RAA229618",
-        };
-        write!(f, "{s}")
-    }
-}
-
 /// Checks that the address provided is valid
 ///
 /// This checks that the address uniquely points to an RAA229618 or ISL68224.
@@ -1011,20 +1007,17 @@ fn check_addr(
     subargs: &RendmpArgs,
     hubris: &HubrisArchive,
 ) -> Result<(u8, SupportedDevice)> {
-    const ISL_DEV_NAME: &str = "isl68224";
-    const RAA_DEV_NAME: &str = "raa229618";
-
     if let Some(rail) = &subargs.dev.rail {
         for d in &hubris.manifest.i2c_devices {
             if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class
                 && rails.iter().any(|r| r.name == *rail)
             {
-                let dev = match d.device.as_str() {
-                    ISL_DEV_NAME => SupportedDevice::ISL68224,
-                    RAA_DEV_NAME => SupportedDevice::RAA229618,
-                    _ => {
-                        bail!("rail {rail} is not a supported device");
-                    }
+                let Ok(dev) = SupportedDevice::from_str(&d.device) else {
+                    let supported = SupportedDevice::VARIANTS.join(", ");
+                    bail!(
+                        "rail {rail} is not a supported device; \
+                        expected one of: {supported}"
+                    );
                 };
 
                 return Ok((d.address, dev));
@@ -1039,12 +1032,12 @@ fn check_addr(
     };
     let addr: u8 = parse_int::parse(addr).context("failed to parse address")?;
     let mut iter = hubris.manifest.i2c_devices.iter().filter(|dev| {
-        matches!(dev.device.as_str(), RAA_DEV_NAME | ISL_DEV_NAME)
-            && dev.address == addr
+        SupportedDevice::from_str(&dev.device).is_ok() && dev.address == addr
     });
     let Some(dev) = iter.next() else {
+        let supported = SupportedDevice::VARIANTS.join(", ");
         bail!(
-            "no RAA229618 or ISL68224 with address {addr}; \
+            "no supported device ({supported}) with address {addr}; \
              use `humility pmbus -l` to list devices"
         );
     };
@@ -1054,10 +1047,8 @@ fn check_addr(
              this should not be possible on an Oxide board"
         )
     }
-    let dev = match dev.device.as_str() {
-        ISL_DEV_NAME => SupportedDevice::ISL68224,
-        RAA_DEV_NAME => SupportedDevice::RAA229618,
-        _ => unreachable!(), // checked above
+    let Ok(dev) = SupportedDevice::from_str(&dev.device) else {
+        unreachable!() // checked above
     };
 
     Ok((addr, dev))
