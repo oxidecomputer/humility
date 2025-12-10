@@ -1479,6 +1479,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-doppel",
  "humility-hiffy",
  "humility-idol",
  "idol",
