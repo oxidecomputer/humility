@@ -216,7 +216,7 @@ struct RendmpArgs {
     #[clap(long, group = "subcommand")]
     open_pin: bool,
 
-    /// checks for open pins on the given converter
+    /// performs a phase check on the converter
     #[clap(long, group = "subcommand")]
     phase_check: bool,
 
@@ -959,6 +959,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 enum SupportedDevice {
     ISL68224,
     RAA229618,
+    RAA229620A,
 }
 
 impl SupportedDevice {
@@ -967,6 +968,7 @@ impl SupportedDevice {
         match self {
             SupportedDevice::ISL68224 => 3,
             SupportedDevice::RAA229618 => 2,
+            SupportedDevice::RAA229620A => 2,
         }
     }
 
@@ -989,6 +991,19 @@ impl SupportedDevice {
                     phases.push((phase.to_string(), phase));
                 }
                 for i in 0..2 {
+                    phases.push((format!("VSEN{i}"), i + 20));
+                }
+                phases
+            }
+            SupportedDevice::RAA229620A => {
+                let mut phases = vec![];
+                for phase in 0..12 {
+                    phases.push((phase.to_string(), phase));
+                }
+                for i in 0..2 {
+                    // The 20 here looks like a copy paste mistake from the
+                    // '618, but is deliberate; we believe the bit offset here
+                    // is the same as the '618 despite the smaller phase count.
                     phases.push((format!("VSEN{i}"), i + 20));
                 }
                 phases
@@ -1133,6 +1148,10 @@ fn get_pin_states(
             0x00BE, 0x00BF, // open-pin
             0xE904, 0xE905, // mask
         ],
+        SupportedDevice::RAA229620A => &[
+            0x0046, 0x0047, // open-pin
+            0xE904, 0xE905, // mask
+        ],
     };
     let mut ops = vec![];
     for &r in regs {
@@ -1159,7 +1178,7 @@ fn get_pin_states(
     // experiments and discussion with Renesas.
     let (open, mask) = match dev {
         SupportedDevice::ISL68224 => (values[0] as u64, values[1] as u64),
-        SupportedDevice::RAA229618 => {
+        SupportedDevice::RAA229618 | SupportedDevice::RAA229620A => {
             let open = values[0] as u64 | ((values[1] as u64) << 32);
             let mask = values[2] as u64 | ((values[3] as u64) << 32);
             (open, mask)
@@ -1645,19 +1664,17 @@ fn rendmp_phase_check<'a>(
     // we don't), this should be factored out into a humility-spd crate that
     // both "spd" and "rendmp" would use.
     //
-    if cmd_spd::spd_any(hubris, core)? {
-        if subargs.force_phase_check {
-            warn!(
-                "DIMMs are present, but phase check has been forced; if the \
-                checked phase powers a DIMM, this may hang the I2C bus!"
-            );
-        } else {
-            bail!(
-                "cannot check phases with DIMMs present: if a checked \
-                phase powers a DIMM, an I2C hang can result; this can be \
-                overridden with --force-phase-check -- but use this carefully"
-            );
-        }
+    if subargs.force_phase_check {
+        warn!(
+            "DIMM presence check disabled, if this check hangs, remove the \
+            DIMMs and retry."
+        );
+    } else if cmd_spd::spd_any(hubris, core)? {
+        bail!(
+            "cannot check phases with DIMMs present: if a checked \
+            phase powers a DIMM, an I2C hang can result; this can be \
+            overridden with --force-phase-check -- but use this carefully"
+        );
     }
 
     // Pick out the target device
@@ -1698,7 +1715,7 @@ fn rendmp_phase_check<'a>(
     // faults when we write it back
     let disable_fault_reg: u16 = match dev {
         SupportedDevice::ISL68224 => 0xE952,
-        SupportedDevice::RAA229618 => 0xE932,
+        SupportedDevice::RAA229618 | SupportedDevice::RAA229620A => 0xE932,
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -1725,7 +1742,13 @@ fn rendmp_phase_check<'a>(
         worker.read_word32(index, true, LOOPCFG as u8)?;
         worker.read_word(index, true, PEAK_OCUC_COUNT as u8)?;
 
-        // Set PMBus command codes 0xD0 and 0xD1 to 0x8000 (disable VMon)
+        // Set the appropriate device-specific PMBus command codes to input
+        // voltage thresholding, by setting the thresholds to a very negative
+        // value. This should ensure that it always thinks the input value is
+        // high enough.
+        //
+        // This is a 16-bit two's-complement register, so 0x8000 is the most
+        // negative value.
         match dev {
             SupportedDevice::ISL68224 => {
                 use pmbus::commands::isl68224::CommandCode;
@@ -1757,6 +1780,26 @@ fn rendmp_phase_check<'a>(
                     0x8000,
                 )?;
 
+                let reg = (0xEA5B + rail * 0x80) as u16;
+                worker.read_dma(addr, reg)?;
+            }
+            SupportedDevice::RAA229620A => {
+                use pmbus::commands::raa229620a::CommandCode;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VIN_ON as u8,
+                    0x8000,
+                )?;
+                worker.write_word(
+                    index,
+                    true,
+                    CommandCode::VIN_OFF as u8,
+                    0x8000,
+                )?;
+
+                // This undocumented read of 0xEA5B matches the '618; Renesas
+                // described it as "phase count control for partial fast add."
                 let reg = (0xEA5B + rail * 0x80) as u16;
                 worker.read_dma(addr, reg)?;
             }
@@ -1864,6 +1907,26 @@ fn rendmp_phase_check<'a>(
                 let reg = (0xEA5B + rail * 0x80) as u16;
                 worker.write_dma(addr, reg, part_fast_add)?;
             }
+            SupportedDevice::RAA229620A => {
+                if let Err(e) = next()? {
+                    bail!("failed to set VIN_ON for {rail}: {e}",);
+                }
+                if let Err(e) = next()? {
+                    bail!("failed to set VIN_OFF for {rail}: {e}",);
+                }
+
+                // Clear bit 0 of DMA register EA5B and write it back
+                // (the name part_fast_add comes from Power Navigator)
+                let mut part_fast_add = match next()? {
+                    Ok(v) => v.expect_read_dma()?,
+                    Err(e) => {
+                        bail!("worker.failed to read EA5B for rail {rail}: {e}")
+                    }
+                };
+                part_fast_add &= !1; // clear bit 0
+                let reg = (0xEA5B + rail * 0x80) as u16;
+                worker.write_dma(addr, reg, part_fast_add)?;
+            }
         }
 
         let mut disable_fault_value = match next()? {
@@ -1917,6 +1980,12 @@ fn rendmp_phase_check<'a>(
         }
         match dev {
             SupportedDevice::RAA229618 => match next()? {
+                Ok(v) => v.expect_write_dma()?,
+                Err(e) => {
+                    bail!("failed to modify EA5B for rail {rail}: {e}")
+                }
+            },
+            SupportedDevice::RAA229620A => match next()? {
                 Ok(v) => v.expect_write_dma()?,
                 Err(e) => {
                     bail!("failed to modify EA5B for rail {rail}: {e}")
@@ -2082,6 +2151,7 @@ fn rendmp_phase_check<'a>(
         };
         let device = match dev {
             SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
+            SupportedDevice::RAA229620A => pmbus::Device::Raa229620A,
             SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
         };
 
