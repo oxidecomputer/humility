@@ -1654,20 +1654,20 @@ fn rendmp_phase_check<'a>(
     // we don't), this should be factored out into a humility-spd crate that
     // both "spd" and "rendmp" would use.
     //
-    if cmd_spd::spd_any(hubris, core)? {
-        if subargs.force_phase_check {
-            warn!(
-                "DIMMs are present, but phase check has been forced; if the \
-                checked phase powers a DIMM, this may hang the I2C bus!"
-            );
-        } else {
-            bail!(
-                "cannot check phases with DIMMs present: if a checked \
-                phase powers a DIMM, an I2C hang can result; this can be \
-                overridden with --force-phase-check -- but use this carefully"
-            );
-        }
-    }
+    // if cmd_spd::spd_any(hubris, core)? {
+    //     if subargs.force_phase_check {
+    //         warn!(
+    //             "DIMMs are present, but phase check has been forced; if the \
+    //             checked phase powers a DIMM, this may hang the I2C bus!"
+    //         );
+    //     } else {
+    //         bail!(
+    //             "cannot check phases with DIMMs present: if a checked \
+    //             phase powers a DIMM, an I2C hang can result; this can be \
+    //             overridden with --force-phase-check -- but use this carefully"
+    //         );
+    //     }
+    // }
 
     // Pick out the target device
     let (addr, dev) = check_addr(subargs, hubris)?;
@@ -1700,7 +1700,7 @@ fn rendmp_phase_check<'a>(
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
     if worker.rail_indexes.len() != dev.rails() {
-        bail!("length mismatch between sensors and rails");
+        bail!("length mismatch between sensors {} and rails {} ", worker.rail_indexes.len(), dev.rails());
     }
 
     // Read a device-specific DMA registers, which we'll modify to disable
