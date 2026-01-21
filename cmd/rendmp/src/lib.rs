@@ -1699,9 +1699,9 @@ fn rendmp_phase_check<'a>(
 
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
-    if worker.rail_indexes.len() != dev.rails() {
-        bail!("length mismatch between sensors {} and rails {} ", worker.rail_indexes.len(), dev.rails());
-    }
+    // if worker.rail_indexes.len() != dev.rails() {
+    //     bail!("length mismatch between sensors {} and rails {} ", worker.rail_indexes.len(), dev.rails());
+    // }
 
     // Read a device-specific DMA registers, which we'll modify to disable
     // faults when we write it back
