@@ -23,7 +23,7 @@ requires = {flash = 32768, ram = 8192}
 features = ["itm"]
 
 [tasks.jefe]
-name = "task-jefe"
+bin-crate = "task-jefe"
 priority = 0
 max-sizes = {flash = 8192, ram = 2048}
 start = true
@@ -31,14 +31,14 @@ features = ["itm"]
 stacksize = 1536
 
 [tasks.idle]
-name = "task-idle"
+bin-crate = "task-idle"
 priority = 9
 max-sizes = {flash = 128, ram = 256}
 stacksize = 256
 start = true
 
 [[config.sensor.devices]]
-name = "xcvr30"
+bin-crate = "xcvr30"
 device = "qsfp"
 description = "QSFP transceiver 30"
 sensors.temperature = 3
