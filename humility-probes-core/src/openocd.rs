@@ -74,7 +74,14 @@ impl Core for OpenOCDCore {
 
     fn read_word_32(&mut self, addr: u32) -> Result<u32> {
         let result = self.sendcmd(&format!("mrw 0x{:x}", addr))?;
-        Ok(result.parse::<u32>()?)
+        let rval = if let Some(hex_val) =
+            result.strip_prefix("0x").or(result.strip_prefix("0X"))
+        {
+            u32::from_str_radix(hex_val, 16)?
+        } else {
+            result.parse::<u32>()?
+        };
+        Ok(rval)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
@@ -136,7 +143,14 @@ impl Core for OpenOCDCore {
                 }
 
                 Some(idx) => {
-                    data[idx] = val.parse::<u8>()?;
+                    let dval = if let Some(hex_val) =
+                        val.strip_prefix("0x").or(val.strip_prefix("0X"))
+                    {
+                        u8::from_str_radix(hex_val, 16)?
+                    } else {
+                        val.parse::<u8>()?
+                    };
+                    data[idx] = dval;
                     index = None;
                 }
             }
