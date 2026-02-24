@@ -426,6 +426,12 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
     // Reset, using the handoff token if present in the archive
     core.reset_with_handoff(hubris)?;
 
+    // HACK: Hiffy currently has a synchronization issue after reset on systems
+    // that take nontrivial time to start up, particularly Sidecar/Minibar. This
+    // delays the next hiffy operations long enough that they're likely to work.
+    // A proper fix for this is currently underway (2026-02-24).
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
     // At this point, we can attempt to program the auxiliary flash.  This has
     // to happen *after* the image is flashed and the core is reset, because it
     // uses hiffy calls to the `auxflash` task to actually do the programming;
