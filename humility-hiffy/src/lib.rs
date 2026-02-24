@@ -9,7 +9,7 @@ use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
-use humility_doppel::{RpcHeader, StaticCell};
+use humility_doppel::{RpcHeader, SchedState, StaticCell, TaskState};
 use humility_idol as idol;
 pub use humility_idol::IpcError;
 use postcard::{take_from_bytes, to_slice};
@@ -936,27 +936,79 @@ impl<'a> HiffyContext<'a> {
             );
         }
 
-        let mut text: Vec<u8> = vec![];
-        text.resize_with(self.text.size, Default::default);
+        let mut text = vec![0u8; self.text.size];
 
         core.op_start()?;
 
         //
         // We now want to loop until we know that the HIF facility is
-        // available.  Generally, if we see that HIFFY_READY is 0, it is
-        // because our in situ cohort either never ran, or has not checked
-        // back in (i.e., it is wedged on an earlier call).  But it's also
-        // conceivable that we have caught it in the very small window when it
-        // is awake, but only to check if it has been kicked; to differentiate
-        // these cases, we back off for a linearly increasing number of
-        // milliseconds until we conclude that the facility is alive, or that
-        // we have tried too many times.
         //
+        // 1. During startup of the hiffy task, as bss is initialized.
+        // 2. Periodically when hiffy wakes up to check for instructions.
+        //
+        // If we see HIFFY_READY==0, it may mean that we've observed it at one
+        // of those two windows, which generally means that we should wait and
+        // try again -- giving hiffy time to finish initializing, or to go back
+        // to sleep and wait for instructions, respectively.
+        //
+        // However -- if HIFFY_READY==1, things are more complicated.
+        //
+        // The hiffy task sets HIFFY_READY==1 when it sleeps to allow the
+        // debugger (hello!) to deliver new instructions. So far so good.
+        //
+        // If the system under test (or just the hiffy task) is _restarted,_
+        // nothing clears HIFFY_READY until bss initialization sets it to 0.
+        // For that to happen, the hiffy task has to get some CPU time. Because
+        // hiffy is pretty low priority, this can take a while if other system
+        // startup things are expensive.
+        //
+        // So we need some sort of preflight check to verify that we can trust
+        // the contents of HIFFY_READY, and we do this by checking to see if the
+        // hiffy task is in a syscall, since all syscalls happen _after_ task
+        // initialization.
+        //
+        let hiffy_task = self.hubris.lookup_task("hiffy").and_then(|t| {
+            match t {
+                // This really shouldn't happen, but it's permitted by the API
+                // types, sooooooo
+                HubrisTask::Kernel => {
+                    log::warn!(
+                        "This application appears to have named its kernel \
+                         'hiffy', which is very funny ha ha but will make \
+                         IPC operations and other things using hiffy less \
+                         reliable. You should not be seeing this message, \
+                         please report it to whoever's responsible for this \
+                         firmware. (If it's you, my condolences.)"
+                    );
+
+                    None
+                }
+
+                HubrisTask::Task(i) => Some(*i),
+            }
+        });
+
+        let mut syscall_observed = false;
+        if hiffy_task.is_none() {
+            log::warn!(
+                "Can't find task named 'hiffy' in image. We'll still try to \
+                 use it, but if this is just after a reboot, we may not be \
+                 able to synchronize with its startup correctly, which may \
+                 produce intermittent flaky behavior. This message is not \
+                 expected in normal firmware."
+            );
+            syscall_observed = true;
+        }
+
         let mut lap = 0;
         const MAX_LAPS: u64 = 10;
 
         let ready = loop {
-            if core.read_word_32(self.ready.addr)? == 1 {
+            if !syscall_observed {
+                if has_task_started(self.hubris, core, hiffy_task.unwrap())? {
+                    syscall_observed = true;
+                }
+            } else if core.read_word_32(self.ready.addr)? == 1 {
                 break true;
             }
 
@@ -1203,6 +1255,48 @@ impl<'a> HiffyContext<'a> {
 
     pub fn scratch_size(&self) -> usize {
         self.scratch_size
+    }
+}
+
+/// Performs a somewhat probabilistic check for whether a task has _started,_ by
+/// which we specifically mean "run for long enough to start executing code in
+/// main."
+///
+/// Running this enough times to get `true` in response means it's safe to
+/// access initialized memory in the task.
+fn has_task_started(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    task_index: u32,
+) -> Result<bool> {
+    let task_t = hubris.lookup_struct_byname("Task")?;
+
+    let (base, _) = hubris.task_table(core)?;
+
+    let addr = base + (task_index * task_t.size as u32);
+    let mut buffer = vec![0; task_t.size];
+    core.read_8(addr, &mut buffer)?;
+
+    let task: humility_doppel::Task =
+        reflect::load(hubris, &buffer, task_t, 0)?;
+    // How can we tell that a task has finished pre-main initialization? Let me
+    // count the ways...
+    match task.state {
+        TaskState::Healthy(ss) => match ss {
+            // Tasks don't issue IPCs during pre-main, so if the task is in
+            // SEND, REPLY, or RECV, it has by definition gotten into main.
+            SchedState::InSend(_)
+            | SchedState::InReply(_)
+            | SchedState::InRecv(_) => Ok(true),
+            // A task may be stopped or "runnable"/"running" before main, so
+            // from this information alone, we can't tell one way or the other.
+            SchedState::Stopped | SchedState::Runnable => Ok(false),
+        },
+        // A badly configured task could hit a fault before main by initializing
+        // memory badly, or the supervisor could deliver a fault before the task
+        // has a chance to run. Either way, this state interferes with our
+        // ability to reliably detect startup.
+        TaskState::Faulted { .. } => Ok(false),
     }
 }
 
