@@ -1291,7 +1291,7 @@ dependencies = [
 
 [[package]]
 name = "humility-bin"
-version = "0.12.12"
+version = "0.12.12-flashhack.0"
 dependencies = [
  "anyhow",
  "bitfield",
