@@ -2435,6 +2435,7 @@ dependencies = [
  "humility-doppel",
  "humility-idol",
  "idol",
+ "log",
  "parse_int",
  "postcard",
  "zerocopy",

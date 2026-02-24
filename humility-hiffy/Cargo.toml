@@ -14,3 +14,4 @@ zerocopy.workspace = true
 humility.workspace = true
 humility-doppel.workspace = true
 humility-idol.workspace = true
+log.workspace = true
