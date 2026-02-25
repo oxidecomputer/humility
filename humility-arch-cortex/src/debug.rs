@@ -425,6 +425,16 @@ register!(DHCSR, 0xe000_edf0,
     pub halted, _: 17;
 );
 
+register!(DSCSR, 0xe000ee08,
+    #[derive(Copy, Clone)]
+    pub struct DSCSR(u32);
+    impl Debug;
+    pub cdskey, set_cdskey: 17;
+    pub cds, set_cds: 16;
+    pub sbrsel, set_sbrsel: 1;
+    pub sbrselen, set_sbrselen: 0;
+);
+
 register!(DEMCR, 0xe000_edfc,
     #[derive(Copy, Clone)]
     pub struct DEMCR(u32);
@@ -476,6 +486,120 @@ register!(MVFR0, 0xe000_ef40,
     pub double_precision, _: 11, 8;
     pub single_precision, _: 7, 4;
     pub simd_registers, _: 3, 0;
+);
+
+register!(MPU_TYPE, 0xe000ed90,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_TYPE(u32);
+    impl Debug;
+    pub dregion, _: 15, 8;
+    pub separate, _: 0;
+);
+
+register!(MPU_RNR, 0xe000ed98,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_RNR(u32);
+    impl Debug;
+    pub region, set_region: 7, 0;
+);
+
+register!(MPU_CTRL, 0xe000ed94,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_CTRL(u32);
+    impl Debug;
+    pub privdefena, _: 2;
+    pub hfnmiena, _: 1;
+    pub enable, _: 0;
+);
+
+register!(MPU_MAIR0, 0xe000edc0,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_MAIR0(u32);
+    impl Debug;
+    pub attr3, _: 31, 24;
+    pub attr2, _: 23, 16;
+    pub attr1, _: 15, 8;
+    pub attr0, _: 7, 0;
+);
+
+register!(MPU_MAIR1, 0xe000edc4,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_MAIR1(u32);
+    impl Debug;
+    pub attr7, _: 31, 24;
+    pub attr6, _: 23, 16;
+    pub attr5, _: 15, 8;
+    pub attr4, _: 7, 0;
+);
+
+register!(MPU_RBAR, 0xe000ed9c,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_RBAR(u32);
+    impl Debug;
+    pub base, _: 31, 5;
+    pub sh, _: 4, 3;
+    pub ap, _: 2, 1;
+    pub xn, _: 0;
+);
+
+register!(MPU_RLAR, 0xe000eda0,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct MPU_RLAR(u32);
+    impl Debug;
+    pub limit, _: 31, 5;
+    pub pxn, _: 4;
+    pub attr_index, _: 3, 1;
+    pub en, _: 0;
+);
+
+register!(SAU_TYPE, 0xe000edd4,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct SAU_TYPE(u32);
+    impl Debug;
+    pub sregion, _: 7, 0;
+);
+
+register!(SAU_RNR, 0xe000edd8,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct SAU_RNR(u32);
+    impl Debug;
+    pub region, set_region: 7, 0;
+);
+
+register!(SAU_CTRL, 0xe000edd0,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct SAU_CTRL(u32);
+    impl Debug;
+    pub allns, _: 1;
+    pub enable, _: 0;
+);
+
+register!(SAU_RBAR, 0xe000eddc,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct SAU_RBAR(u32);
+    impl Debug;
+    pub baddr, _: 31, 5;
+);
+
+register!(SAU_RLAR, 0xe000ede0,
+    #[derive(Copy, Clone)]
+    #[allow(non_camel_case_types)]
+    pub struct SAU_RLAR(u32);
+    impl Debug;
+    pub laddr, _: 31, 5;
+    pub nsc, _: 1;
+    pub enable, _: 0;
 );
 
 register!(STM32F4_DBGMCU_IDCODE, 0xe004_2000,

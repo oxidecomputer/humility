@@ -394,7 +394,51 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
             );
         }
     }
+
     if part.has_tz() {
+        // Temporarily force banked register accesses to Secure versions
+        let mut dscsr = DSCSR::read(core)?;
+        dscsr.set_sbrsel(true);
+        dscsr.set_sbrselen(true);
+        dscsr.write(core)?;
+
+        let sau_type = SAU_TYPE::read(core)?;
+        print("SAU_TYPE", format!("0x{:x}", sau_type.0));
+
+        if sau_type.sregion() > 0 {
+            let sau_ctrl = SAU_CTRL::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                "SAU_CTRL",
+                format!("{:x}", sau_ctrl.0)
+            );
+        }
+
+        for rnr in 0..sau_type.sregion() {
+            let mut sau_rnr = SAU_RNR(0);
+            sau_rnr.set_region(rnr);
+            sau_rnr.write(core)?;
+
+            let sau_rbar = SAU_RBAR::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                format!("SAU_RBAR{}", rnr),
+                format!("{:x}", sau_rbar.0)
+            );
+
+            let sau_rlar = SAU_RLAR::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                format!("SAU_RLAR{}", rnr),
+                format!("{:x}", sau_rlar.0)
+            );
+        }
+
+        // Switch back to using current security domain versions of banked
+        // registers
+        dscsr.set_sbrselen(false);
+        dscsr.write(core)?;
+
         let sfsr = SFSR::read(core)?;
         if sfsr.has_fault() {
             humility::msg!(
@@ -407,6 +451,157 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
                 sfsr.0,
                 sfsr
             )
+        }
+    }
+
+    if part.has_tz() {
+        // Temporarily force banked register accesses to Secure versions
+        let mut dscsr = DSCSR::read(core)?;
+        dscsr.set_sbrsel(true);
+        dscsr.set_sbrselen(true);
+        dscsr.write(core)?;
+
+        {
+            let mpu_type = MPU_TYPE::read(core)?;
+            print("MPU_S_TYPE", format!("0x{:x}", mpu_type.0));
+
+            if mpu_type.dregion() > 0 {
+                let mpu_ctrl = MPU_CTRL::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    "MPU_S_CTRL",
+                    format!("{:x}", mpu_ctrl.0)
+                );
+
+                let mpu_mair0 = MPU_MAIR0::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    "MPU_S_MAIR0",
+                    format!("{:x}", mpu_mair0.0)
+                );
+
+                let mpu_mair1 = MPU_MAIR1::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    "MPU_S_MAIR1",
+                    format!("{:x}", mpu_mair1.0)
+                );
+            }
+
+            for rnr in 0..mpu_type.dregion() {
+                let mut mpu_rnr = MPU_RNR(0);
+                mpu_rnr.set_region(rnr);
+                mpu_rnr.write(core)?;
+
+                let mpu_rbar = MPU_RBAR::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    format!("MPU_S_RBAR{}", rnr),
+                    format!("{:x}", mpu_rbar.0)
+                );
+
+                let mpu_rlar = MPU_RLAR::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    format!("MPU_S_RLAR{}", rnr),
+                    format!("{:x}", mpu_rlar.0)
+                );
+            }
+        }
+
+        // Now switch to the Non-Secure versions
+        dscsr.set_sbrsel(false);
+        dscsr.write(core)?;
+
+        {
+            let mpu_type = MPU_TYPE::read(core)?;
+            print("MPU_NS_TYPE", format!("0x{:x}", mpu_type.0));
+
+            if mpu_type.dregion() > 0 {
+                let mpu_ctrl = MPU_CTRL::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    "MPU_S_CTRL",
+                    format!("{:x}", mpu_ctrl.0)
+                );
+
+                let mpu_mair0 = MPU_MAIR0::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    "MPU_NS_MAIR0",
+                    format!("{:x}", mpu_mair0.0)
+                );
+
+                let mpu_mair1 = MPU_MAIR1::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    "MPU_NS_MAIR1",
+                    format!("{:x}", mpu_mair1.0)
+                );
+            }
+
+            for rnr in 0..mpu_type.dregion() {
+                let mut mpu_rnr = MPU_RNR(0);
+                mpu_rnr.set_region(rnr);
+                mpu_rnr.write(core)?;
+
+                let mpu_rbar = MPU_RBAR::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    format!("MPU_NS_RBAR{}", rnr),
+                    format!("{:x}", mpu_rbar.0)
+                );
+
+                let mpu_rlar = MPU_RLAR::read(core)?;
+                humility::msg!(
+                    "{:>12} => 0x{:8}",
+                    format!("MPU_NS_RLAR{}", rnr),
+                    format!("{:x}", mpu_rlar.0)
+                );
+            }
+        }
+
+        // Finally, switch back to current security domain versions
+        dscsr.set_sbrselen(false);
+        dscsr.write(core)?;
+    } else {
+        let mpu_type = MPU_TYPE::read(core)?;
+        print("MPU_TYPE", format!("0x{:x}", mpu_type.0));
+
+        if mpu_type.dregion() > 0 {
+            let mpu_mair0 = MPU_MAIR0::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                "MPU_MAIR0",
+                format!("{:x}", mpu_mair0.0)
+            );
+
+            let mpu_mair1 = MPU_MAIR1::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                "MPU_MAIR1",
+                format!("{:x}", mpu_mair1.0)
+            );
+        }
+
+        for rnr in 0..mpu_type.dregion() {
+            let mut mpu_rnr = MPU_RNR(0);
+            mpu_rnr.set_region(rnr);
+            mpu_rnr.write(core)?;
+
+            let mpu_rbar = MPU_RBAR::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                format!("MPU_RBAR{}", rnr),
+                format!("{:x}", mpu_rbar.0)
+            );
+
+            let mpu_rlar = MPU_RLAR::read(core)?;
+            humility::msg!(
+                "{:>12} => 0x{:8}",
+                format!("MPU_RLAR{}", rnr),
+                format!("{:x}", mpu_rlar.0)
+            );
         }
     }
 
