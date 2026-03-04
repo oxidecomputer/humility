@@ -177,6 +177,9 @@ struct VpdArgs {
         conflicts_with_all = &["device", "id"]
     )]
     lock_all: bool,
+
+    #[clap(long, requires = "lock-all")]
+    allow_missing: bool,
 }
 
 enum VpdTarget {
@@ -638,6 +641,7 @@ fn vpd_lock_all(
 
     let results = context.run(core, ops.as_slice(), None)?;
     let mut locked = 0;
+    let mut any_missing = false;
 
     for ((ndx, _), r) in devices.iter().enumerate().zip(results.iter()) {
         use humility::reflect::Base::Bool;
@@ -653,6 +657,7 @@ fn vpd_lock_all(
 
             Err(err) => {
                 humility::warn!("skipping VPD {ndx}: {err:?}");
+                any_missing = true;
             }
 
             Ok(Base(Bool(false))) => {
@@ -665,12 +670,14 @@ fn vpd_lock_all(
 
                     Err(err) => {
                         humility::warn!("skipping VPD {ndx}: {err:?}");
+                        any_missing = true;
                     }
                 }
             }
 
             Ok(r) => {
                 humility::warn!("skipping {ndx}: unknown result: {r:?}");
+                any_missing = true;
             }
         }
     }
@@ -684,6 +691,8 @@ fn vpd_lock_all(
         }
 
         bail!("no VPDs to lock");
+    } else if any_missing && !subargs.allow_missing {
+        bail!("some VPDs are missing; use `--allow-missing` to continue")
     }
 
     for ndx in &locking {
