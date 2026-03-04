@@ -203,7 +203,7 @@ option to humility.
 
 The above definition -- when provided via `--environment` or
 `HUMILITY_ENVIRONMENT` -- would allow one to (say) run `humility --target
-grimey tasks` or `humility --target lucky --archive-name imagea tasks`.
+grimey tasks` or `humility --target lucky --image-name imagea tasks`.
 In addition to `probe` and `archive`, one may also specify
 associated commands in a `cmds` object that contains a mapping of names to
 commands to execute.  For example:
@@ -234,7 +234,6 @@ a specified target.  (In the above example, one could execute `humility
 
 - [humility apptable](#humility-apptable): print Hubris apptable
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
-- [humility bankerase](#humility-bankerase): Erase a bank
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility counters](#humility-counters): display event counters
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
@@ -305,19 +304,6 @@ Tools to interact with the auxiliary flash, described in RFD 311.
 
 This subcommand should be rarely used; `humility flash` will automatically
 program auxiliary flash when needed.
-
-
-### `humility bankerase`
-
-Erase flash in "erase block" size chunks (32 KiB) on the RoT.
-
-Erase `len` is given in bytes and then rounded up to the nearest block
-size so that all pages containing the range are erased. Then the erased
-pages are overwritten with 0s, but only starting at the address given. In
-other words, if the address is given as 0x40001 and len as 512, flash will
-be erased from 0x40000 to 0x48000,  but address 0x40000 will have value
-`0xff`, and every other byte will have value `0`.
-
 
 
 ### `humility console-proxy`
@@ -1160,16 +1146,6 @@ $ humility i2c -c 3 -d 0x48 -r 0x4
 humility: attached via ST-Link
 Controller I2C3, device 0x48, register 0x4 = 0x1f
 ```
-
-To determine the last mux and segment to be enabled on a particular
-controller/port, use `--lastmux` (`-l`):
-
-```console
-$ humility i2c -b front --lastmux
-humility: attached via ST-Link V3
-last selected mux/segment for I2C2, port F: mux 3, segment 2
-```
-
 
 
 ### `humility ibc`
