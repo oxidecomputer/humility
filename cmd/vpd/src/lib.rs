@@ -92,12 +92,15 @@
 //! lock) a locked VPD device will result in an error.  The lock status of
 //! each device is shown in `--list`.
 //!
-//! To lock all VPD devices, use the `--lock-all` command.  This will exit
-//! successfully if all devices were successfully locked or are already
-//! locked; if a device is missing or otherwise cannot be locked, all other
-//! devices will be locked, but the command will exit with a non-zero exit
-//! status.
+//! To lock all VPD devices, use the `--lock-all` command.
 //!
+//! - This will exit successfully if all devices were successfully locked or are
+//!   already locked
+//! - If a device is missing or returns an error when its lock status is
+//!   initially checked, the command returns a *non-zero* exit status without
+//!   locking other devices.  Use `--allow-missing` to disable this behavior.
+//! - If all devices are present but some devices fail to lock, other devices
+//!   will be locked and the command will return with a *non-zero* exit status.
 
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
