@@ -92,12 +92,15 @@
 //! lock) a locked VPD device will result in an error.  The lock status of
 //! each device is shown in `--list`.
 //!
-//! To lock all VPD devices, use the `--lock-all` command.  This will exit
-//! successfully if all devices were successfully locked or are already
-//! locked; if a device is missing or otherwise cannot be locked, all other
-//! devices will be locked, but the command will exit with a non-zero exit
-//! status.
+//! To lock all VPD devices, use the `--lock-all` command.
 //!
+//! - This will exit successfully if all devices were successfully locked or are
+//!   already locked
+//! - If a device is missing or returns an error when its lock status is
+//!   initially checked, the command returns a *non-zero* exit status without
+//!   locking other devices.  Use `--allow-missing` to disable this behavior.
+//! - If all devices are present but some devices fail to lock, other devices
+//!   will be locked and the command will return with a *non-zero* exit status.
 
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
@@ -177,6 +180,9 @@ struct VpdArgs {
         conflicts_with_all = &["device", "id"]
     )]
     lock_all: bool,
+
+    #[clap(long, requires = "lock-all")]
+    allow_missing: bool,
 }
 
 enum VpdTarget {
@@ -638,6 +644,7 @@ fn vpd_lock_all(
 
     let results = context.run(core, ops.as_slice(), None)?;
     let mut locked = 0;
+    let mut any_missing = false;
 
     for ((ndx, _), r) in devices.iter().enumerate().zip(results.iter()) {
         use humility::reflect::Base::Bool;
@@ -653,6 +660,7 @@ fn vpd_lock_all(
 
             Err(err) => {
                 humility::warn!("skipping VPD {ndx}: {err:?}");
+                any_missing = true;
             }
 
             Ok(Base(Bool(false))) => {
@@ -665,12 +673,14 @@ fn vpd_lock_all(
 
                     Err(err) => {
                         humility::warn!("skipping VPD {ndx}: {err:?}");
+                        any_missing = true;
                     }
                 }
             }
 
             Ok(r) => {
                 humility::warn!("skipping {ndx}: unknown result: {r:?}");
+                any_missing = true;
             }
         }
     }
@@ -684,6 +694,8 @@ fn vpd_lock_all(
         }
 
         bail!("no VPDs to lock");
+    } else if any_missing && !subargs.allow_missing {
+        bail!("some VPDs are missing; use `--allow-missing` to continue")
     }
 
     for ndx in &locking {
