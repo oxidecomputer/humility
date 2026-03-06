@@ -369,22 +369,28 @@ pub struct HubrisSensor {
     pub device: HubrisSensorDevice,
 }
 
-impl HubrisSensorKind {
-    pub fn to_string(&self) -> &str {
-        match self {
-            HubrisSensorKind::Temperature => "temp",
-            HubrisSensorKind::Power => "power",
-            HubrisSensorKind::Current => "current",
-            HubrisSensorKind::Voltage => "voltage",
-            HubrisSensorKind::InputCurrent => "input-current",
-            HubrisSensorKind::InputVoltage => "input-voltage",
-            HubrisSensorKind::Speed => "speed",
-            HubrisSensorKind::Pwm => "pwm",
-            HubrisSensorKind::Other(s) => s,
-        }
+impl fmt::Display for HubrisSensorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                HubrisSensorKind::Temperature => "temp",
+                HubrisSensorKind::Power => "power",
+                HubrisSensorKind::Current => "current",
+                HubrisSensorKind::Voltage => "voltage",
+                HubrisSensorKind::InputCurrent => "input-current",
+                HubrisSensorKind::InputVoltage => "input-voltage",
+                HubrisSensorKind::Speed => "speed",
+                HubrisSensorKind::Pwm => "pwm",
+                HubrisSensorKind::Other(s) => s,
+            }
+        )
     }
+}
 
-    pub fn from_string(kind: &str) -> Self {
+impl From<&str> for HubrisSensorKind {
+    fn from(kind: &str) -> Self {
         match kind {
             "temp" | "temperature" => HubrisSensorKind::Temperature,
             "power" => HubrisSensorKind::Power,
@@ -847,7 +853,7 @@ impl HubrisArchive {
                 for i in 0..count {
                     self.manifest.sensors.push(HubrisSensor {
                         name: device.name.clone(),
-                        kind: HubrisSensorKind::from_string(kind),
+                        kind: HubrisSensorKind::from(kind.as_str()),
                         device: HubrisSensorDevice::Other(
                             device.device.clone(),
                             i,

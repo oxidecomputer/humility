@@ -556,7 +556,7 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         let mut rval = HashSet::new();
 
         for t in types {
-            rval.insert(HubrisSensorKind::from_string(t));
+            rval.insert(HubrisSensorKind::from(t.as_str()));
         }
 
         Some(rval)
