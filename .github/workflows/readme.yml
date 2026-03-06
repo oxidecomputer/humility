@@ -1,0 +1,29 @@
+name: readme
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install libusb-1.0-0-dev libftdi1-dev libudev-dev
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - name: Run cargo xtask readme
+        run: cargo xtask readme
+      - name: Check README.md is up to date
+        run: |
+          if ! git diff --exit-code README.md; then
+            echo "README is out of date; run \`cargo xtask readme\` to update it"
+            exit 1
+          fi
