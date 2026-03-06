@@ -239,10 +239,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             };
             println!(
                 "                {:3} {:23} {:11} {}",
-                ndx,
-                s.name,
-                device,
-                s.kind.to_string()
+                ndx, s.name, device, s.kind,
             );
         }
     }

@@ -74,12 +74,11 @@ fn make_tests(tests: &[Test], kind: Kind) -> Result<()> {
 
         let path = entry.path();
 
-        if let Some(f) = path.file_name() {
-            if let Some(s) = f.to_str() {
-                if let Some(name) = s.strip_prefix(kind.prefix()) {
-                    input.push((name.to_string(), s.to_string()));
-                }
-            }
+        if let Some(f) = path.file_name()
+            && let Some(s) = f.to_str()
+            && let Some(name) = s.strip_prefix(kind.prefix())
+        {
+            input.push((name.to_string(), s.to_string()));
         }
     }
 
