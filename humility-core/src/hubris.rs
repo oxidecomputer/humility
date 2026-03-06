@@ -40,7 +40,7 @@ const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
 const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
 const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
-const MAX_HUBRIS_VERSION: u32 = 10;
+const MAX_HUBRIS_VERSION: u32 = 11;
 
 #[derive(Default, Debug, Serialize)]
 pub struct HubrisManifest {
@@ -340,7 +340,7 @@ pub struct HubrisI2cDevice {
     pub removable: bool,
 }
 
-#[derive(Copy, Clone, Deserialize, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Deserialize, Debug, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum HubrisSensorKind {
     Temperature,
@@ -350,6 +350,10 @@ pub enum HubrisSensorKind {
     InputCurrent,
     InputVoltage,
     Speed,
+    Pwm,
+
+    /// Catch-all for unknown sensor kinds, for forward compatibility
+    Other(String),
 }
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Serialize)]
@@ -365,29 +369,38 @@ pub struct HubrisSensor {
     pub device: HubrisSensorDevice,
 }
 
-impl HubrisSensorKind {
-    pub fn to_string(&self) -> &str {
-        match self {
-            HubrisSensorKind::Temperature => "temp",
-            HubrisSensorKind::Power => "power",
-            HubrisSensorKind::Current => "current",
-            HubrisSensorKind::Voltage => "voltage",
-            HubrisSensorKind::InputCurrent => "input-current",
-            HubrisSensorKind::InputVoltage => "input-voltage",
-            HubrisSensorKind::Speed => "speed",
-        }
+impl fmt::Display for HubrisSensorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                HubrisSensorKind::Temperature => "temp",
+                HubrisSensorKind::Power => "power",
+                HubrisSensorKind::Current => "current",
+                HubrisSensorKind::Voltage => "voltage",
+                HubrisSensorKind::InputCurrent => "input-current",
+                HubrisSensorKind::InputVoltage => "input-voltage",
+                HubrisSensorKind::Speed => "speed",
+                HubrisSensorKind::Pwm => "pwm",
+                HubrisSensorKind::Other(s) => s,
+            }
+        )
     }
+}
 
-    pub fn from_string(kind: &str) -> Option<Self> {
+impl From<&str> for HubrisSensorKind {
+    fn from(kind: &str) -> Self {
         match kind {
-            "temp" | "temperature" => Some(HubrisSensorKind::Temperature),
-            "power" => Some(HubrisSensorKind::Power),
-            "current" => Some(HubrisSensorKind::Current),
-            "voltage" => Some(HubrisSensorKind::Voltage),
-            "input-current" => Some(HubrisSensorKind::InputCurrent),
-            "input-voltage" => Some(HubrisSensorKind::InputVoltage),
-            "speed" => Some(HubrisSensorKind::Speed),
-            _ => None,
+            "temp" | "temperature" => HubrisSensorKind::Temperature,
+            "power" => HubrisSensorKind::Power,
+            "current" => HubrisSensorKind::Current,
+            "voltage" => HubrisSensorKind::Voltage,
+            "input-current" => HubrisSensorKind::InputCurrent,
+            "input-voltage" => HubrisSensorKind::InputVoltage,
+            "speed" => HubrisSensorKind::Speed,
+            "pwm" => HubrisSensorKind::Pwm,
+            s => HubrisSensorKind::Other(s.to_owned()),
         }
     }
 }
@@ -840,9 +853,7 @@ impl HubrisArchive {
                 for i in 0..count {
                     self.manifest.sensors.push(HubrisSensor {
                         name: device.name.clone(),
-                        kind: HubrisSensorKind::from_string(kind).ok_or_else(
-                            || anyhow!("Unknown sensor kind {kind}"),
-                        )?,
+                        kind: HubrisSensorKind::from(kind.as_str()),
                         device: HubrisSensorDevice::Other(
                             device.device.clone(),
                             i,
@@ -883,7 +894,7 @@ impl HubrisArchive {
 
         let sensor_name = |d: &HubrisConfigI2cDevice,
                            idx: usize,
-                           kind: HubrisSensorKind|
+                           kind: &HubrisSensorKind|
          -> Result<String> {
             if let Some(pmbus) = &d.pmbus {
                 if let Some(rails) = &pmbus.rails {
@@ -899,7 +910,7 @@ impl HubrisArchive {
                     .unwrap()
                     .sensors
                     .as_ref()
-                    .is_none_or(|s| s.contains(&kind))
+                    .is_none_or(|s| s.contains(kind))
                 && let Some(rails) = &d.power.as_ref().unwrap().rails
             {
                 if idx < rails.len() {
@@ -936,7 +947,7 @@ impl HubrisArchive {
                           ndx: usize,
                           kind: HubrisSensorKind|
          -> Result<HubrisSensor> {
-            let name = sensor_name(d, i, kind)?;
+            let name = sensor_name(d, i, &kind)?;
             Ok(HubrisSensor {
                 name,
                 kind,
