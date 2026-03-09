@@ -420,6 +420,10 @@ impl<'a> Dashboard<'a> {
             s.kind == HubrisSensorKind::Current
         })?;
 
+        let pwm_control = sensor_ops(hubris, &mut context, &mut ops, |s| {
+            s.kind == HubrisSensorKind::Pwm
+        })?;
+
         ops.push(Op::Done);
 
         context.start(core, ops.as_slice(), None)?;
@@ -428,10 +432,11 @@ impl<'a> Dashboard<'a> {
             let mut f = File::create(output)?;
             writeln!(
                 &mut f,
-                "Time,{},{},{},Power",
+                "Time,{},{},{},{},Power",
                 temps.join(","),
                 fans.join(","),
-                current.join(",")
+                current.join(","),
+                pwm_control.join(","),
             )?;
             Some(f)
         } else {
