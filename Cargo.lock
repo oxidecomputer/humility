@@ -1684,12 +1684,16 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap 3.2.23",
+ "hif",
  "humility-cli",
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "humility-hiffy",
+ "humility-idol",
  "humility-log",
  "ipcc-data",
+ "turin-post-decoder",
 ]
 
 [[package]]
@@ -4234,6 +4238,11 @@ dependencies = [
  "snapbox",
  "toml_edit 0.14.4",
 ]
+
+[[package]]
+name = "turin-post-decoder"
+version = "0.4.0"
+source = "git+https://github.com/oxidecomputer/turin-post-decoder#2ced4872bdedf2a21485b1406565f6d7f97c331b"
 
 [[package]]
 name = "twox-hash"

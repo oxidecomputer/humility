@@ -986,7 +986,7 @@ within Humility, use `-L` (`--list-functions`).
 ### `humility host`
 `humility host` pretty-prints host state, which is sent to the SP over IPCC.
 
-It is only functional on a Gimlet SP image.
+It is only functional on a Gimlet or Cosmo SP image.
 
 #### `humility host last-panic`
 Pretty prints the value of `LAST_HOST_PANIC`
@@ -1040,6 +1040,45 @@ $ humility host boot-fail
 humility: attached to dump
 humility: reading LAST_HOST_BOOT_FAIL
 [0; 4096]
+```
+
+#### `humility host cosmo last-post-code`
+Pretty-prints the last POST code seen by the sequencer FPGA (Cosmo only)
+```console
+$ humility host cosmo last-post-code
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+Bootloader Code: 0xed80000f
+  Source:  ASP TEE
+  Status:  BL_ERR_BOUNDARY_CHECK (0x0f)
+  Detail:  Out of Boundary Condition Reached
+```
+
+#### `humility host cosmo post-codes`
+Pretty-prints all last POST codes seen by the sequencer FPGA (Cosmo only)
+```console
+$ humility host cosmo post-codes
+humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+Bootloader Code: 0xee1000b3
+  Source:  ASP BL2
+  Status:  BL_SUCCESS_BYPASS_IDEVID_CHECK (0xb3)
+  Detail:  IDEVID validation failed but bypassed (unsecure)
+Bootloader Code: 0xee1000a0
+  Source:  ASP BL2
+  Status:  BL_SUCCESS_C_MAIN (0xa0)
+  Detail:  Successfully entered C Main
+Bootloader Code: 0xee1000a3
+  Source:  ASP BL2
+  Status:  BL_SUCCESS_DETECT_BOOT_MODE (0xa3)
+  Detail:  Boot Mode detected and sent to slaves
+Bootloader Code: 0xee1000a2
+  Source:  ASP BL2
+  Status:  BL_SUCCESS_DERIVE_HMAC_KEY (0xa2)
+  Detail:  HMAC key derived
+Bootloader Code: 0xee1000a2
+  Source:  ASP BL2
+  Status:  BL_SUCCESS_DERIVE_HMAC_KEY (0xa2)
+  Detail:  HMAC key derived
+# etc...
 ```
 
 

@@ -5,7 +5,7 @@
 //! ## `humility host`
 //! `humility host` pretty-prints host state, which is sent to the SP over IPCC.
 //!
-//! It is only functional on a Gimlet SP image.
+//! It is only functional on a Gimlet or Cosmo SP image.
 //!
 //! ### `humility host last-panic`
 //! Pretty prints the value of `LAST_HOST_PANIC`
@@ -60,8 +60,47 @@
 //! humility: reading LAST_HOST_BOOT_FAIL
 //! [0; 4096]
 //! ```
+//!
+//! ### `humility host cosmo last-post-code`
+//! Pretty-prints the last POST code seen by the sequencer FPGA (Cosmo only)
+//! ```console
+//! $ humility host cosmo last-post-code
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! Bootloader Code: 0xed80000f
+//!   Source:  ASP TEE
+//!   Status:  BL_ERR_BOUNDARY_CHECK (0x0f)
+//!   Detail:  Out of Boundary Condition Reached
+//! ```
+//!
+//! ### `humility host cosmo post-codes`
+//! Pretty-prints all last POST codes seen by the sequencer FPGA (Cosmo only)
+//! ```console
+//! $ humility host cosmo post-codes
+//! humility: attached to 0483:374f:002A001C4D46500F20373033 via ST-Link V3
+//! Bootloader Code: 0xee1000b3
+//!   Source:  ASP BL2
+//!   Status:  BL_SUCCESS_BYPASS_IDEVID_CHECK (0xb3)
+//!   Detail:  IDEVID validation failed but bypassed (unsecure)
+//! Bootloader Code: 0xee1000a0
+//!   Source:  ASP BL2
+//!   Status:  BL_SUCCESS_C_MAIN (0xa0)
+//!   Detail:  Successfully entered C Main
+//! Bootloader Code: 0xee1000a3
+//!   Source:  ASP BL2
+//!   Status:  BL_SUCCESS_DETECT_BOOT_MODE (0xa3)
+//!   Detail:  Boot Mode detected and sent to slaves
+//! Bootloader Code: 0xee1000a2
+//!   Source:  ASP BL2
+//!   Status:  BL_SUCCESS_DERIVE_HMAC_KEY (0xa2)
+//!   Detail:  HMAC key derived
+//! Bootloader Code: 0xee1000a2
+//!   Source:  ASP BL2
+//!   Status:  BL_SUCCESS_DERIVE_HMAC_KEY (0xa2)
+//!   Detail:  HMAC key derived
+//! # etc...
+//! ```
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 
@@ -69,6 +108,8 @@ use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel as doppel;
+use humility_hiffy::HiffyContext;
+use humility_idol::HubrisIdol;
 use humility_log::msg;
 
 #[derive(Parser, Debug)]
@@ -77,6 +118,25 @@ enum HostCommand {
     BootFail,
     /// Print the last host panic
     LastPanic,
+    /// Cosmo-specific host commands
+    Cosmo {
+        #[clap(subcommand)]
+        cmd: CosmoHostCommand,
+    },
+}
+
+#[derive(Parser, Debug)]
+enum CosmoHostCommand {
+    /// Prints the most recent POST code
+    LastPostCode {
+        #[clap(long)]
+        raw: bool,
+    },
+    /// Dumps the POST code buffer
+    PostCodes {
+        #[clap(long)]
+        raw: bool,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -285,6 +345,158 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
     Ok(())
 }
 
+/// Print a warning message if the archive is not for a `cosmo` board
+fn check_post_code_target(hubris: &HubrisArchive) {
+    if !hubris.manifest.board.as_ref().is_some_and(|b| b.contains("cosmo")) {
+        humility::warn!(
+            "POST code buffer is only present on 'cosmo' hardware{}; \
+             hiffy may fail and time out",
+            if let Some(board) = &hubris.manifest.board {
+                format!(" but this is a '{board}'")
+            } else {
+                String::new()
+            }
+        )
+    }
+}
+
+fn host_post_codes(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    raw: bool,
+) -> Result<()> {
+    check_post_code_target(hubris);
+    use hif::*;
+
+    let mut context = HiffyContext::new(hubris, core, 5000)?;
+    let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
+    let value = humility_hiffy::hiffy_call(
+        hubris,
+        core,
+        &mut context,
+        &op,
+        &[],
+        None,
+        None,
+    )?;
+    let Ok(reflect::Value::Base(reflect::Base::U32(count))) = value else {
+        bail!(
+            "Got bad value from post_code_buffer_len: \
+             expected U32, got {value:?}"
+        );
+    };
+
+    let op = hubris.get_idol_command("Sequencer.get_post_code")?;
+    let handle_value = |v| {
+        let Ok(reflect::Value::Base(reflect::Base::U32(v))) = v else {
+            bail!("Got bad value from get_post_code: expected U32, got {v:?}");
+        };
+        if raw {
+            println!("{v:08x}");
+        } else {
+            let decoded = turin_post_decoder::decode(v);
+            let detail = decoded.lines().join("\n");
+            println!("{detail}");
+        }
+        Ok(())
+    };
+
+    // For network-attached systems, function calls are cheap and we can just
+    // spam them.  For debugger-attached systems, we'll want to run a HIF loop
+    // to avoid dispatch overhead.
+    if core.is_net() {
+        for index in 0..count {
+            let value = humility_hiffy::hiffy_call(
+                hubris,
+                core,
+                &mut context,
+                &op,
+                &[("index", humility_idol::IdolArgument::Scalar(index as u64))],
+                None,
+                None,
+            )?;
+            handle_value(value)?;
+        }
+    } else {
+        let send = context.get_function("Send", 4)?;
+        let ret_size = hubris.typesize(op.ok)? as u32;
+        assert_eq!(ret_size, 4);
+
+        // Each returned value is a FunctionResult::Success(&[..]), which
+        // encodes as 6 bytes: 1 byte variant tag, 1 byte slice length, 4 bytes
+        // of u32.
+        let max_chunk_size = context.rstack_size() / 6;
+
+        // Write a little program to read all of the post codes
+        for start in (0..count).step_by(max_chunk_size) {
+            let end = (start + max_chunk_size as u32).min(count);
+            let label = Target(0);
+            let mut ops = vec![
+                Op::Push32(op.task.task()), // task id
+                Op::Push16(op.code),        // opcode
+                Op::Push32(start),          // Starting index
+                Op::Push32(0),              // Comparison target (dummy)
+                Op::Label(label),           // loop start
+            ];
+            {
+                // block representing the hiffy loop
+                ops.push(Op::Drop); // Drop comparison target
+
+                // Expand u32 -> [u8; 4], since that's expected by `send`
+                ops.push(Op::Expand32);
+                ops.push(Op::Push(4)); // Payload size
+                ops.push(Op::Push32(ret_size)); // Return size
+                ops.push(Op::Call(send.id));
+                ops.push(Op::DropN(2)); // Drop payload and return size
+                ops.push(Op::Collect32);
+                ops.push(Op::Push(1)); // Increment by four
+                ops.push(Op::Add); // index += 1
+                ops.push(Op::Push32(end)); // Comparison target
+                ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
+            }
+            ops.push(Op::DropN(4)); // Cleanup
+            ops.push(Op::Done); // Finish
+
+            for r in context.run(core, ops.as_slice(), None)? {
+                let v = humility_hiffy::hiffy_decode(hubris, &op, r)?;
+                handle_value(v)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn host_last_post_code(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    raw: bool,
+) -> Result<()> {
+    check_post_code_target(hubris);
+
+    let mut context = HiffyContext::new(hubris, core, 5000)?;
+    let op = hubris.get_idol_command("Sequencer.last_post_code")?;
+    let value = humility_hiffy::hiffy_call(
+        hubris,
+        core,
+        &mut context,
+        &op,
+        &[],
+        None,
+        None,
+    )?;
+    let Ok(reflect::Value::Base(reflect::Base::U32(v))) = value else {
+        bail!("Got bad value from last_post_code: expected U32, got {value:?}");
+    };
+    if raw {
+        println!("{v:08x}");
+    } else {
+        let decoded = turin_post_decoder::decode(v);
+        let detail = decoded.lines().join("\n");
+        println!("{detail}");
+    }
+    Ok(())
+}
+
 fn host(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = HostArgs::try_parse_from(subargs)?;
@@ -294,6 +506,14 @@ fn host(context: &mut ExecutionContext) -> Result<()> {
     match subargs.cmd {
         HostCommand::BootFail => host_boot_fail(hubris, core),
         HostCommand::LastPanic => host_last_panic(hubris, core),
+        HostCommand::Cosmo { cmd } => match cmd {
+            CosmoHostCommand::PostCodes { raw } => {
+                host_post_codes(hubris, core, raw)
+            }
+            CosmoHostCommand::LastPostCode { raw } => {
+                host_last_post_code(hubris, core, raw)
+            }
+        },
     }
 }
 
