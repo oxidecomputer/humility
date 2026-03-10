@@ -1980,6 +1980,39 @@ impl HubrisArchive {
         self.tasks.get(name)
     }
 
+    /// Tries to look up a task by name, returning an error with similar names
+    pub fn try_lookup_task(&self, name: &str) -> Result<HubrisTask> {
+        self.tasks
+            .get(name)
+            .cloned()
+            .ok_or_else(|| self.task_name_suggestion(name))
+    }
+
+    fn task_name_suggestion(&self, name: &str) -> anyhow::Error {
+        // Suggest only for very small differences
+        // High number can result in inaccurate suggestions for short queries e.g. `rls`
+        const MAX_DISTANCE: usize = 3;
+
+        let mut scored: Vec<_> = self
+            .tasks
+            .keys()
+            .filter_map(|s| {
+                let distance = strsim::damerau_levenshtein(name, s);
+                if distance <= MAX_DISTANCE {
+                    Some((distance, s))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        scored.sort();
+        let mut out = format!("'{name}' is not a valid task name.");
+        if let Some((_, s)) = scored.first() {
+            out.push_str(&format!(" Did you mean '{s}'?"));
+        }
+        anyhow!("{out}")
+    }
+
     pub fn task_name(&self, index: usize) -> Option<&str> {
         let index = HubrisTask::Task(index as u32);
         // TODO this is super gross but we don't have the inverse of the tasks

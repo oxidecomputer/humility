@@ -30,19 +30,37 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
-use std::convert::TryInto;
+use std::{collections::HashSet, convert::TryInto};
 
 #[derive(Parser, Debug)]
 #[clap(name = "stackmargin", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct StackmarginArgs {}
+struct StackmarginArgs {
+    /// Tasks to check (leave empty to check all tasks)
+    #[clap(multiple_occurrences = true)]
+    tasks: Vec<String>,
+}
 
 #[rustfmt::skip::macros(println, bail)]
 fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
+    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
+    let subargs = StackmarginArgs::try_parse_from(subargs)?;
+
     let core = &mut **context.core.as_mut().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
+    let valid_tasks = if subargs.tasks.is_empty() {
+        None
+    } else {
+        Some(
+            subargs
+                .tasks
+                .iter()
+                .map(|t| hubris.try_lookup_task(t))
+                .collect::<Result<HashSet<HubrisTask>>>()?,
+        )
+    };
     let regions = hubris.regions(core)?;
 
     let (base, size) = hubris.task_table(core)?;
@@ -88,6 +106,12 @@ fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
     for i in 0..size {
         if let Some(HubrisTask::Task(ndx)) = task_dump
             && ndx != i
+        {
+            continue;
+        }
+        if valid_tasks
+            .as_ref()
+            .is_some_and(|tasks| !tasks.contains(&HubrisTask::Task(i)))
         {
             continue;
         }
