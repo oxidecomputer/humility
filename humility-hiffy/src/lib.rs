@@ -368,7 +368,7 @@ impl<'a> HiffyContext<'a> {
 
                 Some(
                     hubris
-                        .lookup_module(*rpc_task)?
+                        .lookup_module(rpc_task)?
                         .lookup_enum_byname(hubris, "RpcReply")?
                         .ok_or_else(|| anyhow!("failed to find RpcReply"))?,
                 )
@@ -984,7 +984,7 @@ impl<'a> HiffyContext<'a> {
                     None
                 }
 
-                HubrisTask::Task(i) => Some(*i),
+                HubrisTask::Task(i) => Some(i),
             }
         });
 

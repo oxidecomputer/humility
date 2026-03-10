@@ -94,7 +94,7 @@
 //! As with tasks held by `--hold`, use `--release`/`-r` to set the task back to
 //! normal, or `--start`/`-s` to run it once but catch the next fault.
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, Subcommand};
@@ -150,16 +150,14 @@ fn jefe(context: &mut ExecutionContext) -> Result<()> {
         bail!("one of fault, start, hold, or release must be specified");
     };
 
-    let task = hubris
-        .lookup_task(&subargs.task)
-        .ok_or_else(|| anyhow!("couldn't find task {}", subargs.task))?;
+    let task = hubris.try_lookup_task(&subargs.task)?;
 
     let id = match task {
         HubrisTask::Kernel => {
             bail!("cannot change disposition of kernel");
         }
         HubrisTask::Task(id) => {
-            if let Some(id) = NonZeroU32::new(*id) {
+            if let Some(id) = NonZeroU32::new(id) {
                 id
             } else {
                 bail!("cannot change disposition of supervisor task");

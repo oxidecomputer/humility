@@ -389,7 +389,7 @@ impl<'a> RpcClient<'a> {
             )
         })?;
         let rpc_reply_type = hubris
-            .lookup_module(*rpc_task)?
+            .lookup_module(rpc_task)?
             .lookup_enum_byname(hubris, "RpcReply")?
             .ok_or_else(|| anyhow!("can't find RpcReply"))?;
 
@@ -550,11 +550,7 @@ fn rpc_run(context: &mut ExecutionContext) -> Result<()> {
         }
 
         let task = match &subargs.task {
-            Some(task) => Some(
-                hubris
-                    .lookup_task(task)
-                    .ok_or_else(|| anyhow!("unknown task \"{}\"", task))?,
-            ),
+            Some(task) => Some(hubris.try_lookup_task(task)?),
             None => None,
         };
 
