@@ -1976,15 +1976,15 @@ impl HubrisArchive {
         self.modules.values()
     }
 
-    pub fn lookup_task(&self, name: &str) -> Option<&HubrisTask> {
-        self.tasks.get(name)
+    pub fn lookup_task(&self, name: &str) -> Option<HubrisTask> {
+        self.tasks.get(name).copied()
     }
 
     /// Tries to look up a task by name, returning an error with similar names
     pub fn try_lookup_task(&self, name: &str) -> Result<HubrisTask> {
         self.tasks
             .get(name)
-            .cloned()
+            .copied()
             .ok_or_else(|| self.task_name_suggestion(name))
     }
 
@@ -6684,7 +6684,7 @@ impl ExternRegions {
 
                 for (name, task) in &config.tasks {
                     if task.extern_regions.is_some() {
-                        set.insert(*hubris.lookup_task(name).unwrap());
+                        set.insert(hubris.lookup_task(name).unwrap());
                     }
                 }
 

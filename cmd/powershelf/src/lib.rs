@@ -54,7 +54,7 @@ fn lookup_operation_enum(hubris: &HubrisArchive) -> Result<&HubrisEnum> {
         anyhow!("missing `power` task - is this a PSC archive?")
     })?;
 
-    let module = hubris.lookup_module(*power_task)?;
+    let module = hubris.lookup_module(power_task)?;
 
     // `Operation` matches multiple enums, and `task_power_api::Operation`
     // doesn't show up alone, but `Option<task_power_api::Operation>` does! Find

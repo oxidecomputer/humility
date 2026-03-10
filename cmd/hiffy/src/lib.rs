@@ -46,7 +46,7 @@
 //!
 
 use ::idol::syntax::{Operation, Reply};
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility::warn;
@@ -259,11 +259,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
         }
 
         let task = match subargs.task {
-            Some(task) => Some(
-                hubris
-                    .lookup_task(&task)
-                    .ok_or_else(|| anyhow!("unknown task \"{}\"", task))?,
-            ),
+            Some(task) => Some(hubris.try_lookup_task(&task)?),
             None => None,
         };
 

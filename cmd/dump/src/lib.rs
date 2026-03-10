@@ -427,14 +427,14 @@ fn dump_via_agent(
             if !subargs.simulate_dumper {
                 bail!("--simulate-task-dump requires --simulate-dumper");
             }
-            let ndx = match hubris.lookup_task(task) {
-                Some(HubrisTask::Task(ndx)) => ndx,
-                _ => {
-                    bail!("invalid task \"{task}\"");
+            let ndx = match hubris.try_lookup_task(task)? {
+                HubrisTask::Task(ndx) => ndx,
+                HubrisTask::Kernel => {
+                    bail!("cannot dump \"{task}\" because it is the kernel")
                 }
             };
 
-            Some(DumpTask::new(*ndx as u16, hubris.ticks(core)?))
+            Some(DumpTask::new(ndx as u16, hubris.ticks(core)?))
         }
         None => None,
     };
@@ -709,10 +709,10 @@ fn dump_task_via_agent(
     let mut agent = get_dump_agent(hubris, core, subargs)?;
 
     let task = subargs.task.as_ref().unwrap();
-    let ndx = match hubris.lookup_task(task) {
-        Some(HubrisTask::Task(ndx)) => *ndx,
-        _ => {
-            bail!("invalid task \"{task}\"");
+    let ndx = match hubris.try_lookup_task(task)? {
+        HubrisTask::Task(ndx) => ndx,
+        HubrisTask::Kernel => {
+            bail!("cannot dump \"{task}\" because it is the kernel")
         }
     };
     if ndx == 0 {

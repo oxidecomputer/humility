@@ -62,7 +62,7 @@ impl<'a> IdolOperation<'a> {
         hubris: &'a HubrisArchive,
         interface: &str,
         operation: &str,
-        task: Option<&HubrisTask>,
+        task: Option<HubrisTask>,
     ) -> Result<Self> {
         let (task, op, code) = lookup(hubris, interface, operation, task)?;
         let name = (interface.to_string(), operation.to_string());
@@ -309,7 +309,7 @@ fn lookup<'a>(
     hubris: &'a HubrisArchive,
     interface: &str,
     operation: &str,
-    target: Option<&HubrisTask>,
+    target: Option<HubrisTask>,
 ) -> Result<(HubrisTask, &'a Operation, u16)> {
     //
     // Find this interface and its operation.
@@ -317,7 +317,7 @@ fn lookup<'a>(
     let mut rval = None;
 
     let tasks = match target {
-        Some(task) => vec![*task],
+        Some(task) => vec![task],
         None => {
             (0..hubris.ntasks()).map(|t| HubrisTask::Task(t as u32)).collect()
         }
