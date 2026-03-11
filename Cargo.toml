@@ -251,6 +251,7 @@ srec = "0.2"
 strum = "0.25"
 strum_macros = "0.25"
 syn = "1.0"
+strsim = "0.10"
 tempfile = "3.3"
 termimad = "0.21"
 termios = "0.3" # not usable on windows!

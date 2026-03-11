@@ -2376,6 +2376,7 @@ dependencies = [
  "scroll 0.13.0",
  "serde",
  "serde_json",
+ "strsim",
  "thiserror",
  "toml 0.5.11",
  "winapi",
