@@ -23,7 +23,11 @@ use zerocopy::{AsBytes, U16, U64};
 #[derive(Debug, PartialEq)]
 enum State {
     Initialized,
-    Kicked,
+    Kicked {
+        kick_time: Instant,
+        prev_requests_count: u32,
+        prev_errors_count: u32,
+    },
     ResultsReady,
     ResultsConsumed,
 }
@@ -39,8 +43,6 @@ pub struct HiffyContext<'a> {
     errors: &'a HubrisVariable,
     failure: &'a HubrisVariable,
     scratch_size: usize,
-    cached: Option<(u32, u32)>,
-    kicked: Option<Instant>,
     timeout: u32,
     state: State,
     functions: HiffyFunctions,
@@ -351,8 +353,6 @@ impl<'a> HiffyContext<'a> {
             errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
             failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
             scratch_size,
-            cached: None,
-            kicked: None,
             timeout,
             state: State::Initialized,
             functions: HiffyFunctions(function_map),
@@ -687,7 +687,6 @@ impl<'a> HiffyContext<'a> {
         }
         assert_eq!(self.rpc_results.len(), 0);
 
-        self.state = State::Kicked;
         HIFFY_SEND_WORKSPACE.with(|workspace| {
             let workspace = workspace.borrow();
             if let Some(e) = workspace.errors.first() {
@@ -744,7 +743,12 @@ impl<'a> HiffyContext<'a> {
                     self.rpc_results.push(Err(IpcError::from(rval)));
                 }
             }
-            self.state = State::Kicked;
+            // Dummy values for errors and requests, since we'll instantly return
+            self.state = State::Kicked {
+                kick_time: Instant::now(),
+                prev_errors_count: 0,
+                prev_requests_count: 0,
+            };
             Ok(())
         })
     }
@@ -1064,16 +1068,16 @@ impl<'a> HiffyContext<'a> {
             core.write_8(self.data.addr, data)?;
         }
 
-        self.cached = Some((
-            core.read_word_32(self.requests.addr)?,
-            core.read_word_32(self.errors.addr)?,
-        ));
+        let prev_errors_count = core.read_word_32(self.errors.addr)?;
+        let prev_requests_count = core.read_word_32(self.requests.addr)?;
 
         core.write_word_32(self.kick.addr, 1)?;
 
-        self.kicked = Some(Instant::now());
-
-        self.state = State::Kicked;
+        self.state = State::Kicked {
+            kick_time: Instant::now(),
+            prev_requests_count,
+            prev_errors_count,
+        };
 
         core.op_done()?;
 
@@ -1095,9 +1099,11 @@ impl<'a> HiffyContext<'a> {
     }
 
     pub fn done(&mut self, core: &mut dyn Core) -> Result<bool> {
-        if self.state != State::Kicked {
+        let State::Kicked { kick_time, prev_errors_count, prev_requests_count } =
+            self.state
+        else {
             bail!("invalid state for waiting: {:?}", self.state);
-        }
+        };
 
         //
         // If this is over the network, our calls are already done by the
@@ -1110,88 +1116,79 @@ impl<'a> HiffyContext<'a> {
 
         core.op_start()?;
 
-        let vars = (
-            core.read_word_32(self.requests.addr)?,
-            core.read_word_32(self.errors.addr)?,
-        );
+        let new_requests_count = core.read_word_32(self.requests.addr)?;
+        let new_errors_count = core.read_word_32(self.errors.addr)?;
 
         core.op_done()?;
 
-        if let Some(kicked) = self.kicked
-            && kicked.elapsed().as_millis() > self.timeout.into()
-        {
+        if kick_time.elapsed().as_millis() > self.timeout.into() {
             bail!("operation timed out");
         }
 
-        if let Some(cached) = self.cached {
-            if vars.0 != cached.0 {
-                self.state = State::ResultsReady;
-                Ok(true)
-            } else if vars.1 != cached.1 {
-                //
-                // If we have died because our HIF failed fatally (which we
-                // only expect due to programmer error), we want to print
-                // HIFFY_FAILURE to provide some additional context.
-                //
-                let mut buf: Vec<u8> = vec![];
-                buf.resize_with(self.failure.size, Default::default);
+        if new_requests_count != prev_requests_count {
+            self.state = State::ResultsReady;
+            Ok(true)
+        } else if new_errors_count != prev_errors_count {
+            //
+            // If we have died because our HIF failed fatally (which we
+            // only expect due to programmer error), we want to print
+            // HIFFY_FAILURE to provide some additional context.
+            //
+            let mut buf: Vec<u8> = vec![];
+            buf.resize_with(self.failure.size, Default::default);
 
-                core.op_start()?;
-                let r = core.read_8(self.failure.addr, buf.as_mut_slice());
-                core.op_done()?;
+            core.op_start()?;
+            let r = core.read_8(self.failure.addr, buf.as_mut_slice());
+            core.op_done()?;
 
-                match r {
-                    Ok(_) => {
-                        let fmt = HubrisPrintFormat {
-                            hex: true,
-                            ..HubrisPrintFormat::default()
-                        };
+            match r {
+                Ok(_) => {
+                    let fmt = HubrisPrintFormat {
+                        hex: true,
+                        ..HubrisPrintFormat::default()
+                    };
 
-                        let hubris = self.hubris;
-                        let f =
-                            hubris.printfmt(&buf, self.failure.goff, fmt)?;
+                    let hubris = self.hubris;
+                    let f = hubris.printfmt(&buf, self.failure.goff, fmt)?;
 
-                        // If Hiffy reports `Invalid`, this could be due to a
-                        // patch version mismatch, i.e. Humility trying to use
-                        // HIF operations that the target does not know about.
-                        if f == "Some(Invalid)" {
-                            let patch = Self::read_word(
-                                hubris,
-                                core,
-                                "HIFFY_VERSION_PATCH",
-                            );
-                            match patch {
-                                Ok(patch) => {
-                                    if patch != HIF_VERSION_PATCH {
-                                        bail!(
-                                            "request failed: {0}. Perhaps due \
+                    // If Hiffy reports `Invalid`, this could be due to a
+                    // patch version mismatch, i.e. Humility trying to use
+                    // HIF operations that the target does not know about.
+                    if f == "Some(Invalid)" {
+                        let patch = Self::read_word(
+                            hubris,
+                            core,
+                            "HIFFY_VERSION_PATCH",
+                        );
+                        match patch {
+                            Ok(patch) => {
+                                if patch != HIF_VERSION_PATCH {
+                                    bail!(
+                                        "request failed: {0}. Perhaps due \
                                              to HIF version mismatch? \
                                              ({1}.{2}.{3} on host, \
                                               {1}.{2}.{4} on device)",
-                                            f,
-                                            HIF_VERSION_MAJOR,
-                                            HIF_VERSION_MINOR,
-                                            HIF_VERSION_PATCH,
-                                            patch
-                                        );
-                                    }
+                                        f,
+                                        HIF_VERSION_MAJOR,
+                                        HIF_VERSION_MINOR,
+                                        HIF_VERSION_PATCH,
+                                        patch
+                                    );
                                 }
-                                Err(e) => bail!(
-                                    "request failed: {}; failed to read HIF \
-                                     patch version: {:?}",
-                                    f,
-                                    e
-                                ),
                             }
+                            Err(e) => bail!(
+                                "request failed: {}; failed to read HIF \
+                                     patch version: {:?}",
+                                f,
+                                e
+                            ),
                         }
-                        bail!("request failed: {}", f);
                     }
-                    _ => {
-                        bail!("request failed");
-                    }
+                    bail!("request failed: {}", f);
                 }
-            } else {
-                Ok(false)
+                _ => {
+                    bail!("request failed");
+                }
             }
         } else {
             Ok(false)
