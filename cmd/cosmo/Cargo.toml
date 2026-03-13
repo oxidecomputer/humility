@@ -1,0 +1,14 @@
+[package]
+name = "humility-cmd-cosmo"
+version = "0.1.0"
+edition.workspace = true
+description = "cosmo-specific system debugging"
+
+[dependencies]
+clap.workspace = true
+anyhow.workspace = true
+
+humility.workspace = true
+humility-cmd.workspace = true
+humility-cli.workspace = true
+humility-doppel.workspace = true

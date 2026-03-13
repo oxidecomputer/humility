@@ -7,8 +7,8 @@ members = [
     "humility-arch-arm",
     "humility-arch-cortex",
     "humility-bin",
-    "humility-cmd",
     "humility-cli",
+    "humility-cmd",
     "humility-core",
     "humility-doppel",
     "humility-dump-agent",
@@ -24,6 +24,7 @@ members = [
     "cmd/apptable",
     "cmd/auxflash",
     "cmd/console-proxy",
+    "cmd/cosmo",
     "cmd/counters",
     "cmd/dashboard",
     "cmd/debugmailbox",
@@ -136,6 +137,7 @@ humility-stack = { path = "./humility-stack" }
 cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
+cmd-cosmo = { path = "./cmd/cosmo", package = "humility-cmd-cosmo" }
 cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
