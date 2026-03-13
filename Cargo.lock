@@ -1307,6 +1307,7 @@ dependencies = [
  "humility-cmd-apptable",
  "humility-cmd-auxflash",
  "humility-cmd-console-proxy",
+ "humility-cmd-cosmo",
  "humility-cmd-counters",
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
@@ -1450,6 +1451,18 @@ dependencies = [
  "humility-idol",
  "parse_int",
  "termios",
+]
+
+[[package]]
+name = "humility-cmd-cosmo"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.23",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-doppel",
 ]
 
 [[package]]

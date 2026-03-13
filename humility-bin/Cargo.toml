@@ -37,6 +37,7 @@ humility-cli = { workspace = true }
 cmd-apptable = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-console-proxy = { workspace = true }
+cmd-cosmo = { workspace = true }
 cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
