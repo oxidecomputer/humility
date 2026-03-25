@@ -401,66 +401,48 @@ fn host_post_codes(
         Ok(())
     };
 
-    // For network-attached systems, function calls are cheap and we can just
-    // spam them.  For debugger-attached systems, we'll want to run a HIF loop
-    // to avoid dispatch overhead.
-    if core.is_net() {
-        for index in 0..count {
-            let value = humility_hiffy::hiffy_call(
-                hubris,
-                core,
-                &mut context,
-                &op,
-                &[("index", humility_idol::IdolArgument::Scalar(index as u64))],
-                None,
-                None,
-            )?;
-            handle_value(value)?;
+    let send = context.get_function("Send", 4)?;
+    let ret_size = hubris.typesize(op.ok)? as u32;
+    assert_eq!(ret_size, 4);
+
+    // Each returned value is a FunctionResult::Success(&[..]), which
+    // encodes as 6 bytes: 1 byte variant tag, 1 byte slice length, 4 bytes
+    // of u32.
+    let max_chunk_size = context.rstack_size() / 6;
+
+    // Write a little program to read all of the post codes
+    for start in (0..count).step_by(max_chunk_size) {
+        let end = (start + max_chunk_size as u32).min(count);
+        let label = Target(0);
+        let mut ops = vec![
+            Op::Push32(op.task.task()), // task id
+            Op::Push16(op.code),        // opcode
+            Op::Push32(start),          // Starting index
+            Op::Push32(0),              // Comparison target (dummy)
+            Op::Label(label),           // loop start
+        ];
+        {
+            // block representing the hiffy loop
+            ops.push(Op::Drop); // Drop comparison target
+
+            // Expand u32 -> [u8; 4], since that's expected by `send`
+            ops.push(Op::Expand32);
+            ops.push(Op::Push(4)); // Payload size
+            ops.push(Op::Push32(ret_size)); // Return size
+            ops.push(Op::Call(send.id));
+            ops.push(Op::DropN(2)); // Drop payload and return size
+            ops.push(Op::Collect32);
+            ops.push(Op::Push(1)); // Increment by four
+            ops.push(Op::Add); // index += 1
+            ops.push(Op::Push32(end)); // Comparison target
+            ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
         }
-    } else {
-        let send = context.get_function("Send", 4)?;
-        let ret_size = hubris.typesize(op.ok)? as u32;
-        assert_eq!(ret_size, 4);
+        ops.push(Op::DropN(4)); // Cleanup
+        ops.push(Op::Done); // Finish
 
-        // Each returned value is a FunctionResult::Success(&[..]), which
-        // encodes as 6 bytes: 1 byte variant tag, 1 byte slice length, 4 bytes
-        // of u32.
-        let max_chunk_size = context.rstack_size() / 6;
-
-        // Write a little program to read all of the post codes
-        for start in (0..count).step_by(max_chunk_size) {
-            let end = (start + max_chunk_size as u32).min(count);
-            let label = Target(0);
-            let mut ops = vec![
-                Op::Push32(op.task.task()), // task id
-                Op::Push16(op.code),        // opcode
-                Op::Push32(start),          // Starting index
-                Op::Push32(0),              // Comparison target (dummy)
-                Op::Label(label),           // loop start
-            ];
-            {
-                // block representing the hiffy loop
-                ops.push(Op::Drop); // Drop comparison target
-
-                // Expand u32 -> [u8; 4], since that's expected by `send`
-                ops.push(Op::Expand32);
-                ops.push(Op::Push(4)); // Payload size
-                ops.push(Op::Push32(ret_size)); // Return size
-                ops.push(Op::Call(send.id));
-                ops.push(Op::DropN(2)); // Drop payload and return size
-                ops.push(Op::Collect32);
-                ops.push(Op::Push(1)); // Increment by four
-                ops.push(Op::Add); // index += 1
-                ops.push(Op::Push32(end)); // Comparison target
-                ops.push(Op::BranchGreaterThan(label)); // Jump to loop start
-            }
-            ops.push(Op::DropN(4)); // Cleanup
-            ops.push(Op::Done); // Finish
-
-            for r in context.run(core, ops.as_slice(), None)? {
-                let v = humility_hiffy::hiffy_decode(hubris, &op, r)?;
-                handle_value(v)?;
-            }
+        for r in context.run(core, ops.as_slice(), None)? {
+            let v = humility_hiffy::hiffy_decode(hubris, &op, r)?;
+            handle_value(v)?;
         }
     }
     Ok(())
