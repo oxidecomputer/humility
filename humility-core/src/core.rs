@@ -126,6 +126,7 @@ pub trait Core {
 pub enum NetAgent {
     UdpRpc,
     DumpAgent,
+    Hiffy,
 }
 
 pub fn attach_dump(
