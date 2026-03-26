@@ -39,6 +39,9 @@ pub struct NetCore {
     /// Socket to communicate with the dump agent, or `None` if it's not present
     dump_agent_socket: Option<UdpSocket>,
 
+    /// Socket to communicate with `hiffy`, or `None` if it's not present
+    hiffy_socket: Option<UdpSocket>,
+
     /// Map of RAM regions, or `None` if the dump agent can't read RAM
     ram: Option<Vec<HubrisRegion>>,
 
@@ -77,9 +80,25 @@ impl NetCore {
             .map(open_socket)
             .transpose()?;
 
+        let hiffy_task = hubris.lookup_module_by_iface("Hiffy").map(|t| t.task);
+        let has_hiffy_net = hiffy_task
+            .map(|t| hubris.does_task_have_feature(t, "net").unwrap())
+            .unwrap_or(false);
+        let hiffy_socket = if has_hiffy_net {
+            let target = format!("[{addr}]:11115");
+            let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
+            let dump_agent_socket = UdpSocket::bind("[::]:0")?;
+            dump_agent_socket.set_read_timeout(Some(timeout))?;
+            dump_agent_socket.connect(&dest[..])?;
+            Some(dump_agent_socket)
+        } else {
+            None
+        };
+
         let mut out = Self {
             udprpc_socket,
             dump_agent_socket,
+            hiffy_socket,
             flash: HubrisFlashMap::new(hubris)?,
             ram: None, // filled in below
             imageid: hubris
@@ -278,6 +297,23 @@ impl NetCore {
 
         Ok(())
     }
+
+    fn get_socket_for(&self, target: NetAgent) -> Result<&UdpSocket> {
+        match target {
+            NetAgent::UdpRpc => self
+                .udprpc_socket
+                .as_ref()
+                .ok_or_else(|| anyhow!("no `udprpc` socket")),
+            NetAgent::DumpAgent => self
+                .dump_agent_socket
+                .as_ref()
+                .ok_or_else(|| anyhow!("no dump agent socket")),
+            NetAgent::Hiffy => self
+                .hiffy_socket
+                .as_ref()
+                .ok_or_else(|| anyhow!("no `hiffy` socket")),
+        }
+    }
 }
 
 #[rustfmt::skip::macros(bail)]
@@ -297,47 +333,18 @@ impl Core for NetCore {
         if let Some(d) = self.dump_agent_socket.as_ref() {
             d.set_read_timeout(Some(timeout))?;
         }
+        if let Some(d) = self.hiffy_socket.as_ref() {
+            d.set_read_timeout(Some(timeout))?;
+        }
         Ok(())
     }
 
     fn send(&self, buf: &[u8], target: NetAgent) -> Result<usize> {
-        match target {
-            NetAgent::UdpRpc => {
-                if let Some(d) = self.udprpc_socket.as_ref() {
-                    d.send(buf)
-                } else {
-                    bail!("no `udprpc` socket");
-                }
-            }
-            NetAgent::DumpAgent => {
-                if let Some(d) = self.dump_agent_socket.as_ref() {
-                    d.send(buf)
-                } else {
-                    bail!("no dump agent socket")
-                }
-            }
-        }
-        .map_err(anyhow::Error::from)
+        self.get_socket_for(target)?.send(buf).map_err(anyhow::Error::from)
     }
 
     fn recv(&self, buf: &mut [u8], target: NetAgent) -> Result<usize> {
-        match target {
-            NetAgent::UdpRpc => {
-                if let Some(d) = self.udprpc_socket.as_ref() {
-                    d.recv(buf)
-                } else {
-                    bail!("no `udprpc` socket");
-                }
-            }
-            NetAgent::DumpAgent => {
-                if let Some(d) = self.dump_agent_socket.as_ref() {
-                    d.recv(buf)
-                } else {
-                    bail!("no dump agent socket")
-                }
-            }
-        }
-        .map_err(anyhow::Error::from)
+        self.get_socket_for(target)?.recv(buf).map_err(anyhow::Error::from)
     }
 
     fn read_8(&mut self, addr: u32, data: &mut [u8]) -> Result<()> {
