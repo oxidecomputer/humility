@@ -9,7 +9,7 @@ use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
-use humility_doppel::{RpcHeader, SchedState, StaticCell, TaskState};
+use humility_doppel::{RpcHeader, SchedState, StaticCell, TaskState, hiffy};
 use humility_idol as idol;
 pub use humility_idol::IpcError;
 use postcard::{take_from_bytes, to_slice};
@@ -60,10 +60,25 @@ struct HiffyVars<'a> {
     failure: &'a HubrisVariable,
 }
 
+impl<'a> HiffyVars<'a> {
+    fn new(hubris: &'a HubrisArchive) -> Result<Self> {
+        Ok(Self {
+            ready: HiffyContext::variable(hubris, "HIFFY_READY", true)?,
+            kick: HiffyContext::variable(hubris, "HIFFY_KICK", true)?,
+            text: HiffyContext::variable(hubris, "HIFFY_TEXT", false)?,
+            data: HiffyContext::variable(hubris, "HIFFY_DATA", false)?,
+            rstack: HiffyContext::variable(hubris, "HIFFY_RSTACK", false)?,
+            requests: HiffyContext::variable(hubris, "HIFFY_REQUESTS", true)?,
+            errors: HiffyContext::variable(hubris, "HIFFY_ERRORS", true)?,
+            failure: HiffyContext::variable(hubris, "HIFFY_FAILURE", false)?,
+        })
+    }
+}
+
 enum HiffyImpl<'a> {
     /// We are physically attached with a debugger
     Debugger(HiffyVars<'a>),
-    /// We are communicating using the `udprpc`
+    /// We are communicating using the `udprpc` task
     ///
     /// In this mode, we must run the HIF program locally (on the big computer),
     /// and perform `send` function calls with network messages.
@@ -71,6 +86,8 @@ enum HiffyImpl<'a> {
         results: Vec<Result<Vec<u8>, IpcError>>,
         reply_type: &'a HubrisEnum,
     },
+    /// We are communicating using the `hiffy` task
+    NetHiffy(HiffyVars<'a>),
 }
 
 #[derive(Clone, Debug)]
@@ -228,7 +245,34 @@ impl<'a> HiffyContext<'a> {
         core: &mut dyn Core,
         timeout: u32,
     ) -> Result<HiffyContext<'a>> {
-        if !core.is_net() {
+        let hiffy = if core.is_net() {
+            if hubris.lookup_task("hiffy").is_some_and(|t| {
+                hubris.does_task_have_feature(t, "net").unwrap()
+            }) {
+                HiffyImpl::NetHiffy(HiffyVars::new(hubris)?)
+            } else {
+                let reply_type = {
+                    let rpc_task =
+                        hubris.lookup_task("udprpc").ok_or_else(|| {
+                            anyhow!(
+                                "Could not find `udprpc` task in this image. \
+                             Only -dev and -lab images include `udprpc`; \
+                             are you running a production image?"
+                            )
+                        })?;
+
+                    hubris
+                        .lookup_module(rpc_task)?
+                        .lookup_enum_byname(hubris, "RpcReply")?
+                        .ok_or_else(|| anyhow!("failed to find RpcReply"))?
+                };
+                HiffyImpl::NetUdpRpc { results: vec![], reply_type }
+            }
+        } else {
+            HiffyImpl::Debugger(HiffyVars::new(hubris)?)
+        };
+
+        if !matches!(hiffy, HiffyImpl::NetUdpRpc { .. }) {
             core.op_start()?;
 
             let (major, minor) = (
@@ -266,29 +310,29 @@ impl<'a> HiffyContext<'a> {
             }
         }
 
-        let scratch_size = match (
-            core.is_net(),
-            Self::variable(hubris, "HIFFY_SCRATCH", false),
-        ) {
-            (false, Ok(scratch)) => {
-                let mut buf: Vec<u8> = vec![];
-                buf.resize_with(scratch.size, Default::default);
+        let scratch_size = if matches!(hiffy, HiffyImpl::NetUdpRpc { .. }) {
+            HIFFY_NET_SCRATCH_SIZE
+        } else {
+            // Get the size of the HIFFY_SCRATCH variable, falling back to 256
+            // bytes for older images (which used a fixed-size stack array)
+            Self::variable(hubris, "HIFFY_SCRATCH", false)
+                .map(|scratch| -> Result<usize> {
+                    let mut buf: Vec<u8> = vec![];
+                    buf.resize_with(scratch.size, Default::default);
 
-                core.op_start()?;
-                core.read_8(scratch.addr, buf.as_mut_slice())?;
-                core.op_done()?;
+                    core.op_start()?;
+                    core.read_8(scratch.addr, buf.as_mut_slice())?;
+                    core.op_done()?;
 
-                let def = hubris.lookup_struct(scratch.goff)?;
-                let val: Value =
-                    Value::Struct(reflect::load_struct(hubris, &buf, def, 0)?);
-                let scratch_cell: StaticCell = StaticCell::from_value(&val)?;
-                scratch_cell.cell.value.as_array()?.len()
-            }
-            _ => {
-                // Backwards/network compatibility
-                // Previous versions stored a 256 byte array on the stack
-                256
-            }
+                    let def = hubris.lookup_struct(scratch.goff)?;
+                    let val: Value = Value::Struct(reflect::load_struct(
+                        hubris, &buf, def, 0,
+                    )?);
+                    let scratch_cell: StaticCell =
+                        StaticCell::from_value(&val)?;
+                    Ok(scratch_cell.cell.value.as_array()?.len())
+                })
+                .unwrap_or(Ok(256))?
         };
 
         let mut function_map = HashMap::new();
@@ -365,36 +409,6 @@ impl<'a> HiffyContext<'a> {
             function_map.insert(func.name.clone(), func);
         }
 
-        let hiffy = if core.is_net() {
-            let reply_type = {
-                let rpc_task =
-                    hubris.lookup_task("udprpc").ok_or_else(|| {
-                        anyhow!(
-                            "Could not find `udprpc` task in this image. \
-                             Only -dev and -lab images include `udprpc`; \
-                             are you running a production image?"
-                        )
-                    })?;
-
-                hubris
-                    .lookup_module(rpc_task)?
-                    .lookup_enum_byname(hubris, "RpcReply")?
-                    .ok_or_else(|| anyhow!("failed to find RpcReply"))?
-            };
-            HiffyImpl::NetUdpRpc { results: vec![], reply_type }
-        } else {
-            HiffyImpl::Debugger(HiffyVars {
-                ready: Self::variable(hubris, "HIFFY_READY", true)?,
-                kick: Self::variable(hubris, "HIFFY_KICK", true)?,
-                text: Self::variable(hubris, "HIFFY_TEXT", false)?,
-                data: Self::variable(hubris, "HIFFY_DATA", false)?,
-                rstack: Self::variable(hubris, "HIFFY_RSTACK", false)?,
-                requests: Self::variable(hubris, "HIFFY_REQUESTS", true)?,
-                errors: Self::variable(hubris, "HIFFY_ERRORS", true)?,
-                failure: Self::variable(hubris, "HIFFY_FAILURE", false)?,
-            })
-        };
-
         Ok(Self {
             hubris,
             hiffy,
@@ -407,21 +421,27 @@ impl<'a> HiffyContext<'a> {
 
     pub fn data_size(&self) -> usize {
         match &self.hiffy {
-            HiffyImpl::Debugger(vars) => vars.data.size,
+            HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy(vars) => {
+                vars.data.size
+            }
             HiffyImpl::NetUdpRpc { .. } => 0, // not supported
         }
     }
 
     pub fn text_size(&self) -> usize {
         match &self.hiffy {
-            HiffyImpl::Debugger(vars) => vars.text.size,
+            HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy(vars) => {
+                vars.text.size
+            }
             HiffyImpl::NetUdpRpc { .. } => HIFFY_NET_TEXT_SIZE,
         }
     }
 
     pub fn rstack_size(&self) -> usize {
         match &self.hiffy {
-            HiffyImpl::Debugger(vars) => vars.rstack.size,
+            HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy(vars) => {
+                vars.rstack.size
+            }
             HiffyImpl::NetUdpRpc { .. } => HIFFY_NET_RSTACK_SIZE,
         }
     }
@@ -972,16 +992,31 @@ impl<'a> HiffyContext<'a> {
             }
         }
 
-        if core.is_net() {
-            if data.is_some() {
-                bail!(
-                    "cannot execute HIF operations with local data \
-                     over the network"
-                );
+        let (vars, writer) = match &self.hiffy {
+            HiffyImpl::NetUdpRpc { .. } => {
+                if data.is_some() {
+                    bail!(
+                        "cannot execute HIF operations with local data \
+                         over the network"
+                    );
+                }
+                return self.perform_rpc(core, ops);
             }
-
-            return self.perform_rpc(core, ops);
-        }
+            HiffyImpl::NetHiffy(vars) => {
+                let image_id = u64::from_le_bytes(
+                    self.hubris.image_id().unwrap().try_into().unwrap(),
+                );
+                let buf_size = self
+                    .hubris
+                    .manifest
+                    .get_socket_by_task("hiffy")
+                    .unwrap()
+                    .rx
+                    .bytes;
+                (vars, HiffyWrite::Net { image_id, buf_size })
+            }
+            HiffyImpl::Debugger(vars) => (vars, HiffyWrite::Debugger(vars)),
+        };
 
         if let Some(data) = data
             && data.len() > self.data_size()
@@ -1055,22 +1090,27 @@ impl<'a> HiffyContext<'a> {
                  expected in normal firmware."
             );
             syscall_observed = true;
+        } else if matches!(self.hiffy, HiffyImpl::NetHiffy(..)) {
+            // When using the hiffy network backend, we usually see the task as
+            // `ready` (`SchedState::Runnable`), which doesn't count as "the
+            // task has started" according to the rules of `has_task_started`.
+            // We'll be optimistic and assume that it's running!
+            syscall_observed = true;
         }
 
         let mut lap = 0;
         const MAX_LAPS: u64 = 10;
-
-        let HiffyImpl::Debugger(vars) = &self.hiffy else {
-            unreachable!() // checked above
-        };
 
         let ready = loop {
             if !syscall_observed {
                 if has_task_started(self.hubris, core, hiffy_task.unwrap())? {
                     syscall_observed = true;
                 }
-            } else if core.read_word_32(vars.ready.addr)? == 1 {
-                break true;
+            } else {
+                let v = core.read_word_32(vars.ready.addr)?;
+                if v == 1 {
+                    break true;
+                }
             }
 
             core.op_done()?;
@@ -1119,16 +1159,16 @@ impl<'a> HiffyContext<'a> {
             }
         }
 
-        core.write_8(vars.text.addr, &buf[0..current])?;
+        writer.write_8(core, Var::Text, &buf[0..current])?;
 
         if let Some(data) = data {
-            core.write_8(vars.data.addr, data)?;
+            writer.write_8(core, Var::Data, data)?;
         }
 
         let prev_errors_count = core.read_word_32(vars.errors.addr)?;
         let prev_requests_count = core.read_word_32(vars.requests.addr)?;
 
-        core.write_word_32(vars.kick.addr, 1)?;
+        writer.kick(core)?;
 
         self.state = State::Kicked {
             kick_time: Instant::now(),
@@ -1163,7 +1203,7 @@ impl<'a> HiffyContext<'a> {
         };
 
         let vars = match &self.hiffy {
-            HiffyImpl::Debugger(vars) => vars,
+            HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy(vars) => vars,
             HiffyImpl::NetUdpRpc { .. } => {
                 // If this is over the network,, our calls are already done by the
                 // time we're here; immediately transition to `ResultsReady`.
@@ -1261,8 +1301,8 @@ impl<'a> HiffyContext<'a> {
             bail!("invalid state for consuming results: {:?}", self.state);
         }
 
-        let read_vars = match &mut self.hiffy {
-            HiffyImpl::Debugger(vars) => vars,
+        let vars = match &mut self.hiffy {
+            HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy(vars) => vars,
             HiffyImpl::NetUdpRpc { results, .. } => {
                 let results = std::mem::take(results);
                 self.state = State::ResultsConsumed;
@@ -1271,12 +1311,12 @@ impl<'a> HiffyContext<'a> {
         };
 
         let mut rstack: Vec<u8> = vec![];
-        rstack.resize_with(read_vars.rstack.size, Default::default);
+        rstack.resize_with(vars.rstack.size, Default::default);
 
         core.op_start()?;
 
         let mut rvec = vec![];
-        core.read_8(read_vars.rstack.addr, rstack.as_mut_slice())?;
+        core.read_8(vars.rstack.addr, rstack.as_mut_slice())?;
 
         core.op_done()?;
 
@@ -1608,4 +1648,86 @@ fn check_leases(
         }
     }
     Ok(())
+}
+
+/// Abstraction for writing hiffy values over multiple transports
+enum HiffyWrite<'a, 'b> {
+    Debugger(&'a HiffyVars<'b>),
+    Net { image_id: u64, buf_size: usize },
+}
+
+/// Variable to write with a [`HiffyWriter`]
+enum Var {
+    Text,
+    Data,
+}
+
+impl<'a, 'b> HiffyWrite<'a, 'b> {
+    /// Writes a buffer to a particular variable
+    ///
+    /// The caller is responsible for making sure that the buffer fits
+    fn write_8(&self, core: &mut dyn Core, v: Var, data: &[u8]) -> Result<()> {
+        match self {
+            HiffyWrite::Debugger(vars) => {
+                let addr = match v {
+                    Var::Text => vars.text.addr,
+                    Var::Data => vars.data.addr,
+                };
+                core.write_8(addr, data)
+            }
+            HiffyWrite::Net { image_id, buf_size } => {
+                let op = match v {
+                    Var::Text => hiffy::OP_WRITE_TEXT,
+                    Var::Data => hiffy::OP_WRITE_DATA,
+                };
+                // Chosen to be smaller than packet size
+                for (i, chunk) in data.chunks(*buf_size).enumerate() {
+                    let offset = u32::try_from(i * *buf_size).unwrap();
+                    let header = hiffy::RpcHeader {
+                        image_id: (*image_id).into(),
+                        version: 1.into(),
+                        operation: op.into(),
+                        arg: offset.into(),
+                    };
+                    let mut packet = header.as_bytes().to_vec();
+                    packet.extend(chunk);
+                    core.send(packet.as_bytes(), NetAgent::Hiffy)
+                        .context("failed to send write op to hiffy")?;
+                    Self::net_recv(core)?;
+                }
+                Ok(())
+            }
+        }
+    }
+    fn kick(&self, core: &mut dyn Core) -> Result<()> {
+        match self {
+            HiffyWrite::Debugger(vars) => core.write_word_32(vars.kick.addr, 1),
+            HiffyWrite::Net { image_id, .. } => {
+                let header = hiffy::RpcHeader {
+                    image_id: (*image_id).into(),
+                    version: 1.into(),
+                    operation: hiffy::OP_KICK.into(),
+                    arg: 0.into(),
+                };
+                core.send(header.as_bytes(), NetAgent::Hiffy)
+                    .context("failed to send OP_KICK to hiffy")?;
+                Self::net_recv(core)?;
+                Ok(())
+            }
+        }
+    }
+    fn net_recv(core: &mut dyn Core) -> Result<()> {
+        let mut buf = [0u8; 64];
+        let n = core
+            .recv(&mut buf, NetAgent::Hiffy)
+            .context("failed to receive reply from hiffy")?;
+        if n == 0 {
+            bail!("got empty packet");
+        }
+        match buf[0] {
+            0 => Ok(()),
+            // TODO decode the errors
+            i => bail!("received error {i}: {:?}", &buf[1..n]),
+        }
+    }
 }

@@ -38,7 +38,7 @@ use humility::reflect::{self, Base, Load, Ptr, Value};
 use indexmap::IndexMap;
 use std::convert::TryInto;
 use std::fmt;
-use zerocopy::{AsBytes, LittleEndian, U16, U64};
+use zerocopy::{AsBytes, LittleEndian, U16, U32, U64};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub struct TaskDesc {
@@ -427,6 +427,24 @@ pub struct RpcHeader {
     pub op: U16<LittleEndian>,
     pub nreply: U16<LittleEndian>,
     pub nbytes: U16<LittleEndian>,
+}
+
+/// Double of the RPC types from `hiffy` (with the `net` feature enabled)
+pub mod hiffy {
+    use super::*;
+
+    #[derive(Copy, Clone, Debug, AsBytes)]
+    #[repr(C)]
+    pub struct RpcHeader {
+        pub image_id: U64<LittleEndian>,
+        pub version: U16<LittleEndian>,
+        pub operation: U16<LittleEndian>,
+        pub arg: U32<LittleEndian>,
+    }
+
+    pub const OP_WRITE_TEXT: u16 = 1;
+    pub const OP_WRITE_DATA: u16 = 2;
+    pub const OP_KICK: u16 = 3;
 }
 
 impl humility::reflect::Load for CountedRingbuf {

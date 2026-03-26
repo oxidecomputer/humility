@@ -80,20 +80,15 @@ impl NetCore {
             .map(open_socket)
             .transpose()?;
 
-        let hiffy_task = hubris.lookup_module_by_iface("Hiffy").map(|t| t.task);
-        let has_hiffy_net = hiffy_task
-            .map(|t| hubris.does_task_have_feature(t, "net").unwrap())
-            .unwrap_or(false);
-        let hiffy_socket = if has_hiffy_net {
-            let target = format!("[{addr}]:11115");
-            let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
-            let dump_agent_socket = UdpSocket::bind("[::]:0")?;
-            dump_agent_socket.set_read_timeout(Some(timeout))?;
-            dump_agent_socket.connect(&dest[..])?;
-            Some(dump_agent_socket)
-        } else {
-            None
-        };
+        // We'll look up the `hiffy` task by name, because it doesn't implement
+        // a particular interface.  If someone named it something else, that's
+        // their problem.
+        let hiffy_socket = hubris
+            .manifest
+            .get_socket_by_task("hiffy")
+            .ok()
+            .map(open_socket)
+            .transpose()?;
 
         let mut out = Self {
             udprpc_socket,
