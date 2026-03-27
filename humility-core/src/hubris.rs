@@ -410,7 +410,7 @@ pub struct HubrisSocketOwner {
     pub notification: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub struct HubrisSocketBuffer {
     pub packets: usize,
     pub bytes: usize,
@@ -1218,8 +1218,8 @@ impl HubrisArchive {
                         kind: cfg.kind.clone(),
                         owner: cfg.owner.clone(),
                         port: cfg.port,
-                        tx: cfg.tx.clone(),
-                        rx: cfg.rx.clone(),
+                        tx: cfg.tx,
+                        rx: cfg.rx,
                     })
                     .collect();
             }

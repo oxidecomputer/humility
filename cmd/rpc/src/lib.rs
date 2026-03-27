@@ -364,7 +364,7 @@ pub struct RpcClient<'a> {
     hubris: &'a HubrisArchive,
     socket: UdpSocket,
     rpc_reply_type: &'a HubrisEnum,
-    buf: Vec<u8>,
+    buf: Vec<u8>, // sized to match socket buffer size
 }
 
 impl<'a> RpcClient<'a> {
