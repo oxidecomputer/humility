@@ -59,6 +59,7 @@ pub struct HubrisManifest {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
+    pub sockets: IndexMap<String, HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
 }
 
@@ -241,8 +242,15 @@ impl HubrisConfigAuxflash {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigConfig {
     i2c: Option<HubrisConfigI2c>,
+    net: Option<HubrisConfigNet>,
     sensor: Option<HubrisConfigSensor>,
     auxflash: Option<HubrisConfigAuxflash>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigNet {
+    #[serde(default)]
+    sockets: IndexMap<String, HubrisSocket>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -367,6 +375,27 @@ pub struct HubrisSensor {
     pub name: String,
     pub kind: HubrisSensorKind,
     pub device: HubrisSensorDevice,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HubrisSocket {
+    pub kind: String,
+    pub owner: HubrisSocketOwner,
+    pub port: u16,
+    pub tx: HubrisSocketBuffer,
+    pub rx: HubrisSocketBuffer,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HubrisSocketOwner {
+    pub name: String,
+    pub notification: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HubrisSocketBuffer {
+    pub packets: usize,
+    pub bytes: usize,
 }
 
 impl fmt::Display for HubrisSensorKind {
@@ -1161,6 +1190,9 @@ impl HubrisArchive {
             }
             if let Some(sensor) = config.sensor.as_ref() {
                 self.load_sensor_config(sensor)?;
+            }
+            if let Some(net) = config.net.as_ref() {
+                self.manifest.sockets = net.sockets.clone();
             }
         }
 
