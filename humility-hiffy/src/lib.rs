@@ -553,7 +553,7 @@ impl<'a> HiffyContext<'a> {
                     }
                 };
 
-                let (_, udprpc) = hubris
+                let udprpc = hubris
                     .manifest
                     .get_socket_by_task("udprpc")
                     .map_err(|_| Failure::FunctionError(0))?;

@@ -51,8 +51,7 @@ impl NetCore {
         timeout: Duration,
     ) -> Result<Self> {
         let udprpc_socket = if hubris.lookup_task("udprpc").is_some() {
-            let (_, socket) =
-                hubris.manifest.get_socket_by_task("udprpc")?;
+            let socket = hubris.manifest.get_socket_by_task("udprpc")?;
             let target = format!("[{addr}]:{}", socket.port);
 
             let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
@@ -72,15 +71,13 @@ impl NetCore {
         // Find the dump agent task name.  This is usually `dump_agent`, but
         // that's not guaranteed; what *is* guaranteed is that it implements the
         // DumpAgent interface.
-        let dump_agent_module =
-            hubris.lookup_module_by_iface("DumpAgent");
+        let dump_agent_module = hubris.lookup_module_by_iface("DumpAgent");
         let has_dump_agent = dump_agent_module
             .map(|m| hubris.does_task_have_feature(m.task, "net").unwrap())
             .unwrap_or(false);
 
         let dump_agent_socket = if has_dump_agent {
-            let (_, socket) =
-                hubris.get_socket_by_iface("DumpAgent")?;
+            let socket = hubris.get_socket_by_iface("DumpAgent")?;
             let target = format!("[{addr}]:{}", socket.port);
             let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
             let dump_agent_socket = UdpSocket::bind("[::]:0")?;

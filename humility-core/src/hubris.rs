@@ -59,21 +59,15 @@ pub struct HubrisManifest {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
-    pub sockets: IndexMap<String, HubrisSocket>,
+    pub sockets: Vec<HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
 }
 
 impl HubrisManifest {
-    pub fn get_socket_by_task(
-        &self,
-        task: &str,
-    ) -> Result<(&String, &HubrisSocket)> {
-        self.sockets
-            .iter()
-            .find(|(_, s)| s.owner.name == task)
-            .ok_or_else(|| {
-                anyhow!("couldn't find socket with owner {:?}", task)
-            })
+    pub fn get_socket_by_task(&self, task: &str) -> Result<&HubrisSocket> {
+        self.sockets.iter().find(|s| s.owner.name == task).ok_or_else(|| {
+            anyhow!("couldn't find socket with owner {:?}", task)
+        })
     }
 }
 
@@ -264,7 +258,16 @@ struct HubrisConfigConfig {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigNet {
     #[serde(default)]
-    sockets: IndexMap<String, HubrisSocket>,
+    sockets: IndexMap<String, HubrisConfigSocket>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigSocket {
+    kind: String,
+    owner: HubrisSocketOwner,
+    port: u16,
+    tx: HubrisSocketBuffer,
+    rx: HubrisSocketBuffer,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -391,8 +394,9 @@ pub struct HubrisSensor {
     pub device: HubrisSensorDevice,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct HubrisSocket {
+    pub name: String,
     pub kind: String,
     pub owner: HubrisSocketOwner,
     pub port: u16,
@@ -1206,7 +1210,18 @@ impl HubrisArchive {
                 self.load_sensor_config(sensor)?;
             }
             if let Some(net) = config.net.as_ref() {
-                self.manifest.sockets = net.sockets.clone();
+                self.manifest.sockets = net
+                    .sockets
+                    .iter()
+                    .map(|(name, cfg)| HubrisSocket {
+                        name: name.clone(),
+                        kind: cfg.kind.clone(),
+                        owner: cfg.owner.clone(),
+                        port: cfg.port,
+                        tx: cfg.tx.clone(),
+                        rx: cfg.rx.clone(),
+                    })
+                    .collect();
             }
         }
 
@@ -2018,10 +2033,7 @@ impl HubrisArchive {
             .find(|t| t.iface.as_ref().map(|i| i.name == name).unwrap_or(false))
     }
 
-    pub fn get_socket_by_iface(
-        &self,
-        iface: &str,
-    ) -> Result<(&String, &HubrisSocket)> {
+    pub fn get_socket_by_iface(&self, iface: &str) -> Result<&HubrisSocket> {
         let module = self.lookup_module_by_iface(iface).ok_or_else(|| {
             anyhow!("couldn't find task implementing {:?}", iface)
         })?;

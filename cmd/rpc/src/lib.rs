@@ -373,8 +373,7 @@ impl<'a> RpcClient<'a> {
         ip: ScopedV6Addr,
         timeout: Duration,
     ) -> Result<Self> {
-        let (_, udprpc) =
-            hubris.manifest.get_socket_by_task("udprpc")?;
+        let udprpc = hubris.manifest.get_socket_by_task("udprpc")?;
         let target = format!("[{ip}]:{}", udprpc.port);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();

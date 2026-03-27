@@ -256,10 +256,10 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             "NAME", "KIND", "PORT", "RXSIZE", "OWNER"
         );
 
-        for (name, socket) in &manifest.sockets {
+        for socket in &manifest.sockets {
             println!(
                 "{:>17} {:5} {:5} {:>7} {}",
-                name,
+                socket.name,
                 socket.kind,
                 socket.port,
                 socket.rx.bytes,
