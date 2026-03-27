@@ -63,6 +63,20 @@ pub struct HubrisManifest {
     pub auxflash: Option<HubrisConfigAuxflash>,
 }
 
+impl HubrisManifest {
+    pub fn get_socket_by_task(
+        &self,
+        task: &str,
+    ) -> Result<(&String, &HubrisSocket)> {
+        self.sockets
+            .iter()
+            .find(|(_, s)| s.owner.name == task)
+            .ok_or_else(|| {
+                anyhow!("couldn't find socket with owner {:?}", task)
+            })
+    }
+}
+
 //
 // This structure (and the structures that it refers to) contain everything
 // that we might want to pull out of the config TOML -- which will be a subset
@@ -2002,6 +2016,16 @@ impl HubrisArchive {
         (0..self.ntasks())
             .map(|t| self.lookup_module(HubrisTask::Task(t as u32)).unwrap())
             .find(|t| t.iface.as_ref().map(|i| i.name == name).unwrap_or(false))
+    }
+
+    pub fn get_socket_by_iface(
+        &self,
+        iface: &str,
+    ) -> Result<(&String, &HubrisSocket)> {
+        let module = self.lookup_module_by_iface(iface).ok_or_else(|| {
+            anyhow!("couldn't find task implementing {:?}", iface)
+        })?;
+        self.manifest.get_socket_by_task(&module.name)
     }
 
     pub fn modules(&self) -> impl Iterator<Item = &HubrisModule> {

@@ -553,14 +553,11 @@ impl<'a> HiffyContext<'a> {
                     }
                 };
 
-                let rx_size = hubris
+                let (_, udprpc) = hubris
                     .manifest
-                    .sockets
-                    .values()
-                    .find(|s| s.owner.name == "udprpc")
-                    .map(|s| s.rx.bytes)
-                    .unwrap_or(1024);
-                let mut buf = vec![0u8; rx_size];
+                    .get_socket_by_task("udprpc")
+                    .map_err(|_| Failure::FunctionError(0))?;
+                let mut buf = vec![0u8; udprpc.rx.bytes];
 
                 let image_id = hubris.image_id().unwrap();
 

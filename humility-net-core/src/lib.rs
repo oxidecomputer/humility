@@ -51,17 +51,9 @@ impl NetCore {
         timeout: Duration,
     ) -> Result<Self> {
         let udprpc_socket = if hubris.lookup_task("udprpc").is_some() {
-            let port = hubris
-                .manifest
-                .sockets
-                .values()
-                .find(|s| s.owner.name == "udprpc")
-                .ok_or_else(|| anyhow!(
-                    "couldn't find socket with owner \"udprpc\""
-                ))?
-                .port;
-
-            let target = format!("[{addr}]:{port}");
+            let (_, socket) =
+                hubris.manifest.get_socket_by_task("udprpc")?;
+            let target = format!("[{addr}]:{}", socket.port);
 
             let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
             let udprpc_socket = UdpSocket::bind("[::]:0")?;
@@ -87,20 +79,9 @@ impl NetCore {
             .unwrap_or(false);
 
         let dump_agent_socket = if has_dump_agent {
-            let dump_agent_name =
-                &dump_agent_module.unwrap().name;
-            let port = hubris
-                .manifest
-                .sockets
-                .values()
-                .find(|s| s.owner.name == *dump_agent_name)
-                .ok_or_else(|| anyhow!(
-                    "couldn't find socket with owner {:?}",
-                    dump_agent_name,
-                ))?
-                .port;
-
-            let target = format!("[{addr}]:{port}");
+            let (_, socket) =
+                hubris.get_socket_by_iface("DumpAgent")?;
+            let target = format!("[{addr}]:{}", socket.port);
             let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
             let dump_agent_socket = UdpSocket::bind("[::]:0")?;
             dump_agent_socket.set_read_timeout(Some(timeout))?;

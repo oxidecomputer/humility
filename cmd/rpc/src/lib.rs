@@ -373,16 +373,9 @@ impl<'a> RpcClient<'a> {
         ip: ScopedV6Addr,
         timeout: Duration,
     ) -> Result<Self> {
-        let socket_info = hubris
-            .manifest
-            .sockets
-            .values()
-            .find(|s| s.owner.name == "udprpc")
-            .ok_or_else(|| {
-                anyhow!("couldn't find socket with owner \"udprpc\"")
-            })?;
-
-        let target = format!("[{ip}]:{}", socket_info.port);
+        let (_, udprpc) =
+            hubris.manifest.get_socket_by_task("udprpc")?;
+        let target = format!("[{ip}]:{}", udprpc.port);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
         let socket = UdpSocket::bind("[::]:0")?;
@@ -401,7 +394,7 @@ impl<'a> RpcClient<'a> {
             .lookup_enum_byname(hubris, "RpcReply")?
             .ok_or_else(|| anyhow!("can't find RpcReply"))?;
 
-        let buf = vec![0u8; socket_info.rx.bytes];
+        let buf = vec![0u8; udprpc.rx.bytes];
         Ok(Self { hubris, socket, rpc_reply_type, buf })
     }
 
