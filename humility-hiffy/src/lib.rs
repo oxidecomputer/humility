@@ -538,8 +538,7 @@ impl<'a> HiffyContext<'a> {
                     .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
             }
 
-            let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-            HIFFY_SEND_WORKSPACE.with(|workspace| {
+            let reply = HIFFY_SEND_WORKSPACE.with(|workspace| {
                 let mut workspace = workspace.borrow_mut();
                 let (hubris, core) = {
                     // SAFETY: we only ever call this function when the pointers
@@ -553,6 +552,16 @@ impl<'a> HiffyContext<'a> {
                         )
                     }
                 };
+
+                let rx_size = hubris
+                    .manifest
+                    .sockets
+                    .values()
+                    .find(|s| s.owner.name == "udprpc")
+                    .map(|s| s.rx.bytes)
+                    .unwrap_or(1024);
+                let mut buf = vec![0u8; rx_size];
+
                 let image_id = hubris.image_id().unwrap();
 
                 let header = RpcHeader {
@@ -575,8 +584,9 @@ impl<'a> HiffyContext<'a> {
                 // Try to receive a reply
                 match core.recv(buf.as_mut_slice(), NetAgent::UdpRpc) {
                     Ok(n) => {
-                        workspace.results.push(buf[0..n].to_vec());
-                        Ok(())
+                        let reply = buf[0..n].to_vec();
+                        workspace.results.push(reply.clone());
+                        Ok(reply)
                     }
                     Err(e) => {
                         workspace.errors.push(e);
@@ -591,13 +601,13 @@ impl<'a> HiffyContext<'a> {
             // depends on the fact that Idol does not use 0 as an error
             // condition.
             //
-            let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
+            let code = u32::from_be_bytes(reply[1..5].try_into().unwrap());
 
             if code != 0 {
                 return Err(Failure::FunctionError(code));
             }
             rval[0..nreply as usize]
-                .copy_from_slice(&buf[5..(5 + nreply as usize)]);
+                .copy_from_slice(&reply[5..(5 + nreply as usize)]);
 
             Ok(nreply.try_into().unwrap())
         }

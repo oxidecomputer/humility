@@ -364,7 +364,7 @@ pub struct RpcClient<'a> {
     hubris: &'a HubrisArchive,
     socket: UdpSocket,
     rpc_reply_type: &'a HubrisEnum,
-    buf: [u8; 1024], // matches buffer size in `task-udprpc`
+    buf: Vec<u8>,
 }
 
 impl<'a> RpcClient<'a> {
@@ -373,8 +373,16 @@ impl<'a> RpcClient<'a> {
         ip: ScopedV6Addr,
         timeout: Duration,
     ) -> Result<Self> {
-        // Hard-coded socket address, based on Hubris configuration
-        let target = format!("[{ip}]:998");
+        let socket_info = hubris
+            .manifest
+            .sockets
+            .values()
+            .find(|s| s.owner.name == "udprpc")
+            .ok_or_else(|| {
+                anyhow!("couldn't find socket with owner \"udprpc\"")
+            })?;
+
+        let target = format!("[{ip}]:{}", socket_info.port);
 
         let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
         let socket = UdpSocket::bind("[::]:0")?;
@@ -393,7 +401,8 @@ impl<'a> RpcClient<'a> {
             .lookup_enum_byname(hubris, "RpcReply")?
             .ok_or_else(|| anyhow!("can't find RpcReply"))?;
 
-        Ok(Self { hubris, socket, rpc_reply_type, buf: [0; 1024] })
+        let buf = vec![0u8; socket_info.rx.bytes];
+        Ok(Self { hubris, socket, rpc_reply_type, buf })
     }
 
     pub fn call(
