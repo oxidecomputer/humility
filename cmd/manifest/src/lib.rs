@@ -244,6 +244,30 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         }
     }
 
+    if !manifest.sockets.is_empty() {
+        println!(
+            "{:>12} => {} socket{}",
+            "sockets",
+            manifest.sockets.len(),
+            if manifest.sockets.len() != 1 { "s" } else { "" }
+        );
+        println!(
+            "{:>17} {:5} {:5} {:7} {}",
+            "NAME", "KIND", "PORT", "RXSIZE", "OWNER"
+        );
+
+        for (name, socket) in &manifest.sockets {
+            println!(
+                "{:>17} {:5} {:5} {:>7} {}",
+                name,
+                socket.kind,
+                socket.port,
+                socket.rx.bytes,
+                socket.owner.name,
+            );
+        }
+    }
+
     Ok(())
 }
 
