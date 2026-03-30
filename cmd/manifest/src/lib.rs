@@ -252,13 +252,13 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             if manifest.sockets.len() != 1 { "s" } else { "" }
         );
         println!(
-            "                {:20} {:5} {:>6} {:>7} {}",
+            "               {:20} {:5} {:>6} {:>7} {}",
             "NAME", "KIND", "PORT", "RXSIZE", "OWNER"
         );
 
         for socket in &manifest.sockets {
             println!(
-                "                {:20} {:5} {:>6} {:>7} {}",
+                "               {:20} {:5} {:>6} {:>7} {}",
                 socket.name,
                 socket.kind,
                 socket.port,

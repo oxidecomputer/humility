@@ -27,3 +27,6 @@
    i2c buses => 1 controller, 1 bus
                 C PORT MODE NAME          DESCRIPTION
                 2 F    init -             -
+     sockets => 1 socket
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho
