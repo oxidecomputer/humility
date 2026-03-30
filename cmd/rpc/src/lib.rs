@@ -393,7 +393,7 @@ impl<'a> RpcClient<'a> {
             .lookup_enum_byname(hubris, "RpcReply")?
             .ok_or_else(|| anyhow!("can't find RpcReply"))?;
 
-        let buf = vec![0u8; udprpc.rx.bytes];
+        let buf = vec![0u8; udprpc.tx.bytes];
         Ok(Self { hubris, socket, rpc_reply_type, buf })
     }
 
