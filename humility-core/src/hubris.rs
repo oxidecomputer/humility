@@ -425,7 +425,7 @@ pub enum HubrisSocketNotification {
     Named(String),
 }
 
-// A custom deserialization function that can parse either a string or an integer into a `u66`
+/// Deserialize a `HubrisSocketNotification` from either a string or integer
 fn deserialize_notification<'de, D>(
     deserializer: D,
 ) -> Result<HubrisSocketNotification, D::Error>
@@ -440,11 +440,11 @@ where
         }
 
         // Handle the case where the value is an integer
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            Ok(HubrisSocketNotification::Bit(v))
+            Ok(HubrisSocketNotification::Bit(v as u64))
         }
 
         // Handle the case where the value is a string, and parse it
