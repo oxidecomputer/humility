@@ -184,3 +184,9 @@
                  74 DIMM_G1                 i2c id=61   temp
                  75 DIMM_H0                 i2c id=62   temp
                  76 DIMM_H1                 i2c id=63   temp
+     sockets => 4 sockets
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho
+               broadcast            udp      997    1024 udpbroadcast
+               rpc                  udp      998    1024 udprpc
+               mgmt_gateway         udp    11111    2048 mgmt_gateway

@@ -156,3 +156,6 @@
                  74 DIMM_G1                 i2c id=39   temp
                  75 DIMM_H0                 i2c id=40   temp
                  76 DIMM_H1                 i2c id=41   temp
+     sockets => 1 socket
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho

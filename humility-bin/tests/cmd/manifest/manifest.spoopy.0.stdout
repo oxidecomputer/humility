@@ -123,3 +123,6 @@
                  58 V12_SYS_A2              i2c id=25   power
                  59 V12_SYS_A2              i2c id=25   current
                  60 V12_SYS_A2              i2c id=25   voltage
+     sockets => 1 socket
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho

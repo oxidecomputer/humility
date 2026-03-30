@@ -30,3 +30,6 @@
                 2 F    init -             -
                 3 C    init -             -
                 4 F    init -             -
+     sockets => 1 socket
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho

@@ -442,6 +442,9 @@ impl<'a> HiffyContext<'a> {
             bail!("can't make non-Idol calls over RPC");
         }
 
+        // Find the socket that we'll be using to communicate
+        let udprpc = self.hubris.manifest.get_socket_by_task("udprpc")?;
+
         // Pick values that are much larger than we'd ever see on a machine
         const HIFFY_TEXT_SIZE: usize = 65536;
         const HIFFY_RSTACK_SIZE: usize = 65536;
@@ -477,6 +480,9 @@ impl<'a> HiffyContext<'a> {
             hubris: Option<std::ptr::NonNull<HubrisArchive>>,
             core: Option<std::ptr::NonNull<dyn Core>>,
 
+            /// Socket used for communication
+            socket: Option<HubrisSocket>,
+
             /// If we receive an RPC result, then record the buffer here
             results: Vec<Vec<u8>>,
 
@@ -489,6 +495,7 @@ impl<'a> HiffyContext<'a> {
                     HiffySendWorkspace {
                         hubris: None,
                         core: None,
+                        socket: None,
                         results: vec![],
                         errors: vec![],
                     });
@@ -538,8 +545,7 @@ impl<'a> HiffyContext<'a> {
                     .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
             }
 
-            let mut buf = [0u8; 1024]; // matches buffer size in `task-udprpc`
-            HIFFY_SEND_WORKSPACE.with(|workspace| {
+            let buf = HIFFY_SEND_WORKSPACE.with(|workspace| {
                 let mut workspace = workspace.borrow_mut();
                 let (hubris, core) = {
                     // SAFETY: we only ever call this function when the pointers
@@ -553,6 +559,9 @@ impl<'a> HiffyContext<'a> {
                         )
                     }
                 };
+                let socket = workspace.socket.as_ref().unwrap();
+
+                let mut buf = vec![0u8; socket.tx.bytes];
                 let image_id = hubris.image_id().unwrap();
 
                 let header = RpcHeader {
@@ -565,6 +574,15 @@ impl<'a> HiffyContext<'a> {
 
                 let mut packet = header.as_bytes().to_vec();
                 packet.extend(&payload[0..nbytes as usize]);
+                if packet.len() > socket.rx.bytes {
+                    let e = anyhow!(
+                        "packet length {} exceeds tx buf size {}",
+                        packet.len(),
+                        socket.rx.bytes,
+                    );
+                    workspace.errors.push(e);
+                    return Err(Failure::FunctionError(0));
+                }
 
                 // Send the packet out
                 if let Err(e) = core.send(&packet, NetAgent::UdpRpc) {
@@ -575,8 +593,9 @@ impl<'a> HiffyContext<'a> {
                 // Try to receive a reply
                 match core.recv(buf.as_mut_slice(), NetAgent::UdpRpc) {
                     Ok(n) => {
-                        workspace.results.push(buf[0..n].to_vec());
-                        Ok(())
+                        buf.shrink_to(n);
+                        workspace.results.push(buf.clone());
+                        Ok(buf)
                     }
                     Err(e) => {
                         workspace.errors.push(e);
@@ -663,6 +682,7 @@ impl<'a> HiffyContext<'a> {
                     .unwrap(),
                 ),
 
+                socket: Some(udprpc.clone()),
                 results: vec![],
                 errors: vec![],
             };

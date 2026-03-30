@@ -153,3 +153,10 @@
                  60 V1P8_SYS                i2c id=25   current
                  61 V1P8_SYS                i2c id=25   voltage
                  62 vsc7448                 i2c id=26   temp
+     sockets => 5 sockets
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho
+               broadcast            udp      997    1024 udpbroadcast
+               rpc                  udp      998    1024 udprpc
+               control_plane_agent  udp    11111    2048 control_plane_agent
+               transceivers         udp    11112    2048 transceivers

@@ -186,3 +186,11 @@
                  94 xcvr29                  qsfp        temp
                  95 xcvr30                  qsfp        temp
                  96 xcvr31                  qsfp        temp
+     sockets => 6 sockets
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho
+               broadcast            udp      997    1024 udpbroadcast
+               rpc                  udp      998    1024 udprpc
+               control_plane_agent  udp    11111    2048 control_plane_agent
+               dump_agent           udp    11113    1024 dump_agent
+               transceivers         udp    11112    2048 transceivers
