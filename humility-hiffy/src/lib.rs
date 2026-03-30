@@ -480,11 +480,8 @@ impl<'a> HiffyContext<'a> {
             hubris: Option<std::ptr::NonNull<HubrisArchive>>,
             core: Option<std::ptr::NonNull<dyn Core>>,
 
-            /// Number of bytes that can be received by us (sent by the SP)
-            rx_buf_size: usize,
-
-            /// Number of bytes that can be received by Hubris (sent by us)
-            tx_buf_size: usize,
+            /// Socket used for communication
+            socket: Option<HubrisSocket>,
 
             /// If we receive an RPC result, then record the buffer here
             results: Vec<Vec<u8>>,
@@ -498,8 +495,7 @@ impl<'a> HiffyContext<'a> {
                     HiffySendWorkspace {
                         hubris: None,
                         core: None,
-                        rx_buf_size: 0,
-                        tx_buf_size: 0,
+                        socket: None,
                         results: vec![],
                         errors: vec![],
                     });
@@ -563,8 +559,9 @@ impl<'a> HiffyContext<'a> {
                         )
                     }
                 };
+                let socket = workspace.socket.as_ref().unwrap();
 
-                let mut buf = vec![0u8; workspace.rx_buf_size];
+                let mut buf = vec![0u8; socket.tx.bytes];
                 let image_id = hubris.image_id().unwrap();
 
                 let header = RpcHeader {
@@ -577,11 +574,11 @@ impl<'a> HiffyContext<'a> {
 
                 let mut packet = header.as_bytes().to_vec();
                 packet.extend(&payload[0..nbytes as usize]);
-                if packet.len() > workspace.tx_buf_size {
+                if packet.len() > socket.rx.bytes {
                     let e = anyhow!(
                         "packet length {} exceeds tx buf size {}",
                         packet.len(),
-                        workspace.tx_buf_size
+                        socket.rx.bytes,
                     );
                     workspace.errors.push(e);
                     return Err(Failure::FunctionError(0));
@@ -685,8 +682,7 @@ impl<'a> HiffyContext<'a> {
                     .unwrap(),
                 ),
 
-                rx_buf_size: udprpc.tx.bytes,
-                tx_buf_size: udprpc.rx.bytes,
+                socket: Some(udprpc.clone()),
                 results: vec![],
                 errors: vec![],
             };
