@@ -407,13 +407,67 @@ pub struct HubrisSocket {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HubrisSocketOwner {
     pub name: String,
-    pub notification: String,
+    #[serde(deserialize_with = "deserialize_notification")]
+    pub notification: HubrisSocketNotification,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub struct HubrisSocketBuffer {
     pub packets: usize,
     pub bytes: usize,
+}
+
+use serde::de::{self, Deserializer, Visitor};
+
+#[derive(Debug, Clone)]
+pub enum HubrisSocketNotification {
+    Bit(u64),
+    Named(String),
+}
+
+// A custom deserialization function that can parse either a string or an integer into a `u66`
+fn deserialize_notification<'de, D>(
+    deserializer: D,
+) -> Result<HubrisSocketNotification, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct NotificationVisitor;
+    impl<'de> Visitor<'de> for NotificationVisitor {
+        type Value = HubrisSocketNotification;
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or an integer")
+        }
+
+        // Handle the case where the value is an integer
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(HubrisSocketNotification::Bit(v))
+        }
+
+        // Handle the case where the value is a string, and parse it
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(HubrisSocketNotification::Named(v.to_owned()))
+        }
+    }
+    deserializer.deserialize_any(NotificationVisitor)
+}
+
+impl Serialize for HubrisSocketNotification {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            HubrisSocketNotification::Bit(i) => serializer.serialize_u64(*i),
+            HubrisSocketNotification::Named(n) => serializer.serialize_str(n),
+        }
+    }
 }
 
 impl fmt::Display for HubrisSensorKind {
