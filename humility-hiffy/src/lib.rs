@@ -442,6 +442,9 @@ impl<'a> HiffyContext<'a> {
             bail!("can't make non-Idol calls over RPC");
         }
 
+        // Find the socket that we'll be using to communicate
+        let udprpc = self.hubris.manifest.get_socket_by_task("udprpc")?;
+
         // Pick values that are much larger than we'd ever see on a machine
         const HIFFY_TEXT_SIZE: usize = 65536;
         const HIFFY_RSTACK_SIZE: usize = 65536;
@@ -477,6 +480,12 @@ impl<'a> HiffyContext<'a> {
             hubris: Option<std::ptr::NonNull<HubrisArchive>>,
             core: Option<std::ptr::NonNull<dyn Core>>,
 
+            /// Number of bytes that can be received by us (sent by the SP)
+            rx_buf_size: usize,
+
+            /// Number of bytes that can be received by Hubris (sent by us)
+            tx_buf_size: usize,
+
             /// If we receive an RPC result, then record the buffer here
             results: Vec<Vec<u8>>,
 
@@ -489,6 +498,8 @@ impl<'a> HiffyContext<'a> {
                     HiffySendWorkspace {
                         hubris: None,
                         core: None,
+                        rx_buf_size: 0,
+                        tx_buf_size: 0,
                         results: vec![],
                         errors: vec![],
                     });
@@ -538,7 +549,7 @@ impl<'a> HiffyContext<'a> {
                     .map_err(|_| Failure::Fault(Fault::BadParameter(2)))?;
             }
 
-            let reply = HIFFY_SEND_WORKSPACE.with(|workspace| {
+            let buf = HIFFY_SEND_WORKSPACE.with(|workspace| {
                 let mut workspace = workspace.borrow_mut();
                 let (hubris, core) = {
                     // SAFETY: we only ever call this function when the pointers
@@ -553,12 +564,7 @@ impl<'a> HiffyContext<'a> {
                     }
                 };
 
-                let udprpc = hubris
-                    .manifest
-                    .get_socket_by_task("udprpc")
-                    .map_err(|_| Failure::FunctionError(0))?;
-                let mut buf = vec![0u8; udprpc.rx.bytes];
-
+                let mut buf = vec![0u8; workspace.rx_buf_size];
                 let image_id = hubris.image_id().unwrap();
 
                 let header = RpcHeader {
@@ -571,6 +577,15 @@ impl<'a> HiffyContext<'a> {
 
                 let mut packet = header.as_bytes().to_vec();
                 packet.extend(&payload[0..nbytes as usize]);
+                if packet.len() > workspace.tx_buf_size {
+                    let e = anyhow!(
+                        "packet length {} exceeds tx buf size {}",
+                        packet.len(),
+                        workspace.tx_buf_size
+                    );
+                    workspace.errors.push(e);
+                    return Err(Failure::FunctionError(0));
+                }
 
                 // Send the packet out
                 if let Err(e) = core.send(&packet, NetAgent::UdpRpc) {
@@ -581,9 +596,9 @@ impl<'a> HiffyContext<'a> {
                 // Try to receive a reply
                 match core.recv(buf.as_mut_slice(), NetAgent::UdpRpc) {
                     Ok(n) => {
-                        let reply = buf[0..n].to_vec();
-                        workspace.results.push(reply.clone());
-                        Ok(reply)
+                        buf.shrink_to(n);
+                        workspace.results.push(buf.clone());
+                        Ok(buf)
                     }
                     Err(e) => {
                         workspace.errors.push(e);
@@ -598,13 +613,13 @@ impl<'a> HiffyContext<'a> {
             // depends on the fact that Idol does not use 0 as an error
             // condition.
             //
-            let code = u32::from_be_bytes(reply[1..5].try_into().unwrap());
+            let code = u32::from_be_bytes(buf[1..5].try_into().unwrap());
 
             if code != 0 {
                 return Err(Failure::FunctionError(code));
             }
             rval[0..nreply as usize]
-                .copy_from_slice(&reply[5..(5 + nreply as usize)]);
+                .copy_from_slice(&buf[5..(5 + nreply as usize)]);
 
             Ok(nreply.try_into().unwrap())
         }
@@ -670,6 +685,8 @@ impl<'a> HiffyContext<'a> {
                     .unwrap(),
                 ),
 
+                rx_buf_size: udprpc.tx.bytes,
+                tx_buf_size: udprpc.rx.bytes,
                 results: vec![],
                 errors: vec![],
             };
