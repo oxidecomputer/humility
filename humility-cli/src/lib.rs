@@ -4,7 +4,7 @@
 
 pub mod env;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{AppSettings, ArgGroup, ArgMatches, Parser};
 use env::Environment;
 use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
@@ -163,7 +163,8 @@ impl ExecutionContext {
             if let Ok(e) = env::var("HUMILITY_PROBE") {
                 cli.probe = Some(e);
             } else if let Ok(e) = env::var("HUMILITY_IP") {
-                cli.ip = Some(e.parse()?);
+                cli.ip =
+                    Some(e.parse().context("could not parse HUMILITY_IP")?);
             } else if let Ok(e) = env::var("HUMILITY_TARGET") {
                 cli.target = Some(e);
             } else if let Ok(e) = env::var("HUMILITY_DUMP") {
