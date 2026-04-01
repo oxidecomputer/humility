@@ -276,7 +276,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility repl](#humility-repl): read, eval, print, loop
 - [humility reset](#humility-reset): Reset the chip using external pins
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
-- [humility rpc](#humility-rpc): execute Idol calls over a network
+- [humility rpc](#humility-rpc): listen for compatible SPs on a network
 - [humility sbrmi](#humility-sbrmi): Sideband Remote Management Interface (SB-RMI) commands
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
@@ -2763,26 +2763,9 @@ documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/s
 
 ### `humility rpc`
 
-`humility rpc` allows for execution of Idol commands over a network, rather
-than through a debugger.
-
-It requires the Hubris `udprpc` task to be listening on port 8.  This task
-decodes bytes from a UDP packet, and shoves them directly into `sys_send` to
-a target task.
-
-An archive is required so that `humility` knows what functions are available
-and how to call them.  The archive ID is checked against the image ID on the
-target; `udprpc` will refuse to execute commands when the ID does not match.
-
-Function calls are handled identically to the `humility hiffy` subcommand,
-except that an `--ip` address is required:
-
-```console
-$ humility rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
-UserLeds.led_on() = ()
-```
-
-Alternatively, you can set the `HUMILITY_RPC_IP` environmental variable.
+`humility rpc` lets you discover SPs on a network, instead of using a
+physically attached debugger.  Once SPs are discovered, they may be used as
+a target by setting `HUMILITY_IP` or providing the `--ip` argument.
 
 You may need to configure an IPv6 network for `humility rpc` to work. On
 illumos, it looks like this:
@@ -2811,9 +2794,6 @@ When listening, it is mandatory to specify the interface (e.g. `humility rpc
 not include identity information. If they are marked as `(vpdfail)`, they
 are running a new-enough `udpbroadcast`, but the SP was unable to read its
 identity from its VPD.
-
-To call all targets that match an archive, `--listen` can be combined with
-`--call`
 
 
 ### `humility sbrmi`

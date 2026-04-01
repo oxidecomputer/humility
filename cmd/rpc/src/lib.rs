@@ -4,26 +4,9 @@
 
 //! ## `humility rpc`
 //!
-//! `humility rpc` allows for execution of Idol commands over a network, rather
-//! than through a debugger.
-//!
-//! It requires the Hubris `udprpc` task to be listening on port 8.  This task
-//! decodes bytes from a UDP packet, and shoves them directly into `sys_send` to
-//! a target task.
-//!
-//! An archive is required so that `humility` knows what functions are available
-//! and how to call them.  The archive ID is checked against the image ID on the
-//! target; `udprpc` will refuse to execute commands when the ID does not match.
-//!
-//! Function calls are handled identically to the `humility hiffy` subcommand,
-//! except that an `--ip` address is required:
-//!
-//! ```console
-//! $ humility rpc --ip fe80::0c1d:9aff:fe64:b8c2%en0 -c UserLeds.led_on -aindex=0
-//! UserLeds.led_on() = ()
-//! ```
-//!
-//! Alternatively, you can set the `HUMILITY_RPC_IP` environmental variable.
+//! `humility rpc` lets you discover SPs on a network, instead of using a
+//! physically attached debugger.  Once SPs are discovered, they may be used as
+//! a target by setting `HUMILITY_IP` or providing the `--ip` argument.
 //!
 //! You may need to configure an IPv6 network for `humility rpc` to work. On
 //! illumos, it looks like this:
@@ -52,26 +35,19 @@
 //! not include identity information. If they are marked as `(vpdfail)`, they
 //! are running a new-enough `udpbroadcast`, but the SP was unable to read its
 //! identity from its VPD.
-//!
-//! To call all targets that match an archive, `--listen` can be combined with
-//! `--call`
 
 use std::collections::BTreeSet;
-use std::net::{IpAddr, Ipv6Addr, ToSocketAddrs, UdpSocket};
+use std::net::{IpAddr, Ipv6Addr, UdpSocket};
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Result, bail};
 use clap::{ArgGroup, IntoApp, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
-use humility::net::{ScopedV6Addr, decode_iface};
-use humility::{hubris::*, reflect};
+use humility::net::decode_iface;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
-use humility_doppel::RpcHeader;
-use humility_idol as idol;
 use serde::{Deserialize, Serialize};
-use zerocopy::{AsBytes, U16, U64};
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -90,10 +66,6 @@ struct RpcArgs {
     #[clap(long, short)]
     list: bool,
 
-    /// call a particular function
-    #[clap(long, short, conflicts_with = "list", requires = "target")]
-    call: Option<String>,
-
     /// listen for compatible SPs on the network
     #[clap(
         long,
@@ -103,26 +75,9 @@ struct RpcArgs {
     )]
     listen: bool,
 
-    /// arguments
-    #[clap(long, short, requires = "call")]
-    task: Option<String>,
-
     /// interface on which to listen, e.g. 'en0'
     #[clap(short, requires = "listen", value_parser = decode_iface)]
     interface: Option<u32>,
-
-    /// arguments
-    #[clap(long, short, requires = "call", use_delimiter = true)]
-    arguments: Vec<String>,
-
-    /// IPv6 addresses, e.g. `fe80::0c1d:9aff:fe64:b8c2%en0`
-    #[clap(
-        long,
-        env = "HUMILITY_RPC_IP",
-        group = "target",
-        use_value_delimiter = true
-    )]
-    ip: Option<Vec<ScopedV6Addr>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, SerializedSize)]
@@ -360,209 +315,18 @@ fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
     }
 }
 
-pub struct RpcClient<'a> {
-    hubris: &'a HubrisArchive,
-    socket: UdpSocket,
-    rpc_reply_type: &'a HubrisEnum,
-    buf: Vec<u8>, // sized to match socket buffer size
-}
-
-impl<'a> RpcClient<'a> {
-    pub fn new(
-        hubris: &'a HubrisArchive,
-        ip: ScopedV6Addr,
-        timeout: Duration,
-    ) -> Result<Self> {
-        let udprpc = hubris.manifest.get_socket_by_task("udprpc")?;
-        let target = format!("[{ip}]:{}", udprpc.port);
-
-        let dest = target.to_socket_addrs()?.collect::<Vec<_>>();
-        let socket = UdpSocket::bind("[::]:0")?;
-        socket.set_read_timeout(Some(timeout))?;
-        socket.connect(&dest[..])?;
-
-        let rpc_task = hubris.lookup_task("udprpc").ok_or_else(|| {
-            anyhow!(
-                "Could not find `udprpc` task in this image. \
-                 Only -dev and -lab images include `udprpc`; \
-                 are you running a production image?"
-            )
-        })?;
-        let rpc_reply_type = hubris
-            .lookup_module(rpc_task)?
-            .lookup_enum_byname(hubris, "RpcReply")?
-            .ok_or_else(|| anyhow!("can't find RpcReply"))?;
-
-        let buf = vec![0u8; udprpc.tx.bytes];
-        Ok(Self { hubris, socket, rpc_reply_type, buf })
-    }
-
-    pub fn call(
-        &mut self,
-        op: &idol::IdolOperation,
-        args: &[(&str, idol::IdolArgument)],
-    ) -> Result<Result<reflect::Value, String>> {
-        let payload = op.payload(args)?;
-
-        let our_image_id = self.hubris.image_id().unwrap();
-
-        let nreply = op.reply_size()?;
-
-        let header = RpcHeader {
-            image_id: U64::from_bytes(our_image_id.try_into().unwrap()),
-            task: U16::new(op.task.task().try_into().unwrap()),
-            op: U16::new(op.code),
-            nreply: U16::new(nreply as u16),
-            nbytes: U16::new(payload.len().try_into().unwrap()),
-        };
-        let mut packet = header.as_bytes().to_vec();
-        packet.extend(payload.iter());
-
-        self.socket.send(&packet).context("unable to send packet")?;
-        let n = self
-            .socket
-            .recv(&mut self.buf)
-            .context("unable to receive packet")?;
-        let buf = &self.buf[..n];
-
-        if buf[0] != 0 {
-            // TODO: assumes the discriminator is a u8. It's not clear from
-            // context whether this assumption carries through into the udprpc
-            // task.
-            match self.rpc_reply_type.lookup_variant_by_tag(Tag::from(buf[0])) {
-                Some(e) => {
-                    let msg = format!("Got error from `udprpc`: {}", e.name);
-                    if e.name == "BadImageId" {
-                        bail!(
-                            "{msg}: {:02x?} (Humility) {:02x?} (Hubris)",
-                            our_image_id,
-                            &buf[1..9]
-                        );
-                    } else {
-                        bail!("{msg}");
-                    }
-                }
-                None => bail!("Got unknown error from `udprpc`: {}", buf[0]),
-            }
-        } else {
-            // Check the return code from the Idol call
-            let rc = u32::from_be_bytes(buf[1..5].try_into().unwrap());
-            let val = if rc == 0 { Ok(buf[5..].to_vec()) } else { Err(rc) };
-            let result = humility_hiffy::hiffy_decode(self.hubris, op, val)?;
-            Ok(result)
-        }
-    }
-}
-
-fn rpc_call(
-    hubris: &HubrisArchive,
-    op: &idol::IdolOperation,
-    args: &[(&str, idol::IdolArgument)],
-    ips: Vec<ScopedV6Addr>,
-    timeout: u32,
-) -> Result<()> {
-    let timeout = Duration::from_millis(u64::from(timeout));
-
-    for &ip in &ips {
-        let mut client = RpcClient::new(hubris, ip, timeout)
-            .context("unable to create RpcClient")?;
-        let result = client.call(op, args).context("unable to make call")?;
-        print!("{:25} ", ip);
-        humility_hiffy::hiffy_print_result(hubris, op, result)
-            .context("unable to print result")?;
-    }
-
-    Ok(())
-}
-
 fn rpc_run(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = RpcArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
 
-    if subargs.list {
-        cmd_hiffy::hiffy_list(hubris, vec![])?;
-        return Ok(());
-    }
-
-    if subargs.listen && subargs.call.is_none() {
+    // We previously had more subcommands here, but are down to just `--listen`
+    if subargs.listen {
         rpc_dump(rpc_listen(&subargs)?, hubris.image_id().unwrap());
-        return Ok(());
-    }
-
-    // For some reason, macOS requires the interface to be non-zero:
-    // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
-    // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
-    let interface = match subargs.interface {
-        None => {
-            if cfg!(target_os = "macos") {
-                bail!("Must specify interface with `-i` on macOS");
-            } else {
-                0
-            }
-        }
-        Some(iface) => iface,
-    };
-
-    let ips = if subargs.listen {
-        let image_id = hubris.image_id().unwrap();
-
-        rpc_listen(&subargs)?
-            .iter()
-            .filter(|t| t.image_id == image_id)
-            .map(|target| match target.ip {
-                IpAddr::V4(ip) => bail!(
-                    "target {target:?} had an unanticipated \
-                    IPv4 address ({ip})"
-                ),
-                IpAddr::V6(ip) => Ok(ScopedV6Addr { ip, scopeid: interface }),
-            })
-            .collect::<Result<Vec<_>>>()?
+        Ok(())
     } else {
-        subargs.ip.ok_or_else(|| {
-            anyhow!(
-                "the `--ip <IPS>` argument is required by `humility rpc` \
-                unless `--listen` is also set"
-            )
-        })?
-    };
-
-    if let Some(call) = &subargs.call {
-        if hubris.lookup_task("udprpc").is_none() {
-            bail!("no `udprpc` task in the target image");
-        }
-
-        let func: Vec<&str> = call.split('.').collect();
-
-        if func.len() != 2 {
-            bail!("calls must be interface.operation (-l to list)");
-        }
-
-        let mut args = vec![];
-
-        for arg in &subargs.arguments {
-            let arg: Vec<&str> = arg.split('=').collect();
-
-            if arg.len() != 2 {
-                bail!("arguments must be argument=value (-l to list)");
-            }
-
-            args.push((arg[0], idol::IdolArgument::String(arg[1])));
-        }
-
-        let task = match &subargs.task {
-            Some(task) => Some(hubris.try_lookup_task(task)?),
-            None => None,
-        };
-
-        let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
-        rpc_call(hubris, &op, &args, ips, subargs.timeout)
-            .context("failed to make RPC call")?;
-
-        return Ok(());
+        bail!("expected --listen")
     }
-
-    bail!("expected --listen, --list, or --call")
 }
 
 pub fn init() -> Command {

@@ -2,7 +2,7 @@
 name = "humility-cmd-rpc"
 version = "0.1.0"
 edition.workspace = true
-description = "execute Idol calls over a network"
+description = "listen for compatible SPs on a network"
 
 [dependencies]
 humility.workspace = true
