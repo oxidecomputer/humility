@@ -2,24 +2,23 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! ## `humility rpc`
+//! ## `humility discover`
 //!
-//! `humility rpc` lets you discover SPs on a network, instead of using a
+//! `humility discover` lets you discover SPs on a network, instead of using a
 //! physically attached debugger.  Once SPs are discovered, they may be used as
 //! a target by setting `HUMILITY_IP` or providing the `--ip` argument.
 //!
-//! You may need to configure an IPv6 network for `humility rpc` to work. On
+//! You may need to configure an IPv6 network for `humility discover` to work. On
 //! illumos, it looks like this:
 //!
 //! ```console
 //! $ pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
 //! ```
 //!
-//! To listen for compatible devices on your network, run `humility rpc
-//! --listen`
+//! To listen for compatible devices on your network, run `humility discover`
 //!
 //! ```console
-//! $ humility rpc --listen
+//! $ humility discover
 //! humility: listening... (ctrl-C to stop, or timeout in 5s)
 //! MAC               IPv6                      COMPAT PART        REV SERIAL
 //! a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066
@@ -29,12 +28,12 @@
 //!
 //! Under the hood, this listens for packets from the Hubris `udpbroadcast`
 //! task, which includes MAC address and image ID (checked for compatibility).
-//! When listening, it is mandatory to specify the interface (e.g. `humility rpc
-//! --listen -i en0` on MacOS). If the `Part` / `Serial` columns are marked as
-//! `(legacy)`, the SP is running an older version of `udpbroadcast` that did
-//! not include identity information. If they are marked as `(vpdfail)`, they
-//! are running a new-enough `udpbroadcast`, but the SP was unable to read its
-//! identity from its VPD.
+//! When listening, it is mandatory to specify the interface (e.g. `humility
+//! discover  -i en0` on MacOS). If the `Part` / `Serial` columns are
+//! marked as `(legacy)`, the SP is running an older version of `udpbroadcast`
+//! that did not include identity information. If they are marked as
+//! `(vpdfail)`, they are running a new-enough `udpbroadcast`, but the SP was
+//! unable to read its identity from its VPD.
 
 use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv6Addr, UdpSocket};
@@ -51,10 +50,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
 #[clap(
-    name = "rpc", about = env!("CARGO_PKG_DESCRIPTION"),
+    name = "discover", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("target").multiple(false)
 )]
-struct RpcArgs {
+struct DiscoverArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 2000, value_name = "timeout_ms",
@@ -62,21 +61,8 @@ struct RpcArgs {
     )]
     timeout: u32,
 
-    /// list interfaces
-    #[clap(long, short)]
-    list: bool,
-
-    /// listen for compatible SPs on the network
-    #[clap(
-        long,
-        conflicts_with = "list",
-        group = "target",
-        requires = "interface"
-    )]
-    listen: bool,
-
     /// interface on which to listen, e.g. 'en0'
-    #[clap(short, requires = "listen", value_parser = decode_iface)]
+    #[clap(short, value_parser = decode_iface)]
     interface: Option<u32>,
 }
 
@@ -107,7 +93,7 @@ struct Target {
     serial: String,
 }
 
-fn rpc_listen_one(
+fn discover_listen_one(
     timeout: Duration,
     interface: u32,
     port: u32,
@@ -235,11 +221,11 @@ fn rpc_listen_one(
     Ok(seen)
 }
 
-fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
+fn discover_listen(discover_args: &DiscoverArgs) -> Result<BTreeSet<Target>> {
     // For some reason, macOS requires the interface to be non-zero:
     // https://users.rust-lang.org/t/ipv6-upnp-multicast-for-rust-dlna-server-macos/24425
     // https://bluejekyll.github.io/blog/posts/multicasting-in-rust/
-    let interface = match &rpc_args.interface {
+    let interface = match &discover_args.interface {
         None => {
             if cfg!(target_os = "macos") {
                 bail!("Must specify interface with `-i` on macOS");
@@ -250,7 +236,7 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
         Some(iface) => *iface,
     };
 
-    let timeout = Duration::from_millis(rpc_args.timeout as u64);
+    let timeout = Duration::from_millis(discover_args.timeout as u64);
     let ports = [8, 8888];
     humility::msg!(
         "listening for {} seconds on ports {ports:?}...",
@@ -261,7 +247,7 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
         .iter()
         .map(|&port| {
             std::thread::spawn(move || -> Result<BTreeSet<Target>> {
-                rpc_listen_one(timeout, interface, port)
+                discover_listen_one(timeout, interface, port)
             })
         })
         .collect::<Vec<_>>();
@@ -285,13 +271,17 @@ fn rpc_listen(rpc_args: &RpcArgs) -> Result<BTreeSet<Target>> {
     Ok(seen)
 }
 
-fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
+fn discover_dump(seen: BTreeSet<Target>, image_id: Option<&[u8]>) {
     if !seen.is_empty() {
         println!(
-            "{:17} {:25} {:6} {:11} {:3} {:11}",
+            "{:17} {:25}{} {:11} {:3} {:11}",
             "MAC".bold(),
             "IPv6".bold(),
-            "COMPAT".bold(),
+            if image_id.is_some() {
+                format!(" {:6}", "COMPAT".bold())
+            } else {
+                format!(" {:16}", "IMAGE ID".bold())
+            },
             "PART".bold(),
             "REV".bold(),
             "SERIAL".bold(),
@@ -304,10 +294,16 @@ fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
             print!("{:02x}", byte)
         }
         print!(" {:25} ", target.ip);
-        if target.image_id == image_id {
-            print!("{:6}", "Yes".green());
+        if let Some(image_id) = image_id {
+            if target.image_id == image_id {
+                print!("{:6}", "Yes".green());
+            } else {
+                print!("{:6}", "No".red());
+            }
         } else {
-            print!("{:6}", "No".red());
+            for i in target.image_id {
+                print!("{i:02x}");
+            }
         }
         print!(" {:11}", target.part_number);
         print!(" {:3}", target.revision);
@@ -315,25 +311,26 @@ fn rpc_dump(seen: BTreeSet<Target>, image_id: &[u8]) {
     }
 }
 
-fn rpc_run(context: &mut ExecutionContext) -> Result<()> {
+fn discover_run(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = RpcArgs::try_parse_from(subargs)?;
+    let subargs = DiscoverArgs::try_parse_from(subargs)?;
     let hubris = context.archive.as_ref().unwrap();
 
-    // We previously had more subcommands here, but are down to just `--listen`
-    if subargs.listen {
-        rpc_dump(rpc_listen(&subargs)?, hubris.image_id().unwrap());
-        Ok(())
-    } else {
-        bail!("expected --listen")
+    let image_id = hubris.image_id();
+    if image_id.is_none() {
+        humility::warn!("no archive provided; not checking for compatibility");
     }
+
+    // We previously had more subcommands here, but are down to just `--listen`
+    discover_dump(discover_listen(&subargs)?, image_id);
+    Ok(())
 }
 
 pub fn init() -> Command {
     Command {
-        app: RpcArgs::command(),
-        name: "rpc",
-        run: rpc_run,
-        kind: CommandKind::Detached { archive: Archive::Required },
+        app: DiscoverArgs::command(),
+        name: "discover",
+        run: discover_run,
+        kind: CommandKind::Detached { archive: Archive::Optional },
     }
 }

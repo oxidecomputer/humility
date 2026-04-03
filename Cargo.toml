@@ -31,6 +31,7 @@ members = [
     "cmd/doc",
     "cmd/dump",
     "cmd/tofino-eeprom",
+    "cmd/discover",
     "cmd/exec",
     "cmd/extract",
     "cmd/flash",
@@ -41,7 +42,6 @@ members = [
     "cmd/hiffy",
     "cmd/host",
     "cmd/hydrate",
-    "cmd/rpc",
     "cmd/i2c",
     "cmd/ibc",
     "cmd/jefe",
@@ -140,6 +140,7 @@ cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
 cmd-dashboard = { path = "./cmd/dashboard", package = "humility-cmd-dashboard" }
 cmd-diagnose = { path = "./cmd/diagnose", package = "humility-cmd-diagnose" }
 cmd-debugmailbox = { path = "./cmd/debugmailbox", package = "humility-cmd-debugmailbox" }
+cmd-discover = { path = "./cmd/discover", package = "humility-cmd-discover" }
 cmd-doc = { path = "./cmd/doc", package = "humility-cmd-doc" }
 cmd-dump = { path = "./cmd/dump", package = "humility-cmd-dump" }
 cmd-tofino-eeprom = { path = "./cmd/tofino-eeprom", package = "humility-cmd-tofino-eeprom" }
@@ -177,7 +178,6 @@ cmd-reset = { path = "./cmd/reset", package = "humility-cmd-reset" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
 cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
-cmd-rpc = { path = "./cmd/rpc", package = "humility-cmd-rpc" }
 cmd-sbrmi = { path = "./cmd/sbrmi", package = "humility-cmd-sbrmi" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spctrl = { path = "./cmd/spctrl", package = "humility-cmd-spctrl" }

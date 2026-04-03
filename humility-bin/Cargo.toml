@@ -41,6 +41,7 @@ cmd-counters = { workspace = true }
 cmd-dashboard = { workspace = true }
 cmd-diagnose = { workspace = true }
 cmd-debugmailbox = { workspace = true, optional = true }
+cmd-discover = { workspace = true }
 cmd-doc = { workspace = true }
 cmd-dump = { workspace = true }
 cmd-tofino-eeprom = { workspace = true }
@@ -78,7 +79,6 @@ cmd-reset = { workspace = true, optional = true }
 cmd-rencm = { workspace = true }
 cmd-rendmp = { workspace = true }
 cmd-ringbuf = { workspace = true }
-cmd-rpc = { workspace = true }
 cmd-sbrmi = { workspace = true }
 cmd-sensors = { workspace = true }
 cmd-spctrl = { workspace = true }
