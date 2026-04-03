@@ -239,6 +239,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility dashboard](#humility-dashboard): dashboard for Hubris sensor data
 - [humility debugmailbox](#humility-debugmailbox): interact with the debug mailbox on the LPC55
 - [humility diagnose](#humility-diagnose): analyze a system to detect common problems
+- [humility discover](#humility-discover): listen for compatible SPs on a network
 - [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
 - [humility exec](#humility-exec): execute command within context of an environment
@@ -276,7 +277,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility repl](#humility-repl): read, eval, print, loop
 - [humility reset](#humility-reset): Reset the chip using external pins
 - [humility ringbuf](#humility-ringbuf): read and display a specified ring buffer
-- [humility rpc](#humility-rpc): listen for compatible SPs on a network
 - [humility sbrmi](#humility-sbrmi): Sideband Remote Management Interface (SB-RMI) commands
 - [humility sensors](#humility-sensors): query sensors and sensor data
 - [humility spctrl](#humility-spctrl): RoT -> SP control
@@ -551,6 +551,40 @@ reporting issues in a running system. It's mostly concerned with
 This is application-independent logic, so it doesn't have any visibility
 into things the _application_ may think are fishy -- only general behaviors
 at the OS level, like faults.
+
+
+### `humility discover`
+
+`humility discover` lets you discover SPs on a network, instead of using a
+physically attached debugger.  Once SPs are discovered, they may be used as
+a target by setting `HUMILITY_IP` or providing the `--ip` argument.
+
+You may need to configure an IPv6 network for `humility discover` to work. On
+illumos, it looks like this:
+
+```console
+$ pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
+```
+
+To listen for compatible devices on your network, run `humility discover`
+
+```console
+$ humility discover
+humility: listening... (ctrl-C to stop, or timeout in 5s)
+MAC               IPv6                      COMPAT PART        REV SERIAL
+a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066
+a8:40:25:05:05:00 fe80::aa40:25ff:fe05:500  No     (legacy)      0 (legacy)
+a8:40:25:05:05:00 fe80::aa40:25ff:fe05:501  No     (legacy)      0 (legacy)
+```
+
+Under the hood, this listens for packets from the Hubris `udpbroadcast`
+task, which includes MAC address and image ID (checked for compatibility).
+When listening, it is mandatory to specify the interface (e.g. `humility
+discover  -i en0` on MacOS). If the `Part` / `Serial` columns are
+marked as `(legacy)`, the SP is running an older version of `udpbroadcast`
+that did not include identity information. If they are marked as
+`(vpdfail)`, they are running a new-enough `udpbroadcast`, but the SP was
+unable to read its identity from its VPD.
 
 
 ### `humility doc`
@@ -2759,41 +2793,6 @@ entire series); this can be effected with the `--expand` option.
 
 See the [`ringbuf`
 documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
-
-
-### `humility rpc`
-
-`humility rpc` lets you discover SPs on a network, instead of using a
-physically attached debugger.  Once SPs are discovered, they may be used as
-a target by setting `HUMILITY_IP` or providing the `--ip` argument.
-
-You may need to configure an IPv6 network for `humility rpc` to work. On
-illumos, it looks like this:
-
-```console
-$ pfexec ipadm create-addr -t -T addrconf e1000g0/addrconf
-```
-
-To listen for compatible devices on your network, run `humility rpc
---listen`
-
-```console
-$ humility rpc --listen
-humility: listening... (ctrl-C to stop, or timeout in 5s)
-MAC               IPv6                      COMPAT PART        REV SERIAL
-a8:40:25:04:02:81 fe80::aa40:25ff:fe04:281  Yes    913-0000019   6 BRM42220066
-a8:40:25:05:05:00 fe80::aa40:25ff:fe05:500  No     (legacy)      0 (legacy)
-a8:40:25:05:05:00 fe80::aa40:25ff:fe05:501  No     (legacy)      0 (legacy)
-```
-
-Under the hood, this listens for packets from the Hubris `udpbroadcast`
-task, which includes MAC address and image ID (checked for compatibility).
-When listening, it is mandatory to specify the interface (e.g. `humility rpc
---listen -i en0` on MacOS). If the `Part` / `Serial` columns are marked as
-`(legacy)`, the SP is running an older version of `udpbroadcast` that did
-not include identity information. If they are marked as `(vpdfail)`, they
-are running a new-enough `udpbroadcast`, but the SP was unable to read its
-identity from its VPD.
 
 
 ### `humility sbrmi`
