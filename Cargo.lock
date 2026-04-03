@@ -1311,6 +1311,7 @@ dependencies = [
  "humility-cmd-dashboard",
  "humility-cmd-debugmailbox",
  "humility-cmd-diagnose",
+ "humility-cmd-discover",
  "humility-cmd-doc",
  "humility-cmd-dump",
  "humility-cmd-exec",
@@ -1347,7 +1348,6 @@ dependencies = [
  "humility-cmd-rendmp",
  "humility-cmd-reset",
  "humility-cmd-ringbuf",
- "humility-cmd-rpc",
  "humility-cmd-sbrmi",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
@@ -1512,6 +1512,29 @@ dependencies = [
  "humility-doppel",
  "humility-jefe",
  "parse_int",
+]
+
+[[package]]
+name = "humility-cmd-discover"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.23",
+ "colored",
+ "hif",
+ "hubpack",
+ "humility-cli",
+ "humility-cmd",
+ "humility-cmd-hiffy",
+ "humility-core",
+ "humility-doppel",
+ "humility-hiffy",
+ "humility-idol",
+ "idol",
+ "indexmap 1.9.3",
+ "parse_int",
+ "serde",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2107,29 +2130,6 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-doppel",
-]
-
-[[package]]
-name = "humility-cmd-rpc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 3.2.23",
- "colored",
- "hif",
- "hubpack",
- "humility-cli",
- "humility-cmd",
- "humility-cmd-hiffy",
- "humility-core",
- "humility-doppel",
- "humility-hiffy",
- "humility-idol",
- "idol",
- "indexmap 1.9.3",
- "parse_int",
- "serde",
- "zerocopy",
 ]
 
 [[package]]
