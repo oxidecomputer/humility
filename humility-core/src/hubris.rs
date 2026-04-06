@@ -59,7 +59,16 @@ pub struct HubrisManifest {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: Vec<HubrisI2cBus>,
     pub sensors: Vec<HubrisSensor>,
+    pub sockets: Vec<HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
+}
+
+impl HubrisManifest {
+    pub fn get_socket_by_task(&self, task: &str) -> Result<&HubrisSocket> {
+        self.sockets.iter().find(|s| s.owner.name == task).ok_or_else(|| {
+            anyhow!("couldn't find socket with owner {:?}", task)
+        })
+    }
 }
 
 //
@@ -241,8 +250,24 @@ impl HubrisConfigAuxflash {
 #[derive(Clone, Debug, Deserialize)]
 struct HubrisConfigConfig {
     i2c: Option<HubrisConfigI2c>,
+    net: Option<HubrisConfigNet>,
     sensor: Option<HubrisConfigSensor>,
     auxflash: Option<HubrisConfigAuxflash>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigNet {
+    #[serde(default)]
+    sockets: IndexMap<String, HubrisConfigSocket>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct HubrisConfigSocket {
+    kind: String,
+    owner: HubrisSocketOwner,
+    port: u16,
+    tx: HubrisSocketBuffer,
+    rx: HubrisSocketBuffer,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -367,6 +392,92 @@ pub struct HubrisSensor {
     pub name: String,
     pub kind: HubrisSensorKind,
     pub device: HubrisSensorDevice,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct HubrisSocket {
+    pub name: String,
+    pub kind: String,
+    pub owner: HubrisSocketOwner,
+    pub port: u16,
+    pub tx: HubrisSocketBuffer,
+    pub rx: HubrisSocketBuffer,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HubrisSocketOwner {
+    pub name: String,
+    #[serde(deserialize_with = "deserialize_notification")]
+    pub notification: HubrisSocketNotification,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+pub struct HubrisSocketBuffer {
+    pub packets: usize,
+    pub bytes: usize,
+}
+
+use serde::de::{self, Deserializer, Visitor};
+
+#[derive(Debug, Clone)]
+pub enum HubrisSocketNotification {
+    Bit(u64),
+    Named(String),
+}
+
+/// Deserialize a `HubrisSocketNotification` from either a string or integer
+fn deserialize_notification<'de, D>(
+    deserializer: D,
+) -> Result<HubrisSocketNotification, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct NotificationVisitor;
+    impl<'de> Visitor<'de> for NotificationVisitor {
+        type Value = HubrisSocketNotification;
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or an integer")
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(HubrisSocketNotification::Bit(v))
+        }
+
+        // Handle the case where the value is an integer
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            match u64::try_from(v) {
+                Ok(v) => self.visit_u64(v),
+                Err(_) => Err(E::custom("i64 must be positive")),
+            }
+        }
+
+        // Handle the case where the value is a string, and parse it
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(HubrisSocketNotification::Named(v.to_owned()))
+        }
+    }
+    deserializer.deserialize_any(NotificationVisitor)
+}
+
+impl Serialize for HubrisSocketNotification {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            HubrisSocketNotification::Bit(i) => serializer.serialize_u64(*i),
+            HubrisSocketNotification::Named(n) => serializer.serialize_str(n),
+        }
+    }
 }
 
 impl fmt::Display for HubrisSensorKind {
@@ -1161,6 +1272,20 @@ impl HubrisArchive {
             }
             if let Some(sensor) = config.sensor.as_ref() {
                 self.load_sensor_config(sensor)?;
+            }
+            if let Some(net) = config.net.as_ref() {
+                self.manifest.sockets = net
+                    .sockets
+                    .iter()
+                    .map(|(name, cfg)| HubrisSocket {
+                        name: name.clone(),
+                        kind: cfg.kind.clone(),
+                        owner: cfg.owner.clone(),
+                        port: cfg.port,
+                        tx: cfg.tx,
+                        rx: cfg.rx,
+                    })
+                    .collect();
             }
         }
 
@@ -1970,6 +2095,13 @@ impl HubrisArchive {
         (0..self.ntasks())
             .map(|t| self.lookup_module(HubrisTask::Task(t as u32)).unwrap())
             .find(|t| t.iface.as_ref().map(|i| i.name == name).unwrap_or(false))
+    }
+
+    pub fn get_socket_by_iface(&self, iface: &str) -> Result<&HubrisSocket> {
+        let module = self.lookup_module_by_iface(iface).ok_or_else(|| {
+            anyhow!("couldn't find task implementing {:?}", iface)
+        })?;
+        self.manifest.get_socket_by_task(&module.name)
     }
 
     pub fn modules(&self) -> impl Iterator<Item = &HubrisModule> {
