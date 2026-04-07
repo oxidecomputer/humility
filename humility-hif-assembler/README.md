@@ -10,24 +10,30 @@ names (bus names, function names, device addresses) against a Hubris
 archive, validates programs against target buffer sizes, and produces
 bundles with embedded image IDs for safe upload.
 
-The text language provides syntactic sugar for common operations while
-raw HIF instructions remain available for anything the sugar doesn't
-cover.
-
-## Quick Start (planned CLI integration)
-
-The following commands are not yet implemented in `humility hiffy`.
-They show the intended workflow once CLI integration lands.
+## Quick Start
 
 ```bash
-# Assemble and verify a program against a Hubris archive
-humility -a gimlet-c-dev.zip hiffy --verify stress.hif
+# Execute a program on a target over the network
+humility -a sidecar-b-lab.zip --ip fe80::..%3 hiffy --exec stress.hif
 
-# Assemble to a bundle file
-humility -a gimlet-c-dev.zip hiffy --assemble stress.hif -o stress.hifb
+# Same thing, with JSON output for scripting
+humility -a sidecar-b-lab.zip --ip fe80::..%3 hiffy --exec stress.hif --json
 
-# Run on a target
-humility -a gimlet-c-dev.zip -t c71 hiffy --run stress.hifb
+# Execute via probe
+humility -a grapefruit.zip -p usb-1 hiffy --exec stress.hif
+
+# Save the assembled bundle as a CI artifact
+humility -a sidecar-b-lab.zip --ip fe80::..%3 hiffy --exec stress.hif --save-bundle stress.hifb
+```
+
+Network execution requires the `hiffy` task to have the `net`
+feature enabled in the Hubris image.  If it's missing, the assembler
+warns:
+
+```
+warning: hiffy task does not have 'net' feature; network execution
+requires adding features = ["net", "vlan"] and a hiffy socket to
+the app.toml (probe execution still works)
 ```
 
 ## Text Format
@@ -53,23 +59,46 @@ i2c_scan mid
 i2c_regscan mid 0x48
 ```
 
-Bus names (`mid`, `front`, `rear`, `m2`) come from the archive's
-`app.toml`.  Explicit `<controller>.<port>` syntax (e.g. `3.H`) is
-also accepted.
+Bus names (`mid`, `front`, `rear`, `northeast0`, etc.) come from the
+archive's `app.toml`.  Explicit `<controller>.<port>` syntax (e.g.
+`3.H`) is also accepted.
+
+### Generic Function Calls
+
+Any HIF function can be called by name with optional numeric
+arguments.  This covers QSPI, GPIO, Hash, SPI, and any future
+functions without needing per-function sugar:
+
+```
+# No args
+call QspiReadId
+
+# With args
+call GpioInput 5
+```
+
+Function names come from the `HIFFY_FUNCTIONS` table in the archive
+(extracted from DWARF).  Both CamelCase (`QspiReadId`) and
+snake_case (`qspi_read_id`) are accepted.
 
 ### Idol RPC Calls
 
 ```
 idol Sensor.get id=3
+idol SpRot.status
 idol Thermal.get_mode
+idol Power.read_mode dev=0 rail=0 index=0
 ```
 
-(Idol lowering is not yet implemented.)
+The assembler resolves interface and operation names from the
+`.idolatry` sections in the archive, encodes arguments, and emits
+the appropriate `Send` call.  Reply sizes are computed from DWARF
+so results are properly captured.
 
 ### Loops
 
 ```
-repeat 500
+repeat 200
     i2c_read mid 0x48 reg=0x00 2
 end
 
@@ -79,14 +108,19 @@ repeat 100 sleep=10ms
 end
 ```
 
+Loops consume one of the four available HIF labels per nesting
+level.  Iteration count is limited by RSTACK capacity (~250-680
+results depending on result size).
+
 ### Constants
 
 ```
 .let TEMP_REG 0x00
-.let ITERATIONS 1000
+.let SENSOR 0x48
+.let ITERATIONS 200
 
 repeat $ITERATIONS
-    i2c_read mid 0x48 reg=$TEMP_REG 2
+    i2c_read rear $SENSOR reg=$TEMP_REG 2
 end
 ```
 
@@ -100,8 +134,7 @@ Values over 100ms are automatically split into multiple Sleep calls.
 
 ### Raw Instructions
 
-For anything the sugar doesn't cover.  Constants are expanded inside
-raw blocks.
+For anything else.  Constants are expanded inside raw blocks:
 
 ```
 .let ADDR 0x48
@@ -111,13 +144,72 @@ raw {
     push 2
     call I2cRead
     drop_n 7
-    done
 }
 ```
 
-Available raw instructions: `push`, `push16`, `push32`, `push_none`,
-`drop`, `drop_n`, `swap`, `add`, `label`, `branch_gt`, `branch_gte`,
+Available: `push`, `push16`, `push32`, `push_none`, `drop`,
+`drop_n`, `swap`, `add`, `label`, `branch_gt`, `branch_gte`,
 `branch_lt`, `call`, `done`.
+
+## Output
+
+### Human output (default)
+
+```
+humility: program: stress.hif
+humility: expected: 50 I2C transactions, 0 Idol calls
+humility: executed in 658.2ms: 50 results (50 ok, 0 err)
+humility:   [0] Ok([0c, cf])
+humility:   ... (48 more results) ...
+humility:   [49] Ok([0c, cf])
+```
+
+Idol results are fully decoded using DWARF type info:
+
+```
+humility:   [0] SpRot.status() => SprotStatus { rot: RotStatus { ... }, sp: SpStatus { ... } }
+```
+
+### JSON output (`--json`)
+
+```json
+{
+  "ok": true,
+  "results": 50,
+  "successes": 50,
+  "errors": 0,
+  "elapsed_ms": 658,
+  "stats": {
+    "i2c_transactions": 50,
+    "i2c_read_bytes": 100,
+    "buses": ["northeast1"]
+  },
+  "samples": [
+    {"index": 0, "value": "Ok([0c, cf])"},
+    {"index": 49, "value": "Ok([0c, cf])"}
+  ]
+}
+```
+
+### Exit codes
+
+- 0: program ran, no errors
+- 1: program ran, errors detected (use `--json` for details)
+- Non-zero: assembly or execution failed
+
+## Scripting
+
+```bash
+#!/bin/bash
+result=$(humility -a $ARCHIVE --ip $SP hiffy --exec stress.hif --json)
+errors=$(echo "$result" | jq .errors)
+
+if [ "$errors" -gt 0 ]; then
+    echo "Failure after $(echo "$result" | jq .successes) successes"
+    humility -a $ARCHIVE --ip $SP ringbuf i2c_driver
+    humility -a $ARCHIVE --ip $SP tasks
+fi
+```
 
 ## TargetConfig
 
@@ -127,23 +219,35 @@ archive in a single serializable struct:
 - Image ID
 - I2C bus topology (buses, devices, muxes, sensors)
 - HIF function table (names, IDs, argument types, error codes)
+- Idol interfaces (operations, argument/reply types, sizes, encoding)
 - Buffer sizes (HIFFY_TEXT, HIFFY_DATA, HIFFY_RSTACK)
 
 It can be extracted from an archive or loaded from a JSON fixture:
 
 ```rust
 // From an archive
-let config = TargetConfig::from_archive_file("gimlet-c-dev.zip")?;
+let config = TargetConfig::from_archive_file("sidecar-b-lab.zip")?;
 
-// From a checked-in fixture
+// From a checked-in fixture (test data only)
 let config: TargetConfig =
-    serde_json::from_str(&std::fs::read_to_string("fixtures/gimlet-c.json")?)?;
+    serde_json::from_str(&std::fs::read_to_string("fixtures/sidecar-b.json")?)?;
 
 let asm = HifAssembler::new(config);
 ```
 
-Pre-generated fixtures in `fixtures/` allow tests to run without
-access to a Hubris archive or build environment.
+## ProgramBuilder
+
+For generating programs from Rust (e.g., PRNG-driven fuzz testing):
+
+```rust
+let mut prog = ProgramBuilder::new();
+prog.comment("temperature stress test");
+prog.repeat(200, |body| {
+    body.i2c_read("rear", 0x48, Some(0x00), 2);
+});
+let source = prog.finish();
+let output = asm.assemble(&source)?;
+```
 
 ## Testing
 
@@ -155,8 +259,7 @@ cargo test -p humility-hif-assembler --lib
 cargo test -p humility-hif-assembler --test fixture_tests
 
 # Integration tests (requires a built archive)
-HUBRIS_ARCHIVE=$(cd ~/Oxide/src/hubris/master && \
-    cargo -q xtask print --archive app/gimlet/rev-c-dev.toml) \
+HUBRIS_ARCHIVE=path/to/archive.zip \
     cargo test -p humility-hif-assembler --test archive_integration
 
 # Regenerate a fixture from an archive
@@ -165,23 +268,39 @@ HUBRIS_ARCHIVE=path/to/archive.zip GENERATE_FIXTURE=1 \
     generate_fixture -- --nocapture
 ```
 
+## Hubris Image Requirements
+
+For network execution (`--ip`), the Hubris image must have:
+
+1. The `hiffy` task with `features = ["net", "vlan"]`
+2. A `net` task-slot on the hiffy task
+3. A `socket` notification on the hiffy task
+4. A UDP socket configured for hiffy:
+
+```toml
+# In the dev.toml or lab.toml overlay:
+[tasks.hiffy]
+features = ["net", "vlan"]
+task-slots = ["net"]
+notifications = ["socket"]
+
+[config.net.sockets.hiffy]
+kind = "udp"
+owner = {name = "hiffy", notification = "socket"}
+port = 11115
+tx = { packets = 3, bytes = 32 }
+rx = { packets = 1, bytes = 4096 }
+```
+
+The hiffy task's priority must be lower than the net task's priority
+(higher number = lower priority) to avoid priority inversion.
+
+Probe execution (`-p`) works with any image that has a hiffy task.
+
 ## Relationship to humility-hiffy and RFD 659
 
 This crate overlaps with code in `humility-hiffy`.  The overlap is
 intentional and designed for eventual convergence.
-
-### What overlaps
-
-| Capability | humility-hiffy | hif-assembler |
-|---|---|---|
-| DWARF function table discovery | `HiffyContext::new()` | `archive.rs extract_hiffy_functions()` |
-| Function name/arg resolution | `HiffyFunction` + `get()` | `FunctionInfo` + alias table |
-| Result decoding | `HiffyContext::results()` | `HifBundle::decode_results()` |
-| I2C parameter resolution | `humility-i2c` `I2cArgs` | `ResolvedBus` + bus name map |
-| Idol call construction | `idol_call_ops()` family | Not yet implemented |
-| Program construction | Per-command Op building | Text parser + assembler |
-
-### Why the duplication exists
 
 `humility-hiffy` is tightly coupled to a live target connection
 (`Core` trait) and the humility CLI dispatch model.  It cannot be
@@ -189,36 +308,8 @@ used as a library for offline program construction, fixture
 generation, or scripted test drivers.  This crate provides those
 capabilities without modifying `humility-hiffy`.
 
-### Convergence plan (RFD 659)
-
-RFD 659 proposes turning humility into a library.  When that happens:
-
-- **`TargetConfig`** replaces the ad-hoc archive introspection
-  scattered through `HiffyContext::new()`.  It becomes the
-  serializable contract between archive loading and program
-  construction.
-
-- **`HifAssembler`** replaces the per-command Op construction in
-  `cmd/i2c`, `cmd/pmbus`, `cmd/gpio`, etc.  Each command becomes a
-  thin wrapper that parses CLI args into a HIF text program (or uses
-  `ProgramBuilder`) and hands it to the assembler.
-
-- **`decode_results()`** becomes the shared result parser, replacing
-  the inline `take_from_bytes` loop in `HiffyContext::results()`.
-
-- **`HiffyContext`** narrows to execution only: uploading bytecode
-  to a target (via probe or NetHiffy), kicking the hiffy task, and
-  reading back results.  It no longer needs to know how programs are
-  constructed.
-
-### Design discipline
-
-To keep convergence clean:
-
-- This crate uses only public `HubrisArchive` APIs, never
-  `HiffyContext` internals.
-- Types are `Serialize + Deserialize` so they work as file formats
-  and API contracts.
-- The text language is a superset of what humility commands generate
-  today — any program humility builds internally can be expressed in
-  the text format.
+RFD 659 proposes turning humility into a library.  When that happens,
+`TargetConfig` could become the serializable contract between archive
+loading and program construction, and `HifAssembler` replaces the
+per-command Op construction scattered across humility's subcommands.
+See `lib.rs` module docs for details.

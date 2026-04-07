@@ -17,7 +17,7 @@
 
 use std::path::Path;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 
 use humility::hubris::{
     HubrisArchive, HubrisArchiveDoneness, HubrisEncoding, HubrisGoff,
@@ -57,7 +57,32 @@ impl TargetConfig {
 
     /// Extract a [`TargetConfig`] from an already-loaded
     /// `HubrisArchive`.
+    ///
+    /// Validates that the archive contains a usable hiffy task and
+    /// reports warnings for missing network features.
     pub fn from_archive(hubris: &HubrisArchive) -> Result<Self> {
+        // Validate that the archive has a hiffy task
+        let hiffy_task = hubris.lookup_task("hiffy").ok_or_else(|| {
+            anyhow!(
+                "hiffy task not found in archive; \
+                 this image cannot execute HIF programs"
+            )
+        })?;
+
+        // Check for net feature (needed for NetHiffy over network)
+        match hubris.does_task_have_feature(hiffy_task, "net") {
+            Ok(true) => {}
+            _ => {
+                eprintln!(
+                    "warning: hiffy task does not have 'net' feature; \
+                     network execution requires adding \
+                     features = [\"net\", \"vlan\"] and a hiffy \
+                     socket to the app.toml (probe execution \
+                     still works)"
+                );
+            }
+        }
+
         let image_id =
             hubris.image_id().map(|id| id.to_vec()).unwrap_or_default();
 
@@ -414,12 +439,33 @@ fn extract_idol_interfaces(hubris: &HubrisArchive) -> Vec<IdolInterfaceInfo> {
                 })
                 .collect();
 
+            let encoding = format!("{:?}", op.encoding);
+
+            // Compute args_size and reply_size from DWARF.
+            let args_size =
+                compute_args_size(hubris, module, &iface.name, op_name);
+            let ok_type_name = match &op.reply {
+                idol::syntax::Reply::Result { ok, .. } => ok.ty.0.as_str(),
+                idol::syntax::Reply::Simple(ty) => ty.ty.0.as_str(),
+            };
+            let reply_size = compute_reply_size(
+                hubris,
+                module,
+                &iface.name,
+                op_name,
+                ok_type_name,
+                &op.encoding,
+            );
+
             ops.push(IdolOpInfo {
                 name: op_name.clone(),
                 code,
                 args,
+                args_size,
                 reply,
+                reply_size,
                 error,
+                encoding,
                 leases,
                 idempotent: op.idempotent,
             });
@@ -434,6 +480,78 @@ fn extract_idol_interfaces(hubris: &HubrisArchive) -> Vec<IdolInterfaceInfo> {
     }
 
     interfaces
+}
+
+/// Compute the args struct size for an Idol operation.
+///
+/// The args struct is named `{Interface}_{Operation}_ARGS` and lives
+/// in the implementing task's module.
+fn compute_args_size(
+    hubris: &HubrisArchive,
+    module: &humility::hubris::HubrisModule,
+    iface_name: &str,
+    op_name: &str,
+) -> usize {
+    let struct_name = format!("{}_{}_ARGS", iface_name, op_name);
+    module
+        .lookup_struct_byname(hubris, &struct_name)
+        .ok()
+        .flatten()
+        .map(|s| s.size)
+        .unwrap_or(0)
+}
+
+/// Compute the reply payload size for an Idol operation.
+///
+/// Mirrors the lookup chain from `humility-idol::lookup_reply` and
+/// `IdolOperation::reply_size()`:
+/// 1. Look up the ok type name as basetype, enum, struct
+/// 2. Fall back to `{Interface}_{Operation}_REPLY`
+/// 3. Compute size based on encoding
+fn compute_reply_size(
+    hubris: &HubrisArchive,
+    module: &humility::hubris::HubrisModule,
+    iface_name: &str,
+    op_name: &str,
+    ok_type_name: &str,
+    encoding: &idol::syntax::Encoding,
+) -> usize {
+    // Find the ok type's goff using the same chain as humility-idol
+    let ok_goff = hubris
+        .lookup_basetype_byname(ok_type_name)
+        .ok()
+        .copied()
+        .or_else(|| {
+            module
+                .lookup_enum_byname(hubris, ok_type_name)
+                .ok()
+                .flatten()
+                .map(|e| e.goff)
+        })
+        .or_else(|| {
+            module
+                .lookup_struct_byname(hubris, ok_type_name)
+                .ok()
+                .flatten()
+                .map(|s| s.goff)
+        })
+        .or_else(|| {
+            let t = format!("{}_{}_REPLY", iface_name, op_name);
+            hubris.lookup_struct_byname(&t).ok().map(|s| s.goff)
+        });
+
+    match ok_goff {
+        Some(goff) => match encoding {
+            idol::syntax::Encoding::Zerocopy => {
+                hubris.typesize(goff).unwrap_or(0)
+            }
+            idol::syntax::Encoding::Ssmarshal
+            | idol::syntax::Encoding::Hubpack => {
+                hubris.hubpack_serialized_maxsize(goff).unwrap_or(0)
+            }
+        },
+        None => 0,
+    }
 }
 
 /// Extract HIFFY buffer sizes from variable sizes in DWARF.

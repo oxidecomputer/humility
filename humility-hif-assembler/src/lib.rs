@@ -74,12 +74,12 @@
 //!
 //! ```text
 //! # Repeat a block N times
-//! repeat 500
+//! repeat 200
 //!     i2c_read mid 0x48 reg=0x00 2
 //! end
 //!
 //! # With a sleep between iterations
-//! repeat 100 sleep=10ms
+//! repeat 50 sleep=10ms
 //!     i2c_read mid 0x48 reg=0x00 2
 //!     i2c_read mid 0x49 reg=0x00 2
 //! end
@@ -92,7 +92,7 @@
 //!
 //! ```text
 //! .let TEMP_REG 0x00
-//! .let ITERATIONS 1000
+//! .let ITERATIONS 200
 //!
 //! repeat $ITERATIONS
 //!     i2c_read mid 0x48 reg=$TEMP_REG 2
@@ -105,34 +105,45 @@
 //! sleep 50ms     # pause for 50 milliseconds (max 100ms per call)
 //! ```
 //!
+//! ### Generic Function Calls
+//!
+//! Any HIF function can be called by name with optional numeric
+//! arguments:
+//!
+//! ```text
+//! call QspiReadId
+//! call GpioInput 5
+//! ```
+//!
 //! ### Raw Ops
 //!
-//! For anything the sugar doesn't cover, raw HIF instructions are
-//! available:
+//! For low-level control, raw HIF instructions are available.
+//! Constants are expanded inside raw blocks:
 //!
 //! ```text
 //! raw {
 //!     push 0x48
 //!     push_none
 //!     push 2
-//!     call i2c_read
+//!     call I2cRead
 //!     drop_n 7
-//!     done
 //! }
 //! ```
 //!
-//! ## Compilation
+//! ## Assembly
 //!
 //! ```rust,ignore
-//! let asm = HifAssembler::from_archive(&archive)?;
+//! let config = TargetConfig::from_archive_file("sidecar-b-lab.zip")?;
+//! let asm = HifAssembler::new(config);
 //!
 //! // Verify a program without producing binary output
-//! let report = asm.verify("repeat 100\n  i2c_read mid 0x48 reg=0x00 2\nend")?;
+//! let report = asm.verify("repeat 100\n  i2c_read mid 0x48 reg=0x00 2\nend");
 //! println!("{}", report);
 //!
 //! // Assemble to a bundle
-//! let bundle = asm.assemble("i2c_read mid 0x48 reg=0x00 2")?;
-//! bundle.write_to_file("program.hifb")?;
+//! let output = asm.assemble("i2c_read mid 0x48 reg=0x00 2")?;
+//! output.bundle.write_to_file("program.hifb")?;
+//! println!("{}", output.stats);
 //! ```
 //!
 //! ## Building Programs Programmatically
@@ -141,16 +152,12 @@
 //! fuzzing), use [`ProgramBuilder`] instead of text:
 //!
 //! ```rust,ignore
-//! // ProgramBuilder API -- not yet implemented
-//! let asm = HifAssembler::from_archive(&archive)?;
-//! let mut prog = asm.builder();
-//!
-//! prog.repeat(500, |body| {
-//!     body.i2c_read("mid", 0x48, Some(0x00), 2)?;
-//!     Ok(())
-//! })?;
-//!
-//! let bundle = prog.assemble()?;
+//! let mut prog = ProgramBuilder::new();
+//! prog.repeat(200, |body| {
+//!     body.i2c_read("rear", 0x48, Some(0x00), 2);
+//!     body.call("QspiReadStatus", &[]);
+//! });
+//! let output = asm.assemble(&prog.finish())?;
 //! ```
 //!
 //! ## Verify Mode
@@ -180,20 +187,23 @@
 
 pub mod archive;
 pub mod assembler;
+pub mod builder;
 pub mod bundle;
 pub mod error;
 pub mod listing;
 pub mod lower;
 pub mod parser;
+pub mod stats;
 pub mod types;
 
 pub use assembler::{AssembleOutput, HifAssembler, VerifyReport};
+pub use builder::ProgramBuilder;
 pub use bundle::{BundleMetadata, HifBundle, HifResult};
 pub use error::HifError;
 pub use parser::{ParsedProgram, Statement};
 pub use types::{
-    BufferSizes, FunctionArg, FunctionError, FunctionInfo, I2C_WRITE_MAX_DATA,
-    I2cDeviceInfo, I2cMuxInfo, I2cMuxSegment, IdolArgInfo, IdolInterfaceInfo,
-    IdolLeaseInfo, IdolOpInfo, MAX_LABELS, ResolvedBus, SensorInfo,
-    TargetConfig,
+    BufferSizes, FunctionArg, FunctionError, FunctionInfo, I2cDeviceInfo,
+    I2cMuxInfo, I2cMuxSegment, IdolArgInfo, IdolInterfaceInfo, IdolLeaseInfo,
+    IdolOpInfo, ResolvedBus, SensorInfo, TargetConfig, I2C_WRITE_MAX_DATA,
+    MAX_LABELS,
 };

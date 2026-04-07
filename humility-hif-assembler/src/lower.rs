@@ -10,7 +10,7 @@
 
 use std::collections::BTreeSet;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use hif::TargetFunction;
 
 use crate::assembler::HifAssembler;
@@ -204,6 +204,24 @@ impl HifAssembler {
             Statement::IdolCall { interface, operation, args } => {
                 self.lower_idol_call(interface, operation, args, line, result)?;
             }
+            Statement::Call { function, args } => {
+                // HIF functions receive the entire stack (stack[0..sp])
+                // and use positional args from the top.  Args pushed
+                // here sit on top of any loop counter or other values
+                // below; functions must only read their expected arg
+                // count from the top of the stack.
+                let func = self.require_function(function, line)?;
+                result.functions_used.insert(function.clone());
+                result.estimated_results += 1;
+
+                for arg in args {
+                    result.ops.push(push_smallest(*arg));
+                }
+                result.ops.push(hif::Op::Call(TargetFunction(func.id)));
+                if !args.is_empty() {
+                    result.ops.push(hif::Op::DropN(args.len() as u8));
+                }
+            }
             Statement::Sleep { ms } => {
                 let func = self.require_function("Sleep", line)?;
                 result.functions_used.insert("Sleep".to_string());
@@ -221,9 +239,25 @@ impl HifAssembler {
                     bail!("line {line}: repeat count must be at least 1");
                 }
 
+                // Loop pattern (matches humility cmd/i2c):
+                //   Push(0)         # counter = 0
+                //   PushNone        # sentinel for first Drop
+                //   Label(N)
+                //   Drop            # drop previous limit (or sentinel)
+                //   ... body ...
+                //   Push(1)
+                //   Add             # counter += 1
+                //   Push(count)     # limit
+                //   BranchGreaterThan(N)  # branch if limit > counter
+                //
+                // Stack at branch: [counter, limit]
+                // BranchGreaterThan reads but doesn't pop.
+                // Next iteration's Drop removes the limit.
                 let label = self.alloc_label(label_counter, line)?;
-                result.ops.push(push_smallest(*count));
+                result.ops.push(push_smallest(0)); // counter
+                result.ops.push(hif::Op::PushNone); // sentinel
                 result.ops.push(hif::Op::Label(hif::Target(label)));
+                result.ops.push(hif::Op::Drop); // drop limit/sentinel
 
                 let before = result.estimated_results;
                 self.lower_statements(body, result, label_counter, depth + 1)?;
@@ -247,7 +281,8 @@ impl HifAssembler {
                 }
 
                 result.ops.push(push_smallest(1));
-                result.ops.push(hif::Op::Swap);
+                result.ops.push(hif::Op::Add); // counter += 1
+                result.ops.push(push_smallest(*count)); // limit
                 result.ops.push(hif::Op::BranchGreaterThan(hif::Target(label)));
             }
             Statement::Raw { lines } => {
@@ -343,13 +378,15 @@ impl HifAssembler {
         }
         result.ops.push(push_smallest(payload.len() as u32));
 
-        // TODO: Add reply_size to IdolOpInfo from DWARF
-        result.warnings.push(format!(
-            "line {line}: {interface}.{operation} reply size \
-             estimated as 0; results may be truncated for \
-             large reply types"
-        ));
-        result.ops.push(push_smallest(0));
+        if op.reply_size == 0 && op.reply != "()" {
+            result.warnings.push(format!(
+                "line {line}: {interface}.{operation} reply type \
+                 '{}' size could not be determined; \
+                 results may be truncated",
+                op.reply,
+            ));
+        }
+        result.ops.push(push_smallest(op.reply_size as u32));
 
         if has_write_lease {
             result.ops.push(push_smallest(0));

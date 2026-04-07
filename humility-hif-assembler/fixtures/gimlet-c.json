@@ -3048,7 +3048,10 @@
         {
           "name": "get_state",
           "code": 1,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3060,19 +3063,28 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "request_reset",
           "code": 3,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "get_reset_reason",
           "code": 4,
+          "args_size": 0,
           "reply": "ResetReason",
+          "reply_size": 5,
+          "encoding": "Ssmarshal",
           "idempotent": true
         },
         {
@@ -3084,14 +3096,20 @@
               "ty": "ResetReason"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Ssmarshal",
           "idempotent": true
         },
         {
           "name": "reinitialize_dump_areas",
           "code": 6,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -3103,15 +3121,21 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "humpty::DumpArea",
+          "reply_size": 10,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "claim_dump_area",
           "code": 8,
+          "args_size": 0,
           "reply": "humpty::DumpArea",
+          "reply_size": 10,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -3123,8 +3147,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "u8",
+          "reply_size": 1,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -3144,8 +3171,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 12,
           "reply": "u8",
+          "reply_size": 1,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -3157,20 +3187,29 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "restart_me_raw",
           "code": 12,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "read_fault_counts",
           "code": 13,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -3201,8 +3240,11 @@
               "ty": "LargePayloadBehavior"
             }
           ],
+          "args_size": 8,
           "reply": "UdpMetadata",
+          "reply_size": 24,
           "error": "task_net_api::RecvError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "payload",
@@ -3226,8 +3268,11 @@
               "ty": "UdpMetadata"
             }
           ],
+          "args_size": 28,
           "reply": "()",
+          "reply_size": 0,
           "error": "task_net_api::SendError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "payload",
@@ -3251,8 +3296,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 2,
           "reply": "u16",
+          "reply_size": 2,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3272,8 +3320,11 @@
               "ty": "u16"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3293,8 +3344,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 4,
           "reply": "u16",
+          "reply_size": 2,
           "error": "PhyError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3318,15 +3372,21 @@
               "ty": "u16"
             }
           ],
+          "args_size": 6,
           "reply": "()",
+          "reply_size": 0,
           "error": "PhyError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "read_ksz8463_mac_count",
           "code": 7,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
           "error": "KszError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3338,8 +3398,11 @@
               "ty": "u16"
             }
           ],
+          "args_size": 2,
           "reply": "KszMacTableEntry",
+          "reply_size": 8,
           "error": "KszError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3351,34 +3414,49 @@
               "ty": "u16"
             }
           ],
+          "args_size": 2,
           "reply": "u16",
+          "reply_size": 2,
           "error": "KszError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_mac_address",
           "code": 10,
+          "args_size": 0,
           "reply": "MacAddress",
+          "reply_size": 6,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "get_spare_mac_addresses",
           "code": 11,
+          "args_size": 0,
           "reply": "MacAddressBlock",
+          "reply_size": 9,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "management_link_status",
           "code": 12,
+          "args_size": 0,
           "reply": "ManagementLinkStatus",
+          "reply_size": 6,
           "error": "MgmtError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "management_counters",
           "code": 13,
+          "args_size": 0,
           "reply": "ManagementCounters",
+          "reply_size": 105,
           "error": "MgmtError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -3394,8 +3472,11 @@
               "ty": "u64"
             }
           ],
+          "args_size": 16,
           "reply": "()",
+          "reply_size": 0,
           "error": "task_net_api::TrustError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -3407,8 +3488,11 @@
               "ty": "VLanId"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "task_net_api::TrustError",
+          "encoding": "Hubpack",
           "idempotent": false
         }
       ]
@@ -3427,8 +3511,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "RccError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3440,8 +3527,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "RccError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3453,8 +3543,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "RccError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3466,8 +3559,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "RccError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3487,7 +3583,10 @@
               "ty": "u16"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3507,7 +3606,10 @@
               "ty": "u16"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3519,7 +3621,10 @@
               "ty": "Port"
             }
           ],
+          "args_size": 1,
           "reply": "u16",
+          "reply_size": 2,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3535,14 +3640,20 @@
               "ty": "u16"
             }
           ],
+          "args_size": 3,
           "reply": "()",
+          "reply_size": 0,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "read_uid",
           "code": 9,
+          "args_size": 0,
           "reply": "[u32; 3]",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3558,7 +3669,10 @@
               "ty": "Edge"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3574,8 +3688,11 @@
               "ty": "IrqControl"
             }
           ],
+          "args_size": 5,
           "reply": "bool",
+          "reply_size": 1,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         }
       ]
@@ -3594,8 +3711,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "sink",
@@ -3615,8 +3735,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "source",
@@ -3636,8 +3759,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "source",
@@ -3667,15 +3793,21 @@
               "ty": "CsState"
             }
           ],
+          "args_size": 2,
           "reply": "()",
+          "reply_size": 0,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "release",
           "code": 5,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         }
       ]
@@ -3688,8 +3820,11 @@
         {
           "name": "get_mac_address_block",
           "code": 1,
+          "args_size": 0,
           "reply": "MacAddressBlock",
+          "reply_size": 9,
           "error": "CacheGetError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3701,15 +3836,21 @@
               "ty": "MacAddressBlock"
             }
           ],
+          "args_size": 9,
           "reply": "()",
+          "reply_size": 0,
           "error": "CacheSetError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "get_identity",
           "code": 3,
+          "args_size": 0,
           "reply": "OxideIdentity",
+          "reply_size": 26,
           "error": "CacheGetError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3721,14 +3862,20 @@
               "ty": "OxideIdentity"
             }
           ],
+          "args_size": 26,
           "reply": "()",
+          "reply_size": 0,
           "error": "CacheSetError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "get_next_boot_host_startup_options",
           "code": 5,
+          "args_size": 0,
           "reply": "HostStartupOptions",
+          "reply_size": 8,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3740,7 +3887,10 @@
               "ty": "HostStartupOptions"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3752,7 +3902,10 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3768,7 +3921,10 @@
               "ty": "usize"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -3788,7 +3944,10 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "bool",
+          "reply_size": 1,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3804,7 +3963,10 @@
               "ty": "usize"
             }
           ],
+          "args_size": 5,
           "reply": "u8",
+          "reply_size": 1,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -3816,7 +3978,10 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -3836,15 +4001,21 @@
               "ty": "u128"
             }
           ],
+          "args_size": 16,
           "reply": "()",
+          "reply_size": 0,
           "error": "CacheSetError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "deliver_encoded_ereport",
           "code": 13,
+          "args_size": 0,
           "reply": "ereport_messages::Ena",
+          "reply_size": 8,
           "error": "EreportWriteError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -3880,8 +4051,11 @@
               "ty": "ereport_messages::Ena"
             }
           ],
+          "args_size": 34,
           "reply": "usize",
+          "reply_size": 4,
           "error": "EreportReadError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -3908,36 +4082,51 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "set_mode_auto",
           "code": 2,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_mode",
           "code": 3,
+          "args_size": 0,
           "reply": "ThermalMode",
+          "reply_size": 1,
           "error": "ThermalError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "get_auto_state",
           "code": 4,
+          "args_size": 0,
           "reply": "ThermalAutoState",
+          "reply_size": 1,
           "error": "ThermalError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "disable_watchdog",
           "code": 5,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3949,8 +4138,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3974,15 +4166,21 @@
               "ty": "f32"
             }
           ],
+          "args_size": 16,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_margin",
           "code": 8,
+          "args_size": 0,
           "reply": "f32",
+          "reply_size": 4,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -3994,8 +4192,11 @@
               "ty": "f32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4011,8 +4212,11 @@
               "ty": "ThermalProperties"
             }
           ],
+          "args_size": 20,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4024,15 +4228,21 @@
               "ty": "usize"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_runtime",
           "code": 12,
+          "args_size": 0,
           "reply": "u64",
+          "reply_size": 8,
           "error": "ThermalError",
+          "encoding": "Zerocopy",
           "idempotent": false
         }
       ]
@@ -4063,8 +4273,11 @@
               "ty": "Operation"
             }
           ],
+          "args_size": 8,
           "reply": "PmbusValue",
+          "reply_size": 34,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4084,8 +4297,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 8,
           "reply": "u8",
+          "reply_size": 1,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4101,8 +4317,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "f32",
+          "reply_size": 4,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4114,29 +4333,41 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "Bmr491Event",
+          "reply_size": 24,
           "error": "ResponseCode",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "bmr491_fault_log_clear",
           "code": 5,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "bmr491_max_fault_event_index",
           "code": 6,
+          "args_size": 0,
           "reply": "u8",
+          "reply_size": 1,
           "error": "ResponseCode",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "bmr491_max_lifecycle_event_index",
           "code": 7,
+          "args_size": 0,
           "reply": "u8",
+          "reply_size": 1,
           "error": "ResponseCode",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -4148,8 +4379,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "RenesasBlackbox",
+          "reply_size": 177,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4165,8 +4399,11 @@
               "ty": "u16"
             }
           ],
+          "args_size": 3,
           "reply": "u32",
+          "reply_size": 4,
           "error": "ResponseCode",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -4186,8 +4423,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 7,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -4207,8 +4447,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "u8",
+          "reply_size": 1,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4228,8 +4471,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "u16",
+          "reply_size": 2,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4249,8 +4495,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "u32",
+          "reply_size": 4,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4270,8 +4519,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "RawPmbusBlock",
+          "reply_size": 33,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4291,8 +4543,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4316,8 +4571,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4341,8 +4599,11 @@
               "ty": "u16"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4366,8 +4627,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 12,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4391,8 +4655,11 @@
               "ty": "RawPmbusBlock"
             }
           ],
+          "args_size": 40,
           "reply": "()",
+          "reply_size": 0,
           "error": "ResponseCode",
+          "encoding": "Hubpack",
           "idempotent": true
         }
       ]
@@ -4405,7 +4672,10 @@
         {
           "name": "get_state",
           "code": 1,
+          "args_size": 0,
           "reply": "drv_cpu_power_state::PowerState",
+          "reply_size": 1,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -4417,8 +4687,11 @@
               "ty": "drv_cpu_power_state::PowerState"
             }
           ],
+          "args_size": 1,
           "reply": "drv_cpu_seq_api::Transition",
+          "reply_size": 1,
           "error": "drv_cpu_seq_api::SeqError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4434,33 +4707,48 @@
               "ty": "StateChangeReason"
             }
           ],
+          "args_size": 2,
           "reply": "drv_cpu_seq_api::Transition",
+          "reply_size": 1,
           "error": "drv_cpu_seq_api::SeqError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "send_hardware_nmi",
           "code": 4,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ServerDeath",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "read_fpga_regs",
           "code": 5,
+          "args_size": 0,
           "reply": "[u8; 64]",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "last_post_code",
           "code": 6,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "post_code_buffer_len",
           "code": 7,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -4472,31 +4760,46 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "gpio_edge_count",
           "code": 9,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "gpio_cycle_count",
           "code": 10,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "enable_console_redirect",
           "code": 11,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "disable_console_redirect",
           "code": 12,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         }
       ]
@@ -4509,8 +4812,11 @@
         {
           "name": "init_sha256",
           "code": 1,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "HashError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4522,8 +4828,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "HashError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4537,8 +4846,11 @@
         {
           "name": "finalize_sha256",
           "code": 3,
+          "args_size": 0,
           "reply": "[u8; crate::SHA256_SZ]",
+          "reply_size": 32,
           "error": "HashError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4550,8 +4862,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "[u8; crate::SHA256_SZ]",
+          "reply_size": 32,
           "error": "HashError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4572,8 +4887,11 @@
         {
           "name": "fill",
           "code": 1,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
           "error": "RngError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "source",
@@ -4594,22 +4912,31 @@
         {
           "name": "read_id",
           "code": 1,
+          "args_size": 0,
           "reply": "HfChipId",
+          "reply_size": 20,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "capacity",
           "code": 2,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "read_status",
           "code": 3,
+          "args_size": 0,
           "reply": "u8",
+          "reply_size": 1,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4621,8 +4948,11 @@
               "ty": "HfProtectMode"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4638,8 +4968,11 @@
               "ty": "HfProtectMode"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4667,8 +5000,11 @@
               "ty": "HfProtectMode"
             }
           ],
+          "args_size": 6,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4688,8 +5024,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4713,8 +5052,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4738,8 +5080,11 @@
               "ty": "HfProtectMode"
             }
           ],
+          "args_size": 5,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4759,15 +5104,21 @@
               "ty": "HfProtectMode"
             }
           ],
+          "args_size": 6,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_mux",
           "code": 11,
+          "args_size": 0,
           "reply": "HfMuxState",
+          "reply_size": 1,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4779,15 +5130,21 @@
               "ty": "HfMuxState"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_dev",
           "code": 13,
+          "args_size": 0,
           "reply": "HfDevSelect",
+          "reply_size": 1,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4799,8 +5156,11 @@
               "ty": "HfDevSelect"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4812,8 +5172,11 @@
               "ty": "HfDevSelect"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4829,8 +5192,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 8,
           "reply": "[u8; drv_hash_api::SHA256_SZ]",
+          "reply_size": 32,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4842,8 +5208,11 @@
               "ty": "HfDevSelect"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4855,15 +5224,21 @@
               "ty": "HfDevSelect"
             }
           ],
+          "args_size": 1,
           "reply": "[u8; drv_hash_api::SHA256_SZ]",
+          "reply_size": 32,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_persistent_data",
           "code": 19,
+          "args_size": 0,
           "reply": "HfPersistentData",
+          "reply_size": 1,
           "error": "HfError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -4875,8 +5250,11 @@
               "ty": "HfDevSelect"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "HfError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4892,8 +5270,11 @@
               "ty": "ApobHash"
             }
           ],
+          "args_size": 40,
           "reply": "()",
+          "reply_size": 0,
           "error": "ApobBeginError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -4905,8 +5286,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "ApobWriteError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4920,14 +5304,20 @@
         {
           "name": "apob_commit",
           "code": 23,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ApobCommitError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "apob_lock",
           "code": 24,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -4939,8 +5329,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "usize",
+          "reply_size": 4,
           "error": "ApobReadError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -4954,8 +5347,11 @@
         {
           "name": "apob_clear",
           "code": 26,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "ApobClearError",
+          "encoding": "Zerocopy",
           "idempotent": true
         }
       ]
@@ -4968,15 +5364,21 @@
         {
           "name": "block_size",
           "code": 1,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
           "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "prep_image_update",
           "code": 2,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -4988,8 +5390,11 @@
               "ty": "usize"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "block",
@@ -5003,21 +5408,30 @@
         {
           "name": "abort_update",
           "code": 4,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "finish_image_update",
           "code": 5,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "current_version",
           "code": 6,
+          "args_size": 0,
           "reply": "ImageVersion",
+          "reply_size": 8,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5029,8 +5443,11 @@
               "ty": "[u8; 4]"
             }
           ],
+          "args_size": 4,
           "reply": "u32",
+          "reply_size": 4,
           "error": "CabooseError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -5044,7 +5461,10 @@
         {
           "name": "get_pending_boot_slot",
           "code": 8,
+          "args_size": 0,
           "reply": "SlotId",
+          "reply_size": 1,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5056,8 +5476,11 @@
               "ty": "SlotId"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "drv_update_api::UpdateError",
+          "encoding": "Hubpack",
           "idempotent": false
         }
       ]
@@ -5076,8 +5499,11 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "f32",
+          "reply_size": 4,
           "error": "SensorError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5089,8 +5515,11 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "Reading",
+          "reply_size": 12,
           "error": "SensorError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5102,7 +5531,10 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "Option<(Result<f32, NoData>, u64)>",
+          "reply_size": 0,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5114,7 +5546,10 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "Option<(f32, u64)>",
+          "reply_size": 13,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5126,7 +5561,10 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "Option<(NoData, u64)>",
+          "reply_size": 0,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5138,7 +5576,10 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "(f32, u64)",
+          "reply_size": 12,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5150,7 +5591,10 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "(f32, u64)",
+          "reply_size": 12,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5170,7 +5614,10 @@
               "ty": "u64"
             }
           ],
+          "args_size": 16,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5190,7 +5637,10 @@
               "ty": "u64"
             }
           ],
+          "args_size": 16,
           "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5202,7 +5652,10 @@
               "ty": "SensorId"
             }
           ],
+          "args_size": 4,
           "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Hubpack",
           "idempotent": true
         }
       ]
@@ -5221,15 +5674,21 @@
               "ty": "u64"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "HostSpCommsError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "get_status",
           "code": 2,
+          "args_size": 0,
           "reply": "Status",
+          "reply_size": 8,
           "error": "HostSpCommsError",
+          "encoding": "Zerocopy",
           "idempotent": false
         }
       ]
@@ -5256,8 +5715,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 41,
           "reply": "()",
+          "reply_size": 0,
           "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -5273,8 +5735,11 @@
               "ty": "u64"
             }
           ],
+          "args_size": 40,
           "reply": "usize",
+          "reply_size": 4,
           "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -5288,8 +5753,11 @@
         {
           "name": "get_startup_options",
           "code": 3,
+          "args_size": 0,
           "reply": "HostStartupOptions",
+          "reply_size": 8,
           "error": "ControlPlaneAgentError",
+          "encoding": "Ssmarshal",
           "idempotent": false
         },
         {
@@ -5301,26 +5769,38 @@
               "ty": "u64"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "identity",
           "code": 5,
+          "args_size": 0,
           "reply": "OxideIdentity",
+          "reply_size": 26,
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "get_uart_client",
           "code": 6,
+          "args_size": 0,
           "reply": "UartClient",
+          "reply_size": 1,
+          "encoding": "Ssmarshal",
           "idempotent": true
         },
         {
           "name": "get_installinator_image_id",
           "code": 7,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -5340,15 +5820,21 @@
               "ty": "bool"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "uart_read",
           "code": 9,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
           "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -5362,8 +5848,11 @@
         {
           "name": "uart_write",
           "code": 10,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
           "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "data",
@@ -5384,22 +5873,31 @@
         {
           "name": "status",
           "code": 1,
+          "args_size": 0,
           "reply": "SprotStatus",
+          "reply_size": 24,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "io_stats",
           "code": 2,
+          "args_size": 0,
           "reply": "SprotIoStats",
+          "reply_size": 68,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "rot_state",
           "code": 3,
+          "args_size": 0,
           "reply": "RotState",
+          "reply_size": 138,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5411,15 +5909,21 @@
               "ty": "u16"
             }
           ],
+          "args_size": 2,
           "reply": "PulseStatus",
+          "reply_size": 2,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "block_size",
           "code": 5,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5431,8 +5935,11 @@
               "ty": "UpdateTarget"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5444,8 +5951,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "block",
@@ -5459,15 +5969,21 @@
         {
           "name": "abort_update",
           "code": 8,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "finish_image_update",
           "code": 9,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -5483,15 +5999,21 @@
               "ty": "SwitchDuration"
             }
           ],
+          "args_size": 2,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "reset",
           "code": 11,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5503,8 +6025,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5516,8 +6041,11 @@
               "ty": "SlotId"
             }
           ],
+          "args_size": 1,
           "reply": "u32",
+          "reply_size": 4,
           "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5533,8 +6061,11 @@
               "ty": "SlotId"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "out",
@@ -5548,15 +6079,21 @@
         {
           "name": "rot_boot_info",
           "code": 15,
+          "args_size": 0,
           "reply": "RotBootInfo",
+          "reply_size": 72,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "cert_chain_len",
           "code": 16,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5568,8 +6105,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5585,8 +6125,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "dest",
@@ -5606,8 +6149,11 @@
               "ty": "HashAlgorithm"
             }
           ],
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "data",
@@ -5627,8 +6173,11 @@
               "ty": "RotPage"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "dest",
@@ -5648,8 +6197,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "dest",
@@ -5663,15 +6215,21 @@
         {
           "name": "log_len",
           "code": 22,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "attest",
           "code": 23,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "nonce",
@@ -5691,8 +6249,11 @@
         {
           "name": "attest_len",
           "code": 24,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5704,22 +6265,31 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "disable_sp_slot_watchdog",
           "code": 26,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "sp_slot_watchdog_supported",
           "code": 27,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
@@ -5731,8 +6301,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "VersionedRotBootInfo",
+          "reply_size": 147,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5748,8 +6321,11 @@
               "ty": "SlotId"
             }
           ],
+          "args_size": 2,
           "reply": "u32",
+          "reply_size": 4,
           "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5769,8 +6345,11 @@
               "ty": "SlotId"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "out",
@@ -5794,8 +6373,11 @@
               "ty": "SlotId"
             }
           ],
+          "args_size": 2,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5815,22 +6397,31 @@
               "ty": "SwitchDuration"
             }
           ],
+          "args_size": 3,
           "reply": "()",
+          "reply_size": 0,
           "error": "SprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "lifecycle_state",
           "code": 33,
+          "args_size": 0,
           "reply": "LifecycleState",
+          "reply_size": 1,
           "error": "StateOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
           "name": "tq_cert_chain_len",
           "code": 34,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5842,8 +6433,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         },
         {
@@ -5859,8 +6453,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "dest",
@@ -5874,8 +6471,11 @@
         {
           "name": "tq_sign",
           "code": 37,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "leases": [
             {
               "name": "tq",
@@ -5895,8 +6495,11 @@
         {
           "name": "tq_sign_len",
           "code": 38,
+          "args_size": 0,
           "reply": "u32",
+          "reply_size": 4,
           "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
           "idempotent": true
         }
       ]
@@ -5915,8 +6518,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "ValidateOk",
+          "reply_size": 1,
           "error": "ValidateError",
+          "encoding": "Zerocopy",
           "idempotent": true
         }
       ]
@@ -5935,8 +6541,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "[u8; 6]",
+          "reply_size": 6,
           "error": "VpdError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -5952,8 +6561,11 @@
               "ty": "u16"
             }
           ],
+          "args_size": 3,
           "reply": "[u8; 16]",
+          "reply_size": 16,
           "error": "VpdError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -5973,8 +6585,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "VpdError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -5986,8 +6601,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "bool",
+          "reply_size": 1,
           "error": "VpdError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -5999,14 +6617,20 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "VpdError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "num_vpd_devices",
           "code": 6,
+          "args_size": 0,
           "reply": "usize",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
           "idempotent": true
         }
       ]
@@ -6025,8 +6649,11 @@
               "ty": "usize"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "LedError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6038,8 +6665,11 @@
               "ty": "usize"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "LedError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6051,8 +6681,11 @@
               "ty": "usize"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "LedError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6064,8 +6697,11 @@
               "ty": "usize"
             }
           ],
+          "args_size": 4,
           "reply": "()",
+          "reply_size": 0,
           "error": "LedError",
+          "encoding": "Zerocopy",
           "idempotent": true
         }
       ]
@@ -6088,8 +6724,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "[u8; DUMP_READ_SIZE]",
+          "reply_size": 256,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -6105,8 +6744,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "usize",
+          "reply_size": 4,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "leases": [
             {
               "name": "out",
@@ -6126,15 +6768,21 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "DumpArea",
+          "reply_size": 10,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": false
         },
         {
           "name": "initialize_dump",
           "code": 4,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -6150,15 +6798,21 @@
               "ty": "u32"
             }
           ],
+          "args_size": 8,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
           "name": "take_dump",
           "code": 6,
+          "args_size": 0,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -6170,8 +6824,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 4,
           "reply": "u8",
+          "reply_size": 1,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -6191,8 +6848,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 12,
           "reply": "u8",
+          "reply_size": 1,
           "error": "DumpAgentError",
+          "encoding": "Zerocopy",
           "idempotent": false
         },
         {
@@ -6204,8 +6864,11 @@
               "ty": "u8"
             }
           ],
+          "args_size": 1,
           "reply": "()",
+          "reply_size": 0,
           "error": "DumpAgentError",
+          "encoding": "Hubpack",
           "idempotent": false
         }
       ]
@@ -6218,22 +6881,31 @@
         {
           "name": "nthreads",
           "code": 1,
+          "args_size": 0,
           "reply": "u8",
+          "reply_size": 1,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "enabled",
           "code": 2,
+          "args_size": 0,
           "reply": "[u8; 16]",
+          "reply_size": 16,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
           "name": "alert",
           "code": 3,
+          "args_size": 0,
           "reply": "[u8; 16]",
+          "reply_size": 16,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6253,8 +6925,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 9,
           "reply": "[u32; 4]",
+          "reply_size": 16,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6270,8 +6945,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "u8",
+          "reply_size": 1,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6287,8 +6965,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "u16",
+          "reply_size": 2,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6304,8 +6985,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "u32",
+          "reply_size": 4,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         },
         {
@@ -6321,8 +7005,11 @@
               "ty": "u32"
             }
           ],
+          "args_size": 5,
           "reply": "u64",
+          "reply_size": 8,
           "error": "SbrmiError",
+          "encoding": "Zerocopy",
           "idempotent": true
         }
       ]

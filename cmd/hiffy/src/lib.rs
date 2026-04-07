@@ -48,13 +48,17 @@
 use ::idol::syntax::{Operation, Reply};
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
+use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_hif_assembler::assembler::TargetConfig;
+use humility_hif_assembler::bundle::HifBundle;
 use humility_hiffy::*;
 use humility_idol as idol;
 use std::io::Read;
+use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[clap(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -101,6 +105,22 @@ struct HiffyArgs {
     /// arguments
     #[clap(long, short, use_value_delimiter = true, requires = "call")]
     arguments: Vec<String>,
+
+    /// execute a .hif or .hifb program file
+    #[clap(
+        long,
+        conflicts_with_all = &["list", "listfuncs", "call"],
+        value_name = "FILE"
+    )]
+    exec: Option<String>,
+
+    /// write assembled bundle to file (use with --exec on a .hif file)
+    #[clap(long, requires = "exec", value_name = "FILE")]
+    save_bundle: Option<String>,
+
+    /// output results as JSON
+    #[clap(long)]
+    json: bool,
 
     /// filter for list output
     #[clap(use_value_delimiter = true)]
@@ -233,8 +253,12 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     // creation failure.  (Note that -L will still create the HiffyContext,
     // even if run on a dump.)
     //
-    if subargs.call.is_some() && core.is_dump() {
+    if (subargs.call.is_some() || subargs.exec.is_some()) && core.is_dump() {
         bail!("can't make HIF calls on a dump");
+    }
+
+    if let Some(ref exec_path) = subargs.exec {
+        return hiffy_exec(hubris, core, &subargs, exec_path);
     }
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
@@ -321,7 +345,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     }
 
     if !subargs.listfuncs {
-        bail!("expected one of -l, -L, or -c");
+        bail!("expected one of -l, -L, -c, or --exec");
     }
 
     let funcs = context.functions();
@@ -354,6 +378,339 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Execute a .hif (text) or .hifb (bundle) program on the target.
+fn hiffy_exec(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    subargs: &HiffyArgs,
+    path: &str,
+) -> Result<()> {
+    let is_bundle = path.ends_with(".hifb");
+
+    let (ops, stats, source_text) = if is_bundle {
+        // Load pre-assembled bundle
+        let bundle = HifBundle::read_from_file(path)
+            .with_context(|| format!("reading bundle {path}"))?;
+
+        // Validate image ID
+        if let Some(image_id) = hubris.image_id() {
+            bundle.validate_image_id(image_id)?;
+        }
+
+        let ops: Vec<hif::Op> = postcard::from_bytes(&bundle.text)
+            .context("deserializing ops from bundle")?;
+        let source = bundle.metadata.source_text.clone();
+
+        // Compute stats from source if available
+        let stats = source.as_ref().and_then(|src| {
+            humility_hif_assembler::parser::parse(src).ok().map(|prog| {
+                humility_hif_assembler::stats::compute_stats(&prog.statements)
+            })
+        });
+
+        (ops, stats, source)
+    } else {
+        // Assemble from .hif text
+        let source = std::fs::read_to_string(path)
+            .with_context(|| format!("reading {path}"))?;
+
+        let config = TargetConfig::from_archive(hubris)
+            .context("extracting target config from archive")?;
+        let asm = humility_hif_assembler::assembler::HifAssembler::new(config);
+        let output = asm
+            .assemble(&source)
+            .with_context(|| format!("assembling {path}"))?;
+
+        for w in &output.warnings {
+            humility::msg!("warning: {w}");
+        }
+
+        // Save bundle if requested
+        if let Some(ref save_path) = subargs.save_bundle {
+            output
+                .bundle
+                .write_to_file(save_path)
+                .with_context(|| format!("writing bundle to {save_path}"))?;
+            humility::msg!("saved bundle to {save_path}");
+        }
+
+        (output.ops, Some(output.stats), Some(source))
+    };
+
+    // Print program info
+    if let Some(ref stats) = stats {
+        humility::msg!("program: {path}");
+        humility::msg!(
+            "expected: {} I2C transactions, {} Idol calls",
+            stats.total_i2c_transactions(),
+            stats.idol_calls,
+        );
+    }
+
+    // Build result kind list for decoding.  Each result-producing
+    // statement maps to a kind (Idol or Raw).
+    let result_kinds =
+        source_text.as_ref().and_then(|src| build_result_kinds(src).ok());
+
+    // Execute via HiffyContext
+    let mut hctx = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let start = Instant::now();
+    let results = hctx.run(core, &ops, None)?;
+    let elapsed = start.elapsed();
+
+    // Count successes and errors
+    let n_ok = results.iter().filter(|r| r.is_ok()).count();
+    let n_err = results.iter().filter(|r| r.is_err()).count();
+
+    if subargs.json {
+        // JSON output with decoded samples
+        let mut decoded_samples = vec![];
+        let sample_indices = result_sample_indices(&results, 3, 3);
+        for i in &sample_indices {
+            let decoded =
+                decode_result(hubris, &results[*i], result_kinds.as_ref(), *i);
+            decoded_samples.push(serde_json::json!({
+                "index": i,
+                "value": decoded,
+            }));
+        }
+
+        let json = serde_json::json!({
+            "ok": n_err == 0,
+            "results": results.len(),
+            "successes": n_ok,
+            "errors": n_err,
+            "elapsed_ms": elapsed.as_millis() as u64,
+            "stats": stats.as_ref().map(|s| serde_json::json!({
+                "i2c_transactions": s.total_i2c_transactions(),
+                "i2c_read_bytes": s.i2c_read_bytes,
+                "i2c_write_bytes": s.i2c_write_bytes,
+                "idol_calls": s.idol_calls,
+                "mux_switches": s.mux_switches,
+                "buses": s.buses_touched,
+            })),
+            "samples": decoded_samples,
+            "source": source_text,
+        });
+        println!("{}", serde_json::to_string_pretty(&json)?);
+    } else {
+        // Human output
+        humility::msg!(
+            "executed in {:.1}ms: {} results ({} ok, {} err)",
+            elapsed.as_secs_f64() * 1000.0,
+            results.len(),
+            n_ok,
+            n_err,
+        );
+
+        if n_err > 0 {
+            // Show all errors (up to 10), decoded
+            let mut shown = 0;
+            for (i, result) in results.iter().enumerate() {
+                if result.is_err() {
+                    let decoded =
+                        decode_result(hubris, result, result_kinds.as_ref(), i);
+                    humility::msg!("  [{i}] {decoded}");
+                    shown += 1;
+                    if shown >= 10 {
+                        humility::msg!(
+                            "  ... and {} more errors",
+                            n_err - shown,
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Show first and last success as samples
+        if n_ok > 0 && results.len() <= 50 {
+            // For small result sets, show all
+            for (i, result) in results.iter().enumerate() {
+                let decoded =
+                    decode_result(hubris, result, result_kinds.as_ref(), i);
+                humility::msg!("  [{i}] {decoded}");
+            }
+        } else if n_ok > 0 {
+            // For large result sets, show first and last
+            let decoded =
+                decode_result(hubris, &results[0], result_kinds.as_ref(), 0);
+            humility::msg!("  [0] {decoded}");
+            if results.len() > 2 {
+                humility::msg!(
+                    "  ... ({} more results) ...",
+                    results.len() - 2
+                );
+            }
+            let last = results.len() - 1;
+            let decoded = decode_result(
+                hubris,
+                &results[last],
+                result_kinds.as_ref(),
+                last,
+            );
+            humility::msg!("  [{last}] {decoded}");
+        }
+    }
+
+    if n_err > 0 {
+        bail!(
+            "program completed with {} error{} out of {} results",
+            n_err,
+            if n_err == 1 { "" } else { "s" },
+            results.len(),
+        );
+    }
+
+    Ok(())
+}
+
+/// What produced a given result — used for decoding.
+#[derive(Clone)]
+enum ResultKind {
+    /// An Idol call: (interface, operation).
+    Idol(String, String),
+    /// Raw bytes (I2C, QSPI, etc.)
+    Raw,
+}
+
+/// Build a list of result kinds by walking the parsed program and
+/// expanding loops.  One entry per expected result, in order.
+fn build_result_kinds(source: &str) -> Result<Vec<ResultKind>> {
+    let parsed = humility_hif_assembler::parser::parse(source)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let mut kinds = vec![];
+    walk_for_kinds(&parsed.statements, &mut kinds);
+    Ok(kinds)
+}
+
+fn walk_for_kinds(
+    stmts: &[humility_hif_assembler::parser::Located<
+        humility_hif_assembler::parser::Statement,
+    >],
+    kinds: &mut Vec<ResultKind>,
+) {
+    use humility_hif_assembler::parser::Statement;
+
+    for stmt in stmts {
+        match &stmt.value {
+            Statement::IdolCall { interface, operation, .. } => {
+                kinds.push(ResultKind::Idol(
+                    interface.clone(),
+                    operation.clone(),
+                ));
+            }
+            Statement::I2cRead { .. }
+            | Statement::I2cWrite { .. }
+            | Statement::I2cScan { .. }
+            | Statement::I2cRegScan { .. }
+            | Statement::Call { .. } => {
+                kinds.push(ResultKind::Raw);
+            }
+            Statement::Repeat { count, body, .. } => {
+                let start = kinds.len();
+                walk_for_kinds(body, kinds);
+                let body_kinds: Vec<_> = kinds[start..].to_vec();
+                for _ in 1..*count {
+                    kinds.extend(body_kinds.iter().cloned());
+                }
+            }
+            Statement::Sleep { .. } | Statement::Raw { .. } => {}
+        }
+    }
+}
+
+/// Decode a single result for display.
+///
+/// For Idol calls, this creates an `IdolOperation` via DWARF lookup
+/// on each call.  This is fine for sampled results but would benefit
+/// from caching if we ever decode all results in a large set.
+fn decode_result(
+    hubris: &HubrisArchive,
+    result: &Result<Vec<u8>, humility_hiffy::IpcError>,
+    kinds: Option<&Vec<ResultKind>>,
+    index: usize,
+) -> String {
+    let kind = kinds.and_then(|k| k.get(index));
+
+    match (result, kind) {
+        (Ok(bytes), Some(ResultKind::Idol(iface, op_name))) => {
+            if let Ok(op) =
+                idol::IdolOperation::new(hubris, iface, op_name, None)
+            {
+                match hiffy_decode(
+                    hubris,
+                    &op,
+                    Ok::<_, IpcError>(bytes.clone()),
+                ) {
+                    Ok(decoded) => format!(
+                        "{iface}.{op_name}() => {}",
+                        hiffy_format_result(hubris, decoded)
+                    ),
+                    Err(_) => {
+                        format!("{iface}.{op_name}() => Ok({:02x?})", bytes)
+                    }
+                }
+            } else {
+                format!("Ok({:02x?})", bytes)
+            }
+        }
+        (Err(e), Some(ResultKind::Idol(iface, op_name))) => {
+            if let Ok(op) =
+                idol::IdolOperation::new(hubris, iface, op_name, None)
+            {
+                match hiffy_decode(hubris, &op, Err::<Vec<u8>, _>(*e)) {
+                    Ok(decoded) => format!(
+                        "{iface}.{op_name}() => {}",
+                        hiffy_format_result(hubris, decoded)
+                    ),
+                    Err(_) => {
+                        format!("{iface}.{op_name}() => Err({e:?})")
+                    }
+                }
+            } else {
+                format!("Err({e:?})")
+            }
+        }
+        (Ok(bytes), _) => format!("Ok({:02x?})", bytes),
+        (Err(e), _) => format!("Err({e:?})"),
+    }
+}
+
+/// Pick sample indices: first N errors, first M successes, last success.
+fn result_sample_indices(
+    results: &[Result<Vec<u8>, humility_hiffy::IpcError>],
+    max_errors: usize,
+    max_ok: usize,
+) -> Vec<usize> {
+    let mut indices = vec![];
+    let mut err_count = 0;
+    let mut ok_count = 0;
+    let mut last_ok = None;
+
+    for (i, r) in results.iter().enumerate() {
+        if r.is_err() && err_count < max_errors {
+            indices.push(i);
+            err_count += 1;
+        } else if r.is_ok() {
+            if ok_count < max_ok {
+                indices.push(i);
+            }
+            ok_count += 1;
+            last_ok = Some(i);
+        }
+    }
+
+    // Always include the last success if not already there
+    if let Some(last) = last_ok.filter(|l| !indices.contains(l)) {
+        indices.push(last);
+    }
+
+    indices.sort();
+    indices.dedup();
+    indices
 }
 
 pub fn init() -> Command {

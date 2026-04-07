@@ -174,11 +174,20 @@ pub struct IdolOpInfo {
     /// Arguments, in declaration order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub args: Vec<IdolArgInfo>,
+    /// Total argument payload size in bytes.
+    #[serde(default)]
+    pub args_size: usize,
     /// Reply type name (e.g. "f32", "()", "SensorReading").
     pub reply: String,
+    /// Reply payload size in bytes (needed by the Send HIF function).
+    #[serde(default)]
+    pub reply_size: usize,
     /// Error type name, if the operation can fail (e.g. "SensorError").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Encoding used for arguments and replies.
+    #[serde(default = "default_encoding")]
+    pub encoding: String,
     /// Leases (read/write buffers), if any.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub leases: Vec<IdolLeaseInfo>,
@@ -194,6 +203,10 @@ pub struct IdolArgInfo {
     pub name: String,
     /// Type name (e.g. "u32", "SensorId", "bool").
     pub ty: String,
+}
+
+fn default_encoding() -> String {
+    "hubpack".to_string()
 }
 
 /// A lease (buffer) parameter for an Idol operation.

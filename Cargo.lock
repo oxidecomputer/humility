@@ -1693,11 +1693,14 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-hif-assembler",
  "humility-hiffy",
  "humility-idol",
  "idol",
  "indexmap 1.9.3",
  "parse_int",
+ "postcard",
+ "serde_json",
 ]
 
 [[package]]
@@ -2437,8 +2440,6 @@ dependencies = [
  "anyhow",
  "hif",
  "humility-core",
- "humility-hiffy",
- "humility-i2c",
  "humility-idol",
  "idol",
  "postcard",
