@@ -1,0 +1,16 @@
+# Idol sensor poll: read sensor values via the Sensor task.
+#
+# Instead of direct I2C reads, this goes through the Idol RPC
+# interface to the Sensor task, which returns cached readings.
+# This exercises the Send path and is useful for verifying that
+# the sensor task is updating values.
+#
+# Target: gimlet (sensor task)
+# Expected results: 100 sensor readings (as f32)
+
+.let SENSOR_ID 0
+.let ITERATIONS 100
+
+repeat $ITERATIONS
+    idol Sensor.get id=$SENSOR_ID
+end

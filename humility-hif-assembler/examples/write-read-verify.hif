@@ -1,0 +1,17 @@
+# Write-read-verify: write a config register then read it back.
+#
+# Writes to the TMP117 configuration register, then reads it
+# back to verify the write took effect.  The result validator
+# can compare the read-back against the written value.
+#
+# Target: gimlet (front bus, TMP117 at 0x48)
+# Expected results: 2 (1 write result + 1 read result)
+
+.let SENSOR 0x48
+.let CONFIG_REG 0x01
+
+# Write configuration: 0x02, 0x20 (example config bytes)
+i2c_write front $SENSOR reg=$CONFIG_REG 0x02,0x20
+
+# Read it back — should match what we wrote
+i2c_read front $SENSOR reg=$CONFIG_REG 2
