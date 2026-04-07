@@ -112,6 +112,11 @@ pub enum Statement {
         sleep_ms: Option<u32>,
         body: Vec<Located<Statement>>,
     },
+    /// Call any HIF function by name with optional numeric arguments.
+    Call {
+        function: String,
+        args: Vec<u32>,
+    },
     Raw {
         lines: Vec<String>,
     },
@@ -248,6 +253,10 @@ fn parse_statement(
         "repeat" => {
             *pos += 1;
             parse_repeat(&tokens[1..], line_num, lines, constants, pos)?
+        }
+        "call" => {
+            *pos += 1;
+            parse_call(&tokens[1..], line_num)?
         }
         other => {
             return Err(mkerr(
@@ -492,6 +501,25 @@ fn parse_sleep(tokens: &[&str], line: usize) -> Result<Statement, HifError> {
     let ms = parse_num::<u32>(ms_str)
         .map_err(|_| mkerr(line, HifErrorKind::InvalidNumber(s.to_string())))?;
     Ok(Statement::Sleep { ms })
+}
+
+/// Parse `call <function> [arg ...]`
+fn parse_call(tokens: &[&str], line: usize) -> Result<Statement, HifError> {
+    if tokens.is_empty() {
+        return Err(mkerr(
+            line,
+            HifErrorKind::Parse("call requires <function> [args...]".into()),
+        ));
+    }
+    let function = tokens[0].to_string();
+    let mut args = vec![];
+    for &tok in &tokens[1..] {
+        let v = parse_num::<u32>(tok).map_err(|_| {
+            mkerr(line, HifErrorKind::InvalidNumber(tok.to_string()))
+        })?;
+        args.push(v);
+    }
+    Ok(Statement::Call { function, args })
 }
 
 /// Parse `repeat <N> [sleep=<N>ms]` and its body up to `end`.
@@ -847,5 +875,35 @@ mod tests {
             }
             other => panic!("expected Repeat, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parse_call_no_args() {
+        let prog = parse("call QspiReadId").unwrap();
+        match &prog.statements[0].value {
+            Statement::Call { function, args } => {
+                assert_eq!(function, "QspiReadId");
+                assert!(args.is_empty());
+            }
+            other => panic!("expected Call, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_call_with_args() {
+        let prog = parse("call SpiRead 0x10 0x20 256").unwrap();
+        match &prog.statements[0].value {
+            Statement::Call { function, args } => {
+                assert_eq!(function, "SpiRead");
+                assert_eq!(args, &[0x10, 0x20, 256]);
+            }
+            other => panic!("expected Call, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_call_missing_function() {
+        let result = parse("call");
+        assert!(result.is_err());
     }
 }

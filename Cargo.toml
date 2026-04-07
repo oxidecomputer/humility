@@ -111,6 +111,7 @@ probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "ox
 
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
+humility-hif-assembler = { path = "./humility-hif-assembler" }
 humility-arch-arm = { path = "./humility-arch-arm" }
 humility-auxflash = { path = "./humility-auxflash" }
 humility-cortex = { path = "./humility-arch-cortex" }

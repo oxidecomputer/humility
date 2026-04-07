@@ -11,11 +11,11 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 
-use crate::bundle::{BUNDLE_VERSION, BundleMetadata, HifBundle};
+use crate::bundle::{BundleMetadata, HifBundle, BUNDLE_VERSION};
 use crate::error::{HifError, HifErrorKind};
-use crate::lower::{RSTACK_BYTES_PER_RESULT, normalize_function_name};
+use crate::lower::{normalize_function_name, RSTACK_BYTES_PER_RESULT};
 use crate::parser::parse;
 
 // Re-export types so `crate::assembler::Foo` still works for
@@ -39,7 +39,12 @@ pub struct HifAssembler {
 #[derive(Debug)]
 pub struct AssembleOutput {
     pub bundle: HifBundle,
+    /// The assembled ops, before serialization.  Use these directly
+    /// with `HiffyContext::run()` to avoid a deserialize round-trip.
+    pub ops: Vec<hif::Op>,
     pub warnings: Vec<String>,
+    /// Expected program statistics, computed from the source.
+    pub stats: crate::stats::ProgramStats,
 }
 
 /// Output of `verify` -- assembly stats without binary output.
@@ -312,9 +317,11 @@ impl HifAssembler {
             source_text: Some(source.to_string()),
         };
 
+        let stats = crate::stats::compute_stats(&parsed.statements);
+        let ops = result.ops;
         let bundle = HifBundle { metadata, text, data: result.data };
 
-        Ok(AssembleOutput { bundle, warnings: result.warnings })
+        Ok(AssembleOutput { bundle, ops, warnings: result.warnings, stats })
     }
 }
 
@@ -423,8 +430,11 @@ mod tests {
                             name: "id".into(),
                             ty: "SensorId".into(),
                         }],
+                        args_size: 4,
                         reply: "f32".into(),
+                        reply_size: 4,
                         error: Some("SensorError".into()),
+                        encoding: "Hubpack".into(),
                         leases: vec![],
                         idempotent: true,
                     },
@@ -445,8 +455,11 @@ mod tests {
                                 ty: "u64".into(),
                             },
                         ],
+                        args_size: 16,
                         reply: "()".into(),
+                        reply_size: 0,
                         error: Some("SensorError".into()),
+                        encoding: "Hubpack".into(),
                         leases: vec![],
                         idempotent: false,
                     },
@@ -464,14 +477,13 @@ mod tests {
         let c = test_assembler();
         let out = c.assemble("i2c_read mid 0x48 reg=0x00 2").unwrap();
         assert!(out.bundle.fits_in_target());
-        assert!(out.bundle.text.len() > 0);
+        assert!(!out.bundle.text.is_empty());
         assert_eq!(out.bundle.metadata.image_id, vec![0xDE, 0xAD]);
-        assert!(
-            out.bundle
-                .metadata
-                .functions_used
-                .contains(&"i2c_read".to_string())
-        );
+        assert!(out
+            .bundle
+            .metadata
+            .functions_used
+            .contains(&"i2c_read".to_string()));
     }
 
     #[test]
@@ -605,12 +617,10 @@ mod tests {
         let c = HifAssembler::new(config);
         let report = c.verify("i2c_read mid 0x48 reg=0x00 2");
         assert!(!report.ok);
-        assert!(
-            report
-                .errors
-                .iter()
-                .any(|e| matches!(&e.kind, HifErrorKind::TextOverflow { .. }))
-        );
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| matches!(&e.kind, HifErrorKind::TextOverflow { .. })));
     }
 
     #[test]
@@ -641,9 +651,11 @@ mod tests {
         let c = test_assembler();
         let out = c.assemble("idol Sensor.get id=3").unwrap();
         assert!(out.bundle.fits_in_target());
-        assert!(
-            out.bundle.metadata.functions_used.contains(&"Send".to_string())
-        );
+        assert!(out
+            .bundle
+            .metadata
+            .functions_used
+            .contains(&"Send".to_string()));
     }
 
     #[test]
