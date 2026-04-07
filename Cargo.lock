@@ -2431,6 +2431,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-hif-assembler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-core",
+ "humility-hiffy",
+ "humility-i2c",
+ "humility-idol",
+ "idol",
+ "postcard",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "humility-hiffy"
 version = "0.1.0"
 dependencies = [

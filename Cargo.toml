@@ -12,6 +12,7 @@ members = [
     "humility-core",
     "humility-doppel",
     "humility-dump-agent",
+    "humility-hif-assembler",
     "humility-hiffy",
     "humility-i2c",
     "humility-idol",

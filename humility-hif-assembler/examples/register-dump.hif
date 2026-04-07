@@ -1,0 +1,10 @@
+# Register dump: read all 256 registers of a device.
+#
+# Scans registers 0x00-0xFF of a TPS546B24A power controller,
+# reading 1 byte from each.  Useful for capturing a device's
+# full register state for debugging or comparison.
+#
+# Target: gimlet (mid bus, tps546b24a at 0x24)
+# Expected results: 256 x 1-byte readings
+
+i2c_regscan mid 0x24

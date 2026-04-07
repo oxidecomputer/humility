@@ -1,0 +1,17 @@
+# Stress test with controlled rate.
+#
+# Same as stress-single-device but with a 10ms sleep between
+# iterations.  At ~100 reads/second, this runs for about 10
+# seconds.  The sleep lets the thermal task's 1 Hz polling
+# interleave naturally.
+#
+# Target: gimlet (front bus, TMP117 at 0x48)
+# Expected results: 200 x 2-byte temperature readings
+
+.let SENSOR 0x48
+.let TEMP_REG 0x00
+.let ITERATIONS 200
+
+repeat $ITERATIONS sleep=10ms
+    i2c_read front $SENSOR reg=$TEMP_REG 2
+end
