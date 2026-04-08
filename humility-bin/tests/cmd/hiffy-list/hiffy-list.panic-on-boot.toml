@@ -8,4 +8,4 @@ fs.base = "../cores"
 bin.name = "humility"
 args = "-d hubris.core.panic-on-boot hiffy --list"
 
-status.code = 1
+status.code = 0

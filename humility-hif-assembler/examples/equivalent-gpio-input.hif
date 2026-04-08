@@ -1,0 +1,3 @@
+# Equivalent to: humility gpio --input <pin>
+# GpioInput takes a pin index (u16)
+call GpioInput 5

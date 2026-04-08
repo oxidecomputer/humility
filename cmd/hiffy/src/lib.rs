@@ -1,3 +1,4 @@
+//
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -52,7 +53,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::warn;
 use humility_cli::{ExecutionContext, Subcommand};
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Archive, Command, CommandKind, Dumper};
 use humility_hif_assembler::assembler::TargetConfig;
 use humility_hif_assembler::bundle::HifBundle;
 use humility_hiffy::*;
@@ -106,13 +107,34 @@ struct HiffyArgs {
     #[clap(long, short, use_value_delimiter = true, requires = "call")]
     arguments: Vec<String>,
 
-    /// execute a .hif or .hifb program file
+    /// execute a .hif or .hifb program file on a target
     #[clap(
         long,
-        conflicts_with_all = &["list", "listfuncs", "call"],
+        conflicts_with_all = &["list", "listfuncs", "call", "verify", "assemble"],
         value_name = "FILE"
     )]
     exec: Option<String>,
+
+    /// verify a .hif program (no target needed)
+    #[clap(
+        long,
+        conflicts_with_all = &["list", "listfuncs", "call", "exec", "assemble"],
+        value_name = "FILE"
+    )]
+    verify: Option<String>,
+
+    /// assemble a .hif program to a .hifb bundle (no target needed)
+    #[clap(
+        long,
+        conflicts_with_all = &["list", "listfuncs", "call", "exec", "verify"],
+        value_name = "FILE",
+        requires = "bundle-output",
+    )]
+    assemble: Option<String>,
+
+    /// output file for --assemble
+    #[clap(long, value_name = "FILE")]
+    bundle_output: Option<String>,
 
     /// write assembled bundle to file (use with --exec on a .hif file)
     #[clap(long, requires = "exec", value_name = "FILE")]
@@ -219,21 +241,30 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
 }
 
 fn hiffy(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
     let subargs = HiffyArgs::try_parse_from(subargs)?;
 
+    //
+    // Offline operations: these only need the archive, not a live
+    // target.  Handle them first so we can return before attaching.
+    //
     if subargs.list {
         hiffy_list(hubris, subargs.filter)?;
         return Ok(());
-    } else if !subargs.filter.is_empty() {
-        //
-        // It is likely that the user has provided an argument to a HIF
-        // call without specifying -a; generate a message that tries to
-        // point them in the right direction.
-        //
+    }
+
+    if let Some(ref path) = subargs.verify {
+        return hiffy_verify(hubris, path);
+    }
+
+    if let Some(ref path) = subargs.assemble {
+        let output = subargs.bundle_output.as_ref().unwrap(); // required by clap
+        return hiffy_assemble(hubris, path, output);
+    }
+
+    if !subargs.filter.is_empty() {
         bail!(
             "extraneous command line argument; missing {}?",
             if subargs.call.is_some() {
@@ -245,14 +276,25 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     }
 
     //
-    // Before we create our HiffyContext, check to see if this is a call and
-    // we're on a dump; running call on a dump always fails (obviously?), but
-    // in the event that we have a HIF mismatch (or any other failure to
-    // create the HiffyContext) *and* we're running call on a dump, we would
-    // rather fail with the dump message rather than with the HiffyContext
-    // creation failure.  (Note that -L will still create the HiffyContext,
-    // even if run on a dump.)
+    // Online operations: these need a live target.  In Unattached
+    // mode, the core may be None or archive-only; we need to attach
+    // to a live target for --exec, --call, and -L.
     //
+    if context.cli.probe.is_none() && context.cli.ip.is_none() {
+        bail!(
+            "this operation requires a target connection; \
+             specify a probe (-p) or network address (--ip)"
+        );
+    }
+
+    {
+        let cli = &context.cli;
+        let hubris_ref = context.archive.as_ref().unwrap();
+        context.core = Some(humility_cmd::attach_live(cli, hubris_ref)?);
+    }
+
+    let core = &mut **context.core.as_mut().unwrap();
+
     if (subargs.call.is_some() || subargs.exec.is_some()) && core.is_dump() {
         bail!("can't make HIF calls on a dump");
     }
@@ -289,7 +331,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
 
         let op = idol::IdolOperation::new(hubris, func[0], func[1], task)?;
 
-        // Very special-case handling: if someone didn't specify `--input`, but
+        // Special-case handling: if someone didn't specify `--input`, but
         // is piping data into the `humility` command, then we use `stdin` as
         // the input source.
         let input = if let Some(input) = subargs.input {
@@ -376,6 +418,76 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
             bail!("missing function for ID {}", i);
         }
     }
+
+    Ok(())
+}
+
+/// Verify a .hif program offline (no target needed).
+fn hiffy_verify(hubris: &HubrisArchive, path: &str) -> Result<()> {
+    let source = std::fs::read_to_string(path)
+        .with_context(|| format!("reading {path}"))?;
+
+    let config = TargetConfig::from_archive(hubris)
+        .context("extracting target config from archive")?;
+    let asm = humility_hif_assembler::assembler::HifAssembler::new(config);
+
+    let report = asm.verify(&source);
+    print!("{report}");
+
+    if !report.ok {
+        bail!("verification failed");
+    }
+
+    let output =
+        asm.assemble(&source).with_context(|| format!("assembling {path}"))?;
+    println!("{}", output.stats);
+
+    for w in &output.warnings {
+        humility::msg!("warning: {w}");
+    }
+
+    // Disassemble: show ops in raw syntax with hex comments
+    println!(
+        "Ops ({} bytes, {} ops):\n{}",
+        output.bundle.text.len(),
+        output.ops.len(),
+        asm.disassemble(&output.ops),
+    );
+
+    Ok(())
+}
+
+/// Assemble a .hif program to a .hifb bundle offline (no target needed).
+fn hiffy_assemble(
+    hubris: &HubrisArchive,
+    path: &str,
+    output_path: &str,
+) -> Result<()> {
+    let source = std::fs::read_to_string(path)
+        .with_context(|| format!("reading {path}"))?;
+
+    let config = TargetConfig::from_archive(hubris)
+        .context("extracting target config from archive")?;
+    let asm = humility_hif_assembler::assembler::HifAssembler::new(config);
+    let output =
+        asm.assemble(&source).with_context(|| format!("assembling {path}"))?;
+
+    for w in &output.warnings {
+        humility::msg!("warning: {w}");
+    }
+
+    output
+        .bundle
+        .write_to_file(output_path)
+        .with_context(|| format!("writing bundle to {output_path}"))?;
+
+    humility::msg!(
+        "assembled {} ({} bytes text, {} estimated results)",
+        output_path,
+        output.bundle.text.len(),
+        output.stats.total_i2c_transactions() + output.stats.idol_calls,
+    );
+    println!("{}", output.stats);
 
     Ok(())
 }
@@ -718,10 +830,6 @@ pub fn init() -> Command {
         app: HiffyArgs::command(),
         name: "hiffy",
         run: hiffy,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
+        kind: CommandKind::Unattached { archive: Archive::Required },
     }
 }

@@ -215,9 +215,9 @@ fn track_mux_switch(
         }
         _ => {}
     }
-    // Note: we can't update last_mux to point to current because
-    // of lifetime issues with the Statement borrow. For accurate
-    // mux switch counting across iterations, this is an approximation.
+    // Note: We can't update last_mux to point to current because of
+    // lifetime issues with the Statement borrow.  For accurate mux
+    // switch counting across iterations, this is an approximation.
 }
 
 #[cfg(test)]

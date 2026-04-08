@@ -16,7 +16,7 @@
 //! line followed by a newline, then the raw binary text and data
 //! sections.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use hif::FunctionResult;
 use postcard::take_from_bytes;
 use serde::{Deserialize, Serialize};

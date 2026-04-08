@@ -1,0 +1,2 @@
+# Equivalent to: humility i2c --bus mid --device 0x48 --register 0x00
+i2c_read mid 0x48 reg=0x00 1

@@ -84,8 +84,11 @@ pub struct I2cMuxSegment {
 /// Information about a HIF function available on the target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionInfo {
+    /// Function name from DWARF (PascalCase, e.g. "I2cRead").
     pub name: String,
+    /// Function ID (index in the HIFFY_FUNCTIONS enum).
     pub id: u8,
+    /// Number of arguments the function expects.
     pub arg_count: usize,
     /// Argument names and types, in order.  Empty if type info
     /// couldn't be extracted from DWARF.
@@ -117,9 +120,13 @@ pub struct FunctionError {
 /// Target buffer sizes extracted from the archive.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BufferSizes {
+    /// HIFFY_TEXT: program bytecode buffer (bytes).
     pub text: usize,
+    /// HIFFY_DATA: input data buffer for bulk writes (bytes).
     pub data: usize,
+    /// HIFFY_RSTACK: return stack for function results (bytes).
     pub rstack: usize,
+    /// HIFFY_SCRATCH: workspace for function execution (bytes).
     pub scratch: usize,
 }
 
