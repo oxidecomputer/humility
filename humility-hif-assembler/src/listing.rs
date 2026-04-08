@@ -70,14 +70,19 @@ impl HifAssembler {
     /// Disassemble ops into raw syntax with hex and symbolic comments.
     ///
     /// The output is wrapped in `raw { }` and is valid assembler input.
+    /// Each line has the raw op, byte offset, hex encoding, and a
+    /// symbolic annotation where the op's role can be inferred from
+    /// context (e.g. "controller (mid)" for a push before I2cRead).
     pub fn disassemble(&self, ops: &[hif::Op]) -> String {
         use postcard::to_allocvec;
+
+        let annotations = annotate_ops(ops, self);
 
         let mut out = String::new();
         out.push_str("raw {\n");
 
         let mut offset = 0usize;
-        for op in ops {
+        for (i, op) in ops.iter().enumerate() {
             let raw = format_op(op, self);
             let hex = to_allocvec(op)
                 .map(|bytes| {
@@ -89,13 +94,127 @@ impl HifAssembler {
                 })
                 .unwrap_or_else(|_| "??".into());
 
-            out.push_str(&format!("  {raw:<26} # {offset:02x}: {hex}\n",));
+            let annotation = annotations
+                .get(i)
+                .map(|s| format!("  {s}"))
+                .unwrap_or_default();
+
+            out.push_str(&format!(
+                "  {raw:<26} # {offset:02x}: {hex}{annotation}\n",
+            ));
             offset += to_allocvec(op).map(|b| b.len()).unwrap_or(0);
         }
 
         out.push_str("}\n");
         out
     }
+}
+
+/// Produce symbolic annotations for each op by recognizing patterns.
+fn annotate_ops(ops: &[hif::Op], asm: &HifAssembler) -> Vec<String> {
+    let mut notes: Vec<String> = vec![String::new(); ops.len()];
+
+    // Find I2cRead/Write call patterns: 7 pushes + Call + DropN(7)
+    let i2c_read_id = asm
+        .list_functions()
+        .iter()
+        .find(|f| f.name.eq_ignore_ascii_case("I2cRead"))
+        .map(|f| f.id);
+    let i2c_write_id = asm
+        .list_functions()
+        .iter()
+        .find(|f| f.name.eq_ignore_ascii_case("I2cWrite"))
+        .map(|f| f.id);
+
+    for (i, op) in ops.iter().enumerate() {
+        if let hif::Op::Call(hif::TargetFunction(id)) = op {
+            if Some(*id) == i2c_read_id || Some(*id) == i2c_write_id {
+                // Annotate the 7 pushes before this call
+                if i >= 7 {
+                    let labels = [
+                        "controller",
+                        "port",
+                        "mux",
+                        "segment",
+                        "address",
+                        "register",
+                        if Some(*id) == i2c_read_id {
+                            "nbytes"
+                        } else {
+                            "data/len"
+                        },
+                    ];
+                    for (j, label) in labels.iter().enumerate() {
+                        let idx = i - 7 + j;
+                        // Enrich with bus/device names where possible
+                        let extra = match (j, &ops[idx]) {
+                            (0, hif::Op::Push(ctrl)) => {
+                                // Find bus name for this controller
+                                asm.target_config()
+                                    .buses
+                                    .iter()
+                                    .find(|b| b.controller == *ctrl)
+                                    .map(|b| format!(" ({})", b.name))
+                                    .unwrap_or_default()
+                            }
+                            (4, hif::Op::Push(addr)) => {
+                                // Find device name for this address
+                                // on any bus (best effort)
+                                asm.target_config()
+                                    .buses
+                                    .iter()
+                                    .flat_map(|b| b.devices.iter())
+                                    .find(|d| d.address == *addr)
+                                    .map(|d| format!(" ({})", d.device))
+                                    .unwrap_or_default()
+                            }
+                            _ => String::new(),
+                        };
+                        notes[idx] = format!("{label}{extra}");
+                    }
+                }
+            }
+
+            // Annotate Send calls (Idol): task_id, op_code
+            let send_id = asm
+                .list_functions()
+                .iter()
+                .find(|f| f.name == "Send")
+                .map(|f| f.id);
+            if Some(*id) == send_id && i >= 4 {
+                if let hif::Op::Push(task_id) = ops[i - 4] {
+                    let task_name = asm
+                        .target_config()
+                        .idol_interfaces
+                        .iter()
+                        .find(|iface| iface.task_id == task_id as u32)
+                        .map(|iface| iface.task.as_str())
+                        .unwrap_or("?");
+                    notes[i - 4] = format!("task ({task_name})");
+                }
+                notes[i - 3] = "op_code".into();
+            }
+        }
+
+        // Annotate loop patterns
+        if let hif::Op::BranchGreaterThan(_)
+        | hif::Op::BranchGreaterThanOrEqualTo(_) = op
+        {
+            if i >= 2 {
+                if let hif::Op::Add = ops[i - 2] {
+                    notes[i - 2] = "counter += 1".into();
+                    notes[i - 1] = "limit".into();
+                    notes[i] = "loop".into();
+                }
+            }
+        }
+
+        if let hif::Op::Label(_) = op {
+            notes[i] = "loop_start".into();
+        }
+    }
+
+    notes
 }
 
 /// Format a single op as raw assembler syntax.

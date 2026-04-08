@@ -175,10 +175,11 @@
 //! ## Disassembly
 //!
 //! [`HifAssembler::disassemble`] formats ops as raw assembler syntax
-//! with postcard byte encoding in trailing comments.  The output is
-//! wrapped in `raw { }` and is valid assembler input — paste it into
-//! a `.hif` file and it will assemble to the same bytecode.  Function
-//! IDs are resolved back to names from the `TargetConfig`.
+//! with postcard byte encoding and symbolic annotations in trailing
+//! comments.  The left column is valid `raw { }` input.  Function
+//! IDs are resolved back to names, push values are annotated with
+//! their role (controller, port, address, etc.), and bus/device
+//! names are shown where they can be inferred from the TargetConfig.
 //!
 //! ## Relationship to humility-hiffy
 //!
@@ -210,8 +211,8 @@ pub use bundle::{BundleMetadata, HifBundle, HifResult};
 pub use error::HifError;
 pub use parser::{ParsedProgram, Statement};
 pub use types::{
-    BufferSizes, FunctionArg, FunctionError, FunctionInfo, I2cDeviceInfo,
-    I2cMuxInfo, I2cMuxSegment, IdolArgInfo, IdolInterfaceInfo, IdolLeaseInfo,
-    IdolOpInfo, ResolvedBus, SensorInfo, TargetConfig, I2C_WRITE_MAX_DATA,
-    MAX_LABELS,
+    BufferSizes, FunctionArg, FunctionError, FunctionInfo, I2C_WRITE_MAX_DATA,
+    I2cDeviceInfo, I2cMuxInfo, I2cMuxSegment, IdolArgInfo, IdolInterfaceInfo,
+    IdolLeaseInfo, IdolOpInfo, MAX_LABELS, ResolvedBus, SensorInfo,
+    TargetConfig,
 };
