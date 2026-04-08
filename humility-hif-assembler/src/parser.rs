@@ -73,19 +73,29 @@ pub enum BusRef {
     Explicit { controller: u8, port: String },
 }
 
+/// An I2C device reference — either a numeric address or a symbolic
+/// device name that the assembler resolves from the TargetConfig.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeviceRef {
+    /// Numeric I2C address (e.g. 0x48).
+    Address(u8),
+    /// Device name to resolve (e.g. "tmp117", "v3p3_sys").
+    Named(String),
+}
+
 /// A single statement in the HIF source.
 #[derive(Debug, Clone)]
 pub enum Statement {
     I2cRead {
         bus: BusRef,
-        address: u8,
+        address: DeviceRef,
         mux: Option<MuxSpec>,
         register: Option<u8>,
         nbytes: u8,
     },
     I2cWrite {
         bus: BusRef,
-        address: u8,
+        address: DeviceRef,
         mux: Option<MuxSpec>,
         register: Option<u8>,
         data: Vec<u8>,
@@ -96,7 +106,7 @@ pub enum Statement {
     },
     I2cRegScan {
         bus: BusRef,
-        address: u8,
+        address: DeviceRef,
         mux: Option<MuxSpec>,
     },
     IdolCall {
@@ -278,6 +288,15 @@ fn parse_bus_ref(s: &str) -> BusRef {
     BusRef::Named(s.to_string())
 }
 
+/// Parse a device reference: either a numeric address (0x48, 72)
+/// or a symbolic name (tmp117, v3p3_sys).
+fn parse_device_ref(s: &str) -> DeviceRef {
+    match parse_num::<u8>(s) {
+        Ok(addr) => DeviceRef::Address(addr),
+        Err(_) => DeviceRef::Named(s.to_string()),
+    }
+}
+
 fn parse_mux(s: &str) -> Result<MuxSpec, String> {
     let val = s
         .strip_prefix("mux=")
@@ -313,7 +332,7 @@ fn parse_i2c_read(tokens: &[&str], line: usize) -> Result<Statement, HifError> {
     }
 
     let bus = parse_bus_ref(tokens[0]);
-    let address = parse_num_err::<u8>(tokens[1], line)?;
+    let address = parse_device_ref(tokens[1]);
     let mut mux = None;
     let mut register = None;
     let mut nbytes_tok = None;
@@ -363,7 +382,7 @@ fn parse_i2c_write(
     }
 
     let bus = parse_bus_ref(tokens[0]);
-    let address = parse_num_err::<u8>(tokens[1], line)?;
+    let address = parse_device_ref(tokens[1]);
     let mut mux = None;
     let mut register = None;
     let mut data_tok = None;
@@ -437,7 +456,7 @@ fn parse_i2c_regscan(
         ));
     }
     let bus = parse_bus_ref(tokens[0]);
-    let address = parse_num_err::<u8>(tokens[1], line)?;
+    let address = parse_device_ref(tokens[1]);
     let mut mux = None;
     for &tok in &tokens[2..] {
         if tok.starts_with("mux=") {
@@ -673,7 +692,7 @@ mod tests {
         match &prog.statements[0].value {
             Statement::I2cRead { bus, address, register, nbytes, .. } => {
                 assert!(matches!(bus, BusRef::Named(n) if n == "mid"));
-                assert_eq!(*address, 0x48);
+                assert_eq!(*address, DeviceRef::Address(0x48));
                 assert_eq!(*register, Some(0x00));
                 assert_eq!(*nbytes, 2);
             }
@@ -730,7 +749,7 @@ mod tests {
         assert_eq!(prog.statements.len(), 1);
         match &prog.statements[0].value {
             Statement::I2cRead { address, .. } => {
-                assert_eq!(*address, 0x48);
+                assert_eq!(*address, DeviceRef::Address(0x48));
             }
             other => panic!("expected I2cRead, got {other:?}"),
         }
@@ -874,6 +893,28 @@ mod tests {
                 assert_eq!(*sleep_ms, Some(10));
             }
             other => panic!("expected Repeat, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_symbolic_device_name() {
+        let prog = parse("i2c_read mid tmp117 reg=0x00 2").unwrap();
+        match &prog.statements[0].value {
+            Statement::I2cRead { address, .. } => {
+                assert_eq!(*address, DeviceRef::Named("tmp117".into()));
+            }
+            other => panic!("expected I2cRead, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_numeric_address_still_works() {
+        let prog = parse("i2c_read mid 0x48 reg=0x00 2").unwrap();
+        match &prog.statements[0].value {
+            Statement::I2cRead { address, .. } => {
+                assert_eq!(*address, DeviceRef::Address(0x48));
+            }
+            other => panic!("expected I2cRead, got {other:?}"),
         }
     }
 

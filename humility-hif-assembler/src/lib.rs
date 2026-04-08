@@ -210,8 +210,8 @@ pub use bundle::{BundleMetadata, HifBundle, HifResult};
 pub use error::HifError;
 pub use parser::{ParsedProgram, Statement};
 pub use types::{
-    BufferSizes, FunctionArg, FunctionError, FunctionInfo, I2C_WRITE_MAX_DATA,
-    I2cDeviceInfo, I2cMuxInfo, I2cMuxSegment, IdolArgInfo, IdolInterfaceInfo,
-    IdolLeaseInfo, IdolOpInfo, MAX_LABELS, ResolvedBus, SensorInfo,
-    TargetConfig,
+    BufferSizes, FunctionArg, FunctionError, FunctionInfo, I2cDeviceInfo,
+    I2cMuxInfo, I2cMuxSegment, IdolArgInfo, IdolInterfaceInfo, IdolLeaseInfo,
+    IdolOpInfo, ResolvedBus, SensorInfo, TargetConfig, I2C_WRITE_MAX_DATA,
+    MAX_LABELS,
 };
