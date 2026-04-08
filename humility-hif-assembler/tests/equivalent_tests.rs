@@ -72,10 +72,9 @@ fn equivalent_i2c_scan() {
     let ops = assemble_file(load_gimlet(), "equivalent-i2c-scan.hif");
     // Should have: Label, BranchGreaterThanOrEqualTo (scan loop)
     assert!(ops.iter().any(|op| matches!(op, hif::Op::Label(_))));
-    assert!(
-        ops.iter()
-            .any(|op| matches!(op, hif::Op::BranchGreaterThanOrEqualTo(_)))
-    );
+    assert!(ops
+        .iter()
+        .any(|op| matches!(op, hif::Op::BranchGreaterThanOrEqualTo(_))));
     // Should call I2cRead
     assert!(ops.iter().any(|op| matches!(op, hif::Op::Call(_))));
     // Should push 128 as the scan limit
@@ -98,10 +97,9 @@ fn equivalent_i2c_regscan() {
     let ops = assemble_file(load_gimlet(), "equivalent-i2c-regscan.hif");
     // Should have: Label, BranchGreaterThanOrEqualTo (regscan loop)
     assert!(ops.iter().any(|op| matches!(op, hif::Op::Label(_))));
-    assert!(
-        ops.iter()
-            .any(|op| matches!(op, hif::Op::BranchGreaterThanOrEqualTo(_)))
-    );
+    assert!(ops
+        .iter()
+        .any(|op| matches!(op, hif::Op::BranchGreaterThanOrEqualTo(_))));
     // Should push 0xff as the scan limit
     assert!(ops.iter().any(|op| matches!(op, hif::Op::Push(0xff))));
 }

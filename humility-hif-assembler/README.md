@@ -170,10 +170,12 @@ Available: `push`, `push16`, `push32`, `push_none`, `drop`,
 
 Shows program stats, expected resource usage, and a disassembly
 of the generated HIF ops.  The disassembly uses the assembler's
-raw syntax (left column) with postcard byte encoding (right
-column), so it can be pasted into a `raw {}` block and re-assembled
-to produce the same bytecode.  Function IDs are resolved back to
-names from the archive.
+raw syntax (left column) with postcard byte encoding and symbolic
+annotations (right column).  The left column can be pasted into a
+`raw {}` block and re-assembled to produce the same bytecode.
+Function IDs are resolved back to names, push values are annotated
+with their role (controller, port, address, etc.), and bus/device
+names are shown where they can be inferred.
 
 ```
 OK
@@ -191,22 +193,36 @@ Ops (31 bytes, 18 ops):
 raw {
   push 0                     # 00: 04 00
   push_none                  # 02: 07
-  label 0                    # 03: 00 00
+  label 0                    # 03: 00 00  loop_start
   drop                       # 05: 02
-  push 1                     # 06: 04 01
-  push 1                     # 08: 04 01
-  push_none                  # 0a: 07
-  push_none                  # 0b: 07
-  push 0x48                  # 0c: 04 48
-  push 0                     # 0e: 04 00
-  push 2                     # 10: 04 02
+  push 1                     # 06: 04 01  controller (northeast0)
+  push 1                     # 08: 04 01  port
+  push_none                  # 0a: 07  mux
+  push_none                  # 0b: 07  segment
+  push 0x48                  # 0c: 04 48  address (tmp117)
+  push 0                     # 0e: 04 00  register
+  push 2                     # 10: 04 02  nbytes
   call I2cRead               # 12: 01 05
   drop_n 7                   # 14: 03 07
   push 1                     # 16: 04 01
-  add                        # 18: 0a
-  push 5                     # 19: 04 05
-  branch_gt 0                # 1b: 10 00
+  add                        # 18: 0a  counter += 1
+  push 5                     # 19: 04 05  limit
+  branch_gt 0                # 1b: 10 00  loop
   done                       # 1d: 14
+}
+```
+
+Idol calls are annotated with task and operation info:
+
+```
+raw {
+  push 7                     # 00: 04 07  task (sprot)
+  push 1                     # 02: 04 01  op_code
+  push 0                     # 04: 04 00
+  push 0x18                  # 06: 04 18
+  call Send                  # 08: 01 01
+  drop_n 4                   # 0a: 03 04
+  done                       # 0c: 14
 }
 ```
 
