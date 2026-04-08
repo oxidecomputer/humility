@@ -14,7 +14,7 @@ use anyhow::{Context, Result, bail};
 use hif::TargetFunction;
 
 use crate::assembler::HifAssembler;
-use crate::parser::{BusRef, Located, MuxSpec, Statement};
+use crate::parser::{BusRef, DeviceRef, Located, MuxSpec, Statement};
 use crate::types::*;
 
 /// Internal assembly result: ops + data + stats + warnings.
@@ -100,7 +100,7 @@ impl HifAssembler {
 
                 self.emit_i2c_params(
                     bus,
-                    *address,
+                    address,
                     mux,
                     &mut result.ops,
                     &mut result.warnings,
@@ -130,7 +130,7 @@ impl HifAssembler {
 
                 self.emit_i2c_params(
                     bus,
-                    *address,
+                    address,
                     mux,
                     &mut result.ops,
                     &mut result.warnings,
@@ -185,10 +185,17 @@ impl HifAssembler {
 
                 let (controller, port_index) =
                     self.resolve_bus(bus, line, &mut result.warnings)?;
+                let addr = self.resolve_device(
+                    bus,
+                    address,
+                    mux,
+                    line,
+                    &mut result.warnings,
+                )?;
                 result.ops.push(hif::Op::Push(controller));
                 result.ops.push(hif::Op::Push(port_index));
                 self.emit_mux_params(mux, &mut result.ops);
-                result.ops.push(hif::Op::Push(*address));
+                result.ops.push(hif::Op::Push(addr));
                 result.ops.push(hif::Op::Push(0));
                 result.ops.push(hif::Op::PushNone);
                 result.ops.push(hif::Op::Label(hif::Target(label)));
@@ -417,17 +424,18 @@ impl HifAssembler {
     fn emit_i2c_params(
         &self,
         bus: &BusRef,
-        address: u8,
+        address: &DeviceRef,
         mux: &Option<MuxSpec>,
         ops: &mut Vec<hif::Op>,
         warnings: &mut Vec<String>,
         line: usize,
     ) -> Result<()> {
         let (controller, port_index) = self.resolve_bus(bus, line, warnings)?;
+        let addr = self.resolve_device(bus, address, mux, line, warnings)?;
         ops.push(hif::Op::Push(controller));
         ops.push(hif::Op::Push(port_index));
         self.emit_mux_params(mux, ops);
-        ops.push(hif::Op::Push(address));
+        ops.push(hif::Op::Push(addr));
         Ok(())
     }
 
@@ -470,6 +478,70 @@ impl HifAssembler {
                      not found in target config, using port index 0"
                 ));
                 Ok((*controller, 0))
+            }
+        }
+    }
+
+    /// Resolve a device reference to a numeric I2C address.
+    fn resolve_device(
+        &self,
+        bus: &BusRef,
+        device: &DeviceRef,
+        mux: &Option<MuxSpec>,
+        line: usize,
+        _warnings: &mut Vec<String>,
+    ) -> Result<u8> {
+        match device {
+            DeviceRef::Address(addr) => Ok(*addr),
+            DeviceRef::Named(name) => {
+                // Search for the device by part name or human name
+                // in the specified bus (or all buses if bus is inferred).
+                let bus_name = match bus {
+                    BusRef::Named(n) => Some(n.as_str()),
+                    BusRef::Explicit { .. } => None,
+                };
+
+                for b in self.config.buses.iter() {
+                    if let Some(bn) = bus_name {
+                        if b.name != bn {
+                            continue;
+                        }
+                    }
+
+                    // Search direct devices
+                    for d in &b.devices {
+                        if d.device.eq_ignore_ascii_case(name)
+                            || d.name
+                                .as_deref()
+                                .map(|n| n.eq_ignore_ascii_case(name))
+                                .unwrap_or(false)
+                        {
+                            // If muxed, skip direct devices
+                            if mux.is_some() {
+                                continue;
+                            }
+                            return Ok(d.address);
+                        }
+                    }
+
+                    // Search muxed devices
+                    for m in &b.muxes {
+                        for seg in &m.segments {
+                            for d in &seg.devices {
+                                if d.device.eq_ignore_ascii_case(name)
+                                    || d.name
+                                        .as_deref()
+                                        .map(|n| n.eq_ignore_ascii_case(name))
+                                        .unwrap_or(false)
+                                {
+                                    return Ok(d.address);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                bail!("line {line}: unknown I2C device '{name}'")
             }
         }
     }

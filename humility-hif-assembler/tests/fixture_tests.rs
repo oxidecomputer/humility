@@ -53,7 +53,7 @@ fn fixture_loads_and_has_topology() {
 }
 
 #[test]
-fn assemble_i2c_read_from_fixture() {
+fn assemble_i2c_read_by_address() {
     let asm = HifAssembler::new(load_gimlet());
     let out =
         asm.assemble("i2c_read mid 0x48 reg=0x00 2").expect("assemble failed");
@@ -62,12 +62,22 @@ fn assemble_i2c_read_from_fixture() {
 }
 
 #[test]
-fn assemble_stress_loop_from_fixture() {
+fn assemble_i2c_read_by_device_name() {
+    // sbtsi is unique on the mid bus
     let asm = HifAssembler::new(load_gimlet());
-    let src = "repeat 500\n  i2c_read mid 0x48 reg=0x00 2\nend";
+    let out = asm
+        .assemble("i2c_read mid sbtsi reg=0x01 2")
+        .expect("assemble with device name failed");
+    assert!(out.bundle.fits_in_target());
+}
+
+#[test]
+fn assemble_stress_loop_by_name() {
+    let asm = HifAssembler::new(load_gimlet());
+    let src = "repeat 200\n  i2c_read rear max31790 reg=0x18 2\nend";
     let out = asm.assemble(src).expect("assemble failed");
     assert!(out.bundle.fits_in_target());
-    assert_eq!(out.bundle.metadata.estimated_results, Some(500));
+    assert_eq!(out.bundle.metadata.estimated_results, Some(200));
 }
 
 #[test]
@@ -78,9 +88,10 @@ fn assemble_muxed_read_from_fixture() {
     let seg = &mux.segments[0];
     let dev = &seg.devices[0];
 
+    // Use the device part name instead of hex address
     let src = format!(
-        "i2c_read front 0x{:02x} mux=0x{:02x}.{} 1",
-        dev.address, mux.address, seg.segment,
+        "i2c_read front {} mux=0x{:02x}.{} 1",
+        dev.device, mux.address, seg.segment,
     );
     let asm = HifAssembler::new(config);
     let out = asm.assemble(&src).expect("assemble muxed read failed");
@@ -210,4 +221,33 @@ fn all_examples_assemble() {
         }
     }
     assert!(count >= 8, "expected at least 8 examples, found {count}");
+}
+
+#[test]
+fn assemble_symbolic_device_name() {
+    let config = load_gimlet();
+    // gimlet mid bus has tps546b24a at 0x24
+    let asm = HifAssembler::new(config);
+    let out = asm
+        .assemble("i2c_read mid tps546b24a reg=0x00 1")
+        .expect("assemble with device name failed");
+    assert!(out.bundle.fits_in_target());
+}
+
+#[test]
+fn assemble_symbolic_device_name_case_insensitive() {
+    let config = load_gimlet();
+    let asm = HifAssembler::new(config);
+    let out = asm
+        .assemble("i2c_read mid TPS546B24A reg=0x00 1")
+        .expect("assemble with uppercase device name failed");
+    assert!(out.bundle.fits_in_target());
+}
+
+#[test]
+fn assemble_unknown_device_name_fails() {
+    let config = load_gimlet();
+    let asm = HifAssembler::new(config);
+    let result = asm.assemble("i2c_read mid nonexistent_device reg=0x00 1");
+    assert!(result.is_err());
 }

@@ -17,7 +17,7 @@
 
 use std::path::Path;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 
 use humility::hubris::{
     HubrisArchive, HubrisArchiveDoneness, HubrisEncoding, HubrisGoff,
