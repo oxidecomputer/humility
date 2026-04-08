@@ -11,11 +11,11 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
-use crate::bundle::{BundleMetadata, HifBundle, BUNDLE_VERSION};
+use crate::bundle::{BUNDLE_VERSION, BundleMetadata, HifBundle};
 use crate::error::{HifError, HifErrorKind};
-use crate::lower::{normalize_function_name, RSTACK_BYTES_PER_RESULT};
+use crate::lower::{RSTACK_BYTES_PER_RESULT, normalize_function_name};
 use crate::parser::parse;
 
 // Re-export types so `crate::assembler::Foo` still works for
@@ -479,11 +479,12 @@ mod tests {
         assert!(out.bundle.fits_in_target());
         assert!(!out.bundle.text.is_empty());
         assert_eq!(out.bundle.metadata.image_id, vec![0xDE, 0xAD]);
-        assert!(out
-            .bundle
-            .metadata
-            .functions_used
-            .contains(&"i2c_read".to_string()));
+        assert!(
+            out.bundle
+                .metadata
+                .functions_used
+                .contains(&"i2c_read".to_string())
+        );
     }
 
     #[test]
@@ -617,10 +618,12 @@ mod tests {
         let c = HifAssembler::new(config);
         let report = c.verify("i2c_read mid 0x48 reg=0x00 2");
         assert!(!report.ok);
-        assert!(report
-            .errors
-            .iter()
-            .any(|e| matches!(&e.kind, HifErrorKind::TextOverflow { .. })));
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| matches!(&e.kind, HifErrorKind::TextOverflow { .. }))
+        );
     }
 
     #[test]
@@ -651,11 +654,9 @@ mod tests {
         let c = test_assembler();
         let out = c.assemble("idol Sensor.get id=3").unwrap();
         assert!(out.bundle.fits_in_target());
-        assert!(out
-            .bundle
-            .metadata
-            .functions_used
-            .contains(&"Send".to_string()));
+        assert!(
+            out.bundle.metadata.functions_used.contains(&"Send".to_string())
+        );
     }
 
     #[test]

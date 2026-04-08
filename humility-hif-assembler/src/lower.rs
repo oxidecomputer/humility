@@ -10,7 +10,7 @@
 
 use std::collections::BTreeSet;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use hif::TargetFunction;
 
 use crate::assembler::HifAssembler;
@@ -565,8 +565,6 @@ impl HifAssembler {
         }
     }
 }
-
-// -- Free functions --
 
 /// Encode an Idol argument value as little-endian bytes.
 fn encode_idol_arg(

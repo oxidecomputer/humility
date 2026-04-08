@@ -1,0 +1,3 @@
+# Equivalent to: humility hash --digest <len>
+# HashDigest takes a length argument
+call HashDigest 32

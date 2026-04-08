@@ -13,28 +13,41 @@ bundles with embedded image IDs for safe upload.
 ## Quick Start
 
 ```bash
+SP_IP=fe80::aa40:25ff:fe05:0500%3
+ARCHIVE=build-sidecar-b-lab-image-default.zip
+
+# Verify a program offline (no target needed) — shows stats and ops
+humility -a $ARCHIVE hiffy --verify stress.hif
+
+# Assemble to a bundle file (no target needed)
+humility -a $ARCHIVE hiffy --assemble stress.hif --bundle-output stress.hifb
+
+# Unlock the sidecar's network interface
+faux-mgs --interface axf2 \
+    --discovery-addr "[${SP_IP%\%*}]:11111" \
+    monorail unlock -t 3600sec
+
 # Execute a program on a target over the network
-humility -a sidecar-b-lab.zip --ip fe80::..%3 hiffy --exec stress.hif
+humility -a $ARCHIVE --ip $SP_IP hiffy --exec stress.hif
 
-# Same thing, with JSON output for scripting
-humility -a sidecar-b-lab.zip --ip fe80::..%3 hiffy --exec stress.hif --json
-
-# Execute via probe
-humility -a grapefruit.zip -p usb-1 hiffy --exec stress.hif
-
-# Save the assembled bundle as a CI artifact
-humility -a sidecar-b-lab.zip --ip fe80::..%3 hiffy --exec stress.hif --save-bundle stress.hifb
+# JSON output for scripting
+humility -a $ARCHIVE --ip $SP_IP hiffy --exec stress.hif --json
 ```
 
-Network execution requires the `hiffy` task to have the `net`
-feature enabled in the Hubris image.  If it's missing, the assembler
-warns:
+The assembler checks the archive's `app.toml` to verify that the
+target image can accept HIF programs over the network.  Specifically,
+it checks that the `hiffy` task has the `net` feature enabled.  If
+it's missing, the assembler warns at assembly time:
 
 ```
 warning: hiffy task does not have 'net' feature; network execution
 requires adding features = ["net", "vlan"] and a hiffy socket to
 the app.toml (probe execution still works)
 ```
+
+This check runs during `--verify`, `--assemble`, and `--exec`, so
+you find out before attempting a network connection that the image
+won't support it.
 
 ## Text Format
 
@@ -153,7 +166,51 @@ Available: `push`, `push16`, `push32`, `push_none`, `drop`,
 
 ## Output
 
-### Human output (default)
+### Verify output (`--verify`)
+
+Shows program stats, expected resource usage, and a disassembly
+of the generated HIF ops.  The disassembly uses the assembler's
+raw syntax (left column) with postcard byte encoding (right
+column), so it can be pasted into a `raw {}` block and re-assembled
+to produce the same bytecode.  Function IDs are resolved back to
+names from the archive.
+
+```
+OK
+
+  text:       31 / 4096 bytes
+  rstack:     40 / 2048 bytes (est. 5 results)
+  labels:      1 / 4
+  functions: i2c_read
+  buses: northeast1
+I2C transactions: 5
+  reads:  5 (10 bytes)
+Buses: northeast1
+
+Ops (31 bytes, 18 ops):
+raw {
+  push 0                     # 00: 04 00
+  push_none                  # 02: 07
+  label 0                    # 03: 00 00
+  drop                       # 05: 02
+  push 1                     # 06: 04 01
+  push 1                     # 08: 04 01
+  push_none                  # 0a: 07
+  push_none                  # 0b: 07
+  push 0x48                  # 0c: 04 48
+  push 0                     # 0e: 04 00
+  push 2                     # 10: 04 02
+  call I2cRead               # 12: 01 05
+  drop_n 7                   # 14: 03 07
+  push 1                     # 16: 04 01
+  add                        # 18: 0a
+  push 5                     # 19: 04 05
+  branch_gt 0                # 1b: 10 00
+  done                       # 1d: 14
+}
+```
+
+### Execution output (`--exec`, default)
 
 ```
 humility: program: stress.hif
