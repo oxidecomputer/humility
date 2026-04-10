@@ -164,11 +164,10 @@ use std::fs::{self, OpenOptions};
 use std::io::BufReader;
 use std::io::Write;
 use std::io::prelude::*;
-use std::str::FromStr as _;
 use std::thread;
 use std::time::{Duration, Instant};
 use strum::VariantNames;
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::EnumVariantNames;
 use zerocopy::{AsBytes, FromBytes};
 
 mod blackbox;
@@ -952,22 +951,64 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 }
 
 /// A device which supports open-pin detection and other advanced debug
-#[derive(
-    Debug, Copy, Clone, Eq, PartialEq, Display, EnumString, EnumVariantNames,
-)]
-#[strum(ascii_case_insensitive)]
+///
+/// The inner `usize` is the number of rails in use, as some devices may be
+/// configured for a design-specific rail count.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, EnumVariantNames)]
 enum SupportedDevice {
-    ISL68224,
-    RAA229618,
+    ISL68224(usize),
+    RAA229618(usize),
     RAA229620A,
 }
 
+impl std::fmt::Display for SupportedDevice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SupportedDevice::ISL68224(..) => "ISL68224",
+            SupportedDevice::RAA229620A => "RAA229620A",
+            SupportedDevice::RAA229618(..) => "RAA229618",
+        }
+        .fmt(f)
+    }
+}
+
 impl SupportedDevice {
+    fn new(dev: &str, rails: usize) -> Result<Self> {
+        match dev.to_ascii_lowercase().as_str() {
+            "raa229618" => {
+                if (1..=2).contains(&rails) {
+                    Ok(SupportedDevice::RAA229618(rails))
+                } else {
+                    bail!(
+                        "invalid rail count {rails} for RAA229618, \
+                         expected 1 or 2"
+                    )
+                }
+            }
+            "isl68224" => {
+                if (2..=3).contains(&rails) {
+                    Ok(SupportedDevice::ISL68224(rails))
+                } else {
+                    bail!(
+                        "invalid rail count {rails} for ISL68224, \
+                         expected 2 or 3"
+                    )
+                }
+            }
+            "raa229620a" => Ok(SupportedDevice::RAA229620A),
+            s => {
+                let supported = SupportedDevice::VARIANTS.join(", ");
+                Err(anyhow!(
+                    "unknown device name `{s}`, expected one of {supported}"
+                ))
+            }
+        }
+    }
+
     /// Number of rails supported by this device
     fn rails(&self) -> usize {
         match self {
-            SupportedDevice::ISL68224 => 3,
-            SupportedDevice::RAA229618 => 2,
+            SupportedDevice::ISL68224(n) | SupportedDevice::RAA229618(n) => *n,
             SupportedDevice::RAA229620A => 2,
         }
     }
@@ -975,23 +1016,25 @@ impl SupportedDevice {
     /// Returns a list of phases and their numbering
     fn phases(&self) -> Vec<(String, u32)> {
         match &self {
-            SupportedDevice::ISL68224 => {
+            SupportedDevice::ISL68224(n) => {
                 let mut phases = vec![];
                 for phase in 0..6 {
                     phases.push((phase.to_string(), phase + 3));
                 }
-                for i in 0..3 {
-                    phases.push((format!("VSEN{i}"), i + 12));
+                for i in 0..*n {
+                    // TODO is this correct?
+                    phases.push((format!("VSEN{i}"), i as u32 + 12));
                 }
                 phases
             }
-            SupportedDevice::RAA229618 => {
+            SupportedDevice::RAA229618(n) => {
                 let mut phases = vec![];
                 for phase in 0..20 {
                     phases.push((phase.to_string(), phase));
                 }
-                for i in 0..2 {
-                    phases.push((format!("VSEN{i}"), i + 20));
+                for i in 0..*n {
+                    // TODO is this correct?
+                    phases.push((format!("VSEN{i}"), i as u32 + 20));
                 }
                 phases
             }
@@ -1022,18 +1065,27 @@ fn check_addr(
     subargs: &RendmpArgs,
     hubris: &HubrisArchive,
 ) -> Result<(u8, SupportedDevice)> {
+    // Helper function to get the sensor count from a device index
+    let sensor_count = |dev_index| {
+        hubris
+            .manifest
+            .sensors
+            .iter()
+            .filter(|s| {
+                s.device == HubrisSensorDevice::I2c(dev_index)
+                    && s.kind == HubrisSensorKind::Voltage
+            })
+            .count()
+    };
     if let Some(rail) = &subargs.dev.rail {
-        for d in &hubris.manifest.i2c_devices {
+        for (dev_index, d) in hubris.manifest.i2c_devices.iter().enumerate() {
             if let HubrisI2cDeviceClass::Pmbus { rails } = &d.class
                 && rails.iter().any(|r| r.name == *rail)
             {
-                let Ok(dev) = SupportedDevice::from_str(&d.device) else {
-                    let supported = SupportedDevice::VARIANTS.join(", ");
-                    bail!(
-                        "rail {rail} is not a supported device; \
-                        expected one of: {supported}"
-                    );
-                };
+                let count = sensor_count(dev_index);
+                let dev = SupportedDevice::new(&d.device, count).with_context(
+                    || format!("building device for rail {rail}"),
+                )?;
 
                 return Ok((d.address, dev));
             }
@@ -1046,25 +1098,24 @@ fn check_addr(
         bail!("must specify I2C address with --device");
     };
     let addr: u8 = parse_int::parse(addr).context("failed to parse address")?;
-    let mut iter = hubris.manifest.i2c_devices.iter().filter(|dev| {
-        SupportedDevice::from_str(&dev.device).is_ok() && dev.address == addr
-    });
-    let Some(dev) = iter.next() else {
-        let supported = SupportedDevice::VARIANTS.join(", ");
-        bail!(
-            "no supported device ({supported}) with address {addr}; \
-             use `humility pmbus -l` to list devices"
-        );
-    };
+    let mut iter = hubris.manifest.i2c_devices.iter().enumerate().flat_map(
+        |(index, dev)| {
+            if dev.address == addr {
+                let sensor_count = sensor_count(index);
+                Some(SupportedDevice::new(&dev.device, sensor_count))
+            } else {
+                None
+            }
+        },
+    );
+    let Some(dev) = iter.next() else { bail!("no device with address {addr}") };
+    let dev = dev?;
     if iter.next().is_some() {
         bail!(
             "there are multiple devices with address {addr}; \
              this should not be possible on an Oxide board"
         )
     }
-    let Ok(dev) = SupportedDevice::from_str(&dev.device) else {
-        unreachable!() // checked above
-    };
 
     Ok((addr, dev))
 }
@@ -1140,11 +1191,12 @@ fn get_pin_states(
     let op = hubris.get_idol_command("Power.rendmp_dma_read")?;
 
     let regs: &'static [u16] = match dev {
-        SupportedDevice::ISL68224 => &[
+        SupportedDevice::ISL68224(..) => &[
             0x00BD, // open-pin
             0xE925, // mask
         ],
-        SupportedDevice::RAA229618 => &[
+        SupportedDevice::RAA229618(..) => &[
+            // XXX is this okay for both single and dual flavors?
             0x00BE, 0x00BF, // open-pin
             0xE904, 0xE905, // mask
         ],
@@ -1177,8 +1229,8 @@ fn get_pin_states(
     // Register decoding was determined with a mix of Power Navigator
     // experiments and discussion with Renesas.
     let (open, mask) = match dev {
-        SupportedDevice::ISL68224 => (values[0] as u64, values[1] as u64),
-        SupportedDevice::RAA229618 | SupportedDevice::RAA229620A => {
+        SupportedDevice::ISL68224(..) => (values[0] as u64, values[1] as u64),
+        SupportedDevice::RAA229618(..) | SupportedDevice::RAA229620A => {
             let open = values[0] as u64 | ((values[1] as u64) << 32);
             let mask = values[2] as u64 | ((values[3] as u64) << 32);
             (open, mask)
@@ -1708,14 +1760,19 @@ fn rendmp_phase_check<'a>(
     let mut worker = HifWorker::new(hubris, context, core, addr)?;
 
     if worker.rail_indexes.len() != dev.rails() {
-        bail!("length mismatch between sensors and rails");
+        bail!(
+            "length mismatch between sensors and rails, {:?}, {:?}, {}",
+            worker.rail_indexes,
+            dev,
+            dev.rails(),
+        );
     }
 
     // Read a device-specific DMA registers, which we'll modify to disable
     // faults when we write it back
     let disable_fault_reg: u16 = match dev {
-        SupportedDevice::ISL68224 => 0xE952,
-        SupportedDevice::RAA229618 | SupportedDevice::RAA229620A => 0xE932,
+        SupportedDevice::ISL68224(..) => 0xE952,
+        SupportedDevice::RAA229618(..) | SupportedDevice::RAA229620A => 0xE932,
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -1750,7 +1807,7 @@ fn rendmp_phase_check<'a>(
         // This is a 16-bit two's-complement register, so 0x8000 is the most
         // negative value.
         match dev {
-            SupportedDevice::ISL68224 => {
+            SupportedDevice::ISL68224(..) => {
                 use pmbus::commands::isl68224::CommandCode;
                 worker.write_word(
                     index,
@@ -1765,7 +1822,7 @@ fn rendmp_phase_check<'a>(
                     0x8000,
                 )?;
             }
-            SupportedDevice::RAA229618 => {
+            SupportedDevice::RAA229618(..) => {
                 use pmbus::commands::raa229618::CommandCode;
                 worker.write_word(
                     index,
@@ -1879,7 +1936,7 @@ fn rendmp_phase_check<'a>(
         )?;
 
         match dev {
-            SupportedDevice::ISL68224 => {
+            SupportedDevice::ISL68224(..) => {
                 if let Err(e) = next()? {
                     bail!("failed to set VMON_ON for {rail}: {e}",);
                 }
@@ -1887,7 +1944,7 @@ fn rendmp_phase_check<'a>(
                     bail!("failed to set VMON_OFF for {rail}: {e}",);
                 }
             }
-            SupportedDevice::RAA229618 => {
+            SupportedDevice::RAA229618 { .. } => {
                 if let Err(e) = next()? {
                     bail!("failed to set VIN_ON for {rail}: {e}",);
                 }
@@ -1979,7 +2036,7 @@ fn rendmp_phase_check<'a>(
             }
         }
         match dev {
-            SupportedDevice::RAA229618 => match next()? {
+            SupportedDevice::RAA229618 { .. } => match next()? {
                 Ok(v) => v.expect_write_dma()?,
                 Err(e) => {
                     bail!("failed to modify EA5B for rail {rail}: {e}")
@@ -1991,7 +2048,7 @@ fn rendmp_phase_check<'a>(
                     bail!("failed to modify EA5B for rail {rail}: {e}")
                 }
             },
-            SupportedDevice::ISL68224 => {
+            SupportedDevice::ISL68224(..) => {
                 // no changes were made specifically for the ISL68224
             }
         }
@@ -2150,9 +2207,9 @@ fn rendmp_phase_check<'a>(
             Err(e) => bail!("failed to READ_TEMPERATURE_1: {e}"),
         };
         let device = match dev {
-            SupportedDevice::RAA229618 => pmbus::Device::Raa229618,
+            SupportedDevice::RAA229618(..) => pmbus::Device::Raa229618,
             SupportedDevice::RAA229620A => pmbus::Device::Raa229620A,
-            SupportedDevice::ISL68224 => pmbus::Device::Isl68224,
+            SupportedDevice::ISL68224(..) => pmbus::Device::Isl68224,
         };
 
         let mut vout = String::new();
