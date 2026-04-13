@@ -1025,28 +1025,29 @@ impl<'a> HiffyContext<'a> {
         }
 
         let mut lap = 0;
-        const MAX_LAPS: u64 = 10;
 
-        let ready = loop {
+        let start = std::time::Instant::now();
+        let mut ready = false;
+        while start.elapsed().as_millis() < u128::from(self.timeout) {
             if !syscall_observed {
                 if has_task_started(self.hubris, core, hiffy_task.unwrap())? {
                     syscall_observed = true;
                 }
             } else if core.read_word_32(self.ready.addr)? == 1 {
-                break true;
+                ready = true;
+                break;
             }
 
             core.op_done()?;
 
             lap += 1;
 
-            if lap >= MAX_LAPS {
-                break false;
-            }
+            // sleep time is based on vibes
+            let sleep_time = Duration::from_millis(lap.min(20));
+            thread::sleep(sleep_time);
 
-            thread::sleep(Duration::from_millis(lap));
             core.op_start()?;
-        };
+        }
 
         if !ready {
             bail!("HIF execution facility unavailable");
