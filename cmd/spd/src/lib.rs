@@ -107,7 +107,10 @@
 //!
 
 use humility::hubris::*;
-use humility::{reflect, reflect::Load};
+use humility::{
+    reflect,
+    reflect::{Base, Load, Value},
+};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel as doppel;
@@ -173,7 +176,8 @@ struct SpdArgs {
     output: Option<String>,
 }
 
-const SPD_SIZE: usize = 512;
+/// SPD array size for Gimlet
+const GIMLET_SPD_SIZE: usize = 512;
 
 fn from_bcd(val: u8) -> u8 {
     (val >> 4) * 10 + (val & 0xf)
@@ -244,7 +248,7 @@ fn dump_spd(
 
     println!();
 
-    for offs in (0..SPD_SIZE).step_by(width) {
+    for offs in (0..buf.len()).step_by(width) {
         print!("    0x{:03x} | ", offs);
 
         for i in 0..width {
@@ -287,20 +291,10 @@ fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
 //
 static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
-#[derive(Load, Debug)]
-struct GimletStaticBufs {
-    spd_data: Vec<u8>,
-}
-
-#[derive(Load, Debug)]
-struct PackratStaticBufs {
-    gimlet_bufs: GimletStaticBufs,
-}
-
 fn spd_lookup(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
-) -> Result<Option<Vec<u8>>> {
+) -> Result<Option<Vec<Vec<u8>>>> {
     if let Ok(variables) = hubris.lookup_variables("SPD_DATA") {
         if variables.len() > 1 {
             bail!("more than one SPD_DATA?");
@@ -313,7 +307,18 @@ fn spd_lookup(
         core.read_8(var.addr, &mut buf)?;
         core.run()?;
 
-        Ok(Some(buf))
+        if !buf.len().is_multiple_of(GIMLET_SPD_SIZE) {
+            bail!(
+                "SPD_DATA is {} bytes; expected even multiple \
+                 of {GIMLET_SPD_SIZE}",
+                buf.len(),
+            );
+        }
+        Ok(Some(
+            buf.chunks_exact(GIMLET_SPD_SIZE)
+                .map(|chunk| chunk.to_vec())
+                .collect(),
+        ))
     } else if let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) {
         let var_ty = hubris.lookup_type(var.goff)?;
         let mut buf: Vec<u8> = vec![0u8; var.size];
@@ -324,12 +329,67 @@ fn spd_lookup(
 
         let v = reflect::load_value(hubris, &buf, var_ty, 0)?;
         let as_static_cell = doppel::ClaimOnceCell::from_value(&v)?;
+        let Value::Struct(packrat_bufs) = &as_static_cell.cell.value else {
+            bail!("expected {PACKRAT_BUF_NAME} to be a struct");
+        };
+        let Some(Value::Struct(compute_sled_bufs)) = packrat_bufs
+            .get("gimlet_bufs")
+            .or_else(|| packrat_bufs.get("cosmo_bufs"))
+        else {
+            bail!("could not find `gimlet_bufs` or `cosmo_bufs`");
+        };
+        let Some(spd_data) = compute_sled_bufs.get("spd_data") else {
+            bail!("could not find `spd_data` in sled-specific packrat bufs");
+        };
 
-        // Non-Gimlet images don't have this SPD buffer, so we'll ignore any
-        // Load failures here and return `None` (humility#595)
-        Ok(PackratStaticBufs::from_value(&as_static_cell.cell.value)
-            .ok()
-            .map(|p| p.gimlet_bufs.spd_data))
+        // We have multiple versions of SPD data.  In older firmwares (Gimlet
+        // only), it's a single `[u8; 8192]` buffer; in newer firmwares, it's a
+        // nested struct that contains a `[[u8; DATA_SIZE]; DIMM_COUNT]`.
+        let spd_bufs = match spd_data {
+            Value::Array(a) => {
+                if a.len() % GIMLET_SPD_SIZE != 0 {
+                    bail!(
+                        "SPD data in {PACKRAT_BUF_NAME} is {} bytes;
+                         expected even multiple of {GIMLET_SPD_SIZE}",
+                        a.len(),
+                    );
+                }
+                let mut out = Vec::with_capacity(a.len() / GIMLET_SPD_SIZE);
+                for vs in a.chunks_exact(GIMLET_SPD_SIZE) {
+                    let mut chunk = Vec::with_capacity(GIMLET_SPD_SIZE);
+                    for v in vs {
+                        let Value::Base(Base::U8(b)) = v else {
+                            bail!("expected `u8` array");
+                        };
+                        chunk.push(*b);
+                    }
+                    out.push(chunk)
+                }
+                out
+            }
+            Value::Struct(s) => {
+                let Some(Value::Array(a)) = s.get("spd_data") else {
+                    bail!("expected `spd_data` to be an array");
+                };
+                let mut out = Vec::with_capacity(a.len());
+                for a in a.iter() {
+                    let Value::Array(a) = a else {
+                        bail!("expected array-of-arrays");
+                    };
+                    let mut chunk = Vec::with_capacity(a.len());
+                    for v in a.iter() {
+                        let Value::Base(Base::U8(b)) = v else {
+                            bail!("expected `u8` array");
+                        };
+                        chunk.push(*b);
+                    }
+                    out.push(chunk)
+                }
+                out
+            }
+            _ => bail!("expected `spd_data` to be an array or struct"),
+        };
+        Ok(Some(spd_bufs))
     } else {
         Ok(None)
     }
@@ -340,7 +400,9 @@ pub fn spd_any(
     core: &mut dyn humility::core::Core,
 ) -> Result<bool> {
     match spd_lookup(hubris, core)? {
-        Some(spd_data) => Ok(spd_data.iter().any(|&datum| datum != 0)),
+        Some(spd_data) => {
+            Ok(spd_data.iter().flatten().any(|&datum| datum != 0))
+        }
         None => Ok(false),
     }
 }
@@ -352,29 +414,14 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
 
     let subargs = SpdArgs::try_parse_from(subargs)?;
 
-    //
     // If we have been given no device-related arguments, we will attempt
-    // to find the `SPD_DATA` variable.
-    //
+    // to find the `SPD_DATA` variable or load SPD data from packrat
     if subargs.bus.is_none() && subargs.controller.is_none() {
         let spd_data = spd_lookup(hubris, core)?
             .ok_or_else(|| anyhow!("no bus specified and no SPD_DATA found"))?;
 
-        if spd_data.len() % SPD_SIZE != 0 {
-            bail!(
-                "SPD_DATA is {} bytes; expected even multiple of {SPD_SIZE}",
-                spd_data.len(),
-            );
-        }
-
-        let nspd = spd_data.len() / SPD_SIZE;
-
         let mut header = true;
-
-        for addr in 0..nspd {
-            let offs = addr * SPD_SIZE;
-            let data = &spd_data[offs..offs + SPD_SIZE];
-
+        for (addr, data) in spd_data.iter().enumerate() {
             if !data.iter().any(|&datum| datum != 0) {
                 continue;
             }
@@ -520,7 +567,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
                 }
             }
 
-            if buf.len() != SPD_SIZE {
+            if buf.len() != GIMLET_SPD_SIZE {
                 bail!("bad SPD length ({} bytes): {results:?}", buf.len());
             }
 
