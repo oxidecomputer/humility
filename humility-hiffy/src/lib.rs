@@ -1028,7 +1028,8 @@ impl<'a> HiffyContext<'a> {
 
         let start = std::time::Instant::now();
         let mut ready = false;
-        while start.elapsed().as_millis() < u128::from(self.timeout) {
+        let timeout = Duration::from_millis(self.timeout.into());
+        while start.elapsed() < timeout {
             if !syscall_observed {
                 if has_task_started(self.hubris, core, hiffy_task.unwrap())? {
                     syscall_observed = true;
