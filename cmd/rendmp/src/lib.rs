@@ -1673,6 +1673,7 @@ fn rendmp_phase_check<'a>(
     hubris: &'a HubrisArchive,
     core: &mut dyn humility::core::Core,
     context: &'a mut HiffyContext,
+    needs_reset: &'a mut bool,
 ) -> Result<()> {
     // Make sure we're in A2 before doing anything
     let power_state_op = hubris
@@ -1873,6 +1874,10 @@ fn rendmp_phase_check<'a>(
     const PHASE_ENABLE_REG: u16 = 0xE9C2;
     worker.write_dma(addr, PHASE_ENABLE_REG, 0)?;
 
+    // At this point, we're about to start reconfiguring the chip, so we'll tell
+    // the caller that we need to restore the default config after this function
+    // returns (for any reason).
+    *needs_reset = true;
     let results = worker.run(core)?;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -2333,10 +2338,18 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     } else if subargs.phase_check {
         // Bail out early if the arguments are invalid
         let _ = check_addr(&subargs, hubris)?;
-        let out = rendmp_phase_check(&subargs, hubris, core, &mut context);
-        if let Err(e) =
-            restore_default_config(&subargs, hubris, core, &mut context)
-                .context("failed to restore default cfg")
+        let mut restore = false;
+        let out = rendmp_phase_check(
+            &subargs,
+            hubris,
+            core,
+            &mut context,
+            &mut restore,
+        );
+        if restore // only restore config if we started poking the chip
+            && let Err(e) =
+                restore_default_config(&subargs, hubris, core, &mut context)
+                    .context("failed to restore default cfg")
         {
             if out.is_err() {
                 warn!(
