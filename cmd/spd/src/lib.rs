@@ -325,8 +325,11 @@ fn spd_lookup(
         let v = reflect::load_value(hubris, &buf, var_ty, 0)?;
         let as_static_cell = doppel::ClaimOnceCell::from_value(&v)?;
 
-        let p = PackratStaticBufs::from_value(&as_static_cell.cell.value)?;
-        Ok(Some(p.gimlet_bufs.spd_data))
+        // Non-Gimlet images don't have this SPD buffer, so we'll ignore any
+        // Load failures here and return `None` (humility#595)
+        Ok(PackratStaticBufs::from_value(&as_static_cell.cell.value)
+            .ok()
+            .map(|p| p.gimlet_bufs.spd_data))
     } else {
         Ok(None)
     }
