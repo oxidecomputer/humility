@@ -239,6 +239,7 @@ fn dump_spd(
     let year = from_bcd(buf[addrs.year]);
     let week = from_bcd(buf[addrs.week]);
 
+    let part_len = addrs.part.clone().count();
     let part = str::from_utf8(&buf[addrs.part]);
 
     let width: usize = 16;
@@ -260,18 +261,24 @@ fn dump_spd(
 
     if header || subargs.address.is_some() || subargs.verbose {
         println!(
-            "{:4} {:25} {:30} {:4} {:4}",
-            "ADDR", "MANUFACTURER", "PART", "WEEK", "YEAR"
+            "{:4} {:25} {:width$} {:4} {:4}",
+            "ADDR",
+            "MANUFACTURER",
+            "PART",
+            "WEEK",
+            "YEAR",
+            width = part_len,
         )
     }
 
     println!(
-        "{:4} {:25} {:30} {:4} {:4}",
+        "{:4} {:25} {:width$} {:4} {:4}",
         addr,
         manufacturer.get().unwrap_or("<unknown>"),
         part.unwrap_or("<unknown>"),
         week,
         2000 + (year as u16),
+        width = part_len,
     );
 
     if !subargs.verbose {
