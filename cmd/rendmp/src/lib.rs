@@ -1022,7 +1022,6 @@ impl SupportedDevice {
                     phases.push((phase.to_string(), phase + 3));
                 }
                 for i in 0..*n {
-                    // TODO is this correct?
                     phases.push((format!("VSEN{i}"), i as u32 + 12));
                 }
                 phases
@@ -1033,7 +1032,6 @@ impl SupportedDevice {
                     phases.push((phase.to_string(), phase));
                 }
                 for i in 0..*n {
-                    // TODO is this correct?
                     phases.push((format!("VSEN{i}"), i as u32 + 20));
                 }
                 phases
@@ -1196,7 +1194,6 @@ fn get_pin_states(
             0xE925, // mask
         ],
         SupportedDevice::RAA229618(..) => &[
-            // XXX is this okay for both single and dual flavors?
             0x00BE, 0x00BF, // open-pin
             0xE904, 0xE905, // mask
         ],
