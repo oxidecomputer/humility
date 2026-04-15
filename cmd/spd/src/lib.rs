@@ -484,12 +484,29 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
             msg!("all SPD data is empty");
         }
 
-        return Ok(());
-    }
-
-    if core.is_dump() {
+        Ok(())
+    } else if core.is_dump() {
         bail!("cannot specify bus/controller on a dump");
+    } else {
+        // At this point, the user wants to poll DDR SPDs directly over I2C.  We
+        // only support this with DDR4, because on subsequent product
+        // generations the DDRs are not directly connected to the SP.
+        dump_ddr4_over_i2c(hubris, core, &subargs)
     }
+}
+
+fn dump_ddr4_over_i2c(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    subargs: &SpdArgs,
+) -> Result<()> {
+    // Warn the user that we probably can't talk to DDR4s on non-Gimlet hardware
+    if !hubris.manifest.target.as_ref().is_some_and(|t| t.contains("gimlet")) {
+        humility::warn!(
+            "trying to talk to DDR4 SPDs on an invalid target `{}`",
+            hubris.manifest.target.as_deref().unwrap_or("<unknown>")
+        );
+    };
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
@@ -622,7 +639,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
                 bail!("bad SPD length ({} bytes): {results:?}", buf.len());
             }
 
-            dump_spd(&subargs, addr, &buf, header)?;
+            dump_spd(subargs, addr, &buf, header)?;
             header = false;
         }
     }
