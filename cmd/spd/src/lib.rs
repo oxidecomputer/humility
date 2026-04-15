@@ -135,7 +135,7 @@ struct SpdArgs {
     )]
     timeout: u32,
 
-    /// verbose output (including raw 512-byte SPD)
+    /// verbose output (including raw SPD data)
     #[clap(long, short)]
     verbose: bool,
 
@@ -183,19 +183,63 @@ fn from_bcd(val: u8) -> u8 {
     (val >> 4) * 10 + (val & 0xf)
 }
 
+/// Addresses from which we'll read SPD data
+struct SpdParameterAddresses {
+    jep_cc: usize,
+    jep_id: usize,
+    year: usize,
+    week: usize,
+    part: core::ops::RangeInclusive<usize>,
+}
+
 fn dump_spd(
     subargs: &SpdArgs,
     addr: u8,
     buf: &[u8],
     header: bool,
 ) -> Result<()> {
-    use spd::Offset;
+    // We're reading the same data out of both DDR4 and DDR5 SPD buffers, but
+    // they have different positions.
+    let addrs = match buf.len() {
+        spd::ee1004::MAX_SIZE => {
+            use spd::ee1004::Offset;
+            SpdParameterAddresses {
+                jep_cc: Offset::ModuleManufacturerIDCodeLSB.to_usize(),
+                jep_id: Offset::ModuleManufacturerIDCodeMSB.to_usize(),
 
-    let jep_cc = Offset::ModuleManufacturerIDCodeLSB.within(buf) & 0x7f;
-    let jep_id = Offset::ModuleManufacturerIDCodeMSB.within(buf) & 0x7f;
+                year: Offset::ModuleManufacturingDateYear.to_usize(),
+                week: Offset::ModuleManufacturingDateWeek.to_usize(),
+                part: Offset::PartNumberBase.to_usize()
+                    ..=Offset::PartNumberLimit.to_usize(),
+            }
+        }
+        spd::ddr5::MAX_SIZE => {
+            use spd::ddr5::Offset;
+            SpdParameterAddresses {
+                jep_cc: Offset::ModuleManufacturerIDCode0.to_usize(),
+                jep_id: Offset::ModuleManufacturerIDCode1.to_usize(),
 
-    let year = from_bcd(Offset::ModuleManufacturingDateYear.within(buf));
-    let week = from_bcd(Offset::ModuleManufacturingDateWeek.within(buf));
+                year: Offset::ModuleManufacturingDateYear.to_usize(),
+                week: Offset::ModuleManufacturingDateWeek.to_usize(),
+                part: Offset::PartNumberBase.to_usize()
+                    ..=Offset::PartNumberLimit.to_usize(),
+            }
+        }
+        b => {
+            bail!(
+                "Unknown buffer length {b} (expected {} or 1024)",
+                spd::ee1004::MAX_SIZE
+            );
+        }
+    };
+
+    let jep_cc = buf[addrs.jep_cc] & 0x7f;
+    let jep_id = buf[addrs.jep_id] & 0x7f;
+
+    let year = from_bcd(buf[addrs.year]);
+    let week = from_bcd(buf[addrs.week]);
+
+    let part = str::from_utf8(&buf[addrs.part]);
 
     let width: usize = 16;
 
@@ -214,20 +258,15 @@ fn dump_spd(
         return Ok(());
     }
 
-    let part = str::from_utf8(
-        &buf[Offset::PartNumberBase.to_usize()
-            ..=Offset::PartNumberLimit.to_usize()],
-    );
-
     if header || subargs.address.is_some() || subargs.verbose {
         println!(
-            "{:4} {:25} {:20} {:4} {:4}",
+            "{:4} {:25} {:30} {:4} {:4}",
             "ADDR", "MANUFACTURER", "PART", "WEEK", "YEAR"
         )
     }
 
     println!(
-        "{:4} {:25} {:20} {:4} {:4}",
+        "{:4} {:25} {:30} {:4} {:4}",
         addr,
         manufacturer.get().unwrap_or("<unknown>"),
         part.unwrap_or("<unknown>"),
@@ -274,9 +313,13 @@ fn dump_spd(
 }
 
 // Assumes that we already have pushed on the stack our controller/port/mux
-fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
+fn set_page(
+    ops: &mut Vec<Op>,
+    i2c_write: &HiffyFunction,
+    page: spd::ee1004::Page,
+) {
     let dev =
-        spd::Function::PageAddress(spd::Page(page)).to_device_code().unwrap();
+        spd::ee1004::Function::PageAddress(page).to_device_code().unwrap();
     ops.push(Op::Push(dev)); // Device
     ops.push(Op::PushNone); // Register
     ops.push(Op::Push(0)); // Buffer
@@ -473,14 +516,14 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
     // First, we want to have all SPDs on the specified bus flip to
     // their 0 page
     //
-    set_page(&mut ops, &i2c_write, 0);
+    set_page(&mut ops, &i2c_write, spd::ee1004::Page::Page0);
 
     //
     // Now issue single byte register reads to determine where our devices are.
     //
-    for addr in 0..spd::MAX_DEVICES {
+    for addr in 0..spd::ee1004::MAX_DEVICES {
         ops.push(Op::Push(
-            spd::Function::Memory(addr).to_device_code().unwrap(),
+            spd::ee1004::Function::Memory(addr).to_device_code().unwrap(),
         ));
         ops.push(Op::Push(0));
         ops.push(Op::Push(1));
@@ -497,14 +540,15 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
         bail!("failed to set page to 0: {}", i2c_write.strerror(err));
     }
 
-    for addr in 0..spd::MAX_DEVICES {
+    for addr in 0..spd::ee1004::MAX_DEVICES {
         if results[addr as usize + 1].is_ok() {
             let mut ops = base.clone();
 
             //
             // Issue the read for the bottom 128 bytes from the 0 page
             //
-            let dev = spd::Function::Memory(addr).to_device_code().unwrap();
+            let dev =
+                spd::ee1004::Function::Memory(addr).to_device_code().unwrap();
             ops.push(Op::Push(dev));
             ops.push(Op::Push(0));
             ops.push(Op::Push(128));
@@ -522,7 +566,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
             // Switch to the 1 page
             //
             ops.push(Op::DropN(3));
-            set_page(&mut ops, &i2c_write, 1);
+            set_page(&mut ops, &i2c_write, spd::ee1004::Page::Page1);
 
             //
             // Issue an identical read for the bottom 128 bytes...
@@ -544,7 +588,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
             //
             // Finally, set ourselves back to the 0 page
             //
-            set_page(&mut ops, &i2c_write, 0);
+            set_page(&mut ops, &i2c_write, spd::ee1004::Page::Page0);
 
             ops.push(Op::Done);
 
