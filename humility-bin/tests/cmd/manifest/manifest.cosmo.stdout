@@ -1,0 +1,283 @@
+     version => hubris build archive v11
+     git rev => 3b9b40d840984e3cca6d40e73f020f96a40538c5
+    image id => [f0, 72, 97, 20, 53, 8c, db, e0]
+       board => cosmo-b
+        name => cosmo-b-lab
+       image => default
+      target => thumbv7em-none-eabihf
+    features => dump, measurement-handoff
+  total size => 943K
+ kernel size => 37K
+       tasks => 33
+                ID OBJ TASK                SIZE FEATURES
+                 0  12 cosmo_seq          61.1K h753, stay-in-a2, enable-backplane-pcie-clk
+                 1  30 auxflash           16.2K h753, fast-qspi
+                 2   3 sys                 4.6K h753, exti, no-panic
+                 3   6 i2c_driver         14.6K h753
+                 4  25 vpd                 5.6K 
+                 5  26 user_leds           1.5K stm32h7
+                 6  17 update_server      10.2K 
+                 7  32 udprpc              8.4K vlan
+                 8  29 spd                 8.3K 
+                 9  24 validate            8.4K 
+                10  11 hiffy              52.4K h753, stm32h7, i2c, gpio, spi, qspi, hash, sprot, turbo
+                11  33 fmc_demo           12.4K h753
+                12  21 udpbroadcast        6.7K vlan
+                13  19 host_sp_comms      104.4K stm32h753, usart6, baud_rate_3M, hardware_flow_control, vlan, cosmo
+                14   1 jefe                9.5K dump, fault-notification
+                15  15 hash_driver         6.9K h753
+                16  27 dump_agent         28.0K net, vlan
+                17  13 ignition_flash      8.7K 
+                18   5 spi3_driver        11.5K spi3, h753
+                19  14 spartan7_loader    17.0K h753
+                20   2 net                134.4K mgmt, h753, cosmo, vlan, vpd-mac
+                21  22 control_plane_agent 138.1K cosmo, usart1, vlan, baud_rate_3M, vpd, auxflash
+                22   7 packrat            42.5K cosmo, ereport, boot-kmdb
+                23  31 idle                0.1K 
+                24  28 snitch              4.6K vlan
+                25   4 spi2_driver        12.0K spi2, h753
+                26  20 udpecho             7.2K vlan
+                27  18 sensor             15.8K 
+                28   8 rng_driver          5.9K h753, ereport
+                29  10 power              36.8K cosmo
+                30   9 thermal            23.6K cosmo
+                31  23 sprot              49.2K sink_test, use-spi-core, h753, spi5
+                32  16 hf                 39.3K 
+   i2c buses => 4 controllers, 4 buses
+                C PORT MODE NAME          DESCRIPTION
+                2 F    init main          Main FPGA mux
+                3 H    init mid           Mid bus
+                4 F    init rear          Rear bus
+                1 B    init front         Front FPGA mux
+ i2c devices => 63 devices
+                 ID C  P  MUX ADDR DEVICE        DESCRIPTION
+                  0  1 B  -   0x70 oximux16      Front FPGA virtual mux
+                  1  1 B  1:1 0x50 at24csw080    U.2 Sharkfin A VPD
+                  2  1 B  1:1 0x38 max5970       U.2 Sharkfin A hot swap controller
+                  3  1 B  1:1 0x6a nvme_bmc      U.2 A NVMe Basic Management Command
+                  4  1 B  1:2 0x50 at24csw080    U.2 Sharkfin B VPD
+                  5  1 B  1:2 0x38 max5970       U.2 Sharkfin B hot swap controller
+                  6  1 B  1:2 0x6a nvme_bmc      U.2 B NVMe Basic Management Control
+                  7  1 B  1:3 0x50 at24csw080    U.2 Sharkfin C VPD
+                  8  1 B  1:3 0x38 max5970       U.2 Sharkfin C hot swap controller
+                  9  1 B  1:3 0x6a nvme_bmc      U.2 C NVMe Basic Management Control
+                 10  1 B  1:4 0x50 at24csw080    U.2 Sharkfin D VPD
+                 11  1 B  1:4 0x38 max5970       U.2 Sharkfin D hot swap controller
+                 12  1 B  1:4 0x6a nvme_bmc      U.2 D NVMe Basic Management Control
+                 13  1 B  1:5 0x50 at24csw080    U.2 Sharkfin E VPD
+                 14  1 B  1:5 0x38 max5970       U.2 Sharkfin E hot swap controller
+                 15  1 B  1:5 0x6a nvme_bmc      U.2 E NVMe Basic Management Control
+                 16  1 B  1:6 0x50 at24csw080    U.2 Sharkfin F VPD
+                 17  1 B  1:6 0x38 max5970       U.2 Sharkfin F hot swap controller
+                 18  1 B  1:6 0x6a nvme_bmc      U.2 F NVMe Basic Management Control
+                 19  1 B  1:9 0x50 at24csw080    U.2 Sharkfin G VPD
+                 20  1 B  1:9 0x38 max5970       U.2 Sharkfin G hot swap controller
+                 21  1 B  1:9 0x6a nvme_bmc      U.2 G NVMe Basic Management Control
+                 22  1 B  1:10 0x50 at24csw080    U.2 Sharkfin H VPD
+                 23  1 B  1:10 0x38 max5970       U.2 Sharkfin H hot swap controller
+                 24  1 B  1:10 0x6a nvme_bmc      U.2 H NVMe Basic Management Control
+                 25  1 B  1:11 0x50 at24csw080    U.2 Sharkfin I VPD
+                 26  1 B  1:11 0x38 max5970       U.2 Sharkfin I hot swap controller
+                 27  1 B  1:11 0x6a nvme_bmc      U.2 I NVMe Basic Management Control
+                 28  1 B  1:12 0x50 at24csw080    U.2 Sharkfin J VPD
+                 29  1 B  1:12 0x38 max5970       U.2 Sharkfin J hot swap controller
+                 30  1 B  1:12 0x6a nvme_bmc      U.2 J NVMe Basic Management Control
+                 31  1 B  1:13 0x48 tmp117        Southwest temperature sensor
+                 32  1 B  1:13 0x49 tmp117        South temperature sensor
+                 33  1 B  1:13 0x4a tmp117        Southeast temperature sensor
+                 34  2 F  -   0x70 oximux16      Main FPGA virtual mux
+                 35  2 F  1:1 0x6a nvme_bmc      M.2 A NVMe Basic Management Command
+                 36  2 F  1:2 0x6a nvme_bmc      M.2 B NVMe Basic Management Command
+                 37  2 F  1:4 0x3c sbrmi         CPU via SB-RMI
+                 38  2 F  1:4 0x4c sbtsi         CPU temperature sensor
+                 39  2 F  1:7 0x50 at24csw080    Fan VPD
+                 40  2 F  1:8 0x4c tmp451        T6 temperature sensor
+                 41  3 H  -   0x24 tps546b24a    A2 3.3V rail
+                 42  3 H  -   0x27 tps546b24a    A2 5V rail
+                 43  3 H  -   0x29 tps546b24a    A2 1.8V rail
+                 44  3 H  -   0x3a max5970       M.2 hot plug controller
+                 45  3 H  -   0x54 ltc4282       12V MCIO hot plug controller
+                 46  3 H  -   0x56 ltc4282       DIMM GHIJKL hot plug controller
+                 47  3 H  -   0x55 ltc4282       DIMM ABCDEF hot plug controller
+                 48  3 H  -   0x75 raa229620a    South power controller (Core 0, SOC)
+                 49  3 H  -   0x76 raa229620a    North power controller (Core 1, VDDIO)
+                 50  3 H  -   0x5c isl68224      SP5 power controller (V1P1, V1P8, V3P3)
+                 51  4 F  -   0x39 max5970       NIC hot swap
+                 52  4 F  -   0x25 tps546b24a    T6 power controller
+                 53  4 F  -   0x48 tmp117        Northwest temperature sensor
+                 54  4 F  -   0x49 tmp117        North temperature sensor
+                 55  4 F  -   0x4a tmp117        Northeast temperature sensor
+                 56  4 F  -   0x20 max31790      Fan controller
+                 57  4 F  -   0x67 bmr491        Intermediate bus converter
+                 58  4 F  -   0x50 at24csw080    Cosmo VPD
+                 59  4 F  -   0x11 lm5066i       Fan hot swap controller (east)
+                 60  4 F  -   0x12 lm5066i       Fan hot swap controller (central)
+                 61  4 F  -   0x13 lm5066i       Fan hot swap controller (west)
+                 62  4 F  -   0x14 adm127x       Sled hot swap controller
+   aux flash => 33554432 bytes (32 MiB), 16 slots (2 MiB/slot)
+     sensors => 155 sensors
+                 ID NAME                    DEVICE      KIND
+                  0 V12_U2A_A0              i2c id=2    current
+                  1 V3P3_U2A_A0             i2c id=2    current
+                  2 V12_U2A_A0              i2c id=2    voltage
+                  3 V3P3_U2A_A0             i2c id=2    voltage
+                  4 U2_N0                   i2c id=3    temp
+                  5 V12_U2B_A0              i2c id=5    current
+                  6 V3P3_U2B_A0             i2c id=5    current
+                  7 V12_U2B_A0              i2c id=5    voltage
+                  8 V3P3_U2B_A0             i2c id=5    voltage
+                  9 U2_N1                   i2c id=6    temp
+                 10 V12_U2C_A0              i2c id=8    current
+                 11 V3P3_U2C_A0             i2c id=8    current
+                 12 V12_U2C_A0              i2c id=8    voltage
+                 13 V3P3_U2C_A0             i2c id=8    voltage
+                 14 U2_N2                   i2c id=9    temp
+                 15 V12_U2D_A0              i2c id=11   current
+                 16 V3P3_U2D_A0             i2c id=11   current
+                 17 V12_U2D_A0              i2c id=11   voltage
+                 18 V3P3_U2D_A0             i2c id=11   voltage
+                 19 U2_N3                   i2c id=12   temp
+                 20 V12_U2E_A0              i2c id=14   current
+                 21 V3P3_U2E_A0             i2c id=14   current
+                 22 V12_U2E_A0              i2c id=14   voltage
+                 23 V3P3_U2E_A0             i2c id=14   voltage
+                 24 U2_N4                   i2c id=15   temp
+                 25 V12_U2F_A0              i2c id=17   current
+                 26 V3P3_U2F_A0             i2c id=17   current
+                 27 V12_U2F_A0              i2c id=17   voltage
+                 28 V3P3_U2F_A0             i2c id=17   voltage
+                 29 U2_N5                   i2c id=18   temp
+                 30 V12_U2G_A0              i2c id=20   current
+                 31 V3P3_U2G_A0             i2c id=20   current
+                 32 V12_U2G_A0              i2c id=20   voltage
+                 33 V3P3_U2G_A0             i2c id=20   voltage
+                 34 U2_N6                   i2c id=21   temp
+                 35 V12_U2H_A0              i2c id=23   current
+                 36 V3P3_U2H_A0             i2c id=23   current
+                 37 V12_U2H_A0              i2c id=23   voltage
+                 38 V3P3_U2H_A0             i2c id=23   voltage
+                 39 U2_N7                   i2c id=24   temp
+                 40 V12_U2I_A0              i2c id=26   current
+                 41 V3P3_U2I_A0             i2c id=26   current
+                 42 V12_U2I_A0              i2c id=26   voltage
+                 43 V3P3_U2I_A0             i2c id=26   voltage
+                 44 U2_N8                   i2c id=27   temp
+                 45 V12_U2J_A0              i2c id=29   current
+                 46 V3P3_U2J_A0             i2c id=29   current
+                 47 V12_U2J_A0              i2c id=29   voltage
+                 48 V3P3_U2J_A0             i2c id=29   voltage
+                 49 U2_N9                   i2c id=30   temp
+                 50 Southwest               i2c id=31   temp
+                 51 South                   i2c id=32   temp
+                 52 Southeast               i2c id=33   temp
+                 53 M2_A                    i2c id=35   temp
+                 54 M2_B                    i2c id=36   temp
+                 55 CPU                     i2c id=38   temp
+                 56 t6                      i2c id=40   temp
+                 57 V3P3_SP_A2              i2c id=41   temp
+                 58 V3P3_SP_A2              i2c id=41   current
+                 59 V3P3_SP_A2              i2c id=41   voltage
+                 60 V5_SYS_A2               i2c id=42   temp
+                 61 V5_SYS_A2               i2c id=42   current
+                 62 V5_SYS_A2               i2c id=42   voltage
+                 63 V1P8_SYS_A2             i2c id=43   temp
+                 64 V1P8_SYS_A2             i2c id=43   current
+                 65 V1P8_SYS_A2             i2c id=43   voltage
+                 66 V3P3_M2A_A0HP           i2c id=44   current
+                 67 V3P3_M2B_A0HP           i2c id=44   current
+                 68 V3P3_M2A_A0HP           i2c id=44   voltage
+                 69 V3P3_M2B_A0HP           i2c id=44   voltage
+                 70 V12_MCIO_A0HP           i2c id=45   current
+                 71 V12_MCIO_A0HP           i2c id=45   voltage
+                 72 V12_DDR5_GHIJKL_A0      i2c id=46   current
+                 73 V12_DDR5_GHIJKL_A0      i2c id=46   voltage
+                 74 V12_DDR5_ABCDEF_A0      i2c id=47   current
+                 75 V12_DDR5_ABCDEF_A0      i2c id=47   voltage
+                 76 VDDCR_CPU0_A0           i2c id=48   temp
+                 77 VDDCR_SOC_A0            i2c id=48   temp
+                 78 VDDCR_CPU0_A0           i2c id=48   power
+                 79 VDDCR_SOC_A0            i2c id=48   power
+                 80 VDDCR_CPU0_A0           i2c id=48   current
+                 81 VDDCR_SOC_A0            i2c id=48   current
+                 82 VDDCR_CPU0_A0           i2c id=48   voltage
+                 83 VDDCR_SOC_A0            i2c id=48   voltage
+                 84 VDDCR_CPU1_A0           i2c id=49   temp
+                 85 VDDIO_SP5_A0            i2c id=49   temp
+                 86 VDDCR_CPU1_A0           i2c id=49   power
+                 87 VDDIO_SP5_A0            i2c id=49   power
+                 88 VDDCR_CPU1_A0           i2c id=49   current
+                 89 VDDIO_SP5_A0            i2c id=49   current
+                 90 VDDCR_CPU1_A0           i2c id=49   voltage
+                 91 VDDIO_SP5_A0            i2c id=49   voltage
+                 92 V1P1_SP5_A0             i2c id=50   current
+                 93 V1P8_SP5_A1             i2c id=50   current
+                 94 V3P3_SP5_A1             i2c id=50   current
+                 95 V1P1_SP5_A0             i2c id=50   voltage
+                 96 V1P8_SP5_A1             i2c id=50   voltage
+                 97 V3P3_SP5_A1             i2c id=50   voltage
+                 98 V12P0_NIC_A0HP          i2c id=51   current
+                 99 V5P0_NIC_A0HP           i2c id=51   current
+                100 V12P0_NIC_A0HP          i2c id=51   voltage
+                101 V5P0_NIC_A0HP           i2c id=51   voltage
+                102 V0P96_NIC_VDD_A0HP      i2c id=52   temp
+                103 V0P96_NIC_VDD_A0HP      i2c id=52   current
+                104 V0P96_NIC_VDD_A0HP      i2c id=52   voltage
+                105 Northwest               i2c id=53   temp
+                106 North                   i2c id=54   temp
+                107 Northeast               i2c id=55   temp
+                108 Southeast               i2c id=56   speed
+                109 Northeast               i2c id=56   speed
+                110 South                   i2c id=56   speed
+                111 North                   i2c id=56   speed
+                112 Southwest               i2c id=56   speed
+                113 Northwest               i2c id=56   speed
+                114 V12_SYS_A2              i2c id=57   temp
+                115 V12_SYS_A2              i2c id=57   power
+                116 V12_SYS_A2              i2c id=57   current
+                117 V12_SYS_A2              i2c id=57   voltage
+                118 V54P5_FAN_EAST          i2c id=59   temp
+                119 V54P5_FAN_EAST          i2c id=59   current
+                120 V54P5_FAN_EAST          i2c id=59   voltage
+                121 V54P5_FAN_CENTRAL       i2c id=60   temp
+                122 V54P5_FAN_CENTRAL       i2c id=60   current
+                123 V54P5_FAN_CENTRAL       i2c id=60   voltage
+                124 V54P5_FAN_WEST          i2c id=61   temp
+                125 V54P5_FAN_WEST          i2c id=61   current
+                126 V54P5_FAN_WEST          i2c id=61   voltage
+                127 V54P5_IBC_A3            i2c id=62   temp
+                128 V54P5_IBC_A3            i2c id=62   current
+                129 V54P5_IBC_A3            i2c id=62   voltage
+                130 A_TS0                   dimm        temp
+                131 A_TS1                   dimm        temp
+                132 B_TS0                   dimm        temp
+                133 B_TS1                   dimm        temp
+                134 C_TS0                   dimm        temp
+                135 C_TS1                   dimm        temp
+                136 D_TS0                   dimm        temp
+                137 D_TS1                   dimm        temp
+                138 E_TS0                   dimm        temp
+                139 E_TS1                   dimm        temp
+                140 F_TS0                   dimm        temp
+                141 F_TS1                   dimm        temp
+                142 G_TS0                   dimm        temp
+                143 G_TS1                   dimm        temp
+                144 H_TS0                   dimm        temp
+                145 H_TS1                   dimm        temp
+                146 I_TS0                   dimm        temp
+                147 I_TS1                   dimm        temp
+                148 J_TS0                   dimm        temp
+                149 J_TS1                   dimm        temp
+                150 K_TS0                   dimm        temp
+                151 K_TS1                   dimm        temp
+                152 L_TS0                   dimm        temp
+                153 L_TS1                   dimm        temp
+                154 fan_ctrl                thermal_loop pwm
+     sockets => 7 sockets
+               NAME                 KIND    PORT  RXSIZE OWNER
+               echo                 udp        7    1024 udpecho
+               broadcast            udp      997    1024 udpbroadcast
+               control_plane_agent  udp    11111    2048 control_plane_agent
+               dump_agent           udp    11113    1024 dump_agent
+               ereport              udp    57005      35 snitch
+               rpc                  udp      998    1024 udprpc
+               fmc_test             udp    11114    4096 fmc_demo

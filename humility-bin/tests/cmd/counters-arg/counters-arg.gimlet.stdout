@@ -1,0 +1,57 @@
+gimlet_seq
+ |
+ +---> drv_gimlet_seq_server::__RINGBUF:
+ |      1972 Status
+ |       446 ClockConfigWrite
+ |       182 A0Status
+ |       103 A1Status
+ |       103 A1Readbacks
+ |       103 A1OutStatus
+ |        15 A0Power
+ |         2 V3P3SysA0VOut
+ |         1 Ice40Rails
+ |         1 IdentValid(false)
+ |         1 ChecksumValid(false)
+ |         1 Reprogram(true)
+ |         1 Programmed
+ |         1 Programming
+ |         1 Ice40PowerGoodV1P2(true)
+ |         1 Ice40PowerGoodV3P3(true)
+ |         1 RailsOff
+ |         1 Ident
+ |         1 A2Status
+ |         1 A2
+ |         1 CPUPresent(true)
+ |         1 Coretype
+ |         1 RailsOn
+ |         1 UartEnabled
+ |         1 A0
+ |         1 SetState(InitialPowerOn)
+ |         1 UpdateState(A0)
+ |         1 ClockConfigSuccess
+ |         1 PGStatus
+ |         1 SMStatus
+ |         1 PowerControl
+ |         1 InterruptFlags
+ |         1 SpdDimmsFound
+ +---> drv_gimlet_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
+ |        62 get_state
+ +---> drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |         1 set_mux(Ok)
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |      8408 exchange(Ok)
+ |       530 write(Ok)
+ |         4 lock(Ok)
+ |         1 release(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |      1983 gpio_read_input
+ |        15 gpio_configure_raw
+ |        15 gpio_set_reset
+ |         1 gpio_irq_configure
+ |         1 gpio_irq_control(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         2 set_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          32 set_spd_eeprom
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)

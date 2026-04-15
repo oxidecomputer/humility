@@ -1,0 +1,44 @@
+drv_spi_api::__SPI_CLIENT_COUNTERS
+ fn Spi::write() ..................................................... 62 calls
+    clients:
+    task net (0 restarts) .............................. = 0 .......... = 62 ok
+
+ fn Spi::exchange() ................................................... 8 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 8 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_configure_raw() ........................................ 12 calls
+    clients:
+    task net (0 restarts) .............................. = 0 .......... = 12 ok
+
+ fn Sys::gpio_set_reset() ............................................. 6 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 6 ok
+
+ fn Sys::enable_clock_raw() ........................................... 4 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 4 ok
+
+ fn Sys::enter_reset_raw() ............................................ 2 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 2 ok
+
+ fn Sys::leave_reset_raw() ............................................ 2 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 2 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::get_state() ................................................. 2 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 2 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::get_mac_address_block() .................................. 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+

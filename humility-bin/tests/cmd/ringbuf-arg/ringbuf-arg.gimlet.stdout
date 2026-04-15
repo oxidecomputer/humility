@@ -1,0 +1,142 @@
+humility: ring buffer drv_i2c_devices::adm127x::__RINGBUF in power:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  117       10        1 WriteConfig(CommandData(0x3f3d))
+   1  117       10        1 WriteConfig(CommandData(0x3f37))
+   2  117       10        1 WriteConfig(CommandData(0x3f3d))
+   3  117       10        1 WriteConfig(CommandData(0x3f37))
+   4  117       10        1 WriteConfig(CommandData(0x3f3d))
+   5  117       10        1 WriteConfig(CommandData(0x3f37))
+   6  117       10        1 WriteConfig(CommandData(0x3f3d))
+   7  117       10        1 WriteConfig(CommandData(0x3f37))
+humility: ring buffer drv_i2c_devices::bmr491::__RINGBUF in gimlet_seq:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  186        1        1 MitigationApplied(NewlyApplied)
+humility: ring buffer drv_i2c_devices::emc2305::__RINGBUF in thermal:
+humility: ring buffer drv_i2c_devices::lm5066::__RINGBUF in power:
+humility: ring buffer drv_i2c_devices::lm5066i::__RINGBUF in power:
+humility: ring buffer drv_i2c_devices::max31790::__RINGBUF in thermal:
+humility: ring buffer drv_i2c_devices::sbrmi::__RINGBUF in sbrmi:
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in i2c_driver:
+   TOTAL VARIANT
+   43584 Read
+   37480 Write
+   25196 WriteWait
+   18148 Wait
+    9421 ReadWait
+ NDX LINE      GEN    COUNT PAYLOAD
+  15  631     1862        2 Write(ISR, 0x8021)
+  16  631     1862        1 Write(ISR, 0x8023)
+  17  631     1862        1 Write(ISR, 0x8020)
+  18  631     1862        1 Write(ISR, 0x8023)
+  19  631     1862        3 Write(ISR, 0x8020)
+  20  631     1862        1 Write(ISR, 0x8023)
+  21  663     1862        3 WriteWait(ISR, 0x8020)
+  22  663     1862        1 WriteWait(ISR, 0x8061)
+  23  546     1862        1 Wait(ISR, 0x21)
+  24  631     1862        1 Write(ISR, 0x21)
+  25  631     1862        2 Write(ISR, 0x8021)
+  26  631     1862        1 Write(ISR, 0x8023)
+  27  631     1862        1 Write(ISR, 0x8020)
+  28  631     1862        1 Write(ISR, 0x8023)
+  29  631     1862        3 Write(ISR, 0x8020)
+  30  631     1862        1 Write(ISR, 0x8023)
+  31  663     1862        3 WriteWait(ISR, 0x8020)
+  32  663     1862        1 WriteWait(ISR, 0x8061)
+  33  546     1862        1 Wait(ISR, 0x21)
+  34  631     1862        1 Write(ISR, 0x21)
+  35  631     1862        2 Write(ISR, 0x8021)
+  36  631     1862        1 Write(ISR, 0x8023)
+  37  631     1862        1 Write(ISR, 0x8020)
+  38  631     1862        1 Write(ISR, 0x8023)
+  39  631     1862        3 Write(ISR, 0x8020)
+  40  631     1862        1 Write(ISR, 0x8023)
+  41  663     1862        3 WriteWait(ISR, 0x8020)
+  42  663     1862        1 WriteWait(ISR, 0x8061)
+  43  546     1862        1 Wait(ISR, 0x21)
+  44  631     1862        1 Write(ISR, 0x21)
+  45  631     1862        2 Write(ISR, 0x8021)
+  46  631     1862        1 Write(ISR, 0x8023)
+  47  631     1862        1 Write(ISR, 0x8020)
+   0  631     1863        1 Write(ISR, 0x8023)
+   1  631     1863        3 Write(ISR, 0x8020)
+   2  631     1863        1 Write(ISR, 0x8023)
+   3  663     1863        3 WriteWait(ISR, 0x8020)
+   4  663     1863        1 WriteWait(ISR, 0x8061)
+   5  546     1863        1 Wait(ISR, 0x21)
+   6  631     1863        1 Write(ISR, 0x21)
+   7  631     1863        2 Write(ISR, 0x8021)
+   8  631     1863        1 Write(ISR, 0x8023)
+   9  631     1863        1 Write(ISR, 0x8020)
+  10  631     1863        1 Write(ISR, 0x8023)
+  11  631     1863        3 Write(ISR, 0x8020)
+  12  631     1863        1 Write(ISR, 0x8023)
+  13  663     1863        3 WriteWait(ISR, 0x8020)
+  14  663     1863        1 WriteWait(ISR, 0x8061)
+humility: ring buffer drv_stm32xx_i2c::__RINGBUF in spd:
+   TOTAL VARIANT
+   37676 TxReg
+   28800 RxReg
+   23500 WaitTx
+   19168 WaitRx
+   14401 Addr
+    9601 WaitAddr
+    9280 Tx
+    4800 AddrMatch
+    4768 Rx
+    4704 RepeatedStart(true)
+     192 TxBogus
+      96 Stop
+      64 AddrNack
+      64 RxNack
+ NDX LINE      GEN    COUNT PAYLOAD
+  10 1177     3273        1 WaitTx
+  11 1095     3273        1 TxReg(ISR, 0x378010)
+  12 1177     3273        1 WaitTx
+  13 1095     3273        1 TxReg(ISR, 0x370020)
+  14  936     3273        1 Addr(ISR, 0x370001)
+  15  959     3273        1 WaitAddr
+  16  936     3273        1 Addr(ISR, 0x370001)
+  17  959     3273        1 WaitAddr
+  18  936     3273        1 Addr(ISR, 0x368009)
+  19  951     3273        1 AddrMatch
+  20  984     3273        1 AddrNack(0x1b)
+  21  999     3273        1 RxReg(ISR, 0x368001)
+  22 1078     3273        1 WaitRx
+  23  999     3273        1 RxReg(ISR, 0x368001)
+  24 1078     3273        1 WaitRx
+  25  999     3273        1 RxReg(ISR, 0x368005)
+  26 1026     3273        1 RxNack(0x1b, 0x7)
+  27  999     3273        1 RxReg(ISR, 0x368001)
+  28 1078     3273        1 WaitRx
+  29  999     3273        1 RxReg(ISR, 0x368001)
+  30 1078     3273        1 WaitRx
+  31  999     3273        1 RxReg(ISR, 0x378009)
+  32 1060     3273        1 RepeatedStart(true)
+  33 1095     3273        1 TxReg(ISR, 0x378001)
+  34 1177     3273        1 WaitTx
+  35 1095     3273        1 TxReg(ISR, 0x378003)
+  36 1160     3273        1 TxBogus(0x1b)
+  37 1095     3273        1 TxReg(ISR, 0x378000)
+  38 1177     3273        1 WaitTx
+  39 1095     3273        1 TxReg(ISR, 0x378003)
+  40 1160     3273        1 TxBogus(0x1b)
+  41 1095     3273        1 TxReg(ISR, 0x378000)
+  42 1177     3273        1 WaitTx
+  43 1095     3273        1 TxReg(ISR, 0x378000)
+  44 1177     3273        1 WaitTx
+  45 1095     3273        1 TxReg(ISR, 0x378003)
+  46 1160     3273        1 TxBogus(0x1b)
+  47 1095     3273        1 TxReg(ISR, 0x378000)
+   0 1177     3274        1 WaitTx
+   1 1095     3274        1 TxReg(ISR, 0x378000)
+   2 1177     3274        1 WaitTx
+   3 1095     3274        1 TxReg(ISR, 0x378010)
+   4 1177     3274        1 WaitTx
+   5 1095     3274        1 TxReg(ISR, 0x370020)
+   6  936     3274        1 Addr(ISR, 0x370001)
+   7  959     3274        1 WaitAddr
+   8  936     3274        1 Addr(ISR, 0x370001)
+   9  959     3274        1 WaitAddr
+humility: ring buffer drv_stm32xx_i2c_server::__RINGBUF in i2c_driver:
+ NDX LINE      GEN    COUNT PAYLOAD
+   0  670        1        4 Wiggles(0x0)

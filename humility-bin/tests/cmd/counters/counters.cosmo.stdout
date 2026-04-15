@@ -1,0 +1,393 @@
+auxflash
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           3 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 leave_reset_raw(Ok)
+control_plane_agent
+ |
+ +---> drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_cpu_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32h7_update_api::__UPDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         1 enable_clock_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ |         1 gpio_configure_raw
+ +---> drv_user_leds_api::__USERLEDS_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> dump_agent_api::__DUMPAGENT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::CRITICAL:
+ |     <no counts recorded>
+ +---> task_control_plane_agent::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |   2018959 recv_packet(Err(QueueEmpty))
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_validate_api::__VALIDATE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_vpd_api::__VPD_CLIENT_COUNTERS:
+       <no counts recorded>
+cosmo_seq
+ |
+ +---> drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS:
+ |       435 read_slot_with_offset(Ok)
+ |         1 get_blob_by_tag(Ok)
+ +---> drv_cosmo_seq_server::__RINGBUF:
+ |     74825 RegStateValues
+ |       522 ContinueBitstreamLoad
+ |         2 SetState(InitialPowerOn)
+ |         1 SetState(Other)
+ |         1 FpgaInit
+ |         1 WaitForDone
+ |         1 Programmed
+ |         1 Startup
+ |         1 Coretype
+ +---> drv_cosmo_seq_server::diagnose::__RINGBUF:
+ |     <no counts recorded>
+ +---> drv_cosmo_seq_server::ereporter::__EREPORT_RINGBUF:
+ |     <no counts recorded>
+ +---> drv_cosmo_seq_server::idl::__SEQUENCER_SERVER_COUNTERS:
+ |   3010536 get_state
+ |         1 set_state(Ok)
+ +---> drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |         1 set_mux(Ok)
+ +---> drv_spartan7_loader_api::__SPARTAN7LOADER_CLIENT_COUNTERS:
+ |         4 ping
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |       524 write(Ok)
+ |         4 lock(Ok)
+ |         1 release(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |    136247 gpio_read_input
+ |        15 gpio_configure_raw
+ |        10 gpio_set_reset
+ |         1 gpio_irq_configure
+ |         1 gpio_irq_control(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         3 set_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 set_mac_address_block(Ok)
+           1 set_identity(Ok)
+dump_agent
+ |
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+     2018960 recv_packet(Err(QueueEmpty))
+fmc_demo
+ |
+ +---> drv_stm32h7_fmc_demo_server::__COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32h7_fmc_demo_server::idl::__FMCDEMO_SERVER_COUNTERS:
+ |     <no counts recorded>
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+     2018959 recv_packet(Err(QueueEmpty))
+hash_driver
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           1 enable_clock_raw(Ok)
+           1 disable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+hf
+ |
+ +---> drv_cosmo_hf::__RINGBUF:
+ |     88194 FpgaBusy
+ |         1 ApobFound
+ |         1 Abl0VersionFound
+ +---> drv_cosmo_hf::apob::__RINGBUF:
+ |         2 GotPersistentData(Meta0)
+ |         2 GotPersistentData(Meta1)
+ |         2 State(Waiting(Slot1))
+ |         1 State(Locked)
+ |         2 ApobSlotEraseStart(Slot1)
+ |         2 ApobSlotEraseSkipped(Slot1)
+ |         1 Abl0Version
+ +---> drv_cosmo_hf::hf::idl::__HOSTFLASH_SERVER_COUNTERS:
+ |        99 apob_read(Ok)
+ |        75 apob_lock
+ |         4 get_mux(Ok)
+ |         2 set_mux(Ok)
+ |         1 read_id(Ok)
+ |         1 get_dev(Ok)
+ |         1 apob_commit(Ok)
+ +---> drv_hash_api::__HASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_spartan7_loader_api::__SPARTAN7LOADER_CLIENT_COUNTERS:
+           1 ping
+hiffy
+ |
+ +---> drv_hash_api::__HASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+       <no counts recorded>
+host_sp_comms
+ |
+ +---> drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS:
+ |         1 read_id(Ok)
+ +---> drv_cpu_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |         3 get_state
+ +---> drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS:
+ |        99 apob_read(Ok)
+ |        75 apob_lock
+ |         4 get_mux(Ok)
+ |         1 read_id(Ok)
+ |         1 set_mux(Ok)
+ |         1 get_dev(Ok)
+ |         1 apob_commit(Ok)
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |         1 exchange(Ok)
+ +---> drv_sprot_api::__SPROT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         3 gpio_set_reset
+ |         2 gpio_configure_raw
+ |         1 enable_clock_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ |         1 read_uid
+ +---> task_control_plane_agent_api::__CONTROLPLANEAGENT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_host_sp_comms::__RINGBUF:
+ |        99 Request(ApobRead)
+ |        74 Request(GetInventoryData)
+ |         5 Request(GetIdentity)
+ |         5 Request(KeyLookup)
+ |         1 Request(GetBootStorageUnit)
+ |         1 Request(GetMacAddresses)
+ |         1 Request(GetStatus)
+ |         1 Request(AckSpStart)
+ |         1 Request(ApobCommit)
+ |        99 Response(ApobRead(Ok))
+ |        74 Response(InventoryData(Ok))
+ |         5 Response(Identity)
+ |         3 Response(KeyLookupResult(Ok))
+ |         2 Response(KeyLookupResult(NoValueForKey))
+ |         1 Response(Ack)
+ |         1 Response(BootStorageUnit)
+ |         1 Response(MacAddresses)
+ |         1 Response(Status)
+ |         1 Response(ApobCommit(Ok))
+ |         4 HfMux
+ |         1 JefeNotification(A2)
+ |         1 JefeNotification(A0)
+ |         1 JefeNotification(A0PlusHP)
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |         1 get_spare_mac_addresses
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+          12 get_spd_present
+          12 get_full_spd_data
+           6 get_identity(Ok)
+           1 get_next_boot_host_startup_options
+i2c_driver
+ |
+ +---> drv_stm32xx_i2c::__RINGBUF:
+ |  415250020 Read
+ |  264808387 Write
+ |  223200644 WriteWait
+ |  94499767 ReadWait
+ |  67299026 Wait
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+         222 gpio_set_reset
+         122 gpio_configure_raw
+          36 gpio_read_input
+           4 enable_clock_raw(Ok)
+           4 leave_reset_raw(Ok)
+ignition_flash
+ |
+ +---> drv_ignition_flash::idl::__IGNITIONFLASH_SERVER_COUNTERS:
+ |     <no counts recorded>
+ +---> drv_spartan7_loader_api::__SPARTAN7LOADER_CLIENT_COUNTERS:
+ |         1 ping
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+       <no counts recorded>
+net
+ |
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |        62 write(Ok)
+ |         8 exchange(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |        12 gpio_configure_raw
+ |         6 gpio_set_reset
+ |         4 enable_clock_raw(Ok)
+ |         2 enter_reset_raw(Ok)
+ |         2 leave_reset_raw(Ok)
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         2 get_state
+ +---> task_net::__COUNTERS:
+ |  18174677 Iter
+ |   2022999 TimerWake
+ |   2018958 IpActivity
+ +---> task_net::mgmt::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_net::server::__RINGBUF:
+ |     <no counts recorded>
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 get_mac_address_block(Ok)
+packrat
+ |
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_packrat::ereport::__RINGBUF:
+       <no counts recorded>
+power
+ |
+ +---> drv_cpu_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |    987529 get_state
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+    70325925 nodata
+    27439446 post
+rng_driver
+ |
+ +---> drv_stm32h7_rng::__RINGBUF:
+ |         1 SetRestartId
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+ |         1 enable_clock_raw(Ok)
+ |         1 enter_reset_raw(Ok)
+ |         1 leave_reset_raw(Ok)
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 set_ereport_restart_id(Ok)
+snitch
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |   2018960 recv_packet(Err(QueueEmpty))
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |     <no counts recorded>
+ +---> task_snitch::__COUNTERS:
+       <no counts recorded>
+spartan7_loader
+ |
+ +---> drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS:
+ |      9966 read_slot_with_offset(Ok)
+ |         1 get_blob_by_tag(Ok)
+ +---> drv_spartan7_loader::__RINGBUF:
+ |     13764 ContinueBitstreamLoad
+ |         1 FpgaInit
+ |         1 WaitForDone
+ |         1 Programmed
+ +---> drv_spartan7_loader::idl::__SPARTAN7LOADER_SERVER_COUNTERS:
+ |         7 ping
+ +---> drv_spi_api::__SPI_CLIENT_COUNTERS:
+ |     13765 write(Ok)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           5 gpio_set_reset
+           4 gpio_configure_raw
+           2 gpio_read_input
+spd
+ |
+ +---> drv_spartan7_loader_api::__SPARTAN7LOADER_CLIENT_COUNTERS:
+ |         1 ping
+ +---> task_cosmo_spd::__RINGBUF:
+ |        12 Present
+ |         1 Activate
+ +---> task_cosmo_spd::idl::__COSMOSPD_SERVER_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+ |         4 get_state
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+ |        48 set_spd_eeprom
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+     4956960 post
+spi2_driver
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |   3687104 Tx
+ |   3687104 Rx
+ |     13827 Start(write)
+ |         9 Start(exchange)
+ |      1641 WaitISR
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+         145 gpio_set_reset
+           9 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+spi3_driver
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |    135108 Tx
+ |    135108 Rx
+ |     82849 WaitISR
+ |       524 Start(write)
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           6 gpio_set_reset
+           4 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+sprot
+ |
+ +---> drv_stm32h7_spi_server_core::__RINGBUF:
+ |     <no counts recorded>
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           5 gpio_configure_raw
+           1 enable_clock_raw(Ok)
+           1 enter_reset_raw(Ok)
+           1 leave_reset_raw(Ok)
+           1 gpio_set_reset
+sys
+ |
+ +---> drv_stm32xx_sys::__EXTI_IRQ_COUNTERS:
+ |     <no counts recorded>
+ +---> task_jefe_api::__JEFE_CLIENT_COUNTERS:
+           1 set_reset_reason
+thermal
+ |
+ +---> drv_cpu_seq_api::__SEQUENCER_CLIENT_COUNTERS:
+ |   2023000 get_state
+ +---> task_sensor_api::__SENSOR_CLIENT_COUNTERS:
+ |  13948012 post
+ |  13362488 nodata
+ |    798516 get_reading(Ok)
+ |     63035 get_reading(Err(NotPresent))
+ +---> task_thermal::__RINGBUF:
+     1011500 ControlPwm
+           4 AutoState(Boot)
+           3 AutoState(Running)
+           6 FanAdded
+           4 MiscReadFailed
+           3 PowerModeChanged
+           1 Start
+           1 ThermalMode(Auto)
+           1 SensorReadFailed
+           1 FanControllerInitialized
+           1 SetFanWatchdogOk
+udpbroadcast
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+ |   2018958 send_packet(Ok)
+ |         1 get_mac_address
+ +---> task_packrat_api::__PACKRAT_CLIENT_COUNTERS:
+           1 get_identity(Ok)
+udpecho
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+     2018960 recv_packet(Err(QueueEmpty))
+udprpc
+ |
+ +---> task_net_api::__NET_CLIENT_COUNTERS:
+     2018960 recv_packet(Err(QueueEmpty))
+user_leds
+ |
+ +---> drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS:
+           4 gpio_configure_raw
+           4 gpio_set_reset
