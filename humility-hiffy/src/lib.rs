@@ -250,12 +250,15 @@ impl<'a> HiffyContext<'a> {
         timeout: u32,
     ) -> Result<HiffyContext<'a>> {
         let hiffy = if core.is_net() {
-            if let Some(hiffy_task) = hubris.lookup_task("hiffy")
-                && hubris.does_task_have_feature(hiffy_task, "net").unwrap()
+            if hubris
+                .manifest
+                .task_features
+                .get("hiffy")
+                .is_some_and(|f| f.contains(&"net".to_owned()))
             {
                 // We will get enum variants by finding the `enum RpcOp` in the
                 // archive, then getting its variant tags.
-                let hiffy_task = hubris.lookup_module(hiffy_task)?;
+                let hiffy_task = hubris.lookup_module_by_name("hiffy")?;
                 let errs = hiffy_task
                     .get_enum_variants_by_name(hubris, "RpcReply")?
                     .into_iter()

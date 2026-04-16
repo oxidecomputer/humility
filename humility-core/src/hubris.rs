@@ -2067,6 +2067,13 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_module_by_name(&self, name: &str) -> Result<&HubrisModule> {
+        match self.modules.values().find(|m| m.name == name) {
+            Some(module) => Ok(module),
+            None => Err(anyhow!("no such task: {name}")),
+        }
+    }
+
     pub fn lookup_module_by_iface(&self, name: &str) -> Option<&HubrisModule> {
         (0..self.ntasks())
             .map(|t| self.lookup_module(HubrisTask::Task(t as u32)).unwrap())
