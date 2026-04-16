@@ -80,7 +80,7 @@ impl<'a> EepromHandler<'a> {
         let bar = ProgressBar::new(0);
         bar.set_style(
             ProgressStyle::default_bar()
-                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}"),
+                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}")?,
         );
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
@@ -117,7 +117,7 @@ impl<'a> EepromHandler<'a> {
         let bar = ProgressBar::new(0);
         bar.set_style(
             ProgressStyle::default_bar()
-                .template("humility: writing [{bar:30}] {bytes}/{total_bytes}"),
+                .template("humility: writing [{bar:30}] {bytes}/{total_bytes}")?,
         );
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {

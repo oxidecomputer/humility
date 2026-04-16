@@ -8,7 +8,7 @@ use humility_arch_arm::ARMRegister;
 use std::path::Path;
 
 pub struct UnattachedCore {
-    pub probe: probe_rs::Probe,
+    pub probe: probe_rs::probe::Probe,
     pub identifier: String,
     pub vendor_id: u16,
     pub product_id: u16,
@@ -17,7 +17,7 @@ pub struct UnattachedCore {
 
 impl UnattachedCore {
     pub(crate) fn new(
-        probe: probe_rs::Probe,
+        probe: probe_rs::probe::Probe,
         identifier: String,
         vendor_id: u16,
         product_id: u16,

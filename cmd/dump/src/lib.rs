@@ -215,7 +215,7 @@ fn emulate_dump(
 
     bar.set_style(ProgressStyle::default_bar().template(
         "humility: dumping in situ [{bar:30}] {bytes}/{total_bytes}",
-    ));
+    )?);
 
     let mut rnum = 0;
 
@@ -479,7 +479,7 @@ fn dump_via_agent(
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
             ProgressStyle::default_bar()
-                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}"),
+                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}")?,
         );
 
         let mut nread = 0;

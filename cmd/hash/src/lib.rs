@@ -180,7 +180,7 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
                 let bar = ProgressBar::new(data.len() as u64);
                 bar.set_style(ProgressStyle::default_bar().template(
                     "humility: Hashing [{bar:30}] {bytes}/{total_bytes}",
-                ));
+                )?);
                 // On first iteration, --digest won't have the Init already pushed.
                 if subargs.digest {
                     ops.push(Op::Call(context.get_function("HashInit", 0)?.id));
@@ -422,7 +422,7 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
     let bar = ProgressBar::new(limit as u64);
     bar.set_style(
         ProgressStyle::default_bar()
-            .template("humility: Hashing [{bar:30}] {bytes}/{total_bytes}"),
+            .template("humility: Hashing [{bar:30}] {bytes}/{total_bytes}")?,
     );
 
     let mut hasher = Sha256::new();
