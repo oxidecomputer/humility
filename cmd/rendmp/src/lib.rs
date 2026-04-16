@@ -166,7 +166,7 @@ use std::io::Write;
 use std::io::prelude::*;
 use std::thread;
 use std::time::{Duration, Instant};
-use strum::VariantNames;
+use strum::VariantNames as _;
 use strum_macros::VariantNames;
 use zerocopy::{FromBytes, IntoBytes};
 

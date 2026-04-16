@@ -104,9 +104,12 @@ vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
-# that we can float necessary patches on probe-rs.
+# that we can float necessary patches on probe-rs. 
 #
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.12.0" }
+# As of this commit the patches are pretty minimal: an updated nusb branch
+# with illumos support and some tweaks to avoid the need to pull in
+# serialport. The dream would still be to run a regular probe-rs release.
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide_v0.31.0", default-features = false, features = ["builtin-targets"] }
 
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
@@ -262,7 +265,3 @@ debug = true
 inherits = "release"
 debug = false
 debug-assertions = true
-
-[patch.crates-io]
-libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
-hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }
