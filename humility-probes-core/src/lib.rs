@@ -3,8 +3,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use ::probe_rs::{
-    DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
-    ProbeCreationError,
+    Permissions,
+    probe::{
+        DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
+        ProbeCreationError,
+    },
 };
 use humility::{
     core::ProbeError,
@@ -39,7 +42,8 @@ fn parse_probe(probe: &str) -> (&str, Option<usize>) {
 }
 
 fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
-    let probes = Probe::list_all();
+    let lister = ::probe_rs::probe::list::Lister::new();
+    let probes = lister.list_all();
 
     if probes.is_empty() {
         return Err(ProbeError::NoProbeFound.into());
@@ -65,50 +69,66 @@ fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
     }
 }
 
-/// [`probe_rs::Probe::open`] with specialized error messages and speed
-/// configuration
-fn open_probe<T: Into<DebugProbeSelector> + Clone>(
-    selector: T,
+fn open_probe_from_selector(
+    selector: DebugProbeSelector,
     speed_khz: Option<u32>,
 ) -> Result<Probe> {
-    let probe_selector: DebugProbeSelector = selector.clone().into();
-    let res = Probe::open(selector);
-
-    // the following error customizations could be a match statement but until
-    // if let guards stabilize it would be a kludge
-
-    if let Err(DebugProbeError::ProbeCouldNotBeCreated(
-        ProbeCreationError::NotFound,
-    )) = res
-    {
-        if probe_selector.serial_number.is_some() {
-            bail!(
-                "Could not find probe {}.\n\
-                \n\
-                Because a serial number is present, this may be due to not \
-                running humility with permission to read USB device serial \
-                numbers; if not root already, run again as root?",
-                probe_selector
-            );
-        } else {
-            bail!("Could not find probe {}.", probe_selector);
+    let lister = ::probe_rs::probe::list::Lister::new();
+    let mut probe = match lister.open(selector.clone()) {
+        Ok(p) => p,
+        Err(DebugProbeError::ProbeCouldNotBeCreated(
+            ProbeCreationError::NotFound,
+        )) => {
+            if selector.serial_number.is_some() {
+                bail!(
+                    "Could not find probe {selector}.\n\
+                    \n\
+                    Because a serial number is present, this may be due to not \
+                    running humility with permission to read USB device serial \
+                    numbers; if not root already, run again as root?",
+                );
+            } else {
+                bail!("Could not find probe {}.", selector);
+            }
         }
-    }
-
-    if let Err(DebugProbeError::Usb(Some(ref err))) = res
-        && let Some(rcode) = err.downcast_ref::<rusb::Error>()
-        && *rcode == rusb::Error::Busy
-    {
-        bail!("USB link in use; is OpenOCD or another debugger running?");
-    }
-
-    let mut probe = res?;
+        Err(DebugProbeError::Usb(err)) => {
+            let msg = format!("Usb Error: {err:?}");
+            if let Ok(rcode) = err.downcast::<nusb::Error>()
+                && rcode.kind() == nusb::ErrorKind::Busy
+            {
+                bail!(
+                    "USB link in use; is OpenOCD or another debugger running?"
+                );
+            } else {
+                bail!(msg);
+            }
+        }
+        Err(e) => bail!("{e:?}"),
+    };
 
     if let Some(speed) = speed_khz {
         probe.set_speed(speed)?;
     };
 
     Ok(probe)
+}
+
+fn attach_err(e: ::probe_rs::Error) -> anyhow::Error {
+    match e {
+        ::probe_rs::Error::Arm(
+            ::probe_rs::architecture::arm::ArmError::WrongApType,
+        ) => {
+            anyhow!(
+                "Could not find the expected AP type. This has some common causes:\n \
+                1) This is an RoT that has been locked and can no longer be accessed via probes.\n \
+                2) This is an RoT that is being forced into ISP mode\n \
+                3) This is an RoT that needs to be programmed via embootleby\n\
+                4) The probe is attached to an RoT when you are trying to flash an SP or vice versa\n
+                "
+            )
+        }
+        e => anyhow::Error::new(e),
+    }
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -123,7 +143,10 @@ pub fn attach_to_probe(
         "usb" => {
             let probe_info = get_usb_probe(index)?;
 
-            let probe = open_probe(&probe_info, speed_khz)?;
+            let mut probe = probe_info.open()?;
+            if let Some(speed) = speed_khz {
+                probe.set_speed(speed)?;
+            }
 
             info!(log, "Opened probe {}", probe_info.identifier);
             Ok(UnattachedCore::new(
@@ -135,16 +158,16 @@ pub fn attach_to_probe(
             ))
         }
         "auto" => attach_to_probe("usb", speed_khz, log),
-        _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
+        _ => match probe.parse::<DebugProbeSelector>() {
             Ok(selector) => {
                 let vidpid = probe;
                 let vid = selector.vendor_id;
                 let pid = selector.product_id;
                 let serial = selector.serial_number.clone();
-                let probe = open_probe(selector, speed_khz)?;
+                let probe = open_probe_from_selector(selector, speed_khz)?;
                 let name = probe.get_name();
 
-                info!(log, "Opened {vidpid} via {name}");
+                info!(log, "Opened {vidpid}");
                 Ok(UnattachedCore::new(probe, name, vid, pid, serial))
             }
             Err(_) => Err(anyhow!("unrecognized probe: {}", probe)),
@@ -165,23 +188,43 @@ pub fn attach_to_chip(
         "usb" => {
             let probe_info = get_usb_probe(index)?;
 
-            let probe = open_probe(&probe_info, speed_khz)?;
+            let mut probe = probe_info.open()?;
+            if let Some(speed) = speed_khz {
+                probe.set_speed(speed)?;
+            }
 
-            let name = probe.get_name();
             //
             // probe-rs needs us to specify a chip that it knows about -- but
             // it only really uses this information for flashing the part.  If
             // we are attaching to the part for not pusposes of flashing, we
-            // specify a generic ARMv7-M (but then we also indicate that can't
+
+            // specify a generic Cortex-M3 (but then we also indicate that can't
             // flash to assure that we can fail explicitly should flashing be
             // attempted).
             //
             let (session, can_flash) = match chip {
-                Some(chip) => (probe.attach(chip)?, true),
-                None => (probe.attach("armv7m")?, false),
+                Some(chip) => (
+                    probe
+                        .attach(chip, Permissions::new().allow_erase_all())
+                        .map_err(attach_err)?,
+                    true,
+                ),
+                None => (
+                    probe
+                        .attach("Cortex-M3", Permissions::new())
+                        .map_err(attach_err)?,
+                    false,
+                ),
             };
 
-            info!(log, "attached via {name}");
+            info!(
+                log,
+                "attached via {:x}:{:x}:{:?} {}",
+                probe_info.vendor_id,
+                probe_info.product_id,
+                probe_info.serial_number,
+                probe_info.identifier
+            );
 
             Ok(probe_rs::ProbeCore::new(
                 session,
@@ -195,7 +238,7 @@ pub fn attach_to_chip(
         }
         "auto" => attach_to_chip("usb", chip, speed_khz, log),
 
-        _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
+        _ => match probe.parse::<DebugProbeSelector>() {
             Ok(selector) => {
                 let vidpid = probe;
 
@@ -203,16 +246,23 @@ pub fn attach_to_chip(
                 let pid = selector.product_id;
                 let serial = selector.serial_number.clone();
 
-                let probe = open_probe(selector, speed_khz)?;
+                let probe = open_probe_from_selector(selector, speed_khz)?;
                 let name = probe.get_name();
 
                 //
                 // See the block comment in the generic "usb" attach for
-                // why we use armv7m here.
+                // why we use Cortex-M3 here.
                 //
                 let (session, can_flash) = match chip {
-                    Some(chip) => (probe.attach(chip)?, true),
-                    None => (probe.attach("armv7m")?, false),
+                    Some(chip) => (
+                        probe
+                            .attach(chip, Permissions::new().allow_erase_all())
+                            .map_err(attach_err)?,
+                        true,
+                    ),
+                    None => {
+                        (probe.attach("Cortex-M3", Permissions::new())?, false)
+                    }
                 };
 
                 info!(log, "attached to {vidpid} via {name}");

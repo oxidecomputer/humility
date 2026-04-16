@@ -10,4 +10,4 @@ humility-log.workspace = true
 
 anyhow.workspace = true
 clap.workspace = true
-rusb.workspace = true
+nusb.workspace = true

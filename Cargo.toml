@@ -106,12 +106,23 @@ tlvc-text = { git = "https://github.com/oxidecomputer/tlvc", version = "0.4.0" }
 turin-post-decoder = { git = "https://github.com/oxidecomputer/turin-post-decoder" }
 vsc7448-info = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
+# This will ideally be merged soon
+nusb = { git = "https://github.com/oxidecomputer/nusb.git", branch = "add_illumos" }
 
 #
 # We depend on the oxide-stable branch of Oxide's fork of probe-rs to assure
 # that we can float necessary patches on probe-rs.
 #
-probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.12.0" }
+# As of this commit the patches are pretty minimal: an updated nusb branch
+# with illumos support and some tweaks to avoid the need to pull in
+# serialport. The dream would still be to run a regular probe-rs release.
+#
+# We also still require CMSIS DAP V1 (HID based) because not all probes are
+# updated to firmware that works with CMSIS DAP V2. probe-rs is smart enough
+# to try CMSIS DAP v2 if it can so we should only be using HID as a last
+# resort. It would still be really nice to eventually drop that feature so
+# we don't have to keep using our hidapi-rs fork for illumos fixes.
+probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide_v0.31.0", default-features = false, features = ["builtin-targets", "cmsisdap_v1"] }
 
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
@@ -240,7 +251,6 @@ raw-cpuid = { version = "11.0.0", features = ["display"] }
 rayon = "1.7"
 regex = "1.5.5"
 ron = "0.12"
-rusb = "0.8.1"
 rustc-demangle = "0.1.21"
 scroll = "0.13"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -257,6 +267,8 @@ termimad = "0.34"
 termios = "0.3" # not usable on windows!
 thiserror = "2.0"
 toml = { version = "1.1.2", features = ["preserve_order"] }
+# probe-rs now uses tracing
+tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 trycmd = "0.13.2"
 winapi = "0.3.9"
 zerocopy = { version = "0.8", features = ["derive"] }
@@ -269,7 +281,3 @@ debug = true
 inherits = "release"
 debug = false
 debug-assertions = true
-
-[patch.crates-io]
-libusb1-sys = { git = "https://github.com/oxidecomputer/rusb", branch = "probe-rs-0.12-libusb-v1.0.26" }
-hidapi = { git = "https://github.com/oxidecomputer/hidapi-rs", branch = "oxide-stable" }
