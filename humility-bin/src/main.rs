@@ -8,6 +8,7 @@ use clap::{
 mod cmd;
 use humility::log::{info, warn};
 use humility_cli::{Cli, ExecutionContext, env::Environment};
+use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
 /// Main CLI entry point
 ///
@@ -93,12 +94,6 @@ fn main() -> std::process::ExitCode {
         }
         return std::process::ExitCode::SUCCESS;
     }
-
-    // We initialize `env_logger` even though Humility uses `slog` for logging,
-    // so that we can do trace-level logging of dependencies (e.g. `probe-rs`)
-    let log_level = if cli.verbose { "trace" } else { "warn" };
-    let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
-    env_logger::init_from_env(env);
 
     // Before we do our processing, we need to check for the presence of
     // environment variables on our mutually exclusive attach options
@@ -238,12 +233,25 @@ fn main() -> std::process::ExitCode {
         }
     }
 
+    let level = if cli.verbose {
+        LevelFilter::TRACE.into()
+    } else {
+        LevelFilter::WARN.into()
+    };
+
     let mut context = ExecutionContext { environment, cli };
     let Some(cmd) = cmd else {
         eprintln!("humility failed: subcommand expected (--help to list)");
         return std::process::ExitCode::FAILURE;
     };
     let name = cmd::name(&cmd);
+
+    // probe-rs now does tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder().with_default_directive(level).from_env_lossy(),
+        )
+        .init();
 
     if let Err(err) = cmd::dispatch(cmd, &mut context) {
         eprintln!("humility {name} failed: {:?}", err);

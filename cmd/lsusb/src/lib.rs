@@ -7,10 +7,11 @@
 //! `humility lsusb` will show you Humility's view of the USB devices available
 //! on the system, to help you choose probes and/or diagnose permissions issues.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use clap::Parser;
 use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::{info, warn};
+use nusb::{MaybeFuture, descriptors::language_id::US_ENGLISH};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -34,17 +35,18 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
         HashMap::new()
     };
 
-    let devices = rusb::devices()?;
+    let devices = nusb::list_devices().wait()?;
     let mut successes = vec![];
     let mut failures = vec![];
-    for dev in devices.iter() {
+    for dev in devices {
         match list1(&dev) {
             Ok(summary) => successes.push(summary),
             Err(e) => {
                 failures.push((
-                    dev.bus_number(),
-                    dev.address(),
-                    dev.port_number(),
+                    // `bus_id` as an &'str is common across all OSes
+                    dev.bus_id().to_owned(),
+                    dev.device_address(),
+                    dev.port_chain()[0],
                     e,
                 ));
             }
@@ -76,11 +78,13 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 
     if !failures.is_empty() {
-        failures.sort_by_key(|(b, a, p, _)| (*b, *a, *p));
+        failures.sort_by(|lhs, rhs| {
+            (&lhs.0, lhs.1, lhs.2).cmp(&(&rhs.0, rhs.1, rhs.2))
+        });
         info!(log, "--- failures ---");
         info!(log, "could not access {} devices:", failures.len());
         for (bus, addr, port, e) in failures {
-            info!(log, "bus {bus}, addr {addr}, port {port}: {e}");
+            info!(log, "bus {bus}, addr {addr}, port {port}: {e:#}");
         }
     }
 
@@ -109,36 +113,45 @@ fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn list1(
-    dev: &rusb::Device<impl rusb::UsbContext>,
-) -> Result<(String, String)> {
-    const TIMEOUT: Duration = Duration::from_secs(1);
+fn list1(dev: &nusb::DeviceInfo) -> Result<(String, String)> {
+    let timeout = Duration::from_millis(100);
+    let vid = dev.vendor_id();
+    let pid = dev.product_id();
 
-    let desc = dev.device_descriptor()?;
-    let vid = desc.vendor_id();
-    let pid = desc.product_id();
+    let dev = dev
+        .open()
+        .wait()
+        .with_context(|| format!("open failed for {vid:04x}:{pid:04x}:???"))?;
+    let dev_descriptor = dev.device_descriptor();
 
-    let handle = match dev.open() {
-        Ok(handle) => handle,
-        Err(e) => {
-            return Err(anyhow!("{vid:04x}:{pid:04x}:???\topen failed: {e}"));
-        }
-    };
-    let lang = *handle
-        .read_languages(TIMEOUT)?
-        .iter()
-        .find(|lang| lang.primary_language() == rusb::PrimaryLanguage::English)
-        .ok_or_else(|| anyhow!("can't find English strings"))?;
+    let languages: Vec<u16> = dev
+        .get_string_descriptor_supported_languages(timeout)
+        .wait()
+        .map(|i| i.collect())
+        .unwrap_or_default();
 
-    let man = handle
-        .read_manufacturer_string(lang, &desc, TIMEOUT)
-        .unwrap_or_else(|_| "(manufacturer unknown)".to_string());
-    let prod = handle
-        .read_product_string(lang, &desc, TIMEOUT)
-        .unwrap_or_else(|_| "(product unknown)".to_string());
-    let serial = handle
-        .read_serial_number_string(lang, &desc, TIMEOUT)
-        .unwrap_or_else(|_| "(serial unknown)".to_string());
+    let language = languages.first().copied().unwrap_or(US_ENGLISH);
+
+    let man = dev_descriptor
+        .manufacturer_string_index()
+        .and_then(|i| {
+            dev.get_string_descriptor(i, language, timeout).wait().ok()
+        })
+        .unwrap_or_else(|| "(manufacturer unknown)".to_string());
+
+    let prod = dev_descriptor
+        .product_string_index()
+        .and_then(|i| {
+            dev.get_string_descriptor(i, language, timeout).wait().ok()
+        })
+        .unwrap_or_else(|| "(product unknown)".to_string());
+
+    let serial = dev_descriptor
+        .serial_number_string_index()
+        .and_then(|i| {
+            dev.get_string_descriptor(i, language, timeout).wait().ok()
+        })
+        .unwrap_or_else(|| "(serial unknown)".to_string());
 
     Ok((format!("{vid:04x}:{pid:04x}:{serial}"), format!("{man}\t{prod}")))
 }
