@@ -1625,6 +1625,8 @@ dependencies = [
  "humility-cmd",
  "humility-core",
  "humility-doppel",
+ "serde",
+ "serde_json",
  "zerocopy 0.6.6",
 ]
 
