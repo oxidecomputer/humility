@@ -399,6 +399,7 @@ pub struct UnsafeCell {
     pub value: Value,
 }
 
+#[derive(Clone, Debug)]
 pub struct MaybeUninit<T> {
     pub value: T,
 }

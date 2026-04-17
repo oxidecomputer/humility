@@ -131,6 +131,27 @@ impl Value {
         }
     }
 
+    /// Looks up a `struct` field with dot-separated members
+    pub fn field<T: Load>(&self, f: &str) -> Result<T> {
+        let mut v = self;
+        for f in f.split(".") {
+            let Value::Struct(s) = v else {
+                bail!("expected a struct when getting field `{f}`");
+            };
+            v = s.get(f).ok_or_else(|| {
+                anyhow!(
+                    "could not field field `{f}`; available fields are {:?}",
+                    s.members
+                        .keys()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })?;
+        }
+        T::from_value(v)
+    }
+
     /// Interprets this as a 1-tuple (e.g. `(x,)`) and extracts its sole value,
     /// returning an error if it isn't a 1-tuple.
     pub fn as_1tuple(&self) -> Result<&Value> {
