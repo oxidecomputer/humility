@@ -423,6 +423,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "ciborium"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42e69ffd6f0917f5c029256a24d0161db17cea3997d185db0d35926308770f0e"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05afea1e0a06c9be33d539b876f1ce3692f4afea2cb41f740e7743225ed1c757"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
+dependencies = [
+ "ciborium-io",
+ "half",
+]
+
+[[package]]
 name = "cipher"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -795,6 +822,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "crunchy"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
+
+[[package]]
 name = "crypto-common"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1149,6 +1182,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "half"
+version = "2.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
+dependencies = [
+ "cfg-if",
+ "crunchy",
+ "zerocopy 0.8.48",
+]
+
+[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1212,6 +1256,12 @@ name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hidapi"
@@ -1313,6 +1363,7 @@ dependencies = [
  "humility-cmd-discover",
  "humility-cmd-doc",
  "humility-cmd-dump",
+ "humility-cmd-ereport",
  "humility-cmd-exec",
  "humility-cmd-extract",
  "humility-cmd-flash",
@@ -1522,7 +1573,7 @@ dependencies = [
  "indexmap 1.9.3",
  "parse_int",
  "serde",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -1558,8 +1609,23 @@ dependencies = [
  "lzss",
  "num-traits",
  "parse_int",
- "zerocopy",
+ "zerocopy 0.6.6",
  "zip",
+]
+
+[[package]]
+name = "humility-cmd-ereport"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ciborium",
+ "clap 3.2.23",
+ "hex",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-doppel",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -1638,7 +1704,7 @@ dependencies = [
  "indexmap 1.9.3",
  "parse_int",
  "serde",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -1725,7 +1791,7 @@ dependencies = [
  "parse_int",
  "serde",
  "serde_json",
- "zerocopy",
+ "zerocopy 0.6.6",
  "zip",
 ]
 
@@ -1761,7 +1827,7 @@ dependencies = [
  "idol",
  "parse_int",
  "pmbus",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -1866,7 +1932,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "pmbus",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2089,7 +2155,7 @@ dependencies = [
  "pmbus",
  "strum 0.25.0",
  "strum_macros 0.25.3",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2136,7 +2202,7 @@ dependencies = [
  "parse_int",
  "raw-cpuid",
  "termimad 0.21.1",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2314,7 +2380,7 @@ dependencies = [
  "serde",
  "tlvc",
  "tlvc-text",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2368,7 +2434,7 @@ dependencies = [
  "thiserror",
  "toml 0.5.11",
  "winapi",
- "zerocopy",
+ "zerocopy 0.6.6",
  "zip",
 ]
 
@@ -2395,7 +2461,7 @@ dependencies = [
  "humility-core",
  "indexmap 1.9.3",
  "serde",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2415,7 +2481,7 @@ dependencies = [
  "lzss",
  "num-traits",
  "rand",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2431,7 +2497,7 @@ dependencies = [
  "log",
  "parse_int",
  "postcard",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -2537,7 +2603,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "static_assertions",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -4128,7 +4194,7 @@ source = "git+https://github.com/oxidecomputer/tlvc#533f0bf26b0a8f32d287af4f2ea0
 dependencies = [
  "byteorder",
  "crc",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -4139,7 +4205,7 @@ dependencies = [
  "ron 0.8.0",
  "serde",
  "tlvc",
- "zerocopy",
+ "zerocopy 0.6.6",
 ]
 
 [[package]]
@@ -4737,7 +4803,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "854e949ac82d619ee9a14c66a1b674ac730422372ccb759ce0c39cabcf2bf8e6"
 dependencies = [
  "byteorder",
- "zerocopy-derive",
+ "zerocopy-derive 0.6.6",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.8.48"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eed437bf9d6692032087e337407a86f04cd8d6a16a37199ed57949d415bd68e9"
+dependencies = [
+ "zerocopy-derive 0.8.48",
 ]
 
 [[package]]
@@ -4745,6 +4820,17 @@ name = "zerocopy-derive"
 version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "125139de3f6b9d625c39e2efdd73d41bdac468ccd556556440e322be0e1bbd91"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.8.48"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70e3cd084b1788766f53af483dd21f93881ff30d7320490ec3ef7526d203bad4"
 dependencies = [
  "proc-macro2",
  "quote",
