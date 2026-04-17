@@ -84,7 +84,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use crate::core::Core;
 use crate::hubris::{
     HubrisArchive, HubrisArray, HubrisBasetype, HubrisEnum, HubrisGoff,
-    HubrisPrintFormat, HubrisStruct, HubrisType, HubrisUnion,
+    HubrisPrintFormat, HubrisStruct, HubrisType, HubrisUnion, HubrisVariable,
 };
 
 // Re-export so that others can use #[derive(Load)]
@@ -748,6 +748,21 @@ pub fn load<'a, T: Load>(
             std::any::type_name::<T>()
         )
     })
+}
+
+/// Loads a variable and interprets it as a particular `Load`-able type
+pub fn load_variable<T: Load>(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    var: &HubrisVariable,
+) -> Result<T> {
+    let var_ty = hubris.lookup_type(var.goff)?;
+    let mut buf: Vec<u8> = vec![0u8; var.size];
+
+    core.read_8(var.addr, &mut buf)?;
+    let v = load(hubris, &buf, var_ty, 0)?;
+
+    Ok(v)
 }
 
 /// Loads data from memory image `buf` at offset `addr` and represents it as a
