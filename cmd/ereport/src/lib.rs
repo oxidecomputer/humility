@@ -37,9 +37,6 @@ enum EreportCmd {
 
 #[derive(Parser, Debug)]
 struct Flags {
-    /// Print verbose info while processing ereports
-    #[clap(short, long, conflicts_with = "json")]
-    verbose: bool,
     /// Print ereports in JSON format
     #[clap(short, long)]
     json: bool,
@@ -48,7 +45,7 @@ struct Flags {
     recover: bool,
 }
 
-/// Reasons a server might cite when using the `REPLY_FAULT` syscall.
+/// Ereport header (required to agree with SP implementation)
 #[derive(Debug, FromBytes)]
 #[repr(C)]
 struct EreportHeader {
@@ -60,7 +57,7 @@ struct EreportHeader {
 const HEADER_SIZE: usize = std::mem::size_of::<EreportHeader>();
 
 #[derive(serde::Serialize)]
-struct Ereport {
+pub struct Ereport {
     task_name: Option<String>,
     task_index: u16,
     timestamp: u64,
@@ -68,11 +65,16 @@ struct Ereport {
     contents: ciborium::Value,
 }
 
-fn ereport_dump(
+/// Read ereports from the given system
+///
+/// If `recover` is `true`, then we attempt to recover ereports from outside the
+/// valid range of the circular buffer; ereports which are recovered have
+/// [`Ereport::recovered`] set to `true`.
+pub fn ereport_dump(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    flags: Flags,
-) -> Result<()> {
+    recover: bool,
+) -> Result<Vec<Ereport>> {
     static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
     let buf_ty = hubris
         .lookup_qualified_variable(PACKRAT_BUF_NAME)
@@ -85,13 +87,6 @@ fn ereport_dump(
         storage.field("buffer")?;
     let front = storage.field::<u32>("front")? as usize;
     let back = storage.field::<u32>("back")? as usize;
-
-    if flags.verbose {
-        println!(
-            "buffer has {} bytes; front: {front}, back: {back}",
-            array.len()
-        );
-    }
 
     // Read data from the circular buffer
     let mut buf_data = Vec::with_capacity(array.len());
@@ -122,7 +117,7 @@ fn ereport_dump(
         buf_data = next;
     }
 
-    if flags.recover {
+    if recover {
         let mut recovered = vec![];
         let mut buf = VecDeque::new();
         let mut i = front;
@@ -143,6 +138,15 @@ fn ereport_dump(
         ereports.extend(recovered);
     }
 
+    Ok(ereports)
+}
+
+fn ereport_print(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    flags: Flags,
+) -> Result<()> {
+    let ereports = ereport_dump(hubris, core, flags.recover)?;
     if flags.json {
         println!("{}", serde_json::ser::to_string_pretty(&ereports)?);
     } else {
@@ -287,7 +291,7 @@ fn ereport(context: &mut ExecutionContext) -> Result<()> {
     let subargs = EreportArgs::try_parse_from(subargs)?;
 
     match subargs.cmd {
-        EreportCmd::Dump { flags } => ereport_dump(hubris, core, flags),
+        EreportCmd::Dump { flags } => ereport_print(hubris, core, flags),
     }
 }
 
