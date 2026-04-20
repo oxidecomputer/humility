@@ -107,7 +107,10 @@
 //!
 
 use humility::hubris::*;
-use humility::{reflect, reflect::Load};
+use humility::{
+    reflect,
+    reflect::{Base, Load, Value},
+};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel as doppel;
@@ -132,7 +135,7 @@ struct SpdArgs {
     )]
     timeout: u32,
 
-    /// verbose output (including raw 512-byte SPD)
+    /// verbose output (including raw SPD data)
     #[clap(long, short)]
     verbose: bool,
 
@@ -173,25 +176,73 @@ struct SpdArgs {
     output: Option<String>,
 }
 
-const SPD_SIZE: usize = 512;
+/// SPD array size for Gimlet
+const GIMLET_SPD_SIZE: usize = spd::ee1004::MAX_SIZE;
 
 fn from_bcd(val: u8) -> u8 {
     (val >> 4) * 10 + (val & 0xf)
 }
 
+/// Addresses from which we'll read SPD data
+struct SpdParameterAddresses {
+    jep_cc: usize,
+    jep_id: usize,
+    year: usize,
+    week: usize,
+    part: core::ops::RangeInclusive<usize>,
+}
+
 fn dump_spd(
     subargs: &SpdArgs,
     addr: u8,
-    buf: &[u8],
+    data: &SpdData,
     header: bool,
 ) -> Result<()> {
-    use spd::Offset;
+    // We're reading the same data out of both DDR4 and DDR5 SPD buffers, but
+    // they have different positions.
+    let buf = &data.0;
+    let addrs = match buf.len() {
+        spd::ee1004::MAX_SIZE => {
+            use spd::ee1004::Offset;
+            SpdParameterAddresses {
+                jep_cc: Offset::ModuleManufacturerIDCodeLSB.to_usize(),
+                jep_id: Offset::ModuleManufacturerIDCodeMSB.to_usize(),
 
-    let jep_cc = Offset::ModuleManufacturerIDCodeLSB.within(buf) & 0x7f;
-    let jep_id = Offset::ModuleManufacturerIDCodeMSB.within(buf) & 0x7f;
+                year: Offset::ModuleManufacturingDateYear.to_usize(),
+                week: Offset::ModuleManufacturingDateWeek.to_usize(),
+                part: Offset::PartNumberBase.to_usize()
+                    ..=Offset::PartNumberLimit.to_usize(),
+            }
+        }
+        spd::ddr5::MAX_SIZE => {
+            use spd::ddr5::Offset;
+            SpdParameterAddresses {
+                jep_cc: Offset::ModuleManufacturerIDCode0.to_usize(),
+                jep_id: Offset::ModuleManufacturerIDCode1.to_usize(),
 
-    let year = from_bcd(Offset::ModuleManufacturingDateYear.within(buf));
-    let week = from_bcd(Offset::ModuleManufacturingDateWeek.within(buf));
+                year: Offset::ModuleManufacturingDateYear.to_usize(),
+                week: Offset::ModuleManufacturingDateWeek.to_usize(),
+                part: Offset::PartNumberBase.to_usize()
+                    ..=Offset::PartNumberLimit.to_usize(),
+            }
+        }
+        b => {
+            bail!(
+                "Unknown buffer length {b} (expected {} or {})",
+                spd::ee1004::MAX_SIZE,
+                spd::ddr5::MAX_SIZE,
+            );
+        }
+    };
+
+    let jep_cc = buf[addrs.jep_cc] & 0x7f;
+    let jep_id = buf[addrs.jep_id] & 0x7f;
+
+    let year = from_bcd(buf[addrs.year]);
+    let week = from_bcd(buf[addrs.week]);
+
+    let part_len = addrs.part.clone().count();
+    let part = str::from_utf8(&buf[addrs.part]);
 
     let width: usize = 16;
 
@@ -210,25 +261,26 @@ fn dump_spd(
         return Ok(());
     }
 
-    let part = str::from_utf8(
-        &buf[Offset::PartNumberBase.to_usize()
-            ..=Offset::PartNumberLimit.to_usize()],
-    );
-
     if header || subargs.address.is_some() || subargs.verbose {
         println!(
-            "{:4} {:25} {:20} {:4} {:4}",
-            "ADDR", "MANUFACTURER", "PART", "WEEK", "YEAR"
+            "{:4} {:25} {:width$} {:4} {:4}",
+            "ADDR",
+            "MANUFACTURER",
+            "PART",
+            "WEEK",
+            "YEAR",
+            width = part_len,
         )
     }
 
     println!(
-        "{:4} {:25} {:20} {:4} {:4}",
+        "{:4} {:25} {:width$} {:4} {:4}",
         addr,
         manufacturer.get().unwrap_or("<unknown>"),
         part.unwrap_or("<unknown>"),
         week,
         2000 + (year as u16),
+        width = part_len,
     );
 
     if !subargs.verbose {
@@ -244,7 +296,7 @@ fn dump_spd(
 
     println!();
 
-    for offs in (0..SPD_SIZE).step_by(width) {
+    for offs in (0..buf.len()).step_by(width) {
         print!("    0x{:03x} | ", offs);
 
         for i in 0..width {
@@ -270,9 +322,13 @@ fn dump_spd(
 }
 
 // Assumes that we already have pushed on the stack our controller/port/mux
-fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
+fn set_page(
+    ops: &mut Vec<Op>,
+    i2c_write: &HiffyFunction,
+    page: spd::ee1004::Page,
+) {
     let dev =
-        spd::Function::PageAddress(spd::Page(page)).to_device_code().unwrap();
+        spd::ee1004::Function::PageAddress(page).to_device_code().unwrap();
     ops.push(Op::Push(dev)); // Device
     ops.push(Op::PushNone); // Register
     ops.push(Op::Push(0)); // Buffer
@@ -287,20 +343,18 @@ fn set_page(ops: &mut Vec<Op>, i2c_write: &HiffyFunction, page: u8) {
 //
 static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
-#[derive(Load, Debug)]
-struct GimletStaticBufs {
-    spd_data: Vec<u8>,
-}
+/// Raw data read from a single SPD
+struct SpdData(Vec<u8>);
 
-#[derive(Load, Debug)]
-struct PackratStaticBufs {
-    gimlet_bufs: GimletStaticBufs,
-}
-
+/// Reads in-memory SPD data from a system (either live or post-mortem)
+///
+/// Looks for either a `SPD_DATA` global buffer or a field in the `packrat`
+/// buffers.  If neither is available, returns `Ok(None)`; otherwise, returns a
+/// `Vec<SpdData>` (one [`SpdData`] per DIMM in the system).
 fn spd_lookup(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
-) -> Result<Option<Vec<u8>>> {
+) -> Result<Option<Vec<SpdData>>> {
     if let Ok(variables) = hubris.lookup_variables("SPD_DATA") {
         if variables.len() > 1 {
             bail!("more than one SPD_DATA?");
@@ -313,7 +367,18 @@ fn spd_lookup(
         core.read_8(var.addr, &mut buf)?;
         core.run()?;
 
-        Ok(Some(buf))
+        if !buf.len().is_multiple_of(GIMLET_SPD_SIZE) {
+            bail!(
+                "SPD_DATA is {} bytes; expected even multiple \
+                 of {GIMLET_SPD_SIZE}",
+                buf.len(),
+            );
+        }
+        Ok(Some(
+            buf.chunks_exact(GIMLET_SPD_SIZE)
+                .map(|chunk| SpdData(chunk.to_vec()))
+                .collect(),
+        ))
     } else if let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) {
         let var_ty = hubris.lookup_type(var.goff)?;
         let mut buf: Vec<u8> = vec![0u8; var.size];
@@ -324,12 +389,67 @@ fn spd_lookup(
 
         let v = reflect::load_value(hubris, &buf, var_ty, 0)?;
         let as_static_cell = doppel::ClaimOnceCell::from_value(&v)?;
+        let Value::Struct(packrat_bufs) = &as_static_cell.cell.value else {
+            bail!("expected {PACKRAT_BUF_NAME} to be a struct");
+        };
+        let Some(Value::Struct(compute_sled_bufs)) = packrat_bufs
+            .get("gimlet_bufs")
+            .or_else(|| packrat_bufs.get("cosmo_bufs"))
+        else {
+            bail!("could not find `gimlet_bufs` or `cosmo_bufs`");
+        };
+        let Some(spd_data) = compute_sled_bufs.get("spd_data") else {
+            bail!("could not find `spd_data` in sled-specific packrat bufs");
+        };
 
-        // Non-Gimlet images don't have this SPD buffer, so we'll ignore any
-        // Load failures here and return `None` (humility#595)
-        Ok(PackratStaticBufs::from_value(&as_static_cell.cell.value)
-            .ok()
-            .map(|p| p.gimlet_bufs.spd_data))
+        // We have multiple versions of SPD data.  In older firmwares (Gimlet
+        // only), it's a single `[u8; 8192]` buffer; in newer firmwares, it's a
+        // nested struct that contains a `[[u8; DATA_SIZE]; DIMM_COUNT]`.
+        let spd_bufs = match spd_data {
+            Value::Array(a) => {
+                if a.len() % GIMLET_SPD_SIZE != 0 {
+                    bail!(
+                        "SPD data in {PACKRAT_BUF_NAME} is {} bytes;
+                         expected even multiple of {GIMLET_SPD_SIZE}",
+                        a.len(),
+                    );
+                }
+                let mut out = Vec::with_capacity(a.len() / GIMLET_SPD_SIZE);
+                for vs in a.chunks_exact(GIMLET_SPD_SIZE) {
+                    let mut chunk = Vec::with_capacity(GIMLET_SPD_SIZE);
+                    for v in vs {
+                        let Value::Base(Base::U8(b)) = v else {
+                            bail!("expected `u8` array");
+                        };
+                        chunk.push(*b);
+                    }
+                    out.push(SpdData(chunk))
+                }
+                out
+            }
+            Value::Struct(s) => {
+                let Some(Value::Array(a)) = s.get("spd_data") else {
+                    bail!("expected `spd_data` to be an array");
+                };
+                let mut out = Vec::with_capacity(a.len());
+                for a in a.iter() {
+                    let Value::Array(a) = a else {
+                        bail!("expected array-of-arrays");
+                    };
+                    let mut chunk = Vec::with_capacity(a.len());
+                    for v in a.iter() {
+                        let Value::Base(Base::U8(b)) = v else {
+                            bail!("expected `u8` array");
+                        };
+                        chunk.push(*b);
+                    }
+                    out.push(SpdData(chunk))
+                }
+                out
+            }
+            _ => bail!("expected `spd_data` to be an array or struct"),
+        };
+        Ok(Some(spd_bufs))
     } else {
         Ok(None)
     }
@@ -340,7 +460,10 @@ pub fn spd_any(
     core: &mut dyn humility::core::Core,
 ) -> Result<bool> {
     match spd_lookup(hubris, core)? {
-        Some(spd_data) => Ok(spd_data.iter().any(|&datum| datum != 0)),
+        Some(spd_data) => Ok(spd_data
+            .iter()
+            .flat_map(|d| d.0.iter())
+            .any(|&datum| datum != 0)),
         None => Ok(false),
     }
 }
@@ -352,30 +475,15 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
 
     let subargs = SpdArgs::try_parse_from(subargs)?;
 
-    //
     // If we have been given no device-related arguments, we will attempt
-    // to find the `SPD_DATA` variable.
-    //
+    // to find the `SPD_DATA` variable or load SPD data from packrat
     if subargs.bus.is_none() && subargs.controller.is_none() {
         let spd_data = spd_lookup(hubris, core)?
             .ok_or_else(|| anyhow!("no bus specified and no SPD_DATA found"))?;
 
-        if spd_data.len() % SPD_SIZE != 0 {
-            bail!(
-                "SPD_DATA is {} bytes; expected even multiple of {SPD_SIZE}",
-                spd_data.len(),
-            );
-        }
-
-        let nspd = spd_data.len() / SPD_SIZE;
-
         let mut header = true;
-
-        for addr in 0..nspd {
-            let offs = addr * SPD_SIZE;
-            let data = &spd_data[offs..offs + SPD_SIZE];
-
-            if !data.iter().any(|&datum| datum != 0) {
+        for (addr, data) in spd_data.iter().enumerate() {
+            if !data.0.iter().any(|&datum| datum != 0) {
                 continue;
             }
 
@@ -387,12 +495,29 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
             msg!("all SPD data is empty");
         }
 
-        return Ok(());
-    }
-
-    if core.is_dump() {
+        Ok(())
+    } else if core.is_dump() {
         bail!("cannot specify bus/controller on a dump");
+    } else {
+        // At this point, the user wants to poll DDR SPDs directly over I2C.  We
+        // only support this with DDR4, because on subsequent product
+        // generations the DDRs are not directly connected to the SP.
+        dump_ddr4_over_i2c(hubris, core, &subargs)
     }
+}
+
+fn dump_ddr4_over_i2c(
+    hubris: &HubrisArchive,
+    core: &mut dyn humility::core::Core,
+    subargs: &SpdArgs,
+) -> Result<()> {
+    // Warn the user that we probably can't talk to DDR4s on non-Gimlet hardware
+    if !hubris.manifest.target.as_ref().is_some_and(|t| t.contains("gimlet")) {
+        humility::warn!(
+            "trying to talk to DDR4 SPDs on an invalid target `{}`",
+            hubris.manifest.target.as_deref().unwrap_or("<unknown>")
+        );
+    };
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
@@ -426,14 +551,14 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
     // First, we want to have all SPDs on the specified bus flip to
     // their 0 page
     //
-    set_page(&mut ops, &i2c_write, 0);
+    set_page(&mut ops, &i2c_write, spd::ee1004::Page::Page0);
 
     //
     // Now issue single byte register reads to determine where our devices are.
     //
-    for addr in 0..spd::MAX_DEVICES {
+    for addr in 0..spd::ee1004::MAX_DEVICES {
         ops.push(Op::Push(
-            spd::Function::Memory(addr).to_device_code().unwrap(),
+            spd::ee1004::Function::Memory(addr).to_device_code().unwrap(),
         ));
         ops.push(Op::Push(0));
         ops.push(Op::Push(1));
@@ -450,14 +575,15 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
         bail!("failed to set page to 0: {}", i2c_write.strerror(err));
     }
 
-    for addr in 0..spd::MAX_DEVICES {
+    for addr in 0..spd::ee1004::MAX_DEVICES {
         if results[addr as usize + 1].is_ok() {
             let mut ops = base.clone();
 
             //
             // Issue the read for the bottom 128 bytes from the 0 page
             //
-            let dev = spd::Function::Memory(addr).to_device_code().unwrap();
+            let dev =
+                spd::ee1004::Function::Memory(addr).to_device_code().unwrap();
             ops.push(Op::Push(dev));
             ops.push(Op::Push(0));
             ops.push(Op::Push(128));
@@ -475,7 +601,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
             // Switch to the 1 page
             //
             ops.push(Op::DropN(3));
-            set_page(&mut ops, &i2c_write, 1);
+            set_page(&mut ops, &i2c_write, spd::ee1004::Page::Page1);
 
             //
             // Issue an identical read for the bottom 128 bytes...
@@ -497,7 +623,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
             //
             // Finally, set ourselves back to the 0 page
             //
-            set_page(&mut ops, &i2c_write, 0);
+            set_page(&mut ops, &i2c_write, spd::ee1004::Page::Page0);
 
             ops.push(Op::Done);
 
@@ -520,11 +646,11 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
                 }
             }
 
-            if buf.len() != SPD_SIZE {
+            if buf.len() != GIMLET_SPD_SIZE {
                 bail!("bad SPD length ({} bytes): {results:?}", buf.len());
             }
 
-            dump_spd(&subargs, addr, &buf, header)?;
+            dump_spd(subargs, addr, &SpdData(buf), header)?;
             header = false;
         }
     }
