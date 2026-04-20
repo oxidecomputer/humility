@@ -1025,6 +1025,16 @@ impl Load for Value {
     }
 }
 
+impl Load for Enum {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Enum(e) = v {
+            Ok(e.clone())
+        } else {
+            bail!("expected an enum, got {v:?}");
+        }
+    }
+}
+
 impl Load for bool {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_bool().ok_or_else(|| anyhow!("not a bool: {:?}", v))

@@ -40,12 +40,20 @@ struct Flags {
     /// Print ereports in JSON format
     #[clap(short, long)]
     json: bool,
+
     /// Recover previously-sent ereports from the buffer
+    ///
+    /// The circular buffer may contain previously-sent ereports outside of its
+    /// valid range, i.e. before the `front` index.  When this flag is set, we
+    /// examine those bytes to find valid-looking ereports and print them (with
+    /// `recovered: true`).
     #[clap(short, long)]
     recover: bool,
 }
 
-/// Ereport header (required to agree with SP implementation)
+/// Raw ereport header
+///
+/// This must agree with the SP's implementation in `snitch_core::Store`
 #[derive(Debug, FromBytes)]
 #[repr(C)]
 struct EreportHeader {
@@ -62,6 +70,7 @@ pub struct Ereport {
     task_index: u16,
     timestamp: u64,
     recovered: bool,
+    ena: u64,
     contents: ciborium::Value,
 }
 
@@ -81,12 +90,20 @@ pub fn ereport_dump(
         .with_context(|| format!("could not find `{PACKRAT_BUF_NAME}`"))?;
 
     let buf: Value = humility::reflect::load_variable(hubris, core, buf_ty)?;
-    let storage: Value =
-        buf.field("cell.value.ereport_bufs.storage.storage")?;
+    let outer_storage: Value = buf.field("cell.value.ereport_bufs.storage")?;
+    let inner_storage: Value = outer_storage.field("storage")?;
     let array: Vec<humility_doppel::MaybeUninit<u8>> =
-        storage.field("buffer")?;
-    let front = storage.field::<u32>("front")? as usize;
-    let back = storage.field::<u32>("back")? as usize;
+        inner_storage.field("buffer")?;
+    let front = inner_storage.field::<u32>("front")? as usize;
+    let back = inner_storage.field::<u32>("back")? as usize;
+    let earliest_ena = outer_storage.field::<u64>("earliest_ena")?;
+    let insert_state =
+        outer_storage.field::<humility::reflect::Enum>("insert_state")?;
+    if insert_state.disc() != "Collecting" {
+        humility::warn!(
+            "ereports are being lost; `insert_state` is {insert_state:#?}"
+        );
+    }
 
     // Read data from the circular buffer
     let mut buf_data = Vec::with_capacity(array.len());
@@ -97,6 +114,7 @@ pub fn ereport_dump(
     }
     let mut ereports = vec![];
     let mut buf_data = buf_data.as_slice();
+    let mut current_ena = earliest_ena;
     while !buf_data.is_empty() {
         let header =
             EreportHeader::read_from_prefix(buf_data).ok_or_else(|| {
@@ -112,19 +130,28 @@ pub fn ereport_dump(
             task_index: header.task.into(),
             timestamp: header.timestamp.into(),
             recovered: false,
+            ena: current_ena,
             contents,
         });
         buf_data = next;
+        let Some(next_ena) = current_ena.checked_add(1) else {
+            humility::warn!("ena overflow; breaking out of loop");
+            break;
+        };
+        current_ena = next_ena;
     }
 
     if recover {
         let mut recovered = vec![];
         let mut buf = VecDeque::new();
+        let mut current_ena = earliest_ena;
         let mut i = front;
         while i != back {
             i = i.checked_sub(1).unwrap_or_else(|| array.len() - 1);
             buf.push_front(array[i].value);
-            if let Some(e) = try_recover_ereport(hubris, &mut buf) {
+            if let Some(e) =
+                try_recover_ereport(hubris, &mut buf, &mut current_ena)
+            {
                 assert!(e.recovered);
                 recovered.push(e);
                 buf.clear();
@@ -136,6 +163,22 @@ pub fn ereport_dump(
         recovered.reverse();
         std::mem::swap(&mut ereports, &mut recovered);
         ereports.extend(recovered);
+    }
+
+    // Go through and substitute "k" -> "class" and "v" -> "version"
+    for e in &mut ereports {
+        let Some(m) = e.contents.as_map_mut() else {
+            continue;
+        };
+        for (k, _v) in m.iter_mut() {
+            if let Some(s) = k.as_text_mut() {
+                if s == "k" {
+                    *s = "class".to_owned()
+                } else if s == "v" {
+                    *s = "version".to_owned()
+                }
+            }
+        }
     }
 
     Ok(ereports)
@@ -155,11 +198,12 @@ fn ereport_print(
                 println!();
             }
             println!(
-                "task: {} ({})",
+                "task:      {} ({})",
                 e.task_name.as_deref().unwrap_or("<unknown>"),
                 e.task_index,
             );
             println!("timestamp: {}", e.timestamp);
+            println!("ena:       {}", e.ena);
             if e.recovered || flags.recover {
                 println!("recovered: {}", e.recovered);
             }
@@ -174,6 +218,7 @@ fn ereport_print(
 fn try_recover_ereport(
     hubris: &HubrisArchive,
     buf: &mut VecDeque<u8>,
+    ena: &mut u64,
 ) -> Option<Ereport> {
     // Cheapest possible check: we must have enough room for the header and at
     // least one byte of payload.
@@ -193,11 +238,19 @@ fn try_recover_ereport(
     let task =
         hubris.lookup_module(HubrisTask::Task(header.task.into())).ok()?;
     let contents = ciborium::from_reader(&buf[HEADER_SIZE..]).ok()?;
+
+    // Step the ENA backwards; the ereport is invalid if it wraps or hits 0
+    *ena = ena.checked_sub(1)?;
+    if *ena == 0 {
+        return None;
+    }
+
     Some(Ereport {
         task_name: Some(task.name.clone()),
         task_index: header.task.into(),
         timestamp: header.timestamp.into(),
         recovered: true,
+        ena: *ena,
         contents,
     })
 }
@@ -256,10 +309,10 @@ fn pretty_print_value(value: &ciborium::Value, indent: usize, is_key: bool) {
                 print!("{pad}  ");
                 pretty_print_value(k, indent + 1, true);
                 print!(": ");
-                // Special-case handling for the `k`, which is an ereport name
+                // Special-case handling for the class, which is an ereport name
                 // and is printed without quotes
                 let is_ereport_key = match k {
-                    ciborium::Value::Text(t) => t == "k",
+                    ciborium::Value::Text(t) => t == "class",
                     _ => false,
                 };
                 pretty_print_value(v, indent + 1, is_ereport_key);
