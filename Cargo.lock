@@ -1304,7 +1304,6 @@ dependencies = [
  "hif",
  "humility-cli",
  "humility-cmd",
- "humility-cmd-apptable",
  "humility-cmd-auxflash",
  "humility-cmd-console-proxy",
  "humility-cmd-counters",
@@ -1403,17 +1402,6 @@ dependencies = [
  "humility-core",
  "humility-net-core",
  "humility-probes-core",
-]
-
-[[package]]
-name = "humility-cmd-apptable"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 3.2.23",
- "humility-cli",
- "humility-cmd",
- "humility-core",
 ]
 
 [[package]]

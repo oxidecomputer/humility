@@ -21,7 +21,6 @@ members = [
     "humility-pmbus",
     "humility-stack",
     "humility-probes-core",
-    "cmd/apptable",
     "cmd/auxflash",
     "cmd/console-proxy",
     "cmd/counters",
@@ -133,7 +132,6 @@ humility-net-core = { path = "./humility-net-core" }
 humility-pmbus = { path = "./humility-pmbus" }
 humility-probes-core = { path = "./humility-probes-core" }
 humility-stack = { path = "./humility-stack" }
-cmd-apptable = { path = "./cmd/apptable", package = "humility-cmd-apptable" }
 cmd-auxflash = { path = "./cmd/auxflash", package = "humility-cmd-auxflash" }
 cmd-console-proxy = { path = "./cmd/console-proxy", package = "humility-cmd-console-proxy" }
 cmd-counters = { path = "./cmd/counters", package = "humility-cmd-counters" }
