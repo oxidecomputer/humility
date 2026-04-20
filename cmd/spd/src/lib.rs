@@ -177,7 +177,7 @@ struct SpdArgs {
 }
 
 /// SPD array size for Gimlet
-const GIMLET_SPD_SIZE: usize = 512;
+const GIMLET_SPD_SIZE: usize = spd::ee1004::MAX_SIZE;
 
 fn from_bcd(val: u8) -> u8 {
     (val >> 4) * 10 + (val & 0xf)
@@ -195,11 +195,12 @@ struct SpdParameterAddresses {
 fn dump_spd(
     subargs: &SpdArgs,
     addr: u8,
-    buf: &[u8],
+    data: &SpdData,
     header: bool,
 ) -> Result<()> {
     // We're reading the same data out of both DDR4 and DDR5 SPD buffers, but
     // they have different positions.
+    let buf = &data.0;
     let addrs = match buf.len() {
         spd::ee1004::MAX_SIZE => {
             use spd::ee1004::Offset;
@@ -227,8 +228,9 @@ fn dump_spd(
         }
         b => {
             bail!(
-                "Unknown buffer length {b} (expected {} or 1024)",
-                spd::ee1004::MAX_SIZE
+                "Unknown buffer length {b} (expected {} or {})",
+                spd::ee1004::MAX_SIZE,
+                spd::ddr5::MAX_SIZE,
             );
         }
     };
@@ -341,10 +343,18 @@ fn set_page(
 //
 static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
 
+/// Raw data read from a single SPD
+struct SpdData(Vec<u8>);
+
+/// Reads in-memory SPD data from a system (either live or post-mortem)
+///
+/// Looks for either a `SPD_DATA` global buffer or a field in the `packrat`
+/// buffers.  If neither is available, returns `Ok(None)`; otherwise, returns a
+/// `Vec<SpdData>` (one [`SpdData`] per DIMM in the system).
 fn spd_lookup(
     hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
-) -> Result<Option<Vec<Vec<u8>>>> {
+) -> Result<Option<Vec<SpdData>>> {
     if let Ok(variables) = hubris.lookup_variables("SPD_DATA") {
         if variables.len() > 1 {
             bail!("more than one SPD_DATA?");
@@ -366,7 +376,7 @@ fn spd_lookup(
         }
         Ok(Some(
             buf.chunks_exact(GIMLET_SPD_SIZE)
-                .map(|chunk| chunk.to_vec())
+                .map(|chunk| SpdData(chunk.to_vec()))
                 .collect(),
         ))
     } else if let Ok(var) = hubris.lookup_qualified_variable(PACKRAT_BUF_NAME) {
@@ -413,7 +423,7 @@ fn spd_lookup(
                         };
                         chunk.push(*b);
                     }
-                    out.push(chunk)
+                    out.push(SpdData(chunk))
                 }
                 out
             }
@@ -433,7 +443,7 @@ fn spd_lookup(
                         };
                         chunk.push(*b);
                     }
-                    out.push(chunk)
+                    out.push(SpdData(chunk))
                 }
                 out
             }
@@ -450,9 +460,10 @@ pub fn spd_any(
     core: &mut dyn humility::core::Core,
 ) -> Result<bool> {
     match spd_lookup(hubris, core)? {
-        Some(spd_data) => {
-            Ok(spd_data.iter().flatten().any(|&datum| datum != 0))
-        }
+        Some(spd_data) => Ok(spd_data
+            .iter()
+            .flat_map(|d| d.0.iter())
+            .any(|&datum| datum != 0)),
         None => Ok(false),
     }
 }
@@ -472,7 +483,7 @@ fn spd(context: &mut ExecutionContext) -> Result<()> {
 
         let mut header = true;
         for (addr, data) in spd_data.iter().enumerate() {
-            if !data.iter().any(|&datum| datum != 0) {
+            if !data.0.iter().any(|&datum| datum != 0) {
                 continue;
             }
 
@@ -639,7 +650,7 @@ fn dump_ddr4_over_i2c(
                 bail!("bad SPD length ({} bytes): {results:?}", buf.len());
             }
 
-            dump_spd(subargs, addr, &buf, header)?;
+            dump_spd(subargs, addr, &SpdData(buf), header)?;
             header = false;
         }
     }
