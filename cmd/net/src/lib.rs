@@ -39,7 +39,7 @@
 //! VSC8552; this is indicated with `--` in the relevant table positions.
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
@@ -96,7 +96,7 @@ fn net_ip(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
-    let value = humility_hiffy::hiffy_call(
+    let v = humility_hiffy::hiffy_call::<humility::reflect::Tuple>(
         hubris,
         core,
         &mut hiffy_context,
@@ -105,11 +105,6 @@ fn net_ip(
         None,
         None,
     )?;
-    let v = match value {
-        Ok(v) => v,
-        Err(e) => bail!("Got Hiffy error: {e}"),
-    };
-    let v = v.as_tuple()?;
     assert_eq!(v.name(), "MacAddress");
     let mac = v.field::<[u8; 6]>(0)?;
     print!("{}:  ", "MAC address".bold());
@@ -152,7 +147,7 @@ fn net_mac_table(
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let value = humility_hiffy::hiffy_call(
+    let mac_count = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut hiffy_context,
@@ -161,18 +156,6 @@ fn net_mac_table(
         None,
         None,
     )?;
-    let mac_count = match value {
-        Ok(v) => {
-            if let Value::Base(Base::U32(v)) = v {
-                v
-            } else {
-                bail!("Got bad reflected value: expected U32, got {v:?}");
-            }
-        }
-        Err(e) => {
-            bail!("Got error: {e}");
-        }
-    };
 
     // Due to HIF limitations (lack of Expand16 / Collect16), we're going to
     // limit ourselves to 255 MAC table entries.
@@ -216,13 +199,16 @@ fn net_mac_table(
     let results = hiffy_context.run(core, ops.as_slice(), None)?;
     let results = results
         .into_iter()
-        .map(move |r| humility_hiffy::hiffy_decode(hubris, &op, r))
+        .map(move |r| {
+            humility_hiffy::hiffy_decode::<humility::reflect::Struct>(
+                hubris, &op, r,
+            )
+        })
         .collect::<Result<Vec<Result<_, _>>>>()?;
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
     for r in results {
-        if let Ok(r) = r {
-            let s = r.as_struct()?;
+        if let Ok(s) = r {
             assert_eq!(s.name(), "KszMacTableEntry");
             let port = s.field::<u16>("port")?;
             let mac = s.field::<[u8; 6]>("mac")?;
@@ -268,7 +254,7 @@ fn net_status(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
-    let value = humility_hiffy::hiffy_call(
+    let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
         hubris,
         core,
         &mut hiffy_context,
@@ -277,11 +263,6 @@ fn net_status(
         None,
         None,
     )?;
-    let v = match value {
-        Ok(v) => v,
-        Err(e) => bail!("Got Hiffy error: {e}"),
-    };
-    let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementLinkStatus");
 
     let ksz_100base_fx: Vec<bool> = s.field("ksz8463_100base_fx_link_up")?;
@@ -337,7 +318,7 @@ fn net_counters(
 ) -> Result<()> {
     let op = hubris.get_idol_command("Net.management_counters")?;
 
-    let value = humility_hiffy::hiffy_call(
+    let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
         hubris,
         core,
         &mut hiffy_context,
@@ -346,23 +327,18 @@ fn net_counters(
         None,
         None,
     )?;
-    let v = match value {
-        Ok(v) => v,
-        Err(e) => bail!("Got Hiffy error: {e}"),
-    };
-    let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementCounters");
 
     if !table && !diagram {
-        net_counters_table(s)?;
+        net_counters_table(&s)?;
         println!();
-        net_counters_diagram(s)?;
+        net_counters_diagram(&s)?;
     } else {
         if table {
-            net_counters_table(s)?;
+            net_counters_table(&s)?;
         }
         if diagram {
-            net_counters_diagram(s)?;
+            net_counters_diagram(&s)?;
         }
     }
     Ok(())
