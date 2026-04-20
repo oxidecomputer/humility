@@ -1438,11 +1438,22 @@ fn has_task_started(
     }
 }
 
-/// Executes a Hiffy call, printing the output to the terminal
+/// Error returned from [`hiffy_call`]
+#[derive(thiserror::Error, Debug)]
+pub enum HiffyCallError {
+    /// A function called in the HIF program returned an error
+    #[error("hiffy error: {0}")]
+    Hiffy(String),
+    /// There was an error invoking the HIF program
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+/// Executes a Hiffy call, returning the output value
 ///
 /// Returns an outer error if Hiffy communication fails, or an inner error
 /// if the Hiffy call returns an error code (formatted as a String).
-pub fn hiffy_call(
+pub fn hiffy_call<T: humility::reflect::Load>(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     context: &mut HiffyContext,
@@ -1450,7 +1461,7 @@ pub fn hiffy_call(
     args: &[(&str, idol::IdolArgument)],
     lease_write: Option<&[u8]>,
     lease_read: Option<&mut [u8]>,
-) -> Result<std::result::Result<humility::reflect::Value, String>> {
+) -> Result<T, HiffyCallError> {
     check_op(op)?;
     check_leases(op, lease_write, lease_read.as_deref())?;
 
@@ -1488,7 +1499,10 @@ pub fn hiffy_call(
     let mut results = context.run(core, ops.as_slice(), lease_write)?;
 
     if results.len() != 1 {
-        bail!("unexpected results length: {:?}", results);
+        return Err(HiffyCallError::Other(anyhow!(
+            "unexpected results length: {:?}",
+            results
+        )));
     }
 
     let mut v: Result<Vec<u8>, IpcError> = results.pop().unwrap();
@@ -1507,22 +1521,22 @@ pub fn hiffy_call(
         }
         _ => hiffy_decode(hubris, op, v)?,
     };
-    Ok(out)
+    out.map_err(HiffyCallError::Hiffy)
 }
 
 /// Decodes a value returned from [hiffy_call] or equivalent.
 ///
 /// Returns an outer error if decoding fails, or an inner error if the Hiffy
 /// call returns an error code (formatted as a String).
-pub fn hiffy_decode(
+pub fn hiffy_decode<T: humility::reflect::Load>(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
     val: Result<Vec<u8>, impl Into<IpcError>>,
-) -> Result<std::result::Result<humility::reflect::Value, String>> {
+) -> Result<std::result::Result<T, String>> {
     let r = match val.map_err(Into::into) {
         Ok(val) => {
             let ty = hubris.lookup_type(op.ok).unwrap();
-            Ok(match op.operation.encoding {
+            let value = match op.operation.encoding {
                 ::idol::syntax::Encoding::Zerocopy => {
                     humility::reflect::load_value(hubris, &val, ty, 0)?
                 }
@@ -1530,7 +1544,8 @@ pub fn hiffy_decode(
                 | ::idol::syntax::Encoding::Hubpack => {
                     humility::reflect::deserialize_value(hubris, &val, ty)?.0
                 }
-            })
+            };
+            Ok(T::from_value(&value)?)
         }
         Err(IpcError::Error(e)) => match op.error {
             idol::IdolError::CLike(error) => {

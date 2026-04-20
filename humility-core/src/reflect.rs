@@ -1071,6 +1071,16 @@ impl Load for Tuple {
     }
 }
 
+impl Load for Array {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Array(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected array, got {v:?}");
+        }
+    }
+}
+
 impl Load for Base {
     fn from_value(v: &Value) -> Result<Self> {
         if let Value::Base(v) = v {
@@ -1122,16 +1132,6 @@ impl Load for () {
         match v.as_base()? {
             Base::U0 => Ok(()),
             b => bail!("expected U0, got base {b:?}"),
-        }
-    }
-}
-
-impl Load for Array {
-    fn from_value(v: &Value) -> Result<Self> {
-        if let Value::Array(v) = v {
-            Ok(v.clone())
-        } else {
-            bail!("expected array, got {v:?}");
         }
     }
 }

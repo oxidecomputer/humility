@@ -311,7 +311,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
             };
 
             (
-                hiffy_call(
+                match hiffy_call(
                     hubris,
                     core,
                     &mut context,
@@ -319,7 +319,11 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
                     &args,
                     input.as_deref(),
                     output.as_deref_mut(),
-                )?,
+                ) {
+                    Ok(s) => Ok(s),
+                    Err(HiffyCallError::Hiffy(s)) => Err(s),
+                    Err(HiffyCallError::Other(e)) => return Err(e),
+                },
                 output,
             )
         };
