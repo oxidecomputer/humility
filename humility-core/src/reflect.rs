@@ -135,19 +135,37 @@ impl Value {
     pub fn field<T: Load>(&self, f: &str) -> Result<T> {
         let mut v = self;
         for f in f.split(".") {
-            let Value::Struct(s) = v else {
-                bail!("expected a struct when getting field `{f}`");
-            };
-            v = s.get(f).ok_or_else(|| {
-                anyhow!(
-                    "could not field field `{f}`; available fields are {:?}",
-                    s.members
-                        .keys()
-                        .map(|s| s.as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            })?;
+            match v {
+                Value::Struct(s) => {
+                    v = s.get(f).ok_or_else(|| {
+                        anyhow!(
+                            "could not field field `{f}`; \
+                             available fields are {:?}",
+                            s.members
+                                .keys()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    })?;
+                }
+                Value::Tuple(t) => {
+                    let index: usize = f.parse().with_context(|| {
+                        format!("could not parse tuple index from `{f}`")
+                    })?;
+                    v = t.1.get(index).ok_or_else(|| {
+                        anyhow!(
+                            "could not get field {index} from tuple \
+                             with {} elements",
+                            t.1.len()
+                        )
+                    })?;
+                }
+                _ => bail!(
+                    "expected a struct or tuple when getting field `{f}`, \
+                     got {v:?}"
+                ),
+            }
         }
         T::from_value(v)
     }
@@ -1040,6 +1058,16 @@ impl Load for u64 {
 impl Load for f32 {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_f32().ok_or_else(|| anyhow!("not a f32: {:?}", v))
+    }
+}
+
+impl Load for Array {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Array(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected array, got {v:?}");
+        }
     }
 }
 
