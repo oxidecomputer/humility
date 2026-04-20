@@ -338,15 +338,12 @@ impl SensorReader for HiffySensorReader<'_> {
 struct RamSensorReader {
     /// Position of `LAST_READING` in global RAM
     last_reading: HubrisVariable,
-    last_reading_buf: Vec<u8>,
 
     /// Position of `DATA_VALUE` in global RAM
     data_value: HubrisVariable,
-    data_value_buf: Vec<u8>,
 
     /// Position of `NERRORS` in global RAM
     nerrors: HubrisVariable,
-    nerrors_buf: Vec<u8>,
 
     /// Indexes of sensors that we care about
     ///
@@ -381,24 +378,20 @@ impl RamSensorReader {
 
         Ok(Self {
             last_reading,
-            last_reading_buf: vec![0u8; last_reading.size],
             data_value,
-            data_value_buf: vec![0u8; data_value.size],
             nerrors,
-            nerrors_buf: vec![0u8; nerrors.size],
             sensors: sensors.iter().map(|(i, _)| *i).collect(),
         })
     }
 
-    fn unpack_array<T: Load + Copy>(
+    fn read_array<T: Load + Copy>(
         &self,
         hubris: &HubrisArchive,
-        buf: &[u8],
-        var: HubrisVariable,
+        core: &mut dyn Core,
+        var: &HubrisVariable,
     ) -> Result<Vec<T>> {
-        let v =
-            reflect::load_value(hubris, buf, hubris.lookup_type(var.goff)?, 0)?;
-        let out = doppel::MaybeUninit::<Vec<T>>::from_value(&v)?;
+        let out: doppel::MaybeUninit<Vec<T>> =
+            reflect::load_variable(hubris, core, var)?;
         Ok(self.sensors.iter().map(|i| out.value[*i]).collect())
     }
 }
@@ -409,20 +402,13 @@ impl SensorReader for RamSensorReader {
         hubris: &HubrisArchive,
         core: &mut dyn Core,
     ) -> Result<SensorData> {
-        core.read_8(self.data_value.addr, &mut self.data_value_buf)?;
-        core.read_8(self.last_reading.addr, &mut self.last_reading_buf)?;
-        core.read_8(self.nerrors.addr, &mut self.nerrors_buf)?;
+        let data_values =
+            self.read_array::<f32>(hubris, core, &self.data_value)?;
 
-        let data_values = self.unpack_array::<f32>(
+        let last_reading = self.read_array::<Option<LastReading>>(
             hubris,
-            &self.data_value_buf,
-            self.data_value,
-        )?;
-
-        let last_reading = self.unpack_array::<Option<LastReading>>(
-            hubris,
-            &self.last_reading_buf,
-            self.last_reading,
+            core,
+            &self.last_reading,
         )?;
 
         // Clear data values that aren't valid (according to `last_reading`)
@@ -436,7 +422,7 @@ impl SensorReader for RamSensorReader {
             .collect::<Vec<_>>();
 
         let nerrors = self
-            .unpack_array::<u32>(hubris, &self.nerrors_buf, self.nerrors)?
+            .read_array::<u32>(hubris, core, &self.nerrors)?
             .into_iter()
             .map(Option::Some)
             .collect();
