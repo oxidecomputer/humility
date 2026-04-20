@@ -1,0 +1,156 @@
+ID  HEXID KIND           C  P MUX ADDR DEVICE        NAME
+  0   0x0 current        1  B 1:1 0x38 max5970       V12_U2A_A0
+  1   0x1 current        1  B 1:1 0x38 max5970       V3P3_U2A_A0
+  2   0x2 voltage        1  B 1:1 0x38 max5970       V12_U2A_A0
+  3   0x3 voltage        1  B 1:1 0x38 max5970       V3P3_U2A_A0
+  4   0x4 temp           1  B 1:1 0x6a nvme_bmc      U2_N0
+  5   0x5 current        1  B 1:2 0x38 max5970       V12_U2B_A0
+  6   0x6 current        1  B 1:2 0x38 max5970       V3P3_U2B_A0
+  7   0x7 voltage        1  B 1:2 0x38 max5970       V12_U2B_A0
+  8   0x8 voltage        1  B 1:2 0x38 max5970       V3P3_U2B_A0
+  9   0x9 temp           1  B 1:2 0x6a nvme_bmc      U2_N1
+ 10   0xa current        1  B 1:3 0x38 max5970       V12_U2C_A0
+ 11   0xb current        1  B 1:3 0x38 max5970       V3P3_U2C_A0
+ 12   0xc voltage        1  B 1:3 0x38 max5970       V12_U2C_A0
+ 13   0xd voltage        1  B 1:3 0x38 max5970       V3P3_U2C_A0
+ 14   0xe temp           1  B 1:3 0x6a nvme_bmc      U2_N2
+ 15   0xf current        1  B 1:4 0x38 max5970       V12_U2D_A0
+ 16  0x10 current        1  B 1:4 0x38 max5970       V3P3_U2D_A0
+ 17  0x11 voltage        1  B 1:4 0x38 max5970       V12_U2D_A0
+ 18  0x12 voltage        1  B 1:4 0x38 max5970       V3P3_U2D_A0
+ 19  0x13 temp           1  B 1:4 0x6a nvme_bmc      U2_N3
+ 20  0x14 current        1  B 1:5 0x38 max5970       V12_U2E_A0
+ 21  0x15 current        1  B 1:5 0x38 max5970       V3P3_U2E_A0
+ 22  0x16 voltage        1  B 1:5 0x38 max5970       V12_U2E_A0
+ 23  0x17 voltage        1  B 1:5 0x38 max5970       V3P3_U2E_A0
+ 24  0x18 temp           1  B 1:5 0x6a nvme_bmc      U2_N4
+ 25  0x19 current        1  B 1:6 0x38 max5970       V12_U2F_A0
+ 26  0x1a current        1  B 1:6 0x38 max5970       V3P3_U2F_A0
+ 27  0x1b voltage        1  B 1:6 0x38 max5970       V12_U2F_A0
+ 28  0x1c voltage        1  B 1:6 0x38 max5970       V3P3_U2F_A0
+ 29  0x1d temp           1  B 1:6 0x6a nvme_bmc      U2_N5
+ 30  0x1e current        1  B 1:9 0x38 max5970       V12_U2G_A0
+ 31  0x1f current        1  B 1:9 0x38 max5970       V3P3_U2G_A0
+ 32  0x20 voltage        1  B 1:9 0x38 max5970       V12_U2G_A0
+ 33  0x21 voltage        1  B 1:9 0x38 max5970       V3P3_U2G_A0
+ 34  0x22 temp           1  B 1:9 0x6a nvme_bmc      U2_N6
+ 35  0x23 current        1  B 1:10 0x38 max5970       V12_U2H_A0
+ 36  0x24 current        1  B 1:10 0x38 max5970       V3P3_U2H_A0
+ 37  0x25 voltage        1  B 1:10 0x38 max5970       V12_U2H_A0
+ 38  0x26 voltage        1  B 1:10 0x38 max5970       V3P3_U2H_A0
+ 39  0x27 temp           1  B 1:10 0x6a nvme_bmc      U2_N7
+ 40  0x28 current        1  B 1:11 0x38 max5970       V12_U2I_A0
+ 41  0x29 current        1  B 1:11 0x38 max5970       V3P3_U2I_A0
+ 42  0x2a voltage        1  B 1:11 0x38 max5970       V12_U2I_A0
+ 43  0x2b voltage        1  B 1:11 0x38 max5970       V3P3_U2I_A0
+ 44  0x2c temp           1  B 1:11 0x6a nvme_bmc      U2_N8
+ 45  0x2d current        1  B 1:12 0x38 max5970       V12_U2J_A0
+ 46  0x2e current        1  B 1:12 0x38 max5970       V3P3_U2J_A0
+ 47  0x2f voltage        1  B 1:12 0x38 max5970       V12_U2J_A0
+ 48  0x30 voltage        1  B 1:12 0x38 max5970       V3P3_U2J_A0
+ 49  0x31 temp           1  B 1:12 0x6a nvme_bmc      U2_N9
+ 50  0x32 temp           1  B 1:13 0x48 tmp117        Southwest
+ 51  0x33 temp           1  B 1:13 0x49 tmp117        South
+ 52  0x34 temp           1  B 1:13 0x4a tmp117        Southeast
+ 53  0x35 temp           2  F 1:1 0x6a nvme_bmc      M2_A
+ 54  0x36 temp           2  F 1:2 0x6a nvme_bmc      M2_B
+ 55  0x37 temp           2  F 1:4 0x4c sbtsi         CPU
+ 56  0x38 temp           2  F 1:8 0x4c tmp451        t6
+ 57  0x39 temp           3  H   - 0x24 tps546b24a    V3P3_SP_A2
+ 58  0x3a current        3  H   - 0x24 tps546b24a    V3P3_SP_A2
+ 59  0x3b voltage        3  H   - 0x24 tps546b24a    V3P3_SP_A2
+ 60  0x3c temp           3  H   - 0x27 tps546b24a    V5_SYS_A2
+ 61  0x3d current        3  H   - 0x27 tps546b24a    V5_SYS_A2
+ 62  0x3e voltage        3  H   - 0x27 tps546b24a    V5_SYS_A2
+ 63  0x3f temp           3  H   - 0x29 tps546b24a    V1P8_SYS_A2
+ 64  0x40 current        3  H   - 0x29 tps546b24a    V1P8_SYS_A2
+ 65  0x41 voltage        3  H   - 0x29 tps546b24a    V1P8_SYS_A2
+ 66  0x42 current        3  H   - 0x3a max5970       V3P3_M2A_A0HP
+ 67  0x43 current        3  H   - 0x3a max5970       V3P3_M2B_A0HP
+ 68  0x44 voltage        3  H   - 0x3a max5970       V3P3_M2A_A0HP
+ 69  0x45 voltage        3  H   - 0x3a max5970       V3P3_M2B_A0HP
+ 70  0x46 current        3  H   - 0x54 ltc4282       V12_MCIO_A0HP
+ 71  0x47 voltage        3  H   - 0x54 ltc4282       V12_MCIO_A0HP
+ 72  0x48 current        3  H   - 0x56 ltc4282       V12_DDR5_GHIJKL_A0
+ 73  0x49 voltage        3  H   - 0x56 ltc4282       V12_DDR5_GHIJKL_A0
+ 74  0x4a current        3  H   - 0x55 ltc4282       V12_DDR5_ABCDEF_A0
+ 75  0x4b voltage        3  H   - 0x55 ltc4282       V12_DDR5_ABCDEF_A0
+ 76  0x4c temp           3  H   - 0x75 raa229620a    VDDCR_CPU0_A0
+ 77  0x4d temp           3  H   - 0x75 raa229620a    VDDCR_SOC_A0
+ 78  0x4e power          3  H   - 0x75 raa229620a    VDDCR_CPU0_A0
+ 79  0x4f power          3  H   - 0x75 raa229620a    VDDCR_SOC_A0
+ 80  0x50 current        3  H   - 0x75 raa229620a    VDDCR_CPU0_A0
+ 81  0x51 current        3  H   - 0x75 raa229620a    VDDCR_SOC_A0
+ 82  0x52 voltage        3  H   - 0x75 raa229620a    VDDCR_CPU0_A0
+ 83  0x53 voltage        3  H   - 0x75 raa229620a    VDDCR_SOC_A0
+ 84  0x54 temp           3  H   - 0x76 raa229620a    VDDCR_CPU1_A0
+ 85  0x55 temp           3  H   - 0x76 raa229620a    VDDIO_SP5_A0
+ 86  0x56 power          3  H   - 0x76 raa229620a    VDDCR_CPU1_A0
+ 87  0x57 power          3  H   - 0x76 raa229620a    VDDIO_SP5_A0
+ 88  0x58 current        3  H   - 0x76 raa229620a    VDDCR_CPU1_A0
+ 89  0x59 current        3  H   - 0x76 raa229620a    VDDIO_SP5_A0
+ 90  0x5a voltage        3  H   - 0x76 raa229620a    VDDCR_CPU1_A0
+ 91  0x5b voltage        3  H   - 0x76 raa229620a    VDDIO_SP5_A0
+ 92  0x5c current        3  H   - 0x5c isl68224      V1P1_SP5_A0
+ 93  0x5d current        3  H   - 0x5c isl68224      V1P8_SP5_A1
+ 94  0x5e current        3  H   - 0x5c isl68224      V3P3_SP5_A1
+ 95  0x5f voltage        3  H   - 0x5c isl68224      V1P1_SP5_A0
+ 96  0x60 voltage        3  H   - 0x5c isl68224      V1P8_SP5_A1
+ 97  0x61 voltage        3  H   - 0x5c isl68224      V3P3_SP5_A1
+ 98  0x62 current        4  F   - 0x39 max5970       V12P0_NIC_A0HP
+ 99  0x63 current        4  F   - 0x39 max5970       V5P0_NIC_A0HP
+100  0x64 voltage        4  F   - 0x39 max5970       V12P0_NIC_A0HP
+101  0x65 voltage        4  F   - 0x39 max5970       V5P0_NIC_A0HP
+102  0x66 temp           4  F   - 0x25 tps546b24a    V0P96_NIC_VDD_A0HP
+103  0x67 current        4  F   - 0x25 tps546b24a    V0P96_NIC_VDD_A0HP
+104  0x68 voltage        4  F   - 0x25 tps546b24a    V0P96_NIC_VDD_A0HP
+105  0x69 temp           4  F   - 0x48 tmp117        Northwest
+106  0x6a temp           4  F   - 0x49 tmp117        North
+107  0x6b temp           4  F   - 0x4a tmp117        Northeast
+108  0x6c speed          4  F   - 0x20 max31790      Southeast
+109  0x6d speed          4  F   - 0x20 max31790      Northeast
+110  0x6e speed          4  F   - 0x20 max31790      South
+111  0x6f speed          4  F   - 0x20 max31790      North
+112  0x70 speed          4  F   - 0x20 max31790      Southwest
+113  0x71 speed          4  F   - 0x20 max31790      Northwest
+114  0x72 temp           4  F   - 0x67 bmr491        V12_SYS_A2
+115  0x73 power          4  F   - 0x67 bmr491        V12_SYS_A2
+116  0x74 current        4  F   - 0x67 bmr491        V12_SYS_A2
+117  0x75 voltage        4  F   - 0x67 bmr491        V12_SYS_A2
+118  0x76 temp           4  F   - 0x11 lm5066i       V54P5_FAN_EAST
+119  0x77 current        4  F   - 0x11 lm5066i       V54P5_FAN_EAST
+120  0x78 voltage        4  F   - 0x11 lm5066i       V54P5_FAN_EAST
+121  0x79 temp           4  F   - 0x12 lm5066i       V54P5_FAN_CENTRAL
+122  0x7a current        4  F   - 0x12 lm5066i       V54P5_FAN_CENTRAL
+123  0x7b voltage        4  F   - 0x12 lm5066i       V54P5_FAN_CENTRAL
+124  0x7c temp           4  F   - 0x13 lm5066i       V54P5_FAN_WEST
+125  0x7d current        4  F   - 0x13 lm5066i       V54P5_FAN_WEST
+126  0x7e voltage        4  F   - 0x13 lm5066i       V54P5_FAN_WEST
+127  0x7f temp           4  F   - 0x14 adm127x       V54P5_IBC_A3
+128  0x80 current        4  F   - 0x14 adm127x       V54P5_IBC_A3
+129  0x81 voltage        4  F   - 0x14 adm127x       V54P5_IBC_A3
+130  0x82 temp     -  -   -    - dimm          A_TS0
+131  0x83 temp     -  -   -    - dimm          A_TS1
+132  0x84 temp     -  -   -    - dimm          B_TS0
+133  0x85 temp     -  -   -    - dimm          B_TS1
+134  0x86 temp     -  -   -    - dimm          C_TS0
+135  0x87 temp     -  -   -    - dimm          C_TS1
+136  0x88 temp     -  -   -    - dimm          D_TS0
+137  0x89 temp     -  -   -    - dimm          D_TS1
+138  0x8a temp     -  -   -    - dimm          E_TS0
+139  0x8b temp     -  -   -    - dimm          E_TS1
+140  0x8c temp     -  -   -    - dimm          F_TS0
+141  0x8d temp     -  -   -    - dimm          F_TS1
+142  0x8e temp     -  -   -    - dimm          G_TS0
+143  0x8f temp     -  -   -    - dimm          G_TS1
+144  0x90 temp     -  -   -    - dimm          H_TS0
+145  0x91 temp     -  -   -    - dimm          H_TS1
+146  0x92 temp     -  -   -    - dimm          I_TS0
+147  0x93 temp     -  -   -    - dimm          I_TS1
+148  0x94 temp     -  -   -    - dimm          J_TS0
+149  0x95 temp     -  -   -    - dimm          J_TS1
+150  0x96 temp     -  -   -    - dimm          K_TS0
+151  0x97 temp     -  -   -    - dimm          K_TS1
+152  0x98 temp     -  -   -    - dimm          L_TS0
+153  0x99 temp     -  -   -    - dimm          L_TS1
+154  0x9a pwm      -  -   -    - thermal_loop  fan_ctrl

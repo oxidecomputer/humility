@@ -1,0 +1,35 @@
+system time = 1011506137
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: fault timer(T+63)
+ 1 net                          0   5 recv, notif: eth-irq(irq61) wake-timer(T+446)
+ 2 sys                          0   1 recv, notif: exti-wildcard-irq(irq6/irq7/irq8/irq9/irq10/irq23/irq40)
+ 3 spi2_driver                  0   3 recv
+ 4 spi3_driver                  0   3 recv
+ 5 i2c_driver                   0   3 recv
+ 6 packrat                      0   1 recv, notif: task-faulted
+ 7 rng_driver                   0   6 recv
+ 8 thermal                      0   8 recv, notif: timer(T+354)
+ 9 power                        0   8 recv, notif: timer(T+586)
+10 hiffy                        0   7 notif: bit31(T+74)
+11 cosmo_seq                    0   7 recv, notif: timer(T+409) seq-irq
+12 ignition_flash               0   7 recv
+13 spartan7_loader              0   4 recv
+14 hash_driver                  0   2 recv
+15 hf                           0   6 recv, notif: timer
+16 update_server                0   3 recv
+17 sensor                       0   4 recv
+18 host_sp_comms                0   9 recv, notif: jefe-state-change usart-irq(irq71) multitimer control-plane-agent
+19 udpecho                      0   6 notif: socket
+20 udpbroadcast                 0   6 notif: bit31(T+160)
+21 control_plane_agent          0   8 recv, notif: usart-irq(irq37) socket timer
+22 sprot                        0   4 recv
+23 validate                     0   5 recv
+24 vpd                          0   4 recv
+25 user_leds                    0   2 recv, notif: timer
+26 dump_agent                   0   6 recv, notif: socket
+27 snitch                       0   6 notif: socket
+28 spd                          0   7 recv, notif: jefe-state-change timer(T+190)
+29 auxflash                     0   3 recv
+30 idle                         0  15 RUNNING
+31 udprpc                       0   6 notif: socket
+32 fmc_demo                     0   6 recv, notif: socket

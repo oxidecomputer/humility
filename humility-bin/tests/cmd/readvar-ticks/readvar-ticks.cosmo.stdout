@@ -1,0 +1,12 @@
+kern::arch::arm_m::TICKS (0x24001a40) = [
+    AtomicU32 {
+        v: UnsafeCell<u32> {
+            value: 0x3c4a5bd9
+        }
+    },
+    AtomicU32 {
+        v: UnsafeCell<u32> {
+            value: 0x0
+        }
+    }
+]

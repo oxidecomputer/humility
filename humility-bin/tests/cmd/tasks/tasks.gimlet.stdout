@@ -1,0 +1,31 @@
+system time = 22097
+ID TASK                       GEN PRI STATE    
+ 0 jefe                         0   0 recv, notif: fault timer(T+3)
+ 1 net                          0   5 recv, notif: eth-irq(irq61) wake-timer(T+129)
+ 2 sys                          0   1 recv, notif: exti-wildcard-irq(irq6/irq7/irq8/irq9/irq10/irq23/irq40)
+ 3 spi2_driver                  0   3 recv
+ 4 i2c_driver                   0   3 recv
+ 5 spd                          0   2 notif: i2c1-irq(irq31/irq32)
+ 6 packrat                      0   1 recv, notif: task-faulted
+ 7 thermal                      0   5 recv, notif: timer(T+318)
+ 8 power                        0   6 recv, notif: timer(T+332)
+ 9 hiffy                        0   5 notif: bit31(T+134)
+10 gimlet_seq                   0   4 recv, notif: timer(T+4) vcore
+11 gimlet_inspector             0   6 notif: socket
+12 hash_driver                  0   2 recv
+13 rng_driver                   0   6 recv
+14 hf                           0   3 recv, notif: timer
+15 update_server                0   3 recv
+16 sensor                       0   4 recv
+17 host_sp_comms                0   8 recv, notif: jefe-state-change usart-irq(irq82) multitimer control-plane-agent
+18 udpecho                      0   6 notif: socket
+19 udpbroadcast                 0   6 notif: bit31(T+171)
+20 control_plane_agent          0   7 recv, notif: usart-irq(irq37) socket timer
+21 sprot                        0   4 recv
+22 validate                     0   5 recv
+23 vpd                          0   4 recv
+24 user_leds                    0   2 recv, notif: timer
+25 dump_agent                   0   6 recv, notif: socket
+26 snitch                       0   6 notif: socket
+27 sbrmi                        0   4 recv
+28 idle                         0   9 RUNNING

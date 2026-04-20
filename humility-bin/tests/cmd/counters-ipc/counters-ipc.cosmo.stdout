@@ -1,0 +1,310 @@
+drv_auxflash_api::__AUXFLASH_CLIENT_COUNTERS
+ fn AuxFlash::read_slot_with_offset() ............................. 10401 calls
+    clients:
+    task spartan7_loader (0 restarts) .................. + 0 ........ + 9966 ok
+    task cosmo_seq (0 restarts) ........................ + 0 ......... + 435 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 10401 ok
+
+ fn AuxFlash::get_blob_by_tag() ....................................... 2 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ + 0 ........... + 1 ok
+    task spartan7_loader (0 restarts) .................. + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
+
+ fn AuxFlash::read_id() ............................................... 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+
+drv_cpu_seq_api::__SEQUENCER_CLIENT_COUNTERS
+ fn Sequencer::get_state() ...................................... 3010532 calls
+    clients:
+    task thermal (0 restarts) .......................... + 0 ..... + 2023000 ok
+    task power (0 restarts) ............................ + 0 ...... + 987529 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 3 ok
+                                                         ---       ---------
+    totals:                                              = 0 err   = 3010532 ok
+
+
+drv_hf_api::__HOSTFLASH_CLIENT_COUNTERS
+ fn HostFlash::apob_read() ........................................... 99 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 .......... = 99 ok
+
+ fn HostFlash::apob_lock() ........................................... 75 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 .......... = 75 ok
+
+ fn HostFlash::get_mux() .............................................. 4 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 4 ok
+
+ fn HostFlash::set_mux() .............................................. 2 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ + 0 ........... + 1 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
+
+ fn HostFlash::read_id() .............................................. 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+ fn HostFlash::get_dev() .............................................. 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+ fn HostFlash::apob_commit() .......................................... 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+
+drv_spartan7_loader_api::__SPARTAN7LOADER_CLIENT_COUNTERS
+ fn Spartan7Loader::ping() ............................................ 7 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ + 0 ........... + 4 ok
+    task ignition_flash (0 restarts) ................... + 0 ........... + 1 ok
+    task hf (0 restarts) ............................... + 0 ........... + 1 ok
+    task spd (0 restarts) .............................. + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 7 ok
+
+
+drv_spi_api::__SPI_CLIENT_COUNTERS
+ fn Spi::write() .................................................. 14351 calls
+    clients:
+    task spartan7_loader (0 restarts) .................. + 0 ....... + 13765 ok
+    task cosmo_seq (0 restarts) ........................ + 0 ......... + 524 ok
+    task net (0 restarts) .............................. + 0 .......... + 62 ok
+                                                         ---         -------
+    totals:                                              = 0 err     = 14351 ok
+
+ fn Spi::exchange() ................................................... 9 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 8 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 9 ok
+
+ fn Spi::lock() ....................................................... 4 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 4 ok
+
+ fn Spi::release() .................................................... 1 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 1 ok
+
+
+drv_stm32xx_sys_api::__SYS_CLIENT_COUNTERS
+ fn Sys::gpio_read_input() ....................................... 136285 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ + 0 ...... + 136247 ok
+    task i2c_driver (0 restarts) ....................... + 0 .......... + 36 ok
+    task spartan7_loader (0 restarts) .................. + 0 ........... + 2 ok
+                                                         ---        --------
+    totals:                                              = 0 err    = 136285 ok
+
+ fn Sys::gpio_set_reset() ........................................... 402 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 ......... + 222 ok
+    task spi2_driver (0 restarts) ...................... + 0 ......... + 145 ok
+    task cosmo_seq (0 restarts) ........................ + 0 .......... + 10 ok
+    task net (0 restarts) .............................. + 0 ........... + 6 ok
+    task spi3_driver (0 restarts) ...................... + 0 ........... + 6 ok
+    task spartan7_loader (0 restarts) .................. + 0 ........... + 5 ok
+    task user_leds (0 restarts) ........................ + 0 ........... + 4 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 3 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 402 ok
+
+ fn Sys::gpio_configure_raw() ....................................... 181 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 ......... + 122 ok
+    task cosmo_seq (0 restarts) ........................ + 0 .......... + 15 ok
+    task net (0 restarts) .............................. + 0 .......... + 12 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 9 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 5 ok
+    task spi3_driver (0 restarts) ...................... + 0 ........... + 4 ok
+    task spartan7_loader (0 restarts) .................. + 0 ........... + 4 ok
+    task user_leds (0 restarts) ........................ + 0 ........... + 4 ok
+    task auxflash (0 restarts) ......................... + 0 ........... + 3 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 2 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+                                                         ---           -----
+    totals:                                              = 0 err       = 181 ok
+
+ fn Sys::enable_clock_raw() .......................................... 16 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 4 ok
+    task i2c_driver (0 restarts) ....................... + 0 ........... + 4 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task spi3_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task rng_driver (0 restarts) ....................... + 0 ........... + 1 ok
+    task hash_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+    task auxflash (0 restarts) ......................... + 0 ........... + 1 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 16 ok
+
+ fn Sys::leave_reset_raw() ........................................... 14 calls
+    clients:
+    task i2c_driver (0 restarts) ....................... + 0 ........... + 4 ok
+    task net (0 restarts) .............................. + 0 ........... + 2 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task spi3_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task rng_driver (0 restarts) ....................... + 0 ........... + 1 ok
+    task hash_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 1 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+    task auxflash (0 restarts) ......................... + 0 ........... + 1 ok
+                                                         ---            ----
+    totals:                                              = 0 err        = 14 ok
+
+ fn Sys::enter_reset_raw() ............................................ 7 calls
+    clients:
+    task net (0 restarts) .............................. + 0 ........... + 2 ok
+    task spi2_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task spi3_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task rng_driver (0 restarts) ....................... + 0 ........... + 1 ok
+    task hash_driver (0 restarts) ...................... + 0 ........... + 1 ok
+    task sprot (0 restarts) ............................ + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 7 ok
+
+ fn Sys::disable_clock_raw() .......................................... 1 calls
+    clients:
+    task hash_driver (0 restarts) ...................... = 0 ........... = 1 ok
+
+ fn Sys::read_uid() ................................................... 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+ fn Sys::gpio_irq_configure() ......................................... 1 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 1 ok
+
+ fn Sys::gpio_irq_control() ........................................... 1 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 1 ok
+
+
+task_jefe_api::__JEFE_CLIENT_COUNTERS
+ fn Jefe::get_state() ................................................. 6 calls
+    clients:
+    task spd (0 restarts) .............................. + 0 ........... + 4 ok
+    task net (0 restarts) .............................. + 0 ........... + 2 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 6 ok
+
+ fn Jefe::set_state() ................................................. 3 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 3 ok
+
+ fn Jefe::set_reset_reason() .......................................... 1 calls
+    clients:
+    task sys (0 restarts) .............................. = 0 ........... = 1 ok
+
+
+task_net_api::__NET_CLIENT_COUNTERS
+ fn Net::recv_packet() ......................................... 12113758 calls
+    clients:
+    task udpecho (0 restarts) .......................................... + 0 ok
+    - Err(QueueEmpty) ............................ + 2018960 ..................
+    task dump_agent (0 restarts) ....................................... + 0 ok
+    - Err(QueueEmpty) ............................ + 2018960 ..................
+    task snitch (0 restarts) ........................................... + 0 ok
+    - Err(QueueEmpty) ............................ + 2018960 ..................
+    task udprpc (0 restarts) ........................................... + 0 ok
+    - Err(QueueEmpty) ............................ + 2018960 ..................
+    task control_plane_agent (0 restarts) .............................. + 0 ok
+    - Err(QueueEmpty) ............................ + 2018959 ..................
+    task fmc_demo (0 restarts) ......................................... + 0 ok
+    - Err(QueueEmpty) ............................ + 2018959 ..................
+                                                  ----------             ---
+    totals:                                       = 12113758 err         = 0 ok
+
+ fn Net::send_packet() .......................................... 2018958 calls
+    clients:
+    task udpbroadcast (0 restarts) ..................... = 0 ..... = 2018958 ok
+
+ fn Net::get_mac_address() ............................................ 2 calls
+    clients:
+    task udpbroadcast (0 restarts) ..................... + 0 ........... + 1 ok
+    task control_plane_agent (0 restarts) .............. + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 2 ok
+
+ fn Net::get_spare_mac_addresses() .................................... 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+
+task_packrat_api::__PACKRAT_CLIENT_COUNTERS
+ fn Packrat::set_spd_eeprom() ........................................ 48 calls
+    clients:
+    task spd (0 restarts) .............................. = 0 .......... = 48 ok
+
+ fn Packrat::get_spd_present() ....................................... 12 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 .......... = 12 ok
+
+ fn Packrat::get_full_spd_data() ..................................... 12 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 .......... = 12 ok
+
+ fn Packrat::get_identity() ........................................... 7 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... + 0 ........... + 6 ok
+    task udpbroadcast (0 restarts) ..................... + 0 ........... + 1 ok
+                                                         ---             ---
+    totals:                                              = 0 err         = 7 ok
+
+ fn Packrat::get_mac_address_block() .................................. 1 calls
+    clients:
+    task net (0 restarts) .............................. = 0 ........... = 1 ok
+
+ fn Packrat::set_mac_address_block() .................................. 1 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 1 ok
+
+ fn Packrat::set_identity() ........................................... 1 calls
+    clients:
+    task cosmo_seq (0 restarts) ........................ = 0 ........... = 1 ok
+
+ fn Packrat::get_next_boot_host_startup_options() ..................... 1 calls
+    clients:
+    task host_sp_comms (0 restarts) .................... = 0 ........... = 1 ok
+
+ fn Packrat::set_ereport_restart_id() ................................. 1 calls
+    clients:
+    task rng_driver (0 restarts) ....................... = 0 ........... = 1 ok
+
+
+task_sensor_api::__SENSOR_CLIENT_COUNTERS
+ fn Sensor::nodata() ........................................... 83688413 calls
+    clients:
+    task power (0 restarts) ............................ + 0 .... + 70325925 ok
+    task thermal (0 restarts) .......................... + 0 .... + 13362488 ok
+                                                         ---      ----------
+    totals:                                              = 0 err  = 83688413 ok
+
+ fn Sensor::post() ............................................. 46344418 calls
+    clients:
+    task power (0 restarts) ............................ + 0 .... + 27439446 ok
+    task thermal (0 restarts) .......................... + 0 .... + 13948012 ok
+    task spd (0 restarts) .............................. + 0 ..... + 4956960 ok
+                                                         ---      ----------
+    totals:                                              = 0 err  = 46344418 ok
+
+ fn Sensor::get_reading() ........................................ 861551 calls
+    clients:
+    task thermal (0 restarts) ..................................... = 798516 ok
+    - Err(NotPresent) .............................. + 63035 ..................
+
+
