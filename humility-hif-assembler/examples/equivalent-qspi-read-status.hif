@@ -1,0 +1,3 @@
+# Equivalent to: humility qspi --status
+# Original: vec![Op::Call(qspi_read_status.id), Op::Done]
+call QspiReadStatus

@@ -182,7 +182,7 @@ impl DumpAgent for HiffyDumpAgent<'_> {
         // returned data size and the Hiffy context's `rdata` array size.
         let op = self.hubris.get_idol_command("DumpAgent.read_dump")?;
         let rsize = self.hubris.lookup_type(op.ok)?.size(self.hubris)?;
-        let chunksize = (self.context.rdata_size() / rsize) - 1;
+        let chunksize = (self.context.rstack_size() / rsize) - 1;
 
         let mut rval = vec![];
         loop {

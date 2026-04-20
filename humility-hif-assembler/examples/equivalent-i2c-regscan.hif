@@ -1,0 +1,3 @@
+# Equivalent to: humility i2c --bus mid --device 0x48 --scan
+# Scans registers 0x00-0xFF, reads 1 byte from each
+i2c_regscan mid 0x48

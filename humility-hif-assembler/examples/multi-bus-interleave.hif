@@ -1,0 +1,17 @@
+# Multi-bus interleave: alternate reads across different I2C buses.
+#
+# Reads from mid and front buses in alternation.  Since these
+# are on different I2C controllers (I2C3 and I2C2), the hardware
+# can potentially overlap transactions.  The hiffy task serializes
+# them, but this pattern reveals any cross-bus contention in the
+# I2C server task.
+#
+# Target: gimlet (mid bus + front bus)
+# Expected results: 200 (100 per bus)
+
+.let ITERATIONS 100
+
+repeat $ITERATIONS
+    i2c_read mid 0x24 reg=0x00 2      # tps546b24a on mid
+    i2c_read front 0x48 reg=0x00 2    # tmp117 on front
+end

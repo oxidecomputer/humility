@@ -1,0 +1,17 @@
+# Stress test: round-robin across multiple devices on one bus.
+#
+# Reads temperature from three TMP117 sensors on the front bus
+# in a tight loop.  This exercises bus arbitration under load
+# when the thermal task is also polling these devices at 1 Hz.
+#
+# Target: gimlet (front bus, TMP117 at 0x48/0x49/0x4a)
+# Expected results: 240 readings (80 per device)
+
+.let TEMP_REG 0x00
+.let ITERATIONS 80
+
+repeat $ITERATIONS
+    i2c_read front 0x48 reg=$TEMP_REG 2
+    i2c_read front 0x49 reg=$TEMP_REG 2
+    i2c_read front 0x4a reg=$TEMP_REG 2
+end

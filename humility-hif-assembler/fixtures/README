@@ -1,0 +1,15 @@
+These JSON files are snapshots of TargetConfig extracted from Hubris
+archives at a point in time.  They are used as test data for the
+assembler's unit and fixture tests, allowing tests to run without
+access to a Hubris archive or build environment.
+
+These fixtures WILL go stale as Hubris evolves (Idol interfaces
+change, devices are added, features are renamed).  They should not
+be used as a source of truth for what a live target supports.
+
+To regenerate from a current archive:
+
+    HUBRIS_ARCHIVE=path/to/archive.zip GENERATE_FIXTURE=1 \
+        cargo test -p humility-hif-assembler \
+            --test archive_integration generate_fixture \
+            -- --nocapture

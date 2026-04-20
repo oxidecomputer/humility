@@ -1,0 +1,3 @@
+# Equivalent to: humility gpio --toggle <pin> <mask>
+# GpioToggle takes (pin_index: u16, mask: u8)
+call GpioToggle 5 1

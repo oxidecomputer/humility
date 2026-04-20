@@ -1,0 +1,18 @@
+# Stress test: mux switching overhead.
+#
+# Alternates between two mux segments on the front bus, forcing
+# a mux switch on every other read.  This measures the overhead
+# of PCA9545 mux reconfiguration under load.
+#
+# Target: gimlet (front bus, mux 0x01, segments 1 and 2)
+# Expected results: 200 readings (100 per segment)
+
+.let VPD_ADDR 0x50
+.let ITERATIONS 100
+
+repeat $ITERATIONS
+    # Read from sharkfin A (segment 1)
+    i2c_read front $VPD_ADDR mux=0x01.1 1
+    # Read from sharkfin B (segment 2) — forces mux switch
+    i2c_read front $VPD_ADDR mux=0x01.2 1
+end

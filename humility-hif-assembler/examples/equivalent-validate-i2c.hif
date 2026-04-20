@@ -1,0 +1,6 @@
+# Equivalent to: humility validate
+# Calls Validate.validate_i2c for each device index
+idol Validate.validate_i2c index=0
+idol Validate.validate_i2c index=1
+idol Validate.validate_i2c index=2
+idol Validate.validate_i2c index=3

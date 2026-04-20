@@ -1,0 +1,15 @@
+[package]
+name = "humility-hif-assembler"
+version = "0.1.0"
+edition = "2021"
+description = "Assembler for HIF (Hubris Interchange Format) text programs"
+
+[dependencies]
+anyhow = "1.0"
+hif.workspace = true
+idol.workspace = true
+humility.workspace = true
+humility-idol.workspace = true
+postcard = { version = "0.7.0", features = ["alloc"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
