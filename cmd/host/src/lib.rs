@@ -170,14 +170,9 @@ fn read_uqvar(
     let Some(var) = hubris.lookup_variable(name).ok() else {
         return Ok(None);
     };
-
-    let mut buf: Vec<u8> = vec![0u8; var.size];
-
-    core.halt()?;
-    core.read_8(var.addr, buf.as_mut_slice())?;
-    core.run()?;
-
-    Ok(Some(buf))
+    let buf: doppel::MaybeUninit<Vec<u8>> =
+        reflect::load_variable(hubris, core, var)?;
+    Ok(Some(buf.value))
 }
 
 fn read_qualified_state_buf(
@@ -189,16 +184,8 @@ fn read_qualified_state_buf(
         return Ok(None);
     };
 
-    let var_ty = hubris.lookup_type(var.goff)?;
-
-    let mut buf: Vec<u8> = vec![0u8; var.size];
-
-    core.halt()?;
-    core.read_8(var.addr, &mut buf)?;
-    core.run()?;
-
-    let v = reflect::load_value(hubris, &buf, var_ty, 0)?;
-    let as_static_cell = doppel::ClaimOnceCell::from_value(&v)?;
+    let as_static_cell: doppel::ClaimOnceCell =
+        reflect::load_variable(hubris, core, var)?;
     Ok(Some(HostStateBuf::from_value(&as_static_cell.cell.value)?))
 }
 
