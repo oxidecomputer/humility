@@ -2738,7 +2738,6 @@ dependencies = [
  "humility-idol",
  "idol",
  "log",
- "parse_int",
  "postcard",
  "thiserror 2.0.18",
  "zerocopy",

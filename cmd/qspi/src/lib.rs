@@ -494,7 +494,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         s @ (Some(0) | Some(1)) => {
             let s = s.unwrap();
             humility::msg!("Setting slot to {s}");
-            let out = hiffy_call(
+            hiffy_call::<()>(
                 hubris,
                 core,
                 &mut context,
@@ -503,9 +503,6 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
                 None,
                 None,
             )?;
-            if let Err(e) = out {
-                bail!("set_dev failed: {e}");
-            }
         }
         _ => bail!("Bad slot setting"),
     }
@@ -1028,7 +1025,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             1 => "Flash1",
             _ => bail!("dev_select must be 0 or 1"),
         };
-        let out = hiffy_call(
+        hiffy_call::<()>(
             hubris,
             core,
             &mut context,
@@ -1037,11 +1034,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             None,
             None,
         )?;
-        if let Err(e) = out {
-            bail!("write_persistent_data failed: {e}");
-        } else {
-            humility::msg!("write_persistent_data succeeded");
-        }
+        humility::msg!("write_persistent_data succeeded");
         return Ok(());
     } else {
         bail!("expected an operation");
