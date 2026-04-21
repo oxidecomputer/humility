@@ -197,6 +197,11 @@ impl HiffyFunctions {
     }
 }
 
+/// Error indicating that the hiffy backend does not support data arguments
+#[derive(thiserror::Error, Debug)]
+#[error("hiffy backend does not support data arguments")]
+pub struct DataNotSupported;
+
 impl<'a> HiffyContext<'a> {
     fn variable(
         hubris: &'a HubrisArchive,
@@ -450,12 +455,12 @@ impl<'a> HiffyContext<'a> {
     }
 
     /// Returns the size of the `HIFFY_DATA` array, or 0 if unsupported
-    pub fn data_size(&self) -> usize {
+    pub fn data_size(&self) -> Result<usize, DataNotSupported> {
         match &self.hiffy {
             HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy { vars, .. } => {
-                vars.data.size
+                Ok(vars.data.size)
             }
-            HiffyImpl::NetUdpRpc { .. } => 0, // not supported
+            HiffyImpl::NetUdpRpc { .. } => Err(DataNotSupported),
         }
     }
 
@@ -1049,13 +1054,14 @@ impl<'a> HiffyContext<'a> {
             HiffyImpl::Debugger(vars) => (vars, HiffyWrite::Debugger(vars)),
         };
 
+        let data_size = vars.data.size;
         if let Some(data) = data
-            && data.len() > self.data_size()
+            && data.len() > data_size
         {
             bail!(
                 "data size ({}) exceeds maximum data size ({})",
                 data.len(),
-                self.data_size()
+                data_size,
             );
         }
 

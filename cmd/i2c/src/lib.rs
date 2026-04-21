@@ -501,7 +501,7 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
         let block_size = 16u16;
         let nibble_size = block_size + addr_size;
 
-        let data_size = context.data_size();
+        let data_size = context.data_size()?;
         let mut chunk: usize = data_size - (data_size % nibble_size as usize);
         let mut offset = 0u16;
 
