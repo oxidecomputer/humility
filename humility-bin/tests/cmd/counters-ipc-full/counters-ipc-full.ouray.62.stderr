@@ -1,5 +1,0 @@
-humility: attached to dump
-humility: WARNING: failed to load task table: failed to read TASK_TABLE_SIZE
-humility: WARNING: no generations/restart counts will be displayed.
-humility: note: this may be a single-task dump.
-humility counters failed: no IPC counters found
