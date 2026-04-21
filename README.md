@@ -232,7 +232,6 @@ a specified target.  (In the above example, one could execute `humility
 
 ## Commands
 
-- [humility apptable](#humility-apptable): print Hubris apptable
 - [humility auxflash](#humility-auxflash): manipulate auxiliary flash
 - [humility console-proxy](#humility-console-proxy): SP/host console uart proxy
 - [humility counters](#humility-counters): display event counters
@@ -290,14 +289,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility validate](#humility-validate): validate presence and operation of devices
 - [humility vpd](#humility-vpd): read or write vital product data (VPD)
 - [humility writeword](#humility-writeword): writes one or more memory words
-### `humility apptable`
-
-This is a deprecated command that allows for the display of the app table
-found in old Hubris archives; see `humility manifest` to understand
-the contents of an archive.
-
-
-
 ### `humility auxflash`
 
 Tools to interact with the auxiliary flash, described in RFD 311.

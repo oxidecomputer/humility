@@ -725,9 +725,6 @@ pub struct HubrisArchive {
     // constructed manifest
     pub manifest: HubrisManifest,
 
-    // app table
-    apptable: Option<(u32, Vec<u8>)>,
-
     // image ID
     pub imageid: Option<(u32, Vec<u8>)>,
 
@@ -834,7 +831,6 @@ impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
         Ok(Self {
             archive: Vec::new(),
-            apptable: None,
             imageid: None,
             manifest: Default::default(),
             loaded: BTreeMap::new(),
@@ -1553,9 +1549,6 @@ impl HubrisArchive {
         if loader.imageid.is_some() {
             self.imageid = loader.imageid;
         }
-        if loader.apptable.is_some() {
-            self.apptable = loader.apptable;
-        }
         self.esyms_byname.extend(loader.esyms_byname);
 
         self.esyms.extend(loader.esyms);
@@ -1878,23 +1871,6 @@ impl HubrisArchive {
                 }
             }
         }
-
-        Ok(())
-    }
-
-    /// Load *only* a kernel -- which itself is only useful when operating on
-    /// a file and not an archive.  This will fail if an archive has already
-    /// been loaded.
-    pub fn load_kernel(&mut self, kernel: &str) -> Result<()> {
-        if !self.modules.is_empty() {
-            bail!("cannot specify both an archive and a kernel");
-        }
-
-        let contents = fs::read(kernel)?;
-
-        let mut loader = HubrisObjectLoader::new(self.current)?;
-        loader.load_object("kernel", HubrisTask::Kernel, &contents)?;
-        self.merge(loader)?;
 
         Ok(())
     }
@@ -2345,31 +2321,8 @@ impl HubrisArchive {
                     imageid.1, imageid.0, id,
                 );
             }
-        } else if let Some(archive) = &self.apptable {
-            let addr = archive.0;
-            let nbytes = archive.1.len();
-            assert!(nbytes > 0);
-
-            let mut apptable = vec![0; nbytes];
-            core.read_8(addr, &mut apptable[0..nbytes]).context(format!(
-                "failed to read .hubris_app_table at 0x{:x}; board mismatch?",
-                addr
-            ))?;
-
-            let deltas = apptable
-                .iter()
-                .zip(archive.1.iter())
-                .filter(|&(lhs, rhs)| lhs != rhs)
-                .count();
-
-            if deltas > 0 || apptable.len() != archive.1.len() {
-                bail!(
-                    "apptable at 0x{:x} does not match archive apptable",
-                    addr
-                );
-            }
         } else {
-            bail!("could not find HUBRIS_IMAGE_ID or .hubris_app_table");
+            bail!("could not find HUBRIS_IMAGE_ID");
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
@@ -3894,13 +3847,6 @@ impl HubrisArchive {
         &self.archive
     }
 
-    pub fn apptable(&self) -> Option<&[u8]> {
-        match &self.apptable {
-            None => None,
-            Some(apptable) => Some(&apptable.1),
-        }
-    }
-
     /// Reads the auxiliary flash data from a Hubris archive
     ///
     /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
@@ -4004,9 +3950,6 @@ struct HubrisObjectLoader {
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
 
-    // app table
-    apptable: Option<(u32, Vec<u8>)>,
-
     // Instructions: address to bytes/target tuple. The target will be None if
     // the instruction did not decode as some kind of jump/branch/call.
     instrs: HashMap<u32, (Vec<u8>, Option<HubrisTarget>)>,
@@ -4073,7 +4016,6 @@ impl HubrisObjectLoader {
     fn new(current: u32) -> Result<Self> {
         Ok(Self {
             current,
-            apptable: None,
             imageid: None,
             arrays: HashMap::new(),
             variables: MultiMap::new(),
@@ -4297,43 +4239,25 @@ impl HubrisObjectLoader {
             }
         });
 
-        if task == HubrisTask::Kernel {
-            let apptable = elf.section_headers.iter().find(|sh| {
-                if let Some(name) = elf.shdr_strtab.get_at(sh.sh_name) {
-                    name == ".hubris_app_table"
-                } else {
-                    false
-                }
-            });
+        if task == HubrisTask::Kernel
+            && let (Some(base), Some(start)) = kstack
+        {
+            let region = HubrisRegion {
+                daddr: None,
+                base,
+                size: start - base,
+                attr: HubrisRegionAttr {
+                    read: true,
+                    write: true,
+                    execute: false,
+                    device: false,
+                    dma: false,
+                    external: false,
+                },
+                tasks: vec![task],
+            };
 
-            if let Some(sec) = apptable {
-                let base = sec.sh_offset as usize;
-                let len = sec.sh_size as usize;
-
-                self.apptable = Some((
-                    sec.sh_addr as u32,
-                    buffer[base..base + len].to_vec(),
-                ));
-            }
-
-            if let (Some(base), Some(start)) = kstack {
-                let region = HubrisRegion {
-                    daddr: None,
-                    base,
-                    size: start - base,
-                    attr: HubrisRegionAttr {
-                        read: true,
-                        write: true,
-                        execute: false,
-                        device: false,
-                        dma: false,
-                        external: false,
-                    },
-                    tasks: vec![task],
-                };
-
-                self.loaded.insert(region.base, region);
-            }
+            self.loaded.insert(region.base, region);
         }
 
         self.load_object_dwarf(task, buffer, &elf)
