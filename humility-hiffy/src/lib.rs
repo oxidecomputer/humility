@@ -250,6 +250,7 @@ impl<'a> HiffyContext<'a> {
         timeout: u32,
     ) -> Result<HiffyContext<'a>> {
         let hiffy = if core.is_net() {
+            core.set_timeout(Duration::from_millis(timeout.into()))?;
             if hubris
                 .manifest
                 .task_features
