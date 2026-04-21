@@ -44,9 +44,9 @@ pub struct HiffyContext<'a> {
 // Constants when running with the `NetUdpRpc` impl, which runs the program on
 // the host computer.  These values are much larger than anything we'd see on
 // the embedded system, so we can run any program.
-const HIFFY_NET_TEXT_SIZE: usize = 65536;
-const HIFFY_NET_RSTACK_SIZE: usize = 65536;
-const HIFFY_NET_SCRATCH_SIZE: usize = 65536;
+const HIFFY_HOST_NET_TEXT_SIZE: usize = 65536;
+const HIFFY_HOST_NET_RSTACK_SIZE: usize = 65536;
+const HIFFY_HOST_NET_SCRATCH_SIZE: usize = 65536;
 
 /// Variables used when interacting with the `hiffy` task
 struct HiffyVars<'a> {
@@ -341,14 +341,13 @@ impl<'a> HiffyContext<'a> {
         }
 
         let scratch_size = if matches!(hiffy, HiffyImpl::NetUdpRpc { .. }) {
-            HIFFY_NET_SCRATCH_SIZE
+            HIFFY_HOST_NET_SCRATCH_SIZE
         } else {
             // Get the size of the HIFFY_SCRATCH variable, falling back to 256
             // bytes for older images (which used a fixed-size stack array)
             Self::variable(hubris, "HIFFY_SCRATCH", false)
                 .map(|scratch| -> Result<usize> {
-                    let mut buf: Vec<u8> = vec![];
-                    buf.resize_with(scratch.size, Default::default);
+                    let mut buf = vec![0u8; scratch.size];
 
                     core.op_start()?;
                     core.read_8(scratch.addr, buf.as_mut_slice())?;
@@ -449,6 +448,7 @@ impl<'a> HiffyContext<'a> {
         })
     }
 
+    /// Returns the size of the `HIFFY_DATA` array, or 0 if unsupported
     pub fn data_size(&self) -> usize {
         match &self.hiffy {
             HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy { vars, .. } => {
@@ -463,7 +463,7 @@ impl<'a> HiffyContext<'a> {
             HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy { vars, .. } => {
                 vars.text.size
             }
-            HiffyImpl::NetUdpRpc { .. } => HIFFY_NET_TEXT_SIZE,
+            HiffyImpl::NetUdpRpc { .. } => HIFFY_HOST_NET_TEXT_SIZE,
         }
     }
 
@@ -472,7 +472,7 @@ impl<'a> HiffyContext<'a> {
             HiffyImpl::Debugger(vars) | HiffyImpl::NetHiffy { vars, .. } => {
                 vars.rstack.size
             }
-            HiffyImpl::NetUdpRpc { .. } => HIFFY_NET_RSTACK_SIZE,
+            HiffyImpl::NetUdpRpc { .. } => HIFFY_HOST_NET_RSTACK_SIZE,
         }
     }
 
@@ -538,9 +538,9 @@ impl<'a> HiffyContext<'a> {
         const NLABELS: usize = 4;
         let mut stack = [None; 32];
 
-        let mut rstack = vec![0u8; HIFFY_NET_RSTACK_SIZE];
-        let mut scratch = vec![0u8; HIFFY_NET_SCRATCH_SIZE];
-        let mut text = vec![0u8; HIFFY_NET_TEXT_SIZE];
+        let mut rstack = vec![0u8; HIFFY_HOST_NET_RSTACK_SIZE];
+        let mut scratch = vec![0u8; HIFFY_HOST_NET_SCRATCH_SIZE];
+        let mut text = vec![0u8; HIFFY_HOST_NET_TEXT_SIZE];
 
         // Serialize opcodes into `text`
         let buf = &mut text.as_mut_slice();
@@ -1734,7 +1734,9 @@ impl<'a, 'b> HiffyWrite<'a, 'b> {
                     bail!("buffer size {buf_size} is smaller than `RpcHeader`");
                 };
                 for (i, chunk) in data.chunks(chunk_size).enumerate() {
-                    let offset = u32::try_from(i * chunk_size).unwrap();
+                    let Ok(offset) = u32::try_from(i * chunk_size) else {
+                        bail!("offset overflow at {}", i * chunk_size);
+                    };
                     let header = hiffy::RpcHeader {
                         image_id: (*image_id).into(),
                         version: 1.into(),
