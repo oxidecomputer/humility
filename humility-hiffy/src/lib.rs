@@ -281,7 +281,7 @@ impl<'a> HiffyContext<'a> {
                     vars: HiffyVars::new(hubris)?,
                     ops: HiffyNetOps {
                         write_text: get_tag("WriteHiffyText")?,
-                        write_data: get_tag("HiffyWriteData")?,
+                        write_data: get_tag("WriteHiffyData")?,
                         kick: get_tag("HiffyKick")?,
                     },
                     errs,
