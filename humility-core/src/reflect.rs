@@ -84,7 +84,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use crate::core::Core;
 use crate::hubris::{
     HubrisArchive, HubrisArray, HubrisBasetype, HubrisEnum, HubrisGoff,
-    HubrisPrintFormat, HubrisStruct, HubrisType, HubrisUnion,
+    HubrisPrintFormat, HubrisStruct, HubrisType, HubrisUnion, HubrisVariable,
 };
 
 // Re-export so that others can use #[derive(Load)]
@@ -129,6 +129,45 @@ impl Value {
         } else {
             bail!("not a struct: {:?}", self)
         }
+    }
+
+    /// Looks up a `struct` field with dot-separated members
+    pub fn field<T: Load>(&self, f: &str) -> Result<T> {
+        let mut v = self;
+        for f in f.split(".") {
+            match v {
+                Value::Struct(s) => {
+                    v = s.get(f).ok_or_else(|| {
+                        anyhow!(
+                            "could not field field `{f}`; \
+                             available fields are {:?}",
+                            s.members
+                                .keys()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    })?;
+                }
+                Value::Tuple(t) => {
+                    let index: usize = f.parse().with_context(|| {
+                        format!("could not parse tuple index from `{f}`")
+                    })?;
+                    v = t.1.get(index).ok_or_else(|| {
+                        anyhow!(
+                            "could not get field {index} from tuple \
+                             with {} elements",
+                            t.1.len()
+                        )
+                    })?;
+                }
+                _ => bail!(
+                    "expected a struct or tuple when getting field `{f}`, \
+                     got {v:?}"
+                ),
+            }
+        }
+        T::from_value(v)
     }
 
     /// Interprets this as a 1-tuple (e.g. `(x,)`) and extracts its sole value,
@@ -750,6 +789,21 @@ pub fn load<'a, T: Load>(
     })
 }
 
+/// Loads a variable and interprets it as a particular `Load`-able type
+pub fn load_variable<T: Load>(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    var: &HubrisVariable,
+) -> Result<T> {
+    let var_ty = hubris.lookup_type(var.goff)?;
+    let mut buf: Vec<u8> = vec![0u8; var.size];
+
+    core.read_8(var.addr, &mut buf)?;
+    let v = load(hubris, &buf, var_ty, 0)?;
+
+    Ok(v)
+}
+
 /// Loads data from memory image `buf` at offset `addr` and represents it as a
 /// `Value`.
 pub fn load_value(
@@ -971,6 +1025,16 @@ impl Load for Value {
     }
 }
 
+impl Load for Enum {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Enum(e) = v {
+            Ok(e.clone())
+        } else {
+            bail!("expected an enum, got {v:?}");
+        }
+    }
+}
+
 impl Load for bool {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_bool().ok_or_else(|| anyhow!("not a bool: {:?}", v))
@@ -1004,6 +1068,16 @@ impl Load for u64 {
 impl Load for f32 {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_f32().ok_or_else(|| anyhow!("not a f32: {:?}", v))
+    }
+}
+
+impl Load for Array {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Array(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected array, got {v:?}");
+        }
     }
 }
 

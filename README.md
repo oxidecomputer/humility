@@ -241,6 +241,7 @@ a specified target.  (In the above example, one could execute `humility
 - [humility discover](#humility-discover): listen for compatible SPs on a network
 - [humility doc](#humility-doc): print command documentation
 - [humility dump](#humility-dump): generate Hubris dump
+- [humility ereport](#humility-ereport): ereport examination
 - [humility exec](#humility-exec): execute command within context of an environment
 - [humility extract](#humility-extract): extract all or part of a Hubris archive
 - [humility flash](#humility-flash): flash archive onto attached device
@@ -649,6 +650,10 @@ ID TASK                       GEN PRI STATE
 25 idle                         0   8 RUNNING
 ```
 
+
+
+### `humility ereport`
+`humility ereport` lets you examine the ereport buffer in an image.
 
 
 ### `humility exec`
