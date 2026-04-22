@@ -245,6 +245,15 @@ fn cli_tests() {
         panic!("make_tests() failed: {:?}", err);
     }
 
+    for v in ["HUMILITY_DUMP", "HUMILITY_IP", "HUMILITY_ARCHIVE"] {
+        if std::env::var_os(v).is_some() {
+            panic!(
+                "`{v}` environment variable will interfere with tests; \
+                 please unset it"
+            );
+        }
+    }
+
     match std::env::var_os("TRYCMD_TEST") {
         Some(case) => {
             trycmd::TestCases::new().case(case);
