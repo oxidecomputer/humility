@@ -111,10 +111,7 @@ fn net_ip(
     };
     let v = v.as_tuple()?;
     assert_eq!(v.name(), "MacAddress");
-    let mut mac = [0; 6];
-    for (i, byte) in v[0].as_array()?.iter().enumerate() {
-        mac[i] = byte.as_base()?.as_u8().unwrap();
-    }
+    let mac = v.field::<[u8; 6]>(0)?;
     print!("{}:  ", "MAC address".bold());
     for (i, byte) in mac.iter().enumerate() {
         if i > 0 {
@@ -227,11 +224,8 @@ fn net_mac_table(
         if let Ok(r) = r {
             let s = r.as_struct()?;
             assert_eq!(s.name(), "KszMacTableEntry");
-            let port = s["port"].as_base().unwrap().as_u16().unwrap();
-            let mut mac = [0; 6];
-            for (i, m) in s["mac"].as_array().unwrap().iter().enumerate() {
-                mac[i] = m.as_base().unwrap().as_u8().unwrap()
-            }
+            let port = s.field::<u16>("port").unwrap();
+            let mac = s.field::<[u8; 6]>("mac")?;
             if mac == [0; 6] && port == 0xFFFF {
                 humility::msg!("Skipping empty MAC address");
             } else {
@@ -290,16 +284,9 @@ fn net_status(
     let s = v.as_struct()?;
     assert_eq!(s.name(), "ManagementLinkStatus");
 
-    let to_bool_vec = |name| -> Result<Vec<bool>> {
-        Ok(s[name]
-            .as_array()?
-            .iter()
-            .map(|i| i.as_base().unwrap().as_bool().unwrap())
-            .collect())
-    };
-    let ksz_100base_fx = to_bool_vec("ksz8463_100base_fx_link_up")?;
-    let vsc_100base_fx = to_bool_vec("vsc85x2_100base_fx_link_up")?;
-    let vsc_sgmii = to_bool_vec("vsc85x2_sgmii_link_up")?;
+    let ksz_100base_fx: Vec<bool> = s.field("ksz8463_100base_fx_link_up")?;
+    let vsc_100base_fx: Vec<bool> = s.field("vsc85x2_100base_fx_link_up")?;
+    let vsc_sgmii: Vec<bool> = s.field("vsc85x2_sgmii_link_up")?;
 
     let up_down = |b| {
         if b { " UP ".green() } else { "DOWN".red() }
@@ -382,8 +369,8 @@ fn net_counters(
 }
 
 fn net_counters_table(s: &Struct) -> Result<()> {
-    let k_tx = s["ksz8463_tx"].as_array()?;
-    let k_rx = s["ksz8463_rx"].as_array()?;
+    let k_tx = s.field::<[_; 3]>("ksz8463_tx")?;
+    let k_rx = s.field::<[_; 3]>("ksz8463_rx")?;
     let value = |k: &Struct, s: &str| {
         let k = k[s].as_base().unwrap().as_u32().unwrap();
         let out = format!("{:>6}", k);
@@ -407,8 +394,8 @@ fn net_counters_table(s: &Struct) -> Result<()> {
         " |-----------|--------|--------|--------|--------|--------|--------|"
     );
     for i in 0..3 {
-        let k_tx = k_tx[i].as_struct()?;
-        let k_rx = k_rx[i].as_struct()?;
+        let k_tx = &k_tx[i];
+        let k_rx = &k_rx[i];
         println!(
             " | Port {}    | {} | {} | {} | {} | {} | {} |",
             i + 1,
@@ -426,12 +413,12 @@ fn net_counters_table(s: &Struct) -> Result<()> {
 
     println!();
 
-    let v_tx = s["vsc85x2_tx"].as_array()?;
-    let v_rx = s["vsc85x2_rx"].as_array()?;
-    let v_mac_valid = s["vsc85x2_mac_valid"].as_base()?.as_bool().unwrap();
+    let v_tx = s.field::<[_; 2]>("vsc85x2_tx")?;
+    let v_rx = s.field::<[_; 2]>("vsc85x2_rx")?;
+    let v_mac_valid = s.field::<bool>("vsc85x2_mac_valid")?;
 
     let value = |v: &Struct, s: &str| {
-        let v = v[s].as_base().unwrap().as_u16().unwrap();
+        let v = v.field::<u16>(s).unwrap();
         let out = format!("{:>6}", v);
         if v > 0 {
             if s.contains("good") { out.green() } else { out.red() }
@@ -447,8 +434,8 @@ fn net_counters_table(s: &Struct) -> Result<()> {
     println!(" |                 |  Good  |   Bad  |  Good  |   Bad  |");
     println!(" |-----------------------------------------------------|");
     for i in 0..2 {
-        let v_tx = v_tx[i].as_struct()?;
-        let v_rx = v_rx[i].as_struct()?;
+        let v_tx = &v_tx[i];
+        let v_rx = &v_rx[i];
         if v_mac_valid {
             println!(
                 " | Port {} | MAC    | {} | {} | {} | {} |",
@@ -479,33 +466,33 @@ fn net_counters_table(s: &Struct) -> Result<()> {
 }
 
 fn net_counters_diagram(s: &Struct) -> Result<()> {
-    let k_tx = s["ksz8463_tx"].as_array()?;
-    let k_rx = s["ksz8463_rx"].as_array()?;
-    let value = |k: &Struct, s: &str| k[s].as_base().unwrap().as_u32().unwrap();
+    let k_tx = s.field::<[_; 3]>("ksz8463_tx")?;
+    let k_rx = s.field::<[_; 3]>("ksz8463_rx")?;
+    let value = |k: &Struct, s: &str| k.field::<u32>(s).unwrap();
 
     let mut ksz_tx = [0; 3];
     let mut ksz_rx = [0; 3];
     for port in 0..3 {
-        let k_tx = k_tx[port].as_struct()?;
-        let k_rx = k_rx[port].as_struct()?;
+        let k_tx = &k_tx[port];
+        let k_rx = &k_rx[port];
         for t in ["unicast", "broadcast", "multicast"] {
             ksz_tx[port] += value(k_tx, t);
             ksz_rx[port] += value(k_rx, t);
         }
     }
 
-    let v_tx = s["vsc85x2_tx"].as_array()?;
-    let v_rx = s["vsc85x2_rx"].as_array()?;
-    let v_mac_valid = s["vsc85x2_mac_valid"].as_base()?.as_bool().unwrap();
-    let value = |v: &Struct, s: &str| v[s].as_base().unwrap().as_u16().unwrap();
+    let v_tx = s.field::<[_; 2]>("vsc85x2_tx")?;
+    let v_rx = s.field::<[_; 2]>("vsc85x2_rx")?;
+    let v_mac_valid = s.field::<bool>("vsc85x2_mac_valid")?;
+    let value = |v: &Struct, s: &str| v.field::<u16>(s).unwrap();
 
     let mut v_mac_tx = [0; 2];
     let mut v_mac_rx = [0; 2];
     let mut v_media_tx = [0; 2];
     let mut v_media_rx = [0; 2];
     for port in 0..2 {
-        let v_tx = v_tx[port].as_struct()?;
-        let v_rx = v_rx[port].as_struct()?;
+        let v_tx = &v_tx[port];
+        let v_rx = &v_rx[port];
         if v_mac_valid {
             v_mac_tx[port] = value(v_tx, "mac_good");
             v_mac_rx[port] = value(v_rx, "mac_good");
