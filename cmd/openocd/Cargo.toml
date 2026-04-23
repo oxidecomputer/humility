@@ -10,5 +10,4 @@ humility-cli = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 ctrlc = { workspace = true }
-regex = { workspace = true }
 tempfile = { workspace = true }

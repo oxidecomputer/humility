@@ -12,7 +12,7 @@
 
 use std::process;
 
-use humility_cli::{Cli, ExecutionContext, Subcommand};
+use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 
 use anyhow::{Context, Result, bail};
@@ -36,54 +36,6 @@ struct OcdArgs {
     extra_options: Vec<String>,
 }
 
-/// Extracts and returns the probe serial name for use in OpenOCD
-///
-/// We can get the serial name from two different places:
-/// - If the global `--probe` argument is of the form `vid:pid:serial`, then we
-///   can extract the serial name.  This is also the case if we're using an
-///   environment file, which populates `args.probe` automatically.
-/// - If the `--serial` argument is given in this command's subarguments,
-///   then we use it directly.
-///
-/// This function checks both sources, returns an error if they conflict, and
-/// returns the (optional) serial name otherwise.
-pub fn get_probe_serial(
-    args: &Cli,
-    subargs_serial: Option<String>,
-) -> Result<Option<String>> {
-    match &args.probe {
-        Some(probe) => {
-            let re = regex::Regex::new(
-                r"^([[:xdigit:]]+):([[:xdigit:]]+):([[:xdigit:]]+)$",
-            )
-            .unwrap();
-            if let Some(cap) = re.captures(probe) {
-                if subargs_serial.is_some() {
-                    if args.target.is_some() {
-                        bail!(
-                            "Cannot specify probe serial number with both \
-                             environment and `--serial`"
-                        );
-                    } else {
-                        bail!(
-                            "Cannot specify probe serial number with both \
-                             `--probe` and `--serial`"
-                        );
-                    }
-                }
-                Ok(Some(cap.get(3).unwrap().as_str().to_string()))
-            } else {
-                bail!(
-                    "Cannot specify `--probe {}` with `openocd` subcommand \
-                     (must be of the form vid:pid:serial)",
-                    probe
-                );
-            }
-        }
-        None => Ok(subargs_serial),
-    }
-}
-
 fn openocd(context: &mut ExecutionContext) -> Result<()> {
     if context.cli.probe.is_some() {
         bail!("Cannot specify --probe with `openocd` subcommand");
@@ -92,7 +44,7 @@ fn openocd(context: &mut ExecutionContext) -> Result<()> {
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
     let subargs = OcdArgs::try_parse_from(subargs)?;
-    let serial = get_probe_serial(&context.cli, subargs.serial.clone())?;
+    let serial = context.cli.get_probe_serial(subargs.serial.as_deref())?;
 
     let hubris = context.archive.as_ref().unwrap();
 

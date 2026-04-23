@@ -1451,6 +1451,7 @@ dependencies = [
  "humility-core",
  "indexmap 1.9.3",
  "parse_int",
+ "regex",
  "serde",
  "serde_json",
 ]
@@ -1688,7 +1689,6 @@ dependencies = [
  "ctrlc",
  "humility-cli",
  "humility-cmd",
- "humility-cmd-openocd",
  "humility-core",
  "tempfile",
 ]
@@ -1964,7 +1964,6 @@ dependencies = [
  "ctrlc",
  "humility-cli",
  "humility-cmd",
- "regex",
  "tempfile",
 ]
 

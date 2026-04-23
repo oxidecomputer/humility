@@ -10,7 +10,6 @@ description = "Attach to a running system using GDB"
 humility = { workspace = true }
 humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
-cmd-openocd = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 ctrlc = { workspace = true }
