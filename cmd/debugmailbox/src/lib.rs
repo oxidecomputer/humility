@@ -119,7 +119,7 @@ fn poll_raw_ap_register(
         // this initial delay.
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        match probe.read_raw_ap_register(ap, addr.into()) {
+        match probe.read_raw_ap_register(ap, addr) {
             Ok(val) => match f(val) {
                 Ok(true) => return Ok(val),
                 Ok(false) => (),

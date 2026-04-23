@@ -91,13 +91,9 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
                 "Need a chip to do a soft reset, halt after reset, or handoff"
             )
         })?;
-        humility_probes_core::attach_to_chip(
-            probe,
-            Some(&chip),
-            context.cli.speed,
-        )?
+        humility_probes_core::attach_to_chip(probe, Some(&chip))?
     } else {
-        humility_probes_core::attach_to_probe(probe, context.cli.speed)?
+        humility_probes_core::attach_to_probe(probe)?
     };
 
     let r = match behavior {

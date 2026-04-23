@@ -104,15 +104,13 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
 
     // Fetch the supplied data if any.
     let mut data = Vec::new();
-    let data = if subargs.file.is_some() {
-        let filename = subargs.file.unwrap();
+    let data = if let Some(filename) = subargs.file {
         let mut file = File::open(&filename)?;
         if let Err(err) = file.read_to_end(&mut data) {
             bail!("Cannot read file \"{}\": {}", filename, err);
         }
         Some(data.as_slice())
-    } else if subargs.hex.is_some() {
-        let hex = subargs.hex.unwrap();
+    } else if let Some(hex) = subargs.hex {
         let bytes: Vec<&str> = hex.split(',').collect();
         for byte in &bytes {
             if let Ok(val) = u8::from_str_radix(byte, 16) {
@@ -122,8 +120,8 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
             }
         }
         Some(data.as_slice())
-    } else if subargs.string.is_some() {
-        data.extend_from_slice(subargs.string.unwrap().as_bytes());
+    } else if let Some(s) = subargs.string {
+        data.extend_from_slice(s.as_bytes());
         Some(data.as_slice())
     } else {
         None

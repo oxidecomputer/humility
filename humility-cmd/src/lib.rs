@@ -73,7 +73,7 @@ pub fn attach_probe(
         None => "auto",
     };
 
-    humility_probes_core::attach(probe, hubris, None)
+    humility_probes_core::attach(probe, hubris)
 }
 
 #[cfg(not(feature = "probes"))]

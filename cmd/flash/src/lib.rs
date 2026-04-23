@@ -108,7 +108,7 @@ fn force_openocd(
     };
 
     let serial = {
-        let mut c = humility_probes_core::attach(probe, hubris, args.speed)?;
+        let mut c = humility_probes_core::attach(probe, hubris)?;
         let core = c.as_mut();
 
         validate(hubris, core, subargs)?;
@@ -383,11 +383,7 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
     };
 
     humility::msg!("attaching with chip set to {chip:x?}");
-    let mut c = humility_probes_core::attach_for_flashing(
-        probe,
-        &chip,
-        context.cli.speed,
-    )?;
+    let mut c = humility_probes_core::attach_for_flashing(probe, &chip)?;
     let core = c.as_mut();
 
     validate(hubris, core, &subargs)?;
