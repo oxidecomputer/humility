@@ -6,6 +6,7 @@ default-members = ["humility-bin"]
 members = [
     "humility-arch-arm",
     "humility-arch-cortex",
+    "humility-auxflash",
     "humility-bin",
     "humility-cmd",
     "humility-cli",
@@ -119,6 +120,7 @@ capstone = {git = "https://github.com/oxidecomputer/capstone-rs.git"}
 # Local `path`-based deps
 humility = { path = "./humility-core", package = "humility-core" }
 humility-arch-arm = { path = "./humility-arch-arm" }
+humility-auxflash = { path = "./humility-auxflash" }
 humility-cortex = { path = "./humility-arch-cortex" }
 humility-cmd = { path = "./humility-cmd", default-features = false }
 humility-cli = { path = "./humility-cli" }

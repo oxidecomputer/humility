@@ -1340,6 +1340,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "humility-auxflash"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "indicatif",
+ "tlvc",
+]
+
+[[package]]
 name = "humility-bin"
 version = "0.12.17"
 dependencies = [
@@ -1463,13 +1475,11 @@ dependencies = [
  "clap 3.2.23",
  "colored",
  "hif",
+ "humility-auxflash",
  "humility-cli",
  "humility-cmd",
  "humility-core",
- "humility-hiffy",
- "humility-idol",
  "idol",
- "indicatif",
  "log",
  "parse_int",
  "tlvc",
@@ -1654,9 +1664,9 @@ dependencies = [
  "anyhow",
  "clap 3.2.23",
  "goblin",
+ "humility-auxflash",
  "humility-cli",
  "humility-cmd",
- "humility-cmd-auxflash",
  "humility-core",
  "humility-cortex",
  "humility-probes-core",
