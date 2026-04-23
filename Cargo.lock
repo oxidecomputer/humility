@@ -2136,12 +2136,12 @@ dependencies = [
  "hif",
  "humility-cli",
  "humility-cmd",
- "humility-cmd-spd",
  "humility-core",
  "humility-hiffy",
  "humility-i2c",
  "humility-idol",
  "humility-pmbus",
+ "humility-spd",
  "indicatif",
  "num-derive 0.4.2",
  "num-traits",
@@ -2240,10 +2240,10 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
- "humility-doppel",
  "humility-hiffy",
  "humility-i2c",
  "humility-log",
+ "humility-spd",
  "jep106",
  "parse_int",
  "spd",
@@ -2567,6 +2567,19 @@ dependencies = [
  "probe-rs",
  "rusb",
  "thiserror",
+]
+
+[[package]]
+name = "humility-spd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "humility-core",
+ "humility-doppel",
+ "humility-hiffy",
+ "humility-i2c",
+ "humility-log",
+ "spd",
 ]
 
 [[package]]

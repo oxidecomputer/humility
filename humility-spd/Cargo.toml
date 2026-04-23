@@ -1,0 +1,15 @@
+[package]
+name = "humility-spd"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+spd.workspace = true
+
+humility-doppel.workspace = true
+humility-hiffy.workspace = true
+humility-i2c.workspace = true
+humility-log.workspace = true
+humility.workspace = true
