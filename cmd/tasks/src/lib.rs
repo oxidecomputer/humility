@@ -478,8 +478,10 @@ pub fn print_tasks(
 
         core.run()?;
 
-        if task_arg.is_some() && !found {
-            bail!("\"{}\" is not a valid task", task_arg.unwrap());
+        if let Some(ref t) = task_arg
+            && !found
+        {
+            bail!("\"{t}\" is not a valid task");
         }
 
         if !spin {
