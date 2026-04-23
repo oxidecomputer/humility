@@ -391,7 +391,7 @@ impl RamSensorReader {
         var: &HubrisVariable,
     ) -> Result<Vec<T>> {
         let out: doppel::MaybeUninit<Vec<T>> =
-            reflect::load_variable(hubris, core, var)?;
+            reflect::read_variable(hubris, core, var)?;
         Ok(self.sensors.iter().map(|i| out.value[*i]).collect())
     }
 }

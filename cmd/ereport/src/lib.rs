@@ -89,7 +89,7 @@ pub fn ereport_dump(
         .lookup_qualified_variable(PACKRAT_BUF_NAME)
         .with_context(|| format!("could not find `{PACKRAT_BUF_NAME}`"))?;
 
-    let buf: Value = humility::reflect::load_variable(hubris, core, buf_ty)?;
+    let buf: Value = humility::reflect::read_variable(hubris, core, buf_ty)?;
     let outer_storage: Value = buf.field("cell.value.ereport_bufs.storage")?;
     let inner_storage: Value = outer_storage.field("storage")?;
     let array: Vec<humility_doppel::MaybeUninit<u8>> =

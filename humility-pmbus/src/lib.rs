@@ -18,7 +18,7 @@ pub fn sensor_id_map(
         .find(|&(n, _v)| n == "task_power::bsp::CONTROLLER_CONFIG")
         .ok_or_else(|| anyhow!("could not find CONTROLLER_CONFIG"))?;
     let array: humility::reflect::Array =
-        humility::reflect::load_variable(hubris, core, var)?;
+        humility::reflect::read_variable(hubris, core, var)?;
 
     // Destructure CONTROLLER_CONFIG to build a map of voltage sensor IDs
     // (which we can easily compute) to index in the CONTROLLER_CONFIG

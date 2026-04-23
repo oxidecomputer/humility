@@ -171,7 +171,7 @@ fn read_uqvar(
         return Ok(None);
     };
     let buf: doppel::MaybeUninit<Vec<u8>> =
-        reflect::load_variable(hubris, core, var)?;
+        reflect::read_variable(hubris, core, var)?;
     Ok(Some(buf.value))
 }
 
@@ -185,7 +185,7 @@ fn read_qualified_state_buf(
     };
 
     let as_static_cell: doppel::ClaimOnceCell =
-        reflect::load_variable(hubris, core, var)?;
+        reflect::read_variable(hubris, core, var)?;
     Ok(Some(HostStateBuf::from_value(&as_static_cell.cell.value)?))
 }
 

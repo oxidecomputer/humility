@@ -790,7 +790,7 @@ pub fn load<'a, T: Load>(
 }
 
 /// Loads a variable and interprets it as a particular `Load`-able type
-pub fn load_variable<T: Load>(
+pub fn read_variable<T: Load>(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     var: &HubrisVariable,
