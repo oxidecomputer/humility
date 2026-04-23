@@ -145,9 +145,9 @@ fn ringbuf_dump(
             Ringbuf::from_value(&ringbuf_val).map(|r| (Some(r), None))
         })
         .or_else(|_e| {
-            let cell: StaticCell = StaticCell::from_value(&ringbuf_val)?;
-            let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
-            Ok::<_, anyhow::Error>((Some(ringbuf), None))
+            let cell: StaticCell<Ringbuf> =
+                StaticCell::from_value(&ringbuf_val)?;
+            Ok::<_, anyhow::Error>((Some(cell.cell.value), None))
         })?;
 
     if let (Some(mut counters), false) = (counters, no_totals) {
