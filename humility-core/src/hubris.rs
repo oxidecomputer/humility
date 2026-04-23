@@ -2465,11 +2465,9 @@ impl HubrisArchive {
 
         let started = Instant::now();
         let bar = ProgressBar::new(total as u64);
-        bar.set_style(
-            ProgressStyle::default_bar().template(
-                "humility: verifying [{bar:30}] {buffer}/{total_bytes}",
-            )?,
-        );
+        bar.set_style(ProgressStyle::default_bar().template(
+            "humility: verifying [{bar:30}] {buffer}/{total_bytes}",
+        )?);
 
         // Third and final pass: read out the actual ranges from the target and
         // see if they match!
@@ -3605,8 +3603,9 @@ impl HubrisArchive {
 
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: dumping [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: dumping [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
 
         for (base, size) in &segments {

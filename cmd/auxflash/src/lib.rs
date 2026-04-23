@@ -230,8 +230,9 @@ impl<'a> AuxFlashHandler<'a> {
         let mut out = vec![0u8; count.unwrap_or(slot_size)];
         let bar = ProgressBar::new(0);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: reading [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
@@ -323,8 +324,9 @@ impl<'a> AuxFlashHandler<'a> {
 
         let bar = ProgressBar::new(0);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: writing [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: writing [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(self.context.data_size()).enumerate() {

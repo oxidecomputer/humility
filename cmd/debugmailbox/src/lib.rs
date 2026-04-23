@@ -34,18 +34,17 @@ use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::architecture::arm::{
-    ArmError, ArmDebugInterface, DapError, FullyQualifiedApAddress,
-    sequences::DefaultArmSequence
+    ArmDebugInterface, ArmError, DapError, FullyQualifiedApAddress,
+    sequences::DefaultArmSequence,
 };
 use probe_rs::probe::DebugProbeSelector;
-
 
 // The debug mailbox registers
 // See 51.5.5.1 of Rev 2.4 of the LPC55 manual
 const CSW: u64 = 0x0;
 const REQUEST: u64 = 0x4;
 const RETURN: u64 = 0x8;
-const IDR: u64  = 0xFC;
+const IDR: u64 = 0xFC;
 
 // Are we talking to the wrong chip?
 const SP_IDR: u32 = 0x54770002;

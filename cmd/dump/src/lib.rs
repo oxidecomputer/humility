@@ -478,8 +478,9 @@ fn dump_via_agent(
 
         let bar = ProgressBar::new(total as u64);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: reading [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
 
         let mut nread = 0;

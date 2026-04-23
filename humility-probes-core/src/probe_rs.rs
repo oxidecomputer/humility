@@ -5,15 +5,15 @@
 use anyhow::{Context, Result, bail};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use probe_rs::MemoryInterface;
 use probe_rs::flashing;
 
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use probe_rs::flashing::Format;
-use indicatif::{MultiProgress, ProgressStyle, ProgressBar};
-use probe_rs::flashing::{ProgressEvent};
+use probe_rs::flashing::ProgressEvent;
 use std::time::Duration;
 
 pub struct ProbeCore {
@@ -79,7 +79,7 @@ impl ProbeCore {
 enum Operation {
     /// Reading back flash contents to restore erased regions that should be kept unchanged.
     Fill,
-    
+
     /// Erasing flash sectors.
     Erase,
 
@@ -89,7 +89,7 @@ enum Operation {
     /// Checking flash contents.
     Verify,
 }
-    
+
 impl From<flashing::ProgressOperation> for Operation {
     fn from(operation: flashing::ProgressOperation) -> Self {
         match operation {
@@ -100,7 +100,6 @@ impl From<flashing::ProgressOperation> for Operation {
         }
     }
 }
-
 
 #[derive(Default)]
 pub struct ProgressBars {
@@ -129,11 +128,7 @@ pub struct ProgressBarGroup {
 
 impl ProgressBarGroup {
     pub fn new(message: String) -> Self {
-        Self {
-            message,
-            bars: vec![],
-            selected: 0,
-        }
+        Self { message, bars: vec![], selected: 0 }
     }
 
     fn idle(has_length: bool) -> ProgressStyle {
@@ -171,7 +166,11 @@ impl ProgressBarGroup {
 
     pub fn add(&mut self, bar: ProgressBar) {
         if !self.bars.is_empty() {
-            bar.set_message(format!("{} {}", self.message, self.bars.len() + 1));
+            bar.set_message(format!(
+                "{} {}",
+                self.message,
+                self.bars.len() + 1
+            ));
         } else {
             bar.set_message(self.message.clone());
         }
@@ -220,7 +219,6 @@ impl ProgressBarGroup {
 }
 
 // end borrowed
-
 
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
@@ -370,8 +368,7 @@ impl Core for ProbeCore {
             ProgressEvent::FlashLayoutReady { .. } => {}
 
             ProgressEvent::AddProgressBar { operation, total } => {
-
-            let bar = multi_progress.add(if let Some(total) = total {
+                let bar = multi_progress.add(if let Some(total) = total {
                     // We were promised a length, but in this implementation it
                     // may come later in the Started message. Set to at least 1
                     // to avoid progress bars starting from 100%
@@ -394,10 +391,8 @@ impl Core for ProbeCore {
                 progress_bars.get_mut(operation.into()).finish();
             }
             ProgressEvent::DiagnosticMessage { message } => {
-                println!("{}",message);
+                println!("{}", message);
             }
-
-
         });
 
         let mut options = flashing::DownloadOptions::default();

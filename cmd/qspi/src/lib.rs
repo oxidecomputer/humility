@@ -802,8 +802,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let started = Instant::now();
         let bar = ProgressBar::new(nbytes as u64);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: reading [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
         let update_cycle = 64;
         let mut updates = 0;
@@ -892,8 +893,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let bar = ProgressBar::new(filelen as u64);
 
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: hashing [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: hashing [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
 
         let mut offset = 0u32;
@@ -985,8 +987,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let bar = ProgressBar::new(nbytes as u64);
 
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: writing [{bar:30}] {bytes}/{total_bytes}")?,
+            ProgressStyle::default_bar().template(
+                "humility: writing [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
 
         let mut total = 0;
