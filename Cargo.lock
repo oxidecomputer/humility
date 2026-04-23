@@ -3627,7 +3627,7 @@ dependencies = [
 [[package]]
 name = "nusb"
 version = "0.2.3"
-source = "git+https://github.com/oxidecomputer/nusb.git?branch=rebase_v0.2.3#b3189eaac085a481f5166307063c7a732a2a5a3d"
+source = "git+https://github.com/oxidecomputer/nusb.git?branch=rebase_v0.2.3#4a9da83185a191ba6dd01c02451b8a13162fa2f6"
 dependencies = [
  "core-foundation",
  "core-foundation-sys",
@@ -3975,7 +3975,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "probe-rs"
 version = "0.31.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.31.0-wip#20bf056bc302e1ac078e75653d111d504d109ebb"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.31.0-wip#1f542e0fb5b9d00f1e8e8f0961e5baa20df82de1"
 dependencies = [
  "anyhow",
  "async-io",
@@ -4008,7 +4008,7 @@ dependencies = [
 [[package]]
 name = "probe-rs-target"
 version = "0.31.0"
-source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.31.0-wip#20bf056bc302e1ac078e75653d111d504d109ebb"
+source = "git+https://github.com/oxidecomputer/probe-rs.git?branch=oxide-v0.31.0-wip#1f542e0fb5b9d00f1e8e8f0961e5baa20df82de1"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.2.6",

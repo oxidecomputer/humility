@@ -108,7 +108,6 @@ vsc7448-types = { git = "https://github.com/oxidecomputer/vsc7448.git" }
 # that we can float necessary patches on probe-rs.
 #
 probe-rs = { git = "https://github.com/oxidecomputer/probe-rs.git", branch = "oxide-v0.31.0-wip", default-features = false, features = ["builtin-targets"] }
-#probe-rs = { path = "/home/labbott/probe-rs/probe-rs", default-features = false, features = ["builtin-targets", "builtin-formats"] }
 
 #
 # We need the fix for https://github.com/capstone-rust/capstone-rs/issues/84,
