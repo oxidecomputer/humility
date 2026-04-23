@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use ::probe_rs::{
+use ::probe_rs::Permissions;
+use ::probe_rs::probe::{
     DebugProbeError, DebugProbeInfo, DebugProbeSelector, Probe,
     ProbeCreationError,
 };
@@ -37,7 +38,8 @@ fn parse_probe(probe: &str) -> (&str, Option<usize>) {
 }
 
 fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
-    let probes = Probe::list_all();
+    let lister = ::probe_rs::probe::list::Lister::new();
+    let probes = lister.list_all();
 
     if probes.is_empty() {
         return Err(ProbeError::NoProbeFound.into());
@@ -63,64 +65,42 @@ fn get_usb_probe(index: Option<usize>) -> Result<DebugProbeInfo> {
     }
 }
 
-/// [`probe_rs::Probe::open`] with specialized error messages and speed
-/// configuration
-fn open_probe<T: Into<DebugProbeSelector> + Clone>(
-    selector: T,
-    speed_khz: Option<u32>,
-) -> Result<Probe> {
-    let probe_selector: DebugProbeSelector = selector.clone().into();
-    let res = Probe::open(selector);
-
-    // the following error customizations could be a match statement but until
-    // if let guards stabilize it would be a kludge
+fn open_probe_from_selector(selector: DebugProbeSelector) -> Result<Probe> {
+    let lister = ::probe_rs::probe::list::Lister::new();
+    let res = lister.open(selector.clone());
 
     if let Err(DebugProbeError::ProbeCouldNotBeCreated(
         ProbeCreationError::NotFound,
     )) = res
     {
-        if probe_selector.serial_number.is_some() {
+        if selector.serial_number.is_some() {
             bail!(
                 "Could not find probe {}.\n\
                 \n\
                 Because a serial number is present, this may be due to not \
                 running humility with permission to read USB device serial \
                 numbers; if not root already, run again as root?",
-                probe_selector
+                selector
             );
         } else {
-            bail!("Could not find probe {}.", probe_selector);
+            bail!("Could not find probe {}.", selector);
         }
     }
 
-    if let Err(DebugProbeError::Usb(Some(ref err))) = res
-        && let Some(rcode) = err.downcast_ref::<rusb::Error>()
-        && *rcode == rusb::Error::Busy
-    {
-        bail!("USB link in use; is OpenOCD or another debugger running?");
-    }
-
-    let mut probe = res?;
-
-    if let Some(speed) = speed_khz {
-        probe.set_speed(speed)?;
-    };
+    let probe = res?;
 
     Ok(probe)
 }
 
 #[rustfmt::skip::macros(anyhow, bail)]
-pub fn attach_to_probe(
-    probe: &str,
-    speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+pub fn attach_to_probe(probe: &str) -> Result<Box<dyn Core>> {
     let (probe, index) = parse_probe(probe);
 
     match probe {
         "usb" => {
             let probe_info = get_usb_probe(index)?;
 
-            let probe = open_probe(&probe_info, speed_khz)?;
+            let probe = probe_info.open()?;
 
             crate::msg!("Opened probe {}", probe_info.identifier);
             Ok(Box::new(unattached::UnattachedCore::new(
@@ -134,14 +114,14 @@ pub fn attach_to_probe(
         "ocd" | "ocdgdb" | "jlink" => {
             bail!("Probe only attachment with {} is not supported", probe)
         }
-        "auto" => attach_to_probe("usb", speed_khz),
-        _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
+        "auto" => attach_to_probe("usb"),
+        _ => match probe.parse::<DebugProbeSelector>() {
             Ok(selector) => {
                 let vidpid = probe;
                 let vid = selector.vendor_id;
                 let pid = selector.product_id;
                 let serial = selector.serial_number.clone();
-                let probe = open_probe(selector, speed_khz)?;
+                let probe = open_probe_from_selector(selector)?;
                 let name = probe.get_name();
 
                 crate::msg!("Opened {vidpid} via {name}");
@@ -158,7 +138,6 @@ pub fn attach_to_probe(
 pub fn attach_to_chip(
     probe: &str,
     chip: Option<&str>,
-    speed_khz: Option<u32>,
 ) -> Result<Box<dyn Core>> {
     let (probe, index) = parse_probe(probe);
 
@@ -166,20 +145,30 @@ pub fn attach_to_chip(
         "usb" => {
             let probe_info = get_usb_probe(index)?;
 
-            let probe = open_probe(&probe_info, speed_khz)?;
+            let probe = probe_info.open()?;
 
             let name = probe.get_name();
             //
             // probe-rs needs us to specify a chip that it knows about -- but
             // it only really uses this information for flashing the part.  If
             // we are attaching to the part for not pusposes of flashing, we
-            // specify a generic ARMv7-M (but then we also indicate that can't
+
+            // specify a generic Cortex-M3 (but then we also indicate that can't
             // flash to assure that we can fail explicitly should flashing be
             // attempted).
             //
             let (session, can_flash) = match chip {
-                Some(chip) => (probe.attach(chip)?, true),
-                None => (probe.attach("armv7m")?, false),
+                Some(chip) => (
+                    probe.attach(chip, Permissions::new().allow_erase_all())?,
+                    true,
+                ),
+                None => (
+                    probe.attach(
+                        "Cortex-M3",
+                        Permissions::new().allow_erase_all(),
+                    )?,
+                    false,
+                ),
             };
 
             crate::msg!("attached via {name}");
@@ -207,15 +196,15 @@ pub fn attach_to_chip(
         }
 
         "auto" => {
-            if let Ok(probe) = attach_to_chip("ocd", chip, speed_khz) {
+            if let Ok(probe) = attach_to_chip("ocd", chip) {
                 return Ok(probe);
             }
 
-            if let Ok(probe) = attach_to_chip("jlink", chip, speed_khz) {
+            if let Ok(probe) = attach_to_chip("jlink", chip) {
                 return Ok(probe);
             }
 
-            attach_to_chip("usb", chip, speed_khz)
+            attach_to_chip("usb", chip)
         }
 
         "ocdgdb" => {
@@ -231,7 +220,7 @@ pub fn attach_to_chip(
 
             Ok(Box::new(core))
         }
-        _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
+        _ => match probe.parse::<DebugProbeSelector>() {
             Ok(selector) => {
                 let vidpid = probe;
 
@@ -239,16 +228,28 @@ pub fn attach_to_chip(
                 let pid = selector.product_id;
                 let serial = selector.serial_number.clone();
 
-                let probe = open_probe(selector, speed_khz)?;
+                let probe = open_probe_from_selector(selector)?;
                 let name = probe.get_name();
 
                 //
                 // See the block comment in the generic "usb" attach for
-                // why we use armv7m here.
+                // why we use Cortex-M3 here.
                 //
                 let (session, can_flash) = match chip {
-                    Some(chip) => (probe.attach(chip)?, true),
-                    None => (probe.attach("armv7m")?, false),
+                    Some(chip) => (
+                        probe.attach(
+                            chip,
+                            Permissions::new().allow_erase_all(),
+                        )?,
+                        true,
+                    ),
+                    None => (
+                        probe.attach(
+                            "Cortex-M3",
+                            Permissions::new().allow_erase_all(),
+                        )?,
+                        false,
+                    ),
                 };
 
                 crate::msg!("attached to {vidpid} via {name}");
@@ -262,21 +263,13 @@ pub fn attach_to_chip(
     }
 }
 
-pub fn attach_for_flashing(
-    probe: &str,
-    chip: &str,
-    speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
-    attach_to_chip(probe, Some(chip), speed_khz)
+pub fn attach_for_flashing(probe: &str, chip: &str) -> Result<Box<dyn Core>> {
+    attach_to_chip(probe, Some(chip))
 }
 
-pub fn attach(
-    probe: &str,
-    hubris: &HubrisArchive,
-    speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
+pub fn attach(probe: &str, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
     match hubris.chip() {
-        Some(s) => attach_to_chip(probe, Some(&s), speed_khz),
-        None => attach_to_chip(probe, None, speed_khz),
+        Some(s) => attach_to_chip(probe, Some(&s)),
+        None => attach_to_chip(probe, None),
     }
 }

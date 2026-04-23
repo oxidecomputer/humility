@@ -625,7 +625,7 @@ pub trait DumpAgentExt {
             let bar = ProgressBar::new(written as u64);
             bar.set_style(ProgressStyle::default_bar().template(
                 "humility: pulling [{bar:30}] {bytes}/{total_bytes}",
-            ));
+            )?);
             Some(bar)
         } else {
             None

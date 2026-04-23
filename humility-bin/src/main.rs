@@ -15,6 +15,13 @@ use clap::CommandFactory;
 use clap::FromArgMatches;
 use clap::Parser;
 
+use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing_subscriber::fmt;
+use tracing_subscriber::prelude::*;
+
+use std::env;
+use std::io::IsTerminal;
+
 mod cmd;
 mod cmd_repl;
 
@@ -32,11 +39,23 @@ fn main() -> Result<()> {
     let mut context =
         humility_cli::ExecutionContext::new(args.clone(), &m, false)?;
 
-    let log_level = if args.verbose { "trace" } else { "warn" };
+    let log_level =
+        if args.verbose { LevelFilter::TRACE } else { LevelFilter::WARN };
 
-    let env = env_logger::Env::default().filter_or("RUST_LOG", log_level);
+    let env = EnvFilter::builder()
+        .with_default_directive(log_level.into())
+        .with_env_var("RUST_LOG")
+        .from_env_lossy();
 
-    env_logger::init_from_env(env);
+    let ansi_enabled = match env::var("RUST_LOG_STYLE") {
+        Ok(val) if val.eq_ignore_ascii_case("always") => true,
+        Ok(val) if val.eq_ignore_ascii_case("never") => false,
+        _ => std::io::stdout().is_terminal(),
+    };
+
+    let fmt = fmt::layer().with_ansi(ansi_enabled);
+
+    tracing_subscriber::registry().with(env).with(fmt).init();
 
     // stash this away in case we fail
     let subcmd = match args.cmd.as_ref().unwrap() {

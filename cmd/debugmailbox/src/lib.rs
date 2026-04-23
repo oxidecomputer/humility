@@ -33,17 +33,18 @@ use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
 use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Command, CommandKind};
-use probe_rs::{
-    DebugProbeError, DebugProbeSelector, Probe,
-    architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
+use probe_rs::architecture::arm::{
+    ArmDebugInterface, ArmError, DapError, FullyQualifiedApAddress,
+    sequences::DefaultArmSequence,
 };
+use probe_rs::probe::DebugProbeSelector;
 
 // The debug mailbox registers
 // See 51.5.5.1 of Rev 2.4 of the LPC55 manual
-const CSW: u8 = 0x0;
-const REQUEST: u8 = 0x4;
-const RETURN: u8 = 0x8;
-const IDR: u8 = 0xFC;
+const CSW: u64 = 0x0;
+const REQUEST: u64 = 0x4;
+const RETURN: u64 = 0x8;
+const IDR: u64 = 0xFC;
 
 // Are we talking to the wrong chip?
 const SP_IDR: u32 = 0x54770002;
@@ -104,9 +105,9 @@ enum DebugMailboxCmd {
 }
 
 fn poll_raw_ap_register(
-    probe: &mut Box<dyn ArmProbeInterface + '_>,
-    ap: &ApAddress,
-    addr: u8,
+    probe: &mut Box<dyn ArmDebugInterface + '_>,
+    ap: &FullyQualifiedApAddress,
+    addr: u64,
     mut f: impl FnMut(u32) -> Result<bool>,
     mut timeout_ms: usize,
 ) -> Result<u32> {
@@ -118,30 +119,13 @@ fn poll_raw_ap_register(
         // this initial delay.
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        match probe.read_raw_ap_register(*ap, addr) {
+        match probe.read_raw_ap_register(ap, addr) {
             Ok(val) => match f(val) {
                 Ok(true) => return Ok(val),
                 Ok(false) => (),
                 Err(e) => return Err(e),
             },
-            Err(DebugProbeError::ArchitectureSpecific(arch_err)) => {
-                match arch_err.downcast::<DapError>() {
-                    Ok(dap_err) => match *dap_err {
-                        DapError::WaitResponse => {}
-                        e => {
-                            return Err(DebugProbeError::ArchitectureSpecific(
-                                e.into(),
-                            )
-                            .into());
-                        }
-                    },
-                    Err(e) => {
-                        return Err(
-                            DebugProbeError::ArchitectureSpecific(e).into()
-                        );
-                    }
-                }
-            }
+            Err(ArmError::Dap(DapError::WaitResponse)) => {}
             Err(x) => return Err(x.into()),
         }
 
@@ -155,12 +139,12 @@ fn poll_raw_ap_register(
 }
 
 fn alive<'a>(
-    probe: &mut Box<dyn ArmProbeInterface + 'a>,
-    addr: &ApAddress,
+    probe: &mut Box<dyn ArmDebugInterface + 'a>,
+    addr: &FullyQualifiedApAddress,
     reset: bool,
 ) -> Result<()> {
     if reset {
-        probe.write_raw_ap_register(*addr, CSW, 0x21)?;
+        probe.write_raw_ap_register(addr, CSW, 0x21)?;
         println!("Resetting chip via SYSREQRESET!");
     }
 
@@ -171,11 +155,11 @@ fn alive<'a>(
 }
 
 fn write_request_reg<'a>(
-    probe: &mut Box<dyn ArmProbeInterface + 'a>,
-    addr: &ApAddress,
+    probe: &mut Box<dyn ArmDebugInterface + 'a>,
+    addr: &FullyQualifiedApAddress,
     val: u32,
 ) -> Result<()> {
-    probe.write_raw_ap_register(*addr, REQUEST, val)?;
+    probe.write_raw_ap_register(addr, REQUEST, val)?;
 
     let _ = poll_raw_ap_register(
         probe,
@@ -198,8 +182,8 @@ fn write_request_reg<'a>(
 }
 
 fn write_req<'a>(
-    probe: &mut Box<dyn ArmProbeInterface + 'a>,
-    addr: &ApAddress,
+    probe: &mut Box<dyn ArmDebugInterface + 'a>,
+    addr: &FullyQualifiedApAddress,
     command: DMCommand,
     args: &[u32],
 ) -> Result<Vec<u32>> {
@@ -258,8 +242,8 @@ fn write_req<'a>(
 }
 
 fn read_return<'a>(
-    probe: &mut Box<dyn ArmProbeInterface + 'a>,
-    addr: &ApAddress,
+    probe: &mut Box<dyn ArmDebugInterface + 'a>,
+    addr: &FullyQualifiedApAddress,
 ) -> Result<u32> {
     poll_raw_ap_register(probe, addr, RETURN, |_| Ok(true), 1000)
         .context("Reading debugmailbox RETURN register")
@@ -270,14 +254,15 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
     let subargs = DebugMailboxArgs::try_parse_from(subargs)?;
 
     // Get a list of all available debug probes.
-    let probes = Probe::list_all();
+    let list = probe_rs::probe::list::Lister::new();
+    let probes = list.list_all();
 
     if probes.is_empty() {
         bail!("No probes found!");
     }
 
     let mut probe = match &context.cli.probe {
-        Some(p) => match TryInto::<DebugProbeSelector>::try_into(p.clone()) {
+        Some(p) => match p.parse::<DebugProbeSelector>() {
             Ok(selector) => {
                 let vid = selector.vendor_id;
                 let pid = selector.product_id;
@@ -302,12 +287,10 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
 
     probe.attach_to_unspecified()?;
     let mut iface = probe
-        .try_into_arm_interface()
-        .unwrap()
-        .initialize_unspecified()
+        .try_into_arm_debug_interface(DefaultArmSequence::create())
         .unwrap();
 
-    let dm_port = ApAddress { dp: DpAddress::Default, ap: 2 };
+    let dm_port = FullyQualifiedApAddress::v1_with_default_dp(2);
 
     // Check if this is a debug mailbox. This is based on the sequence from
     // the LPC55 Debug Mailbox user manual
@@ -316,7 +299,7 @@ fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
     // handles this for us
 
     // Check the IDR
-    let val = iface.read_raw_ap_register(dm_port, IDR)?;
+    let val = iface.read_raw_ap_register(&dm_port, IDR)?;
 
     if val != DM_ID {
         if val == SP_IDR {

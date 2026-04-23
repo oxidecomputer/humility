@@ -5,13 +5,16 @@
 use anyhow::{Context, Result, bail};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
-use std::rc::Rc;
 
 use probe_rs::MemoryInterface;
 use probe_rs::flashing;
+
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use probe_rs::flashing::Format;
+use probe_rs::flashing::ProgressEvent;
+use std::time::Duration;
 
 pub struct ProbeCore {
     pub session: probe_rs::Session,
@@ -68,6 +71,155 @@ impl ProbeCore {
     }
 }
 
+// XXX borrowed???
+//
+//
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Operation {
+    /// Reading back flash contents to restore erased regions that should be kept unchanged.
+    Fill,
+
+    /// Erasing flash sectors.
+    Erase,
+
+    /// Writing data to flash.
+    Program,
+
+    /// Checking flash contents.
+    Verify,
+}
+
+impl From<flashing::ProgressOperation> for Operation {
+    fn from(operation: flashing::ProgressOperation) -> Self {
+        match operation {
+            flashing::ProgressOperation::Fill => Operation::Fill,
+            flashing::ProgressOperation::Erase => Operation::Erase,
+            flashing::ProgressOperation::Program => Operation::Program,
+            flashing::ProgressOperation::Verify => Operation::Verify,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct ProgressBars {
+    bars: HashMap<Operation, ProgressBarGroup>,
+}
+
+impl ProgressBars {
+    fn get_mut(&mut self, operation: Operation) -> &mut ProgressBarGroup {
+        self.bars.entry(operation).or_insert_with(|| {
+            let message = match operation {
+                Operation::Erase => "Erasing",
+                Operation::Fill => "Reading flash",
+                Operation::Program => "Programming",
+                Operation::Verify => "Verifying",
+            };
+            ProgressBarGroup::new(format!("{message:>13}"))
+        })
+    }
+}
+
+pub struct ProgressBarGroup {
+    message: String,
+    bars: Vec<ProgressBar>,
+    selected: usize,
+}
+
+impl ProgressBarGroup {
+    pub fn new(message: String) -> Self {
+        Self { message, bars: vec![], selected: 0 }
+    }
+
+    fn idle(has_length: bool) -> ProgressStyle {
+        let template = if has_length {
+            "{msg:.green.bold} {spinner} {percent:>3}% [{bar:20}]"
+        } else {
+            "{msg:.green.bold} {spinner}"
+        };
+        ProgressStyle::with_template(template)
+            .expect("Error in progress bar creation. This is a bug, please report it.")
+            .progress_chars("--")
+    }
+
+    fn active(has_length: bool) -> ProgressStyle {
+        let template = if has_length {
+            "{msg:.green.bold} {spinner} {percent:>3}% [{bar:20}] {bytes:>10} @ {bytes_per_sec:>12} (ETA {eta})"
+        } else {
+            "{msg:.green.bold} {spinner} {elapsed}"
+        };
+        ProgressStyle::with_template(template)
+            .expect("Error in progress bar creation. This is a bug, please report it.")
+            .progress_chars("##-")
+    }
+
+    fn finished(has_length: bool) -> ProgressStyle {
+        let template = if has_length {
+            "{msg:.green.bold} {spinner} {percent:>3}% [{bar:20}] {bytes:>10} @ {bytes_per_sec:>12} (took {elapsed})"
+        } else {
+            "{msg:.green.bold} {spinner} {elapsed}"
+        };
+        ProgressStyle::with_template(template)
+            .expect("Error in progress bar creation. This is a bug, please report it.")
+            .progress_chars("##")
+    }
+
+    pub fn add(&mut self, bar: ProgressBar) {
+        if !self.bars.is_empty() {
+            bar.set_message(format!(
+                "{} {}",
+                self.message,
+                self.bars.len() + 1
+            ));
+        } else {
+            bar.set_message(self.message.clone());
+        }
+        bar.set_style(Self::idle(bar.length().is_some()));
+        bar.enable_steady_tick(Duration::from_millis(100));
+        bar.reset_elapsed();
+
+        self.bars.push(bar);
+    }
+
+    pub fn inc(&mut self, size: u64) {
+        if let Some(bar) = self.bars.get(self.selected) {
+            bar.set_style(Self::active(bar.length().is_some()));
+            bar.inc(size);
+        }
+    }
+
+    pub fn abandon(&mut self) {
+        if let Some(bar) = self.bars.get(self.selected) {
+            bar.abandon();
+        }
+        self.next();
+    }
+
+    pub fn finish(&mut self) {
+        if let Some(bar) = self.bars.get(self.selected) {
+            bar.set_style(Self::finished(bar.length().is_some()));
+            if let Some(length) = bar.length() {
+                bar.inc(length.saturating_sub(bar.position()));
+            }
+            bar.finish();
+        }
+        self.next();
+    }
+    pub fn next(&mut self) {
+        self.selected += 1;
+    }
+
+    pub fn mark_start_now(&mut self) {
+        if let Some(bar) = self.bars.get(self.selected) {
+            bar.set_style(Self::active(bar.length().is_some()));
+            bar.reset_elapsed();
+            bar.reset_eta();
+        }
+    }
+}
+
+// end borrowed
+
 pub const CORE_MAX_READSIZE: usize = 65536; // 64K ought to be enough for anyone
 
 #[rustfmt::skip::macros(anyhow, bail)]
@@ -93,7 +245,7 @@ impl Core for ProbeCore {
             && addr + 4 < range.0 + range.1
         {
             let mut core = self.session.core(0)?;
-            return core.read_word_32(addr).with_context(|| {
+            return core.read_word_32(addr.into()).with_context(|| {
                 format!(
                     "failed to perform unhalted word read at address {addr:#x}",
                 )
@@ -101,7 +253,7 @@ impl Core for ProbeCore {
         }
 
         self.halt_and_read(|core| {
-            rval = core.read_word_32(addr).with_context(|| {
+            rval = core.read_word_32(addr.into()).with_context(|| {
                 format!(
                     "failed to perform halted word read at address {addr:#x}"
                 )
@@ -123,7 +275,7 @@ impl Core for ProbeCore {
             && addr + (data.len() as u32) < range.0 + range.1
         {
             let mut core = self.session.core(0)?;
-            return core.read_8(addr, data).with_context(|| {
+            return core.read_8(addr.into(), data).with_context(|| {
                 format!(
                     "failed to perform unhalted read at address \
                      {addr:#x} for length {}",
@@ -133,7 +285,7 @@ impl Core for ProbeCore {
         }
 
         self.halt_and_read(|core| {
-            core.read_8(addr, data).with_context(|| {
+            core.read_8(addr.into(), data).with_context(|| {
                 format!(
                     "failed to perform halted read at address \
                     {addr:#x} for length {}",
@@ -147,7 +299,7 @@ impl Core for ProbeCore {
         let mut core = self.session.core(0)?;
         use num_traits::ToPrimitive;
 
-        Ok(core.read_core_reg(Into::<probe_rs::CoreRegisterAddress>::into(
+        Ok(core.read_core_reg(Into::<probe_rs::RegisterId>::into(
             ARMRegister::to_u16(&reg).unwrap(),
         ))?)
     }
@@ -157,7 +309,7 @@ impl Core for ProbeCore {
         use num_traits::ToPrimitive;
 
         core.write_core_reg(
-            Into::<probe_rs::CoreRegisterAddress>::into(
+            Into::<probe_rs::RegisterId>::into(
                 ARMRegister::to_u16(&reg).unwrap(),
             ),
             value,
@@ -168,13 +320,13 @@ impl Core for ProbeCore {
 
     fn write_word_32(&mut self, addr: u32, data: u32) -> Result<()> {
         let mut core = self.session.core(0)?;
-        core.write_word_32(addr, data)?;
+        core.write_word_32(addr.into(), data)?;
         Ok(())
     }
 
     fn write_8(&mut self, addr: u32, data: &[u8]) -> Result<()> {
         let mut core = self.session.core(0)?;
-        core.write_8(addr, data)?;
+        core.write_8(addr.into(), data)?;
         Ok(())
     }
 
@@ -205,85 +357,51 @@ impl Core for ProbeCore {
     }
 
     fn load(&mut self, path: &Path) -> Result<()> {
-        #[derive(Debug, Default)]
-        struct LoadProgress {
-            /// total bytes that need to be erased
-            total_erase: usize,
-
-            /// bytes that have been erased
-            erased: usize,
-
-            /// total bytes that need to be written
-            total_write: usize,
-
-            /// number of bytes that have been written
-            written: usize,
-        }
-
-        use indicatif::{ProgressBar, ProgressStyle};
-
         if !self.can_flash {
             bail!("cannot flash without explicitly attaching to flash");
         }
 
-        let progress =
-            Rc::new(RefCell::new(LoadProgress { ..Default::default() }));
+        let multi_progress = MultiProgress::new();
+        let mut progress_bars = ProgressBars::default();
 
-        let bar = ProgressBar::new(0);
         let progress = flashing::FlashProgress::new(move |event| match event {
-            flashing::ProgressEvent::Initialized { flash_layout } => {
-                progress.borrow_mut().total_erase = flash_layout
-                    .sectors()
-                    .iter()
-                    .map(|s| s.size() as usize)
-                    .sum();
+            ProgressEvent::FlashLayoutReady { .. } => {}
 
-                progress.borrow_mut().total_write = flash_layout
-                    .pages()
-                    .iter()
-                    .map(|s| s.size() as usize)
-                    .sum();
-
-                bar.set_style(ProgressStyle::default_bar().template(
-                    "humility: erasing [{bar:30}] {bytes}/{total_bytes}",
-                ));
-                bar.set_length(progress.borrow().total_erase as u64);
+            ProgressEvent::AddProgressBar { operation, total } => {
+                let bar = multi_progress.add(if let Some(total) = total {
+                    // We were promised a length, but in this implementation it
+                    // may come later in the Started message. Set to at least 1
+                    // to avoid progress bars starting from 100%
+                    ProgressBar::new(total.max(1))
+                } else {
+                    ProgressBar::no_length()
+                });
+                progress_bars.get_mut(operation.into()).add(bar);
             }
-
-            flashing::ProgressEvent::SectorErased { size, .. } => {
-                progress.borrow_mut().erased += size as usize;
-                bar.set_position(progress.borrow().erased as u64);
+            ProgressEvent::Started(operation) => {
+                progress_bars.get_mut(operation.into()).mark_start_now();
             }
-
-            flashing::ProgressEvent::PageProgrammed { size, .. } => {
-                let mut progress = progress.borrow_mut();
-
-                if progress.written == 0 {
-                    progress.erased = progress.total_erase;
-                    bar.set_style(ProgressStyle::default_bar().template(
-                        "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
-                    ));
-                    bar.set_length(progress.total_write as u64);
-                }
-
-                progress.written += size as usize;
-                bar.set_position(progress.written as u64);
+            ProgressEvent::Progress { operation, size, time: _ } => {
+                progress_bars.get_mut(operation.into()).inc(size);
             }
-
-            flashing::ProgressEvent::FinishedProgramming => {
-                bar.finish_and_clear();
+            ProgressEvent::Failed(operation) => {
+                progress_bars.get_mut(operation.into()).abandon();
             }
-
-            _ => {}
+            ProgressEvent::Finished(operation) => {
+                progress_bars.get_mut(operation.into()).finish();
+            }
+            ProgressEvent::DiagnosticMessage { message } => {
+                println!("{}", message);
+            }
         });
 
         let mut options = flashing::DownloadOptions::default();
-        options.progress = Some(&progress);
+        options.progress = progress;
 
         if let Err(e) = flashing::download_file_with_options(
             &mut self.session,
             path,
-            flashing::Format::Hex,
+            Format::Hex,
             options,
         ) {
             bail!("Flash loading failed {:?}", e);

@@ -18,4 +18,3 @@ num-traits.workspace = true
 parse_int.workspace = true
 probe-rs.workspace = true
 thiserror.workspace = true
-rusb.workspace = true
