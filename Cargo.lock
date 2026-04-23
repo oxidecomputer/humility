@@ -1560,20 +1560,12 @@ dependencies = [
  "anyhow",
  "clap 3.2.23",
  "colored",
- "hif",
  "hubpack",
  "humility-cli",
  "humility-cmd",
- "humility-cmd-hiffy",
  "humility-core",
- "humility-doppel",
- "humility-hiffy",
- "humility-idol",
- "idol",
- "indexmap 1.9.3",
  "parse_int",
  "serde",
- "zerocopy 0.6.6",
 ]
 
 [[package]]

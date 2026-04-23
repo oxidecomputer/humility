@@ -8,19 +8,11 @@ description = "listen for compatible SPs on a network"
 humility.workspace = true
 humility-cmd.workspace = true
 humility-cli.workspace = true
-humility-doppel.workspace = true
-humility-hiffy.workspace = true
-humility-idol.workspace = true
-cmd-hiffy.workspace = true
 
 hubpack.workspace = true
-hif.workspace = true
-idol.workspace = true
 
 anyhow.workspace = true
 clap.workspace = true
 colored.workspace = true
-indexmap.workspace = true
 parse_int.workspace = true
 serde.workspace = true
-zerocopy.workspace = true
