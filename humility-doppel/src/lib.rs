@@ -387,38 +387,23 @@ pub enum CounterVariant {
 }
 
 #[derive(Clone, Debug, Load)]
-pub struct ClaimOnceCell {
-    pub cell: UnsafeCell,
+pub struct ClaimOnceCell<T: Load> {
+    pub cell: UnsafeCell<T>,
 }
 
 #[derive(Clone, Debug, Load)]
-pub struct StaticCell {
-    pub cell: UnsafeCell,
+pub struct StaticCell<T: Load> {
+    pub cell: UnsafeCell<T>,
 }
 
 #[derive(Clone, Debug, Load)]
-pub struct UnsafeCell {
-    pub value: Value,
-}
-
-#[derive(Clone, Debug)]
-pub struct MaybeUninit<T> {
+pub struct UnsafeCell<T: Load> {
     pub value: T,
 }
 
-impl<T: humility::reflect::Load> humility::reflect::Load for MaybeUninit<T> {
-    fn from_value(v: &Value) -> Result<Self> {
-        let v_struct = v.as_struct()?;
-        anyhow::ensure!(
-            v_struct.name().starts_with("MaybeUninit"),
-            "expected MaybeUninit, got {:?}",
-            v_struct.name()
-        );
-        let value = v_struct
-            .get("value")
-            .ok_or_else(|| anyhow!("missing `value` member"))?;
-        T::from_value(value).map(|value| Self { value })
-    }
+#[derive(Clone, Debug, Load)]
+pub struct MaybeUninit<T: Load> {
+    pub value: T,
 }
 
 /// Double of the struct from `udprpc`
@@ -571,13 +556,9 @@ impl humility::reflect::Load for CounterVariant {
 
         let counter = value.as_struct()?;
         if counter.name().starts_with("AtomicU32") {
-            let cell = UnsafeCell::from_value(&counter["v"])?;
-            return cell
-                .value
-                .as_base()?
-                .as_u32()
-                .map(Self::Single)
-                .ok_or_else(|| anyhow::anyhow!("ringbuf count must be a u32"));
+            let cell = UnsafeCell::<u32>::from_value(&counter["v"])
+                .context("ringbuf count must be a u32")?;
+            return Ok(Self::Single(cell.value));
         }
 
         Ok(Self::Nested(Counters::from_value(value)?))
