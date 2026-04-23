@@ -184,9 +184,9 @@ fn read_qualified_state_buf(
         return Ok(None);
     };
 
-    let as_static_cell: doppel::ClaimOnceCell =
+    let as_static_cell: doppel::ClaimOnceCell<HostStateBuf> =
         reflect::read_variable(hubris, core, var)?;
-    Ok(Some(HostStateBuf::from_value(&as_static_cell.cell.value)?))
+    Ok(Some(as_static_cell.cell.value))
 }
 
 fn print_escaped_ascii(mut bytes: &[u8]) {
