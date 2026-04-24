@@ -8,8 +8,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use hif::*;
 use humility::core::{Core, NetAgent};
 use humility::hubris::*;
-use humility::reflect::{self, Load, Value};
-use humility_doppel::{RpcHeader, SchedState, StaticCell, TaskState, hiffy};
+use humility::reflect;
+use humility_doppel::{RpcHeader, SchedState, TaskState, hiffy};
 use humility_idol as idol;
 pub use humility_idol::IpcError;
 use postcard::{take_from_bytes, to_slice};
@@ -353,19 +353,11 @@ impl<'a> HiffyContext<'a> {
             // bytes for older images (which used a fixed-size stack array)
             Self::variable(hubris, "HIFFY_SCRATCH", false)
                 .map(|scratch| -> Result<usize> {
-                    let mut buf = vec![0u8; scratch.size];
-
-                    core.op_start()?;
-                    core.read_8(scratch.addr, buf.as_mut_slice())?;
-                    core.op_done()?;
-
-                    let def = hubris.lookup_struct(scratch.goff)?;
-                    let val: Value = Value::Struct(reflect::load_struct(
-                        hubris, &buf, def, 0,
-                    )?);
-                    let scratch_cell: StaticCell =
-                        StaticCell::from_value(&val)?;
-                    Ok(scratch_cell.cell.value.as_array()?.len())
+                    // `scratch` is a `StaticCell<[u8; N]>`
+                    let s = hubris.lookup_struct(scratch.goff)?;
+                    let cell_goff = s.lookup_member("cell")?.goff;
+                    let cell = hubris.lookup_struct(cell_goff)?;
+                    Ok(cell.size)
                 })
                 .unwrap_or(Ok(256))?
         };
