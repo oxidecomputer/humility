@@ -8,9 +8,10 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
-serde_json.workspace = true
-serde.workspace = true
-parse_int.workspace = true
 indexmap.workspace = true
+parse_int.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 humility.workspace = true
