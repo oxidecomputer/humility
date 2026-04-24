@@ -1,0 +1,14 @@
+[package]
+name = "humility-auxflash"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+indicatif.workspace = true
+tlvc.workspace = true
+
+humility.workspace = true
+humility-hiffy.workspace = true
+humility-idol.workspace = true

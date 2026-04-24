@@ -10,7 +10,7 @@ humility-cortex = { workspace = true }
 humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
 humility-probes-core = { workspace = true }
-cmd-auxflash = { workspace = true }
+humility-auxflash = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 parse_int = { workspace = true }
