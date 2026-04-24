@@ -8,7 +8,7 @@
 //! `HubrisIdol` trait on `HubrisArchive`, which adds a `get_idol_command`
 //! function to easily look up an Idol command by name.
 
-use ::idol::syntax::{AttributedTy, Operation, RecvStrategy, Reply};
+use ::idol::syntax::send::{AttributedTy, Operation, RecvStrategy, Reply};
 use anyhow::{Context, Result, anyhow, bail};
 use hubpack::SerializedSize;
 use humility::hubris::*;
@@ -110,7 +110,7 @@ impl<'a> IdolOperation<'a> {
             // Find the expected name of the argument in the struct, based
             // on its encoding strategy (with a special case for `bool`, which
             // is packed into a single `u8`).
-            let ty = &arg.1.ty.0;
+            let ty = &arg.1.ty;
             let arg_name = match arg.1.recv {
                 RecvStrategy::FromBytes if ty != "bool" => arg.0.to_string(),
                 _ => format!("raw_{}", arg.0),
@@ -166,7 +166,7 @@ impl<'a> IdolOperation<'a> {
         //
         // The easiest option is if we're doing `FromBytes`, which encodes
         // the value directly (with a special case for booleans).
-        let ty = &arg.1.ty.0;
+        let ty = &arg.1.ty;
         if matches!(arg.1.recv, RecvStrategy::FromBytes) {
             if ty != "bool" {
                 call_arg(hubris, member, val, payload)?;
@@ -839,25 +839,26 @@ pub fn lookup_reply<'a>(
 
     match reply {
         Reply::Result { ok, err } => {
-            let err = match err {
-                ::idol::syntax::Error::CLike(t) => {
-                    let t = m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(
-                        || anyhow!("failed to find error type {reply:?}"),
-                    )?;
+            let err =
+                match err {
+                    ::idol::syntax::Error::CLike(t) => {
+                        let t = m.lookup_enum_byname(hubris, t)?.ok_or_else(
+                            || anyhow!("failed to find error type {reply:?}"),
+                        )?;
 
-                    IdolError::CLike(t)
-                }
-                ::idol::syntax::Error::ServerDeath => IdolError::None,
-                ::idol::syntax::Error::Complex(t) => {
-                    let t = m.lookup_enum_byname(hubris, &t.0)?.ok_or_else(
-                        || anyhow!("failed to find error type {reply:?}"),
-                    )?;
-                    IdolError::Complex(t)
-                }
-            };
-            Ok((lookup_ok(&ok.ty.0)?, err))
+                        IdolError::CLike(t)
+                    }
+                    ::idol::syntax::Error::ServerDeath => IdolError::None,
+                    ::idol::syntax::Error::Complex(t) => {
+                        let t = m.lookup_enum_byname(hubris, t)?.ok_or_else(
+                            || anyhow!("failed to find error type {reply:?}"),
+                        )?;
+                        IdolError::Complex(t)
+                    }
+                };
+            Ok((lookup_ok(&ok.ty)?, err))
         }
-        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty.0)?, IdolError::None)),
+        Reply::Simple(ok) => Ok((lookup_ok(&ok.ty)?, IdolError::None)),
     }
 }
 

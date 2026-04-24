@@ -27,7 +27,7 @@ use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
 use humpty::DumpTask;
-use idol::syntax::Interface;
+use idol::syntax::send::Interface;
 use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;

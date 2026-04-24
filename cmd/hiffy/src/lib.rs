@@ -45,7 +45,7 @@
 //! within Humility, use `-L` (`--list-functions`).
 //!
 
-use ::idol::syntax::{Operation, Reply};
+use ::idol::syntax::send::{Operation, Reply};
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
@@ -114,10 +114,10 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         match args.next() {
             None => {}
             Some(arg) => {
-                println!("{}{:<27} {}", margin, arg.0, arg.1.ty.0);
+                println!("{}{:<27} {}", margin, arg.0, arg.1.ty);
 
                 for arg in args {
-                    println!("{}{:<27} {}", margin, arg.0, arg.1.ty.0);
+                    println!("{}{:<27} {}", margin, arg.0, arg.1.ty);
                 }
             }
         }
@@ -125,14 +125,14 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
         match idol::lookup_reply(hubris, module, op.0) {
             Ok((_, idol::IdolError::CLike(e))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
-                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", e.name);
                 }
                 _ => warn!("mismatch on reply: found {op:?}"),
             },
             Ok((_, idol::IdolError::Complex(t))) => match &op.1.reply {
                 Reply::Result { ok, .. } => {
-                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                     println!("{}{:<27} {}", margin, "<error>", t.name);
                 }
                 _ => warn!("mismatch on reply: found {op:?}"),
@@ -143,10 +143,10 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
                     //
                     // This is possible if the only error is ServerDeath
                     //
-                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                 }
                 Reply::Simple(ok) => {
-                    println!("{}{:<27} {}", margin, "<ok>", ok.ty.0);
+                    println!("{}{:<27} {}", margin, "<ok>", ok.ty);
                 }
             },
             Err(e) => {
