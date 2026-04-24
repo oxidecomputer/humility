@@ -1719,7 +1719,7 @@ fn rendmp_phase_check<'a>(
             "DIMM presence check disabled, if this check hangs, remove the \
             DIMMs and retry."
         );
-    } else if cmd_spd::spd_any(hubris, core)? {
+    } else if humility_spd::spd_any(hubris, core)? {
         bail!(
             "cannot check phases with DIMMs present: if a checked \
             phase powers a DIMM, an I2C hang can result; this can be \
