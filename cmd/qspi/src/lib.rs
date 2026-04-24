@@ -415,7 +415,7 @@ fn write(
             context.get_function("QspiPageProgram", 3)?
         };
 
-    let data_size = context.data_size() as u32;
+    let data_size = context.data_size()? as u32;
     let chunk = data_size - (data_size % device.block_size);
     let mut offset = 0;
 
@@ -639,7 +639,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         //
         // Now we're ready to write/verify in units of blocksize.
         //
-        let data_size = context.data_size() as u32;
+        let data_size = context.data_size()? as u32;
         let chunk = data_size - (data_size % BLOCK_SIZE);
         let mut offset = 0;
 

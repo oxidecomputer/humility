@@ -232,6 +232,10 @@ impl<'a> AuxFlashHandler<'a> {
             }
         }
 
+        // Get the hiffy data size before doing any work, because this could
+        // fail (if we're on a backend that doesn't support data transfers)
+        let data_size = self.context.data_size()?;
+
         humility::msg!("erasing slot {slot}");
         self.slot_erase(slot)?;
 
@@ -252,8 +256,8 @@ impl<'a> AuxFlashHandler<'a> {
                 .template("humility: writing [{bar:30}] {bytes}/{total_bytes}"),
         );
         bar.set_length(data.len() as u64);
-        for (i, chunk) in data.chunks(self.context.data_size()).enumerate() {
-            let offset = i * self.context.data_size();
+        for (i, chunk) in data.chunks(data_size).enumerate() {
+            let offset = i * data_size;
             let value = humility_hiffy::hiffy_call(
                 self.hubris,
                 self.core,

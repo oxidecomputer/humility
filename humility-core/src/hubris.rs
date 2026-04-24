@@ -2067,6 +2067,13 @@ impl HubrisArchive {
         }
     }
 
+    pub fn lookup_module_by_name(&self, name: &str) -> Result<&HubrisModule> {
+        match self.modules.values().find(|m| m.name == name) {
+            Some(module) => Ok(module),
+            None => Err(anyhow!("no such task: {name}")),
+        }
+    }
+
     pub fn lookup_module_by_iface(&self, name: &str) -> Option<&HubrisModule> {
         (0..self.ntasks())
             .map(|t| self.lookup_module(HubrisTask::Task(t as u32)).unwrap())
@@ -6631,6 +6638,39 @@ impl HubrisModule {
                 }
             }
         }
+    }
+
+    /// Looks up enum variants by name, casting to a particular integer type
+    pub fn get_enum_variants_by_name<T: TryFrom<u64> + TryFrom<i64>>(
+        &self,
+        hubris: &HubrisArchive,
+        name: &str,
+    ) -> Result<BTreeMap<String, T>>
+    where
+        <T as TryFrom<i64>>::Error: std::error::Error + Send + Sync + 'static,
+        <T as TryFrom<u64>>::Error: std::error::Error + Send + Sync + 'static,
+    {
+        let Some(enum_ty) = self.lookup_enum_byname(hubris, name)? else {
+            bail!("could not find enum `{name}`");
+        };
+        enum_ty
+            .variants
+            .iter()
+            .map(|v| {
+                let Some(tag) = v.tag else {
+                    bail!("variant `{}` has no tag", v.name);
+                };
+                let t = match tag {
+                    Tag::Signed(i) => T::try_from(i).with_context(|| {
+                        format!("variant tag {i} for {} does not fit", v.name)
+                    })?,
+                    Tag::Unsigned(i) => T::try_from(i).with_context(|| {
+                        format!("variant tag {i} for {} does not fit", v.name)
+                    })?,
+                };
+                Ok((v.name.clone(), t))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()
     }
 }
 

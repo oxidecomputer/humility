@@ -9,6 +9,7 @@ hif.workspace = true
 idol.workspace = true
 parse_int.workspace = true
 postcard.workspace = true
+thiserror.workspace = true
 zerocopy.workspace = true
 
 humility.workspace = true
