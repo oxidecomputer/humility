@@ -2303,10 +2303,12 @@ impl HubrisArchive {
             assert!(nbytes > 0);
 
             let mut id = vec![0; nbytes];
-            core.read_8(addr, &mut id[0..nbytes]).context(format!(
-                "failed to read image ID at 0x{:x}; board mismatch?",
-                addr
-            ))?;
+            core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+                format!(
+                    "failed to read image ID at 0x{:x}; board mismatch?",
+                    addr
+                )
+            })?;
 
             let deltas = id
                 .iter()
@@ -2666,7 +2668,7 @@ impl HubrisArchive {
                         bail!("task {} has bad regions addr 0x{:x}", i, taddr);
                     }
 
-                    core.read_8(taddr, &mut indices).context(format!(
+                    core.read_8(taddr, &mut indices).with_context(|| format!(
                         "failed to read region descriptors for task {} at 0x{:x}",
                         i, taddr)
                     )?;
@@ -4261,10 +4263,11 @@ impl HubrisObjectLoader {
         }
 
         self.load_object_dwarf(task, buffer, &elf)
-            .context(format!("{}: failed to load DWARF", object))?;
+            .with_context(|| format!("{}: failed to load DWARF", object))?;
 
-        self.load_object_frames(task, buffer, &elf)
-            .context(format!("{}: failed to load debug frames", object))?;
+        self.load_object_frames(task, buffer, &elf).with_context(|| {
+            format!("{}: failed to load debug frames", object)
+        })?;
 
         let iface = self.load_object_idolatry(object, buffer, &elf)?;
 

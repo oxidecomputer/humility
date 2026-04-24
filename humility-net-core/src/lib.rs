@@ -162,7 +162,7 @@ impl NetCore {
         if self.flash.read(addr, data).is_some() {
             Ok(())
         } else {
-            self.read_ram(addr, data).context(format!(
+            self.read_ram(addr, data).with_context(|| format!(
                 "0x{addr:0x} can't be read via the archive or over the network"
             ))
         }

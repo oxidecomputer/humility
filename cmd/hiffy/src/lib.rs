@@ -308,7 +308,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
         if let Some(data) = output {
             if let Some(out) = &subargs.output {
                 std::fs::write(out, &data)
-                    .context(format!("Could not write to {}", out))?;
+                    .with_context(|| format!("Could not write to {}", out))?;
                 println!("Wrote {} bytes to '{}'", data.len(), out);
             } else if subargs.hex {
                 println!("Data: {:x?}", data);
