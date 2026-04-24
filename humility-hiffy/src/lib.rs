@@ -120,7 +120,7 @@ impl HiffyFunction {
     ) -> Result<Vec<(String, u16)>> {
         let arg = hubris
             .lookup_enum(self.args[ndx])
-            .context(format!("expected enum for arg #{}", ndx))?;
+            .with_context(|| format!("expected enum for arg #{}", ndx))?;
 
         let mut variants = vec![];
 
@@ -144,7 +144,7 @@ impl HiffyFunction {
     ) -> Result<u16> {
         let arg = hubris
             .lookup_enum(self.args[ndx])
-            .context(format!("expected enum for {}", what))?;
+            .with_context(|| format!("expected enum for {}", what))?;
 
         for v in &arg.variants {
             let tag = v.tag.ok_or_else(|| {
@@ -228,7 +228,7 @@ impl<'a> HiffyContext<'a> {
 
         let result = core
             .read_word_32(v.addr)
-            .context(format!("couldn't read {}", name))?;
+            .with_context(|| format!("couldn't read {}", name))?;
 
         Ok(result)
     }
