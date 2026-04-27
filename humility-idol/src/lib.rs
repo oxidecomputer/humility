@@ -385,10 +385,9 @@ fn bytes_from_str(value: &str) -> Result<Vec<u8>> {
         let mut bytes: Vec<u8> = Vec::new();
         for element in value.split(' ') {
             let element = element.trim();
-            let byte: u8 = element.parse().context(format!(
-                "cannot parse \"{}\" as u8 (is it base 10?)",
-                element
-            ))?;
+            let byte: u8 = element.parse().with_context(|| {
+                format!("cannot parse \"{}\" as u8 (is it base 10?)", element)
+            })?;
             bytes.push(byte);
         }
 
@@ -735,9 +734,9 @@ fn call_arg_enum(
     value: &IdolArgument,
     buf: &mut [u8],
 ) -> Result<()> {
-    let t = hubris
-        .lookup_type(member.goff)
-        .context(format!("expected type for arg {} ({})", arg, member.goff))?;
+    let t = hubris.lookup_type(member.goff).with_context(|| {
+        format!("expected type for arg {} ({})", arg, member.goff)
+    })?;
 
     let value = match value {
         IdolArgument::String(value) => *value,
