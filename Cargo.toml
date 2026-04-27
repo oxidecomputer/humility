@@ -37,7 +37,6 @@ members = [
     "cmd/exec",
     "cmd/extract",
     "cmd/flash",
-    "cmd/gdb",
     "cmd/gimlet",
     "cmd/gpio",
     "cmd/hash",
@@ -144,7 +143,6 @@ cmd-ereport = { path = "./cmd/ereport", package = "humility-cmd-ereport" }
 cmd-exec = { path = "./cmd/exec", package = "humility-cmd-exec" }
 cmd-extract = { path = "./cmd/extract", package = "humility-cmd-extract" }
 cmd-flash = { path = "./cmd/flash", package = "humility-cmd-flash" }
-cmd-gdb = { path = "./cmd/gdb", package = "humility-cmd-gdb" }
 cmd-gimlet = { path = "./cmd/gimlet", package = "humility-cmd-gimlet" }
 cmd-gpio = { path = "./cmd/gpio", package = "humility-cmd-gpio" }
 cmd-hash = { path = "./cmd/hash", package = "humility-cmd-hash" }

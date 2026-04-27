@@ -245,7 +245,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility exec](#humility-exec): execute command within context of an environment
 - [humility extract](#humility-extract): extract all or part of a Hubris archive
 - [humility flash](#humility-flash): flash archive onto attached device
-- [humility gdb](#humility-gdb): Attach to a running system using GDB
 - [humility gimlet](#humility-gimlet): Gimlet-specific diagnostic commands
 - [humility gpio](#humility-gpio): GPIO pin manipulation
 - [humility hash](#humility-hash): Access to the HASH block
@@ -832,22 +831,6 @@ If the specified archive includes auxiliary flash data and the new image
 includes a task with the `AuxFlash` API, two slots of auxiliary flash
 will be programmed after the image is written.  See RFD 311 for more
 information about auxiliary flash management.
-
-
-### `humility gdb`
-
-This command launches GDB and attaches to a running device.
-
-By default, the user must be running `openocd` or `pyocd` in a separate
-terminal.
-
-The `--run-openocd` option automatically launches `openocd` based on the
-`openocd.cfg` file included in the build archive.
-
-When using `pyocd`, it must be launched with the `--persist` option,
-because `humility gdb` connects to it multiple times (once to check the
-app id, then again to run the console).
-
 
 
 ### `humility gimlet`

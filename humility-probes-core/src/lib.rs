@@ -12,7 +12,6 @@ use anyhow::{Result, anyhow, bail};
 use humility::hubris::HubrisArchive;
 use humility::msg;
 
-mod gdb;
 mod openocd;
 mod probe_rs;
 mod unattached;
@@ -131,7 +130,7 @@ pub fn attach_to_probe(
                 probe_info.serial_number,
             )))
         }
-        "ocd" | "ocdgdb" | "jlink" => {
+        "ocd" => {
             bail!("Probe only attachment with {} is not supported", probe)
         }
         "auto" => attach_to_probe("usb", speed_khz),
@@ -211,26 +210,9 @@ pub fn attach_to_chip(
                 return Ok(probe);
             }
 
-            if let Ok(probe) = attach_to_chip("jlink", chip, speed_khz) {
-                return Ok(probe);
-            }
-
             attach_to_chip("usb", chip, speed_khz)
         }
 
-        "ocdgdb" => {
-            let core = gdb::GDBCore::new(gdb::GDBServer::OpenOCD)?;
-            crate::msg!("attached via OpenOCD's GDB server");
-
-            Ok(Box::new(core))
-        }
-
-        "jlink" => {
-            let core = gdb::GDBCore::new(gdb::GDBServer::JLink)?;
-            crate::msg!("attached via JLink");
-
-            Ok(Box::new(core))
-        }
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
             Ok(selector) => {
                 let vidpid = probe;
