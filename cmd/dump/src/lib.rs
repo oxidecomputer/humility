@@ -514,7 +514,7 @@ fn dump_via_agent(
                     );
                 }
 
-                humpty::DumpLzss::decompress(
+                humpty::DumpLzss::decompress_stack(
                     lzss::SliceReader::new(&bytes[0..compressed]),
                     lzss::SliceWriter::new(&mut output),
                 )?;

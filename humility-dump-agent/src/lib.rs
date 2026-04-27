@@ -40,8 +40,8 @@ pub use hiffy::HiffyDumpAgent;
 pub use udp::UdpDumpAgent;
 
 fn parse_dump_header(buf: &[u8]) -> Result<(DumpAreaHeader, Option<DumpTask>)> {
-    let header = DumpAreaHeader::read_from_prefix(buf)
-        .ok_or_else(|| anyhow!("failed to parse dump area"))?;
+    let (header, _) = DumpAreaHeader::read_from_prefix(buf)
+        .map_err(|e| anyhow!("failed to parse dump area: {e}"))?;
 
     if header.magic != humpty::DUMP_MAGIC {
         bail!("bad magic at in dump area: {header:x?}");
@@ -272,7 +272,7 @@ impl DumpAgentCore {
                     let mut contents = vec![0; len];
                     let limit = offset + data.compressed_length as usize;
 
-                    humpty::DumpLzss::decompress(
+                    humpty::DumpLzss::decompress_stack(
                         lzss::SliceReader::new(&dump[offset..limit]),
                         lzss::SliceWriter::new(&mut contents),
                     )?;
@@ -479,8 +479,8 @@ pub trait DumpAgentExt {
         progress: &mut dyn FnMut(usize),
     ) -> Result<(DumpAreaHeader, Vec<u8>)> {
         let val = self.read_dump_area_start(index)?;
-        let header = DumpAreaHeader::read_from_prefix(val.as_slice())
-            .ok_or_else(|| anyhow!("failed to read parse header"))?;
+        let (header, _) = DumpAreaHeader::read_from_prefix(val.as_slice())
+            .map_err(|e| anyhow!("failed to read parse header: {e}"))?;
 
         if header.magic != humpty::DUMP_MAGIC {
             bail!("bad magic at dump offset {:#x}: {:x?}", index, header);
