@@ -1590,7 +1590,6 @@ dependencies = [
  "humility-cmd-exec",
  "humility-cmd-extract",
  "humility-cmd-flash",
- "humility-cmd-gdb",
  "humility-cmd-gimlet",
  "humility-cmd-gpio",
  "humility-cmd-hash",
@@ -1887,19 +1886,6 @@ dependencies = [
  "path-slash",
  "ron 0.12.1",
  "srec",
- "tempfile",
-]
-
-[[package]]
-name = "humility-cmd-gdb"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "ctrlc",
- "humility-cli",
- "humility-cmd",
- "humility-core",
  "tempfile",
 ]
 

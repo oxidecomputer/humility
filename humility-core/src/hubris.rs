@@ -1509,41 +1509,6 @@ impl HubrisArchive {
         Ok(())
     }
 
-    fn for_each_task<F: FnMut(&Path, &[u8]) -> Result<()>>(
-        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
-        mut f: F,
-    ) -> Result<()> {
-        use rayon::prelude::*;
-        let files = (0..archive.len())
-            .into_par_iter()
-            .map(|i| {
-                // ZipArchive is cheap to clone since the backing is cheap
-                let mut archive = archive.clone();
-                let mut file = archive.by_index(i)?;
-                let path = Path::new(file.name());
-                let pieces = path.iter().collect::<Vec<_>>();
-
-                //
-                // If the second-to-last element of our path is "task", we have
-                // a winner!
-                //
-                if pieces.len() < 2 || pieces[pieces.len() - 2] != "task" {
-                    return Ok(None);
-                }
-
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                Ok(Some((file.name().to_owned(), buffer)))
-            })
-            .filter_map(|f| f.transpose())
-            .collect::<Result<Vec<(String, Vec<u8>)>, anyhow::Error>>()?;
-
-        for (file_name, buffer) in files {
-            f(Path::new(&file_name), &buffer)?;
-        }
-        Ok(())
-    }
-
     fn merge(&mut self, loader: HubrisObjectLoader) -> Result<()> {
         if loader.imageid.is_some() {
             self.imageid = loader.imageid;
@@ -3659,23 +3624,6 @@ impl HubrisArchive {
         file.read_to_end(&mut buffer)?;
 
         std::fs::write(target, &buffer).map_err(Into::into)
-    }
-
-    /// Copies the kernel and every task ELF file to the given directory.
-    pub fn extract_elfs_to(&self, p: &Path) -> Result<()> {
-        self.extract_file_to("elf/kernel", &p.join("kernel"))?;
-
-        // `stage0` is only present in some cases, so we ignore errors here
-        let _ = self.extract_file_to("img/stage0", &p.join("stage0"));
-
-        let cursor = Cursor::new(self.archive.as_slice());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        Self::for_each_task(&mut archive, |path, buffer| {
-            let file_name = p.join(path.file_name().unwrap());
-            std::fs::write(file_name, buffer)?;
-            Ok(())
-        })?;
-        Ok(())
     }
 
     pub fn lookup_feature(&self, feature: &str) -> Result<Vec<HubrisTask>> {
