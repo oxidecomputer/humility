@@ -650,18 +650,18 @@ dependencies = [
 
 [[package]]
 name = "crc"
-version = "3.0.1"
+version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86ec7a15cbe22e59248fc7eadb1907dab5ba09372595da4d73dd805ed4417dfe"
+checksum = "5eb8a2a1cd12ab0d987a5d5e825195d372001a4094a0376319d5a0ad71c1ba0d"
 dependencies = [
  "crc-catalog",
 ]
 
 [[package]]
 name = "crc-catalog"
-version = "2.2.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cace84e55f07e7301bae1c519df89cdad8cc3cd868413d3fdbdeca9ff3db484"
+checksum = "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853"
 
 [[package]]
 name = "crc32fast"
@@ -4310,23 +4310,23 @@ dependencies = [
 
 [[package]]
 name = "tlvc"
-version = "0.2.0"
-source = "git+https://github.com/oxidecomputer/tlvc#533f0bf26b0a8f32d287af4f2ea09320bc05c2cd"
+version = "0.4.0"
+source = "git+https://github.com/oxidecomputer/tlvc#2f69360ddcb07ad6072cb720bb1fac9f58a2ddec"
 dependencies = [
- "byteorder",
  "crc",
- "zerocopy 0.6.6",
+ "zerocopy 0.8.48",
+ "zerocopy-derive 0.8.48",
 ]
 
 [[package]]
 name = "tlvc-text"
-version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/tlvc#533f0bf26b0a8f32d287af4f2ea09320bc05c2cd"
+version = "0.4.0"
+source = "git+https://github.com/oxidecomputer/tlvc#2f69360ddcb07ad6072cb720bb1fac9f58a2ddec"
 dependencies = [
  "ron 0.8.0",
  "serde",
  "tlvc",
- "zerocopy 0.6.6",
+ "zerocopy 0.8.48",
 ]
 
 [[package]]
