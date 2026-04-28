@@ -12,9 +12,8 @@ use ::idol::syntax::send::{AttributedTy, Operation, RecvStrategy, Reply};
 use anyhow::{Context, Result, anyhow, bail};
 use hubpack::SerializedSize;
 use humility::hubris::*;
-use indexmap::IndexMap;
 use serde::Serialize;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 pub struct IdolOperation<'a> {
     hubris: &'a HubrisArchive,
@@ -86,7 +85,7 @@ impl<'a> IdolOperation<'a> {
         let hubris = self.hubris;
         let module = hubris.lookup_module(self.task)?;
 
-        let mut map: IndexMap<_, _> =
+        let mut map: HashMap<_, _> =
             args.iter().map(|arg| (arg.0, &arg.1)).collect();
 
         let mut payload = Vec::new();

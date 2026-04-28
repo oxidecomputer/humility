@@ -2553,7 +2553,6 @@ dependencies = [
  "hubpack",
  "humility-core",
  "idol",
- "indexmap 1.9.3",
  "parse_int",
  "serde",
 ]

@@ -7,7 +7,6 @@ edition.workspace = true
 anyhow.workspace = true
 hubpack.workspace = true
 idol.workspace = true
-indexmap.workspace = true
 parse_int.workspace = true
 serde.workspace = true
 
