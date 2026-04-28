@@ -430,7 +430,7 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     let bar = ProgressBar::new(bytes.len() as u64);
     bar.set_style(
         ProgressStyle::default_bar()
-            .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}"),
+            .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}")?,
     );
 
     while offs < bytes.len() {

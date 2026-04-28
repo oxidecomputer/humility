@@ -218,7 +218,7 @@ hex = "0.4.3"
 hubpack = "0.1.1"
 ihex = "3.0"
 indexmap = { version = "2.14.0", features = ["serde"] }
-indicatif = "0.15"
+indicatif = "0.18"
 itertools = "0.14.0"
 jep106 = "0.3"
 lazy_static = "1.4.0"

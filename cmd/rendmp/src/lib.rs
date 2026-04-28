@@ -2658,7 +2658,7 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         bar.set_style(
             ProgressStyle::default_bar().template(
                 "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
-            ),
+            )?,
         );
 
         let mut start = 0;
@@ -2829,9 +2829,8 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
         humility::msg!("dumping device memory to {filename}");
 
         bar.set_style(ProgressStyle::default_bar().template(
-            "humility: dumping device memory \
-                          [{bar:30}] {bytes}/{total_bytes}",
-        ));
+            "humility: dumping device memory [{bar:30}] {bytes}/{total_bytes}",
+        )?);
 
         for lap in 0..laps {
             let mut ops = base.clone();

@@ -230,6 +230,10 @@ impl Core for ProbeCore {
             Rc::new(RefCell::new(LoadProgress { ..Default::default() }));
 
         let bar = ProgressBar::new(0);
+        let erase_style = ProgressStyle::default_bar()
+            .template("humility: erasing [{bar:30}] {bytes}/{total_bytes}")?;
+        let flash_style = ProgressStyle::default_bar()
+            .template("humility: flashing [{bar:30}] {bytes}/{total_bytes}")?;
         let progress = flashing::FlashProgress::new(move |event| match event {
             flashing::ProgressEvent::Initialized { flash_layout } => {
                 progress.borrow_mut().total_erase = flash_layout
@@ -244,9 +248,7 @@ impl Core for ProbeCore {
                     .map(|s| s.size() as usize)
                     .sum();
 
-                bar.set_style(ProgressStyle::default_bar().template(
-                    "humility: erasing [{bar:30}] {bytes}/{total_bytes}",
-                ));
+                bar.set_style(erase_style.clone());
                 bar.set_length(progress.borrow().total_erase as u64);
             }
 
@@ -260,9 +262,7 @@ impl Core for ProbeCore {
 
                 if progress.written == 0 {
                     progress.erased = progress.total_erase;
-                    bar.set_style(ProgressStyle::default_bar().template(
-                        "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
-                    ));
+                    bar.set_style(flash_style.clone());
                     bar.set_length(progress.total_write as u64);
                 }
 

@@ -409,7 +409,7 @@ fn vpd_write(
         "humility: erasing VPD [{bar:30}] {bytes}/{total_bytes}"
     } else {
         "humility: writing VPD [{bar:30}] {bytes}/{total_bytes}"
-    }));
+    })?);
 
     for chunk in all_ops.chunks(nops) {
         let mut ops = chunk.iter().flatten().copied().collect::<Vec<Op>>();

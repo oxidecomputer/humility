@@ -516,7 +516,7 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
         bar.set_style(
             ProgressStyle::default_bar().template(
                 "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
-            ),
+            )?,
         );
 
         let base = ops;
