@@ -31,7 +31,7 @@ use anyhow::{Result, anyhow};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
@@ -296,9 +296,8 @@ fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
 #[rustfmt::skip::macros(format)]
 fn stmsecure(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
-    let subargs = StmSecureArgs::try_parse_from(subargs)?;
+    let subargs = StmSecureArgs::try_parse_from(&context.cli.cmd)?;
 
     match subargs {
         StmSecureArgs::Status => stmsecure_status(core),

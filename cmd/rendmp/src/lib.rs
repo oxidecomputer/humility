@@ -145,7 +145,7 @@
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
 use humility::warn;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -2307,12 +2307,11 @@ fn restore_default_config<'a>(
 }
 
 fn rendmp(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
 
     let core = &mut **context.core.as_mut().unwrap();
 
-    let subargs = RendmpArgs::try_parse_from(subargs)?;
+    let subargs = RendmpArgs::try_parse_from(&context.cli.cmd)?;
 
     // Workaround for clap#4707
     if subargs.flash.is_none() {

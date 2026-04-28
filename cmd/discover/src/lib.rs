@@ -40,11 +40,11 @@ use std::net::{IpAddr, Ipv6Addr, UdpSocket};
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, bail};
-use clap::{ArgGroup, IntoApp, Parser};
+use clap::{ArgGroup, CommandFactory, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
 use humility::net::decode_iface;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use serde::{Deserialize, Serialize};
 
@@ -312,8 +312,7 @@ fn discover_dump(seen: BTreeSet<Target>, image_id: Option<&[u8]>) {
 }
 
 fn discover_run(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = DiscoverArgs::try_parse_from(subargs)?;
+    let subargs = DiscoverArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
 
     let image_id = hubris.image_id();

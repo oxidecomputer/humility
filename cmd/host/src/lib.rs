@@ -105,7 +105,7 @@ use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel as doppel;
 use humility_hiffy::HiffyContext;
@@ -467,8 +467,7 @@ fn host_last_post_code(
 }
 
 fn host(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = HostArgs::try_parse_from(subargs)?;
+    let subargs = HostArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
 

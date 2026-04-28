@@ -171,7 +171,7 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -1067,9 +1067,8 @@ fn monorail_counters(
 
 fn monorail(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
-    let subargs = MonorailArgs::try_parse_from(subargs)?;
+    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
@@ -1148,10 +1147,9 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
 }
 
 fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     assert!(!hubris.loaded());
-    let subargs = MonorailArgs::try_parse_from(subargs)?;
+    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
     match subargs.cmd {
         Command::Info { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;

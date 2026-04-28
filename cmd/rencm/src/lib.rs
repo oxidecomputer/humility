@@ -10,7 +10,7 @@
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{
     Archive, Attach, Command, CommandKind, Dumper, Validate, attach,
 };
@@ -794,8 +794,7 @@ fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
 }
 
 fn rencm(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = RencmArgs::try_parse_from(subargs)?;
+    let subargs = RencmArgs::try_parse_from(&context.cli.cmd)?;
     let modules = modules();
 
     if subargs.ingest.is_some() {

@@ -12,7 +12,7 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 
 use humility_auxflash::AuxFlashHandler;
@@ -100,8 +100,7 @@ fn auxflash_status(mut worker: AuxFlashHandler, verbose: bool) -> Result<()> {
 
 fn auxflash(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = AuxFlashArgs::try_parse_from(subargs)?;
+    let subargs = AuxFlashArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
     let mut worker = AuxFlashHandler::new(hubris, core, subargs.timeout)?;
 

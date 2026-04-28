@@ -9,7 +9,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -21,8 +21,7 @@ struct Args {
 }
 
 fn lsusb(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let _subargs = Args::try_parse_from(subargs)?;
+    let _subargs = Args::try_parse_from(&context.cli.cmd)?;
     let mut targets = if let Some(ref env) = context.cli.environment {
         humility_cli::env::Environment::read(env)
             .with_context(|| {

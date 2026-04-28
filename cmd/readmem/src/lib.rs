@@ -118,7 +118,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use std::convert::TryInto;
 use std::io::Write;
@@ -168,10 +168,9 @@ struct ReadmemArgs {
 
 fn readmem(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = ReadmemArgs::try_parse_from(subargs)?;
+    let subargs = ReadmemArgs::try_parse_from(&context.cli.cmd)?;
     let max = humility::core::CORE_MAX_READSIZE;
     let size = if subargs.word || subargs.symbol {
         4

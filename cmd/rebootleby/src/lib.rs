@@ -14,7 +14,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use std::io::Read;
 use std::ops::RangeInclusive;
@@ -33,8 +33,7 @@ struct Rebootleby {
 }
 
 fn rebootleby(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = Rebootleby::try_parse_from(subargs)?;
+    let subargs = Rebootleby::try_parse_from(&context.cli.cmd)?;
 
     // Load bundle
     let bundle_reader = std::fs::File::open(&subargs.path)

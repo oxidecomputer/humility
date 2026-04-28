@@ -31,7 +31,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
     DebugProbeError, DebugProbeSelector, Probe,
@@ -266,8 +266,7 @@ fn read_return<'a>(
 }
 
 fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = DebugMailboxArgs::try_parse_from(subargs)?;
+    let subargs = DebugMailboxArgs::try_parse_from(&context.cli.cmd)?;
 
     // Get a list of all available debug probes.
     let probes = Probe::list_all();

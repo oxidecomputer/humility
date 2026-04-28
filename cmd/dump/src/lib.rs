@@ -70,7 +70,7 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, DumpBreakdown,
@@ -856,10 +856,9 @@ fn dump_agent_status(
 
 fn dumpcmd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = DumpArgs::try_parse_from(subargs)?;
+    let subargs = DumpArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.force_dump_agent && core.is_net() {
         bail!("can only force the dump agent when attached via debug probe");

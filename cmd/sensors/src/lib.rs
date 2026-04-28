@@ -30,7 +30,7 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel as doppel;
 use humility_hiffy::*;
@@ -533,10 +533,9 @@ fn print(
 
 fn sensors(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = SensorsArgs::try_parse_from(subargs)?;
+    let subargs = SensorsArgs::try_parse_from(&context.cli.cmd)?;
 
     let types = if let Some(ref types) = subargs.types {
         let mut rval = HashSet::new();

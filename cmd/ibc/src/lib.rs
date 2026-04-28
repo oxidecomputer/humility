@@ -103,7 +103,7 @@
 use anyhow::{Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 use humility_idol::{self as idol, HubrisIdol};
 use zerocopy::{
@@ -516,8 +516,7 @@ struct IbcEvent {
 
 fn ibc(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = IbcArgs::try_parse_from(subargs)?;
+    let subargs = IbcArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
     let mut worker = IbcHandler::new(hubris, core, subargs.timeout)?;
 

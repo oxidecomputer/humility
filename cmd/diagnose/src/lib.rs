@@ -18,7 +18,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
@@ -84,10 +84,9 @@ fn section(title: &str) {
 
 fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = DiagnoseArgs::try_parse_from(subargs)?;
+    let subargs = DiagnoseArgs::try_parse_from(&context.cli.cmd)?;
 
     section("Initial Inspection");
 

@@ -5,7 +5,7 @@
 pub mod env;
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgGroup, ArgMatches, Parser, ValueSource};
+use clap::{ArgGroup, ArgMatches, Parser, parser::ValueSource};
 use env::Environment;
 use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
 
@@ -110,8 +110,9 @@ pub struct Cli {
     )]
     pub list_targets: bool,
 
-    #[clap(subcommand)]
-    pub cmd: Option<Subcommand>,
+    /// Subcommand to execute
+    #[clap(allow_hyphen_values = true)]
+    pub cmd: Vec<String>,
 }
 
 impl Cli {
@@ -161,12 +162,6 @@ impl Cli {
             None => Ok(subargs_serial.map(|s| s.to_owned())),
         }
     }
-}
-
-#[derive(Parser, Debug, Clone)]
-pub enum Subcommand {
-    #[clap(external_subcommand)]
-    Other(Vec<String>),
 }
 
 pub struct ExecutionContext {
@@ -318,7 +313,7 @@ impl ExecutionContext {
             _ => None,
         };
 
-        if cli.cmd.is_none() {
+        if cli.cmd.is_empty() {
             eprintln!("humility failed: subcommand expected (--help to list)");
             std::process::exit(1);
         }

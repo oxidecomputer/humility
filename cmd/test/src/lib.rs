@@ -95,7 +95,7 @@ use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_hiffy::*;
@@ -164,10 +164,9 @@ impl fmt::Display for TestResult {
 
 fn test(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = TestArgs::try_parse_from(subargs)?;
+    let subargs = TestArgs::try_parse_from(&context.cli.cmd)?;
 
     hubris.validate(core, HubrisValidate::Booted)?;
 

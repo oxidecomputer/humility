@@ -17,9 +17,9 @@ use std::net::{SocketAddrV6, UdpSocket};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgGroup, IntoApp, Parser};
+use clap::{ArgGroup, CommandFactory, Parser};
 use humility::net::ScopedV6Addr;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind, Dumper};
 
 /// This is defined in the gimlet TOML.
@@ -113,8 +113,7 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
                 "the `--ip <IP>` argument is required with `humility gimlet`"
             )
         })?;
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = Args::try_parse_from(subargs)?;
+    let subargs = Args::try_parse_from(&context.cli.cmd)?;
 
     let mut client =
         Client::new(ip, subargs.port, Duration::from_millis(subargs.timeout))?;

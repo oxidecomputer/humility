@@ -49,7 +49,7 @@
 
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
@@ -66,9 +66,8 @@ struct WritewordArgs {
 
 fn writeword(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
-    let subargs = WritewordArgs::try_parse_from(subargs)?;
+    let subargs = WritewordArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.address & 0b11 != 0 {
         bail!("address must be word aligned");

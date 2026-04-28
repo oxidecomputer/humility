@@ -107,7 +107,7 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -331,11 +331,10 @@ fn set_page(
 }
 
 fn spd(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
 
-    let subargs = SpdArgs::try_parse_from(subargs)?;
+    let subargs = SpdArgs::try_parse_from(&context.cli.cmd)?;
 
     // If we have been given no device-related arguments, we will attempt
     // to find the `SPD_DATA` variable or load SPD data from packrat

@@ -108,7 +108,7 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 use humility_hiffy::*;
@@ -729,8 +729,7 @@ fn vpd_lock_all(
 
 fn vpd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = VpdArgs::try_parse_from(subargs)?;
+    let subargs = VpdArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {

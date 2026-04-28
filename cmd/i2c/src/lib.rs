@@ -93,7 +93,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_log::msg;
@@ -425,10 +425,9 @@ fn i2c_done(
 
 fn i2c(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = I2cArgs::try_parse_from(subargs)?;
+    let subargs = I2cArgs::try_parse_from(&context.cli.cmd)?;
 
     if !subargs.scan
         && subargs.scanreg.is_none()

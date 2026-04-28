@@ -18,10 +18,10 @@
 //! lowest available value); use `--out` to specify a different path name.
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{ArgGroup, IntoApp, Parser};
+use clap::{ArgGroup, CommandFactory, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use humility_log::msg;
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
@@ -109,8 +109,7 @@ impl humility::core::Core for DryCore {
 }
 
 fn run(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = Args::try_parse_from(subargs)?;
+    let subargs = Args::try_parse_from(&context.cli.cmd)?;
     let f = std::fs::File::open(&subargs.file)?;
     let mut z = zip::ZipArchive::new(f)?;
 

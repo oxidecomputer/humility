@@ -7,7 +7,6 @@ use std::ffi::OsString;
 
 use clap::ArgMatches;
 use humility_cli::Cli;
-use humility_cli::Subcommand;
 use humility_cmd::Command;
 
 use anyhow::Result;
@@ -38,13 +37,8 @@ fn main() -> Result<()> {
 
     env_logger::init_from_env(env);
 
-    // stash this away in case we fail
-    let subcmd = match args.cmd.as_ref().unwrap() {
-        Subcommand::Other(v) => v[0].clone(),
-    };
-
     if let Err(err) = cmd::subcommand(&mut context, &commands) {
-        eprintln!("humility {} failed: {:?}", subcmd, err);
+        eprintln!("humility {} failed: {:?}", args.cmd[0], err);
         std::process::exit(1);
     }
 

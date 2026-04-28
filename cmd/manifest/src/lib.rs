@@ -44,7 +44,7 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashSet;
 
@@ -60,9 +60,8 @@ struct ManifestArgs {
 fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
     let manifest = &hubris.manifest;
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
-    let subargs = ManifestArgs::try_parse_from(subargs)?;
+    let subargs = ManifestArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.json {
         println!("{}", serde_json::to_string(manifest)?);

@@ -19,7 +19,7 @@
 
 use std::process::{Command, Stdio};
 
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command as HumilityCmd, CommandKind};
 
 use anyhow::{Context, Result, bail};
@@ -52,14 +52,13 @@ struct GdbArgs {
 }
 
 fn gdb(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
     if context.cli.probe.is_some() {
         bail!("Cannot specify --probe with `gdb` subcommand");
     }
 
-    let subargs = GdbArgs::try_parse_from(subargs)?;
+    let subargs = GdbArgs::try_parse_from(&context.cli.cmd)?;
     let serial = context.cli.get_probe_serial(subargs.serial.as_deref())?;
 
     let work_dir = tempfile::tempdir()?;
