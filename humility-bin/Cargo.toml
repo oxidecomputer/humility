@@ -92,7 +92,6 @@ cmd-validate = { workspace = true }
 cmd-vpd = { workspace = true }
 cmd-writeword = { workspace = true }
 
-fallible-iterator = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
 bitfield = { workspace = true }
