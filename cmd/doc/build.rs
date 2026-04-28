@@ -56,17 +56,22 @@ fn cmd_docs(lookup: &str) -> Option<&'static str> {{
     for (cmd, (_, path)) in &cmds {
         println!(
             "cargo:rerun-if-changed={}",
-            path.parent().unwrap().join("src/lib.rs").display()
+            path.parent().unwrap().join("src/lib.rs")
         );
 
         let cmd_path = path.parent().unwrap();
         let mut lib_path = cmd_path.join("src");
         lib_path.push("lib.rs");
-        let mut file = File::open(&lib_path).with_context(|| {
-            format!("failed to open {}", lib_path.display())
-        })?;
+        let mut file = File::open(&lib_path)
+            .with_context(|| format!("failed to open {lib_path}"))?;
         let contents = cargo_readme::generate_readme(
-            cmd_path, &mut file, None, false, true, true, true,
+            cmd_path.as_std_path(),
+            &mut file,
+            None,
+            false,
+            true,
+            true,
+            true,
         )
         .map_err(|error| {
             anyhow!("failed to generate README for {cmd}: {error}")
@@ -110,7 +115,7 @@ fn docs() -> &'static str {{
     )?;
 
     let root = metadata.workspace_root;
-    println!("cargo:rerun-if-changed={}", root.join("README.md.in").display());
+    println!("cargo:rerun-if-changed={}", root.join("README.md.in"));
     let input = std::fs::read(root.join("README.md.in"))?;
 
     output.write_all(&input)?;

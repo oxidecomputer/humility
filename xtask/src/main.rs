@@ -72,11 +72,16 @@ fn make_readme() -> Result<()> {
         let cmd_path = path.parent().unwrap();
         let mut lib_path = cmd_path.join("src");
         lib_path.push("lib.rs");
-        let mut file = std::fs::File::open(&lib_path).with_context(|| {
-            format!("failed to open {}", lib_path.display())
-        })?;
+        let mut file = std::fs::File::open(&lib_path)
+            .with_context(|| format!("failed to open {lib_path}"))?;
         let contents = cargo_readme::generate_readme(
-            cmd_path, &mut file, None, false, true, true, true,
+            cmd_path.as_std_path(),
+            &mut file,
+            None,
+            false,
+            true,
+            true,
+            true,
         )
         .map_err(|error| {
             anyhow::anyhow!("failed to generate README for {cmd}: {error}")
