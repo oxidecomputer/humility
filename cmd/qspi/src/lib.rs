@@ -111,7 +111,7 @@ struct QspiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 30000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -148,14 +148,14 @@ struct QspiArgs {
 
     /// specify flash address in bytes
     #[clap(long, short, value_name = "address",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<usize>,
         conflicts_with("writefile"),
     )]
     addr: Option<usize>,
 
     /// specify size in bytes
     #[clap(long, short, value_name = "nbytes",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<usize>,
     )]
     nbytes: Option<usize>,
 

@@ -56,11 +56,11 @@ use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 #[clap(name = "writeword", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct WritewordArgs {
     /// address to write to
-    #[clap(parse(try_from_str = parse_int::parse))]
+    #[clap(value_parser = parse_int::parse::<u32>,)]
     address: u32,
 
     /// value(s) to write
-    #[clap(parse(try_from_str = parse_int::parse))]
+    #[clap(value_parser = parse_int::parse::<u32>)]
     value: Vec<u32>,
 }
 

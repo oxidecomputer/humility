@@ -189,7 +189,7 @@ struct MonorailArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -214,7 +214,7 @@ enum Command {
     /// Get info about a particular VSC7448 register
     Info {
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         value: Option<u32>,
     },
     /// Print a table showing port status
@@ -239,7 +239,7 @@ enum Command {
     /// Write to a VSC7448 register
     Write {
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         value: u32,
     },
     /// Subcommand to control PHYs
@@ -264,7 +264,7 @@ enum PhyCommand {
         #[clap(long, short)]
         port: u8,
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u16>)]
         value: u16,
     },
     /// Dumps all PHY registers on the given port

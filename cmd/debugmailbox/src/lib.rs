@@ -95,7 +95,7 @@ enum DebugMailboxCmd {
         /// Debug credential key name (try `permslip list-keys -t`)
         key_name: String,
         /// Authentication beacon (UM11126 §51.7)
-        #[clap(long, default_value_t = 0, parse(try_from_str = parse_int::parse))]
+        #[clap(long, default_value_t = 0, value_parser = parse_int::parse::<u16>)]
         beacon: u16,
         /// Use ssh-agent to authenticate to permslip
         #[clap(long)]

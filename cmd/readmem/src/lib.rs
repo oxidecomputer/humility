@@ -130,10 +130,8 @@ use std::path::PathBuf;
 // those who yearn to express themselves in terms of octal multiples of
 // kibibytes!
 //
-fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
-    if let Ok(s) = std::str::from_utf8(src.as_ref())
-        && let Ok(rval) = parse_int::parse::<u64>(s)
-    {
+fn parse_size(src: &str) -> Result<u64, parse_size::Error> {
+    if let Ok(rval) = parse_int::parse::<u64>(src) {
         return Ok(rval);
     }
 
@@ -164,7 +162,7 @@ struct ReadmemArgs {
     address: String,
 
     /// length to read
-    #[clap(parse(try_from_str = parse_size))]
+    #[clap(value_parser = parse_size)]
     length: Option<u64>,
 }
 

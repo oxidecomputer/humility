@@ -68,7 +68,7 @@ struct FlashArgs {
     #[clap(
         long = "reset-delay", short = 'd',
         default_value_t = 100, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u64>
     )]
     reset_delay: u64,
 

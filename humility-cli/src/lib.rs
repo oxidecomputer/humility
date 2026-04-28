@@ -5,16 +5,16 @@
 pub mod env;
 
 use anyhow::{Context, Result, bail};
-use clap::{AppSettings, ArgGroup, ArgMatches, Parser};
+use clap::{ArgGroup, ArgMatches, Parser, ValueSource};
 use env::Environment;
 use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
 
 #[derive(Parser, Debug, Clone)]
 #[clap(
     name = "humility", max_term_width = 80,
-    group = ArgGroup::new("hubris").multiple(false)
+    group = ArgGroup::new("hubris").multiple(false),
+    disable_version_flag = true,
 )]
-#[clap(global_setting(AppSettings::NoAutoVersion))]
 pub struct Cli {
     /// verbose messages
     #[clap(long, short)]
@@ -27,7 +27,7 @@ pub struct Cli {
     /// sets timeout for Hubris-related operations
     #[clap(
         long, default_value_t = 2000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     pub timeout: u32,
 
@@ -248,7 +248,9 @@ impl ExecutionContext {
                 // what is going on.
                 //
                 if cli.archive.is_some() {
-                    let msg = if m.occurrences_of("archive") == 1 {
+                    let msg = if m.value_source("archive")
+                        == Some(ValueSource::CommandLine)
+                    {
                         "archive on command-line"
                     } else {
                         "archive in environment variable"
@@ -330,8 +332,8 @@ impl ExecutionContext {
         //
         if cli.dump.is_some() && cli.archive.is_some() {
             match (
-                m.occurrences_of("dump") == 1,
-                m.occurrences_of("archive") == 1,
+                m.value_source("dump") == Some(ValueSource::CommandLine),
+                m.value_source("archive") == Some(ValueSource::CommandLine),
             ) {
                 (true, true) => {
                     msg!("cannot specify both a dump and an archive");
@@ -341,8 +343,8 @@ impl ExecutionContext {
                 (false, false) => {
                     msg!(
                         "both dump and archive have been set via environment \
-                    variables; unset one of them, or use a command-line option \
-                    to override"
+                        variables; unset one of them, or use a command-line \
+                        option to override"
                     );
                     std::process::exit(1);
                 }

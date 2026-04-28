@@ -38,7 +38,6 @@ use std::{collections::HashSet, convert::TryInto};
 #[clap(name = "stackmargin", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct StackmarginArgs {
     /// Tasks to check (leave empty to check all tasks)
-    #[clap(multiple_occurrences = true)]
     tasks: Vec<String>,
 }
 

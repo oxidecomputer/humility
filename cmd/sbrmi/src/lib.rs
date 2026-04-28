@@ -115,13 +115,13 @@ struct SbrmiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
     /// thread to operate upon
     #[clap(
-        long, short, parse(try_from_str = parse_int::parse),
+        long, short, value_parser = parse_int::parse::<u8>,
         requires = "command",
     )]
     thread: Option<u8>,

@@ -34,7 +34,7 @@ struct Args {
     /// How long to wait for a response from the target, in milliseconds.
     #[clap(
         long, short = 'T', default_value_t = 2000, value_name = "ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u64>
     )]
     timeout: u64,
 
