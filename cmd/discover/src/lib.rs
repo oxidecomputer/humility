@@ -257,7 +257,7 @@ fn discover_listen(discover_args: &DiscoverArgs) -> Result<BTreeSet<Target>> {
         let port = ports[i];
         match t.join().unwrap() {
             Ok(out) => {
-                seen.extend(out.into_iter());
+                seen.extend(out);
             }
             Err(e) => {
                 humility::warn!("thread for port {port} failed: {e:?}");

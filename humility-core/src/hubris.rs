@@ -1339,7 +1339,7 @@ impl HubrisArchive {
                     .unwrap()
                     .features
                     .get_or_insert_with(Default::default)
-                    .extend(features.into_iter());
+                    .extend(features);
             }
         }
 

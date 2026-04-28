@@ -209,7 +209,7 @@ impl DumpAgent for HiffyDumpAgent<'_> {
 
             // Check the results
             let results = self.run(&ops)?;
-            for (r, (index, offset)) in results.iter().zip(pos.into_iter()) {
+            for (r, (index, offset)) in results.iter().zip(pos) {
                 match r {
                     Ok(val) => {
                         if !cont(index, offset, val)? {

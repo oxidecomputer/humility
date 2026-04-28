@@ -641,7 +641,7 @@ pub trait DumpAgentExt {
                     bar.set_position(count as u64);
                 }
             })?;
-            contents.extend(data.into_iter());
+            contents.extend(data);
         }
 
         if let Some(bar) = &bar {
