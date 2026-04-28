@@ -92,7 +92,7 @@ rust-version = "1.89" # if this changes, edit ci.yaml as well!
 gimlet-inspector-protocol = { git = "https://github.com/oxidecomputer/gimlet-inspector-protocol" }
 hif = { git = "https://github.com/oxidecomputer/hif" }
 humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.3" }
-idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+idol = {git = "https://github.com/oxidecomputer/idolatry.git" }
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }
 ipcc-data = { git = "https://github.com/oxidecomputer/ipcc-rs" }
 measurement-token = { git = "https://github.com/oxidecomputer/lpc55_support", default-features = false }
