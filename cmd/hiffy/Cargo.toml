@@ -6,7 +6,6 @@ description = "manipulate HIF execution"
 
 [dependencies]
 anyhow.workspace = true
-atty.workspace = true
 clap.workspace = true
 indexmap.workspace = true
 parse_int.workspace = true
