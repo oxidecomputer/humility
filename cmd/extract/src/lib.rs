@@ -155,7 +155,9 @@ struct ExtractArgs {
 
 fn extract(context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.archive.as_ref().unwrap();
-    let archive = hubris.archive();
+    // We purposely use the raw bytes instead of loading the
+    // hubris archive because it dramatically increases CI testing time
+    let archive = hubris.raw_bytes();
     let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let subargs = ExtractArgs::try_parse_from(subargs)?;
 
