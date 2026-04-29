@@ -54,6 +54,7 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_idol as idol;
+use std::io::IsTerminal;
 use std::io::Read;
 
 #[derive(Parser, Debug)]
@@ -273,7 +274,7 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
         } else if op.operation.leases.len() == 1
             && op.operation.leases[0].read
             && !op.operation.leases[0].write
-            && atty::isnt(atty::Stream::Stdin)
+            && !std::io::stdin().is_terminal()
         {
             let mut v = vec![];
             std::io::stdin().read_to_end(&mut v)?;
