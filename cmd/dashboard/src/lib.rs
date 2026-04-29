@@ -678,7 +678,10 @@ fn run_dashboard<B: Backend>(
     terminal: &mut Terminal<B>,
     mut dashboard: Dashboard,
     core: &mut dyn Core,
-) -> Result<()> {
+) -> Result<()>
+where
+    <B as ratatui::backend::Backend>::Error: Send + Sync + 'static,
+{
     let mut last_tick = Instant::now();
     let tick_rate = Duration::from_millis(100);
 
@@ -914,7 +917,7 @@ fn pwm_ops(
     Ok(ops)
 }
 
-fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
+fn draw_graph(f: &mut Frame, parent: Rect, graph: &mut Graph) {
     //
     // We want the right panel to be 30 characters wide (a left-justified 20
     // and a right justified 8 + margins), but we don't want it to consume
@@ -953,7 +956,7 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
 
         datasets.push(
             Dataset::default()
-                .name(&s.name)
+                .name(s.name.as_str())
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(s.color))
                 .data(&s.data),
@@ -1031,11 +1034,7 @@ fn draw_graph<B: Backend>(f: &mut Frame<B>, parent: Rect, graph: &mut Graph) {
     f.render_stateful_widget(list, chunks[1], &mut graph.legend.state);
 }
 
-fn draw_graphs<B: Backend>(
-    f: &mut Frame<B>,
-    parent: Rect,
-    dashboard: &mut Dashboard,
-) {
+fn draw_graphs(f: &mut Frame, parent: Rect, dashboard: &mut Dashboard) {
     let screen = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -1053,11 +1052,7 @@ fn draw_graphs<B: Backend>(
     draw_graph(f, screen[2], &mut dashboard.graphs[2]);
 }
 
-fn draw_status<B: Backend>(
-    f: &mut Frame<B>,
-    parent: Rect,
-    status: &[(&str, &str)],
-) {
+fn draw_status(f: &mut Frame, parent: Rect, status: &[(&str, &str)]) {
     let mut bar = vec![];
 
     for i in 0..status.len() {
@@ -1089,8 +1084,8 @@ fn draw_status<B: Backend>(
     f.render_widget(para, parent);
 }
 
-fn draw<B: Backend>(f: &mut Frame<B>, dashboard: &mut Dashboard) {
-    let size = f.size();
+fn draw(f: &mut Frame, dashboard: &mut Dashboard) {
+    let size = f.area();
 
     let screen = Layout::default()
         .direction(Direction::Vertical)
