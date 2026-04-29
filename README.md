@@ -261,7 +261,6 @@ a specified target.  (In the above example, one could execute `humility
 - [humility monorail](#humility-monorail): Management network control and debugging
 - [humility mwocp](#humility-mwocp): Murata power shelf operations
 - [humility net](#humility-net): Management network device-side control and debugging
-- [humility openocd](#humility-openocd): Run OpenOCD for the given archive
 - [humility pmbus](#humility-pmbus): scan for and read PMBus devices
 - [humility power](#humility-power): show power-related information
 - [humility powershelf](#humility-powershelf): inspect powershelf over the management network
@@ -813,19 +812,6 @@ to verify that all of the program text in the image is on the device
 by specifying `-V` (`--verify`).  Similarly, if one wishes to *only*
 check the image against the archive (and not flash at all), specify
 `-C` (`--check`).
-
-This attempts to natively flash the part within Humility using probe-rs,
-but for some parts or configurations, it may need to use OpenOCD as a
-child process to flash it.  If OpenOCD is required but not installed (or
-isn't in the path), this will fail.  If OpenOCD is used, temporary files
-are created as part of this process; if they are to be retained, the `-R`
-(`--retain-temporaries`) flag should be set.  To see what would be
-executed without actually executing any commands, use the `-n`
-(`--dry-run`) flag.  Should use of OpenOCD need to be forced (that is,
-should probe-rs flashing fail), the `-O` (`--force-openocd`) flag can be
-used.  That said, OpenOCD should generally be discouraged; the disposition
-is to extend probe-rs to support any parts that must be flashed via
-OpenOCD.
 
 If the specified archive includes auxiliary flash data and the new image
 includes a task with the `AuxFlash` API, two slots of auxiliary flash
@@ -1828,15 +1814,6 @@ This subcommand shows the internal counters on the management network links.
 It is only functional on the fully supported boards listed above.  In
 addition, the MAC-side counters are only supported on the VSC8562, not the
 VSC8552; this is indicated with `--` in the relevant table positions.
-
-
-### `humility openocd`
-
-This command launches OpenOCD based on the config file in a build archive,
-which then allows one to connect with either GDB or directly via telnet.
-If the intention is to only run GDB, note that `humility gdb --run-openocd`
-will both run OpenOCD and run a foreground GDB that is connected to it.
-
 
 
 ### `humility pmbus`

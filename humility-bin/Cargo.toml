@@ -64,7 +64,6 @@ cmd-map = { workspace = true }
 cmd-monorail = { workspace = true }
 cmd-mwocp = { workspace = true }
 cmd-net = { workspace = true }
-cmd-openocd = { workspace = true }
 cmd-pmbus = { workspace = true }
 cmd-power = { workspace = true }
 cmd-powershelf = { workspace = true }
