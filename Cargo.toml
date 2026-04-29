@@ -53,7 +53,6 @@ members = [
     "cmd/monorail",
     "cmd/mwocp",
     "cmd/net",
-    "cmd/openocd",
     "cmd/pmbus",
     "cmd/power",
     "cmd/probe",
@@ -159,7 +158,6 @@ cmd-map = { path = "./cmd/map", package = "humility-cmd-map" }
 cmd-monorail = { path = "./cmd/monorail", package = "humility-cmd-monorail" }
 cmd-mwocp = { path = "./cmd/mwocp", package = "humility-cmd-mwocp" }
 cmd-net = { path = "./cmd/net", package = "humility-cmd-net" }
-cmd-openocd = { path = "./cmd/openocd", package = "humility-cmd-openocd" }
 cmd-pmbus = { path = "./cmd/pmbus", package = "humility-cmd-pmbus" }
 cmd-power = { path = "./cmd/power", package = "humility-cmd-power" }
 cmd-powershelf = { path = "./cmd/powershelf", package = "humility-cmd-powershelf" }

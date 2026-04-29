@@ -14,19 +14,6 @@
 //! check the image against the archive (and not flash at all), specify
 //! `-C` (`--check`).
 //!
-//! This attempts to natively flash the part within Humility using probe-rs,
-//! but for some parts or configurations, it may need to use OpenOCD as a
-//! child process to flash it.  If OpenOCD is required but not installed (or
-//! isn't in the path), this will fail.  If OpenOCD is used, temporary files
-//! are created as part of this process; if they are to be retained, the `-R`
-//! (`--retain-temporaries`) flag should be set.  To see what would be
-//! executed without actually executing any commands, use the `-n`
-//! (`--dry-run`) flag.  Should use of OpenOCD need to be forced (that is,
-//! should probe-rs flashing fail), the `-O` (`--force-openocd`) flag can be
-//! used.  That said, OpenOCD should generally be discouraged; the disposition
-//! is to extend probe-rs to support any parts that must be flashed via
-//! OpenOCD.
-//!
 //! If the specified archive includes auxiliary flash data and the new image
 //! includes a task with the `AuxFlash` API, two slots of auxiliary flash
 //! will be programmed after the image is written.  See RFD 311 for more
@@ -36,11 +23,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::{core::Core, hubris::*};
 use humility_auxflash::AuxFlashHandler;
-use humility_cli::{Cli, ExecutionContext};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
-use path_slash::PathExt;
-use std::io::Write;
-use std::process::ExitStatus;
 
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -81,146 +65,6 @@ struct FlashArgs {
     /// print every mismatched byte when checking / verifying
     #[clap(long)]
     verbose: bool,
-}
-
-fn force_openocd(
-    hubris: &mut HubrisArchive,
-    args: &Cli,
-    subargs: &FlashArgs,
-    config: &HubrisFlashMeta,
-    elf: &[u8],
-) -> Result<()> {
-    // Images that include auxiliary flash data *must* be programmed through
-    // probe-rs, because we use the resulting ProbeCore to program the
-    // auxiliary flash (via hiffy)
-    if hubris.read_auxflash_data()?.is_some() {
-        bail!("cannot program an image with auxiliary flash through OpenOCD");
-    }
-
-    //
-    // We need to attach to (1) confirm that we're plugged into something
-    // and (2) extract serial information.
-    //
-    let probe = match &args.probe {
-        Some(p) => p,
-        None => "auto",
-    };
-
-    let serial = {
-        let mut c = humility_probes_core::attach(probe, hubris, args.speed)?;
-        let core = c.as_mut();
-
-        validate(hubris, core, subargs)?;
-        if subargs.check {
-            return Ok(());
-        }
-
-        core.run()?;
-        core.info().1
-    };
-
-    let dryrun = |cmd: &std::process::Command| {
-        humility::msg!("would execute: {cmd:?}");
-    };
-
-    let payload = match &config.program {
-        Some(FlashProgram::OpenOcd(payload)) => payload,
-        Some(other) => {
-            bail!(
-                "cannot force OpenOCD for non-OpenOCD \
-                flash configuration: {other:?}",
-            );
-        }
-        None => {
-            bail!(
-                "cannot force OpenOCD, this archive was \
-                built after support was removed"
-            );
-        }
-    };
-
-    let mut flash = std::process::Command::new("openocd");
-
-    //
-    // We need to create a temporary file to hold our OpenOCD
-    // configuration file and the SREC file that we're going to
-    // actually program.
-    //
-    let mut conf = tempfile::NamedTempFile::new()?;
-    let srec = tempfile::NamedTempFile::new()?;
-
-    if let Some(serial) = serial {
-        humility::msg!("specifying serial {serial}");
-
-        //
-        // In OpenOCD 0.11 dev, hla_serial has been deprecated, and
-        // using it results in this warning:
-        //
-        //   DEPRECATED! use 'adapter serial' not 'hla_serial'
-        //
-        // Unfortunately, the newer variant ("adapter serial") does
-        // not exist prior to this interface being deprecated; in
-        // order to allow execution on older OpenOCD variants, we
-        // deliberately use the deprecated interface.  (And yes, it
-        // would probably be convenient if OpenOCD just made the old
-        // thing work instead of shouting about it and then doing it
-        // anyway.)
-        //
-        writeln!(conf, "interface hla\nhla_serial {}", serial)?;
-    }
-
-    if let FlashProgramConfig::Payload(payload) = payload {
-        write!(conf, "{}", payload)?;
-    } else {
-        bail!("unexpected OpenOCD payload: {:?}", payload);
-    }
-
-    std::fs::write(&srec, generate_srec_from_elf(elf)?)?;
-
-    //
-    // OpenOCD only deals with slash paths, not native paths
-    // (regardless of platform), so we turn our paths into slash
-    // paths.
-    //
-    let conf_path = conf.path().to_slash_lossy().into_owned();
-    let srec_path = srec.path().to_slash_lossy().into_owned();
-
-    if subargs.retain || subargs.dryrun {
-        humility::msg!("retaining OpenOCD config as {:?}", conf.path());
-        humility::msg!("retaining srec as {srec_path}");
-        conf.keep()?;
-        srec.keep()?;
-    }
-
-    for arg in &config.args {
-        match arg {
-            FlashArgument::Direct(val) => {
-                flash.arg(val);
-            }
-            FlashArgument::FormattedPayload(pre, post) => {
-                flash.arg(format!("{} {} {}", pre, srec_path, post));
-            }
-            FlashArgument::Config => {
-                flash.arg(&conf_path);
-            }
-            _ => {
-                anyhow::bail!("unexpected OpenOCD argument {:?}", arg);
-            }
-        }
-    }
-
-    if subargs.dryrun {
-        dryrun(&flash);
-        return Ok(());
-    }
-
-    let status = nice_status(&mut flash)?;
-
-    if !status.success() {
-        anyhow::bail!("flash command ({:?}) failed; see output", flash);
-    }
-
-    Ok(())
 }
 
 /// Validates the image and auxiliary flash against our subcommand
@@ -351,14 +195,7 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
     let config = hubris.load_flash_config()?;
 
     if subargs.force_openocd {
-        humility::msg!("forcing flashing using OpenOCD");
-        return force_openocd(
-            hubris,
-            &context.cli,
-            &subargs,
-            &config.metadata,
-            &config.elf,
-        );
+        bail!("openocd no longer supported");
     }
 
     let probe = match &context.cli.probe {
@@ -368,15 +205,7 @@ fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
 
     let chip = match config.chip {
         Some(c) => c,
-        None => {
-            return force_openocd(
-                hubris,
-                &context.cli,
-                &subargs,
-                &config.metadata,
-                &config.elf,
-            );
-        }
+        None => bail!("Archive is very old and missing a chip"),
     };
 
     humility::msg!("attaching with chip set to {chip:x?}");
@@ -515,19 +344,6 @@ fn program_auxflash(
     }
 }
 
-/// Executes `command` for its exit status, so that stdout/stderr are shared
-/// with this process. This is equivalent to calling `Command::status` except
-/// that, if the command fails to even _start,_ we provide a more detailed error
-/// message than the default "no such file or directory."
-fn nice_status(command: &mut std::process::Command) -> Result<ExitStatus> {
-    command.status().with_context(|| {
-        format!(
-            "unable to execute {:?}, is it in your PATH and executable?",
-            command.get_program(),
-        )
-    })
-}
-
 pub fn init() -> Command {
     Command {
         app: FlashArgs::command(),
@@ -584,20 +400,6 @@ fn elf_chunks(elf_data: &[u8]) -> Result<Vec<(u32, &[u8])>> {
     }
 
     Ok(addr_slices)
-}
-
-fn generate_srec_from_elf(data: &[u8]) -> Result<String> {
-    let mut records = vec![srec::Record::S0("humility!".into())];
-
-    for (addr, slice) in elf_chunks(data)? {
-        records.push(srec::Record::S3(srec::Data {
-            address: srec::Address32(addr),
-            data: slice.to_vec(),
-        }));
-    }
-    records.push(srec::Record::S7(srec::Address32(0))); // bogus entry point
-
-    Ok(srec::writer::generate_srec_file(&records))
 }
 
 fn generate_ihex_from_elf(data: &[u8]) -> Result<String> {
