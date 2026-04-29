@@ -154,8 +154,8 @@ struct ExtractArgs {
 }
 
 fn extract(context: &mut ExecutionContext) -> Result<()> {
-    let archive = context.cli.raw_archive()?;
     let subargs = ExtractArgs::try_parse_from(&context.cli.cmd)?;
+    let archive = context.cli.raw_archive()?;
 
     if subargs.list {
         let cursor = Cursor::new(archive);
