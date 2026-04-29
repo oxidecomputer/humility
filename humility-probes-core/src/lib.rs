@@ -12,7 +12,6 @@ use anyhow::{Result, anyhow, bail};
 use humility::hubris::HubrisArchive;
 use humility::msg;
 
-mod openocd;
 mod probe_rs;
 mod unattached;
 
@@ -130,9 +129,6 @@ pub fn attach_to_probe(
                 probe_info.serial_number,
             )))
         }
-        "ocd" => {
-            bail!("Probe only attachment with {} is not supported", probe)
-        }
         "auto" => attach_to_probe("usb", speed_khz),
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
             Ok(selector) => {
@@ -192,26 +188,7 @@ pub fn attach_to_chip(
                 can_flash,
             )))
         }
-        "ocd" => {
-            let mut core = openocd::OpenOCDCore::new()?;
-            let version = core.sendcmd("version")?;
-
-            if !version.contains("Open On-Chip Debugger") {
-                bail!("version string unrecognized: \"{}\"", version);
-            }
-
-            crate::msg!("attached via OpenOCD");
-
-            Ok(Box::new(core))
-        }
-
-        "auto" => {
-            if let Ok(probe) = attach_to_chip("ocd", chip, speed_khz) {
-                return Ok(probe);
-            }
-
-            attach_to_chip("usb", chip, speed_khz)
-        }
+        "auto" => attach_to_chip("usb", chip, speed_khz),
 
         _ => match TryInto::<DebugProbeSelector>::try_into(probe) {
             Ok(selector) => {
