@@ -38,7 +38,9 @@ use humility::reflect::{self, Base, Load, Ptr, Value};
 use indexmap::IndexMap;
 use std::convert::TryInto;
 use std::fmt;
-use zerocopy::{AsBytes, LittleEndian, U16, U32, U64};
+use zerocopy::{
+    Immutable, IntoBytes, KnownLayout, LittleEndian, U16, U32, U64,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Load)]
 pub struct TaskDesc {
@@ -420,7 +422,7 @@ impl<T: humility::reflect::Load> humility::reflect::Load for MaybeUninit<T> {
 }
 
 /// Double of the struct from `udprpc`
-#[derive(Copy, Clone, Debug, AsBytes)]
+#[derive(Copy, Clone, Debug, IntoBytes, Immutable)]
 #[repr(C)]
 pub struct RpcHeader {
     pub image_id: U64<LittleEndian>,
@@ -434,7 +436,7 @@ pub struct RpcHeader {
 pub mod hiffy {
     use super::*;
 
-    #[derive(Copy, Clone, Debug, AsBytes)]
+    #[derive(Copy, Clone, Debug, IntoBytes, Immutable, KnownLayout)]
     #[repr(C)]
     pub struct RpcHeader {
         pub image_id: U64<LittleEndian>,

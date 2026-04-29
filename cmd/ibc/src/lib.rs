@@ -107,7 +107,7 @@ use humility_cli::{ExecutionContext, Subcommand};
 use humility_cmd::CommandKind;
 use humility_idol::{self as idol, HubrisIdol};
 use zerocopy::{
-    AsBytes, FromBytes,
+    FromBytes, Immutable, IntoBytes, KnownLayout,
     byteorder::{BigEndian, U16, U32},
 };
 
@@ -204,8 +204,10 @@ impl<'a> IbcHandler<'a> {
         for (i, r) in results.iter().skip(3).enumerate() {
             match r {
                 Ok(r) => {
-                    events.push(IbcEvent::read_from(&r[1..]).ok_or_else(
-                        || anyhow!("Failed to decode IbcEvent from {r:?}"),
+                    events.push(IbcEvent::read_from_bytes(&r[1..]).map_err(
+                        |e| {
+                            anyhow!("Failed to decode IbcEvent from {r:?}: {e}")
+                        },
                     )?);
                 }
                 Err(e) => bail!("Failed to read event {i}: {e}"),
@@ -491,7 +493,7 @@ impl<'a> IbcHandler<'a> {
 /// any further.
 ///
 /// See page 19 of the BMR491 technical specification
-#[derive(Copy, Clone, Debug, FromBytes)]
+#[derive(Copy, Clone, Debug, FromBytes, KnownLayout, Immutable)]
 #[repr(C, packed)]
 struct IbcEvent {
     event_id: U16<BigEndian>,

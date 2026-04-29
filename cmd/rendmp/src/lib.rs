@@ -168,7 +168,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use strum::VariantNames;
 use strum_macros::EnumVariantNames;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{FromBytes, IntoBytes};
 
 mod blackbox;
 
@@ -1156,16 +1156,18 @@ fn rendmp_blackbox(
             match e.disc() {
                 "Gen2p5" => println!(
                     "{}",
-                    blackbox::BlackboxRamGen2p5::read_from(data.as_slice())
-                        .ok_or_else(|| anyhow!(
-                            "could not load blackbox from bytes"
-                        ))?,
+                    blackbox::BlackboxRamGen2p5::read_from_bytes(
+                        data.as_slice()
+                    )
+                    .map_err(|e| anyhow!(
+                        "could not load blackbox from bytes: {e}"
+                    ))?,
                 ),
                 "Gen2" => println!(
                     "{}",
-                    blackbox::BlackboxRamGen2::read_from(data.as_slice())
-                        .ok_or_else(|| anyhow!(
-                            "could not load blackbox from bytes"
+                    blackbox::BlackboxRamGen2::read_from_bytes(data.as_slice())
+                        .map_err(|e| anyhow!(
+                            "could not load blackbox from bytes: {e}"
                         ))?,
                 ),
                 v => bail!("unknown blackbox gen: {v:?}"),

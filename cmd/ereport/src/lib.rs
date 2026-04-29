@@ -15,7 +15,7 @@ use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 use anyhow::{Context, Result, anyhow};
 use std::collections::VecDeque;
-use zerocopy::FromBytes;
+use zerocopy::{FromBytes, Immutable, KnownLayout};
 
 use clap::{CommandFactory, Parser};
 
@@ -54,7 +54,7 @@ struct Flags {
 /// Raw ereport header
 ///
 /// This must agree with the SP's implementation in `snitch_core::Store`
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 #[repr(C)]
 struct EreportHeader {
     data_len: zerocopy::byteorder::little_endian::U16,
@@ -116,9 +116,9 @@ pub fn ereport_dump(
     let mut buf_data = buf_data.as_slice();
     let mut current_ena = earliest_ena;
     while !buf_data.is_empty() {
-        let header =
-            EreportHeader::read_from_prefix(buf_data).ok_or_else(|| {
-                anyhow!("could not get ereport header from buffer")
+        let (header, _) =
+            EreportHeader::read_from_prefix(buf_data).map_err(|e| {
+                anyhow!("could not get ereport header from buffer: {e}")
             })?;
         buf_data = &buf_data[HEADER_SIZE..];
         let (ereport_data, next) =
@@ -234,7 +234,7 @@ fn try_recover_ereport(
     }
     let buf = &*buf.make_contiguous();
 
-    let header = EreportHeader::read_from_prefix(buf).unwrap(); // size checked
+    let (header, _) = EreportHeader::read_from_prefix(buf).unwrap(); // size checked
     let task =
         hubris.lookup_module(HubrisTask::Task(header.task.into())).ok()?;
     let contents = ciborium::from_reader(&buf[HEADER_SIZE..]).ok()?;

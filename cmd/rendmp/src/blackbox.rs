@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use std::fmt::{Display, Formatter};
-use zerocopy::FromBytes;
+use zerocopy::{FromBytes, Immutable, KnownLayout};
 
 type U32 = zerocopy::byteorder::U32<zerocopy::BE>;
 type U16 = zerocopy::byteorder::U16<zerocopy::BE>;
@@ -38,7 +38,7 @@ fn format_faults_desc<T: Into<u32> + std::fmt::Binary + Copy>(
 }
 
 /// Uptime (0.1 sec / LSB)
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct Uptime(U32);
 impl Display for Uptime {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -46,7 +46,7 @@ impl Display for Uptime {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct ControllerFaultGen2(U32);
 impl Display for ControllerFaultGen2 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -69,7 +69,7 @@ impl Display for ControllerFaultGen2 {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct RailFault(U32);
 impl Display for RailFault {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -99,7 +99,7 @@ impl Display for RailFault {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct PhaseFaultA(U32);
 impl Display for PhaseFaultA {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -116,7 +116,7 @@ impl Display for PhaseFaultA {
         write!(f, "{}", faults.join(" | "))
     }
 }
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct PhaseFaultB(U32);
 impl Display for PhaseFaultB {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -134,7 +134,7 @@ impl Display for PhaseFaultB {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct AdcFault(U16);
 impl Display for AdcFault {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -150,7 +150,7 @@ impl Display for AdcFault {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusWord(U16);
 impl Display for StatusWord {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -177,7 +177,7 @@ impl Display for StatusWord {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusCml(u8);
 impl Display for StatusCml {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -248,7 +248,7 @@ impl Display for StatusCml {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusMfr(u8);
 impl Display for StatusMfr {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -286,7 +286,7 @@ impl Display for StatusMfr {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusVout(u8);
 impl Display for StatusVout {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -314,7 +314,7 @@ impl Display for StatusVout {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusIout(u8);
 impl Display for StatusIout {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -347,7 +347,7 @@ impl Display for StatusIout {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusTemperature(u8);
 impl Display for StatusTemperature {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -363,7 +363,7 @@ impl Display for StatusTemperature {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct StatusInput(u8);
 impl Display for StatusInput {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -406,7 +406,7 @@ impl Display for StatusInput {
 }
 
 /// Temperature (direct format 2°C / LSB)
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct Temperature(u8);
 impl Display for Temperature {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -415,7 +415,7 @@ impl Display for Temperature {
 }
 
 /// Voltage (direct format 10 mV / LSB)
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct VoltageIn(I16);
 impl Display for VoltageIn {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -424,7 +424,7 @@ impl Display for VoltageIn {
 }
 
 /// Voltage (direct format 1 mV / LSB)
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct VoltageOut(I16);
 impl Display for VoltageOut {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -433,7 +433,7 @@ impl Display for VoltageOut {
 }
 
 /// Current (direct format 0.1A / LSB)
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct CurrentOut(I16);
 impl Display for CurrentOut {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -442,7 +442,7 @@ impl Display for CurrentOut {
 }
 
 /// Current (direct format 10 mA / LSB)
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct CurrentIn(I16);
 impl Display for CurrentIn {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -450,7 +450,7 @@ impl Display for CurrentIn {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct PhaseFault(U32);
 impl Display for PhaseFault {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -469,7 +469,7 @@ impl Display for PhaseFault {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 #[repr(C)]
 pub struct BlackboxRamGen2 {
     rail0_uptime: Uptime,
@@ -622,7 +622,7 @@ impl Display for BlackboxRamGen2 {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 struct ControllerFaultGen2p5(U32);
 impl Display for ControllerFaultGen2p5 {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -645,7 +645,7 @@ impl Display for ControllerFaultGen2p5 {
     }
 }
 
-#[derive(Debug, FromBytes)]
+#[derive(Debug, FromBytes, KnownLayout, Immutable)]
 #[repr(C)]
 pub struct BlackboxRamGen2p5 {
     rail0_uptime: Uptime,
@@ -776,7 +776,7 @@ impl Display for BlackboxRamGen2p5 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use zerocopy::{AsBytes, FromBytes};
+    use zerocopy::{FromBytes, IntoBytes};
 
     #[test]
     fn test_blackbox_size() {
@@ -807,7 +807,7 @@ mod test {
             0x15, 0xDA, 0x00, 0x00, 0x00, 0x88, 0x00, 0x15, 0xDB, 0x08, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEC, 0x83, 0xED, 0x2E,
         ];
-        let bb = BlackboxRamGen2p5::read_from(d.as_slice()).unwrap();
+        let bb = BlackboxRamGen2p5::read_from_bytes(d.as_slice()).unwrap();
         println!("{bb}");
 
         println!("\n----------------------------------------");
@@ -820,7 +820,7 @@ mod test {
             0x5b007000, 0x7f00bd00, 0x3a290180, 0x88000000, 0x27482900, 0x0,
             0x0, 0x5d655649,
         ];
-        let bb = BlackboxRamGen2p5::read_from(d.as_bytes()).unwrap();
+        let bb = BlackboxRamGen2p5::read_from_bytes(d.as_bytes()).unwrap();
         println!("{bb}");
     }
 }

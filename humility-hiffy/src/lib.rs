@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::thread;
 use std::time::{Duration, Instant};
-use zerocopy::{AsBytes, U16, U64};
+use zerocopy::{IntoBytes, U16, U64};
 
 #[derive(Debug, PartialEq)]
 enum State {

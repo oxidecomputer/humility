@@ -32,7 +32,7 @@ use multimap::MultiMap;
 use num_traits::FromPrimitive;
 use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{FromBytes, IntoBytes};
 
 const OXIDE_NT_NAME: &str = "Oxide Computer Company";
 const OXIDE_NT_BASE: u32 = 0x1de << 20;
@@ -1850,12 +1850,13 @@ impl HubrisArchive {
                             }
                             OXIDE_NT_HUBRIS_TASK => {
                                 match DumpTask::read_from_prefix(note.desc) {
-                                    Some(task) => {
+                                    Ok((task, _)) => {
                                         self.task_dump = Some(task);
                                     }
-                                    None => {
+                                    Err(e) => {
                                         bail!(
-                                            "unrecognized task {:?}", note.desc
+                                            "unrecognized task {:?} ({e})",
+                                             note.desc
                                         );
                                     }
                                 }
