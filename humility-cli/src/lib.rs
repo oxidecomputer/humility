@@ -184,7 +184,7 @@ impl Cli {
         &self,
         doneness: HubrisArchiveDoneness,
     ) -> Result<HubrisArchive> {
-        let mut hubris = HubrisArchive::new();
+        let mut hubris = HubrisArchive::new()?;
         if let Some(archive) = &self.archive {
             hubris.load(archive, doneness).with_context(|| {
                 format!("failed to load archive \"{}\"", archive)
