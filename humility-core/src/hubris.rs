@@ -6,14 +6,12 @@ use capstone::prelude::*;
 use humility_arch_arm::{ARMRegister, presyscall_pushes};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::io::prelude::*;
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, btree_map};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
-use std::io::Cursor;
 use std::mem::size_of;
 use std::num::TryFromIntError;
 use std::path::{Path, PathBuf};
@@ -26,6 +24,7 @@ use capstone::InsnGroupType;
 use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
+use hubtools::{HubrisArchiveBuilder, RawHubrisArchive};
 use humpty::DumpTask;
 use idol::syntax::send::Interface;
 use multimap::MultiMap;
@@ -533,21 +532,14 @@ impl HubrisFlashMap {
     ///
     /// This will fail if the `HubrisArchive` is fake, i.e. contains zero bytes.
     pub fn new(hubris: &HubrisArchive) -> Result<Self> {
-        if hubris.archive().is_empty() {
+        if hubris.raw_bytes().is_empty() {
             bail!("archive is required for network use but was not provided");
         }
         //
         // We want to read in the "final.elf" from our archive and use that
         // to determine the memory that constitutes flash.
         //
-        let cursor = Cursor::new(hubris.archive());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut file = archive
-            .by_name("img/final.elf")
-            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
-
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents)?;
+        let contents = hubris.hubris_archive.extract_file("img/final.elf")?;
 
         let elf = Elf::parse(&contents).map_err(|e| {
             anyhow!("failed to parse final.elf as an ELF file: {}", e)
@@ -719,8 +711,10 @@ impl Namespaces {
 }
 
 pub struct HubrisArchive {
+    hubris_archive: RawHubrisArchive,
+
     // the entire archive
-    archive: Vec<u8>,
+    raw_bytes: Vec<u8>,
 
     // constructed manifest
     pub manifest: HubrisManifest,
@@ -830,7 +824,10 @@ pub struct HubrisArchive {
 impl HubrisArchive {
     pub fn new() -> Result<HubrisArchive> {
         Ok(Self {
-            archive: Vec::new(),
+            raw_bytes: Vec::new(),
+            hubris_archive: RawHubrisArchive::from_vec(
+                HubrisArchiveBuilder::with_fake_image().build_to_vec()?,
+            )?,
             imageid: None,
             manifest: Default::default(),
             loaded: BTreeMap::new(),
@@ -1289,48 +1286,40 @@ impl HubrisArchive {
     }
 
     fn load_archive(&mut self, archive: &[u8]) -> Result<()> {
-        let cursor = Cursor::new(archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let manifest = &mut self.manifest;
+        let hubris = RawHubrisArchive::from_vec(archive.to_vec())?;
 
-        macro_rules! byname {
-            ($name:tt) => {
-                archive
-                    .by_name($name)
-                    .map_err(|e| anyhow!("failed to find \"{}\": {}", $name, e))
-            };
+        // Check the version early and bail if we don't match/can't read
+        let archive_version = hubris.archive_version();
+        if archive_version > MAX_HUBRIS_VERSION {
+            bail!("\
+                        Hubris archive version is unsupported.\n\
+                        Humility supports v{} and earlier; archive is v{}.\n\
+                        Please update Humility.",
+                        MAX_HUBRIS_VERSION, archive_version)
         }
 
         //
         // First, we'll load aspects of configuration.
         //
-        manifest.version = Some(str::from_utf8(archive.comment())?.to_string());
-
-        if let Ok(mut file) = archive.by_name("git-rev") {
-            let mut gitrev = String::new();
-            file.read_to_string(&mut gitrev)
-                .context("failed reading `git-rev`")?;
-            manifest.gitrev = Some(gitrev);
+        let manifest = &mut self.manifest;
+        if let Ok(git_rev) = hubris.extract_file("git-rev") {
+            manifest.gitrev = Some(std::str::from_utf8(&git_rev)?.to_string());
         }
 
-        if let Ok(mut file) = archive.by_name("image-name") {
-            let mut image = String::new();
-            file.read_to_string(&mut image)
-                .context("failed reading `image-name`")?;
-            manifest.image = Some(image);
+        if let Ok(image_name) = hubris.extract_file("image-name") {
+            manifest.image =
+                Some(std::str::from_utf8(&image_name)?.to_string());
         }
 
-        let mut app = String::new();
-        byname!("app.toml")?.read_to_string(&mut app)?;
+        manifest.version =
+            Some(format!("hubris build archive v{}", archive_version));
+        let app = hubris.extract_file("app.toml")?;
 
         let mut config: HubrisConfig = toml::from_slice(app.as_bytes())?;
 
         // Apply TOML patches, if `patches.toml` is present in the archive.
-        if let Ok(mut patches) = byname!("patches.toml") {
-            let mut patch_str = String::new();
-            patches.read_to_string(&mut patch_str)?;
-            let patches: HubrisConfigPatches =
-                toml::from_slice(patch_str.as_bytes())?;
+        if let Ok(patches) = hubris.extract_file("patches.toml") {
+            let patches: HubrisConfigPatches = toml::from_slice(&patches)?;
             config.name = patches.name;
             for (task, features) in patches.features {
                 config
@@ -1370,8 +1359,6 @@ impl HubrisArchive {
                 None => chip,
             };
 
-            let mut chip = String::new();
-
             //
             // Ideally, we would hard-fail if we didn't find this file in
             // the archive -- but there was a small window of time in which
@@ -1379,11 +1366,9 @@ impl HubrisArchive {
             // recoverable -- but anything that relies on the presence of
             // peripherals in the TOML will fail.
             //
-            if let Ok(mut file) = archive.by_name(path) {
-                file.read_to_string(&mut chip)?;
-
+            if let Ok(chip) = hubris.extract_file(path) {
                 let peripherals: IndexMap<String, HubrisConfigPeripheral> =
-                    toml::from_slice(chip.as_bytes())?;
+                    toml::from_slice(&chip)?;
 
                 self.load_config(&config, Some(&peripherals))?;
             } else {
@@ -1398,10 +1383,12 @@ impl HubrisArchive {
         // forward slash: regardless of platform, paths within a ZIP archive
         // use the forward slash as a separator.
         //
-        let mut buffer = Vec::new();
-        byname!("elf/kernel")?.read_to_end(&mut buffer)?;
         let mut loader = HubrisObjectLoader::new(self.current)?;
-        loader.load_object("kernel", HubrisTask::Kernel, &buffer)?;
+        loader.load_object(
+            "kernel",
+            HubrisTask::Kernel,
+            &hubris.extract_file("elf/kernel")?,
+        )?;
         self.merge(loader)?;
 
         //
@@ -1410,13 +1397,11 @@ impl HubrisArchive {
         // resulting tuple for later sorting.
         //
         use rayon::prelude::*;
-        let mut objects = (0..archive.len())
+        let mut objects = (0..hubris.file_count()?)
             .into_par_iter()
             .map(|i| -> Result<Option<(usize, String, Vec<u8>)>> {
-                // ZipArchive is cheap to clone since the backing is cheap
-                let mut archive = archive.clone();
-                let mut file = archive.by_index(i)?;
-                let path = Path::new(file.name());
+                let (name, data) = hubris.extract_file_by_index(i)?;
+                let path = Path::new(&name);
                 let pieces = path.iter().collect::<Vec<_>>();
 
                 //
@@ -1427,13 +1412,11 @@ impl HubrisArchive {
                     return Ok(None);
                 }
 
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                let filename = Path::new(file.name());
+                let filename = Path::new(&name);
                 Ok(Some((
                     i,
                     filename.file_name().unwrap().to_str().unwrap().to_owned(),
-                    buffer,
+                    data,
                 )))
             })
             .filter_map(|f| f.transpose())
@@ -1470,7 +1453,7 @@ impl HubrisArchive {
         //
         // Now that we have loaded our tasks, load our extern regions.
         //
-        self.extern_regions = ExternRegions::load(self, &mut archive, &config)?;
+        self.extern_regions = ExternRegions::load(self, &hubris, &config)?;
 
         //
         // Post-process our enums and structs to add their fully scoped names.
@@ -1507,21 +1490,24 @@ impl HubrisArchive {
             self.structs_byname.insert(name.clone(), *goff);
         }
 
+        self.hubris_archive = hubris;
         Ok(())
     }
 
     fn for_each_task<F: FnMut(&Path, &[u8]) -> Result<()>>(
-        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+        hubris: &RawHubrisArchive,
         mut f: F,
     ) -> Result<()> {
         use rayon::prelude::*;
-        let files = (0..archive.len())
+        let files = (0..hubris.file_count()?)
             .into_par_iter()
             .map(|i| {
                 // ZipArchive is cheap to clone since the backing is cheap
-                let mut archive = archive.clone();
-                let mut file = archive.by_index(i)?;
-                let path = Path::new(file.name());
+                let archive = RawHubrisArchive::from_vec(hubris.zip.clone())?;
+
+                // ZipArchive is cheap to clone since the backing is cheap
+                let (name, data) = archive.extract_file_by_index(i)?;
+                let path = Path::new(&name);
                 let pieces = path.iter().collect::<Vec<_>>();
 
                 //
@@ -1532,9 +1518,7 @@ impl HubrisArchive {
                     return Ok(None);
                 }
 
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                Ok(Some((file.name().to_owned(), buffer)))
+                Ok(Some((name, data)))
             })
             .filter_map(|f| f.transpose())
             .collect::<Result<Vec<(String, Vec<u8>)>, anyhow::Error>>()?;
@@ -1624,77 +1608,28 @@ impl HubrisArchive {
         //
         let contents = fs::read(archive)?;
 
-        let cursor = Cursor::new(&contents);
-        let archive = zip::ZipArchive::new(cursor)?;
-        let comment = str::from_utf8(archive.comment())
-            .context("Failed to decode comment string")?;
-        Self::check_version(comment)?;
-
         if doneness == HubrisArchiveDoneness::Cook {
             self.load_archive(&contents)?;
         }
 
-        self.archive = contents;
-        Ok(())
-    }
-
-    fn check_version(comment: &str) -> Result<()> {
-        match comment.strip_prefix("hubris build archive v") {
-            Some(v) => {
-                let archive_version = match v {
-                    // Special-case for older archives
-                    "1.0.0" => 1,
-                    // There was no v1, just v1.0.0
-                    "1" => bail!("Invalid archive version 'v1'"),
-                    // Otherwise, expect an integer
-                    v => v.parse().with_context(|| {
-                        format!("Failed to parse version string {}", v)
-                    })?,
-                };
-                if archive_version > MAX_HUBRIS_VERSION {
-                    bail!("\
-                        Hubris archive version is unsupported.\n\
-                        Humility supports v{} and earlier; archive is v{}.\n\
-                        Please update Humility.",
-                        MAX_HUBRIS_VERSION, v)
-                }
-            }
-            None => {
-                bail!(
-                    "Could not parse hubris archive version from '{}'",
-                    comment)
-            }
-        }
+        self.raw_bytes = contents;
         Ok(())
     }
 
     pub fn load_flash_config(&self) -> Result<HubrisFlashConfig> {
-        let cursor = Cursor::new(&self.archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-
-        macro_rules! slurp {
-            ($name:tt) => {{
-                let mut buffer = Vec::new();
-                archive
-                    .by_name($name)
-                    .map_err(|e| {
-                        anyhow!("failed to find \"{}\": {}", $name, e)
-                    })?
-                    .read_to_end(&mut buffer)?;
-                buffer
-            }};
-        }
-
-        let flash_ron = archive.by_name("img/flash.ron").map_err(|_| {
-            anyhow!(
+        let flash_ron = self
+            .hubris_archive
+            .extract_file("img/flash.ron")
+            .map_err(|_| {
+                anyhow!(
                 "could not find img/flash.ron in archive; \
                 does archive pre-date addition of flash information?"
             )
-        })?;
+            })?;
 
         let config: HubrisFlashMeta = ron::options::Options::default()
             .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
-            .from_reader(flash_ron)?;
+            .from_bytes(&flash_ron)?;
 
         // This is incredibly ugly! It also gives us backwards compatibility!
         let chip: Option<String> = match config.chip {
@@ -1767,7 +1702,7 @@ impl HubrisArchive {
 
         Ok(HubrisFlashConfig {
             metadata: config,
-            elf: slurp!("img/final.elf"),
+            elf: self.hubris_archive.extract_file("img/final.elf")?,
             chip,
         })
     }
@@ -1843,7 +1778,7 @@ impl HubrisArchive {
                                     self.load_archive(note.desc)?;
                                 }
 
-                                self.archive = note.desc.to_vec();
+                                self.raw_bytes = note.desc.to_vec();
                             }
                             OXIDE_NT_HUBRIS_REGISTERS => {
                                 self.load_registers(note.desc)?;
@@ -2436,13 +2371,8 @@ impl HubrisArchive {
 
         // We don't use final.elf for much and don't keep it around in a
         // convenient buffer. So, go get it out of the archive.
-        let cursor = Cursor::new(self.archive());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut elf_file = archive
-            .by_name("img/final.elf")
-            .context("could not find final.elf in archive!")?;
-        let mut file_contents = vec![];
-        elf_file.read_to_end(&mut file_contents)?;
+        let file_contents =
+            self.hubris_archive.extract_file("img/final.elf")?;
 
         let elf =
             Elf::parse(&file_contents).context("busted final ELF object")?;
@@ -3475,7 +3405,7 @@ impl HubrisArchive {
 
         notes.push(goblin::elf::note::Nhdr32 {
             n_namesz: (oxide.len() + 1) as u32,
-            n_descsz: self.archive.len() as u32,
+            n_descsz: self.raw_bytes.len() as u32,
             n_type: OXIDE_NT_HUBRIS_ARCHIVE,
         });
 
@@ -3589,7 +3519,7 @@ impl HubrisArchive {
                 }
 
                 OXIDE_NT_HUBRIS_ARCHIVE => {
-                    file.write_all(&self.archive)?;
+                    file.write_all(&self.raw_bytes)?;
                 }
 
                 OXIDE_NT_HUBRIS_TASK => {
@@ -3652,15 +3582,12 @@ impl HubrisArchive {
     }
 
     pub fn extract_file_to(&self, filename: &str, target: &Path) -> Result<()> {
-        let cursor = Cursor::new(self.archive.as_slice());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut file = archive
-            .by_name(filename)
+        let bytes = self
+            .hubris_archive
+            .extract_file(filename)
             .map_err(|e| anyhow!("failed to find '{}': {}", filename, e))?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
 
-        std::fs::write(target, &buffer).map_err(Into::into)
+        std::fs::write(target, &bytes).map_err(Into::into)
     }
 
     /// Copies the kernel and every task ELF file to the given directory.
@@ -3670,9 +3597,7 @@ impl HubrisArchive {
         // `stage0` is only present in some cases, so we ignore errors here
         let _ = self.extract_file_to("img/stage0", &p.join("stage0"));
 
-        let cursor = Cursor::new(self.archive.as_slice());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        Self::for_each_task(&mut archive, |path, buffer| {
+        Self::for_each_task(&self.hubris_archive, |path, buffer| {
             let file_name = p.join(path.file_name().unwrap());
             std::fs::write(file_name, buffer)?;
             Ok(())
@@ -3853,8 +3778,12 @@ impl HubrisArchive {
         }
     }
 
-    pub fn archive(&self) -> &[u8] {
-        &self.archive
+    pub fn hubris_archive(&self) -> &RawHubrisArchive {
+        &self.hubris_archive
+    }
+
+    pub fn raw_bytes(&self) -> &[u8] {
+        &self.raw_bytes
     }
 
     /// Reads the auxiliary flash data from a Hubris archive
@@ -3862,18 +3791,12 @@ impl HubrisArchive {
     /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
     /// is missing, or `Err(...)` if a zip file error occurred.
     pub fn read_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
-        let archive = self.archive();
-        let cursor = Cursor::new(archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let file = archive.by_name(name);
-        match file {
-            Ok(mut f) => {
-                let mut buffer = Vec::new();
-                f.read_to_end(&mut buffer)?;
-                Ok(Some(buffer))
-            }
-            Err(zip::result::ZipError::FileNotFound) => Ok(None),
-            Err(e) => bail!("Failed to extract {}: {}", name, e),
+        match self.hubris_archive.extract_file(name) {
+            Ok(s) => Ok(Some(s)),
+            Err(hubtools::Error::ZipError(
+                zip::result::ZipError::FileNotFound,
+            )) => Ok(None),
+            Err(e) => bail!("Failed to extract {name}: {e}"),
         }
     }
 
@@ -6736,15 +6659,13 @@ impl ExternRegions {
     ///
     fn load(
         hubris: &HubrisArchive,
-        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+        archive: &RawHubrisArchive,
         config: &HubrisConfig,
     ) -> Result<Self> {
-        match archive.by_name("memory.toml") {
-            Ok(mut file) => {
-                let mut memory = String::new();
-                file.read_to_string(&mut memory)?;
+        match archive.extract_file("memory.toml") {
+            Ok(file) => {
                 let all_memories: IndexMap<String, Vec<HubrisMemoryRegion>> =
-                    toml::from_slice(memory.as_bytes())?;
+                    toml::from_slice(&file)?;
 
                 //
                 // We have our memory metadata but it includes all memories
