@@ -682,9 +682,8 @@ struct Aardvark {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(transparent)]
 struct AardvarkWrite {
-    #[serde(rename = "$value")]
     value: String,
 }
 
