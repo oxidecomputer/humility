@@ -326,10 +326,6 @@ pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
 
     match subargs.cmd {
         UartConsoleCommand::Attach { raw, imap, omap, log } => {
-            if context.is_interactive {
-                bail!("`console-proxy attach` cannot be used from the REPL");
-            }
-
             let imap = imap.parse().context("invalid imap rules")?;
             let omap = omap.parse().context("invalid omap rules")?;
 

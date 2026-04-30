@@ -15,7 +15,6 @@ use clap::FromArgMatches;
 use clap::Parser;
 
 mod cmd;
-mod cmd_repl;
 
 fn main() -> Result<()> {
     let (commands, m, args) = match parse_args(std::env::args_os()) {
@@ -28,8 +27,7 @@ fn main() -> Result<()> {
         std::process::exit(0);
     };
 
-    let mut context =
-        humility_cli::ExecutionContext::new(args.clone(), &m, false)?;
+    let mut context = humility_cli::ExecutionContext::new(args.clone(), &m)?;
 
     let log_level = if args.verbose { "trace" } else { "warn" };
 

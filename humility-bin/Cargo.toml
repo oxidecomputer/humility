@@ -109,7 +109,6 @@ scroll = { workspace = true }
 indicatif = { workspace = true }
 colored = { workspace = true }
 indexmap = { workspace = true }
-reedline = { workspace = true }
 
 [dev-dependencies]
 trycmd = { workspace = true }
