@@ -51,7 +51,7 @@ use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility::warn;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 use humility_idol as idol;
 use std::io::IsTerminal;
@@ -200,13 +200,41 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
 }
 
 fn hiffy(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = HiffyArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
 
     if subargs.list {
         hiffy_list(hubris, subargs.filter)?;
+        return Ok(());
+    } else if subargs.listfuncs {
+        let funcs = HiffyContext::get_hiffy_functions(hubris)?;
+        let mut byid: Vec<Option<(&String, &HiffyFunction)>> = vec![];
+
+        byid.resize(funcs.len(), None);
+
+        for (name, func) in &funcs.0 {
+            let ndx = func.id.0 as usize;
+
+            if ndx >= byid.len() {
+                bail!("ID for function {} ({}) exceeds bounds", name, ndx);
+            }
+
+            if let Some((_, _)) = byid[ndx] {
+                bail!("function ID {} has conflics", ndx);
+            }
+
+            byid[ndx] = Some((name, func));
+        }
+
+        println!("{:>3} {:30} #ARGS", "ID", "FUNCTION");
+
+        for (i, id) in byid.iter().enumerate() {
+            if let Some((name, func)) = id {
+                println!("{:3} {:30} {}", i, name, func.args.len());
+            } else {
+                bail!("missing function for ID {}", i);
+            }
+        }
         return Ok(());
     } else if !subargs.filter.is_empty() {
         //
@@ -224,19 +252,11 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
         );
     }
 
-    //
-    // Before we create our HiffyContext, check to see if this is a call and
-    // we're on a dump; running call on a dump always fails (obviously?), but
-    // in the event that we have a HIF mismatch (or any other failure to
-    // create the HiffyContext) *and* we're running call on a dump, we would
-    // rather fail with the dump message rather than with the HiffyContext
-    // creation failure.  (Note that -L will still create the HiffyContext,
-    // even if run on a dump.)
-    //
-    if subargs.call.is_some() && core.is_dump() {
-        bail!("can't make HIF calls on a dump");
+    if subargs.call.is_none() {
+        bail!("expected one of -l, -L, or -c");
     }
 
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     if let Some(call) = subargs.call {
@@ -320,51 +340,9 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    if !subargs.listfuncs {
-        bail!("expected one of -l, -L, or -c");
-    }
-
-    let funcs = context.functions();
-    let mut byid: Vec<Option<(&String, &HiffyFunction)>> = vec![];
-
-    byid.resize(funcs.len(), None);
-
-    for (name, func) in &funcs.0 {
-        let ndx = func.id.0 as usize;
-
-        if ndx >= byid.len() {
-            bail!("ID for function {} ({}) exceeds bounds", name, ndx);
-        }
-
-        if let Some((_, _)) = byid[ndx] {
-            bail!("function ID {} has conflics", ndx);
-        }
-
-        byid[ndx] = Some((name, func));
-    }
-
-    println!("{:>3} {:30} #ARGS", "ID", "FUNCTION");
-
-    for (i, id) in byid.iter().enumerate() {
-        if let Some((name, func)) = id {
-            println!("{:3} {:30} {}", i, name, func.args.len());
-        } else {
-            bail!("missing function for ID {}", i);
-        }
-    }
-
     Ok(())
 }
 
 pub fn init() -> Command {
-    Command {
-        app: HiffyArgs::command(),
-        name: "hiffy",
-        run: hiffy,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: HiffyArgs::command(), name: "hiffy", run: hiffy }
 }

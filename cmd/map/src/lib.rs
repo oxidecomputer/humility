@@ -64,20 +64,18 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct MapArgs {}
 
 fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    core.op_start()?;
+    let hubris = &context.cli.archive()?;
 
-    let hubris = context.archive.as_ref().unwrap();
-
+    // Use an archive core to easily read from flash
+    let core = &mut *humility::core::attach_archive(hubris)?;
     let regions = hubris.regions(core)?;
-    core.op_done()?;
 
     println!(
         "{:10} {:10}   {:10} {:>7} {:6} {:2} TASK",
@@ -138,10 +136,5 @@ fn mapcmd(context: &mut ExecutionContext) -> Result<()> {
 
 /// This is some init right here
 pub fn init() -> Command {
-    Command {
-        app: MapArgs::command(),
-        name: "map",
-        run: mapcmd,
-        kind: CommandKind::Unattached { archive: Archive::Required },
-    }
+    Command { app: MapArgs::command(), name: "map", run: mapcmd }
 }

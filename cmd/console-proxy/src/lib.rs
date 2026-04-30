@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use clap::{CommandFactory, Parser};
 
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 
 #[cfg(not(windows))]
 mod posix;
@@ -113,10 +113,5 @@ pub fn init() -> Command {
         app: UartConsoleArgs::command(),
         name: "console-proxy",
         run: console_proxy,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
     }
 }

@@ -91,8 +91,7 @@ use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisValidate;
 use humility_arch_arm::ARMRegister;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_cortex::debug::*;
 use humility_cortex::scs::*;
 
@@ -106,9 +105,9 @@ struct ProbeArgs {
 
 #[rustfmt::skip::macros(format)]
 fn probecmd(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
     let subargs = ProbeArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = context.cli.try_archive()?;
+    let core = &mut *context.cli.attach_probe(hubris.as_ref())?;
 
     use num_traits::FromPrimitive;
     let mut status = vec![];
@@ -316,28 +315,24 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
         core.halt()?;
     }
 
-    let regions = match hubris.validate(core, HubrisValidate::ArchiveMatch) {
-        Ok(_) => {
-            //
-            // We want to eat any error here: if we fail to load regions on
-            // a validated archive, it's because we weren't in fact provided
-            // an archive at all. (Unlike for many commands, the archive is
-            // optional for "humility probe".)
-            //
-            hubris.regions(core).unwrap_or_default()
+    let regions = if let Some(hubris) = &hubris {
+        match hubris.validate(core, HubrisValidate::ArchiveMatch) {
+            Ok(_) => hubris.regions(core).unwrap(),
+            Err(err) => {
+                //
+                // If the archive doesn't match, we'll drive on -- but we will
+                // indicate that we can't interpret registers correctly.
+                //
+                humility::warn!(
+                    "archive mismatch: {}; register contents will \
+                     not be displayed symbolically",
+                    err
+                );
+                Default::default()
+            }
         }
-        Err(err) => {
-            //
-            // If the archive doesn't match, we'll drive on -- but we will
-            // indicate that we can't interpret registers correctly.
-            //
-            humility::warn!(
-                "archive mismatch: {}; register contents will \
-                not be displayed symbolically",
-                err
-            );
-            Default::default()
-        }
+    } else {
+        Default::default()
     };
 
     for i in 0..31 {
@@ -355,7 +350,7 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
             format!("{:?}", reg),
             format!("{:x}", val),
             if reg.is_general_purpose() {
-                match hubris.explain(&regions, val) {
+                match hubris.as_ref().and_then(|h| h.explain(&regions, val)) {
                     Some(explain) => format!("  <- {}", explain),
                     None => "".to_string(),
                 }
@@ -417,14 +412,5 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ProbeArgs::command(),
-        name: "probe",
-        run: probecmd,
-        kind: CommandKind::Attached {
-            archive: Archive::Optional,
-            attach: Attach::LiveOnly,
-            validate: Validate::None,
-        },
-    }
+    Command { app: ProbeArgs::command(), name: "probe", run: probecmd }
 }

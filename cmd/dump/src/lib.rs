@@ -71,7 +71,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_arch_arm::ARMRegister;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, DumpBreakdown,
     HiffyDumpAgent, UdpDumpAgent, task_areas,
@@ -855,10 +855,9 @@ fn dump_agent_status(
 }
 
 fn dumpcmd(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = DumpArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_match(hubris)?;
 
     if subargs.force_dump_agent && core.is_net() {
         bail!("can only force the dump agent when attached via debug probe");
@@ -903,14 +902,5 @@ fn dumpcmd(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: DumpArgs::command(),
-        name: "dump",
-        run: dumpcmd,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Match,
-        },
-    }
+    Command { app: DumpArgs::command(), name: "dump", run: dumpcmd }
 }

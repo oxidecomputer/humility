@@ -13,7 +13,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use std::collections::HashMap;
 use termimad::*;
 
@@ -64,10 +64,5 @@ fn doc(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: DocArgs::command(),
-        name: "doc",
-        run: doc,
-        kind: CommandKind::Unattached { archive: Archive::Ignored },
-    }
+    Command { app: DocArgs::command(), name: "doc", run: doc }
 }

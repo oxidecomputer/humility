@@ -84,7 +84,7 @@
 
 use humility::core::Core;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
 use sha2::{Digest, Sha256};
@@ -482,10 +482,10 @@ fn write(
 }
 
 fn qspi(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = QspiArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
+
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     match subargs.slot {
@@ -1190,14 +1190,5 @@ impl fmt::Display for DeviceIdData {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: QspiArgs::command(),
-        name: "qspi",
-        run: qspi,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: QspiArgs::command(), name: "qspi", run: qspi }
 }

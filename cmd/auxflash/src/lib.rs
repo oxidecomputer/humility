@@ -13,10 +13,9 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
 
 use humility_auxflash::AuxFlashHandler;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 
 #[derive(Parser, Debug)]
 #[clap(name = "auxflash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -99,9 +98,9 @@ fn auxflash_status(mut worker: AuxFlashHandler, verbose: bool) -> Result<()> {
 }
 
 fn auxflash(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = AuxFlashArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = AuxFlashHandler::new(hubris, core, subargs.timeout)?;
 
     match subargs.cmd {
@@ -132,14 +131,5 @@ fn auxflash(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: AuxFlashArgs::command(),
-        name: "auxflash",
-        run: auxflash,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: AuxFlashArgs::command(), name: "auxflash", run: auxflash }
 }

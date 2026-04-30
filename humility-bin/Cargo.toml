@@ -113,7 +113,7 @@ trycmd = { workspace = true }
 
 [features]
 default = ["probes"]
-probes = ["humility-cmd/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-debugmailbox"]
+probes = ["humility-cli/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-debugmailbox"]
 
 [[bin]]
 name = "humility"

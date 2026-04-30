@@ -20,7 +20,7 @@ use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::net::ScopedV6Addr;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind, Dumper};
+use humility_cmd::{Command, Dumper};
 
 /// This is defined in the gimlet TOML.
 const HARDCODED_PORT: u16 = 23547;
@@ -133,10 +133,5 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: Args::command(),
-        name: "gimlet",
-        run,
-        kind: CommandKind::Detached { archive: Archive::Ignored },
-    }
+    Command { app: Args::command(), name: "gimlet", run }
 }

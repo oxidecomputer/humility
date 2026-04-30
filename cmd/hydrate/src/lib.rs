@@ -22,7 +22,7 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use humility_log::msg;
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
@@ -172,9 +172,7 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     }
 
     // compare archive ID
-    let Some(archive) = &context.archive else {
-        bail!("could not get archive");
-    };
+    let archive = &context.cli.archive()?;
     let expected_id = archive
         .image_id()
         .ok_or_else(|| anyhow!("missing image ID in archive"))?;
@@ -200,10 +198,5 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: Args::command(),
-        name: "hydrate",
-        run,
-        kind: CommandKind::Detached { archive: Archive::Optional },
-    }
+    Command { app: Args::command(), name: "hydrate", run }
 }

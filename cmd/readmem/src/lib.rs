@@ -119,7 +119,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use std::convert::TryInto;
 use std::io::Write;
 use std::path::PathBuf;
@@ -167,10 +167,10 @@ struct ReadmemArgs {
 }
 
 fn readmem(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = ReadmemArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = context.cli.try_archive()?;
+    let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
+
     let max = humility::core::CORE_MAX_READSIZE;
     let size = if subargs.word || subargs.symbol {
         4
@@ -187,14 +187,22 @@ fn readmem(context: &mut ExecutionContext) -> Result<()> {
     }
 
     if subargs.symbol {
-        hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+        if let Some(hubris) = &hubris {
+            hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+        } else {
+            bail!("cannot specify `--symbol` without Hubris archive");
+        }
     }
 
     let addr = match parse_int::parse::<u32>(&subargs.address) {
         Ok(addr) => addr,
         _ => {
-            hubris.validate(core, HubrisValidate::ArchiveMatch)?;
-            hubris.lookup_peripheral(&subargs.address)?
+            if let Some(hubris) = &hubris {
+                hubris.validate(core, HubrisValidate::ArchiveMatch)?;
+                hubris.lookup_peripheral(&subargs.address)?
+            } else {
+                bail!("cannot look up peripheral without archive");
+            }
         }
     };
 
@@ -224,6 +232,7 @@ fn readmem(context: &mut ExecutionContext) -> Result<()> {
     core.read_8(addr, &mut bytes)?;
 
     if subargs.symbol {
+        let hubris = hubris.as_ref().unwrap(); // checked above
         for offs in (0..length).step_by(size) {
             let slice = &bytes[offs..offs + size];
             let val = u32::from_le_bytes(slice.try_into().unwrap());
@@ -260,14 +269,5 @@ fn readmem(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ReadmemArgs::command(),
-        name: "readmem",
-        run: readmem,
-        kind: CommandKind::Attached {
-            archive: Archive::Optional,
-            attach: Attach::Any,
-            validate: Validate::None,
-        },
-    }
+    Command { app: ReadmemArgs::command(), name: "readmem", run: readmem }
 }

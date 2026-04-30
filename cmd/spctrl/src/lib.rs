@@ -45,7 +45,7 @@
 //! ```
 
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 
 use std::str;
@@ -89,9 +89,9 @@ struct SpCtrlArgs {
 }
 
 fn spctrl(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = SpCtrlArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let mut ops = vec![];
 
@@ -151,14 +151,5 @@ fn spctrl(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: SpCtrlArgs::command(),
-        name: "spctrl",
-        run: spctrl,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: SpCtrlArgs::command(), name: "spctrl", run: spctrl }
 }

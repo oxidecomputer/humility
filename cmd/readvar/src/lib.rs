@@ -41,7 +41,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 
 #[derive(Parser, Debug)]
 #[clap(name = "readvar", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -100,10 +100,8 @@ fn readvar_dump(
 }
 
 fn readvar(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = ReadvarArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
 
     if subargs.list {
         println!("{:18} {:<42} {:<10} SIZE", "MODULE", "VARIABLE", "ADDR");
@@ -134,6 +132,14 @@ fn readvar(context: &mut ExecutionContext) -> Result<()> {
         n == v || n.ends_with(&suffix)
     }
 
+    // Try to attach to a live system or dump, falling back to an archive core
+    // if that's not possible (which only lets us read flash).
+    let mut core = match context.cli.attach_live_or_dump_match(hubris) {
+        Ok(core) => core,
+        Err(_) => humility::core::attach_archive(hubris)?,
+    };
+    let core = &mut *core;
+
     if let Some(variable) = &subargs.variable {
         let m =
             if variable.contains("::") { match_exact } else { match_suffix };
@@ -160,14 +166,5 @@ fn readvar(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ReadvarArgs::command(),
-        name: "readvar",
-        run: readvar,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Match,
-        },
-    }
+    Command { app: ReadvarArgs::command(), name: "readvar", run: readvar }
 }

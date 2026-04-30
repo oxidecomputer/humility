@@ -362,6 +362,21 @@ impl<'a> HiffyContext<'a> {
                 .unwrap_or(Ok(256))?
         };
 
+        let functions = Self::get_hiffy_functions(hubris)?;
+
+        Ok(Self {
+            hubris,
+            hiffy,
+            scratch_size,
+            timeout,
+            state: State::Initialized,
+            functions,
+        })
+    }
+
+    pub fn get_hiffy_functions(
+        hubris: &'a HubrisArchive,
+    ) -> Result<HiffyFunctions> {
         let mut function_map = HashMap::new();
         let funcs = Self::definition(hubris, "HIFFY_FUNCTIONS")?;
         let goff = hubris
@@ -435,15 +450,7 @@ impl<'a> HiffyContext<'a> {
 
             function_map.insert(func.name.clone(), func);
         }
-
-        Ok(Self {
-            hubris,
-            hiffy,
-            scratch_size,
-            timeout,
-            state: State::Initialized,
-            functions: HiffyFunctions(function_map),
-        })
+        Ok(HiffyFunctions(function_map))
     }
 
     /// Returns the size of the `HIFFY_DATA` array, or 0 if unsupported

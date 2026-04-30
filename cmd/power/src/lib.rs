@@ -21,8 +21,7 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use std::collections::{BTreeMap, HashSet};
@@ -117,10 +116,9 @@ fn phase_currents(
 }
 
 fn power(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = PowerArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let mut ops = vec![];
@@ -310,14 +308,5 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: PowerArgs::command(),
-        name: "power",
-        run: power,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: PowerArgs::command(), name: "power", run: power }
 }

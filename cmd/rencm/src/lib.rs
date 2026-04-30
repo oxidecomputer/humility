@@ -11,9 +11,7 @@
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{
-    Archive, Attach, Command, CommandKind, Dumper, Validate, attach,
-};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 
@@ -801,18 +799,11 @@ fn rencm(context: &mut ExecutionContext) -> Result<()> {
         return rencm_ingest(&subargs, modules);
     }
 
-    attach(context, Attach::LiveOnly, Validate::Booted, |context| {
-        let core = context.core.as_mut().unwrap();
-        let hubris = context.archive.as_ref().unwrap();
-        rencm_attached(hubris, &mut **core, &subargs, modules)
-    })
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
+    rencm_attached(hubris, core, &subargs, modules)
 }
 
 pub fn init() -> Command {
-    Command {
-        app: RencmArgs::command(),
-        name: "rencm",
-        run: rencm,
-        kind: CommandKind::Unattached { archive: Archive::Optional },
-    }
+    Command { app: RencmArgs::command(), name: "rencm", run: rencm }
 }

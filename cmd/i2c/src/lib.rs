@@ -94,7 +94,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 use humility_log::msg;
 
@@ -424,10 +424,8 @@ fn i2c_done(
 }
 
 fn i2c(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = I2cArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
 
     if !subargs.scan
         && subargs.scanreg.is_none()
@@ -441,6 +439,7 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
         );
     }
 
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     let (fname, args) = if subargs.flash.is_some() {
@@ -711,14 +710,5 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: I2cArgs::command(),
-        name: "i2c",
-        run: i2c,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: I2cArgs::command(), name: "i2c", run: i2c }
 }

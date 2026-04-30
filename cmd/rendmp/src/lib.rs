@@ -146,7 +146,7 @@ use humility::hubris::*;
 use humility::reflect::{Base, Value};
 use humility::warn;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolOperation};
@@ -2307,11 +2307,9 @@ fn restore_default_config<'a>(
 }
 
 fn rendmp(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_mut().unwrap();
-
-    let core = &mut **context.core.as_mut().unwrap();
-
     let subargs = RendmpArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     // Workaround for clap#4707
     if subargs.flash.is_none() {
@@ -2898,14 +2896,5 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: RendmpArgs::command(),
-        name: "rendmp",
-        run: rendmp,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: RendmpArgs::command(), name: "rendmp", run: rendmp }
 }
