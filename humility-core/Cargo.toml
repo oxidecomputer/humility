@@ -9,7 +9,6 @@ addr2line.workspace = true
 anyhow.workspace = true
 bitfield.workspace = true
 clap.workspace = true
-fallible-iterator.workspace = true
 gimli.workspace = true
 goblin.workspace = true
 hubpack.workspace = true

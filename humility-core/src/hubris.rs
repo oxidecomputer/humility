@@ -23,7 +23,6 @@ use std::time::Instant;
 use crate::{msg, warn};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use capstone::InsnGroupType;
-use fallible_iterator::FallibleIterator;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
 use humpty::DumpTask;
@@ -4422,15 +4421,13 @@ impl HubrisObjectLoader {
         while let Some(header) = iter.next()? {
             let unit = dwarf.unit(header)?;
             let mut entries = unit.entries();
-            let mut depth = 0;
             let mut stack: Vec<HubrisGoff> = vec![];
 
             let mut array = None;
             let mut ns = vec![];
 
-            while let Some((delta, entry)) = entries.next_dfs()? {
-                depth += delta;
-
+            while let Some(entry) = entries.next_dfs()? {
+                let depth = entry.depth;
                 //
                 // See if our depth has become shallower than our namespace,
                 // trimming it until it fits.
@@ -4490,9 +4487,7 @@ impl HubrisObjectLoader {
                     }
 
                     gimli::constants::DW_TAG_array_type => {
-                        let mut attrs = entry.attrs();
-
-                        while let Some(attr) = attrs.next()? {
+                        for attr in entry.attrs() {
                             if attr.name() != gimli::constants::DW_AT_type {
                                 continue;
                             }
@@ -4758,11 +4753,7 @@ impl HubrisObjectLoader {
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> HubrisGoff {
-        let goff = match entry.offset().to_unit_section_offset(unit) {
-            gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
-            gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
-        };
-
+        let goff = entry.offset().to_unit_section_offset(unit).0;
         HubrisGoff { object: self.current, goff }
     }
 
@@ -4772,12 +4763,11 @@ impl HubrisObjectLoader {
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
         let mut name = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -4814,13 +4804,12 @@ impl HubrisObjectLoader {
         entry: &gimli::DebuggingInformationEntry<R, usize>,
         parent: HubrisGoff,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let mut name = None;
         let mut offset = None;
         let mut goff = None;
         let member = self.dwarf_goff(unit, entry);
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -4917,10 +4906,7 @@ impl HubrisObjectLoader {
     ) -> Option<HubrisGoff> {
         let goff = match value {
             gimli::AttributeValue::UnitRef(offs) => {
-                match offs.to_unit_section_offset(unit) {
-                    gimli::UnitSectionOffset::DebugInfoOffset(o) => o.0,
-                    gimli::UnitSectionOffset::DebugTypesOffset(o) => o.0,
-                }
+                offs.to_unit_section_offset(unit).0
             }
 
             gimli::AttributeValue::DebugInfoRef(offs) => offs.0,
@@ -4940,10 +4926,9 @@ impl HubrisObjectLoader {
         parent: HubrisGoff,
     ) -> Result<()> {
         let goff = self.dwarf_goff(unit, entry);
-        let mut attrs = entry.attrs();
         let mut value = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             if attr.name() == gimli::constants::DW_AT_discr_value {
                 value = attr.value().udata_value().map(Tag::Unsigned);
 
@@ -4971,7 +4956,6 @@ impl HubrisObjectLoader {
         entry: &gimli::DebuggingInformationEntry<R, usize>,
         goff: HubrisGoff,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let mut discr = None;
 
         //
@@ -4988,7 +4972,7 @@ impl HubrisObjectLoader {
             .expect("structs vs structs_byname inconsistency")
             .retain(|&g| g != goff);
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             if attr.name() == gimli::constants::DW_AT_discr {
                 discr = self.dwarf_value_goff(unit, &attr.value());
             }
@@ -5020,11 +5004,10 @@ impl HubrisObjectLoader {
         parent: HubrisGoff,
     ) -> Result<()> {
         let goff = self.dwarf_goff(unit, entry);
-        let mut attrs = entry.attrs();
         let mut value = None;
         let mut name = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -5077,12 +5060,11 @@ impl HubrisObjectLoader {
         goff: HubrisGoff,
         namespace: Option<NamespaceId>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let mut name = None;
         let mut size = None;
         let mut dgoff = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -5139,7 +5121,8 @@ impl HubrisObjectLoader {
 
         let count_attr = entry
             .attrs()
-            .find(|attr| Ok(attr.name() == gimli::constants::DW_AT_count))?;
+            .iter()
+            .find(|attr| attr.name() == gimli::constants::DW_AT_count);
         let count = count_attr.and_then(|a| a.udata_value());
 
         if let Some(count) = count {
@@ -5158,13 +5141,12 @@ impl HubrisObjectLoader {
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut size = None;
         let mut encoding = None;
         let mut name = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -5219,12 +5201,11 @@ impl HubrisObjectLoader {
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut underlying = None;
         let mut name = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_type => {
                     underlying = self.dwarf_value_goff(unit, &attr.value());
@@ -5252,13 +5233,11 @@ impl HubrisObjectLoader {
         depth: isize,
         namespace: &mut Vec<(NamespaceId, isize)>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
-
         //
         // For a new namespace, create an entry in our namespaces vector,
         // and push a tuple consisting of the identifer and our depth.
         //
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             if attr.name() == gimli::constants::DW_AT_name {
                 if let Some(name) = dwarf_name(dwarf, attr.value()) {
                     namespace.push((
@@ -5283,13 +5262,12 @@ impl HubrisObjectLoader {
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let mut file = None;
         let mut line = None;
 
         let goff = self.dwarf_goff(unit, entry);
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match (attr.name(), attr.value()) {
                 (
                     gimli::constants::DW_AT_decl_file,
@@ -5356,12 +5334,11 @@ impl HubrisObjectLoader {
         entry: &gimli::DebuggingInformationEntry<R, usize>,
         namespace: Option<NamespaceId>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut name = None;
         let mut size = None;
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
@@ -5405,14 +5382,13 @@ impl HubrisObjectLoader {
         //
         // Iterate over our attributes looking for addresses
         //
-        let mut attrs = entry.attrs();
         let mut low: Option<u64> = None;
         let mut high: Option<u64> = None;
         let mut origin: Option<HubrisGoff> = None;
 
         let goff = self.dwarf_goff(unit, entry);
 
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match (attr.name(), attr.value()) {
                 (
                     gimli::constants::DW_AT_low_pc,
@@ -5451,8 +5427,7 @@ impl HubrisObjectLoader {
             }
         };
 
-        let mut attrs = entry.attrs();
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             if let (
                 gimli::constants::DW_AT_ranges,
                 gimli::AttributeValue::RangeListsRef(r),
@@ -5462,7 +5437,7 @@ impl HubrisObjectLoader {
                     gimli::RangeListsOffset(r.0),
                     unit.encoding(),
                 )?;
-                let raw_ranges: Vec<_> = raw_ranges.collect()?;
+                let raw_ranges = raw_ranges.collect::<Result<Vec<_>, _>>()?;
 
                 for r in raw_ranges {
                     if let gimli::RawRngListEntry::AddressOrOffsetPair {
@@ -5501,8 +5476,7 @@ impl HubrisObjectLoader {
         let goff = self.dwarf_goff(unit, entry);
 
         // Iterate over the attributes in the DIE.
-        let mut attrs = entry.attrs();
-        while let Some(attr) = attrs.next()? {
+        for attr in entry.attrs() {
             match (attr.name(), attr.value()) {
                 (
                     gimli::constants::DW_AT_low_pc,
@@ -5563,7 +5537,6 @@ impl HubrisObjectLoader {
         unit: &gimli::Unit<R>,
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> Result<()> {
-        let mut attrs = entry.attrs();
         let goff = self.dwarf_goff(unit, entry);
         let mut name = None;
         let mut linkage_name = None;
@@ -5571,7 +5544,7 @@ impl HubrisObjectLoader {
         let mut tgoff = None;
         let mut dwarf_location = None;
 
-        'attrloop: while let Some(attr) = attrs.next()? {
+        'attrloop: for attr in entry.attrs() {
             match attr.name() {
                 gimli::constants::DW_AT_name => {
                     name = dwarf_name(dwarf, attr.value());
