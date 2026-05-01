@@ -19,10 +19,10 @@ struct ResetArgs {
     #[clap(long, conflicts_with_all = &["halt"])]
     soft_reset: bool,
     /// Reset and halt instead of continuing
-    #[clap(long, conflicts_with_all = &["soft-reset"])]
+    #[clap(long, conflicts_with_all = &["soft_reset"])]
     halt: bool,
     /// Use measurement token handoff (usually decided automatically)
-    #[clap(long, conflicts_with_all = &["soft-reset", "halt"])]
+    #[clap(long, conflicts_with_all = &["soft_reset", "halt"])]
     use_token: Option<bool>,
 }
 

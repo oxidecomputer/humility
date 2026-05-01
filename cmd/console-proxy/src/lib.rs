@@ -67,7 +67,7 @@ enum UartConsoleCommand {
     /// `detach` subcommand.
     Attach {
         #[clap(
-            long = "--no-raw",
+            long = "no-raw",
             help = "do not put terminal in raw mode",
             action = clap::ArgAction::SetFalse,
         )]

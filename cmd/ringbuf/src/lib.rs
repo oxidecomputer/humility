@@ -105,7 +105,7 @@ struct TotalsOptions {
         long,
         short,
         conflicts_with_all = &[
-            "full-totals",
+            "full_totals",
             "list"
         ],
     )]

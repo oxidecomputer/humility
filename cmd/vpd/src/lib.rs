@@ -132,7 +132,7 @@ struct VpdArgs {
 
     /// list all devices that have VPD (can be combined with --read)
     #[clap(long, short, conflicts_with_all = &[
-        "device", "id", "lock", "lock-all", "erase", "raw", "binary", "loopback"
+        "device", "id", "lock", "lock_all", "erase", "raw", "binary", "loopback"
     ])]
     list: bool,
 
@@ -181,7 +181,7 @@ struct VpdArgs {
     )]
     lock_all: bool,
 
-    #[clap(long, requires = "lock-all")]
+    #[clap(long, requires = "lock_all")]
     allow_missing: bool,
 }
 

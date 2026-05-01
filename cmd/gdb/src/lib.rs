@@ -35,15 +35,15 @@ struct GdbArgs {
     load: bool,
 
     /// when set, runs an OpenOCD process before starting GDB
-    #[clap(long, group = "run_openocd")]
+    #[clap(long, group = "run_openocd_group")]
     run_openocd: bool,
 
     /// specifies the `openocd` executable to run
-    #[clap(long, requires = "run_openocd")]
+    #[clap(long, requires = "run_openocd_group")]
     openocd: Option<String>,
 
     /// specifies the probe serial number to use with OpenOCD
-    #[clap(long, requires = "run_openocd")]
+    #[clap(long, requires = "run_openocd_group")]
     serial: Option<String>,
 
     #[clap(long)]
