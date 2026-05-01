@@ -314,7 +314,7 @@ fn erase(
 
     bar.set_style(
         ProgressStyle::default_bar()
-            .template("humility: erasing [{bar:30}] {bytes}/{total_bytes}"),
+            .template("humility: erasing [{bar:30}] {bytes}/{total_bytes}")?,
     );
 
     bar.set_position(0);
@@ -664,11 +664,11 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         if !subargs.verify {
             bar.set_style(ProgressStyle::default_bar().template(
                 "humility: flashing [{bar:30}] {bytes}/{total_bytes}",
-            ));
+            )?);
         } else {
             bar.set_style(ProgressStyle::default_bar().template(
                 "humility: verifying [{bar:30}] {bytes}/{total_bytes}",
-            ));
+            )?);
         }
 
         while offset < filelen {
@@ -802,8 +802,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let started = Instant::now();
         let bar = ProgressBar::new(nbytes as u64);
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: reading [{bar:30}] {bytes}/{total_bytes}"),
+            ProgressStyle::default_bar().template(
+                "humility: reading [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
         let update_cycle = 64;
         let mut updates = 0;
@@ -892,8 +893,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let bar = ProgressBar::new(filelen as u64);
 
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: hashing [{bar:30}] {bytes}/{total_bytes}"),
+            ProgressStyle::default_bar().template(
+                "humility: hashing [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
 
         let mut offset = 0u32;
@@ -985,8 +987,9 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         let bar = ProgressBar::new(nbytes as u64);
 
         bar.set_style(
-            ProgressStyle::default_bar()
-                .template("humility: writing [{bar:30}] {bytes}/{total_bytes}"),
+            ProgressStyle::default_bar().template(
+                "humility: writing [{bar:30}] {bytes}/{total_bytes}",
+            )?,
         );
 
         let mut total = 0;
