@@ -167,7 +167,7 @@ use std::io::prelude::*;
 use std::thread;
 use std::time::{Duration, Instant};
 use strum::VariantNames;
-use strum_macros::EnumVariantNames;
+use strum_macros::VariantNames;
 use zerocopy::{FromBytes, IntoBytes};
 
 mod blackbox;
@@ -954,7 +954,7 @@ fn rendmp_ingest(subargs: &RendmpArgs) -> Result<()> {
 ///
 /// The inner `usize` is the number of rails in use, as some devices may be
 /// configured for a design-specific rail count.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, EnumVariantNames)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, VariantNames)]
 enum SupportedDevice {
     ISL68224(usize),
     RAA229618(usize),
