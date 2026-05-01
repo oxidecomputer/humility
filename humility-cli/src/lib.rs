@@ -285,10 +285,7 @@ impl Cli {
         validate: Option<HubrisValidate>,
     ) -> Result<Box<dyn Core>> {
         let mut core = if let Some(dump) = &self.dump {
-            let Some(hubris) = hubris else {
-                bail!("cannot load dump without archive");
-            };
-            humility::core::attach_dump(dump, hubris)?
+            humility::core::attach_dump(dump)?
         } else if let Some(ip) = &self.ip {
             let Some(hubris) = hubris else {
                 bail!("cannot connect over the network without archive");
@@ -335,9 +332,9 @@ impl Cli {
     /// Attaches to a dump
     ///
     /// Reads from the `--dump` argument to pick a target file
-    pub fn attach_dump(&self, hubris: &HubrisArchive) -> Result<Box<dyn Core>> {
+    pub fn attach_dump(&self) -> Result<Box<dyn Core>> {
         let core = if let Some(dump) = &self.dump {
-            humility::core::attach_dump(dump, hubris)?
+            humility::core::attach_dump(dump)?
         } else {
             bail!("must be run against a dump");
         };
