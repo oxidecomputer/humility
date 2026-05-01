@@ -184,8 +184,8 @@ fn force_openocd(
     // (regardless of platform), so we turn our paths into slash
     // paths.
     //
-    let conf_path = conf.path().to_slash_lossy();
-    let srec_path = srec.path().to_slash_lossy();
+    let conf_path = conf.path().to_slash_lossy().into_owned();
+    let srec_path = srec.path().to_slash_lossy().into_owned();
 
     if subargs.retain || subargs.dryrun {
         humility::msg!("retaining OpenOCD config as {:?}", conf.path());
