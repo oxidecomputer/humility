@@ -594,36 +594,8 @@ impl HubrisFlashMap {
     }
 }
 
-//
-// This is the Hubris definition
-//
-#[derive(Debug, Deserialize)]
-pub enum FlashProgram {
-    PyOcd(Vec<FlashArgument>),
-    OpenOcd(FlashProgramConfig),
-}
-
-#[derive(Debug, Deserialize)]
-pub enum FlashProgramConfig {
-    Path(Vec<String>),
-    Payload(String),
-}
-
-#[derive(Debug, Deserialize)]
-pub enum FlashArgument {
-    Direct(String),
-    Payload,
-    FormattedPayload(String, String),
-    Config,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct HubrisFlashMeta {
-    /// Legacy flash program. Not included in new archives.
-    pub program: Option<FlashProgram>,
-    /// Arguments for legacy flash program, or empty if not used.
-    #[serde(default)]
-    pub args: Vec<FlashArgument>,
     /// Chip name used by probe-rs.
     pub chip: Option<String>,
 }
@@ -1663,70 +1635,7 @@ impl HubrisArchive {
         // This is incredibly ugly! It also gives us backwards compatibility!
         let chip: Option<String> = match config.chip {
             Some(ref chip) => Some(chip.to_string()),
-            None => match &config.program {
-                Some(FlashProgram::PyOcd(args)) => {
-                    let s69 = regex::Regex::new(r"lpc55s69").unwrap();
-                    let s28 = regex::Regex::new(r"lpc55s28").unwrap();
-                    let mut c: Option<String> = None;
-                    for arg in args {
-                        c = match arg {
-                            FlashArgument::Direct(s) => {
-                                if s69.is_match(s) {
-                                    Some("LPC55S69JBD100".to_string())
-                                } else if s28.is_match(s) {
-                                    Some("LPC55S28JBD64".to_string())
-                                } else {
-                                    None
-                                }
-                            }
-                            _ => None,
-                        };
-                        if c.is_some() {
-                            break;
-                        }
-                    }
-                    c
-                }
-                Some(FlashProgram::OpenOcd(a)) => match a {
-                    FlashProgramConfig::Payload(d) => {
-                        let h7 =
-                            regex::Regex::new(r"find target/stm32h7").unwrap();
-                        let f3 =
-                            regex::Regex::new(r"find target/stm32f3").unwrap();
-                        let f4 =
-                            regex::Regex::new(r"find target/stm32f4").unwrap();
-                        let g0 =
-                            regex::Regex::new(r"find target/stm32g0").unwrap();
-
-                        let mut c: Option<String> = None;
-
-                        for s in d.split('\n') {
-                            if h7.is_match(s) {
-                                c = Some("STM32H753ZITx".to_string());
-                                break;
-                            }
-                            if f3.is_match(s) {
-                                c = Some("STM32F301C6Tx".to_string());
-                                break;
-                            }
-                            if f4.is_match(s) {
-                                c = Some("STM32F401CBUx".to_string());
-                                break;
-                            }
-                            if g0.is_match(s) {
-                                c = Some("STM32G030C6Tx".to_string());
-                                break;
-                            }
-                        }
-                        c
-                    }
-                    _ => bail!("Unexpected config?"),
-                },
-                None => {
-                    bail!("archive flash.ron is missing both probe-rs chip \
-                        name and legacy flash config");
-                }
-            },
+            None => bail!("must specify a chip in your config"),
         };
 
         Ok(HubrisFlashConfig {
