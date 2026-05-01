@@ -4,7 +4,7 @@
 use crate::DumpAgent;
 use anyhow::{Context, Result, anyhow, bail};
 use humility::core::{Core, NetAgent};
-use rand::Rng;
+use rand::RngExt;
 
 pub struct UdpDumpAgent<'a> {
     core: &'a mut dyn Core,
