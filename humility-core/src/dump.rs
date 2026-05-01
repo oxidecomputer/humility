@@ -3,10 +3,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use crate::core::Core;
-use crate::hubris::HubrisArchive;
-use anyhow::{Result, anyhow, bail};
+use crate::hubris::OXIDE_NT_HUBRIS_REGISTERS;
+use anyhow::{Context, Result, anyhow, bail};
 use goblin::elf::Elf;
 use humility_arch_arm::ARMRegister;
+use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::Read;
@@ -15,11 +16,11 @@ use std::path::Path;
 pub struct DumpCore {
     contents: Vec<u8>,
     regions: BTreeMap<u32, (u32, usize)>,
-    registers: HashMap<ARMRegister, u32>,
+    registers: Option<HashMap<ARMRegister, u32>>,
 }
 
 impl DumpCore {
-    pub(crate) fn new(dump: &str, hubris: &HubrisArchive) -> Result<DumpCore> {
+    pub(crate) fn new(dump: &str) -> Result<DumpCore> {
         let mut file = File::open(dump)?;
         let mut regions = BTreeMap::new();
 
@@ -41,7 +42,23 @@ impl DumpCore {
             );
         }
 
-        Ok(Self { contents, regions, registers: hubris.dump_registers() })
+        let mut registers = None;
+        if let Some(notes) = elf.iter_note_headers(&contents) {
+            for note in notes {
+                let note = note.context("failed to parse note")?;
+                if note.n_type == OXIDE_NT_HUBRIS_REGISTERS {
+                    if registers.is_some() {
+                        bail!(
+                            "multiple copies of OXIDE_NT_HUBRIS_REGISTERS \
+                             found in dump"
+                        );
+                    }
+                    registers = Some(load_registers(note.desc)?);
+                }
+            }
+        }
+
+        Ok(Self { contents, regions, registers })
     }
 
     fn check_offset(&self, addr: u32, rsize: usize, offs: usize) -> Result<()> {
@@ -65,6 +82,38 @@ impl DumpCore {
             self.contents.len()
         );
     }
+}
+
+fn load_registers(r: &[u8]) -> Result<HashMap<ARMRegister, u32>> {
+    if !r.len().is_multiple_of(8) {
+        bail!("bad length {} in registers note", r.len());
+    }
+    let mut registers = HashMap::new();
+    for (i, chunk) in r.chunks_exact(8).enumerate() {
+        let (id, val) = chunk.split_at(4);
+        // We unwrap here because it can only fail if the length is wrong,
+        // but we've explicitly broken a chunk of 8 into two chunks of 4,
+        // so a failure here would mean this code has been changed.
+        let id = u32::from_le_bytes(id.try_into().unwrap());
+        let val = u32::from_le_bytes(val.try_into().unwrap());
+
+        let reg = match ARMRegister::from_u32(id) {
+            Some(r) => r,
+            None => {
+                // This can totally happen if we encounter a future coredump
+                // where we decided to store, say, additional MSRs or a
+                // floating point register. Since this version of Humility
+                // doesn't understand them, we'll just skip it.
+                continue;
+            }
+        };
+
+        if registers.insert(reg, val).is_some() {
+            bail!("duplicate register {} ({}) at offset {}", reg, id, i * 8);
+        }
+    }
+
+    Ok(registers)
 }
 
 #[rustfmt::skip::macros(bail)]
@@ -114,10 +163,15 @@ impl Core for DumpCore {
     }
 
     fn read_reg(&mut self, reg: ARMRegister) -> Result<u32> {
-        if let Some(val) = self.registers.get(&reg) {
-            Ok(*val)
-        } else {
-            bail!("register {} not found in dump", reg);
+        match &self.registers {
+            Some(regs) => {
+                if let Some(val) = regs.get(&reg) {
+                    Ok(*val)
+                } else {
+                    bail!("register {} not found in dump", reg);
+                }
+            }
+            None => bail!("dump does not include register info"),
         }
     }
 

@@ -129,11 +129,8 @@ pub enum NetAgent {
     Hiffy,
 }
 
-pub fn attach_dump(
-    dump: &str,
-    hubris: &HubrisArchive,
-) -> Result<Box<dyn Core>> {
-    let core = DumpCore::new(dump, hubris)?;
+pub fn attach_dump(dump: &str) -> Result<Box<dyn Core>> {
+    let core = DumpCore::new(dump)?;
     crate::msg!("attached to dump");
     Ok(Box::new(core))
 }
