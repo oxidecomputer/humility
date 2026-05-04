@@ -298,7 +298,7 @@ struct PmbusArgs {
     rail: Option<Vec<String>>,
 
     /// agent to use when executing PMBus operations
-    #[clap(long, default_value_t=Agent::Auto)]
+    #[clap(long, value_enum, default_value_t=Agent::Auto)]
     agent: Agent,
 }
 
@@ -307,17 +307,6 @@ enum Agent {
     Auto,
     Idol,
     I2c,
-}
-
-impl std::fmt::Display for Agent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Auto => "auto",
-            Self::Idol => "idol",
-            Self::I2c => "i2c",
-        };
-        s.fmt(f)
-    }
 }
 
 fn all_commands(

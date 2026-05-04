@@ -111,7 +111,7 @@ pub struct Cli {
     pub list_targets: bool,
 
     /// Subcommand to execute
-    #[clap(allow_hyphen_values = true)]
+    #[clap(trailing_var_arg = true)]
     pub cmd: Vec<String>,
 }
 
