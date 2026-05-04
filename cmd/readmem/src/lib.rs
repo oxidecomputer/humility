@@ -118,7 +118,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use std::convert::TryInto;
 use std::io::Write;
@@ -130,10 +130,8 @@ use std::path::PathBuf;
 // those who yearn to express themselves in terms of octal multiples of
 // kibibytes!
 //
-fn parse_size<T: AsRef<[u8]>>(src: T) -> Result<u64, parse_size::Error> {
-    if let Ok(s) = std::str::from_utf8(src.as_ref())
-        && let Ok(rval) = parse_int::parse::<u64>(s)
-    {
+fn parse_size(src: &str) -> Result<u64, parse_size::Error> {
+    if let Ok(rval) = parse_int::parse::<u64>(src) {
         return Ok(rval);
     }
 
@@ -164,16 +162,15 @@ struct ReadmemArgs {
     address: String,
 
     /// length to read
-    #[clap(parse(try_from_str = parse_size))]
+    #[clap(value_parser = parse_size)]
     length: Option<u64>,
 }
 
 fn readmem(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = ReadmemArgs::try_parse_from(subargs)?;
+    let subargs = ReadmemArgs::try_parse_from(&context.cli.cmd)?;
     let max = humility::core::CORE_MAX_READSIZE;
     let size = if subargs.word || subargs.symbol {
         4

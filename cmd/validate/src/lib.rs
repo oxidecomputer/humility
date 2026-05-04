@@ -47,7 +47,7 @@ use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_i2c::I2cArgs;
@@ -59,7 +59,7 @@ struct ValidateArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -69,7 +69,7 @@ struct ValidateArgs {
 
     /// specifies an I2C controller to validate
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 
@@ -133,8 +133,7 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
 }
 fn validate(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = ValidateArgs::try_parse_from(subargs)?;
+    let subargs = ValidateArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
 
     let hargs = if subargs.bus.is_some() || subargs.controller.is_some() {

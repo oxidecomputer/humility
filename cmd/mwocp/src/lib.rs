@@ -34,7 +34,7 @@
 
 use humility::hubris::*;
 use humility::msg;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -57,7 +57,7 @@ struct MwocpArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -87,7 +87,7 @@ struct DeviceIdentity {
 
     /// specifies an I2C controller
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 
@@ -117,12 +117,11 @@ const MWOCP68_CHECKSUM_DELAY: u64 = 2;
 const MWOCP68_REBOOT_DELAY: u64 = 5;
 
 fn mwocp(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
 
     let core = &mut **context.core.as_mut().unwrap();
 
-    let subargs = MwocpArgs::try_parse_from(subargs)?;
+    let subargs = MwocpArgs::try_parse_from(&context.cli.cmd)?;
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 

@@ -5,9 +5,9 @@ comment above the option declaration for details and rationale.)
 ```
 $ humility --chip -V
 ? failed
-error: The argument '--chip <CHIP>' requires a value but none was supplied
+error: a value is required for '--chip <CHIP>' but none was supplied
 
-For more information try --help
+For more information, try '--help'.
 
 ```
 
@@ -20,9 +20,9 @@ humility 0.12.17
 ```
 $ humility -c -V
 ? failed
-error: The argument '--chip <CHIP>' requires a value but none was supplied
+error: a value is required for '--chip <CHIP>' but none was supplied
 
-For more information try --help
+For more information, try '--help'.
 
 ```
 

@@ -40,7 +40,7 @@ pub enum Validate {
 }
 
 pub struct Command {
-    pub app: ClapCommand<'static>,
+    pub app: ClapCommand,
     pub name: &'static str,
     pub kind: CommandKind,
     pub run: fn(&mut humility_cli::ExecutionContext) -> Result<()>,

@@ -40,7 +40,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
@@ -101,10 +101,9 @@ fn readvar_dump(
 
 fn readvar(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = ReadvarArgs::try_parse_from(subargs)?;
+    let subargs = ReadvarArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.list {
         println!("{:18} {:<42} {:<10} SIZE", "MODULE", "VARIABLE", "ADDR");

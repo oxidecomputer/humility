@@ -93,7 +93,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use hif::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_log::msg;
@@ -113,7 +113,7 @@ pub struct I2cArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -126,7 +126,7 @@ pub struct I2cArgs {
     /// have side-effects on unsporting devices
     #[clap(long, short = 'S', value_name = "register",
         conflicts_with_all = &["scan", "register", "device"],
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     scanreg: Option<u8>,
 
@@ -154,7 +154,7 @@ pub struct I2cArgs {
 
     /// specifies register
     #[clap(long, short, value_name = "register",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     register: Option<u8>,
 
@@ -182,7 +182,7 @@ pub struct I2cArgs {
     /// number of bytes to read from (or write to) register
     #[clap(long, short, value_name = "nbytes",
         conflicts_with = "write",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     nbytes: Option<u8>,
 
@@ -425,10 +425,9 @@ fn i2c_done(
 
 fn i2c(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = I2cArgs::try_parse_from(subargs)?;
+    let subargs = I2cArgs::try_parse_from(&context.cli.cmd)?;
 
     if !subargs.scan
         && subargs.scanreg.is_none()

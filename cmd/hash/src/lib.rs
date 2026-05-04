@@ -19,7 +19,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use sha2::{Digest, Sha256};
@@ -83,7 +83,7 @@ struct HashArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -94,9 +94,8 @@ struct HashArgs {
 
 fn hash(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
-    let subargs = HashArgs::try_parse_from(subargs)?;
+    let subargs = HashArgs::try_parse_from(&context.cli.cmd)?;
     let archive = context.archive.as_ref().unwrap();
     let mut context = HiffyContext::new(archive, core, subargs.timeout)?;
     let scratch_size = context.scratch_size();

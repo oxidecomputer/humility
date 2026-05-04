@@ -102,7 +102,7 @@
 //! ```
 //!
 
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use std::str;
@@ -119,7 +119,7 @@ struct GpioArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -165,10 +165,9 @@ struct GpioArgs {
 
 fn gpio(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = GpioArgs::try_parse_from(subargs)?;
+    let subargs = GpioArgs::try_parse_from(&context.cli.cmd)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     let gpio_toggle = context.get_function("GpioToggle", 1)?;

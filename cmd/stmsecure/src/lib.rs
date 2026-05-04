@@ -31,7 +31,7 @@ use anyhow::{Result, anyhow};
 use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
@@ -70,9 +70,9 @@ enum StmSecureArgs {
     /// region before this is programmed otherwise you will brick the device
     /// !!!
     SetSecureRegion {
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         address: u32,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         size: u32,
         #[clap(long)]
         doit: bool,
@@ -296,9 +296,8 @@ fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
 #[rustfmt::skip::macros(format)]
 fn stmsecure(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
-    let subargs = StmSecureArgs::try_parse_from(subargs)?;
+    let subargs = StmSecureArgs::try_parse_from(&context.cli.cmd)?;
 
     match subargs {
         StmSecureArgs::Status => stmsecure_status(core),

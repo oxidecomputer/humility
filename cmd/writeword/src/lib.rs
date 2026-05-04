@@ -49,26 +49,25 @@
 
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 #[derive(Parser, Debug)]
 #[clap(name = "writeword", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct WritewordArgs {
     /// address to write to
-    #[clap(parse(try_from_str = parse_int::parse))]
+    #[clap(value_parser = parse_int::parse::<u32>,)]
     address: u32,
 
     /// value(s) to write
-    #[clap(parse(try_from_str = parse_int::parse))]
+    #[clap(value_parser = parse_int::parse::<u32>)]
     value: Vec<u32>,
 }
 
 fn writeword(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
 
-    let subargs = WritewordArgs::try_parse_from(subargs)?;
+    let subargs = WritewordArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.address & 0b11 != 0 {
         bail!("address must be word aligned");

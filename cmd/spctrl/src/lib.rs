@@ -44,7 +44,7 @@
 //! 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 //! ```
 
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 
@@ -58,12 +58,12 @@ use hif::*;
 #[clap(name = "subcmd")]
 enum SpCtrlCmd {
     Write {
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         addr: u32,
         bytes: String,
     },
     Read {
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         addr: u32,
         nbytes: usize,
     },
@@ -76,7 +76,7 @@ struct SpCtrlArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -90,8 +90,7 @@ struct SpCtrlArgs {
 
 fn spctrl(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = SpCtrlArgs::try_parse_from(subargs)?;
+    let subargs = SpCtrlArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let mut ops = vec![];

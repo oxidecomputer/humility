@@ -205,7 +205,7 @@ use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
 use indexmap::IndexMap;
@@ -325,10 +325,9 @@ const LIST_HINT: &str = "use `humility counters list` to list all \
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = CountersArgs::try_parse_from(subargs)?;
+    let subargs = CountersArgs::try_parse_from(&context.cli.cmd)?;
 
     if let Some(Subcmd::Ipc(ipc)) = subargs.command {
         return ipc.ipc_counter_dump(hubris, core);

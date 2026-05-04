@@ -5,7 +5,7 @@
 use anyhow::{Context, Result, bail};
 use clap::Command as ClapCommand;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashMap;
 
@@ -19,8 +19,8 @@ include!(concat!(env!("OUT_DIR"), "/cmds.rs"));
 use crate::cmd_repl;
 
 pub fn init(
-    command: ClapCommand<'static>,
-) -> (HashMap<&'static str, Command>, ClapCommand<'static>) {
+    command: ClapCommand,
+) -> (HashMap<&'static str, Command>, ClapCommand) {
     let mut cmds = HashMap::new();
     let mut rval = command;
 
@@ -43,8 +43,7 @@ pub fn subcommand(
     context: &mut ExecutionContext,
     commands: &HashMap<&'static str, Command>,
 ) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let cmd = subargs[0].as_str();
+    let cmd = context.cli.cmd[0].as_str();
 
     let command = commands
         .get(cmd)

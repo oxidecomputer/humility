@@ -70,7 +70,7 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, DumpBreakdown,
@@ -87,18 +87,18 @@ use std::time::Instant;
 #[clap(
     name = "dump", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("simulation").multiple(false)
-        .required(false).requires("force-dump-agent")
+        .required(false).requires("force_dump_agent")
 )]
 struct DumpArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 20000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
     /// show dump agent status
-    #[clap(long, conflicts_with_all = &["simulation", "task", "extract-all"])]
+    #[clap(long, conflicts_with_all = &["simulation", "task", "extract_all"])]
     dump_agent_status: bool,
 
     /// force use of the dump agent when directly attached with a debug probe
@@ -111,13 +111,13 @@ struct DumpArgs {
 
     /// force manual initiation, leaving target halted
     #[clap(
-        long, requires = "force-dump-agent",
-        conflicts_with_all = &["extract-all", "task"]
+        long, requires = "force_dump_agent",
+        conflicts_with_all = &["extract_all", "task"]
     )]
     force_manual_initiation: bool,
 
     /// force existing in situ dump to be read
-    #[clap(long, conflicts_with_all = &["simulation", "task", "extract-all"])]
+    #[clap(long, conflicts_with_all = &["simulation", "task", "extract_all"])]
     force_read: bool,
 
     /// initialize dump state, clearing any dump at the dump agent
@@ -131,7 +131,7 @@ struct DumpArgs {
     /// overwrite any dump state as part of taking dump
     #[clap(
         long,
-        conflicts_with_all = &["initialize-dump-agent", "simulate-dumper"],
+        conflicts_with_all = &["initialize_dump_agent", "simulate_dumper"],
     )]
     force_overwrite: bool,
 
@@ -142,7 +142,7 @@ struct DumpArgs {
     /// in addition to simulating the dumper, generate a stock dump
     #[clap(
         long, requires = "simulation",
-        conflicts_with_all = &["task", "extract-all"],
+        conflicts_with_all = &["task", "extract_all"],
         value_name = "filename",
     )]
     stock_dumpfile: Option<PathBuf>,
@@ -155,8 +155,8 @@ struct DumpArgs {
     /// simulates a single-task dump
     #[clap(
         long,
-        conflicts_with_all = &["extract", "stock-dumpfile", "list"],
-        requires = "simulate-dumper",
+        conflicts_with_all = &["extract", "stock_dumpfile", "list"],
+        requires = "simulate_dumper",
         value_name = "task",
     )]
     simulate_task_dump: Option<String>,
@@ -561,7 +561,7 @@ fn dump_via_agent(
             {
                 bail!(
                     "there appears to already be one or more dumps in situ; \
-                    list them with --list and extract them with --extract-all"
+                    list them with --list and extract them with --extract_all"
                 )
             }
 
@@ -856,10 +856,9 @@ fn dump_agent_status(
 
 fn dumpcmd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = DumpArgs::try_parse_from(subargs)?;
+    let subargs = DumpArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.force_dump_agent && core.is_net() {
         bail!("can only force the dump agent when attached via debug probe");

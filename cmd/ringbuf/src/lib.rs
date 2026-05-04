@@ -67,7 +67,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
 
@@ -105,7 +105,7 @@ struct TotalsOptions {
         long,
         short,
         conflicts_with_all = &[
-            "full-totals",
+            "full_totals",
             "list"
         ],
     )]
@@ -234,10 +234,9 @@ fn taskname<'a>(
 #[allow(clippy::print_literal)]
 fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = RingbufArgs::try_parse_from(subargs)?;
+    let subargs = RingbufArgs::try_parse_from(&context.cli.cmd)?;
 
     let mut ringbufs = vec![];
 

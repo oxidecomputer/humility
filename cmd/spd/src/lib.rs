@@ -107,7 +107,7 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -127,7 +127,7 @@ struct SpdArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -137,7 +137,7 @@ struct SpdArgs {
 
     /// specifies an I2C controller
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 
@@ -157,7 +157,7 @@ struct SpdArgs {
 
     /// dump only the specified address
     #[clap(long, short, value_name = "address",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u8>,
     )]
     address: Option<u8>,
 
@@ -331,11 +331,10 @@ fn set_page(
 }
 
 fn spd(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
 
-    let subargs = SpdArgs::try_parse_from(subargs)?;
+    let subargs = SpdArgs::try_parse_from(&context.cli.cmd)?;
 
     // If we have been given no device-related arguments, we will attempt
     // to find the `SPD_DATA` variable or load SPD data from packrat

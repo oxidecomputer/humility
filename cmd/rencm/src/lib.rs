@@ -10,7 +10,7 @@
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{
     Archive, Attach, Command, CommandKind, Dumper, Validate, attach,
 };
@@ -36,7 +36,7 @@ struct RencmArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -52,7 +52,7 @@ struct RencmArgs {
 
     /// specifies an I2C controller
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 
@@ -794,8 +794,7 @@ fn rencm_ingest(subargs: &RencmArgs, modules: &[Module]) -> Result<()> {
 }
 
 fn rencm(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = RencmArgs::try_parse_from(subargs)?;
+    let subargs = RencmArgs::try_parse_from(&context.cli.cmd)?;
     let modules = modules();
 
     if subargs.ingest.is_some() {

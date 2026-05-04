@@ -36,9 +36,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::{CommandFactory, Parser};
 use humility::{core::Core, hubris::*};
 use humility_auxflash::AuxFlashHandler;
-use humility_cli::{
-    Cli, {ExecutionContext, Subcommand},
-};
+use humility_cli::{Cli, ExecutionContext};
 use humility_cmd::{Archive, Command, CommandKind};
 use path_slash::PathExt;
 use std::io::Write;
@@ -68,7 +66,7 @@ struct FlashArgs {
     #[clap(
         long = "reset-delay", short = 'd',
         default_value_t = 100, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u64>
     )]
     reset_delay: u64,
 
@@ -347,9 +345,8 @@ fn get_image_state(
 }
 
 fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
-    let subargs = FlashArgs::try_parse_from(subargs)?;
+    let subargs = FlashArgs::try_parse_from(&context.cli.cmd)?;
 
     let config = hubris.load_flash_config()?;
 

@@ -83,7 +83,7 @@
 //! as well as bulk erase.
 
 use humility::core::Core;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -111,7 +111,7 @@ struct QspiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 30000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -148,14 +148,14 @@ struct QspiArgs {
 
     /// specify flash address in bytes
     #[clap(long, short, value_name = "address",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<usize>,
         conflicts_with("writefile"),
     )]
     addr: Option<usize>,
 
     /// specify size in bytes
     #[clap(long, short, value_name = "nbytes",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<usize>,
     )]
     nbytes: Option<usize>,
 
@@ -483,10 +483,9 @@ fn write(
 
 fn qspi(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = QspiArgs::try_parse_from(subargs)?;
+    let subargs = QspiArgs::try_parse_from(&context.cli.cmd)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     match subargs.slot {

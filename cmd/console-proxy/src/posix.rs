@@ -18,7 +18,7 @@ use termios::Termios;
 
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
@@ -315,8 +315,7 @@ impl UnrawTermiosGuard {
 
 pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = UartConsoleArgs::try_parse_from(subargs)?;
+    let subargs = UartConsoleArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
     let mut worker = UartConsoleHandler::new(
         hubris,

@@ -171,7 +171,7 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -189,7 +189,7 @@ struct MonorailArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -214,7 +214,7 @@ enum Command {
     /// Get info about a particular VSC7448 register
     Info {
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         value: Option<u32>,
     },
     /// Print a table showing port status
@@ -239,7 +239,7 @@ enum Command {
     /// Write to a VSC7448 register
     Write {
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u32>)]
         value: u32,
     },
     /// Subcommand to control PHYs
@@ -264,7 +264,7 @@ enum PhyCommand {
         #[clap(long, short)]
         port: u8,
         reg: String,
-        #[clap(parse(try_from_str = parse_int::parse))]
+        #[clap(value_parser = parse_int::parse::<u16>)]
         value: u16,
     },
     /// Dumps all PHY registers on the given port
@@ -1067,9 +1067,8 @@ fn monorail_counters(
 
 fn monorail(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
-    let subargs = MonorailArgs::try_parse_from(subargs)?;
+    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
@@ -1148,10 +1147,9 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
 }
 
 fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
     assert!(!hubris.loaded());
-    let subargs = MonorailArgs::try_parse_from(subargs)?;
+    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
     match subargs.cmd {
         Command::Info { reg, value } => {
             let reg = parse_reg_or_addr(&reg)?;

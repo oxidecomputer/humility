@@ -31,7 +31,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use probe_rs::{
     DebugProbeError, DebugProbeSelector, Probe,
@@ -95,7 +95,7 @@ enum DebugMailboxCmd {
         /// Debug credential key name (try `permslip list-keys -t`)
         key_name: String,
         /// Authentication beacon (UM11126 §51.7)
-        #[clap(long, default_value_t = 0, parse(try_from_str = parse_int::parse))]
+        #[clap(long, default_value_t = 0, value_parser = parse_int::parse::<u16>)]
         beacon: u16,
         /// Use ssh-agent to authenticate to permslip
         #[clap(long)]
@@ -266,8 +266,7 @@ fn read_return<'a>(
 }
 
 fn debugmailboxcmd(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = DebugMailboxArgs::try_parse_from(subargs)?;
+    let subargs = DebugMailboxArgs::try_parse_from(&context.cli.cmd)?;
 
     // Get a list of all available debug probes.
     let probes = Probe::list_all();

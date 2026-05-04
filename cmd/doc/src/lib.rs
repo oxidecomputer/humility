@@ -11,8 +11,8 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{IntoApp, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use clap::{CommandFactory, Parser};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use std::collections::HashMap;
 use termimad::*;
@@ -28,8 +28,7 @@ struct DocArgs {
 }
 
 fn doc(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = DocArgs::try_parse_from(subargs)?;
+    let subargs = DocArgs::try_parse_from(&context.cli.cmd)?;
 
     let text = match subargs.command {
         Some(ref cmd) => match cmd_docs(cmd) {

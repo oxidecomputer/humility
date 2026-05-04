@@ -108,7 +108,7 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
 use humility_hiffy::*;
@@ -126,13 +126,13 @@ struct VpdArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
     /// list all devices that have VPD (can be combined with --read)
     #[clap(long, short, conflicts_with_all = &[
-        "device", "id", "lock", "lock-all", "erase", "raw", "binary", "loopback"
+        "device", "id", "lock", "lock_all", "erase", "raw", "binary", "loopback"
     ])]
     list: bool,
 
@@ -181,7 +181,7 @@ struct VpdArgs {
     )]
     lock_all: bool,
 
-    #[clap(long, requires = "lock-all")]
+    #[clap(long, requires = "lock_all")]
     allow_missing: bool,
 }
 
@@ -729,8 +729,7 @@ fn vpd_lock_all(
 
 fn vpd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = VpdArgs::try_parse_from(subargs)?;
+    let subargs = VpdArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
 
     if subargs.list {

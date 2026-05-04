@@ -23,7 +23,7 @@
 
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 use humility_log::msg;
 use serde_json::Value;
@@ -72,8 +72,7 @@ fn load_cmds<'a>(
 }
 
 fn exec(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = ExecArgs::try_parse_from(subargs)?;
+    let subargs = ExecArgs::try_parse_from(&context.cli.cmd)?;
     let env = context.environment.as_ref();
 
     let env = match env {

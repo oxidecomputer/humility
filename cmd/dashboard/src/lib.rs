@@ -28,7 +28,7 @@ use crossterm::{
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -55,7 +55,7 @@ struct DashboardArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -733,12 +733,11 @@ fn run_dashboard<B: Backend>(
 }
 
 fn dashboard(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
     let core = &mut **context.core.as_mut().unwrap();
 
-    let subargs = DashboardArgs::try_parse_from(subargs)?;
+    let subargs = DashboardArgs::try_parse_from(&context.cli.cmd)?;
     let dashboard = Dashboard::new(hubris, core, &subargs)?;
 
     // setup terminal

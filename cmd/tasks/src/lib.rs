@@ -117,7 +117,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
@@ -185,10 +185,9 @@ fn print_regs(
 
 fn tasks(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = TasksArgs::try_parse_from(subargs)?;
+    let subargs = TasksArgs::try_parse_from(&context.cli.cmd)?;
 
     print_tasks(
         &mut std::io::stdout(),

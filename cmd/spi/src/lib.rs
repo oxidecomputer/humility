@@ -33,7 +33,7 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
 use humility_hiffy::*;
 
@@ -50,7 +50,7 @@ struct SpiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -68,7 +68,7 @@ struct SpiArgs {
 
     /// specify number of bytes to read
     #[clap(long, short, value_name = "nbytes",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<usize>,
     )]
     nbytes: Option<usize>,
 
@@ -80,7 +80,7 @@ struct SpiArgs {
     /// bigendian address
     #[clap(
         long, short = 'A', requires_all = &["read", "write", "discard"],
-        conflicts_with = "littleendian-address"
+        conflicts_with = "littleendian_address"
     )]
     bigendian_address: Option<usize>,
 
@@ -88,7 +88,7 @@ struct SpiArgs {
     /// bigendian address
     #[clap(
         long, short = 'a', requires_all = &["read", "write", "discard"],
-        conflicts_with = "bigendian-address"
+        conflicts_with = "bigendian_address"
     )]
     littleendian_address: Option<usize>,
 
@@ -172,10 +172,9 @@ pub fn spi_task(
 
 fn spi(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = SpiArgs::try_parse_from(subargs)?;
+    let subargs = SpiArgs::try_parse_from(&context.cli.cmd)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     let spi_read = context.get_function("SpiRead", 4)?;

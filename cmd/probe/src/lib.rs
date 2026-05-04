@@ -90,7 +90,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::HubrisValidate;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::CommandKind;
 use humility_cmd::{Archive, Attach, Command, Validate};
 use humility_cortex::debug::*;
@@ -108,8 +108,7 @@ struct ProbeArgs {
 fn probecmd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let hubris = context.archive.as_ref().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = ProbeArgs::try_parse_from(subargs)?;
+    let subargs = ProbeArgs::try_parse_from(&context.cli.cmd)?;
 
     use num_traits::FromPrimitive;
     let mut status = vec![];

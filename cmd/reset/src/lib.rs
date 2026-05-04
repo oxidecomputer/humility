@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind};
 
 #[derive(Parser, Debug)]
@@ -19,16 +19,15 @@ struct ResetArgs {
     #[clap(long, conflicts_with_all = &["halt"])]
     soft_reset: bool,
     /// Reset and halt instead of continuing
-    #[clap(long, conflicts_with_all = &["soft-reset"])]
+    #[clap(long, conflicts_with_all = &["soft_reset"])]
     halt: bool,
     /// Use measurement token handoff (usually decided automatically)
-    #[clap(long, conflicts_with_all = &["soft-reset", "halt"])]
+    #[clap(long, conflicts_with_all = &["soft_reset", "halt"])]
     use_token: Option<bool>,
 }
 
 fn reset(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = ResetArgs::try_parse_from(subargs)?;
+    let subargs = ResetArgs::try_parse_from(&context.cli.cmd)?;
 
     // `context.archive` is always `Some(..)` even if we have not specified
     // anything on the command line or through environment flags. However, if no

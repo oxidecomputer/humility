@@ -30,7 +30,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use std::{collections::HashSet, convert::TryInto};
 
@@ -38,14 +38,12 @@ use std::{collections::HashSet, convert::TryInto};
 #[clap(name = "stackmargin", about = env!("CARGO_PKG_DESCRIPTION"))]
 struct StackmarginArgs {
     /// Tasks to check (leave empty to check all tasks)
-    #[clap(multiple_occurrences = true)]
     tasks: Vec<String>,
 }
 
 #[rustfmt::skip::macros(println, bail)]
 fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = StackmarginArgs::try_parse_from(subargs)?;
+    let subargs = StackmarginArgs::try_parse_from(&context.cli.cmd)?;
 
     let core = &mut **context.core.as_mut().unwrap();
     let hubris = context.archive.as_ref().unwrap();

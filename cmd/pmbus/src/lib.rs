@@ -190,7 +190,7 @@
 use colored::Colorize;
 use humility::hubris::*;
 use humility::{core::Core, warn};
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -211,7 +211,7 @@ struct PmbusArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -271,7 +271,7 @@ struct PmbusArgs {
 
     /// specifies an I2C controller
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 
@@ -298,11 +298,11 @@ struct PmbusArgs {
     rail: Option<Vec<String>>,
 
     /// agent to use when executing PMBus operations
-    #[clap(long, arg_enum, default_value_t=Agent::Auto)]
+    #[clap(long, value_enum, default_value_t=Agent::Auto)]
     agent: Agent,
 }
 
-#[derive(clap::ArgEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, Debug)]
 enum Agent {
     Auto,
     Idol,
@@ -1903,9 +1903,8 @@ impl PmbusWorker for IdolWorker<'_> {
 
 #[allow(clippy::print_literal)]
 fn pmbus(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
-    let subargs = PmbusArgs::try_parse_from(subargs)?;
+    let subargs = PmbusArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.list {
         println!(

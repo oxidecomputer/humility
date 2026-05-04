@@ -44,7 +44,7 @@ use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
 use humility::reflect::*;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -79,7 +79,7 @@ struct NetArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>
     )]
     timeout: u32,
 
@@ -88,8 +88,7 @@ struct NetArgs {
 }
 
 fn net_ip(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = NetArgs::try_parse_from(subargs)?;
+    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
 
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
@@ -148,8 +147,7 @@ pub fn mac_to_ip6(mac: [u8; 6]) -> String {
 }
 
 fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = NetArgs::try_parse_from(subargs)?;
+    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
 
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
@@ -274,8 +272,7 @@ fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
 }
 
 fn net_status(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = NetArgs::try_parse_from(subargs)?;
+    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
 
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
@@ -356,8 +353,7 @@ fn net_counters(
     table: bool,
     diagram: bool,
 ) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = NetArgs::try_parse_from(subargs)?;
+    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
 
     let hubris = context.archive.as_ref().unwrap();
     let core = &mut **context.core.as_mut().unwrap();
@@ -578,8 +574,7 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
 }
 
 fn net(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = NetArgs::try_parse_from(subargs)?;
+    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
 
     match subargs.cmd {
         NetCommand::Mac => net_mac_table(context)?,

@@ -145,7 +145,7 @@
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
 use humility::warn;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -180,7 +180,7 @@ struct RendmpArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u32>,
     )]
     timeout: u32,
 
@@ -220,11 +220,11 @@ struct RendmpArgs {
     phase_check: bool,
 
     /// only check the specified phase(s)
-    #[clap(long, requires = "phase-check", use_value_delimiter = true)]
+    #[clap(long, requires = "phase_check", use_value_delimiter = true)]
     phase: Option<Vec<u8>>,
 
     /// force phase check, even if DIMMs are present
-    #[clap(long, requires = "phase-check")]
+    #[clap(long, requires = "phase_check")]
     force_phase_check: bool,
 
     // NOTE: the arguments below are only valid when --flash is provided.
@@ -262,7 +262,7 @@ struct DeviceIdentity {
 
     /// specifies an I2C controller
     #[clap(long, short, value_name = "controller",
-        parse(try_from_str = parse_int::parse),
+        value_parser = parse_int::parse::<u8>,
     )]
     controller: Option<u8>,
 
@@ -2307,12 +2307,11 @@ fn restore_default_config<'a>(
 }
 
 fn rendmp(context: &mut ExecutionContext) -> Result<()> {
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_mut().unwrap();
 
     let core = &mut **context.core.as_mut().unwrap();
 
-    let subargs = RendmpArgs::try_parse_from(subargs)?;
+    let subargs = RendmpArgs::try_parse_from(&context.cli.cmd)?;
 
     // Workaround for clap#4707
     if subargs.flash.is_none() {

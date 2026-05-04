@@ -10,7 +10,7 @@ use humility::{
     core::Core,
     hubris::{HubrisArchive, HubrisTask},
 };
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
 
 use anyhow::{Context, Result, anyhow};
@@ -338,10 +338,9 @@ fn pretty_print_value(value: &ciborium::Value, indent: usize, is_key: bool) {
 
 fn ereport(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
     let hubris = context.archive.as_ref().unwrap();
 
-    let subargs = EreportArgs::try_parse_from(subargs)?;
+    let subargs = EreportArgs::try_parse_from(&context.cli.cmd)?;
 
     match subargs.cmd {
         EreportCmd::Dump { flags } => ereport_print(hubris, core, flags),

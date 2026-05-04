@@ -17,9 +17,9 @@ use std::net::{SocketAddrV6, UdpSocket};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgGroup, IntoApp, Parser};
+use clap::{ArgGroup, CommandFactory, Parser};
 use humility::net::ScopedV6Addr;
-use humility_cli::{ExecutionContext, Subcommand};
+use humility_cli::ExecutionContext;
 use humility_cmd::{Archive, Command, CommandKind, Dumper};
 
 /// This is defined in the gimlet TOML.
@@ -34,7 +34,7 @@ struct Args {
     /// How long to wait for a response from the target, in milliseconds.
     #[clap(
         long, short = 'T', default_value_t = 2000, value_name = "ms",
-        parse(try_from_str = parse_int::parse)
+        value_parser = parse_int::parse::<u64>
     )]
     timeout: u64,
 
@@ -113,8 +113,7 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
                 "the `--ip <IP>` argument is required with `humility gimlet`"
             )
         })?;
-    let Subcommand::Other(subargs) = context.cli.cmd.as_ref().unwrap();
-    let subargs = Args::try_parse_from(subargs)?;
+    let subargs = Args::try_parse_from(&context.cli.cmd)?;
 
     let mut client =
         Client::new(ip, subargs.port, Duration::from_millis(subargs.timeout))?;
