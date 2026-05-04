@@ -166,19 +166,13 @@ impl Cli {
 
 pub struct ExecutionContext {
     pub core: Option<Box<dyn Core>>,
-    pub history: Vec<String>,
     pub archive: Option<HubrisArchive>,
     pub environment: Option<Environment>,
     pub cli: Cli,
-    pub is_interactive: bool,
 }
 
 impl ExecutionContext {
-    pub fn new(
-        mut cli: Cli,
-        m: &ArgMatches,
-        is_interactive: bool,
-    ) -> Result<ExecutionContext> {
+    pub fn new(mut cli: Cli, m: &ArgMatches) -> Result<ExecutionContext> {
         //
         // Before we do our processing, we need to check for the presence of
         // environment variables on our mutually exclusive attach options
@@ -360,13 +354,6 @@ impl ExecutionContext {
             }
         }
 
-        Ok(ExecutionContext {
-            core: None,
-            history: Vec::new(),
-            archive: None,
-            environment,
-            cli,
-            is_interactive,
-        })
+        Ok(ExecutionContext { core: None, archive: None, environment, cli })
     }
 }

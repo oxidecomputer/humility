@@ -66,7 +66,6 @@ members = [
     "cmd/reset",
     "cmd/rencm",
     "cmd/rendmp",
-    "cmd/repl",
     "cmd/ringbuf",
     "cmd/sensors",
     "cmd/spctrl",
@@ -240,7 +239,6 @@ rand = "0.10"
 ratatui = "0.30.0"
 raw-cpuid = { version = "11.0.0", features = ["display"] }
 rayon = "1.7"
-reedline = "0.11.0"
 regex = "1.5.5"
 ron = "0.12"
 rusb = "0.8.1"

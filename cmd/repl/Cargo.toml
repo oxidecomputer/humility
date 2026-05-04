@@ -1,7 +1,0 @@
-[package]
-name = "humility-cmd-repl"
-version = "0.1.0"
-edition.workspace = true
-description = "read, eval, print, loop"
-
-[dependencies]
