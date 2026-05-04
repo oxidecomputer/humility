@@ -237,7 +237,7 @@ pretty-hex = "0.4"
 proc-macro2 = "1.0"
 quote = "1.0"
 rand = "0.10"
-ratatui = "0.23.0"
+ratatui = "0.30.0"
 raw-cpuid = { version = "11.0.0", features = ["display"] }
 rayon = "1.7"
 reedline = "0.11.0"
