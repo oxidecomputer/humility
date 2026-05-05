@@ -651,7 +651,7 @@ impl<'a> HiffyContext<'a> {
                 let socket = workspace.socket.as_ref().unwrap();
 
                 let mut buf = vec![0u8; socket.tx.bytes];
-                let image_id = hubris.image_id().unwrap();
+                let image_id = hubris.image_id();
 
                 let header = RpcHeader {
                     image_id: U64::from_bytes(image_id.try_into().unwrap()),
@@ -821,7 +821,7 @@ impl<'a> HiffyContext<'a> {
                         .lookup_variant_by_tag(Tag::from(buf[0]))
                     {
                         Some(e) => {
-                            let image_id = self.hubris.image_id().unwrap();
+                            let image_id = self.hubris.image_id();
                             let msg = format!("RPC error: {}", e.name);
                             if e.name == "BadImageId" {
                                 bail!(
@@ -1043,7 +1043,7 @@ impl<'a> HiffyContext<'a> {
             }
             HiffyImpl::NetHiffy { vars, ops, errs } => {
                 let image_id = u64::from_le_bytes(
-                    self.hubris.image_id().unwrap().try_into().unwrap(),
+                    self.hubris.image_id().try_into().unwrap(),
                 );
                 let buf_size = self
                     .hubris

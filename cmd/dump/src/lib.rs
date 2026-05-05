@@ -65,7 +65,7 @@
 //! ```
 //!
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
@@ -325,11 +325,7 @@ fn get_dump_agent<'a>(
     {
         humility::msg!("using UDP dump agent");
 
-        let imageid = &hubris
-            .imageid
-            .as_ref()
-            .ok_or_else(|| anyhow!("missing image ID"))?
-            .1;
+        let imageid = hubris.image_id();
 
         Ok(Box::new(UdpDumpAgent::new(core, imageid)?))
     } else {
