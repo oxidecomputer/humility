@@ -4,12 +4,12 @@
 
 pub mod env;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, ArgMatches, Parser, parser::ValueSource};
 use env::Environment;
 use humility::{
     core::Core,
-    hubris::{HubrisArchive, HubrisArchiveDoneness, HubrisValidate},
+    hubris::{HubrisArchive, HubrisValidate},
     msg, net, warn,
 };
 use std::time::Duration;
@@ -170,31 +170,44 @@ impl Cli {
 
     /// Loads an archive based on CLI arguments
     ///
-    /// If `--archive` is specified, then the archive is loaded (and cooked to
-    /// the desired doneness).
+    /// If `--archive` is specified, then that archive is loaded.
     ///
     /// If `--dump` is specified, then the dump is loaded and the archive is
-    /// extracted from the dump (then cooked to the desired doneness).
+    /// extracted from the dump.
     ///
-    /// If neither is specified, then a default archive is returned, which
-    /// returns `false` from [`HubrisArchive::loaded`].
-    // TODO(matt): this is terrible and I want to make it go away, but it won't
-    // happen quite yet.
-    fn load_archive_with_doneness(
-        &self,
-        doneness: HubrisArchiveDoneness,
-    ) -> Result<HubrisArchive> {
-        let mut hubris = HubrisArchive::new()?;
+    /// Otherwise, returns `Ok(None)`
+    pub fn try_archive(&self) -> Result<Option<HubrisArchive>> {
         if let Some(archive) = &self.archive {
-            hubris.load(archive, doneness).with_context(|| {
-                format!("failed to load archive \"{}\"", archive)
-            })?;
+            let data = std::fs::read(archive)?;
+            let raw_archive = hubtools::RawHubrisArchive::from_vec(data)?;
+            HubrisArchive::load(raw_archive, None).map(Some)
         } else if let Some(dump) = &self.dump {
-            hubris
-                .load_dump(dump, doneness)
-                .with_context(|| format!("failed to load dump \"{}\"", dump))?;
+            let (raw_archive, dump_task) = HubrisArchive::load_dump(dump)?;
+            HubrisArchive::load(raw_archive, dump_task).map(Some)
+        } else {
+            Ok(None)
         }
-        Ok(hubris)
+    }
+
+    /// Tries to load a raw archive based on CLI arguments
+    ///
+    /// If `--archive` is specified, then that archive is loaded.
+    ///
+    /// If `--dump` is specified, then the dump is loaded and the archive is
+    /// extracted from the dump.
+    ///
+    /// Otherwise, returns `Ok(None)`
+    fn try_raw_archive(&self) -> Result<Option<hubtools::RawHubrisArchive>> {
+        if let Some(archive) = &self.archive {
+            let data = std::fs::read(archive)?;
+            let raw_archive = hubtools::RawHubrisArchive::from_vec(data)?;
+            Ok(Some(raw_archive))
+        } else if let Some(dump) = &self.dump {
+            let (raw_archive, _) = HubrisArchive::load_dump(dump)?;
+            Ok(Some(raw_archive))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Attaches to a live core
@@ -345,23 +358,13 @@ impl Cli {
     ///
     /// If loading the archive fails, then an error is returned
     pub fn archive(&self) -> Result<HubrisArchive> {
-        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Cook)?;
-        if !a.loaded() {
+        self.try_archive()?.ok_or_else(|| {
             if self.environment.is_some() {
-                bail!("must provide a Hubris archive, dump, or name");
+                anyhow!("must provide a Hubris archive, dump, or name")
             } else {
-                bail!("must provide a Hubris archive or dump");
+                anyhow!("must provide a Hubris archive or dump")
             }
-        }
-        Ok(a)
-    }
-
-    /// Tries to load an archive
-    ///
-    /// Returns `Ok(None)` if no archive was specified at the CLI.
-    pub fn try_archive(&self) -> Result<Option<HubrisArchive>> {
-        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Cook)?;
-        if !a.loaded() { Ok(None) } else { Ok(Some(a)) }
+        })
     }
 
     /// Returns a raw archive built from the context's [`Cli`] data
@@ -369,14 +372,14 @@ impl Cli {
     /// The raw archive is equivalent to the bytes of a ZIP file
     ///
     /// If loading the archive fails, then an error is returned
-    pub fn raw_archive(&self) -> Result<Vec<u8>> {
-        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Raw)?;
-        let out = a.take_raw_archive();
-        if out.is_empty() {
-            bail!("no archive available");
-        } else {
-            Ok(out)
-        }
+    pub fn raw_archive(&self) -> Result<hubtools::RawHubrisArchive> {
+        self.try_raw_archive()?.ok_or_else(|| {
+            if self.environment.is_some() {
+                anyhow!("must provide a Hubris archive, dump, or name")
+            } else {
+                anyhow!("must provide a Hubris archive or dump")
+            }
+        })
     }
 }
 
