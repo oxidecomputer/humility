@@ -3635,7 +3635,7 @@ impl HubrisArchive {
 /// meant to be used for parallel loading, after which point everything is
 /// merged using `HubrisArchive::merge`.
 struct HubrisObjectLoader {
-    current: u32,
+    object_id: u32,
 
     // image ID
     imageid: Option<(u32, Vec<u8>)>,
@@ -3727,9 +3727,9 @@ struct HubrisObjectLoader {
 }
 
 impl HubrisObjectLoader {
-    fn new(current: u32) -> Result<Self> {
+    fn new(object_id: u32) -> Result<Self> {
         Ok(Self {
-            current,
+            object_id,
             imageid: None,
             arrays: HashMap::new(),
             variables: MultiMap::new(),
@@ -3881,7 +3881,7 @@ impl HubrisObjectLoader {
         let offset = textsec.sh_offset as u32;
         let textsize = textsec.sh_size as u32;
 
-        log::trace!("loading {} as object {}", object, self.current);
+        log::trace!("loading {} as object {}", object, self.object_id);
 
         for sym in elf.syms.iter() {
             if sym.st_name == 0 {
@@ -4045,7 +4045,7 @@ impl HubrisObjectLoader {
             textsec.sh_addr as u32,
             HubrisModule {
                 name: String::from(object),
-                object: self.current,
+                object: self.object_id,
                 textbase: (textsec.sh_addr as u32),
                 textsize,
                 memsize: memsz as u32,
@@ -4517,7 +4517,7 @@ impl HubrisObjectLoader {
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> HubrisGoff {
         let goff = entry.offset().to_unit_section_offset(unit).0;
-        HubrisGoff { object: self.current, goff }
+        HubrisGoff { object: self.object_id, goff }
     }
 
     fn dwarf_union<R: gimli::Reader<Offset = usize>>(
@@ -4679,7 +4679,7 @@ impl HubrisObjectLoader {
             }
         };
 
-        Some(HubrisGoff { object: self.current, goff })
+        Some(HubrisGoff { object: self.object_id, goff })
     }
 
     fn dwarf_variant<R: gimli::Reader<Offset = usize>>(
