@@ -36,18 +36,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ahash"
-version = "0.8.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
-dependencies = [
- "cfg-if",
- "once_cell",
- "version_check",
- "zerocopy 0.8.48",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -360,31 +348,11 @@ checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "bzip2"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdb116a6ef3f6c3698828873ad02c3014b3c85cadb88496095628e3ef1e347f8"
-dependencies = [
- "bzip2-sys",
- "libc",
-]
-
-[[package]]
-name = "bzip2"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3a53fac24f34a81bc9954b5d6cfce0c21e18ec6959f44f56e8e90e4bb7c346c"
 dependencies = [
  "libbz2-rs-sys",
-]
-
-[[package]]
-name = "bzip2-sys"
-version = "0.1.13+1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "225bff33b2141874fe80d71e07d6eec4f85c5c216453dd96388240f96e1acc14"
-dependencies = [
- "cc",
- "pkg-config",
 ]
 
 [[package]]
@@ -436,7 +404,7 @@ dependencies = [
  "percent-encoding",
  "regex",
  "serde",
- "toml 1.1.2+spec-1.1.0",
+ "toml",
 ]
 
 [[package]]
@@ -1475,7 +1443,7 @@ checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
 dependencies = [
  "cfg-if",
  "crunchy",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1492,15 +1460,6 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
-
-[[package]]
-name = "hashbrown"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
-dependencies = [
- "ahash",
-]
 
 [[package]]
 name = "hashbrown"
@@ -1527,6 +1486,9 @@ name = "hashbrown"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+dependencies = [
+ "foldhash 0.2.0",
+]
 
 [[package]]
 name = "heapless"
@@ -1607,22 +1569,22 @@ dependencies = [
 [[package]]
 name = "hubtools"
 version = "0.4.8"
-source = "git+https://github.com/oxidecomputer/hubtools.git#09074a55dbf73c90f63020e04daa17495b85e1cc"
+source = "git+https://github.com/oxidecomputer/hubtools.git#5e41fbe7560b27eaa25bce3b322f7a612fac8f41"
 dependencies = [
- "digest 0.10.7",
+ "digest 0.11.2",
  "hex",
  "lpc55_areas",
  "lpc55_sign",
- "object 0.30.4",
- "path-slash 0.1.5",
+ "object 0.39.1",
+ "path-slash",
  "rsa",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tlvc",
  "tlvc-text",
- "toml 0.7.8",
+ "toml",
  "x509-cert",
- "zerocopy 0.6.6",
- "zip 0.6.6",
+ "zerocopy",
+ "zip",
 ]
 
 [[package]]
@@ -1746,7 +1708,7 @@ dependencies = [
  "scroll 0.13.0",
  "serde",
  "spd",
- "toml 1.1.2+spec-1.1.0",
+ "toml",
  "trycmd",
 ]
 
@@ -1919,8 +1881,8 @@ dependencies = [
  "lzss",
  "num-traits",
  "parse_int",
- "zerocopy 0.8.48",
- "zip 8.6.0",
+ "zerocopy",
+ "zip",
 ]
 
 [[package]]
@@ -1937,7 +1899,7 @@ dependencies = [
  "humility-doppel",
  "serde",
  "serde_json",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1962,7 +1924,7 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-log",
- "zip 8.6.0",
+ "zip",
 ]
 
 [[package]]
@@ -1981,7 +1943,7 @@ dependencies = [
  "ihex",
  "num-traits",
  "parse_int",
- "path-slash 0.2.1",
+ "path-slash",
  "ron 0.12.1",
  "srec",
  "tempfile",
@@ -2002,7 +1964,7 @@ dependencies = [
  "indexmap 2.14.0",
  "parse_int",
  "serde",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2088,8 +2050,8 @@ dependencies = [
  "parse_int",
  "serde",
  "serde_json",
- "zerocopy 0.8.48",
- "zip 8.6.0",
+ "zerocopy",
+ "zip",
 ]
 
 [[package]]
@@ -2124,7 +2086,7 @@ dependencies = [
  "idol",
  "parse_int",
  "pmbus",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2229,7 +2191,7 @@ dependencies = [
  "num-traits",
  "parse_int",
  "pmbus",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2376,9 +2338,9 @@ dependencies = [
  "ihex",
  "log",
  "parse_int",
- "path-slash 0.2.1",
+ "path-slash",
  "tempfile",
- "zip 8.6.0",
+ "zip",
 ]
 
 [[package]]
@@ -2439,7 +2401,7 @@ dependencies = [
  "pmbus",
  "strum 0.28.0",
  "strum_macros 0.28.0",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2482,7 +2444,7 @@ dependencies = [
  "parse_int",
  "raw-cpuid",
  "termimad 0.34.1",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2660,7 +2622,7 @@ dependencies = [
  "serde",
  "tlvc",
  "tlvc-text",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2712,10 +2674,10 @@ dependencies = [
  "serde_json",
  "strsim 0.11.1",
  "thiserror 2.0.18",
- "toml 1.1.2+spec-1.1.0",
+ "toml",
  "winapi",
- "zerocopy 0.8.48",
- "zip 8.6.0",
+ "zerocopy",
+ "zip",
 ]
 
 [[package]]
@@ -2741,7 +2703,7 @@ dependencies = [
  "humility-core",
  "indexmap 2.14.0",
  "serde",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2761,7 +2723,7 @@ dependencies = [
  "lzss",
  "num-traits",
  "rand 0.10.1",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2778,7 +2740,7 @@ dependencies = [
  "parse_int",
  "postcard",
  "thiserror 2.0.18",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2896,8 +2858,8 @@ dependencies = [
  "serde",
  "serde-big-array",
  "static_assertions",
- "zerocopy 0.8.48",
- "zerocopy-derive 0.8.48",
+ "zerocopy",
+ "zerocopy-derive",
 ]
 
 [[package]]
@@ -3053,7 +3015,7 @@ dependencies = [
  "binrw",
  "derive_more 0.99.20",
  "indexmap 2.14.0",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3333,7 +3295,7 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.18",
  "x509-cert",
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3611,23 +3573,14 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.30.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03b4680b86d9cfafba8fc491dc9b6df26b68cf40e9e6cd73909194759a63c385"
-dependencies = [
- "crc32fast",
- "hashbrown 0.13.2",
- "indexmap 1.9.3",
- "memchr",
-]
-
-[[package]]
-name = "object"
 version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
 dependencies = [
+ "crc32fast",
  "flate2",
+ "hashbrown 0.17.0",
+ "indexmap 2.14.0",
  "memchr",
  "ruzstd",
 ]
@@ -3734,12 +3687,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "path-slash"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "498a099351efa4becc6a19c72aa9270598e8fd274ca47052e37455241c88b696"
 
 [[package]]
 name = "path-slash"
@@ -3990,7 +3937,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
- "zerocopy 0.8.48",
+ "zerocopy",
 ]
 
 [[package]]
@@ -4583,15 +4530,6 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
-]
-
-[[package]]
-name = "serde_spanned"
-version = "0.6.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -5189,8 +5127,8 @@ version = "0.4.0"
 source = "git+https://github.com/oxidecomputer/tlvc#2f69360ddcb07ad6072cb720bb1fac9f58a2ddec"
 dependencies = [
  "crc",
- "zerocopy 0.8.48",
- "zerocopy-derive 0.8.48",
+ "zerocopy",
+ "zerocopy-derive",
 ]
 
 [[package]]
@@ -5201,19 +5139,7 @@ dependencies = [
  "ron 0.8.1",
  "serde",
  "tlvc",
- "zerocopy 0.8.48",
-]
-
-[[package]]
-name = "toml"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd79e69d3b627db300ff956027cc6c3798cef26d22526befdfcd12feeb6d2257"
-dependencies = [
- "serde",
- "serde_spanned 0.6.9",
- "toml_datetime 0.6.11",
- "toml_edit 0.19.15",
+ "zerocopy",
 ]
 
 [[package]]
@@ -5224,20 +5150,11 @@ checksum = "81f3d15e84cbcd896376e6730314d59fb5a87f31e4b038454184435cd57defee"
 dependencies = [
  "indexmap 2.14.0",
  "serde_core",
- "serde_spanned 1.1.1",
- "toml_datetime 1.1.1+spec-1.1.0",
+ "serde_spanned",
+ "toml_datetime",
  "toml_parser",
  "toml_writer",
- "winnow 1.0.2",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "0.6.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
-dependencies = [
- "serde",
+ "winnow",
 ]
 
 [[package]]
@@ -5262,25 +5179,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml_edit"
-version = "0.19.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
-dependencies = [
- "indexmap 2.14.0",
- "serde",
- "serde_spanned 0.6.9",
- "toml_datetime 0.6.11",
- "winnow 0.5.40",
-]
-
-[[package]]
 name = "toml_parser"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2abe9b86193656635d2411dc43050282ca48aa31c2451210f4202550afb7526"
 dependencies = [
- "winnow 1.0.2",
+ "winnow",
 ]
 
 [[package]]
@@ -5302,7 +5206,7 @@ dependencies = [
  "serde",
  "shlex",
  "snapbox",
- "toml_edit 0.14.4",
+ "toml_edit",
 ]
 
 [[package]]
@@ -5903,15 +5807,6 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winnow"
-version = "0.5.40"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "winnow"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee1708bef14716a11bae175f579062d4554d95be2c6829f518df847b7b3fdd0"
@@ -6058,32 +5953,11 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "854e949ac82d619ee9a14c66a1b674ac730422372ccb759ce0c39cabcf2bf8e6"
-dependencies = [
- "byteorder",
- "zerocopy-derive 0.6.6",
-]
-
-[[package]]
-name = "zerocopy"
 version = "0.8.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eed437bf9d6692032087e337407a86f04cd8d6a16a37199ed57949d415bd68e9"
 dependencies = [
- "zerocopy-derive 0.8.48",
-]
-
-[[package]]
-name = "zerocopy-derive"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "125139de3f6b9d625c39e2efdd73d41bdac468ccd556556440e322be0e1bbd91"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
+ "zerocopy-derive",
 ]
 
 [[package]]
@@ -6119,24 +5993,12 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "760394e246e4c28189f19d488c058bf16f564016aefac5d32bb1f3b51d5e9261"
-dependencies = [
- "byteorder",
- "bzip2 0.4.4",
- "crc32fast",
- "crossbeam-utils",
-]
-
-[[package]]
-name = "zip"
 version = "8.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
 dependencies = [
  "aes",
- "bzip2 0.6.1",
+ "bzip2",
  "constant_time_eq",
  "crc32fast",
  "deflate64",
