@@ -74,7 +74,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 
     let size = |task| hubris.lookup_module(task).unwrap().memsize;
 
-    print("version", manifest.version.as_deref().unwrap_or("<unknown>"));
+    print("version", manifest.version.as_str());
     print("git rev", manifest.gitrev.as_deref().unwrap_or("<unknown>"));
 
     println!(
@@ -88,10 +88,10 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         },
     );
 
-    print("board", manifest.board.as_deref().unwrap_or("<unknown>"));
-    print("name", manifest.name.as_deref().unwrap_or("<unknown>"));
+    print("board", manifest.board.as_str());
+    print("name", manifest.name.as_str());
     print("image", manifest.image.as_deref().unwrap_or("<unknown>"));
-    print("target", manifest.target.as_deref().unwrap_or("<unknown>"));
+    print("target", manifest.target.as_str());
     print("features", &manifest.features.join(", "));
 
     let ttl = hubris.modules().fold(0, |ttl, m| ttl + m.memsize);
