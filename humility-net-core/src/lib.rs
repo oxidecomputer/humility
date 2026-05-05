@@ -96,12 +96,7 @@ impl NetCore {
             hiffy_socket,
             flash: HubrisFlashMap::new(hubris)?,
             ram: None, // filled in below
-            imageid: hubris
-                .imageid
-                .as_ref()
-                .ok_or_else(|| anyhow!("missing image ID"))?
-                .1
-                .clone(),
+            imageid: hubris.image_id().to_owned(),
         };
 
         // Check for the existence of the DumpAgent.dump_task_region API, which
