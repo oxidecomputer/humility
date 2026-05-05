@@ -334,15 +334,11 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
 
 /// Print a warning message if the archive is not for a `cosmo` board
 fn check_post_code_target(hubris: &HubrisArchive) {
-    if !hubris.manifest.board.as_ref().is_some_and(|b| b.contains("cosmo")) {
+    if !hubris.manifest.board.contains("cosmo") {
         humility::warn!(
-            "POST code buffer is only present on 'cosmo' hardware{}; \
-             hiffy may fail and time out",
-            if let Some(board) = &hubris.manifest.board {
-                format!(" but this is a '{board}'")
-            } else {
-                String::new()
-            }
+            "POST code buffer is only present on 'cosmo' hardware \
+             but this is a '{}'; hiffy may fail and time out",
+            hubris.manifest.board,
         )
     }
 }
