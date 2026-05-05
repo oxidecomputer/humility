@@ -42,13 +42,13 @@ const MAX_HUBRIS_VERSION: u32 = 11;
 
 #[derive(Debug, Serialize)]
 pub struct HubrisManifest {
-    pub version: Option<String>,
+    pub version: String,
     pub gitrev: Option<String>,
     pub features: Vec<String>,
-    pub board: Option<String>,
+    pub board: String,
     pub image: Option<String>,
-    pub name: Option<String>,
-    pub target: Option<String>,
+    pub name: String,
+    pub target: String,
     pub task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     pub task_notifications: HashMap<String, Vec<String>>,
@@ -73,9 +73,9 @@ impl HubrisManifest {
         config: &HubrisConfig,
         rev: HubrisManifestRev,
     ) -> Result<Self> {
-        let board = Some(config.board.clone());
-        let name = Some(config.name.clone());
-        let target = Some(config.target.clone());
+        let board = config.board.clone();
+        let name = config.name.clone();
+        let target = config.target.clone();
         let features = match config.kernel.features {
             Some(ref features) => features.clone(),
             None => vec![],
@@ -539,7 +539,7 @@ impl<'a> IntoIterator for &'a HubrisI2cBusList {
 /// Portions of the [`HubrisManifest`] that are loaded from archive files
 #[derive(Default)]
 pub struct HubrisManifestRev {
-    pub version: Option<String>,
+    pub version: String,
     pub gitrev: Option<String>,
     pub image: Option<String>,
 }
@@ -1365,7 +1365,7 @@ impl HubrisArchive {
         }
 
         manifest_rev.version =
-            Some(format!("hubris build archive v{}", archive_version));
+            format!("hubris build archive v{}", archive_version);
 
         // Load the main manifest config file
         let app = hubris.extract_file("app.toml")?;
@@ -2751,12 +2751,12 @@ impl HubrisArchive {
         // always 8-byte aligned; if we have our 17 floating point registers
         // here, we also have an unstored pad.)
         //
-        let (nregs_fp, align) =
-            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
-                (0, 0)
-            } else {
-                (17, 1)
-            };
+        let (nregs_fp, align) = if self.manifest.target == "thumbv6m-none-eabi"
+        {
+            (0, 0)
+        } else {
+            (17, 1)
+        };
 
         let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
 
