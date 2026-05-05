@@ -77,16 +77,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
     print("version", manifest.version.as_str());
     print("git rev", manifest.gitrev.as_deref().unwrap_or("<unknown>"));
 
-    println!(
-        "{:>12} => {}",
-        "image id",
-        match &hubris.imageid {
-            Some(s) => {
-                format!("{:x?}", s.1)
-            }
-            None => "<none>".to_string(),
-        },
-    );
+    println!("{:>12} => {:x?}", "image id", hubris.image_id());
 
     print("board", manifest.board.as_str());
     print("name", manifest.name.as_str());

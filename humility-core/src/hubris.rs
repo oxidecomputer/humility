@@ -1156,7 +1156,7 @@ pub struct HubrisArchive {
     pub manifest: HubrisManifest,
 
     // image ID
-    pub imageid: Option<(u32, Vec<u8>)>,
+    imageid: (u32, Vec<u8>),
 
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
@@ -1531,9 +1531,12 @@ impl HubrisArchive {
             loader.structs_byname.insert(name.clone(), *goff);
         }
 
+        let Some(imageid) = loader.imageid else {
+            bail!("missing image id");
+        };
         Ok(Self {
             hubris_archive: hubris,
-            imageid: loader.imageid,
+            imageid,
             manifest,
             loaded: loader.loaded,
             task_dump,
@@ -2092,42 +2095,30 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        //
         // To validate that what we're running on the target matches what
         // we have in the archive, we are going to check the image ID, an
-        // identifer created for this purpose.  If we don't have an image ID,
-        // we check the legacy mechanism of the .hubris_app_table; if we
-        // don't have either of these, we don't have a way of validating the
-        // archive and we fail.
-        //
-        if let Some(imageid) = &self.imageid {
-            let addr = imageid.0;
-            let nbytes = imageid.1.len();
-            assert!(nbytes > 0);
+        // identifer created for this purpose.
+        let addr = self.imageid.0;
+        let nbytes = self.imageid.1.len();
+        assert!(nbytes > 0);
 
-            let mut id = vec![0; nbytes];
-            core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
-                format!(
-                    "failed to read image ID at 0x{:x}; board mismatch?",
-                    addr
-                )
-            })?;
+        let mut id = vec![0; nbytes];
+        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
+        })?;
 
-            let deltas = id
-                .iter()
-                .zip(imageid.1.iter())
-                .filter(|&(lhs, rhs)| lhs != rhs)
-                .count();
+        let deltas = id
+            .iter()
+            .zip(self.imageid.1.iter())
+            .filter(|&(lhs, rhs)| lhs != rhs)
+            .count();
 
-            if deltas > 0 || id.len() != imageid.1.len() {
-                bail!(
+        if deltas > 0 || id.len() != self.imageid.1.len() {
+            bail!(
                     "image ID in archive ({:x?}) does not equal \
                     ID at 0x{:x} ({:x?})",
-                    imageid.1, imageid.0, id,
+                    self.imageid.1, self.imageid.0, id,
                 );
-            }
-        } else {
-            bail!("could not find HUBRIS_IMAGE_ID");
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
@@ -2331,12 +2322,12 @@ impl HubrisArchive {
         Ok(())
     }
 
-    pub fn image_id_addr(&self) -> Option<u32> {
-        self.imageid.as_ref().map(|i| i.0)
+    pub fn image_id_addr(&self) -> u32 {
+        self.imageid.0
     }
 
-    pub fn image_id(&self) -> Option<&[u8]> {
-        self.imageid.as_ref().map(|i| i.1.as_slice())
+    pub fn image_id(&self) -> &[u8] {
+        &self.imageid.1
     }
 
     pub fn member_offset(
