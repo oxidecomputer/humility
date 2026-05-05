@@ -1718,6 +1718,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "hubtools",
  "humility-core",
  "humility-net-core",
  "humility-probes-core",
