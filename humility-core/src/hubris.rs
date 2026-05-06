@@ -537,7 +537,6 @@ impl<'a> IntoIterator for &'a HubrisI2cBusList {
 }
 
 /// Portions of the [`HubrisManifest`] that are loaded from archive files
-#[derive(Default)]
 pub struct HubrisManifestRev {
     pub version: String,
     pub gitrev: Option<String>,
@@ -1353,19 +1352,23 @@ impl HubrisArchive {
         }
 
         // First, we'll load aspects of configuration.
-        let mut manifest_rev = HubrisManifestRev::default();
-        if let Ok(git_rev) = hubris.extract_file("git-rev") {
-            manifest_rev.gitrev =
-                Some(std::str::from_utf8(&git_rev)?.to_string());
-        }
+        let gitrev = if let Ok(git_rev) = hubris.extract_file("git-rev") {
+            Some(std::str::from_utf8(&git_rev)?.to_string())
+        } else {
+            None
+        };
 
-        if let Ok(image_name) = hubris.extract_file("image-name") {
-            manifest_rev.image =
-                Some(std::str::from_utf8(&image_name)?.to_string());
-        }
+        let image = if let Ok(image_name) = hubris.extract_file("image-name") {
+            Some(std::str::from_utf8(&image_name)?.to_string())
+        } else {
+            None
+        };
 
-        manifest_rev.version =
-            format!("hubris build archive v{}", archive_version);
+        let manifest_rev = HubrisManifestRev {
+            version: format!("hubris build archive v{archive_version}"),
+            gitrev,
+            image,
+        };
 
         // Load the main manifest config file
         let app = hubris.extract_file("app.toml")?;
