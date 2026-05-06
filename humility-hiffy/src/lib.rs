@@ -697,9 +697,13 @@ impl<'a> HiffyContext<'a> {
             if code != 0 {
                 return Err(Failure::FunctionError(code));
             }
-            rval[0..nreply as usize]
-                .copy_from_slice(&buf[5..(5 + nreply as usize)]);
+            // The reply may be shorter than `nreply` bytes, if this is an Idol
+            // call that uses serialization for its return type.  `buf` has
+            // already been trimmed based on actual reply length.
+            let reply = &buf[5..];
+            rval[0..][..reply.len()].copy_from_slice(reply);
 
+            // Return the original `nreply`, to match the Hubris implementation
             Ok(nreply.try_into().unwrap())
         }
         ////////////////////////////////////////////////////////////////////////
