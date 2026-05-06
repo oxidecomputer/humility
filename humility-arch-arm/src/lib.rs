@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{Result, bail};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::ToPrimitive;
 use std::collections::{BTreeMap, HashMap};
@@ -211,10 +210,18 @@ fn instr_operands(cs: &Capstone, instr: &capstone::Insn) -> Vec<ARMRegister> {
     rval
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum InstructionError {
+    #[error("multiple source registers")]
+    MultipleSourceRegisters,
+    #[error("multiple target registers")]
+    MultipleTargetRegisters,
+}
+
 fn instr_source_target(
     cs: &Capstone,
     instr: &capstone::Insn,
-) -> Result<(Option<ARMRegister>, Option<ARMRegister>)> {
+) -> Result<(Option<ARMRegister>, Option<ARMRegister>), InstructionError> {
     let detail = cs.insn_detail(instr).unwrap();
 
     let mut source: Option<ARMRegister> = None;
@@ -222,14 +229,14 @@ fn instr_source_target(
 
     for op in detail.regs_read() {
         if source.is_some() {
-            bail!("multiple source registers");
+            return Err(InstructionError::MultipleSourceRegisters);
         }
         source = Some((*op).into());
     }
 
     for op in detail.regs_write() {
         if target.is_some() {
-            bail!("multiple target registers");
+            return Err(InstructionError::MultipleTargetRegisters);
         }
         target = Some((*op).into());
     }
@@ -252,7 +259,7 @@ fn instr_source_target(
 pub fn presyscall_pushes(
     cs: &Capstone,
     instrs: &[capstone::Insn],
-) -> Result<Vec<ARMRegister>> {
+) -> Result<Vec<ARMRegister>, InstructionError> {
     const ARM_INSN_PUSH: u32 = arch::arm::ArmInsn::ARM_INS_PUSH as u32;
     const ARM_INSN_MOV: u32 = arch::arm::ArmInsn::ARM_INS_MOV as u32;
     const ARM_INSN_POP: u32 = arch::arm::ArmInsn::ARM_INS_POP as u32;

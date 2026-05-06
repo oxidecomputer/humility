@@ -1607,10 +1607,10 @@ dependencies = [
 name = "humility-arch-arm"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "capstone",
  "num-derive 0.4.2",
  "num-traits",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
