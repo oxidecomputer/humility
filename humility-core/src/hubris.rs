@@ -1424,7 +1424,7 @@ impl HubrisArchive {
         // forward slash: regardless of platform, paths within a ZIP archive
         // use the forward slash as a separator.
         //
-        let mut loader = HubrisObjectLoader::new(0)?;
+        let mut loader = HubrisObjectLoader::new(0);
         loader.load_object(
             "kernel",
             HubrisTask::Kernel,
@@ -1479,7 +1479,7 @@ impl HubrisArchive {
             .into_par_iter()
             .map(|(id, name, buf)| {
                 let id: u32 = id.try_into().unwrap();
-                let mut loader = HubrisObjectLoader::new(id + 1)?;
+                let mut loader = HubrisObjectLoader::new(id + 1);
                 loader.load_object(&name, HubrisTask::Task(id), &buf)?;
                 Ok(loader)
             })
@@ -3718,8 +3718,8 @@ struct HubrisObjectLoader {
 }
 
 impl HubrisObjectLoader {
-    fn new(object_id: u32) -> Result<Self> {
-        Ok(Self {
+    fn new(object_id: u32) -> Self {
+        Self {
             object_id,
             imageid: None,
             arrays: HashMap::new(),
@@ -3748,7 +3748,7 @@ impl HubrisObjectLoader {
             structs_byname: MultiMap::new(),
             subprograms: HashMap::new(),
             syscall_pushes: HashMap::new(),
-        })
+        }
     }
 
     fn merge(&mut self, loader: HubrisObjectLoader) -> Result<()> {
