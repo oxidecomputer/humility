@@ -204,7 +204,7 @@ fn net_mac_table(
                 hubris, &op, r,
             )
         })
-        .collect::<Result<Vec<Result<_, _>>>>()?;
+        .collect::<Vec<_>>();
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
     for r in results {
