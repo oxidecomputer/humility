@@ -38,7 +38,7 @@
 
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
-use humility::core::Core;
+use humility::core::{Core, ProbeError};
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
 use humility_cmd::Command;
@@ -136,7 +136,21 @@ fn readvar(context: &mut ExecutionContext) -> Result<()> {
     // if that's not possible (which only lets us read flash).
     let mut core = match context.cli.attach_live_or_dump_match(hubris) {
         Ok(core) => core,
-        Err(_) => humility::core::attach_archive(hubris)?,
+        Err(err) => {
+            // Decide whether to warn the user about what happened. If we got
+            // `NoProbeFound` and the user wasn't trying to find a probe, then
+            // we're in the clear; otherwise, print a warning and continue.
+            if err
+                .downcast_ref::<ProbeError>()
+                .is_none_or(|e| !matches!(e, ProbeError::NoProbeFound))
+                && context.cli.probe.is_none()
+            {
+                humility::warn!(
+                    "attaching failed, falling back to archive: {err}"
+                );
+            }
+            humility::core::attach_archive(hubris)?
+        }
     };
     let core = &mut *core;
 

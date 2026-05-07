@@ -32,8 +32,8 @@ hif = { workspace = true }
 spd = { workspace = true }
 humility = { workspace = true }
 humility-cortex = { workspace = true }
-humility-cmd = { workspace = true, default-features = false }
-humility-cli = { workspace = true }
+humility-cmd = { workspace = true }
+humility-cli = { workspace = true, default-features = false }
 cmd-auxflash = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }

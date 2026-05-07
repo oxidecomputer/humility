@@ -75,7 +75,7 @@ fn section(title: &str) {
 fn diagnose(context: &mut ExecutionContext) -> Result<()> {
     let subargs = DiagnoseArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = &context.cli.archive()?;
-    let core = &mut *context.cli.attach_live_booted(hubris)?;
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     section("Initial Inspection");
 

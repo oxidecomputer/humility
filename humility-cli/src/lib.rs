@@ -251,7 +251,14 @@ impl Cli {
         &self,
         hubris: Option<&HubrisArchive>,
     ) -> Result<Box<dyn Core>> {
-        let probe = match &self.probe {
+        let probe = match self.probe.as_deref() {
+            Some("archive") => {
+                if let Some(hubris) = hubris {
+                    return humility::core::attach_archive(hubris);
+                } else {
+                    bail!("cannot specify `--probe=archive` with no archive");
+                }
+            }
             Some(p) => p,
             None => "auto",
         };
@@ -263,7 +270,7 @@ impl Cli {
     #[cfg(not(feature = "probes"))]
     pub fn attach_probe(
         &self,
-        _hubris: &HubrisArchive,
+        _hubris: Option<&HubrisArchive>,
     ) -> Result<Box<dyn Core>> {
         bail!("Did not build with probes!");
     }
@@ -367,7 +374,12 @@ impl Cli {
     /// If loading the archive fails, then an error is returned
     pub fn raw_archive(&self) -> Result<Vec<u8>> {
         let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Raw)?;
-        Ok(a.take_raw_archive())
+        let out = a.take_raw_archive();
+        if out.is_empty() {
+            bail!("no archive available");
+        } else {
+            Ok(out)
+        }
     }
 }
 
