@@ -163,7 +163,15 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     let results = context.run(core, ops.as_slice(), None)?;
 
     for (ndx, variant) in operation.variants.iter().enumerate() {
-        let result = hiffy_decode(hubris, &idol_cmd, results[ndx].clone())?;
+        let result = match hiffy_decode::<humility::reflect::Value>(
+            hubris,
+            &idol_cmd,
+            results[ndx].clone(),
+        ) {
+            Ok(s) => Ok(s),
+            Err(HiffyError::Hiffy(s)) => Err(s),
+            Err(HiffyError::Other(e)) => return Err(e),
+        };
 
         println!(
             "{:<20} => {}",

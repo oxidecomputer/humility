@@ -100,7 +100,7 @@
 //! # etc...
 //! ```
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 
@@ -365,9 +365,6 @@ fn host_post_codes(
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
     let handle_value = |v| {
-        let Ok(reflect::Value::Base(reflect::Base::U32(v))) = v else {
-            bail!("Got bad value from get_post_code: expected U32, got {v:?}");
-        };
         if raw {
             println!("{v:08x}");
         } else {
@@ -375,7 +372,6 @@ fn host_post_codes(
             let detail = decoded.lines().join("\n");
             println!("{detail}");
         }
-        Ok(())
     };
 
     let send = context.get_function("Send", 4)?;
@@ -418,8 +414,8 @@ fn host_post_codes(
         ops.push(Op::Done); // Finish
 
         for r in context.run(core, ops.as_slice(), None)? {
-            let v = humility_hiffy::hiffy_decode(hubris, &op, r)?;
-            handle_value(v)?;
+            let v = humility_hiffy::hiffy_decode::<u32>(hubris, &op, r)?;
+            handle_value(v);
         }
     }
     Ok(())
