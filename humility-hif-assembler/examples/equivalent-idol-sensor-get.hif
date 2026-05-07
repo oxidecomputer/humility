@@ -1,0 +1,2 @@
+# Equivalent to: humility hiffy -c Sensor.get -a id=0
+idol Sensor.get id=0

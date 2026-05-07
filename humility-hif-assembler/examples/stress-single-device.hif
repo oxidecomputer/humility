@@ -1,0 +1,15 @@
+# Stress test: tight loop reading one temperature sensor.
+#
+# Reads the temperature register of a TMP117 on the front bus
+# as fast as the hiffy task can execute.  No sleep between
+# iterations — this measures maximum I2C transaction rate.
+#
+# Target: gimlet (front bus, TMP117 at 0x48)
+# Expected results: 200 x 2-byte temperature readings
+
+.let TEMP_REG 0x00
+.let ITERATIONS 200
+
+repeat $ITERATIONS
+    i2c_read front tmp117 reg=$TEMP_REG 2
+end

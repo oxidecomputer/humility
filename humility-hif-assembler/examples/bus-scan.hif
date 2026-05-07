@@ -1,0 +1,10 @@
+# Bus scan: discover all responding devices.
+#
+# Probes addresses 0-127 on the mid bus.  Each address gets a
+# 1-byte read; responding devices return Ok, absent devices
+# return Err(NoDevice).
+#
+# Target: gimlet (mid bus, I2C3 port H)
+# Expected results: 128 (mix of Ok and Err)
+
+i2c_scan mid

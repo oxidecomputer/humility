@@ -1,0 +1,3 @@
+# Equivalent to: humility i2c --scan --bus mid
+# Scans addresses 0-127, reads 1 byte from each
+i2c_scan mid

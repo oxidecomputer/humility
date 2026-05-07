@@ -1913,11 +1913,14 @@ dependencies = [
  "humility-cli",
  "humility-cmd",
  "humility-core",
+ "humility-hif-assembler",
  "humility-hiffy",
  "humility-idol",
  "idol",
  "indexmap 2.14.0",
  "parse_int",
+ "postcard",
+ "serde_json",
 ]
 
 [[package]]
@@ -2630,6 +2633,20 @@ dependencies = [
  "num-traits",
  "rand 0.10.1",
  "zerocopy",
+]
+
+[[package]]
+name = "humility-hif-assembler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-core",
+ "humility-idol",
+ "idol",
+ "postcard",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

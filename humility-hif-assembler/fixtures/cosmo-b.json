@@ -1,0 +1,7421 @@
+{
+  "image_id": [
+    217,
+    26,
+    168,
+    121,
+    231,
+    52,
+    189,
+    12
+  ],
+  "board": "cosmo-b",
+  "buses": [
+    {
+      "name": "main",
+      "controller": 2,
+      "port_index": 0,
+      "port_name": "F",
+      "devices": [
+        {
+          "address": 112,
+          "device": "oximux16",
+          "description": "Main FPGA virtual mux",
+          "removable": false
+        }
+      ],
+      "muxes": [
+        {
+          "address": 1,
+          "segments": [
+            {
+              "segment": 1,
+              "devices": [
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "M2_A",
+                  "description": "M.2 A NVMe Basic Management Command",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "M2_A",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 2,
+              "devices": [
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "M2_B",
+                  "description": "M.2 B NVMe Basic Management Command",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "M2_B",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 4,
+              "devices": [
+                {
+                  "address": 60,
+                  "device": "sbrmi",
+                  "name": "RMI",
+                  "description": "CPU via SB-RMI",
+                  "removable": false
+                },
+                {
+                  "address": 76,
+                  "device": "sbtsi",
+                  "name": "CPU",
+                  "description": "CPU temperature sensor",
+                  "removable": false,
+                  "sensors": [
+                    {
+                      "name": "CPU",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 7,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "fan_vpd",
+                  "description": "Fan VPD",
+                  "removable": true
+                }
+              ]
+            },
+            {
+              "segment": 8,
+              "devices": [
+                {
+                  "address": 76,
+                  "device": "tmp451",
+                  "name": "t6",
+                  "description": "T6 temperature sensor",
+                  "removable": false,
+                  "sensors": [
+                    {
+                      "name": "t6",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mid",
+      "controller": 3,
+      "port_index": 0,
+      "port_name": "H",
+      "devices": [
+        {
+          "address": 36,
+          "device": "tps546b24a",
+          "name": "v3p3_sp_a2",
+          "description": "A2 3.3V rail",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V3P3_SP_A2",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V3P3_SP_A2",
+              "kind": "Current"
+            },
+            {
+              "name": "V3P3_SP_A2",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 39,
+          "device": "tps546b24a",
+          "name": "v5p0_sys_a2",
+          "description": "A2 5V rail",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V5_SYS_A2",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V5_SYS_A2",
+              "kind": "Current"
+            },
+            {
+              "name": "V5_SYS_A2",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 41,
+          "device": "tps546b24a",
+          "name": "v1p8_sys_a2",
+          "description": "A2 1.8V rail",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V1P8_SYS_A2",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V1P8_SYS_A2",
+              "kind": "Current"
+            },
+            {
+              "name": "V1P8_SYS_A2",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 58,
+          "device": "max5970",
+          "name": "m2",
+          "description": "M.2 hot plug controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V3P3_M2A_A0HP",
+              "kind": "Current"
+            },
+            {
+              "name": "V3P3_M2B_A0HP",
+              "kind": "Current"
+            },
+            {
+              "name": "V3P3_M2A_A0HP",
+              "kind": "Voltage"
+            },
+            {
+              "name": "V3P3_M2B_A0HP",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 84,
+          "device": "ltc4282",
+          "name": "mcio",
+          "description": "12V MCIO hot plug controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V12_MCIO_A0HP",
+              "kind": "Current"
+            },
+            {
+              "name": "V12_MCIO_A0HP",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 86,
+          "device": "ltc4282",
+          "name": "dimm_hsc_ghijkl",
+          "description": "DIMM GHIJKL hot plug controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V12_DDR5_GHIJKL_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "V12_DDR5_GHIJKL_A0",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 85,
+          "device": "ltc4282",
+          "name": "dimm_hsc_abcdef",
+          "description": "DIMM ABCDEF hot plug controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V12_DDR5_ABCDEF_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "V12_DDR5_ABCDEF_A0",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 117,
+          "device": "raa229620a",
+          "description": "South power controller (Core 0, SOC)",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "VDDCR_CPU0_A0",
+              "kind": "Temperature"
+            },
+            {
+              "name": "VDDCR_SOC_A0",
+              "kind": "Temperature"
+            },
+            {
+              "name": "VDDCR_CPU0_A0",
+              "kind": "Power"
+            },
+            {
+              "name": "VDDCR_SOC_A0",
+              "kind": "Power"
+            },
+            {
+              "name": "VDDCR_CPU0_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "VDDCR_SOC_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "VDDCR_CPU0_A0",
+              "kind": "Voltage"
+            },
+            {
+              "name": "VDDCR_SOC_A0",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 118,
+          "device": "raa229620a",
+          "description": "North power controller (Core 1, VDDIO)",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "VDDCR_CPU1_A0",
+              "kind": "Temperature"
+            },
+            {
+              "name": "VDDIO_SP5_A0",
+              "kind": "Temperature"
+            },
+            {
+              "name": "VDDCR_CPU1_A0",
+              "kind": "Power"
+            },
+            {
+              "name": "VDDIO_SP5_A0",
+              "kind": "Power"
+            },
+            {
+              "name": "VDDCR_CPU1_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "VDDIO_SP5_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "VDDCR_CPU1_A0",
+              "kind": "Voltage"
+            },
+            {
+              "name": "VDDIO_SP5_A0",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 92,
+          "device": "isl68224",
+          "description": "SP5 power controller (V1P1, V1P8, V3P3)",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V1P1_SP5_A0",
+              "kind": "Current"
+            },
+            {
+              "name": "V1P8_SP5_A1",
+              "kind": "Current"
+            },
+            {
+              "name": "V3P3_SP5_A1",
+              "kind": "Current"
+            },
+            {
+              "name": "V1P1_SP5_A0",
+              "kind": "Voltage"
+            },
+            {
+              "name": "V1P8_SP5_A1",
+              "kind": "Voltage"
+            },
+            {
+              "name": "V3P3_SP5_A1",
+              "kind": "Voltage"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rear",
+      "controller": 4,
+      "port_index": 0,
+      "port_name": "F",
+      "devices": [
+        {
+          "address": 57,
+          "device": "max5970",
+          "description": "NIC hot swap",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V12P0_NIC_A0HP",
+              "kind": "Current"
+            },
+            {
+              "name": "V5P0_NIC_A0HP",
+              "kind": "Current"
+            },
+            {
+              "name": "V12P0_NIC_A0HP",
+              "kind": "Voltage"
+            },
+            {
+              "name": "V5P0_NIC_A0HP",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 37,
+          "device": "tps546b24a",
+          "name": "v0p96_nic",
+          "description": "T6 power controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V0P96_NIC_VDD_A0HP",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V0P96_NIC_VDD_A0HP",
+              "kind": "Current"
+            },
+            {
+              "name": "V0P96_NIC_VDD_A0HP",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 72,
+          "device": "tmp117",
+          "name": "Northwest",
+          "description": "Northwest temperature sensor",
+          "removable": true,
+          "sensors": [
+            {
+              "name": "Northwest",
+              "kind": "Temperature"
+            }
+          ]
+        },
+        {
+          "address": 73,
+          "device": "tmp117",
+          "name": "North",
+          "description": "North temperature sensor",
+          "removable": true,
+          "sensors": [
+            {
+              "name": "North",
+              "kind": "Temperature"
+            }
+          ]
+        },
+        {
+          "address": 74,
+          "device": "tmp117",
+          "name": "Northeast",
+          "description": "Northeast temperature sensor",
+          "removable": true,
+          "sensors": [
+            {
+              "name": "Northeast",
+              "kind": "Temperature"
+            }
+          ]
+        },
+        {
+          "address": 32,
+          "device": "max31790",
+          "description": "Fan controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "Southeast",
+              "kind": "Speed"
+            },
+            {
+              "name": "Northeast",
+              "kind": "Speed"
+            },
+            {
+              "name": "South",
+              "kind": "Speed"
+            },
+            {
+              "name": "North",
+              "kind": "Speed"
+            },
+            {
+              "name": "Southwest",
+              "kind": "Speed"
+            },
+            {
+              "name": "Northwest",
+              "kind": "Speed"
+            }
+          ]
+        },
+        {
+          "address": 103,
+          "device": "bmr491",
+          "name": "IBC",
+          "description": "Intermediate bus converter",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V12_SYS_A2",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V12_SYS_A2",
+              "kind": "Power"
+            },
+            {
+              "name": "V12_SYS_A2",
+              "kind": "Current"
+            },
+            {
+              "name": "V12_SYS_A2",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 80,
+          "device": "at24csw080",
+          "name": "local_vpd",
+          "description": "Cosmo VPD",
+          "removable": false
+        },
+        {
+          "address": 17,
+          "device": "lm5066i",
+          "description": "Fan hot swap controller (east)",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V54P5_FAN_EAST",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V54P5_FAN_EAST",
+              "kind": "Current"
+            },
+            {
+              "name": "V54P5_FAN_EAST",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 18,
+          "device": "lm5066i",
+          "description": "Fan hot swap controller (central)",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V54P5_FAN_CENTRAL",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V54P5_FAN_CENTRAL",
+              "kind": "Current"
+            },
+            {
+              "name": "V54P5_FAN_CENTRAL",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 19,
+          "device": "lm5066i",
+          "description": "Fan hot swap controller (west)",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V54P5_FAN_WEST",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V54P5_FAN_WEST",
+              "kind": "Current"
+            },
+            {
+              "name": "V54P5_FAN_WEST",
+              "kind": "Voltage"
+            }
+          ]
+        },
+        {
+          "address": 20,
+          "device": "adm127x",
+          "description": "Sled hot swap controller",
+          "removable": false,
+          "sensors": [
+            {
+              "name": "V54P5_IBC_A3",
+              "kind": "Temperature"
+            },
+            {
+              "name": "V54P5_IBC_A3",
+              "kind": "Current"
+            },
+            {
+              "name": "V54P5_IBC_A3",
+              "kind": "Voltage"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "front",
+      "controller": 1,
+      "port_index": 0,
+      "port_name": "B",
+      "devices": [
+        {
+          "address": 112,
+          "device": "oximux16",
+          "description": "Front FPGA virtual mux",
+          "removable": false
+        }
+      ],
+      "muxes": [
+        {
+          "address": 1,
+          "segments": [
+            {
+              "segment": 1,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_a_vpd",
+                  "description": "U.2 Sharkfin A VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_a_hsc",
+                  "description": "U.2 Sharkfin A hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2A_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2A_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2A_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2A_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N0",
+                  "description": "U.2 A NVMe Basic Management Command",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N0",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 2,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_b_vpd",
+                  "description": "U.2 Sharkfin B VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_b_hsc",
+                  "description": "U.2 Sharkfin B hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2B_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2B_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2B_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2B_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N1",
+                  "description": "U.2 B NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N1",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 3,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_c_vpd",
+                  "description": "U.2 Sharkfin C VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_c_hsc",
+                  "description": "U.2 Sharkfin C hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2C_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2C_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2C_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2C_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N2",
+                  "description": "U.2 C NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N2",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 4,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_d_vpd",
+                  "description": "U.2 Sharkfin D VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_d_hsc",
+                  "description": "U.2 Sharkfin D hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2D_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2D_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2D_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2D_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N3",
+                  "description": "U.2 D NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N3",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 5,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_e_vpd",
+                  "description": "U.2 Sharkfin E VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_e_hsc",
+                  "description": "U.2 Sharkfin E hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2E_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2E_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2E_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2E_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N4",
+                  "description": "U.2 E NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N4",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 6,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_f_vpd",
+                  "description": "U.2 Sharkfin F VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_f_hsc",
+                  "description": "U.2 Sharkfin F hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2F_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2F_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2F_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2F_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N5",
+                  "description": "U.2 F NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N5",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 9,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_g_vpd",
+                  "description": "U.2 Sharkfin G VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_g_hsc",
+                  "description": "U.2 Sharkfin G hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2G_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2G_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2G_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2G_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N6",
+                  "description": "U.2 G NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N6",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 10,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_h_vpd",
+                  "description": "U.2 Sharkfin H VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_h_hsc",
+                  "description": "U.2 Sharkfin H hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2H_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2H_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2H_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2H_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N7",
+                  "description": "U.2 H NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N7",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 11,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_i_vpd",
+                  "description": "U.2 Sharkfin I VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_i_hsc",
+                  "description": "U.2 Sharkfin I hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2I_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2I_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2I_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2I_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N8",
+                  "description": "U.2 I NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N8",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 12,
+              "devices": [
+                {
+                  "address": 80,
+                  "device": "at24csw080",
+                  "name": "sharkfin_j_vpd",
+                  "description": "U.2 Sharkfin J VPD",
+                  "removable": true
+                },
+                {
+                  "address": 56,
+                  "device": "max5970",
+                  "name": "sharkfin_j_hsc",
+                  "description": "U.2 Sharkfin J hot swap controller",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "V12_U2J_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V3P3_U2J_A0",
+                      "kind": "Current"
+                    },
+                    {
+                      "name": "V12_U2J_A0",
+                      "kind": "Voltage"
+                    },
+                    {
+                      "name": "V3P3_U2J_A0",
+                      "kind": "Voltage"
+                    }
+                  ]
+                },
+                {
+                  "address": 106,
+                  "device": "nvme_bmc",
+                  "name": "U2_N9",
+                  "description": "U.2 J NVMe Basic Management Control",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "U2_N9",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "segment": 13,
+              "devices": [
+                {
+                  "address": 72,
+                  "device": "tmp117",
+                  "name": "Southwest",
+                  "description": "Southwest temperature sensor",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "Southwest",
+                      "kind": "Temperature"
+                    }
+                  ]
+                },
+                {
+                  "address": 73,
+                  "device": "tmp117",
+                  "name": "South",
+                  "description": "South temperature sensor",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "South",
+                      "kind": "Temperature"
+                    }
+                  ]
+                },
+                {
+                  "address": 74,
+                  "device": "tmp117",
+                  "name": "Southeast",
+                  "description": "Southeast temperature sensor",
+                  "removable": true,
+                  "sensors": [
+                    {
+                      "name": "Southeast",
+                      "kind": "Temperature"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "Sleep",
+      "id": 0,
+      "arg_count": 1,
+      "args": [
+        {
+          "name": "arg0",
+          "ty": "u16",
+          "size": 2
+        }
+      ]
+    },
+    {
+      "name": "Send",
+      "id": 1,
+      "arg_count": 4,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Task",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u16",
+          "size": 2
+        },
+        {
+          "name": "__2",
+          "ty": "Buffer",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "u32",
+          "size": 4
+        }
+      ]
+    },
+    {
+      "name": "SendLeaseRead",
+      "id": 2,
+      "arg_count": 5,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Task",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u16",
+          "size": 2
+        },
+        {
+          "name": "__2",
+          "ty": "Buffer",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__4",
+          "ty": "u32",
+          "size": 4
+        }
+      ]
+    },
+    {
+      "name": "SendLeaseReadWrite",
+      "id": 3,
+      "arg_count": 6,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Task",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u16",
+          "size": 2
+        },
+        {
+          "name": "__2",
+          "ty": "Buffer",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__4",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__5",
+          "ty": "u32",
+          "size": 4
+        }
+      ]
+    },
+    {
+      "name": "SendLeaseWrite",
+      "id": 4,
+      "arg_count": 5,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Task",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u16",
+          "size": 2
+        },
+        {
+          "name": "__2",
+          "ty": "Buffer",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__4",
+          "ty": "u32",
+          "size": 4
+        }
+      ]
+    },
+    {
+      "name": "I2cRead",
+      "id": 5,
+      "arg_count": 7,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Controller",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "PortIndex",
+          "size": 1
+        },
+        {
+          "name": "__2",
+          "ty": "Mux",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "Segment",
+          "size": 1
+        },
+        {
+          "name": "__4",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__5",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__6",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "BadResponse"
+        },
+        {
+          "code": 2,
+          "name": "BadArg"
+        },
+        {
+          "code": 3,
+          "name": "NoDevice"
+        },
+        {
+          "code": 4,
+          "name": "BadController"
+        },
+        {
+          "code": 5,
+          "name": "ReservedAddress"
+        },
+        {
+          "code": 6,
+          "name": "BadPort"
+        },
+        {
+          "code": 7,
+          "name": "NoRegister"
+        },
+        {
+          "code": 8,
+          "name": "BadMux"
+        },
+        {
+          "code": 9,
+          "name": "BadSegment"
+        },
+        {
+          "code": 10,
+          "name": "MuxNotFound"
+        },
+        {
+          "code": 11,
+          "name": "SegmentNotFound"
+        },
+        {
+          "code": 12,
+          "name": "SegmentDisconnected"
+        },
+        {
+          "code": 13,
+          "name": "MuxDisconnected"
+        },
+        {
+          "code": 14,
+          "name": "MuxMissing"
+        },
+        {
+          "code": 15,
+          "name": "BadMuxRegister"
+        },
+        {
+          "code": 16,
+          "name": "BusReset"
+        },
+        {
+          "code": 17,
+          "name": "BusResetMux"
+        },
+        {
+          "code": 18,
+          "name": "BusLocked"
+        },
+        {
+          "code": 19,
+          "name": "BusLockedMux"
+        },
+        {
+          "code": 20,
+          "name": "ControllerBusy"
+        },
+        {
+          "code": 21,
+          "name": "BusError"
+        },
+        {
+          "code": 22,
+          "name": "BadDeviceState"
+        },
+        {
+          "code": 23,
+          "name": "OperationNotSupported"
+        },
+        {
+          "code": 24,
+          "name": "IllegalLeaseCount"
+        },
+        {
+          "code": 25,
+          "name": "TooMuchData"
+        }
+      ]
+    },
+    {
+      "name": "I2cWrite",
+      "id": 6,
+      "arg_count": 8,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Controller",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "PortIndex",
+          "size": 1
+        },
+        {
+          "name": "__2",
+          "ty": "Mux",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "Segment",
+          "size": 1
+        },
+        {
+          "name": "__4",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__5",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__6",
+          "ty": "Buffer",
+          "size": 1
+        },
+        {
+          "name": "__7",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "BadResponse"
+        },
+        {
+          "code": 2,
+          "name": "BadArg"
+        },
+        {
+          "code": 3,
+          "name": "NoDevice"
+        },
+        {
+          "code": 4,
+          "name": "BadController"
+        },
+        {
+          "code": 5,
+          "name": "ReservedAddress"
+        },
+        {
+          "code": 6,
+          "name": "BadPort"
+        },
+        {
+          "code": 7,
+          "name": "NoRegister"
+        },
+        {
+          "code": 8,
+          "name": "BadMux"
+        },
+        {
+          "code": 9,
+          "name": "BadSegment"
+        },
+        {
+          "code": 10,
+          "name": "MuxNotFound"
+        },
+        {
+          "code": 11,
+          "name": "SegmentNotFound"
+        },
+        {
+          "code": 12,
+          "name": "SegmentDisconnected"
+        },
+        {
+          "code": 13,
+          "name": "MuxDisconnected"
+        },
+        {
+          "code": 14,
+          "name": "MuxMissing"
+        },
+        {
+          "code": 15,
+          "name": "BadMuxRegister"
+        },
+        {
+          "code": 16,
+          "name": "BusReset"
+        },
+        {
+          "code": 17,
+          "name": "BusResetMux"
+        },
+        {
+          "code": 18,
+          "name": "BusLocked"
+        },
+        {
+          "code": 19,
+          "name": "BusLockedMux"
+        },
+        {
+          "code": 20,
+          "name": "ControllerBusy"
+        },
+        {
+          "code": 21,
+          "name": "BusError"
+        },
+        {
+          "code": 22,
+          "name": "BadDeviceState"
+        },
+        {
+          "code": 23,
+          "name": "OperationNotSupported"
+        },
+        {
+          "code": 24,
+          "name": "IllegalLeaseCount"
+        },
+        {
+          "code": 25,
+          "name": "TooMuchData"
+        }
+      ]
+    },
+    {
+      "name": "I2cBulkWrite",
+      "id": 7,
+      "arg_count": 8,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Controller",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "PortIndex",
+          "size": 1
+        },
+        {
+          "name": "__2",
+          "ty": "Mux",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "Segment",
+          "size": 1
+        },
+        {
+          "name": "__4",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__5",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__6",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__7",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "BadResponse"
+        },
+        {
+          "code": 2,
+          "name": "BadArg"
+        },
+        {
+          "code": 3,
+          "name": "NoDevice"
+        },
+        {
+          "code": 4,
+          "name": "BadController"
+        },
+        {
+          "code": 5,
+          "name": "ReservedAddress"
+        },
+        {
+          "code": 6,
+          "name": "BadPort"
+        },
+        {
+          "code": 7,
+          "name": "NoRegister"
+        },
+        {
+          "code": 8,
+          "name": "BadMux"
+        },
+        {
+          "code": 9,
+          "name": "BadSegment"
+        },
+        {
+          "code": 10,
+          "name": "MuxNotFound"
+        },
+        {
+          "code": 11,
+          "name": "SegmentNotFound"
+        },
+        {
+          "code": 12,
+          "name": "SegmentDisconnected"
+        },
+        {
+          "code": 13,
+          "name": "MuxDisconnected"
+        },
+        {
+          "code": 14,
+          "name": "MuxMissing"
+        },
+        {
+          "code": 15,
+          "name": "BadMuxRegister"
+        },
+        {
+          "code": 16,
+          "name": "BusReset"
+        },
+        {
+          "code": 17,
+          "name": "BusResetMux"
+        },
+        {
+          "code": 18,
+          "name": "BusLocked"
+        },
+        {
+          "code": 19,
+          "name": "BusLockedMux"
+        },
+        {
+          "code": 20,
+          "name": "ControllerBusy"
+        },
+        {
+          "code": 21,
+          "name": "BusError"
+        },
+        {
+          "code": 22,
+          "name": "BadDeviceState"
+        },
+        {
+          "code": 23,
+          "name": "OperationNotSupported"
+        },
+        {
+          "code": 24,
+          "name": "IllegalLeaseCount"
+        },
+        {
+          "code": 25,
+          "name": "TooMuchData"
+        }
+      ]
+    },
+    {
+      "name": "GpioInput",
+      "id": 8,
+      "arg_count": 1,
+      "args": [
+        {
+          "name": "arg0",
+          "ty": "Port",
+          "size": 1
+        }
+      ]
+    },
+    {
+      "name": "GpioToggle",
+      "id": 9,
+      "arg_count": 2,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Port",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u8",
+          "size": 1
+        }
+      ]
+    },
+    {
+      "name": "GpioSet",
+      "id": 10,
+      "arg_count": 2,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Port",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u8",
+          "size": 1
+        }
+      ]
+    },
+    {
+      "name": "GpioReset",
+      "id": 11,
+      "arg_count": 2,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Port",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u8",
+          "size": 1
+        }
+      ]
+    },
+    {
+      "name": "GpioConfigure",
+      "id": 12,
+      "arg_count": 7,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Port",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__2",
+          "ty": "Mode",
+          "size": 1
+        },
+        {
+          "name": "__3",
+          "ty": "OutputType",
+          "size": 1
+        },
+        {
+          "name": "__4",
+          "ty": "Speed",
+          "size": 1
+        },
+        {
+          "name": "__5",
+          "ty": "Pull",
+          "size": 1
+        },
+        {
+          "name": "__6",
+          "ty": "Alternate",
+          "size": 1
+        }
+      ]
+    },
+    {
+      "name": "SpiRead",
+      "id": 13,
+      "arg_count": 4,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Task",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__2",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__3",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "BadTransferSize"
+        },
+        {
+          "code": 4,
+          "name": "TaskRestarted"
+        }
+      ]
+    },
+    {
+      "name": "SpiWrite",
+      "id": 14,
+      "arg_count": 3,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "Task",
+          "size": 1
+        },
+        {
+          "name": "__1",
+          "ty": "u8",
+          "size": 1
+        },
+        {
+          "name": "__2",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "BadTransferSize"
+        },
+        {
+          "code": 4,
+          "name": "TaskRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiReadId",
+      "id": 15,
+      "arg_count": 0,
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiReadStatus",
+      "id": 16,
+      "arg_count": 0,
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiBulkErase",
+      "id": 17,
+      "arg_count": 0,
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiPageProgram",
+      "id": 18,
+      "arg_count": 3,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__1",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__2",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiPageProgramSector0",
+      "id": 19,
+      "arg_count": 3,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__1",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__2",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiRead",
+      "id": 20,
+      "arg_count": 2,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__1",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiSectorErase",
+      "id": 21,
+      "arg_count": 1,
+      "args": [
+        {
+          "name": "arg0",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiSector0Erase",
+      "id": 22,
+      "arg_count": 0,
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiVerify",
+      "id": 23,
+      "arg_count": 3,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__1",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__2",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "QspiHash",
+      "id": 24,
+      "arg_count": 2,
+      "args": [
+        {
+          "name": "__0",
+          "ty": "u32",
+          "size": 4
+        },
+        {
+          "name": "__1",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "WriteEnableFailed"
+        },
+        {
+          "code": 2,
+          "name": "HashBadRange"
+        },
+        {
+          "code": 3,
+          "name": "HashError"
+        },
+        {
+          "code": 4,
+          "name": "HashNotConfigured"
+        },
+        {
+          "code": 5,
+          "name": "NotMuxedToSP"
+        },
+        {
+          "code": 6,
+          "name": "Sector0IsReserved"
+        },
+        {
+          "code": 7,
+          "name": "NoPersistentData"
+        },
+        {
+          "code": 8,
+          "name": "MonotonicCounterOverflow"
+        },
+        {
+          "code": 9,
+          "name": "BadChipId"
+        },
+        {
+          "code": 10,
+          "name": "BadAddress"
+        },
+        {
+          "code": 11,
+          "name": "QspiTimeout"
+        },
+        {
+          "code": 12,
+          "name": "QspiTransferError"
+        },
+        {
+          "code": 13,
+          "name": "HashUncalculated"
+        },
+        {
+          "code": 14,
+          "name": "RecalculateHash"
+        },
+        {
+          "code": 15,
+          "name": "HashInProgress"
+        },
+        {
+          "code": 16,
+          "name": "BadCapacity"
+        },
+        {
+          "code": 17,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "HashDigest",
+      "id": 25,
+      "arg_count": 1,
+      "args": [
+        {
+          "name": "arg0",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "NotInitialized"
+        },
+        {
+          "code": 2,
+          "name": "InvalidState"
+        },
+        {
+          "code": 3,
+          "name": "Busy"
+        },
+        {
+          "code": 4,
+          "name": "NoData"
+        },
+        {
+          "code": 5,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "HashInit",
+      "id": 26,
+      "arg_count": 0,
+      "errors": [
+        {
+          "code": 1,
+          "name": "NotInitialized"
+        },
+        {
+          "code": 2,
+          "name": "InvalidState"
+        },
+        {
+          "code": 3,
+          "name": "Busy"
+        },
+        {
+          "code": 4,
+          "name": "NoData"
+        },
+        {
+          "code": 5,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "HashUpdate",
+      "id": 27,
+      "arg_count": 1,
+      "args": [
+        {
+          "name": "arg0",
+          "ty": "u32",
+          "size": 4
+        }
+      ],
+      "errors": [
+        {
+          "code": 1,
+          "name": "NotInitialized"
+        },
+        {
+          "code": 2,
+          "name": "InvalidState"
+        },
+        {
+          "code": 3,
+          "name": "Busy"
+        },
+        {
+          "code": 4,
+          "name": "NoData"
+        },
+        {
+          "code": 5,
+          "name": "ServerRestarted"
+        }
+      ]
+    },
+    {
+      "name": "HashFinalize",
+      "id": 28,
+      "arg_count": 0,
+      "errors": [
+        {
+          "code": 1,
+          "name": "NotInitialized"
+        },
+        {
+          "code": 2,
+          "name": "InvalidState"
+        },
+        {
+          "code": 3,
+          "name": "Busy"
+        },
+        {
+          "code": 4,
+          "name": "NoData"
+        },
+        {
+          "code": 5,
+          "name": "ServerRestarted"
+        }
+      ]
+    }
+  ],
+  "buffer_sizes": {
+    "text": 4096,
+    "data": 20480,
+    "rstack": 2048,
+    "scratch": 1025
+  },
+  "idol_interfaces": [
+    {
+      "name": "Jefe",
+      "task": "jefe",
+      "task_id": 0,
+      "ops": [
+        {
+          "name": "get_state",
+          "code": 1,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "set_state",
+          "code": 2,
+          "args": [
+            {
+              "name": "state",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "request_reset",
+          "code": 3,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_reset_reason",
+          "code": 4,
+          "args_size": 0,
+          "reply": "ResetReason",
+          "reply_size": 5,
+          "encoding": "Ssmarshal",
+          "idempotent": true
+        },
+        {
+          "name": "set_reset_reason",
+          "code": 5,
+          "args": [
+            {
+              "name": "reason",
+              "ty": "ResetReason"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Ssmarshal",
+          "idempotent": true
+        },
+        {
+          "name": "reinitialize_dump_areas",
+          "code": 6,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_dump_area",
+          "code": 7,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "humpty::DumpArea",
+          "reply_size": 10,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "claim_dump_area",
+          "code": 8,
+          "args_size": 0,
+          "reply": "humpty::DumpArea",
+          "reply_size": 10,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "dump_task",
+          "code": 9,
+          "args": [
+            {
+              "name": "task_index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "dump_task_region",
+          "code": 10,
+          "args": [
+            {
+              "name": "task_index",
+              "ty": "u32"
+            },
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "length",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 12,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "reinitialize_dump_from",
+          "code": 11,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "restart_me_raw",
+          "code": 12,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "read_fault_counts",
+          "code": 13,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[usize; hubris_num_tasks::NUM_TASKS]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Net",
+      "task": "net",
+      "task_id": 1,
+      "ops": [
+        {
+          "name": "recv_packet",
+          "code": 1,
+          "args": [
+            {
+              "name": "socket",
+              "ty": "SocketName"
+            },
+            {
+              "name": "large_payload_behavior",
+              "ty": "LargePayloadBehavior"
+            }
+          ],
+          "args_size": 8,
+          "reply": "UdpMetadata",
+          "reply_size": 24,
+          "error": "task_net_api::RecvError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "payload",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "send_packet",
+          "code": 2,
+          "args": [
+            {
+              "name": "socket",
+              "ty": "SocketName"
+            },
+            {
+              "name": "metadata",
+              "ty": "UdpMetadata"
+            }
+          ],
+          "args_size": 28,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "task_net_api::SendError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "payload",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "smi_read",
+          "code": 3,
+          "args": [
+            {
+              "name": "phy",
+              "ty": "u8"
+            },
+            {
+              "name": "register",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 2,
+          "reply": "u16",
+          "reply_size": 2,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "smi_write",
+          "code": 4,
+          "args": [
+            {
+              "name": "phy",
+              "ty": "u8"
+            },
+            {
+              "name": "register",
+              "ty": "u8"
+            },
+            {
+              "name": "value",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_phy_reg",
+          "code": 5,
+          "args": [
+            {
+              "name": "port",
+              "ty": "u8"
+            },
+            {
+              "name": "page",
+              "ty": "u16"
+            },
+            {
+              "name": "reg",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u16",
+          "reply_size": 2,
+          "error": "PhyError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "write_phy_reg",
+          "code": 6,
+          "args": [
+            {
+              "name": "port",
+              "ty": "u8"
+            },
+            {
+              "name": "page",
+              "ty": "u16"
+            },
+            {
+              "name": "reg",
+              "ty": "u8"
+            },
+            {
+              "name": "value",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 6,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "PhyError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_ksz8463_mac_count",
+          "code": 7,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "KszError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_ksz8463_mac",
+          "code": 8,
+          "args": [
+            {
+              "name": "i",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 2,
+          "reply": "KszMacTableEntry",
+          "reply_size": 8,
+          "error": "KszError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_ksz8463_reg",
+          "code": 9,
+          "args": [
+            {
+              "name": "reg",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 2,
+          "reply": "u16",
+          "reply_size": 2,
+          "error": "KszError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_mac_address",
+          "code": 10,
+          "args_size": 0,
+          "reply": "MacAddress",
+          "reply_size": 6,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_spare_mac_addresses",
+          "code": 11,
+          "args_size": 0,
+          "reply": "MacAddressBlock",
+          "reply_size": 9,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "management_link_status",
+          "code": 12,
+          "args_size": 0,
+          "reply": "ManagementLinkStatus",
+          "reply_size": 6,
+          "error": "MgmtError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "management_counters",
+          "code": 13,
+          "args_size": 0,
+          "reply": "ManagementCounters",
+          "reply_size": 105,
+          "error": "MgmtError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "trust_vlan",
+          "code": 14,
+          "args": [
+            {
+              "name": "vid",
+              "ty": "VLanId"
+            },
+            {
+              "name": "trust_until",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 16,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "task_net_api::TrustError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "distrust_vlan",
+          "code": 15,
+          "args": [
+            {
+              "name": "vid",
+              "ty": "VLanId"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "task_net_api::TrustError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Sys",
+      "task": "sys",
+      "task_id": 2,
+      "ops": [
+        {
+          "name": "enable_clock_raw",
+          "code": 1,
+          "args": [
+            {
+              "name": "peripheral",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "RccError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "disable_clock_raw",
+          "code": 2,
+          "args": [
+            {
+              "name": "peripheral",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "RccError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "enter_reset_raw",
+          "code": 3,
+          "args": [
+            {
+              "name": "peripheral",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "RccError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "leave_reset_raw",
+          "code": 4,
+          "args": [
+            {
+              "name": "peripheral",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "RccError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_configure_raw",
+          "code": 5,
+          "args": [
+            {
+              "name": "port",
+              "ty": "Port"
+            },
+            {
+              "name": "pins",
+              "ty": "u16"
+            },
+            {
+              "name": "packed_attributes",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_set_reset",
+          "code": 6,
+          "args": [
+            {
+              "name": "port",
+              "ty": "Port"
+            },
+            {
+              "name": "set_pins",
+              "ty": "u16"
+            },
+            {
+              "name": "reset_pins",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_read_input",
+          "code": 7,
+          "args": [
+            {
+              "name": "port",
+              "ty": "Port"
+            }
+          ],
+          "args_size": 1,
+          "reply": "u16",
+          "reply_size": 2,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_toggle",
+          "code": 8,
+          "args": [
+            {
+              "name": "port",
+              "ty": "Port"
+            },
+            {
+              "name": "pins",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 3,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_uid",
+          "code": 9,
+          "args_size": 0,
+          "reply": "[u32; 3]",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_irq_configure",
+          "code": 10,
+          "args": [
+            {
+              "name": "mask",
+              "ty": "u32"
+            },
+            {
+              "name": "sensitivity",
+              "ty": "Edge"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_irq_control",
+          "code": 11,
+          "args": [
+            {
+              "name": "mask",
+              "ty": "u32"
+            },
+            {
+              "name": "op",
+              "ty": "IrqControl"
+            }
+          ],
+          "args_size": 5,
+          "reply": "bool",
+          "reply_size": 1,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Spi",
+      "task": "spi2_driver",
+      "task_id": 3,
+      "ops": [
+        {
+          "name": "read",
+          "code": 1,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "sink",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "write",
+          "code": 2,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "source",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "exchange",
+          "code": 3,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "source",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            },
+            {
+              "name": "sink",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "lock",
+          "code": 4,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            },
+            {
+              "name": "cs_state",
+              "ty": "CsState"
+            }
+          ],
+          "args_size": 2,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "release",
+          "code": 5,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Spi",
+      "task": "spi3_driver",
+      "task_id": 4,
+      "ops": [
+        {
+          "name": "read",
+          "code": 1,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "sink",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "write",
+          "code": 2,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "source",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "exchange",
+          "code": 3,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_spi_api::SpiError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "source",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            },
+            {
+              "name": "sink",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "lock",
+          "code": 4,
+          "args": [
+            {
+              "name": "device_index",
+              "ty": "u8"
+            },
+            {
+              "name": "cs_state",
+              "ty": "CsState"
+            }
+          ],
+          "args_size": 2,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "release",
+          "code": 5,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Packrat",
+      "task": "packrat",
+      "task_id": 6,
+      "ops": [
+        {
+          "name": "get_mac_address_block",
+          "code": 1,
+          "args_size": 0,
+          "reply": "MacAddressBlock",
+          "reply_size": 9,
+          "error": "CacheGetError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "set_mac_address_block",
+          "code": 2,
+          "args": [
+            {
+              "name": "macs",
+              "ty": "MacAddressBlock"
+            }
+          ],
+          "args_size": 9,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "CacheSetError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_identity",
+          "code": 3,
+          "args_size": 0,
+          "reply": "OxideIdentity",
+          "reply_size": 26,
+          "error": "CacheGetError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "set_identity",
+          "code": 4,
+          "args": [
+            {
+              "name": "macs",
+              "ty": "OxideIdentity"
+            }
+          ],
+          "args_size": 26,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "CacheSetError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_next_boot_host_startup_options",
+          "code": 5,
+          "args_size": 0,
+          "reply": "HostStartupOptions",
+          "reply_size": 8,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "set_next_boot_host_startup_options",
+          "code": 6,
+          "args": [
+            {
+              "name": "startup_options",
+              "ty": "HostStartupOptions"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "remove_spd",
+          "code": 7,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "set_spd_eeprom",
+          "code": 8,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            },
+            {
+              "name": "offset",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "get_spd_present",
+          "code": 9,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "bool",
+          "reply_size": 1,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_spd_data",
+          "code": 10,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            },
+            {
+              "name": "offset",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 5,
+          "reply": "u8",
+          "reply_size": 1,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_full_spd_data",
+          "code": 11,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "set_ereport_restart_id",
+          "code": 12,
+          "args": [
+            {
+              "name": "restart_id",
+              "ty": "u128"
+            }
+          ],
+          "args_size": 16,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "CacheSetError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "deliver_encoded_ereport",
+          "code": 13,
+          "args_size": 0,
+          "reply": "ereport_messages::Ena",
+          "reply_size": 8,
+          "error": "EreportWriteError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "read_ereports",
+          "code": 14,
+          "args": [
+            {
+              "name": "request_id",
+              "ty": "ereport_messages::RequestIdV0"
+            },
+            {
+              "name": "restart_id",
+              "ty": "ereport_messages::RestartId"
+            },
+            {
+              "name": "start_ena",
+              "ty": "ereport_messages::Ena"
+            },
+            {
+              "name": "limit",
+              "ty": "u8"
+            },
+            {
+              "name": "committed_ena",
+              "ty": "ereport_messages::Ena"
+            }
+          ],
+          "args_size": 34,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "EreportReadError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Rng",
+      "task": "rng_driver",
+      "task_id": 7,
+      "ops": [
+        {
+          "name": "fill",
+          "code": 1,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "RngError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "source",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Thermal",
+      "task": "thermal",
+      "task_id": 8,
+      "ops": [
+        {
+          "name": "set_mode_manual",
+          "code": 1,
+          "args": [
+            {
+              "name": "initial_pwm",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "set_mode_auto",
+          "code": 2,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_mode",
+          "code": 3,
+          "args_size": 0,
+          "reply": "ThermalMode",
+          "reply_size": 1,
+          "error": "ThermalError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "get_auto_state",
+          "code": 4,
+          "args_size": 0,
+          "reply": "ThermalAutoState",
+          "reply_size": 1,
+          "error": "ThermalError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "disable_watchdog",
+          "code": 5,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "enable_watchdog",
+          "code": 6,
+          "args": [
+            {
+              "name": "timeout_s",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "set_pid",
+          "code": 7,
+          "args": [
+            {
+              "name": "z",
+              "ty": "f32"
+            },
+            {
+              "name": "p",
+              "ty": "f32"
+            },
+            {
+              "name": "i",
+              "ty": "f32"
+            },
+            {
+              "name": "d",
+              "ty": "f32"
+            }
+          ],
+          "args_size": 16,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_margin",
+          "code": 8,
+          "args_size": 0,
+          "reply": "f32",
+          "reply_size": 4,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "set_margin",
+          "code": 9,
+          "args": [
+            {
+              "name": "margin",
+              "ty": "f32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "update_dynamic_input",
+          "code": 10,
+          "args": [
+            {
+              "name": "index",
+              "ty": "usize"
+            },
+            {
+              "name": "model",
+              "ty": "ThermalProperties"
+            }
+          ],
+          "args_size": 20,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "remove_dynamic_input",
+          "code": 11,
+          "args": [
+            {
+              "name": "index",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_runtime",
+          "code": 12,
+          "args_size": 0,
+          "reply": "u64",
+          "reply_size": 8,
+          "error": "ThermalError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Power",
+      "task": "power",
+      "task_id": 9,
+      "ops": [
+        {
+          "name": "pmbus_read",
+          "code": 1,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "Device"
+            },
+            {
+              "name": "rail",
+              "ty": "u8"
+            },
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "op",
+              "ty": "Operation"
+            }
+          ],
+          "args_size": 8,
+          "reply": "PmbusValue",
+          "reply_size": 34,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "read_mode",
+          "code": 2,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "Device"
+            },
+            {
+              "name": "rail",
+              "ty": "u8"
+            },
+            {
+              "name": "index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "phase_current",
+          "code": 3,
+          "args": [
+            {
+              "name": "rail",
+              "ty": "SensorId"
+            },
+            {
+              "name": "phase",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "f32",
+          "reply_size": 4,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "bmr491_event_log_read",
+          "code": 4,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "Bmr491Event",
+          "reply_size": 24,
+          "error": "ResponseCode",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "bmr491_fault_log_clear",
+          "code": 5,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "bmr491_max_fault_event_index",
+          "code": 6,
+          "args_size": 0,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "ResponseCode",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "bmr491_max_lifecycle_event_index",
+          "code": 7,
+          "args_size": 0,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "ResponseCode",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "rendmp_blackbox_dump",
+          "code": 8,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "RenesasBlackbox",
+          "reply_size": 177,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "rendmp_dma_read",
+          "code": 9,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u8"
+            },
+            {
+              "name": "reg",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 3,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "ResponseCode",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "rendmp_dma_write",
+          "code": 10,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u8"
+            },
+            {
+              "name": "reg",
+              "ty": "u16"
+            },
+            {
+              "name": "data",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 7,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_read_byte",
+          "code": 11,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_read_word",
+          "code": 12,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "u16",
+          "reply_size": 2,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_read_word32",
+          "code": 13,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_read_block",
+          "code": 14,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "RawPmbusBlock",
+          "reply_size": 33,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_set",
+          "code": 15,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_write_byte",
+          "code": 16,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            },
+            {
+              "name": "data",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_write_word",
+          "code": 17,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            },
+            {
+              "name": "data",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_write_word32",
+          "code": 18,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            },
+            {
+              "name": "data",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 12,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "raw_pmbus_write_block",
+          "code": 19,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "has_rail",
+              "ty": "bool"
+            },
+            {
+              "name": "op",
+              "ty": "u8"
+            },
+            {
+              "name": "data",
+              "ty": "RawPmbusBlock"
+            }
+          ],
+          "args_size": 40,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ResponseCode",
+          "encoding": "Hubpack",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Sequencer",
+      "task": "cosmo_seq",
+      "task_id": 11,
+      "ops": [
+        {
+          "name": "get_state",
+          "code": 1,
+          "args_size": 0,
+          "reply": "drv_cpu_power_state::PowerState",
+          "reply_size": 1,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "set_state",
+          "code": 2,
+          "args": [
+            {
+              "name": "state",
+              "ty": "drv_cpu_power_state::PowerState"
+            }
+          ],
+          "args_size": 1,
+          "reply": "drv_cpu_seq_api::Transition",
+          "reply_size": 1,
+          "error": "drv_cpu_seq_api::SeqError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "set_state_with_reason",
+          "code": 3,
+          "args": [
+            {
+              "name": "state",
+              "ty": "drv_cpu_power_state::PowerState"
+            },
+            {
+              "name": "reason",
+              "ty": "StateChangeReason"
+            }
+          ],
+          "args_size": 2,
+          "reply": "drv_cpu_seq_api::Transition",
+          "reply_size": 1,
+          "error": "drv_cpu_seq_api::SeqError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "send_hardware_nmi",
+          "code": 4,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ServerDeath",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_fpga_regs",
+          "code": 5,
+          "args_size": 0,
+          "reply": "[u8; 64]",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "last_post_code",
+          "code": 6,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "post_code_buffer_len",
+          "code": 7,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_post_code",
+          "code": 8,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_edge_count",
+          "code": 9,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "gpio_cycle_count",
+          "code": 10,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "enable_console_redirect",
+          "code": 11,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "disable_console_redirect",
+          "code": 12,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "IgnitionFlash",
+      "task": "ignition_flash",
+      "task_id": 12,
+      "ops": [
+        {
+          "name": "read_id",
+          "code": 1,
+          "args_size": 0,
+          "reply": "[u8; 20]",
+          "reply_size": 20,
+          "error": "IgnitionFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_status",
+          "code": 2,
+          "args_size": 0,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "IgnitionFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "bulk_erase",
+          "code": 3,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "IgnitionFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "page_program",
+          "code": 4,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "IgnitionFlashError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "read",
+          "code": 5,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "IgnitionFlashError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "sector_erase",
+          "code": 6,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "IgnitionFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "select",
+          "code": 7,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "deselect",
+          "code": 8,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Spartan7Loader",
+      "task": "spartan7_loader",
+      "task_id": 13,
+      "ops": [
+        {
+          "name": "ping",
+          "code": 1,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Hash",
+      "task": "hash_driver",
+      "task_id": 14,
+      "ops": [
+        {
+          "name": "init_sha256",
+          "code": 1,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "update",
+          "code": 2,
+          "args": [
+            {
+              "name": "len",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HashError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "finalize_sha256",
+          "code": 3,
+          "args_size": 0,
+          "reply": "[u8; crate::SHA256_SZ]",
+          "reply_size": 32,
+          "error": "HashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "digest_sha256",
+          "code": 4,
+          "args": [
+            {
+              "name": "len",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "[u8; crate::SHA256_SZ]",
+          "reply_size": 32,
+          "error": "HashError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "HostFlash",
+      "task": "hf",
+      "task_id": 15,
+      "ops": [
+        {
+          "name": "read_id",
+          "code": 1,
+          "args_size": 0,
+          "reply": "HfChipId",
+          "reply_size": 20,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "capacity",
+          "code": 2,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_status",
+          "code": 3,
+          "args_size": 0,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "bulk_erase",
+          "code": 4,
+          "args": [
+            {
+              "name": "protect",
+              "ty": "HfProtectMode"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "page_program",
+          "code": 5,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "protect",
+              "ty": "HfProtectMode"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "page_program_dev",
+          "code": 6,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            },
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "protect",
+              "ty": "HfProtectMode"
+            }
+          ],
+          "args_size": 6,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "read",
+          "code": 7,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "read_dev",
+          "code": 8,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            },
+            {
+              "name": "address",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "sector_erase",
+          "code": 9,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "protect",
+              "ty": "HfProtectMode"
+            }
+          ],
+          "args_size": 5,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "sector_erase_dev",
+          "code": 10,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            },
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "protect",
+              "ty": "HfProtectMode"
+            }
+          ],
+          "args_size": 6,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_mux",
+          "code": 11,
+          "args_size": 0,
+          "reply": "HfMuxState",
+          "reply_size": 1,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "set_mux",
+          "code": 12,
+          "args": [
+            {
+              "name": "state",
+              "ty": "HfMuxState"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_dev",
+          "code": 13,
+          "args_size": 0,
+          "reply": "HfDevSelect",
+          "reply_size": 1,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "set_dev",
+          "code": 14,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "check_dev",
+          "code": 15,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "hash",
+          "code": 16,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "len",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "[u8; drv_hash_api::SHA256_SZ]",
+          "reply_size": 32,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "hash_significant_bits",
+          "code": 17,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_cached_hash",
+          "code": 18,
+          "args": [
+            {
+              "name": "dev",
+              "ty": "HfDevSelect"
+            }
+          ],
+          "args_size": 1,
+          "reply": "[u8; drv_hash_api::SHA256_SZ]",
+          "reply_size": 32,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_persistent_data",
+          "code": 19,
+          "args_size": 0,
+          "reply": "HfPersistentData",
+          "reply_size": 1,
+          "error": "HfError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "write_persistent_data",
+          "code": 20,
+          "args": [
+            {
+              "name": "dev_select",
+              "ty": "HfDevSelect"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HfError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "apob_begin",
+          "code": 21,
+          "args": [
+            {
+              "name": "length",
+              "ty": "u32"
+            },
+            {
+              "name": "algorithm",
+              "ty": "ApobHash"
+            }
+          ],
+          "args_size": 40,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ApobBeginError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "apob_write",
+          "code": 22,
+          "args": [
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ApobWriteError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "apob_commit",
+          "code": 23,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ApobCommitError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "apob_lock",
+          "code": 24,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "apob_read",
+          "code": 25,
+          "args": [
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "ApobReadError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "apob_clear",
+          "code": 26,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ApobClearError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Update",
+      "task": "update_server",
+      "task_id": 16,
+      "ops": [
+        {
+          "name": "block_size",
+          "code": 1,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "prep_image_update",
+          "code": 2,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "write_one_block",
+          "code": 3,
+          "args": [
+            {
+              "name": "block_num",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "block",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "abort_update",
+          "code": 4,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "finish_image_update",
+          "code": 5,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_update_api::UpdateError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "current_version",
+          "code": 6,
+          "args_size": 0,
+          "reply": "ImageVersion",
+          "reply_size": 8,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "read_caboose_value",
+          "code": 7,
+          "args": [
+            {
+              "name": "name",
+              "ty": "[u8; 4]"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "CabooseError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "get_pending_boot_slot",
+          "code": 8,
+          "args_size": 0,
+          "reply": "SlotId",
+          "reply_size": 1,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "set_pending_boot_slot",
+          "code": 9,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "drv_update_api::UpdateError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "Sensor",
+      "task": "sensor",
+      "task_id": 17,
+      "ops": [
+        {
+          "name": "get",
+          "code": 1,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "f32",
+          "reply_size": 4,
+          "error": "SensorError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_reading",
+          "code": 2,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "Reading",
+          "reply_size": 12,
+          "error": "SensorError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_raw_reading",
+          "code": 3,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "Option<(Result<f32, NoData>, u64)>",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_last_data",
+          "code": 4,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "Option<(f32, u64)>",
+          "reply_size": 13,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_last_nodata",
+          "code": 5,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "Option<(NoData, u64)>",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_min",
+          "code": 6,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "(f32, u64)",
+          "reply_size": 12,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_max",
+          "code": 7,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "(f32, u64)",
+          "reply_size": 12,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "post",
+          "code": 8,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            },
+            {
+              "name": "value",
+              "ty": "f32"
+            },
+            {
+              "name": "timestamp",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 16,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "nodata",
+          "code": 9,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            },
+            {
+              "name": "nodata",
+              "ty": "NoData"
+            },
+            {
+              "name": "timestamp",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 16,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "get_nerrors",
+          "code": 10,
+          "args": [
+            {
+              "name": "id",
+              "ty": "SensorId"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Hubpack",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "HostSpComms",
+      "task": "host_sp_comms",
+      "task_id": 18,
+      "ops": [
+        {
+          "name": "set_status",
+          "code": 1,
+          "args": [
+            {
+              "name": "status",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "HostSpCommsError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_status",
+          "code": 2,
+          "args_size": 0,
+          "reply": "Status",
+          "reply_size": 8,
+          "error": "HostSpCommsError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "ControlPlaneAgent",
+      "task": "control_plane_agent",
+      "task_id": 21,
+      "ops": [
+        {
+          "name": "fetch_host_phase2_data",
+          "code": 1,
+          "args": [
+            {
+              "name": "image_hash",
+              "ty": "[u8; 32]"
+            },
+            {
+              "name": "offset",
+              "ty": "u64"
+            },
+            {
+              "name": "notification_bit",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 41,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_host_phase2_data",
+          "code": 2,
+          "args": [
+            {
+              "name": "image_hash",
+              "ty": "[u8; 32]"
+            },
+            {
+              "name": "offset",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 40,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "get_startup_options",
+          "code": 3,
+          "args_size": 0,
+          "reply": "HostStartupOptions",
+          "reply_size": 8,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Ssmarshal",
+          "idempotent": false
+        },
+        {
+          "name": "set_startup_options",
+          "code": 4,
+          "args": [
+            {
+              "name": "startup_options",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "identity",
+          "code": 5,
+          "args_size": 0,
+          "reply": "OxideIdentity",
+          "reply_size": 26,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "get_uart_client",
+          "code": 6,
+          "args_size": 0,
+          "reply": "UartClient",
+          "reply_size": 1,
+          "encoding": "Ssmarshal",
+          "idempotent": true
+        },
+        {
+          "name": "get_installinator_image_id",
+          "code": 7,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "set_humility_uart_client",
+          "code": 8,
+          "args": [
+            {
+              "name": "attach",
+              "ty": "bool"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "uart_read",
+          "code": 9,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "uart_write",
+          "code": 10,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "ControlPlaneAgentError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "SpRot",
+      "task": "sprot",
+      "task_id": 22,
+      "ops": [
+        {
+          "name": "status",
+          "code": 1,
+          "args_size": 0,
+          "reply": "SprotStatus",
+          "reply_size": 24,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "io_stats",
+          "code": 2,
+          "args_size": 0,
+          "reply": "SprotIoStats",
+          "reply_size": 68,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "rot_state",
+          "code": 3,
+          "args_size": 0,
+          "reply": "RotState",
+          "reply_size": 138,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "pulse_cs",
+          "code": 4,
+          "args": [
+            {
+              "name": "delay",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 2,
+          "reply": "PulseStatus",
+          "reply_size": 2,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "block_size",
+          "code": 5,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "prep_image_update",
+          "code": 6,
+          "args": [
+            {
+              "name": "target",
+              "ty": "UpdateTarget"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "write_one_block",
+          "code": 7,
+          "args": [
+            {
+              "name": "block_num",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "block",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "abort_update",
+          "code": 8,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "finish_image_update",
+          "code": 9,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "switch_default_image",
+          "code": 10,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            },
+            {
+              "name": "duration",
+              "ty": "SwitchDuration"
+            }
+          ],
+          "args_size": 2,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "reset",
+          "code": 11,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "dump",
+          "code": 12,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "caboose_size",
+          "code": 13,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            }
+          ],
+          "args_size": 1,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "read_caboose_region",
+          "code": 14,
+          "args": [
+            {
+              "name": "offset",
+              "ty": "u32"
+            },
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "out",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "rot_boot_info",
+          "code": 15,
+          "args_size": 0,
+          "reply": "RotBootInfo",
+          "reply_size": 72,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "cert_chain_len",
+          "code": 16,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "cert_len",
+          "code": 17,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "cert",
+          "code": 18,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "dest",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "record",
+          "code": 19,
+          "args": [
+            {
+              "name": "algorithm",
+              "ty": "HashAlgorithm"
+            }
+          ],
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "read_rot_page",
+          "code": 20,
+          "args": [
+            {
+              "name": "page",
+              "ty": "RotPage"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "dest",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "log",
+          "code": 21,
+          "args": [
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "dest",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "log_len",
+          "code": 22,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "attest",
+          "code": 23,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "nonce",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            },
+            {
+              "name": "dest",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "attest_len",
+          "code": 24,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "enable_sp_slot_watchdog",
+          "code": 25,
+          "args": [
+            {
+              "name": "time_ms",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "disable_sp_slot_watchdog",
+          "code": 26,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "sp_slot_watchdog_supported",
+          "code": 27,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "versioned_rot_boot_info",
+          "code": 28,
+          "args": [
+            {
+              "name": "version",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "VersionedRotBootInfo",
+          "reply_size": 147,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "component_caboose_size",
+          "code": 29,
+          "args": [
+            {
+              "name": "component",
+              "ty": "RotComponent"
+            },
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            }
+          ],
+          "args_size": 2,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "component_read_caboose_region",
+          "code": 30,
+          "args": [
+            {
+              "name": "offset",
+              "ty": "u32"
+            },
+            {
+              "name": "component",
+              "ty": "RotComponent"
+            },
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "RawCabooseOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "out",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "component_prep_image_update",
+          "code": 31,
+          "args": [
+            {
+              "name": "component",
+              "ty": "RotComponent"
+            },
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            }
+          ],
+          "args_size": 2,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "component_switch_default_image",
+          "code": 32,
+          "args": [
+            {
+              "name": "component",
+              "ty": "RotComponent"
+            },
+            {
+              "name": "slot",
+              "ty": "SlotId"
+            },
+            {
+              "name": "duration",
+              "ty": "SwitchDuration"
+            }
+          ],
+          "args_size": 3,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "SprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "lifecycle_state",
+          "code": 33,
+          "args_size": 0,
+          "reply": "LifecycleState",
+          "reply_size": 1,
+          "error": "StateOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "tq_cert_chain_len",
+          "code": 34,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "tq_cert_len",
+          "code": 35,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        },
+        {
+          "name": "tq_cert",
+          "code": 36,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "dest",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": true
+        },
+        {
+          "name": "tq_sign",
+          "code": 37,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "leases": [
+            {
+              "name": "tq",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            },
+            {
+              "name": "dest",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "tq_sign_len",
+          "code": 38,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AttestOrSprotError",
+          "encoding": "Hubpack",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Validate",
+      "task": "validate",
+      "task_id": 23,
+      "ops": [
+        {
+          "name": "validate_i2c",
+          "code": 1,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "ValidateOk",
+          "reply_size": 1,
+          "error": "ValidateError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "Vpd",
+      "task": "vpd",
+      "task_id": 24,
+      "ops": [
+        {
+          "name": "read_tmp117_eeprom",
+          "code": 1,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "[u8; 6]",
+          "reply_size": 6,
+          "error": "VpdError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read",
+          "code": 2,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            },
+            {
+              "name": "offset",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 3,
+          "reply": "[u8; 16]",
+          "reply_size": 16,
+          "error": "VpdError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "write",
+          "code": 3,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            },
+            {
+              "name": "offset",
+              "ty": "u16"
+            },
+            {
+              "name": "contents",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "VpdError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "is_locked",
+          "code": 4,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "bool",
+          "reply_size": 1,
+          "error": "VpdError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "permanently_lock",
+          "code": 5,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "VpdError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "num_vpd_devices",
+          "code": 6,
+          "args_size": 0,
+          "reply": "usize",
+          "reply_size": 4,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "UserLeds",
+      "task": "user_leds",
+      "task_id": 25,
+      "ops": [
+        {
+          "name": "led_on",
+          "code": 1,
+          "args": [
+            {
+              "name": "index",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "LedError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "led_off",
+          "code": 2,
+          "args": [
+            {
+              "name": "index",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "LedError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "led_toggle",
+          "code": 3,
+          "args": [
+            {
+              "name": "index",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "LedError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        },
+        {
+          "name": "led_blink",
+          "code": 4,
+          "args": [
+            {
+              "name": "index",
+              "ty": "usize"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "LedError",
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "DumpAgent",
+      "task": "dump_agent",
+      "task_id": 26,
+      "ops": [
+        {
+          "name": "read_dump",
+          "code": 1,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 5,
+          "reply": "[u8; DUMP_READ_SIZE]",
+          "reply_size": 256,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_dump_into",
+          "code": 2,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 5,
+          "reply": "usize",
+          "reply_size": 4,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "out",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "get_dump_area",
+          "code": 3,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "DumpArea",
+          "reply_size": 10,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "initialize_dump",
+          "code": 4,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "add_dump_segment",
+          "code": 5,
+          "args": [
+            {
+              "name": "address",
+              "ty": "u32"
+            },
+            {
+              "name": "length",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "take_dump",
+          "code": 6,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "dump_task",
+          "code": 7,
+          "args": [
+            {
+              "name": "task_index",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "dump_task_region",
+          "code": 8,
+          "args": [
+            {
+              "name": "task_index",
+              "ty": "u32"
+            },
+            {
+              "name": "start",
+              "ty": "u32"
+            },
+            {
+              "name": "length",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 12,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "DumpAgentError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "reinitialize_dump_from",
+          "code": 9,
+          "args": [
+            {
+              "name": "index",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "DumpAgentError",
+          "encoding": "Hubpack",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "CosmoSpd",
+      "task": "spd",
+      "task_id": 28,
+      "ops": [
+        {
+          "name": "ping",
+          "code": 1,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Zerocopy",
+          "idempotent": true
+        }
+      ]
+    },
+    {
+      "name": "AuxFlash",
+      "task": "auxflash",
+      "task_id": 29,
+      "ops": [
+        {
+          "name": "read_id",
+          "code": 1,
+          "args_size": 0,
+          "reply": "AuxFlashId",
+          "reply_size": 11,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "slot_count",
+          "code": 2,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "slot_size",
+          "code": 3,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_status",
+          "code": 4,
+          "args_size": 0,
+          "reply": "u8",
+          "reply_size": 1,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "erase_slot",
+          "code": 5,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "slot_sector_erase",
+          "code": 6,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "u32"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "read_slot_chck",
+          "code": 7,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "AuxFlashChecksum",
+          "reply_size": 32,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "write_slot_with_offset",
+          "code": 8,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "u32"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": true,
+              "write": false
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "read_slot_with_offset",
+          "code": 9,
+          "args": [
+            {
+              "name": "slot",
+              "ty": "u32"
+            },
+            {
+              "name": "offset",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "leases": [
+            {
+              "name": "data",
+              "ty": "[u8]",
+              "read": false,
+              "write": true
+            }
+          ],
+          "idempotent": false
+        },
+        {
+          "name": "scan_and_get_active_slot",
+          "code": 10,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_active_slot",
+          "code": 11,
+          "args_size": 0,
+          "reply": "u32",
+          "reply_size": 4,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "ensure_redundancy",
+          "code": 12,
+          "args_size": 0,
+          "reply": "()",
+          "reply_size": 0,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        },
+        {
+          "name": "get_blob_by_tag",
+          "code": 13,
+          "args": [
+            {
+              "name": "name",
+              "ty": "[u8; 4]"
+            }
+          ],
+          "args_size": 4,
+          "reply": "AuxFlashBlob",
+          "reply_size": 12,
+          "error": "AuxFlashError",
+          "encoding": "Zerocopy",
+          "idempotent": false
+        }
+      ]
+    },
+    {
+      "name": "FmcDemo",
+      "task": "fmc_demo",
+      "task_id": 32,
+      "ops": [
+        {
+          "name": "peek16",
+          "code": 1,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u16",
+          "reply_size": 2,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "peek32",
+          "code": 2,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u32",
+          "reply_size": 4,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "peek64",
+          "code": 3,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 4,
+          "reply": "u64",
+          "reply_size": 8,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "poke16",
+          "code": 4,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u32"
+            },
+            {
+              "name": "value",
+              "ty": "u16"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "poke32",
+          "code": 5,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u32"
+            },
+            {
+              "name": "value",
+              "ty": "u32"
+            }
+          ],
+          "args_size": 8,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "poke64",
+          "code": 6,
+          "args": [
+            {
+              "name": "addr",
+              "ty": "u32"
+            },
+            {
+              "name": "value",
+              "ty": "u64"
+            }
+          ],
+          "args_size": 16,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_burst_enable",
+          "code": 7,
+          "args": [
+            {
+              "name": "flag",
+              "ty": "bool"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_write_enable",
+          "code": 8,
+          "args": [
+            {
+              "name": "flag",
+              "ty": "bool"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_write_fifo",
+          "code": 9,
+          "args": [
+            {
+              "name": "flag",
+              "ty": "bool"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_wait",
+          "code": 10,
+          "args": [
+            {
+              "name": "flag",
+              "ty": "bool"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_data_latency_cycles",
+          "code": 11,
+          "args": [
+            {
+              "name": "n",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_clock_divider",
+          "code": 12,
+          "args": [
+            {
+              "name": "n",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        },
+        {
+          "name": "set_bus_turnaround_cycles",
+          "code": 13,
+          "args": [
+            {
+              "name": "n",
+              "ty": "u8"
+            }
+          ],
+          "args_size": 1,
+          "reply": "()",
+          "reply_size": 0,
+          "encoding": "Hubpack",
+          "idempotent": false
+        }
+      ]
+    }
+  ]
+}
