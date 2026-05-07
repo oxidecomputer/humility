@@ -1613,11 +1613,6 @@ impl HubrisArchive {
         flash.chip
     }
 
-    /// Destroys the `HubrisArchive`, returning the raw archive data
-    pub fn take_raw_archive(self) -> Vec<u8> {
-        self.hubris_archive.zip
-    }
-
     /// Helper function to load a dump into a [`RawHubrisArchive`]
     ///
     /// Returns a tuple of `(raw archive, dump task)`; the second field is
@@ -1685,10 +1680,6 @@ impl HubrisArchive {
             bail!("could not find archive in dump");
         };
         Ok((archive, task_dump))
-    }
-
-    pub fn loaded(&self) -> bool {
-        !self.modules.is_empty()
     }
 
     ///
