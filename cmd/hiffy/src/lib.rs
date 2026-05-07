@@ -322,8 +322,8 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
                     output.as_deref_mut(),
                 ) {
                     Ok(s) => Ok(s),
-                    Err(HiffyCallError::Hiffy(s)) => Err(s),
-                    Err(HiffyCallError::Other(e)) => return Err(e),
+                    Err(HiffyError::Hiffy(s)) => Err(s),
+                    Err(HiffyError::Other(e)) => return Err(e),
                 },
                 output,
             )

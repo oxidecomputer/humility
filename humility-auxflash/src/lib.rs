@@ -6,7 +6,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_hiffy::{HiffyCallError, HiffyContext};
+use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 use std::time::Duration;
 
@@ -72,7 +72,7 @@ impl<'a> AuxFlashHandler<'a> {
         );
         match value {
             Ok(v) => Ok(Some(v)),
-            Err(HiffyCallError::Hiffy(s)) if s == "NoActiveSlot" => Ok(None),
+            Err(HiffyError::Hiffy(s)) if s == "NoActiveSlot" => Ok(None),
             Err(e) => Err(e.into()),
         }
     }
@@ -109,7 +109,7 @@ impl<'a> AuxFlashHandler<'a> {
         );
         match value {
             Ok(v) => Ok(Some(v.0)),
-            Err(HiffyCallError::Hiffy(e)) if e == "MissingChck" => Ok(None),
+            Err(HiffyError::Hiffy(e)) if e == "MissingChck" => Ok(None),
             Err(e) => Err(e.into()),
         }
     }

@@ -1440,7 +1440,7 @@ fn has_task_started(
 
 /// Error returned from [`hiffy_call`]
 #[derive(thiserror::Error, Debug)]
-pub enum HiffyCallError {
+pub enum HiffyError {
     /// A function called in the HIF program returned an error
     #[error("hiffy error: {0}")]
     Hiffy(String),
@@ -1458,7 +1458,7 @@ pub fn hiffy_call<T: humility::reflect::Load>(
     args: &[(&str, idol::IdolArgument)],
     lease_write: Option<&[u8]>,
     lease_read: Option<&mut [u8]>,
-) -> Result<T, HiffyCallError> {
+) -> Result<T, HiffyError> {
     check_op(op)?;
     check_leases(op, lease_write, lease_read.as_deref())?;
 
@@ -1496,7 +1496,7 @@ pub fn hiffy_call<T: humility::reflect::Load>(
     let mut results = context.run(core, ops.as_slice(), lease_write)?;
 
     if results.len() != 1 {
-        return Err(HiffyCallError::Other(anyhow!(
+        return Err(HiffyError::Other(anyhow!(
             "unexpected results length: {:?}",
             results
         )));
@@ -1506,7 +1506,7 @@ pub fn hiffy_call<T: humility::reflect::Load>(
 
     // If this is a Read operation, steal extra data from the returned stack
     // and copy it into the incoming 'read' argument
-    let out = match lease_read {
+    match lease_read {
         Some(data) => {
             let ok_size = op.reply_size()?;
             if let Ok(v) = v.as_mut() {
@@ -1514,11 +1514,10 @@ pub fn hiffy_call<T: humility::reflect::Load>(
                 data.copy_from_slice(&extra_data);
             }
             // Shoehorn that extra data in, assuming decoding worked.
-            hiffy_decode(hubris, op, v)?
+            hiffy_decode(hubris, op, v)
         }
-        _ => hiffy_decode(hubris, op, v)?,
-    };
-    out.map_err(HiffyCallError::Hiffy)
+        _ => hiffy_decode(hubris, op, v),
+    }
 }
 
 /// Decodes a value returned from [hiffy_call] or equivalent.
@@ -1529,7 +1528,7 @@ pub fn hiffy_decode<T: humility::reflect::Load>(
     hubris: &HubrisArchive,
     op: &idol::IdolOperation,
     val: Result<Vec<u8>, impl Into<IpcError>>,
-) -> Result<std::result::Result<T, String>> {
+) -> Result<T, HiffyError> {
     let r = match val.map_err(Into::into) {
         Ok(val) => {
             let ty = hubris.lookup_type(op.ok).unwrap();
@@ -1565,7 +1564,7 @@ pub fn hiffy_decode<T: humility::reflect::Load>(
         },
         Err(dead @ IpcError::ServerDied(_)) => Err(format!("<{dead}>")),
     };
-    Ok(r)
+    r.map_err(HiffyError::Hiffy)
 }
 
 pub fn hiffy_format_result(
