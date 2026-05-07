@@ -991,17 +991,17 @@ impl<'a> HiffyContext<'a> {
     }
 
     /// Convenience routine to pull out the result of an Idol call
-    pub fn idol_result(
+    pub fn idol_result<T: humility::reflect::Load>(
         &mut self,
         op: &idol::IdolOperation,
         result: &Result<Vec<u8>, IpcError>,
-    ) -> Result<humility::reflect::Value> {
+    ) -> Result<T> {
         use humility::reflect::{deserialize_value, load_value};
 
-        match result {
+        let value = match result {
             Ok(val) => {
                 let ty = self.hubris.lookup_type(op.ok).unwrap();
-                Ok(match op.operation.encoding {
+                match op.operation.encoding {
                     ::idol::syntax::Encoding::Zerocopy => {
                         load_value(self.hubris, val, ty, 0)?
                     }
@@ -1009,10 +1009,11 @@ impl<'a> HiffyContext<'a> {
                     | ::idol::syntax::Encoding::Hubpack => {
                         deserialize_value(self.hubris, val, ty)?.0
                     }
-                })
+                }
             }
             Err(e) => bail!("{}", op.strerror(*e)),
-        }
+        };
+        T::from_value(&value)
     }
 
     /// Begins HIF execution.  This is potentially non-blocking with respect to
