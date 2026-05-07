@@ -1208,11 +1208,7 @@ fn get_pin_states(
     // Decode Hiffy results
     let mut values = vec![];
     for r in results {
-        match hiffy_decode(hubris, &op, r)? {
-            Err(e) => bail!("hiffy error: {e}"),
-            Ok(Value::Base(Base::U32(b))) => values.push(b),
-            v => bail!("unexpected type in result: {v:?}"),
-        }
+        values.push(hiffy_decode::<u32>(hubris, &op, r)?);
     }
 
     let phases = dev.phases();
@@ -1617,8 +1613,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                 Call::WriteByte => &self.write_byte,
                 Call::WriteWord32 => &self.write_word32,
             };
-            let v = hiffy_decode::<Base>(self.hubris, op, value)
-                .with_context(|| format!("failed to decode {call:?} result"))?;
+            let v = hiffy_decode::<Base>(self.hubris, op, value);
             match v {
                 Ok(v) => match (v, call) {
                     (Base::U32(v), Call::ReadDma(..)) => {
@@ -1647,7 +1642,12 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                         bail!("got unexpected result {base} for {op:?}")
                     }
                 },
-                Err(e) => out.push(Err(e)),
+                Err(HiffyError::Hiffy(e)) => out.push(Err(e)),
+                Err(HiffyError::Other(e)) => {
+                    return Err(e).with_context(|| {
+                        format!("failed to decode {call:?} result")
+                    });
+                }
             }
         }
         Ok(out)
@@ -1669,8 +1669,8 @@ fn rendmp_phase_check<'a>(
     let r = hiffy_call(hubris, core, context, &power_state_op, &[], None, None);
     let v = match r {
         Ok(r) => Ok(r),
-        Err(HiffyCallError::Hiffy(s)) => Err(s),
-        Err(HiffyCallError::Other(e)) => {
+        Err(HiffyError::Hiffy(s)) => Err(s),
+        Err(HiffyError::Other(e)) => {
             return Err(e.context("power state check"));
         }
     };
