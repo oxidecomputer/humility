@@ -5,14 +5,13 @@ edition.workspace = true
 description = "read and display a specified ring buffer"
 
 [features]
-clap = ["dep:clap"]
+clap = ["dep:clap", "dep:humility-cli"]
 
 [dependencies]
 #clap.workspace = true
 clap = { workspace = true, optional = true }
 anyhow.workspace = true
-
+humility-cli = { workspace = true, optional = true }
 humility.workspace = true
 humility-cmd.workspace = true
-humility-cli.workspace = true
 humility-doppel.workspace = true
