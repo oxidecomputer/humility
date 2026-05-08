@@ -2636,7 +2636,6 @@ dependencies = [
  "anyhow",
  "bitfield 0.19.4",
  "capstone",
- "clap",
  "gimli 0.33.0",
  "goblin",
  "hubpack",
