@@ -171,7 +171,7 @@ cmd-registers = { path = "./cmd/registers", package = "humility-cmd-registers" }
 cmd-reset = { path = "./cmd/reset", package = "humility-cmd-reset" }
 cmd-rencm = { path = "./cmd/rencm", package = "humility-cmd-rencm" }
 cmd-rendmp = { path = "./cmd/rendmp", package = "humility-cmd-rendmp" }
-cmd-ringbuf = { path = "./cmd/ringbuf", package = "humility-cmd-ringbuf" }
+cmd-hacking-ringbuf = { path = "./cmd/ringbuf", package = "humility-hacking-ringbuf" }
 cmd-sbrmi = { path = "./cmd/sbrmi", package = "humility-cmd-sbrmi" }
 cmd-sensors = { path = "./cmd/sensors", package = "humility-cmd-sensors" }
 cmd-spctrl = { path = "./cmd/spctrl", package = "humility-cmd-spctrl" }

@@ -1680,7 +1680,6 @@ dependencies = [
  "humility-cmd-rencm",
  "humility-cmd-rendmp",
  "humility-cmd-reset",
- "humility-cmd-ringbuf",
  "humility-cmd-sbrmi",
  "humility-cmd-sensors",
  "humility-cmd-spctrl",
@@ -1696,6 +1695,7 @@ dependencies = [
  "humility-cmd-writeword",
  "humility-core",
  "humility-cortex",
+ "humility-hacking-ringbuf",
  "indexmap 2.14.0",
  "indicatif",
  "jep106 0.3.0",
@@ -2419,18 +2419,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humility-cmd-ringbuf"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "humility-cli",
- "humility-cmd",
- "humility-core",
- "humility-doppel",
-]
-
-[[package]]
 name = "humility-cmd-sbrmi"
 version = "0.1.0"
 dependencies = [
@@ -2726,6 +2714,18 @@ dependencies = [
  "num-traits",
  "rand 0.10.1",
  "zerocopy",
+]
+
+[[package]]
+name = "humility-hacking-ringbuf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "humility-cli",
+ "humility-cmd",
+ "humility-core",
+ "humility-doppel",
 ]
 
 [[package]]

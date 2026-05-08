@@ -76,7 +76,7 @@ cmd-registers = { workspace = true }
 cmd-reset = { workspace = true, optional = true }
 cmd-rencm = { workspace = true }
 cmd-rendmp = { workspace = true }
-cmd-ringbuf = { workspace = true }
+cmd-hacking-ringbuf = { workspace = true, features = ["clap"] }
 cmd-sbrmi = { workspace = true }
 cmd-sensors = { workspace = true }
 cmd-spctrl = { workspace = true }
