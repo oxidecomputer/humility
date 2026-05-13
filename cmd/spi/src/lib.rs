@@ -34,7 +34,7 @@
 
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
-use humility_cmd::Dumper;
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 
 use std::convert::TryInto;
