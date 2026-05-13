@@ -24,7 +24,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use humility_log::msg;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -143,10 +143,5 @@ fn exec(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ExecArgs::command(),
-        name: "exec",
-        run: exec,
-        kind: CommandKind::Unattached { archive: Archive::Ignored },
-    }
+    Command { app: ExecArgs::command(), name: "exec", run: exec }
 }

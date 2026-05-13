@@ -146,7 +146,7 @@ use humility::hubris::*;
 use humility::reflect::{Base, Value};
 use humility::warn;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolOperation};
@@ -1126,7 +1126,7 @@ fn rendmp_blackbox(
 ) -> Result<()> {
     let (addr, _dev) = check_addr(&subargs, hubris)?;
     let op = hubris.get_idol_command("Power.rendmp_blackbox_dump")?;
-    let value = hiffy_call(
+    let e = hiffy_call::<humility::reflect::Enum>(
         hubris,
         core,
         context,
@@ -1135,47 +1135,39 @@ fn rendmp_blackbox(
         None,
         None,
     )?;
-    match value {
-        Ok(Value::Enum(e)) => {
-            let contents = e
-                .contents()
-                .ok_or_else(|| anyhow!("missing contents in blackbox enum"))?;
-            let Value::Tuple(c) = contents else {
-                bail!("missing tuple in blackbox enum");
-            };
-            let Value::Array(a) = &c[0] else {
-                bail!("missing array in blackbox enum");
-            };
-            let mut data = vec![];
-            for word in a.iter() {
-                let Value::Base(Base::U32(b)) = word else {
-                    bail!("unexpected type in array: {word:?}");
-                };
-                data.extend(b.as_bytes());
-            }
-            match e.disc() {
-                "Gen2p5" => println!(
-                    "{}",
-                    blackbox::BlackboxRamGen2p5::read_from_bytes(
-                        data.as_slice()
-                    )
-                    .map_err(|e| anyhow!(
-                        "could not load blackbox from bytes: {e}"
-                    ))?,
-                ),
-                "Gen2" => println!(
-                    "{}",
-                    blackbox::BlackboxRamGen2::read_from_bytes(data.as_slice())
-                        .map_err(|e| anyhow!(
-                            "could not load blackbox from bytes: {e}"
-                        ))?,
-                ),
-                v => bail!("unknown blackbox gen: {v:?}"),
-            };
-        }
-        Ok(other) => bail!("unexpected value: {other:?}"),
-        Err(e) => bail!("got error: {e:?}"),
+    let contents = e
+        .contents()
+        .ok_or_else(|| anyhow!("missing contents in blackbox enum"))?;
+    let Value::Tuple(c) = contents else {
+        bail!("missing tuple in blackbox enum");
+    };
+    let Value::Array(a) = &c[0] else {
+        bail!("missing array in blackbox enum");
+    };
+    let mut data = vec![];
+    for word in a.iter() {
+        let Value::Base(Base::U32(b)) = word else {
+            bail!("unexpected type in array: {word:?}");
+        };
+        data.extend(b.as_bytes());
     }
+    match e.disc() {
+        "Gen2p5" => println!(
+            "{}",
+            blackbox::BlackboxRamGen2p5::read_from_bytes(data.as_slice())
+                .map_err(|e| anyhow!(
+                    "could not load blackbox from bytes: {e}"
+                ))?,
+        ),
+        "Gen2" => println!(
+            "{}",
+            blackbox::BlackboxRamGen2::read_from_bytes(data.as_slice())
+                .map_err(|e| anyhow!(
+                    "could not load blackbox from bytes: {e}"
+                ))?,
+        ),
+        v => bail!("unknown blackbox gen: {v:?}"),
+    };
 
     Ok(())
 }
@@ -1625,41 +1617,36 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                 Call::WriteByte => &self.write_byte,
                 Call::WriteWord32 => &self.write_word32,
             };
-            let v = hiffy_decode(self.hubris, op, value)
+            let v = hiffy_decode::<Base>(self.hubris, op, value)
                 .context("failed to decode {op:?} result")?;
             match v {
-                Ok(v) => {
-                    let v = v.as_base().context("expected Base, got {v:?}")?;
-                    match (v, call) {
-                        (Base::U32(v), Call::ReadDma(..)) => {
-                            out.push(Ok(Call::ReadDma(*v)))
-                        }
-                        (Base::U8(v), Call::ReadByte(..)) => {
-                            out.push(Ok(Call::ReadByte(*v)))
-                        }
-                        (Base::U16(v), Call::ReadWord(..)) => {
-                            out.push(Ok(Call::ReadWord(*v)))
-                        }
-                        (Base::U32(v), Call::ReadWord32(..)) => {
-                            out.push(Ok(Call::ReadWord32(*v)))
-                        }
-                        (Base::U0, Call::WriteDma) => {
-                            out.push(Ok(Call::WriteDma))
-                        }
-                        (Base::U0, Call::WriteWord) => {
-                            out.push(Ok(Call::WriteWord))
-                        }
-                        (Base::U0, Call::WriteByte) => {
-                            out.push(Ok(Call::WriteByte))
-                        }
-                        (Base::U0, Call::WriteWord32) => {
-                            out.push(Ok(Call::WriteWord32))
-                        }
-                        (base, op) => {
-                            bail!("got unexpected result {base} for {op:?}")
-                        }
+                Ok(v) => match (v, call) {
+                    (Base::U32(v), Call::ReadDma(..)) => {
+                        out.push(Ok(Call::ReadDma(v)))
                     }
-                }
+                    (Base::U8(v), Call::ReadByte(..)) => {
+                        out.push(Ok(Call::ReadByte(v)))
+                    }
+                    (Base::U16(v), Call::ReadWord(..)) => {
+                        out.push(Ok(Call::ReadWord(v)))
+                    }
+                    (Base::U32(v), Call::ReadWord32(..)) => {
+                        out.push(Ok(Call::ReadWord32(v)))
+                    }
+                    (Base::U0, Call::WriteDma) => out.push(Ok(Call::WriteDma)),
+                    (Base::U0, Call::WriteWord) => {
+                        out.push(Ok(Call::WriteWord))
+                    }
+                    (Base::U0, Call::WriteByte) => {
+                        out.push(Ok(Call::WriteByte))
+                    }
+                    (Base::U0, Call::WriteWord32) => {
+                        out.push(Ok(Call::WriteWord32))
+                    }
+                    (base, op) => {
+                        bail!("got unexpected result {base} for {op:?}")
+                    }
+                },
                 Err(e) => out.push(Err(e)),
             }
         }
@@ -1679,12 +1666,15 @@ fn rendmp_phase_check<'a>(
         .get_idol_command("Sequencer.tofino_seq_state")
         .or_else(|_| hubris.get_idol_command("Sequencer.get_state"))
         .context("could not get power state HIF operation")?;
-    let r =
-        hiffy_call(hubris, core, context, &power_state_op, &[], None, None)?;
-    if let Err(e) = r {
-        bail!("power state check got an error: {e}");
-    }
-    if hiffy_format_result(hubris, r) != "A2" {
+    let r = hiffy_call(hubris, core, context, &power_state_op, &[], None, None);
+    let v = match r {
+        Ok(r) => Ok(r),
+        Err(HiffyCallError::Hiffy(s)) => Err(s),
+        Err(HiffyCallError::Other(e)) => {
+            return Err(e.context("power state check"));
+        }
+    };
+    if hiffy_format_result(hubris, v) != "A2" {
         bail!("must be in A2 when checking phases");
     }
 
@@ -2307,11 +2297,9 @@ fn restore_default_config<'a>(
 }
 
 fn rendmp(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_mut().unwrap();
-
-    let core = &mut **context.core.as_mut().unwrap();
-
     let subargs = RendmpArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     // Workaround for clap#4707
     if subargs.flash.is_none() {
@@ -2898,14 +2886,5 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: RendmpArgs::command(),
-        name: "rendmp",
-        run: rendmp,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: RendmpArgs::command(), name: "rendmp", run: rendmp }
 }

@@ -31,7 +31,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -532,10 +532,8 @@ fn print(
 }
 
 fn sensors(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = SensorsArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
 
     let types = if let Some(ref types) = subargs.types {
         let mut rval = HashSet::new();
@@ -624,6 +622,7 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         sensors.push((i, s.clone()));
     }
 
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
     let mut reader: Box<dyn SensorReader> = match subargs.backend {
         Some(Backend::Hiffy) => {
             if core.is_dump() {
@@ -649,14 +648,5 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: SensorsArgs::command(),
-        name: "sensors",
-        run: sensors,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: SensorsArgs::command(), name: "sensors", run: sensors }
 }

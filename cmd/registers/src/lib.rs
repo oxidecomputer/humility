@@ -134,7 +134,7 @@ use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_arch_arm::{ARMRegister, ARMRegisterField};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
 use std::collections::BTreeMap;
@@ -233,10 +233,10 @@ fn print_reg(reg: ARMRegister, val: u32, fields: &[ARMRegisterField]) {
 }
 
 fn registers(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = RegistersArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.try_archive()?;
+    let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
     let mut regs = BTreeMap::new();
-    let hubris = context.archive.as_ref().unwrap();
 
     if subargs.fp && !core.is_dump() {
         let mvfr = MVFR0::read(core)?;
@@ -248,20 +248,17 @@ fn registers(context: &mut ExecutionContext) -> Result<()> {
 
     core.halt()?;
 
-    let regions = match hubris.regions(core) {
-        Ok(regions) => regions,
-        Err(err) => {
-            //
-            // If we can't ascertain our memory regions, we will drive on.  (If
-            // we were provided a dump/archive, we will also print a message to
-            // indicate that regions can't be loadwed.)
-            //
-            if hubris.loaded() {
+    let regions = if let Some(hubris) = &hubris {
+        match hubris.regions(core) {
+            Ok(regions) => regions,
+            Err(err) => {
+                // If we can't ascertain our memory regions, we will drive on.
                 humility::msg!("failed to determine memory regions: {err}");
+                BTreeMap::new()
             }
-
-            BTreeMap::new()
         }
+    } else {
+        BTreeMap::new()
     };
 
     //
@@ -308,7 +305,7 @@ fn registers(context: &mut ExecutionContext) -> Result<()> {
             reg,
             val,
             if !reg.is_floating_point() {
-                match hubris.explain(&regions, val) {
+                match hubris.as_ref().and_then(|h| h.explain(&regions, val)) {
                     Some(explain) => format!(" <- {}", explain),
                     None => "".to_string(),
                 }
@@ -329,6 +326,9 @@ fn registers(context: &mut ExecutionContext) -> Result<()> {
                     continue;
                 };
 
+                // `regions` is empty if there's no Hubris archive, so we can
+                // unwrap it here:
+                let hubris = hubris.as_ref().unwrap();
                 match hubris.stack(core, task, region.base + region.size, &regs)
                 {
                     Ok(stack) => printer.print(hubris, &stack),
@@ -363,14 +363,5 @@ fn registers(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: RegistersArgs::command(),
-        name: "registers",
-        run: registers,
-        kind: CommandKind::Attached {
-            archive: Archive::Optional,
-            attach: Attach::Any,
-            validate: Validate::None,
-        },
-    }
+    Command { app: RegistersArgs::command(), name: "registers", run: registers }
 }

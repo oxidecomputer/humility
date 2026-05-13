@@ -45,7 +45,7 @@ use colored::Colorize;
 use hubpack::SerializedSize;
 use humility::net::decode_iface;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -313,9 +313,9 @@ fn discover_dump(seen: BTreeSet<Target>, image_id: Option<&[u8]>) {
 
 fn discover_run(context: &mut ExecutionContext) -> Result<()> {
     let subargs = DiscoverArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.try_archive()?;
 
-    let image_id = hubris.image_id();
+    let image_id = hubris.as_ref().map(|h| h.image_id());
     if image_id.is_none() {
         humility::warn!("no archive provided; not checking for compatibility");
     }
@@ -330,6 +330,5 @@ pub fn init() -> Command {
         app: DiscoverArgs::command(),
         name: "discover",
         run: discover_run,
-        kind: CommandKind::Detached { archive: Archive::Optional },
     }
 }

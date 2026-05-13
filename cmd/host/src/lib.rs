@@ -106,7 +106,7 @@ use clap::{CommandFactory, Parser};
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_doppel as doppel;
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -184,9 +184,9 @@ fn read_qualified_state_buf(
         return Ok(None);
     };
 
-    let as_static_cell: doppel::ClaimOnceCell =
+    let as_static_cell: doppel::ClaimOnceCell<HostStateBuf> =
         reflect::read_variable(hubris, core, var)?;
-    Ok(Some(HostStateBuf::from_value(&as_static_cell.cell.value)?))
+    Ok(Some(as_static_cell.cell.value))
 }
 
 fn print_escaped_ascii(mut bytes: &[u8]) {
@@ -334,15 +334,11 @@ fn print_panic(d: Vec<u8>) -> Result<()> {
 
 /// Print a warning message if the archive is not for a `cosmo` board
 fn check_post_code_target(hubris: &HubrisArchive) {
-    if !hubris.manifest.board.as_ref().is_some_and(|b| b.contains("cosmo")) {
+    if !hubris.manifest.board.contains("cosmo") {
         humility::warn!(
-            "POST code buffer is only present on 'cosmo' hardware{}; \
-             hiffy may fail and time out",
-            if let Some(board) = &hubris.manifest.board {
-                format!(" but this is a '{board}'")
-            } else {
-                String::new()
-            }
+            "POST code buffer is only present on 'cosmo' hardware \
+             but this is a '{}'; hiffy may fail and time out",
+            hubris.manifest.board,
         )
     }
 }
@@ -357,7 +353,7 @@ fn host_post_codes(
 
     let mut context = HiffyContext::new(hubris, core, 5000)?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
-    let value = humility_hiffy::hiffy_call(
+    let count = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut context,
@@ -366,12 +362,6 @@ fn host_post_codes(
         None,
         None,
     )?;
-    let Ok(reflect::Value::Base(reflect::Base::U32(count))) = value else {
-        bail!(
-            "Got bad value from post_code_buffer_len: \
-             expected U32, got {value:?}"
-        );
-    };
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
     let handle_value = |v| {
@@ -444,7 +434,7 @@ fn host_last_post_code(
 
     let mut context = HiffyContext::new(hubris, core, 5000)?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
-    let value = humility_hiffy::hiffy_call(
+    let v = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut context,
@@ -453,9 +443,6 @@ fn host_last_post_code(
         None,
         None,
     )?;
-    let Ok(reflect::Value::Base(reflect::Base::U32(v))) = value else {
-        bail!("Got bad value from last_post_code: expected U32, got {value:?}");
-    };
     if raw {
         println!("{v:08x}");
     } else {
@@ -468,32 +455,34 @@ fn host_last_post_code(
 
 fn host(context: &mut ExecutionContext) -> Result<()> {
     let subargs = HostArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
+    let hubris = &context.cli.archive()?;
 
     match subargs.cmd {
-        HostCommand::BootFail => host_boot_fail(hubris, core),
-        HostCommand::LastPanic => host_last_panic(hubris, core),
-        HostCommand::Cosmo { cmd } => match cmd {
-            CosmoHostCommand::PostCodes { raw } => {
-                host_post_codes(hubris, core, raw)
+        // BootFail and LastPanic just need to read memory, so they can attach
+        // to either a live system or a dump.
+        HostCommand::BootFail => {
+            let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+            host_boot_fail(hubris, core)
+        }
+        HostCommand::LastPanic => {
+            let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+            host_last_panic(hubris, core)
+        }
+        HostCommand::Cosmo { cmd } => {
+            // All cosmo subcommands require making hiffy calls on a live system
+            let core = &mut *context.cli.attach_live_booted(hubris)?;
+            match cmd {
+                CosmoHostCommand::PostCodes { raw } => {
+                    host_post_codes(hubris, core, raw)
+                }
+                CosmoHostCommand::LastPostCode { raw } => {
+                    host_last_post_code(hubris, core, raw)
+                }
             }
-            CosmoHostCommand::LastPostCode { raw } => {
-                host_last_post_code(hubris, core, raw)
-            }
-        },
+        }
     }
 }
 
 pub fn init() -> Command {
-    Command {
-        app: HostArgs::command(),
-        name: "host",
-        run: host,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Match,
-        },
-    }
+    Command { app: HostArgs::command(), name: "host", run: host }
 }

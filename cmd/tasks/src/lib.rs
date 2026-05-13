@@ -118,7 +118,7 @@ use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_arch_arm::ARMRegister;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
@@ -184,10 +184,9 @@ fn print_regs(
 }
 
 fn tasks(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = TasksArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     print_tasks(
         &mut std::io::stdout(),
@@ -930,14 +929,5 @@ fn explain_recv(
 }
 
 pub fn init() -> Command {
-    Command {
-        app: TasksArgs::command(),
-        name: "tasks",
-        run: tasks,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: TasksArgs::command(), name: "tasks", run: tasks }
 }

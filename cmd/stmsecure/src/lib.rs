@@ -32,7 +32,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -295,9 +295,8 @@ fn stmsecure_swapbanks(core: &mut dyn Core) -> Result<()> {
 
 #[rustfmt::skip::macros(format)]
 fn stmsecure(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-
     let subargs = StmSecureArgs::try_parse_from(&context.cli.cmd)?;
+    let core = &mut *context.cli.attach_probe(None)?;
 
     match subargs {
         StmSecureArgs::Status => stmsecure_status(core),
@@ -314,14 +313,5 @@ fn stmsecure(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: StmSecureArgs::command(),
-        name: "stmsecure",
-        run: stmsecure,
-        kind: CommandKind::Attached {
-            archive: Archive::Optional,
-            attach: Attach::Any,
-            validate: Validate::None,
-        },
-    }
+    Command { app: StmSecureArgs::command(), name: "stmsecure", run: stmsecure }
 }

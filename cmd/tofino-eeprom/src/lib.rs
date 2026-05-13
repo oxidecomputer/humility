@@ -9,12 +9,11 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
 use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
@@ -86,7 +85,7 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
-            let value = humility_hiffy::hiffy_call(
+            humility_hiffy::hiffy_call::<()>(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -95,9 +94,6 @@ impl<'a> EepromHandler<'a> {
                 None,
                 Some(chunk),
             )?;
-            if let Err(e) = value {
-                bail!("Got Hubris error: {:?}", e);
-            }
             bar.set_position(offset as u64);
         }
         bar.finish_and_clear();
@@ -124,7 +120,7 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {
             let offset = i * WRITE_CHUNK_SIZE;
-            let value = humility_hiffy::hiffy_call(
+            humility_hiffy::hiffy_call::<()>(
                 self.hubris,
                 self.core,
                 &mut self.context,
@@ -133,9 +129,6 @@ impl<'a> EepromHandler<'a> {
                 Some(chunk),
                 None,
             )?;
-            if let Err(e) = value {
-                bail!("Got Hubris error: {:?}", e);
-            }
             bar.set_position(offset as u64);
         }
         bar.set_position(data.len() as u64);
@@ -147,9 +140,9 @@ impl<'a> EepromHandler<'a> {
 ////////////////////////////////////////////////////////////////////////////////
 
 fn eeprom(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = EepromArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = EepromHandler::new(hubris, core, subargs.timeout)?;
 
     match subargs.cmd {
@@ -166,14 +159,5 @@ fn eeprom(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: EepromArgs::command(),
-        name: "tofino-eeprom",
-        run: eeprom,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: EepromArgs::command(), name: "tofino-eeprom", run: eeprom }
 }

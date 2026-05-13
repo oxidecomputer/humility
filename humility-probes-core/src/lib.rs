@@ -9,7 +9,6 @@ use ::probe_rs::{
 use humility::core::{Core, ProbeError};
 
 use anyhow::{Result, anyhow, bail};
-use humility::hubris::HubrisArchive;
 use humility::msg;
 
 mod probe_rs;
@@ -227,15 +226,4 @@ pub fn attach_for_flashing(
     speed_khz: Option<u32>,
 ) -> Result<Box<dyn Core>> {
     attach_to_chip(probe, Some(chip), speed_khz)
-}
-
-pub fn attach(
-    probe: &str,
-    hubris: &HubrisArchive,
-    speed_khz: Option<u32>,
-) -> Result<Box<dyn Core>> {
-    match hubris.chip() {
-        Some(s) => attach_to_chip(probe, Some(&s), speed_khz),
-        None => attach_to_chip(probe, None, speed_khz),
-    }
 }

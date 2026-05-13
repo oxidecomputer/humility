@@ -48,7 +48,7 @@ use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_i2c::I2cArgs;
 use humility_idol::{self as idol, HubrisIdol};
@@ -132,9 +132,9 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
     Ok(())
 }
 fn validate(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = ValidateArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let hargs = if subargs.bus.is_some() || subargs.controller.is_some() {
         Some(I2cArgs::parse(
@@ -273,14 +273,5 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ValidateArgs::command(),
-        name: "validate",
-        run: validate,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: ValidateArgs::command(), name: "validate", run: validate }
 }

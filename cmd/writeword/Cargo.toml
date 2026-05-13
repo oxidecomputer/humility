@@ -6,8 +6,8 @@ description = "writes one or more memory words"
 
 [dependencies]
 humility = { workspace = true }
-humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
+humility-cmd = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 parse_int = { workspace = true }

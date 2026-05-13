@@ -11,7 +11,7 @@ pub struct UdpDumpAgent<'a> {
 }
 
 impl<'a> UdpDumpAgent<'a> {
-    pub fn new(core: &'a mut dyn Core, image_id: &Vec<u8>) -> Result<Self> {
+    pub fn new(core: &'a mut dyn Core, image_id: &[u8]) -> Result<Self> {
         let mut udp_dump = Self { core };
 
         udp_dump.check_imageid(image_id)?;
@@ -83,7 +83,7 @@ impl<'a> UdpDumpAgent<'a> {
         Ok(reply)
     }
 
-    fn check_imageid(&mut self, image_id: &Vec<u8>) -> Result<()> {
+    fn check_imageid(&mut self, image_id: &[u8]) -> Result<()> {
         let r = self.dump_remote_action(humpty::udp::Request::GetImageId)?;
 
         match r {

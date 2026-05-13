@@ -12,6 +12,7 @@ clap.workspace = true
 gimli.workspace = true
 goblin.workspace = true
 hubpack.workspace = true
+hubtools.workspace = true
 humility-arch-arm.workspace = true
 humility-log.workspace = true
 humility_load_derive.workspace = true

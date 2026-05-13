@@ -12,10 +12,10 @@ pub fn load_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ts = match &input.data {
         syn::Data::Struct(data) => match &data.fields {
             syn::Fields::Named(fields) => {
-                gen_named_struct(&input.ident, fields)
+                gen_named_struct(&input.ident, &input.generics, fields)
             }
             syn::Fields::Unnamed(fields) => {
-                gen_unnamed_struct(&input.ident, fields)
+                gen_unnamed_struct(&input.ident, &input.generics, fields)
             }
             syn::Fields::Unit => {
                 unimplemented!(
@@ -29,6 +29,56 @@ pub fn load_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     proc_macro::TokenStream::from(ts)
+}
+
+/// Returns generics to go by the `impl` keyword (e.g. `<T: Load>`)
+fn impl_generics(g: &syn::Generics) -> Option<proc_macro2::TokenStream> {
+    if g.lt_token.is_some() {
+        let iter = g
+            .params
+            .iter()
+            .flat_map(|p| {
+                if let syn::GenericParam::Type(t) = p {
+                    let mut t = t.clone();
+                    t.attrs.clear();
+                    t.eq_token = None;
+                    t.default = None;
+                    Some(quote_spanned!(p.span()=>#t))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        Some(quote_spanned!(g.span()=><#(#iter),*>))
+    } else {
+        None
+    }
+}
+
+/// Returns generics to go by the `struct` keyword (e.g. `<T>`)
+fn struct_generics(g: &syn::Generics) -> Option<proc_macro2::TokenStream> {
+    if g.lt_token.is_some() {
+        let iter = g
+            .params
+            .iter()
+            .flat_map(|p| {
+                if let syn::GenericParam::Type(t) = p {
+                    let mut t = t.clone();
+                    t.attrs.clear();
+                    t.colon_token = None;
+                    t.bounds.clear();
+                    t.eq_token = None;
+                    t.default = None;
+                    Some(quote_spanned!(p.span()=>#t))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        Some(quote_spanned!(g.span()=><#(#iter),*>))
+    } else {
+        None
+    }
 }
 
 fn gen_enum(
@@ -128,6 +178,7 @@ fn gen_enum(
 
 fn gen_named_struct(
     ident: &syn::Ident,
+    generics: &syn::Generics,
     fields: &syn::FieldsNamed,
 ) -> proc_macro2::TokenStream {
     let field_name_strs = fields.named.iter().map(|fld| {
@@ -144,8 +195,10 @@ fn gen_named_struct(
     });
     let field_defs = field_defs.collect::<proc_macro2::TokenStream>();
 
+    let impl_generics = impl_generics(generics);
+    let struct_generics = struct_generics(generics);
     quote_spanned!(ident.span()=>
-        impl humility::reflect::Load for #ident {
+        impl #impl_generics humility::reflect::Load for #ident #struct_generics {
             fn from_value(v: &humility::reflect::Value) -> anyhow::Result<Self> {
                 let v = v.as_struct()?;
                 v.check_members(&[#field_name_strs])?;
@@ -159,6 +212,7 @@ fn gen_named_struct(
 
 fn gen_unnamed_struct(
     ident: &syn::Ident,
+    generics: &syn::Generics,
     fields: &syn::FieldsUnnamed,
 ) -> proc_macro2::TokenStream {
     let len = fields.unnamed.len();
@@ -177,8 +231,10 @@ fn gen_unnamed_struct(
     });
     let field_uses = field_uses.collect::<proc_macro2::TokenStream>();
 
+    let impl_generics = impl_generics(generics);
+    let struct_generics = struct_generics(generics);
     quote_spanned!(ident.span()=>
-        impl humility::reflect::Load for #ident {
+        impl #impl_generics humility::reflect::Load for #ident #struct_generics {
             fn from_value(v: &humility::reflect::Value) -> anyhow::Result<Self> {
                 let v = v.as_tuple()?;
                 if v.len() != #len {

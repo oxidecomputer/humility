@@ -10,7 +10,7 @@ use std::os::unix::io::AsRawFd;
 use std::time::Duration;
 use std::{io, thread};
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result};
 use clap::Parser;
 use crossbeam_channel::{Sender, select};
 use picocom_map::RemapRules;
@@ -53,7 +53,7 @@ impl<'a> UartConsoleHandler<'a> {
     fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let op = self.hubris.get_idol_command("ControlPlaneAgent.uart_read")?;
 
-        let value = humility_hiffy::hiffy_call(
+        let v = humility_hiffy::hiffy_call::<u32>(
             self.hubris,
             self.core,
             &mut self.context,
@@ -62,14 +62,6 @@ impl<'a> UartConsoleHandler<'a> {
             None,
             Some(buf),
         )?;
-
-        let v = match value {
-            Ok(v) => v,
-            Err(e) => bail!("Got Hiffy error: {e}"),
-        };
-
-        let v =
-            v.as_base()?.as_u32().ok_or_else(|| anyhow!("Couldn't get U32"))?;
 
         Ok(v as usize)
     }
@@ -80,7 +72,7 @@ impl<'a> UartConsoleHandler<'a> {
 
         let buf = &buf[..usize::min(buf.len(), HIFFY_BUF_SIZE)];
 
-        let value = humility_hiffy::hiffy_call(
+        let v = humility_hiffy::hiffy_call::<u32>(
             self.hubris,
             self.core,
             &mut self.context,
@@ -89,14 +81,6 @@ impl<'a> UartConsoleHandler<'a> {
             Some(buf),
             None,
         )?;
-
-        let v = match value {
-            Ok(v) => v,
-            Err(e) => bail!("Got Hiffy error: {e}"),
-        };
-
-        let v =
-            v.as_base()?.as_u32().ok_or_else(|| anyhow!("Couldn't get U32"))?;
 
         Ok(v as usize)
     }
@@ -180,7 +164,7 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.set_humility_uart_client")?;
 
-        let value = humility_hiffy::hiffy_call(
+        humility_hiffy::hiffy_call::<()>(
             self.hubris,
             self.core,
             &mut self.context,
@@ -189,11 +173,7 @@ impl<'a> UartConsoleHandler<'a> {
             None,
             None,
         )?;
-
-        match value {
-            Ok(_) => Ok(()),
-            Err(e) => bail!("Got Hiffy error: {e}"),
-        }
+        Ok(())
     }
 
     fn current_client(&mut self) -> Result<()> {
@@ -201,7 +181,7 @@ impl<'a> UartConsoleHandler<'a> {
             .hubris
             .get_idol_command("ControlPlaneAgent.get_uart_client")?;
 
-        let value = humility_hiffy::hiffy_call(
+        let value = humility_hiffy::hiffy_call::<humility::reflect::Enum>(
             self.hubris,
             self.core,
             &mut self.context,
@@ -210,15 +190,6 @@ impl<'a> UartConsoleHandler<'a> {
             None,
             None,
         )?;
-
-        let value = match value {
-            Ok(v) => v,
-            Err(e) => bail!("Got Hiffy error: {e}"),
-        };
-
-        let value = value
-            .as_enum()
-            .context("get_uart_client did not return an enum")?;
 
         println!("Current console client: {}", value.disc());
         Ok(())
@@ -314,9 +285,9 @@ impl UnrawTermiosGuard {
 }
 
 pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = UartConsoleArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = UartConsoleHandler::new(
         hubris,
         core,

@@ -108,7 +108,7 @@
 
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_log::msg;
@@ -331,10 +331,9 @@ fn set_page(
 }
 
 fn spd(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
-
     let subargs = SpdArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     // If we have been given no device-related arguments, we will attempt
     // to find the `SPD_DATA` variable or load SPD data from packrat
@@ -373,10 +372,10 @@ fn dump_ddr4_over_i2c(
     subargs: &SpdArgs,
 ) -> Result<()> {
     // Warn the user that we probably can't talk to DDR4s on non-Gimlet hardware
-    if !hubris.manifest.target.as_ref().is_some_and(|t| t.contains("gimlet")) {
+    if !hubris.manifest.target.contains("gimlet") {
         humility::warn!(
             "trying to talk to DDR4 SPDs on an invalid target `{}`",
-            hubris.manifest.target.as_deref().unwrap_or("<unknown>")
+            hubris.manifest.target,
         );
     };
 
@@ -520,14 +519,5 @@ fn dump_ddr4_over_i2c(
 }
 
 pub fn init() -> Command {
-    Command {
-        app: SpdArgs::command(),
-        name: "spd",
-        run: spd,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: SpdArgs::command(), name: "spd", run: spd }
 }

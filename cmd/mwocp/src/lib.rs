@@ -35,7 +35,7 @@
 use humility::hubris::*;
 use humility::msg;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 
@@ -117,11 +117,9 @@ const MWOCP68_CHECKSUM_DELAY: u64 = 2;
 const MWOCP68_REBOOT_DELAY: u64 = 5;
 
 fn mwocp(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_mut().unwrap();
-
-    let core = &mut **context.core.as_mut().unwrap();
-
     let subargs = MwocpArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
@@ -579,14 +577,5 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: MwocpArgs::command(),
-        name: "mwocp",
-        run: mwocp,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: MwocpArgs::command(), name: "mwocp", run: mwocp }
 }

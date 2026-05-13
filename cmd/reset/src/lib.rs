@@ -10,7 +10,7 @@
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 
 #[derive(Parser, Debug)]
 #[clap(name = "reset", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -28,12 +28,7 @@ struct ResetArgs {
 
 fn reset(context: &mut ExecutionContext) -> Result<()> {
     let subargs = ResetArgs::try_parse_from(&context.cli.cmd)?;
-
-    // `context.archive` is always `Some(..)` even if we have not specified
-    // anything on the command line or through environment flags. However, if no
-    // archive is specified, then the actual data in the archive is default
-    // constructed (??!).
-    let chip = context.archive.as_mut().unwrap().chip();
+    let hubris = context.cli.try_archive()?;
 
     let probe = match &context.cli.probe {
         Some(p) => p,
@@ -52,27 +47,27 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
         match subargs.use_token {
             None => {
                 // Detect bogus archives by looking at the chip member
-                if let Some(archive) = &context.archive
-                    && chip.is_some()
-                    && archive.wants_reset_handoff_token()
+                if let Some(hubris) = &hubris
+                    && hubris.chip().is_some()
+                    && hubris.wants_reset_handoff_token()
                 {
-                    Behavior::ResetWithHandoff(archive)
+                    Behavior::ResetWithHandoff(hubris)
                 } else {
                     Behavior::Reset
                 }
             }
             Some(false) => Behavior::Reset,
             Some(true) => {
-                if let Some(archive) = &context.archive
-                    && chip.is_some()
+                if let Some(hubris) = &hubris
+                    && hubris.chip().is_some()
                 {
-                    if !archive.wants_reset_handoff_token() {
+                    if !hubris.wants_reset_handoff_token() {
                         anyhow::bail!(
                             "--use-token=true was specified, but the archive \
                              does not have the relevant kernel feature"
                         );
                     }
-                    Behavior::ResetWithHandoff(archive)
+                    Behavior::ResetWithHandoff(hubris)
                 } else {
                     anyhow::bail!(
                         "Need a Hubris archive to use measurement token handoff"
@@ -85,7 +80,7 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
     let mut c = if subargs.soft_reset
         || matches!(behavior, Behavior::Halt | Behavior::ResetWithHandoff(..))
     {
-        let chip = chip.ok_or_else(|| {
+        let chip = hubris.as_ref().and_then(|h| h.chip()).ok_or_else(|| {
             anyhow::anyhow!(
                 "Need a chip to do a soft reset, halt after reset, or handoff"
             )
@@ -117,10 +112,5 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ResetArgs::command(),
-        name: "reset",
-        run: reset,
-        kind: CommandKind::Unattached { archive: Archive::Optional },
-    }
+    Command { app: ResetArgs::command(), name: "reset", run: reset }
 }

@@ -84,7 +84,7 @@
 
 use humility::core::Core;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
 use sha2::{Digest, Sha256};
@@ -482,10 +482,10 @@ fn write(
 }
 
 fn qspi(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = QspiArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
+
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     match subargs.slot {
@@ -493,7 +493,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
         s @ (Some(0) | Some(1)) => {
             let s = s.unwrap();
             humility::msg!("Setting slot to {s}");
-            let out = hiffy_call(
+            hiffy_call::<()>(
                 hubris,
                 core,
                 &mut context,
@@ -502,9 +502,6 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
                 None,
                 None,
             )?;
-            if let Err(e) = out {
-                bail!("set_dev failed: {e}");
-            }
         }
         _ => bail!("Bad slot setting"),
     }
@@ -1027,7 +1024,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             1 => "Flash1",
             _ => bail!("dev_select must be 0 or 1"),
         };
-        let out = hiffy_call(
+        hiffy_call::<()>(
             hubris,
             core,
             &mut context,
@@ -1036,11 +1033,7 @@ fn qspi(context: &mut ExecutionContext) -> Result<()> {
             None,
             None,
         )?;
-        if let Err(e) = out {
-            bail!("write_persistent_data failed: {e}");
-        } else {
-            humility::msg!("write_persistent_data succeeded");
-        }
+        humility::msg!("write_persistent_data succeeded");
         return Ok(());
     } else {
         bail!("expected an operation");
@@ -1190,14 +1183,5 @@ impl fmt::Display for DeviceIdData {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: QspiArgs::command(),
-        name: "qspi",
-        run: qspi,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: QspiArgs::command(), name: "qspi", run: qspi }
 }

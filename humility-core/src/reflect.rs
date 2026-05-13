@@ -139,7 +139,7 @@ impl Value {
                 Value::Struct(s) => {
                     v = s.get(f).ok_or_else(|| {
                         anyhow!(
-                            "could not field field `{f}`; \
+                            "could not find field `{f}`; \
                              available fields are {:?}",
                             s.members
                                 .keys()
@@ -529,6 +529,14 @@ impl Struct {
     {
         self.members.get(name).map(Box::as_ref)
     }
+
+    /// Loads the field with name `name` if it exists
+    pub fn field<T: Load>(&self, name: &str) -> Result<T> {
+        let Some(v) = self.members.get(name) else {
+            bail!("no such field {name}");
+        };
+        T::from_value(v)
+    }
 }
 
 /// Allows access to struct members using `s["foo"]`.
@@ -591,6 +599,14 @@ pub struct Tuple(String, Vec<Value>);
 impl Tuple {
     pub fn name(&self) -> &str {
         self.0.as_str()
+    }
+
+    /// Loads the field with index `i` if it exists
+    pub fn field<T: Load>(&self, index: usize) -> Result<T> {
+        let Some(v) = self.1.get(index) else {
+            bail!("field {index} is not in range 0..{}", self.1.len());
+        };
+        T::from_value(v)
     }
 }
 
@@ -1035,6 +1051,46 @@ impl Load for Enum {
     }
 }
 
+impl Load for Struct {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Struct(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected struct, got {v:?}");
+        }
+    }
+}
+
+impl Load for Tuple {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Tuple(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected tuple, got {v:?}");
+        }
+    }
+}
+
+impl Load for Array {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Array(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected array, got {v:?}");
+        }
+    }
+}
+
+impl Load for Base {
+    fn from_value(v: &Value) -> Result<Self> {
+        if let Value::Base(v) = v {
+            Ok(v.clone())
+        } else {
+            bail!("expected base, got {v:?}");
+        }
+    }
+}
+
 impl Load for bool {
     fn from_value(v: &Value) -> Result<Self> {
         v.as_base()?.as_bool().ok_or_else(|| anyhow!("not a bool: {:?}", v))
@@ -1071,12 +1127,11 @@ impl Load for f32 {
     }
 }
 
-impl Load for Array {
+impl Load for () {
     fn from_value(v: &Value) -> Result<Self> {
-        if let Value::Array(v) = v {
-            Ok(v.clone())
-        } else {
-            bail!("expected array, got {v:?}");
+        match v.as_base()? {
+            Base::U0 => Ok(()),
+            b => bail!("expected U0, got base {b:?}"),
         }
     }
 }

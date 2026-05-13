@@ -45,7 +45,7 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
@@ -58,7 +58,7 @@ struct ManifestArgs {
 
 #[allow(clippy::print_literal)]
 fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = context.cli.archive()?;
     let manifest = &hubris.manifest;
 
     let subargs = ManifestArgs::try_parse_from(&context.cli.cmd)?;
@@ -74,24 +74,15 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 
     let size = |task| hubris.lookup_module(task).unwrap().memsize;
 
-    print("version", manifest.version.as_deref().unwrap_or("<unknown>"));
+    print("version", manifest.version.as_str());
     print("git rev", manifest.gitrev.as_deref().unwrap_or("<unknown>"));
 
-    println!(
-        "{:>12} => {}",
-        "image id",
-        match &hubris.imageid {
-            Some(s) => {
-                format!("{:x?}", s.1)
-            }
-            None => "<none>".to_string(),
-        },
-    );
+    println!("{:>12} => {:x?}", "image id", hubris.image_id());
 
-    print("board", manifest.board.as_deref().unwrap_or("<unknown>"));
-    print("name", manifest.name.as_deref().unwrap_or("<unknown>"));
+    print("board", manifest.board.as_str());
+    print("name", manifest.name.as_str());
     print("image", manifest.image.as_deref().unwrap_or("<unknown>"));
-    print("target", manifest.target.as_deref().unwrap_or("<unknown>"));
+    print("target", manifest.target.as_str());
     print("features", &manifest.features.join(", "));
 
     let ttl = hubris.modules().fold(0, |ttl, m| ttl + m.memsize);
@@ -271,10 +262,5 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ManifestArgs::command(),
-        name: "manifest",
-        run: manifestcmd,
-        kind: CommandKind::Unattached { archive: Archive::Required },
-    }
+    Command { app: ManifestArgs::command(), name: "manifest", run: manifestcmd }
 }

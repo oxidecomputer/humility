@@ -97,8 +97,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
@@ -519,9 +518,9 @@ fn mca(
 }
 
 fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = SbrmiArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
 
     if subargs.cpuid {
@@ -616,14 +615,5 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: SbrmiArgs::command(),
-        name: "sbrmi",
-        run: sbrmi,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: SbrmiArgs::command(), name: "sbrmi", run: sbrmi }
 }
