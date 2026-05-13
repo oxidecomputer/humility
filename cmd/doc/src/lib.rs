@@ -11,9 +11,8 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use std::collections::HashMap;
 use termimad::*;
 
@@ -21,15 +20,13 @@ include!(concat!(env!("OUT_DIR"), "/docs.rs"));
 
 #[derive(Parser, Debug)]
 #[clap(name = "doc", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct DocArgs {
+pub struct DocArgs {
     /// Humility command for which to get documentation
     #[clap(value_name = "command")]
     command: Option<String>,
 }
 
-fn doc(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = DocArgs::try_parse_from(&context.cli.cmd)?;
-
+fn doc(subargs: DocArgs, _context: &mut ExecutionContext) -> Result<()> {
     let text = match subargs.command {
         Some(ref cmd) => match cmd_docs(cmd) {
             Some(text) => text,
@@ -63,6 +60,9 @@ fn doc(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: DocArgs::command(), name: "doc", run: doc }
+pub type Args = DocArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
+        doc(args, context)
+    }
 }

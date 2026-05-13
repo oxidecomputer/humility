@@ -103,12 +103,12 @@
 //!   will be locked and the command will return with a *non-zero* exit status.
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cmd::Dumper;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -120,7 +120,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
     name = "vpd", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("command").multiple(false),
 )]
-struct VpdArgs {
+pub struct VpdArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -711,8 +711,7 @@ fn vpd_lock_all(
     Ok(())
 }
 
-fn vpd(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = VpdArgs::try_parse_from(&context.cli.cmd)?;
+fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -733,6 +732,9 @@ fn vpd(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: VpdArgs::command(), name: "vpd", run: vpd }
+pub type Args = VpdArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        vpd(args, context)
+    }
 }

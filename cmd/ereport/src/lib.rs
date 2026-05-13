@@ -10,18 +10,17 @@ use humility::{
     core::Core,
     hubris::{HubrisArchive, HubrisTask},
 };
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 
 use anyhow::{Context, Result, anyhow};
 use std::collections::VecDeque;
 use zerocopy::{FromBytes, Immutable, KnownLayout};
 
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[clap(name = "ereport", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct EreportArgs {
+pub struct EreportArgs {
     #[clap(subcommand)]
     cmd: EreportCmd,
 }
@@ -336,8 +335,7 @@ fn pretty_print_value(value: &ciborium::Value, indent: usize, is_key: bool) {
     }
 }
 
-fn ereport(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = EreportArgs::try_parse_from(&context.cli.cmd)?;
+fn ereport(subargs: EreportArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
@@ -346,6 +344,9 @@ fn ereport(context: &mut ExecutionContext) -> Result<()> {
     }
 }
 
-pub fn init() -> Command {
-    Command { app: EreportArgs::command(), name: "ereport", run: ereport }
+pub type Args = EreportArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
+        ereport(args, context)
+    }
 }

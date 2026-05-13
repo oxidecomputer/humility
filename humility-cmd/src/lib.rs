@@ -2,21 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::Result;
-use clap::Command as ClapCommand;
-
-pub struct Command {
-    pub app: ClapCommand,
-    pub name: &'static str,
-    pub run: fn(&mut humility_cli::ExecutionContext) -> Result<()>,
-}
-
-impl Command {
-    pub fn short_description(&self) -> String {
-        self.app.get_about().unwrap().to_string()
-    }
-}
-
 pub struct Dumper {
     /// Word size, in bytes
     pub size: usize,

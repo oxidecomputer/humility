@@ -145,14 +145,13 @@
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
 use humility::warn;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolOperation};
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
@@ -176,7 +175,7 @@ mod blackbox;
 #[clap(name = "rendmp", about = env!("CARGO_PKG_DESCRIPTION"),
     group = clap::ArgGroup::new("subcommand").multiple(false)
 )]
-struct RendmpArgs {
+pub struct RendmpArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -2294,8 +2293,7 @@ fn restore_default_config<'a>(
     Ok(())
 }
 
-fn rendmp(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = RendmpArgs::try_parse_from(&context.cli.cmd)?;
+fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -2884,6 +2882,9 @@ fn rendmp(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: RendmpArgs::command(), name: "rendmp", run: rendmp }
+pub type Args = RendmpArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        rendmp(args, context)
+    }
 }
