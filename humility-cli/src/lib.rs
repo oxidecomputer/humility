@@ -5,7 +5,7 @@
 pub mod env;
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{ArgGroup, ArgMatches, Parser, parser::ValueSource};
+use clap::{ArgMatches, Parser, parser::ValueSource};
 use env::Environment;
 use humility::{
     core::Core,
@@ -15,11 +15,6 @@ use humility::{
 use std::time::Duration;
 
 #[derive(Parser, Debug, Clone)]
-#[clap(
-    name = "humility", max_term_width = 80,
-    group = ArgGroup::new("hubris").multiple(false),
-    disable_version_flag = true,
-)]
 pub struct Cli {
     /// verbose messages
     #[clap(long, short)]
@@ -114,10 +109,6 @@ pub struct Cli {
         conflicts_with = "hubris"
     )]
     pub list_targets: bool,
-
-    /// Subcommand to execute
-    #[clap(trailing_var_arg = true)]
-    pub cmd: Vec<String>,
 }
 
 impl Cli {
@@ -336,6 +327,11 @@ impl Cli {
     }
 }
 
+/// Trait representing a Humility subcommand
+pub trait HumilitySubcommand: Parser {
+    fn run(args: Self, context: &mut ExecutionContext) -> Result<()>;
+}
+
 pub struct ExecutionContext {
     pub environment: Option<Environment>,
     pub cli: Cli,
@@ -476,11 +472,6 @@ impl ExecutionContext {
 
             _ => None,
         };
-
-        if cli.cmd.is_empty() {
-            eprintln!("humility failed: subcommand expected (--help to list)");
-            std::process::exit(1);
-        }
 
         //
         // Check to see if we have both a dump and an archive.  Because these

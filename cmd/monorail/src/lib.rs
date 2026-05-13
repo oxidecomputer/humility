@@ -171,20 +171,20 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
-use humility_cli::ExecutionContext;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 
 use anyhow::{Result, anyhow};
 
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use vsc7448_info::parse::{PhyRegister, TargetRegister};
 use vsc7448_types::Field;
 
 #[derive(Parser, Debug)]
 #[clap(name = "monorail", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct MonorailArgs {
+pub struct MonorailArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -965,9 +965,10 @@ fn monorail_counters(
     Ok(())
 }
 
-fn monorail(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
-
+fn monorail(
+    subargs: MonorailArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     // Early exit for subcommands which don't require an archive or Core
     match &subargs.cmd {
         Command::Info { reg, value } => {
@@ -1079,10 +1080,9 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> humility_cmd::Command {
-    humility_cmd::Command {
-        app: MonorailArgs::command(),
-        name: "monorail",
-        run: monorail,
+pub type Args = MonorailArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        monorail(args, context)
     }
 }

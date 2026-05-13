@@ -14,18 +14,17 @@
 //! indices 0 through 5).
 
 use anyhow::{Context, Result, anyhow};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 
 #[derive(Parser, Debug)]
 #[clap(name = "powershelf", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct PowershelfArgs {
+pub struct PowershelfArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -129,8 +128,10 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
     }
 }
 
-fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = PowershelfArgs::try_parse_from(&context.cli.cmd)?;
+fn powershelf_run(
+    subargs: PowershelfArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -218,10 +219,9 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command {
-        app: PowershelfArgs::command(),
-        name: "powershelf",
-        run: powershelf_run,
+pub type Args = PowershelfArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        powershelf_run(args, context)
     }
 }

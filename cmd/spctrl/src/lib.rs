@@ -44,14 +44,14 @@
 //! 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 //! ```
 
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cmd::Dumper;
 use humility_hiffy::*;
 
 use std::str;
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 
 #[derive(Parser, Debug)]
@@ -72,7 +72,7 @@ enum SpCtrlCmd {
 
 #[derive(Parser, Debug)]
 #[clap(name = "spctrl", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct SpCtrlArgs {
+pub struct SpCtrlArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -88,8 +88,7 @@ struct SpCtrlArgs {
     word: bool,
 }
 
-fn spctrl(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = SpCtrlArgs::try_parse_from(&context.cli.cmd)?;
+fn spctrl(subargs: SpCtrlArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let timeout = std::time::Duration::from_millis(subargs.timeout);
@@ -151,6 +150,9 @@ fn spctrl(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: SpCtrlArgs::command(), name: "spctrl", run: spctrl }
+pub type Args = SpCtrlArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        spctrl(args, context)
+    }
 }

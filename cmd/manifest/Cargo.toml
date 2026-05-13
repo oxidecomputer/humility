@@ -6,7 +6,6 @@ description = "print archive manifest"
 
 [dependencies]
 humility = { workspace = true }
-humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

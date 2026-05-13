@@ -8,7 +8,6 @@ description = "Do something kind of like embootleby to recover a device with bad
 humility = { workspace = true }
 humility-arch-arm = { workspace = true }
 humility-cortex = { workspace = true }
-humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
