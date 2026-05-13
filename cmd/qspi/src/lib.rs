@@ -84,7 +84,7 @@
 
 use humility::core::Core;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
-use humility_cmd::Dumper;
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
 use sha2::{Digest, Sha256};

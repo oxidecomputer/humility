@@ -13,7 +13,7 @@ indicatif.workspace = true
 hif.workspace = true
 
 humility-cli.workspace = true
-humility-cmd.workspace = true
+humility-hexdump.workspace = true
 humility-hiffy.workspace = true
 humility-i2c.workspace = true
 humility-log.workspace = true

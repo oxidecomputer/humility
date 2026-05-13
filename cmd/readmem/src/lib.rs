@@ -119,7 +119,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
-use humility_cmd::Dumper;
+use humility_hexdump::Dumper;
 use std::convert::TryInto;
 use std::io::Write;
 use std::path::PathBuf;

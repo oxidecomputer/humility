@@ -51,7 +51,7 @@ use clap::Parser;
 use humility::hubris::*;
 use humility::warn;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
-use humility_cmd::Dumper;
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol as idol;
 use std::io::IsTerminal;

@@ -94,7 +94,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use hif::*;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
-use humility_cmd::Dumper;
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_log::msg;
 
