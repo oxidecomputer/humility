@@ -38,8 +38,7 @@ So you've decided to add a subcommand to Humility. Here's what you need to do.
 
 2. Review the settings in the `init` routine you cribbed from to make sure they
    reflect your subcommand. In particular, the name must appear a second time in
-   the `name:` field, and `kind` should reflect whether you need an attached
-   target and archive, or not.
+   the `name:` field.
 
 3. Cite your new subcommand from the root `Cargo.toml`. This needs to happen in
    three places using two different names: in the `workspace.members` element
