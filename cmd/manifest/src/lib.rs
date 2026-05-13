@@ -178,9 +178,11 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             if manifest.i2c_devices.len() != 1 { "s" } else { "" }
         );
 
+        const REFDES_LEN: usize = 8; // TODO(eliza): ITS 8 RIGHT LOL?
+
         println!(
-            "{:>19} {:2} {:2} {} {} {:13} {}",
-            "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
+            "{:>19} {:2} {:2} {} {} {:REFDES_LEN$} {:13} {}",
+            "ID", "C", "P", "MUX", "ADDR", "REFDES", "DEVICE", "DESCRIPTION"
         );
 
         for (ndx, device) in manifest.i2c_devices.iter().enumerate() {
@@ -191,12 +193,13 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             };
 
             println!(
-                "{:>19} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+                "{:>19} {:2} {:2} {:3} 0x{:02x} {:REFDES_LEN$} {:13} {}",
                 ndx,
                 device.controller,
                 device.port.name,
                 mux,
                 device.address,
+                device.refdes.as_deref().unwrap_or("???"),
                 device.device,
                 device.description
             );
