@@ -18,11 +18,10 @@
 //! lowest available value); use `--out` to specify a different path name.
 
 use anyhow::{Context, Result, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_log::msg;
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
@@ -31,7 +30,7 @@ use std::{collections::BTreeMap, io::Read, path::PathBuf};
     name = "hydrate", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("target").multiple(false)
 )]
-struct Args {
+pub struct Args {
     /// Path to write the resulting dump
     #[clap(short, long)]
     out: Option<PathBuf>,
@@ -108,8 +107,7 @@ impl humility::core::Core for DryCore {
     }
 }
 
-fn run(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = Args::try_parse_from(&context.cli.cmd)?;
+fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
     let f = std::fs::File::open(&subargs.file)?;
     let mut z = zip::ZipArchive::new(f)?;
 
@@ -195,6 +193,8 @@ fn run(context: &mut ExecutionContext) -> Result<()> {
     )
 }
 
-pub fn init() -> Command {
-    Command { app: Args::command(), name: "hydrate", run }
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        run(args, context)
+    }
 }

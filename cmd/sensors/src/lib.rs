@@ -25,13 +25,12 @@
 //! counts are also displayed.
 
 use anyhow::{Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -42,7 +41,7 @@ use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(name = "sensors", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct SensorsArgs {
+pub struct SensorsArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -531,8 +530,7 @@ fn print(
     Ok(())
 }
 
-fn sensors(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = SensorsArgs::try_parse_from(&context.cli.cmd)?;
+fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     let types = if let Some(ref types) = subargs.types {
@@ -648,6 +646,9 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: SensorsArgs::command(), name: "sensors", run: sensors }
+pub type Args = SensorsArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        sensors(args, context)
+    }
 }

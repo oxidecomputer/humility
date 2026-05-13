@@ -10,13 +10,12 @@ description = "Pretty-printing of host state"
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true
+turin-post-decoder.workspace = true
 hif.workspace = true
 ipcc-data.workspace = true
-turin-post-decoder.workspace = true
 
 humility.workspace = true
 humility-cli.workspace = true
-humility-cmd.workspace = true
 humility-doppel.workspace = true
 humility-hiffy.workspace = true
 humility-idol.workspace = true

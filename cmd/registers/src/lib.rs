@@ -130,18 +130,17 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::*;
 use humility_arch_arm::{ARMRegister, ARMRegisterField};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
 use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]
 #[clap(name = "registers", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct RegistersArgs {
+pub struct RegistersArgs {
     /// show stack backtrace
     #[clap(long, short)]
     stack: bool,
@@ -232,8 +231,10 @@ fn print_reg(reg: ARMRegister, val: u32, fields: &[ARMRegisterField]) {
     println!();
 }
 
-fn registers(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = RegistersArgs::try_parse_from(&context.cli.cmd)?;
+fn registers(
+    subargs: RegistersArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.try_archive()?;
     let core = &mut *context.cli.attach_live_or_dump(hubris.as_ref(), None)?;
     let mut regs = BTreeMap::new();
@@ -362,6 +363,9 @@ fn registers(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: RegistersArgs::command(), name: "registers", run: registers }
+pub type Args = RegistersArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        registers(args, context)
+    }
 }

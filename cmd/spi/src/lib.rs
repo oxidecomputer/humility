@@ -33,20 +33,20 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cmd::Dumper;
 use humility_hiffy::*;
 
 use std::convert::TryInto;
 use std::str;
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 
 #[derive(Parser, Debug)]
 #[clap(name = "spi", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct SpiArgs {
+pub struct SpiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -170,8 +170,7 @@ pub fn spi_task(
     Ok(task)
 }
 
-fn spi(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = SpiArgs::try_parse_from(&context.cli.cmd)?;
+fn spi(subargs: SpiArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -312,6 +311,9 @@ fn spi(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: SpiArgs::command(), name: "spi", run: spi }
+pub type Args = SpiArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        spi(args, context)
+    }
 }

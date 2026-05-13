@@ -8,7 +8,6 @@ description = "Rehydrate a bare memory dump"
 humility.workspace = true
 humility-arch-arm.workspace = true
 humility-cli.workspace = true
-humility-cmd.workspace = true
 humility-log.workspace = true
 
 hubpack.workspace = true

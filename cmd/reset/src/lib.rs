@@ -8,13 +8,12 @@
 //! or using software reset with the appropriate flag
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 
 #[derive(Parser, Debug)]
 #[clap(name = "reset", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ResetArgs {
+pub struct ResetArgs {
     /// Use a software reset instead of pin reset
     #[clap(long, conflicts_with_all = &["halt"])]
     soft_reset: bool,
@@ -26,8 +25,7 @@ struct ResetArgs {
     use_token: Option<bool>,
 }
 
-fn reset(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ResetArgs::try_parse_from(&context.cli.cmd)?;
+fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
 
     let probe = match &context.cli.probe {
@@ -111,6 +109,9 @@ fn reset(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ResetArgs::command(), name: "reset", run: reset }
+pub type Args = ResetArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        reset(args, context)
+    }
 }

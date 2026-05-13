@@ -20,15 +20,14 @@
 //! information about auxiliary flash management.
 
 use anyhow::{Context, Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::{core::Core, hubris::*};
 use humility_auxflash::AuxFlashHandler;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct FlashArgs {
+pub struct FlashArgs {
     /// force re-flashing if archive matches
     #[clap(long, short = 'F')]
     force: bool,
@@ -192,9 +191,8 @@ fn get_image_state(
     }
 }
 
-fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
+fn flashcmd(subargs: FlashArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
-    let subargs = FlashArgs::try_parse_from(&context.cli.cmd)?;
 
     let config = hubris.load_flash_config()?;
 
@@ -352,10 +350,6 @@ fn program_auxflash(
     }
 }
 
-pub fn init() -> Command {
-    Command { app: FlashArgs::command(), name: "flash", run: flashcmd }
-}
-
 /// While it may sound like the impetus for an OSHA investigation at the North
 /// Pole, this function is _actually_ designed to generate small (32-byte)
 /// chunks describing the data in the PHDRs of an ELF file. Unless the file is
@@ -420,4 +414,11 @@ fn generate_ihex_from_elf(data: &[u8]) -> Result<String> {
     records.push(ihex::Record::EndOfFile);
 
     Ok(ihex::create_object_file_representation(&records)?)
+}
+
+pub type Args = FlashArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        flashcmd(args, context)
+    }
 }

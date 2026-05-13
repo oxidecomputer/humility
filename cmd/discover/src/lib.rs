@@ -40,12 +40,11 @@ use std::net::{IpAddr, Ipv6Addr, UdpSocket};
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, bail};
-use clap::{ArgGroup, CommandFactory, Parser};
+use clap::{ArgGroup, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
 use humility::net::decode_iface;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -53,7 +52,7 @@ use serde::{Deserialize, Serialize};
     name = "discover", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("target").multiple(false)
 )]
-struct DiscoverArgs {
+pub struct DiscoverArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 2000, value_name = "timeout_ms",
@@ -311,8 +310,10 @@ fn discover_dump(seen: BTreeSet<Target>, image_id: Option<&[u8]>) {
     }
 }
 
-fn discover_run(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = DiscoverArgs::try_parse_from(&context.cli.cmd)?;
+fn discover_run(
+    subargs: DiscoverArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.try_archive()?;
 
     let image_id = hubris.as_ref().map(|h| h.image_id());
@@ -325,10 +326,9 @@ fn discover_run(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command {
-        app: DiscoverArgs::command(),
-        name: "discover",
-        run: discover_run,
+pub type Args = DiscoverArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
+        discover_run(args, context)
     }
 }

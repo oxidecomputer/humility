@@ -101,9 +101,9 @@
 //!
 
 use anyhow::{Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
-use humility_cli::ExecutionContext;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_idol::{self as idol, HubrisIdol};
 use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout,
@@ -114,12 +114,11 @@ use hif::*;
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cmd::Command;
 use humility_hiffy::HiffyContext;
 
 #[derive(Parser, Debug)]
 #[clap(name = "ibc", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct IbcArgs {
+pub struct IbcArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
@@ -514,8 +513,7 @@ struct IbcEvent {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn ibc(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = IbcArgs::try_parse_from(&context.cli.cmd)?;
+fn ibc(subargs: IbcArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = IbcHandler::new(hubris, core, subargs.timeout)?;
@@ -528,6 +526,9 @@ fn ibc(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: IbcArgs::command(), name: "ibc", run: ibc }
+pub type Args = IbcArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        ibc(args, context)
+    }
 }
