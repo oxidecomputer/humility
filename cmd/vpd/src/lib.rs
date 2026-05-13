@@ -200,13 +200,14 @@ fn vpd_devices(
         .filter(|device| device.device == "at24csw080")
 }
 
-fn list(
+pub fn list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    timeout: u32,
+    read: bool,
 ) -> Result<()> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let locked_op = hubris.get_idol_command("Vpd.is_locked").ok();
     let results = if let Some(locked_op) = &locked_op {
@@ -274,7 +275,7 @@ fn list(
             },
         );
 
-        if subargs.read {
+        if read {
             let mut target = VpdTarget::Device(ndx);
 
             let rval = vpd_slurp(core, &mut context, &hubris, &mut target);
@@ -351,25 +352,28 @@ fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<VpdTarget> {
     }
 }
 
-fn vpd_write(
+pub fn vpd_write(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    //subargs: &VpdArgs,
+    target: VpdTarget,
+    timeout: u32,
+    write: Option<String>,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.write")?;
-    let target = target(hubris, subargs)?;
+    //let target = target(hubris, subargs)?;
 
-    let bytes = if let Some(ref filename) = subargs.write {
+    let (bytes, erase) = if let Some(ref filename) = write {
         let file = fs::File::open(filename)?;
 
         let p = tlvc_text::load(file).with_context(|| {
             format!("failed to parse {} as VPD input", filename)
         })?;
 
-        tlvc_text::pack(&p)
+        (tlvc_text::pack(&p), true)
     } else {
-        vec![0xffu8; 1024]
+        (vec![0xffu8; 1024], false)
     };
 
     let target = match target {
@@ -404,7 +408,7 @@ fn vpd_write(
 
     let bar = ProgressBar::new(bytes.len() as u64);
 
-    bar.set_style(ProgressStyle::default_bar().template(if subargs.erase {
+    bar.set_style(ProgressStyle::default_bar().template(if erase {
         "humility: erasing VPD [{bar:30}] {bytes}/{total_bytes}"
     } else {
         "humility: writing VPD [{bar:30}] {bytes}/{total_bytes}"
@@ -433,7 +437,7 @@ fn vpd_write(
 
     bar.finish_and_clear();
 
-    if subargs.erase {
+    if erase {
         humility::msg!("successfully erased VPD");
     } else {
         humility::msg!("successfully wrote {offset} bytes of VPD");
@@ -536,13 +540,20 @@ fn vpd_slurp(
     Ok(vpd[..total].to_vec())
 }
 
-fn vpd_read(
+pub enum OutputOption {
+    Tlvc,
+    Raw,
+    Binary(String),
+}
+
+pub fn vpd_read(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    mut target: VpdTarget,
+    timeout: u32,
+    output: OutputOption,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let mut target = target(hubris, subargs)?;
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let vpd = vpd_slurp(core, &mut context, &hubris, &mut target)?;
 
@@ -556,28 +567,32 @@ fn vpd_read(
         }
     };
 
-    if subargs.raw {
-        let dumper = Dumper::new();
-        dumper.dump(&vpd, 0);
-    } else if let Some(output) = &subargs.binary {
-        let mut file = fs::File::create(output)?;
-        file.write_all(&vpd)?;
-    } else {
-        let p = tlvc_text::dump(reader);
-        tlvc_text::save(std::io::stdout(), &p)?;
-        println!();
+    match output {
+        OutputOption::Raw => {
+            let dumper = Dumper::new();
+            dumper.dump(&vpd, 0);
+        }
+        OutputOption::Binary(output) => {
+            let mut file = fs::File::create(output)?;
+            file.write_all(&vpd)?;
+        }
+        OutputOption::Tlvc => {
+            let p = tlvc_text::dump(reader);
+            tlvc_text::save(std::io::stdout(), &p)?;
+            println!();
+        }
     }
 
     Ok(())
 }
 
-fn vpd_lock(
+pub fn vpd_lock(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    mut target: VpdTarget,
+    timeout: u32,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let mut target = target(hubris, subargs)?;
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let op = hubris.get_idol_command("Vpd.permanently_lock")?;
     // Make sure we can read the VPD
@@ -609,12 +624,13 @@ fn vpd_lock(
     Ok(())
 }
 
-fn vpd_lock_all(
+pub fn vpd_lock_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    timeout: u32,
+    allow_missing: bool,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.is_locked")?;
     let lock_op = hubris.get_idol_command("Vpd.permanently_lock")?;
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
@@ -686,7 +702,7 @@ fn vpd_lock_all(
         }
 
         bail!("no VPDs to lock");
-    } else if any_missing && !subargs.allow_missing {
+    } else if any_missing && !allow_missing {
         bail!("some VPDs are missing; use `--allow-missing` to continue")
     }
 
@@ -723,17 +739,25 @@ fn vpd(context: &mut ExecutionContext) -> Result<()> {
     let core = &mut **context.core.as_mut().unwrap();
     let subargs = VpdArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = context.archive.as_ref().unwrap();
+    let target = target(hubris, &subargs)?;
 
     if subargs.list {
-        list(hubris, core, &subargs)?;
+        list(hubris, core, subargs.timeout, subargs.read)?;
     } else if subargs.write.is_some() || subargs.erase {
-        vpd_write(hubris, core, &subargs)?;
+        vpd_write(hubris, core, target, subargs.timeout, subargs.write)?;
     } else if subargs.read {
-        vpd_read(hubris, core, &subargs)?;
+        let options = if subargs.raw {
+            OutputOption::Raw
+        } else if let Some(s) = subargs.binary {
+            OutputOption::Binary(s)
+        } else {
+            OutputOption::Tlvc
+        };
+        vpd_read(hubris, core, target, subargs.timeout, options)?;
     } else if subargs.lock {
-        vpd_lock(hubris, core, &subargs)?;
+        vpd_lock(hubris, core, target, subargs.timeout)?;
     } else if subargs.lock_all {
-        vpd_lock_all(hubris, core, &subargs)?;
+        vpd_lock_all(hubris, core, subargs.timeout, subargs.allow_missing)?;
     } else {
         bail!("expected a command");
     }
