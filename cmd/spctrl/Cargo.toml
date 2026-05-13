@@ -10,6 +10,6 @@ clap.workspace = true
 anyhow.workspace = true
 parse_int.workspace = true
 
-humility-cmd.workspace = true
 humility-cli.workspace = true
+humility-hexdump.workspace = true
 humility-hiffy.workspace = true
