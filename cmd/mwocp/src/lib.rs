@@ -34,13 +34,12 @@
 
 use humility::hubris::*;
 use humility::msg;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use indicatif::{HumanBytes, HumanDuration};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -53,7 +52,7 @@ use std::time::Instant;
 #[clap(name = "mwocp", about = env!("CARGO_PKG_DESCRIPTION"),
     group = clap::ArgGroup::new("subcommand").multiple(false)
 )]
-struct MwocpArgs {
+pub struct MwocpArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -116,8 +115,7 @@ const MWOCP68_BLOCK_DELAY_MS: u8 = 100;
 const MWOCP68_CHECKSUM_DELAY: u64 = 2;
 const MWOCP68_REBOOT_DELAY: u64 = 5;
 
-fn mwocp(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = MwocpArgs::try_parse_from(&context.cli.cmd)?;
+fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -577,6 +575,9 @@ fn mwocp(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: MwocpArgs::command(), name: "mwocp", run: mwocp }
+pub type Args = MwocpArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        mwocp(args, context)
+    }
 }

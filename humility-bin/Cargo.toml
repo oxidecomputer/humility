@@ -22,8 +22,9 @@ version = "0.12.17"
 license = "MPL-2.0"
 
 [build-dependencies]
-cargo_metadata = { workspace = true }
 anyhow = { workspace = true }
+cargo_metadata = { workspace = true }
+heck = { workspace = true }
 
 # Any dependency marked with option is to allow compiling without libusb
 [dependencies]
@@ -118,4 +119,3 @@ probes = ["humility-cli/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-deb
 [[bin]]
 name = "humility"
 path = "src/main.rs"
-

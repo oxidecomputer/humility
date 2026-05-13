@@ -8,20 +8,18 @@
 //! on the system, to help you choose probes and/or diagnose permissions issues.
 
 use anyhow::{Context, Result, anyhow};
-use clap::{CommandFactory, Parser};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use clap::Parser;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[clap(name = "lsusb", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct Args {
+pub struct Args {
     // None as yet
 }
 
-fn lsusb(context: &mut ExecutionContext) -> Result<()> {
-    let _subargs = Args::try_parse_from(&context.cli.cmd)?;
+fn lsusb(_args: Args, context: &mut ExecutionContext) -> Result<()> {
     let mut targets = if let Some(ref env) = context.cli.environment {
         humility_cli::env::Environment::read(env)
             .with_context(|| {
@@ -140,6 +138,8 @@ fn list1(
     Ok((format!("{vid:04x}:{pid:04x}:{serial}"), format!("{man}\t{prod}")))
 }
 
-pub fn init() -> Command {
-    Command { app: Args::command(), name: "lsusb", run: lsusb }
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        lsusb(args, context)
+    }
 }

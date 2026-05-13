@@ -43,19 +43,18 @@
 //!
 
 use anyhow::{Result, anyhow};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_i2c::I2cArgs;
 use humility_idol::{self as idol, HubrisIdol};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ValidateArgs {
+pub struct ValidateArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -131,8 +130,10 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
 
     Ok(())
 }
-fn validate(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ValidateArgs::try_parse_from(&context.cli.cmd)?;
+fn validate(
+    subargs: ValidateArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -273,6 +274,9 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ValidateArgs::command(), name: "validate", run: validate }
+pub type Args = ValidateArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        validate(args, context)
+    }
 }

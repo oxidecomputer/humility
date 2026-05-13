@@ -13,7 +13,7 @@
 //!
 
 use anyhow::{Result, anyhow, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode,
@@ -28,8 +28,7 @@ use crossterm::{
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use ratatui::{
@@ -51,7 +50,7 @@ use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[clap(name = "dashboard", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct DashboardArgs {
+pub struct DashboardArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -736,8 +735,10 @@ where
     }
 }
 
-fn dashboard(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = DashboardArgs::try_parse_from(&context.cli.cmd)?;
+fn dashboard(
+    subargs: DashboardArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -764,10 +765,6 @@ fn dashboard(context: &mut ExecutionContext) -> Result<()> {
     res?;
 
     Ok(())
-}
-
-pub fn init() -> Command {
-    Command { app: DashboardArgs::command(), name: "dashboard", run: dashboard }
 }
 
 fn sensor_ops(
@@ -1085,4 +1082,11 @@ fn draw(f: &mut Frame, dashboard: &mut Dashboard) {
 
     draw_graphs(f, screen[0], dashboard);
     draw_status(f, screen[1], &dashboard.status());
+}
+
+pub type Args = DashboardArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
+        dashboard(args, context)
+    }
 }

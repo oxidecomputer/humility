@@ -11,5 +11,4 @@ splitty.workspace = true
 serde_json.workspace = true
 
 humility-log.workspace = true
-humility-cmd.workspace = true
 humility-cli.workspace = true
