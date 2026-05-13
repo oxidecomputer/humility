@@ -6,11 +6,9 @@
 //!
 //! Act as a proxy for the host serial console when it is jumpered to the SP.
 
+use clap::Parser;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use std::path::PathBuf;
-
-use clap::{CommandFactory, Parser};
-
-use humility_cmd::Command;
 
 #[cfg(not(windows))]
 mod posix;
@@ -20,6 +18,7 @@ use posix::console_proxy;
 
 #[cfg(windows)]
 fn console_proxy(
+    _args: UartConsoleArgs,
     _context: &mut humility_cli::ExecutionContext,
 ) -> anyhow::Result<()> {
     anyhow::bail!("the console-proxy subcommand is not available on Windows")
@@ -27,7 +26,7 @@ fn console_proxy(
 
 #[derive(Parser, Debug)]
 #[clap(name = "console-proxy", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct UartConsoleArgs {
+pub struct UartConsoleArgs {
     #[clap(
         long,
         short = 'T',
@@ -108,10 +107,9 @@ enum UartConsoleCommand {
     Client,
 }
 
-pub fn init() -> Command {
-    Command {
-        app: UartConsoleArgs::command(),
-        name: "console-proxy",
-        run: console_proxy,
+pub type Args = UartConsoleArgs;
+impl HumilitySubcommand for UartConsoleArgs {
+    fn run(args: Args, context: &mut ExecutionContext) -> anyhow::Result<()> {
+        console_proxy(args, context)
     }
 }

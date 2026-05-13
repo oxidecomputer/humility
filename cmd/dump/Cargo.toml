@@ -20,7 +20,6 @@ zerocopy.workspace = true
 zip.workspace = true
 
 humility.workspace = true
-humility-cmd.workspace = true
 humility-cli.workspace = true
 humility-dump-agent.workspace = true
 humility-arch-arm.workspace = true

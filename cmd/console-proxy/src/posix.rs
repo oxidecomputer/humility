@@ -11,7 +11,6 @@ use std::time::Duration;
 use std::{io, thread};
 
 use anyhow::{Context, Result};
-use clap::Parser;
 use crossbeam_channel::{Sender, select};
 use picocom_map::RemapRules;
 use termios::Termios;
@@ -284,8 +283,10 @@ impl UnrawTermiosGuard {
     }
 }
 
-pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = UartConsoleArgs::try_parse_from(&context.cli.cmd)?;
+pub(super) fn console_proxy(
+    subargs: UartConsoleArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = UartConsoleHandler::new(

@@ -63,17 +63,16 @@
 //! documentation](https://github.com/oxidecomputer/hubris/blob/master/lib/ringbuf/src/lib.rs) for more details.
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
 #[clap(name = "ringbuf", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct RingbufArgs {
+pub struct RingbufArgs {
     /// list variables
     #[clap(long, short)]
     list: bool,
@@ -232,8 +231,7 @@ fn taskname<'a>(
 // this allow is meant for the header println! in the body but you cannot apply
 // an attribute to a macro invoction, so we have to put it here instead.
 #[allow(clippy::print_literal)]
-fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = RingbufArgs::try_parse_from(&context.cli.cmd)?;
+fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     let mut ringbufs = vec![];
@@ -315,6 +313,9 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: RingbufArgs::command(), name: "ringbuf", run: ringbuf }
+pub type Args = RingbufArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        ringbuf(args, context)
+    }
 }

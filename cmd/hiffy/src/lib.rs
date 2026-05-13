@@ -47,11 +47,11 @@
 
 use ::idol::syntax::send::{Operation, Reply};
 use anyhow::{Context, Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::*;
 use humility::warn;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cmd::Dumper;
 use humility_hiffy::*;
 use humility_idol as idol;
 use std::io::IsTerminal;
@@ -59,7 +59,7 @@ use std::io::Read;
 
 #[derive(Parser, Debug)]
 #[clap(name = "hiffy", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct HiffyArgs {
+pub struct HiffyArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -199,8 +199,7 @@ pub fn hiffy_list(hubris: &HubrisArchive, filter: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-fn hiffy(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = HiffyArgs::try_parse_from(&context.cli.cmd)?;
+fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     if subargs.list {
@@ -347,6 +346,9 @@ fn hiffy(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: HiffyArgs::command(), name: "hiffy", run: hiffy }
+pub type Args = HiffyArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        hiffy(args, context)
+    }
 }

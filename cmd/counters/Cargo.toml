@@ -14,5 +14,4 @@ serde_json = { workspace = true }
 
 humility = { workspace = true }
 humility-doppel = { workspace = true, features = ["serde"] }
-humility-cmd = { workspace = true }
 humility-cli  = {  workspace = true }

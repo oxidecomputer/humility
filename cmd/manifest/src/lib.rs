@@ -42,26 +42,26 @@
 //! `humility manifest` can operate on either an archive or on a dump.
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
 #[clap(name = "manifest", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ManifestArgs {
+pub struct ManifestArgs {
     /// generate JSON output
     #[clap(short, long)]
     json: bool,
 }
 
 #[allow(clippy::print_literal)]
-fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
+fn manifestcmd(
+    subargs: ManifestArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = context.cli.archive()?;
     let manifest = &hubris.manifest;
-
-    let subargs = ManifestArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.json {
         println!("{}", serde_json::to_string(manifest)?);
@@ -261,6 +261,9 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ManifestArgs::command(), name: "manifest", run: manifestcmd }
+pub type Args = ManifestArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        manifestcmd(args, context)
+    }
 }

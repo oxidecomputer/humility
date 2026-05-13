@@ -40,14 +40,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 use humility::reflect::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
 
@@ -61,7 +60,7 @@ enum NetCommand {
     Status,
     /// Print the counters
     ///
-    /// This is a destructive operation that clears counter values, resetting
+    /// This is a depub structive operation that clears counter values, resetting
     /// them to zero.
     ///
     /// If no flags are provided, both the table and diagram are shown.
@@ -77,7 +76,7 @@ enum NetCommand {
 
 #[derive(Parser, Debug)]
 #[clap(name = "net", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct NetArgs {
+pub struct NetArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -524,9 +523,7 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
     Ok(())
 }
 
-fn net(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
+fn net(subargs: NetArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
@@ -542,6 +539,9 @@ fn net(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: NetArgs::command(), name: "net", run: net }
+pub type Args = NetArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        net(args, context)
+    }
 }

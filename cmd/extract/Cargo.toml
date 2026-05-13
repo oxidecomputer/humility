@@ -10,5 +10,4 @@ clap.workspace = true
 zip.workspace = true
 
 humility-cli.workspace = true
-humility-cmd.workspace = true
 humility-log.workspace = true

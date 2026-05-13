@@ -10,7 +10,6 @@ cargo-readme = { workspace = true }
 anyhow = { workspace = true }
 
 [dependencies]
-humility-cmd = { workspace = true }
 humility-cli = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

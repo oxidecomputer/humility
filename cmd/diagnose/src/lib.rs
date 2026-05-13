@@ -15,23 +15,17 @@
 //! at the OS level, like faults.
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use std::num::NonZeroU32;
 use std::time::Duration;
 
-/// Command registration.
-pub fn init() -> Command {
-    Command { app: DiagnoseArgs::command(), name: "diagnose", run: diagnose }
-}
-
 #[derive(Parser, Debug)]
 #[clap(name = "diagnose", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct DiagnoseArgs {
+pub struct DiagnoseArgs {
     /// timeout to wait for interactions with the supervisor task to complete
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
@@ -72,8 +66,10 @@ fn section(title: &str) {
     println!("\n--- {} ---\n", title);
 }
 
-fn diagnose(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = DiagnoseArgs::try_parse_from(&context.cli.cmd)?;
+fn diagnose(
+    subargs: DiagnoseArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
@@ -380,4 +376,11 @@ fn find_task_names<'a>(
                 .to_string()
         })
         .collect())
+}
+
+pub type Args = DiagnoseArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
+        diagnose(args, context)
+    }
 }

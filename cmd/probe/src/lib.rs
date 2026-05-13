@@ -87,25 +87,23 @@
 //! ```
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use humility::hubris::HubrisValidate;
 use humility_arch_arm::ARMRegister;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_cortex::debug::*;
 use humility_cortex::scs::*;
 
 #[derive(Parser, Debug)]
 #[clap(name = "probe", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct ProbeArgs {
+pub struct ProbeArgs {
     /// display environment variable for this probe
     #[clap(long, short)]
     environment: bool,
 }
 
 #[rustfmt::skip::macros(format)]
-fn probecmd(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = ProbeArgs::try_parse_from(&context.cli.cmd)?;
+fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = context.cli.try_archive()?;
     let core = &mut *context.cli.attach_probe(hubris.as_ref())?;
 
@@ -411,6 +409,9 @@ fn probecmd(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: ProbeArgs::command(), name: "probe", run: probecmd }
+pub type Args = ProbeArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        probecmd(args, context)
+    }
 }
