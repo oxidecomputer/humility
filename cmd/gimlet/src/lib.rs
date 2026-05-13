@@ -20,7 +20,7 @@ use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::net::ScopedV6Addr;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
-use humility_cmd::Dumper;
+use humility_hexdump::Dumper;
 
 /// This is defined in the gimlet TOML.
 const HARDCODED_PORT: u16 = 23547;
