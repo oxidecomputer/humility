@@ -6,8 +6,8 @@ description = "Gimlet-specific diagnostic commands"
 
 [dependencies]
 humility.workspace = true
-humility-cmd.workspace = true
 humility-cli.workspace = true
+humility-hexdump.workspace = true
 
 hubpack.workspace = true
 gimlet-inspector-protocol.workspace = true
