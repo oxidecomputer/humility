@@ -556,13 +556,7 @@ fn vpd_read(
         }
     };
 
-    if subargs.lock {
-        //
-        // We can only get here because we are doing the read as part of
-        // a `--lock` operation.
-        //
-        assert!(!subargs.read);
-    } else if subargs.raw {
+    if subargs.raw {
         let dumper = Dumper::new();
         dumper.dump(&vpd, 0);
     } else if let Some(output) = &subargs.binary {
@@ -583,18 +577,18 @@ fn vpd_lock(
     subargs: &VpdArgs,
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let mut target = target(hubris, subargs)?;
 
     let op = hubris.get_idol_command("Vpd.permanently_lock")?;
-    let index = match target(hubris, subargs)? {
+    // Make sure we can read the VPD
+    vpd_slurp(core, &mut context, &hubris, &mut target)?;
+
+    let index = match target {
         VpdTarget::Device(index) => index,
         _ => {
             bail!("can only lock a physical device");
         }
     };
-
-    if let Err(err) = vpd_read(hubris, core, subargs) {
-        bail!("can't lock VPD: {err}");
-    }
 
     let payload =
         op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
