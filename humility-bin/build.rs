@@ -66,6 +66,15 @@ fn dcmds() -> Vec<CommandDescription> {{
         )?;
     }
 
+    writeln!(
+        output,
+            r##"        CommandDescription {{
+            init: cmd_hacking_ringbuf::clap::init,
+            docmsg: "For additional documentation, run \"humility docXXX\"."
+        }},"##,
+
+    )?;
+
     write!(output, "    ]\n}}")?;
 
     Ok(())

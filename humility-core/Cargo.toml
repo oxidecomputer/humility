@@ -8,7 +8,6 @@ license = "MPL-2.0"
 addr2line.workspace = true
 anyhow.workspace = true
 bitfield.workspace = true
-clap.workspace = true
 gimli.workspace = true
 goblin.workspace = true
 hubpack.workspace = true
