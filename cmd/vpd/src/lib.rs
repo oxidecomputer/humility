@@ -207,7 +207,6 @@ fn list(
 ) -> Result<()> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let read_op = hubris.get_idol_command("Vpd.read")?;
 
     let locked_op = hubris.get_idol_command("Vpd.is_locked").ok();
     let results = if let Some(locked_op) = &locked_op {
@@ -278,7 +277,7 @@ fn list(
         if subargs.read {
             let mut target = VpdTarget::Device(ndx);
 
-            let rval = vpd_slurp(core, &mut context, &read_op, &mut target);
+            let rval = vpd_slurp(core, &mut context, &hubris, &mut target);
 
             print!(" |\n +--> ");
 
@@ -492,13 +491,14 @@ fn vpd_read_at(
 fn vpd_slurp(
     core: &mut dyn Core,
     context: &mut HiffyContext,
-    op: &idol::IdolOperation,
+    hubris: &HubrisArchive,
     target: &mut VpdTarget,
 ) -> Result<Vec<u8>> {
+    let op = hubris.get_idol_command("Vpd.read")?;
     //
     // First, read in enough to read just the header.
     //
-    let mut vpd = vpd_read_at(core, context, op, target, 0)?;
+    let mut vpd = vpd_read_at(core, context, &op, target, 0)?;
 
     let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
         Ok(reader) => reader,
@@ -528,7 +528,7 @@ fn vpd_slurp(
 
     while vpd.len() < total {
         vpd.extend(
-            vpd_read_at(core, context, op, target, vpd.len())
+            vpd_read_at(core, context, &op, target, vpd.len())
                 .with_context(|| format!("failed to read {total} bytes"))?,
         );
     }
@@ -542,10 +542,9 @@ fn vpd_read(
     subargs: &VpdArgs,
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
-    let op = hubris.get_idol_command("Vpd.read")?;
     let mut target = target(hubris, subargs)?;
 
-    let vpd = vpd_slurp(core, &mut context, &op, &mut target)?;
+    let vpd = vpd_slurp(core, &mut context, &hubris, &mut target)?;
 
     //
     // Now we should have the whole thing!
@@ -623,7 +622,6 @@ fn vpd_lock_all(
 ) -> Result<()> {
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     let op = hubris.get_idol_command("Vpd.is_locked")?;
-    let read_op = hubris.get_idol_command("Vpd.read")?;
     let lock_op = hubris.get_idol_command("Vpd.permanently_lock")?;
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
 
@@ -665,7 +663,7 @@ fn vpd_lock_all(
 
             Ok(Base(Bool(false))) => {
                 let mut target = VpdTarget::Device(ndx);
-                match vpd_slurp(core, &mut context, &read_op, &mut target) {
+                match vpd_slurp(core, &mut context, &hubris, &mut target) {
                     Ok(_) => {
                         humility::msg!("will lock VPD {ndx}");
                         locking.push(ndx);
