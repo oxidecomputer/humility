@@ -60,6 +60,7 @@ pub struct HubrisManifest {
     pub sensors: Vec<HubrisSensor>,
     pub sockets: Vec<HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
+    pub max_refdes_len: usize,
 }
 
 impl HubrisManifest {
@@ -1069,6 +1070,10 @@ impl HubrisArchive {
             for device in devices {
                 let refdes =
                     device.refdes.as_ref().map(HubrisConfigRefdes::to_string);
+                if let Some(ref refdes) = refdes {
+                    self.manifest.max_refdes_len =
+                        self.manifest.max_refdes_len.max(refdes.len());
+                }
                 let name = &device.device;
 
                 let (controller, port) = match &device.bus {
