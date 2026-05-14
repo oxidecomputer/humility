@@ -143,9 +143,8 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
 }
 fn validate(context: &mut ExecutionContext) -> Result<()> {
     let subargs = ValidateArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
     let hubris = &context.cli.archive()?;
-    let core = &mut *context.cli.attach_live_booted(hubris)?;\
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let refdes_len = hubris
         .manifest
         .fmt_meta
