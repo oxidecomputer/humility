@@ -33,11 +33,11 @@ use rustc_demangle::demangle;
 use scroll::{IOwrite, Pwrite};
 use zerocopy::{FromBytes, IntoBytes};
 
-const OXIDE_NT_NAME: &str = "Oxide Computer Company";
-const OXIDE_NT_BASE: u32 = 0x1de << 20;
-const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
-const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
-const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
+pub const OXIDE_NT_NAME: &str = "Oxide Computer Company";
+pub const OXIDE_NT_BASE: u32 = 0x1de << 20;
+pub const OXIDE_NT_HUBRIS_ARCHIVE: u32 = OXIDE_NT_BASE + 1;
+pub const OXIDE_NT_HUBRIS_REGISTERS: u32 = OXIDE_NT_BASE + 2;
+pub const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
 const MAX_HUBRIS_VERSION: u32 = 11;
 
@@ -752,9 +752,6 @@ pub struct HubrisArchive {
     // Manual stack pushes before a syscall
     syscall_pushes: HashMap<u32, Option<Vec<ARMRegister>>>,
 
-    // Current registers (if a dump)
-    registers: HashMap<ARMRegister, u32>,
-
     // Modules: text address to module
     modules: BTreeMap<u32, HubrisModule>,
 
@@ -836,8 +833,9 @@ pub struct HubrisArchive {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
-    pub fn new() -> Result<HubrisArchive> {
-        Ok(Self {
+    #[expect(clippy::new_without_default)]
+    pub fn new() -> HubrisArchive {
+        Self {
             archive: Vec::new(),
             imageid: None,
             manifest: Default::default(),
@@ -846,7 +844,6 @@ impl HubrisArchive {
             task_dump: None,
             instrs: HashMap::new(),
             syscall_pushes: HashMap::new(),
-            registers: HashMap::new(),
             modules: BTreeMap::new(),
             tasks: HashMap::new(),
             frames: HashMap::new(),
@@ -871,7 +868,7 @@ impl HubrisArchive {
             definitions: MultiMap::new(),
             namespaces: Namespaces::new(),
             extern_regions: ExternRegions::new(),
-        })
+        }
     }
 
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
@@ -1711,36 +1708,9 @@ impl HubrisArchive {
         flash.chip
     }
 
-    fn load_registers(&mut self, r: &[u8]) -> Result<()> {
-        if !r.len().is_multiple_of(8) {
-            bail!("bad length {} in registers note", r.len());
-        }
-
-        for (i, chunk) in r.chunks_exact(8).enumerate() {
-            let (id, val) = chunk.split_at(4);
-            // We unwrap here because it can only fail if the length is wrong,
-            // but we've explicitly broken a chunk of 8 into two chunks of 4,
-            // so a failure here would mean this code has been changed.
-            let id = u32::from_le_bytes(id.try_into().unwrap());
-            let val = u32::from_le_bytes(val.try_into().unwrap());
-
-            let reg = match ARMRegister::from_u32(id) {
-                Some(r) => r,
-                None => {
-                    // This can totally happen if we encounter a future coredump
-                    // where we decided to store, say, additional MSRs or a
-                    // floating point register. Since this version of Humility
-                    // doesn't understand them, we'll just skip it.
-                    continue;
-                }
-            };
-
-            if self.registers.insert(reg, val).is_some() {
-                bail!("duplicate register {} ({}) at offset {}", reg, id, i * 8);
-            }
-        }
-
-        Ok(())
+    /// Destroys the `HubrisArchive`, returning the raw archive data
+    pub fn take_raw_archive(self) -> Vec<u8> {
+        self.archive
     }
 
     pub fn load_dump(
@@ -1772,9 +1742,6 @@ impl HubrisArchive {
 
                                 self.archive = note.desc.to_vec();
                             }
-                            OXIDE_NT_HUBRIS_REGISTERS => {
-                                self.load_registers(note.desc)?;
-                            }
                             OXIDE_NT_HUBRIS_TASK => {
                                 match DumpTask::read_from_prefix(note.desc) {
                                     Ok((task, _)) => {
@@ -1787,6 +1754,9 @@ impl HubrisArchive {
                                         );
                                     }
                                 }
+                            }
+                            OXIDE_NT_HUBRIS_REGISTERS => {
+                                // unused when building the archive, but valid
                             }
                             _ => {
                                 bail!("unrecognized note 0x{:x}", note.n_type);
@@ -2772,10 +2742,6 @@ impl HubrisArchive {
         }
 
         Ok(regions)
-    }
-
-    pub fn dump_registers(&self) -> HashMap<ARMRegister, u32> {
-        self.registers.clone()
     }
 
     pub fn registers(
@@ -6578,7 +6544,9 @@ impl HubrisPrintFormat {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisValidate {
+    /// Validate that the archive matches
     ArchiveMatch,
+    /// Validate that the archive matches and the system has booted
     Booted,
 }
 

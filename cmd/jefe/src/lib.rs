@@ -98,7 +98,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_jefe::{JefeRequest, send_request};
 use std::num::NonZeroU32;
 
@@ -132,10 +132,9 @@ struct JefeArgs {
 }
 
 fn jefe(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = JefeArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let request = if subargs.fault {
         JefeRequest::Fault
@@ -172,14 +171,5 @@ fn jefe(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: JefeArgs::command(),
-        name: "jefe",
-        run: jefe,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: JefeArgs::command(), name: "jefe", run: jefe }
 }

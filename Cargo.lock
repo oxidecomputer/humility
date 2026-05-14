@@ -1625,6 +1625,8 @@ dependencies = [
  "anyhow",
  "clap",
  "humility-core",
+ "humility-net-core",
+ "humility-probes-core",
  "indexmap 2.14.0",
  "parse_int",
  "regex",
@@ -1640,8 +1642,6 @@ dependencies = [
  "clap",
  "humility-cli",
  "humility-core",
- "humility-net-core",
- "humility-probes-core",
 ]
 
 [[package]]

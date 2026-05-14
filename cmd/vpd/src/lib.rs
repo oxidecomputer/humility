@@ -109,8 +109,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Dumper, Validate};
+use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -728,9 +727,9 @@ fn vpd_lock_all(
 }
 
 fn vpd(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = VpdArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     if subargs.list {
         list(hubris, core, &subargs)?;
@@ -750,14 +749,5 @@ fn vpd(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: VpdArgs::command(),
-        name: "vpd",
-        run: vpd,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: VpdArgs::command(), name: "vpd", run: vpd }
 }

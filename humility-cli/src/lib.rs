@@ -7,7 +7,12 @@ pub mod env;
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, ArgMatches, Parser, parser::ValueSource};
 use env::Environment;
-use humility::{core::Core, hubris::HubrisArchive, msg, net, warn};
+use humility::{
+    core::Core,
+    hubris::{HubrisArchive, HubrisArchiveDoneness, HubrisValidate},
+    msg, net, warn,
+};
+use std::time::Duration;
 
 #[derive(Parser, Debug, Clone)]
 #[clap(
@@ -162,11 +167,220 @@ impl Cli {
             None => Ok(subargs_serial.map(|s| s.to_owned())),
         }
     }
+
+    /// Loads an archive based on CLI arguments
+    ///
+    /// If `--archive` is specified, then the archive is loaded (and cooked to
+    /// the desired doneness).
+    ///
+    /// If `--dump` is specified, then the dump is loaded and the archive is
+    /// extracted from the dump (then cooked to the desired doneness).
+    ///
+    /// If neither is specified, then a default archive is returned, which
+    /// returns `false` from [`HubrisArchive::loaded`].
+    // TODO(matt): this is terrible and I want to make it go away, but it won't
+    // happen quite yet.
+    fn load_archive_with_doneness(
+        &self,
+        doneness: HubrisArchiveDoneness,
+    ) -> Result<HubrisArchive> {
+        let mut hubris = HubrisArchive::new();
+        if let Some(archive) = &self.archive {
+            hubris.load(archive, doneness).with_context(|| {
+                format!("failed to load archive \"{}\"", archive)
+            })?;
+        } else if let Some(dump) = &self.dump {
+            hubris
+                .load_dump(dump, doneness)
+                .with_context(|| format!("failed to load dump \"{}\"", dump))?;
+        }
+        Ok(hubris)
+    }
+
+    /// Attaches to a live core
+    ///
+    /// Uses the network-based core if `--ip` is provided in the [`Cli`];
+    /// otherwises attaches to a probe.
+    pub fn attach_live(
+        &self,
+        hubris: Option<&HubrisArchive>,
+        validate: Option<HubrisValidate>,
+    ) -> Result<Box<dyn Core>> {
+        let mut core = if self.dump.is_some() {
+            bail!("must be run against a live system");
+        } else if let Some(ip) = &self.ip {
+            let Some(hubris) = hubris else {
+                bail!("cannot attach over net without Hubris archive");
+            };
+            let timeout = Duration::from_millis(self.timeout as u64);
+            humility_net_core::attach_net(*ip, hubris, timeout)
+        } else {
+            self.attach_probe(hubris)
+        }?;
+        if let Some(validate) = validate {
+            let Some(hubris) = hubris else {
+                bail!("cannot validate without Hubris archive");
+            };
+            hubris.validate(&mut *core, validate)?;
+        }
+        Ok(core)
+    }
+
+    /// Attaches to a live core and check that the firmware id matches
+    ///
+    /// This is a thin wrapper around [`attach_live`](Self::attach_live)
+    pub fn attach_live_match(
+        &self,
+        hubris: &HubrisArchive,
+    ) -> Result<Box<dyn Core>> {
+        self.attach_live(Some(hubris), Some(HubrisValidate::ArchiveMatch))
+    }
+
+    /// Attaches to a live core and check that it has booted
+    ///
+    /// This is a thin wrapper around [`attach_live`](Self::attach_live)
+    pub fn attach_live_booted(
+        &self,
+        hubris: &HubrisArchive,
+    ) -> Result<Box<dyn Core>> {
+        self.attach_live(Some(hubris), Some(HubrisValidate::Booted))
+    }
+
+    #[cfg(feature = "probes")]
+    pub fn attach_probe(
+        &self,
+        hubris: Option<&HubrisArchive>,
+    ) -> Result<Box<dyn Core>> {
+        let probe = match self.probe.as_deref() {
+            Some("archive") => {
+                if let Some(hubris) = hubris {
+                    return humility::core::attach_archive(hubris);
+                } else {
+                    bail!("cannot specify `--probe=archive` with no archive");
+                }
+            }
+            Some(p) => p,
+            None => "auto",
+        };
+
+        let chip = hubris.and_then(|h| h.chip());
+        humility_probes_core::attach_to_chip(probe, chip.as_deref(), self.speed)
+    }
+
+    #[cfg(not(feature = "probes"))]
+    pub fn attach_probe(
+        &self,
+        _hubris: Option<&HubrisArchive>,
+    ) -> Result<Box<dyn Core>> {
+        bail!("Did not build with probes!");
+    }
+
+    /// Attaches to a either a dump or a live system, depending on CLI arguments
+    ///
+    /// The `hubris` archive is mandatory if `validate` is `Some(..)` or if we
+    /// are trying to connect over the network.
+    pub fn attach_live_or_dump(
+        &self,
+        hubris: Option<&HubrisArchive>,
+        validate: Option<HubrisValidate>,
+    ) -> Result<Box<dyn Core>> {
+        let mut core = if let Some(dump) = &self.dump {
+            humility::core::attach_dump(dump)?
+        } else if let Some(ip) = &self.ip {
+            let Some(hubris) = hubris else {
+                bail!("cannot connect over the network without archive");
+            };
+            let timeout = Duration::from_millis(self.timeout as u64);
+            humility_net_core::attach_net(*ip, hubris, timeout)?
+        } else {
+            self.attach_probe(hubris)?
+        };
+        if let Some(validate) = validate {
+            let Some(hubris) = hubris else {
+                bail!("cannot validate without Hubris archive");
+            };
+            hubris.validate(&mut *core, validate)?;
+        }
+        Ok(core)
+    }
+
+    /// Attaches to a dump or a live system and checks that it has booted
+    ///
+    /// This is a thin wrapper around
+    /// [`attach_live_or_dump`](Self::attach_live_or_dump).
+    pub fn attach_live_or_dump_booted(
+        &self,
+        hubris: &HubrisArchive,
+    ) -> Result<Box<dyn Core>> {
+        self.attach_live_or_dump(Some(hubris), Some(HubrisValidate::Booted))
+    }
+
+    /// Attaches to a dump or a live system and validates the version
+    ///
+    /// This is a thin wrapper around
+    /// [`attach_live_or_dump`](Self::attach_live_or_dump).
+    pub fn attach_live_or_dump_match(
+        &self,
+        hubris: &HubrisArchive,
+    ) -> Result<Box<dyn Core>> {
+        self.attach_live_or_dump(
+            Some(hubris),
+            Some(HubrisValidate::ArchiveMatch),
+        )
+    }
+
+    /// Attaches to a dump
+    ///
+    /// Reads from the `--dump` argument to pick a target file
+    pub fn attach_dump(&self) -> Result<Box<dyn Core>> {
+        let core = if let Some(dump) = &self.dump {
+            humility::core::attach_dump(dump)?
+        } else {
+            bail!("must be run against a dump");
+        };
+        Ok(core)
+    }
+
+    /// Returns a [`HubrisArchive`] built from the context's [`Cli`] data
+    ///
+    /// If loading the archive fails, then an error is returned
+    pub fn archive(&self) -> Result<HubrisArchive> {
+        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Cook)?;
+        if !a.loaded() {
+            if self.environment.is_some() {
+                bail!("must provide a Hubris archive, dump, or name");
+            } else {
+                bail!("must provide a Hubris archive or dump");
+            }
+        }
+        Ok(a)
+    }
+
+    /// Tries to load an archive
+    ///
+    /// Returns `Ok(None)` if no archive was specified at the CLI.
+    pub fn try_archive(&self) -> Result<Option<HubrisArchive>> {
+        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Cook)?;
+        if !a.loaded() { Ok(None) } else { Ok(Some(a)) }
+    }
+
+    /// Returns a raw archive built from the context's [`Cli`] data
+    ///
+    /// The raw archive is equivalent to the bytes of a ZIP file
+    ///
+    /// If loading the archive fails, then an error is returned
+    pub fn raw_archive(&self) -> Result<Vec<u8>> {
+        let a = self.load_archive_with_doneness(HubrisArchiveDoneness::Raw)?;
+        let out = a.take_raw_archive();
+        if out.is_empty() {
+            bail!("no archive available");
+        } else {
+            Ok(out)
+        }
+    }
 }
 
 pub struct ExecutionContext {
-    pub core: Option<Box<dyn Core>>,
-    pub archive: Option<HubrisArchive>,
     pub environment: Option<Environment>,
     pub cli: Cli,
 }
@@ -354,6 +568,6 @@ impl ExecutionContext {
             }
         }
 
-        Ok(ExecutionContext { core: None, archive: None, environment, cli })
+        Ok(ExecutionContext { environment, cli })
     }
 }

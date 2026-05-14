@@ -2,11 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Command as ClapCommand;
-use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use std::collections::HashMap;
 
 //
@@ -47,85 +46,5 @@ pub fn subcommand(
         .get(cmd)
         .with_context(|| format!("command {} not found", cmd))?;
 
-    let mut hubris = HubrisArchive::new().context("failed to initialize")?;
-
-    let (archive, doneness) = match &command.kind {
-        CommandKind::Attached { archive, .. } => {
-            (*archive, HubrisArchiveDoneness::Cook)
-        }
-        CommandKind::Unattached { archive, .. } => {
-            (*archive, HubrisArchiveDoneness::Cook)
-        }
-        CommandKind::Detached { archive, .. } => {
-            (*archive, HubrisArchiveDoneness::Cook)
-        }
-        CommandKind::Raw => (Archive::Required, HubrisArchiveDoneness::Raw),
-    };
-
-    if archive != Archive::Ignored {
-        if let Some(archive) = &context.cli.archive {
-            hubris.load(archive, doneness).with_context(|| {
-                format!("failed to load archive \"{}\"", archive)
-            })?;
-        } else if let Some(dump) = &context.cli.dump {
-            hubris
-                .load_dump(dump, doneness)
-                .with_context(|| format!("failed to load dump \"{}\"", dump))?;
-        }
-    }
-
-    if archive == Archive::Required
-        && doneness == HubrisArchiveDoneness::Cook
-        && !hubris.loaded()
-    {
-        if context.cli.environment.is_some() {
-            bail!("must provide a Hubris archive, dump, or name");
-        }
-
-        bail!("must provide a Hubris archive or dump");
-    }
-
-    context.archive = Some(hubris);
-
-    let run = command.run;
-
-    match &command.kind {
-        CommandKind::Attached { attach, validate, .. } => {
-            humility_cmd::attach(context, *attach, *validate, |context| {
-                (run)(context)
-            })
-        }
-        CommandKind::Unattached { archive } => {
-            if let Some(h) = &context.archive
-                && context.core.is_none()
-                && *archive == Archive::Required
-            {
-                // we'll try both `attach_dump` and `attach_archive` for maximum
-                // flexibility; they're allowed to fail, in which case the
-                // `core` will be left as `None`.
-                context.core = context
-                    .cli
-                    .dump
-                    .as_ref()
-                    .and_then(|dump| humility::core::attach_dump(dump, h).ok())
-                    .or_else(|| humility::core::attach_archive(h).ok());
-                if context.core.is_none() {
-                    humility::warn!("could not attach to dump or archive")
-                }
-            }
-            (run)(context)
-        }
-        CommandKind::Detached { .. } => {
-            if context.cli.dump.is_some() {
-                bail!("cannot specify a dump for {} command", cmd);
-            }
-
-            if context.cli.probe.is_some() {
-                bail!("cannot specify probe for {} command", cmd);
-            }
-
-            (run)(context)
-        }
-        CommandKind::Raw => (run)(context),
-    }
+    (command.run)(context)
 }

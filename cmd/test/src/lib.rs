@@ -96,8 +96,7 @@ use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use std::fmt;
 use std::fs::OpenOptions;
@@ -163,10 +162,9 @@ impl fmt::Display for TestResult {
 }
 
 fn test(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = TestArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     hubris.validate(core, HubrisValidate::Booted)?;
 
@@ -288,14 +286,5 @@ fn test(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: TestArgs::command(),
-        name: "test",
-        run: test,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: TestArgs::command(), name: "test", run: test }
 }

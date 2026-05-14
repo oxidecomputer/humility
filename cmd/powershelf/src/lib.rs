@@ -19,8 +19,7 @@ use hif::*;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 
@@ -131,10 +130,9 @@ fn interpret_raw_variant(variant: &str, payload: &[u8]) {
 }
 
 fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = PowershelfArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let operation = lookup_operation_enum(hubris)?;
 
@@ -216,10 +214,5 @@ pub fn init() -> Command {
         app: PowershelfArgs::command(),
         name: "powershelf",
         run: powershelf_run,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
     }
 }

@@ -20,7 +20,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, CommandFactory, Parser};
 
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use sha2::{Digest, Sha256};
 use std::fs::File;
@@ -93,10 +93,10 @@ struct HashArgs {
 }
 
 fn hash(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-
     let subargs = HashArgs::try_parse_from(&context.cli.cmd)?;
-    let archive = context.archive.as_ref().unwrap();
+    let archive = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(archive)?;
+
     let mut context = HiffyContext::new(archive, core, subargs.timeout)?;
     let scratch_size = context.scratch_size();
     let mut ops = vec![];
@@ -474,14 +474,5 @@ fn print_hash(buf: &[u8]) {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: HashArgs::command(),
-        name: "hash",
-        run: hash,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: HashArgs::command(), name: "hash", run: hash }
 }

@@ -8,11 +8,4 @@ anyhow.workspace = true
 clap.workspace = true
 
 humility.workspace = true
-humility-net-core.workspace = true
 humility-cli.workspace = true
-
-humility-probes-core = { workspace = true, optional = true }
-
-[features]
-default = ["probes"]
-probes = ["humility-probes-core"]

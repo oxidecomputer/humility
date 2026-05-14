@@ -191,7 +191,7 @@ use colored::Colorize;
 use humility::hubris::*;
 use humility::{core::Core, warn};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolArgument, IdolOperation};
@@ -1903,8 +1903,8 @@ impl PmbusWorker for IdolWorker<'_> {
 
 #[allow(clippy::print_literal)]
 fn pmbus(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_ref().unwrap();
     let subargs = PmbusArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
 
     if subargs.list {
         println!(
@@ -1939,11 +1939,7 @@ fn pmbus(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    let core = &mut **context.core.as_mut().unwrap();
-
-    if core.is_dump() {
-        bail!("can only list PMBus devices on a dump");
-    }
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
 
     let timeout = subargs.timeout;
 
@@ -2247,14 +2243,5 @@ fn pmbus_main(
 }
 
 pub fn init() -> Command {
-    Command {
-        app: PmbusArgs::command(),
-        name: "pmbus",
-        run: pmbus,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: PmbusArgs::command(), name: "pmbus", run: pmbus }
 }

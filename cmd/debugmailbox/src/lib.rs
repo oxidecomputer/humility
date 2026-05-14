@@ -32,7 +32,7 @@ use anyhow::{Context, Result, bail};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use probe_rs::{
     DebugProbeError, DebugProbeSelector, Probe,
     architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
@@ -464,6 +464,5 @@ pub fn init() -> Command {
         app: DebugMailboxArgs::command(),
         name: "debugmailbox",
         run: debugmailboxcmd,
-        kind: CommandKind::Unattached { archive: Archive::Ignored },
     }
 }

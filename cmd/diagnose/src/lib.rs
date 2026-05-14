@@ -19,24 +19,14 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::CommandKind;
-use humility_cmd::{Archive, Attach, Command, Validate};
+use humility_cmd::Command;
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use std::num::NonZeroU32;
 use std::time::Duration;
 
 /// Command registration.
 pub fn init() -> Command {
-    Command {
-        app: DiagnoseArgs::command(),
-        name: "diagnose",
-        run: diagnose,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: DiagnoseArgs::command(), name: "diagnose", run: diagnose }
 }
 
 #[derive(Parser, Debug)]
@@ -83,10 +73,9 @@ fn section(title: &str) {
 }
 
 fn diagnose(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = DiagnoseArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     section("Initial Inspection");
 
