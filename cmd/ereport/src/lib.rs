@@ -11,7 +11,7 @@ use humility::{
     hubris::{HubrisArchive, HubrisTask},
 };
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 
 use anyhow::{Context, Result, anyhow};
 use std::collections::VecDeque;
@@ -337,10 +337,9 @@ fn pretty_print_value(value: &ciborium::Value, indent: usize, is_key: bool) {
 }
 
 fn ereport(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = EreportArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     match subargs.cmd {
         EreportCmd::Dump { flags } => ereport_print(hubris, core, flags),
@@ -348,14 +347,5 @@ fn ereport(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: EreportArgs::command(),
-        name: "ereport",
-        run: ereport,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: EreportArgs::command(), name: "ereport", run: ereport }
 }

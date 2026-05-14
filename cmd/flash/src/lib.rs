@@ -24,7 +24,7 @@ use clap::{CommandFactory, Parser};
 use humility::{core::Core, hubris::*};
 use humility_auxflash::AuxFlashHandler;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -77,7 +77,7 @@ struct FlashArgs {
 /// _not_ reflash).  The core is left halted if we should reflash and is running
 /// otherwise.
 fn validate(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     subargs: &FlashArgs,
 ) -> Result<()> {
@@ -124,7 +124,7 @@ fn validate(
 ///
 /// The core is halted when this function exits.
 fn get_image_state(
-    hubris: &mut HubrisArchive,
+    hubris: &HubrisArchive,
     core: &mut dyn humility::core::Core,
     full_check: bool,
     verbose: bool,
@@ -189,7 +189,7 @@ fn get_image_state(
 }
 
 fn flashcmd(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_mut().unwrap();
+    let hubris = &context.cli.archive()?;
     let subargs = FlashArgs::try_parse_from(&context.cli.cmd)?;
 
     let config = hubris.load_flash_config()?;
@@ -345,12 +345,7 @@ fn program_auxflash(
 }
 
 pub fn init() -> Command {
-    Command {
-        app: FlashArgs::command(),
-        name: "flash",
-        run: flashcmd,
-        kind: CommandKind::Unattached { archive: Archive::Required },
-    }
+    Command { app: FlashArgs::command(), name: "flash", run: flashcmd }
 }
 
 /// While it may sound like the impetus for an OSHA investigation at the North

@@ -172,7 +172,6 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, CommandKind, Validate};
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 
@@ -195,18 +194,6 @@ struct MonorailArgs {
 
     #[clap(subcommand)]
     cmd: Command,
-}
-
-impl MonorailArgs {
-    /// Checks whether the given subcommand requires an attached target
-    /// (i.e. a microcontroller running Hubris, connected through a debugger)
-    fn requires_target(&self) -> bool {
-        !matches!(
-            &self.cmd,
-            Command::Info { .. }
-                | Command::Phy { cmd: PhyCommand::Info { .. }, .. }
-        )
-    }
 }
 
 #[derive(Parser, Debug)]
@@ -1066,9 +1053,41 @@ fn monorail_counters(
 }
 
 fn monorail(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_mut().unwrap();
     let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
+
+    // Early exit for subcommands which don't require an archive or Core
+    match &subargs.cmd {
+        Command::Info { reg, value } => {
+            let reg = parse_reg_or_addr(reg)?;
+            println!("Register {reg}");
+            println!("Register address: {:#x}", reg.address());
+
+            if let Some(v) = value {
+                println!("Register value: {:#x}", v);
+                pretty_print_fields(*v, reg.fields(), 0);
+            } else {
+                println!("  bits |    field");
+                for (f, field) in reg.fields() {
+                    let range = if field.hi > field.lo + 1 {
+                        format!(" {}:{}", field.hi - 1, field.lo)
+                    } else {
+                        format!("{}", field.lo)
+                    };
+                    println!(" {range:>5} | {f}");
+                }
+            }
+            return Ok(());
+        }
+        Command::Phy { cmd: PhyCommand::Info { reg } } => {
+            let reg: PhyRegister = reg.parse()?;
+            println!("PHY register: {reg}");
+            return Ok(());
+        }
+        _ => (),
+    }
+
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
     match subargs.cmd {
         Command::Info { .. } => panic!("Called monorail with info subcommand"),
@@ -1146,78 +1165,10 @@ fn monorail(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn monorail_get_info(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_ref().unwrap();
-    assert!(!hubris.loaded());
-    let subargs = MonorailArgs::try_parse_from(&context.cli.cmd)?;
-    match subargs.cmd {
-        Command::Info { reg, value } => {
-            let reg = parse_reg_or_addr(&reg)?;
-            println!("Register {reg}");
-            println!("Register address: {:#x}", reg.address());
-
-            if let Some(v) = value {
-                println!("Register value: {:#x}", v);
-                pretty_print_fields(v, reg.fields(), 0);
-            } else {
-                println!("  bits |    field");
-                for (f, field) in reg.fields() {
-                    let range = if field.hi > field.lo + 1 {
-                        format!(" {}:{}", field.hi - 1, field.lo)
-                    } else {
-                        format!("{}", field.lo)
-                    };
-                    println!(" {range:>5} | {f}");
-                }
-            }
-        }
-        Command::Phy { cmd: PhyCommand::Info { reg } } => {
-            let reg: PhyRegister = reg.parse()?;
-            println!("PHY register: {reg}");
-        }
-        _ => panic!("Called monorail_get_info without info subcommand"),
-    }
-    Ok(())
-}
-
 pub fn init() -> humility_cmd::Command {
-    // We do a bonus parse of the command-line arguments here to see if we're
-    // doing a `monorail info` subcommand, which doesn't require a Hubris image
-    // or attached device; skipping those steps improves runtime (especially
-    // in debug builds)
-
-    let subcmd_attached = humility_cmd::Command {
+    humility_cmd::Command {
         app: MonorailArgs::command(),
         name: "monorail",
         run: monorail,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    };
-
-    let subcmd_unattached = humility_cmd::Command {
-        app: MonorailArgs::command(),
-        name: "monorail",
-        run: monorail_get_info,
-        kind: CommandKind::Unattached { archive: Archive::Ignored },
-    };
-
-    // If there's a `monorail` subcommand, then attempt to parse the subcmd
-    let mut args = std::env::args().skip_while(|a| a != "monorail").peekable();
-    if args.peek().is_some() {
-        if let Ok(args) = MonorailArgs::try_parse_from(args) {
-            if !args.requires_target() {
-                return subcmd_unattached;
-            }
-        } else {
-            // If the argument parse failed, then return the faster subcommand
-            // so that we don't have to attach to a device then fail parsing
-            // again.
-            return subcmd_unattached;
-        }
     }
-
-    subcmd_attached
 }

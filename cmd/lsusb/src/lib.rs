@@ -10,7 +10,7 @@
 use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Command, CommandKind};
+use humility_cmd::Command;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -141,10 +141,5 @@ fn list1(
 }
 
 pub fn init() -> Command {
-    Command {
-        app: Args::command(),
-        name: "lsusb",
-        run: lsusb,
-        kind: CommandKind::Unattached { archive: Archive::Ignored },
-    }
+    Command { app: Args::command(), name: "lsusb", run: lsusb }
 }

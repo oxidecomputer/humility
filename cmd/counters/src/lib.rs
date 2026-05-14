@@ -206,7 +206,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
@@ -324,12 +324,11 @@ const LIST_HINT: &str = "use `humility counters list` to list all \
     available counters";
 
 fn counters(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
+    let hubris = &context.cli.archive()?;
     let subargs = CountersArgs::try_parse_from(&context.cli.cmd)?;
 
     if let Some(Subcmd::Ipc(ipc)) = subargs.command {
+        let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
         return ipc.ipc_counter_dump(hubris, core);
     }
     let name = subargs.name();
@@ -428,6 +427,7 @@ fn counters(context: &mut ExecutionContext) -> Result<()> {
     }
 
     let mut json: IndexMap<&str, IndexMap<_, _>> = IndexMap::new();
+    let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
     for (t, ctrs) in counters {
         // Try not to use `?` here, because it causes one bad counter to make
         // them all unavailable. Instead, construct an iterator of
@@ -623,14 +623,5 @@ fn hint() -> impl std::fmt::Display {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: CountersArgs::command(),
-        name: "counters",
-        run: counters,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Match,
-        },
-    }
+    Command { app: CountersArgs::command(), name: "counters", run: counters }
 }

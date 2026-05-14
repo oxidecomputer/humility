@@ -106,7 +106,7 @@ use clap::{CommandFactory, Parser};
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_doppel as doppel;
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -468,32 +468,34 @@ fn host_last_post_code(
 
 fn host(context: &mut ExecutionContext) -> Result<()> {
     let subargs = HostArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
+    let hubris = &context.cli.archive()?;
 
     match subargs.cmd {
-        HostCommand::BootFail => host_boot_fail(hubris, core),
-        HostCommand::LastPanic => host_last_panic(hubris, core),
-        HostCommand::Cosmo { cmd } => match cmd {
-            CosmoHostCommand::PostCodes { raw } => {
-                host_post_codes(hubris, core, raw)
+        // BootFail and LastPanic just need to read memory, so they can attach
+        // to either a live system or a dump.
+        HostCommand::BootFail => {
+            let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+            host_boot_fail(hubris, core)
+        }
+        HostCommand::LastPanic => {
+            let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
+            host_last_panic(hubris, core)
+        }
+        HostCommand::Cosmo { cmd } => {
+            // All cosmo subcommands require making hiffy calls on a live system
+            let core = &mut *context.cli.attach_live_booted(hubris)?;
+            match cmd {
+                CosmoHostCommand::PostCodes { raw } => {
+                    host_post_codes(hubris, core, raw)
+                }
+                CosmoHostCommand::LastPostCode { raw } => {
+                    host_last_post_code(hubris, core, raw)
+                }
             }
-            CosmoHostCommand::LastPostCode { raw } => {
-                host_last_post_code(hubris, core, raw)
-            }
-        },
+        }
     }
 }
 
 pub fn init() -> Command {
-    Command {
-        app: HostArgs::command(),
-        name: "host",
-        run: host,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Match,
-        },
-    }
+    Command { app: HostArgs::command(), name: "host", run: host }
 }

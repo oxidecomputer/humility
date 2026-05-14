@@ -132,7 +132,7 @@
 use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Command, CommandKind};
+use humility_cmd::Command;
 use humility_log::msg;
 use std::fs::File;
 use std::io::Cursor;
@@ -154,8 +154,7 @@ struct ExtractArgs {
 }
 
 fn extract(context: &mut ExecutionContext) -> Result<()> {
-    let hubris = context.archive.as_ref().unwrap();
-    let archive = hubris.archive();
+    let archive = context.cli.raw_archive()?;
     let subargs = ExtractArgs::try_parse_from(&context.cli.cmd)?;
 
     if subargs.list {
@@ -234,10 +233,5 @@ fn extract(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: ExtractArgs::command(),
-        name: "extract",
-        run: extract,
-        kind: CommandKind::Raw,
-    }
+    Command { app: ExtractArgs::command(), name: "extract", run: extract }
 }

@@ -314,9 +314,9 @@ impl UnrawTermiosGuard {
 }
 
 pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
     let subargs = UartConsoleArgs::try_parse_from(&context.cli.cmd)?;
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = UartConsoleHandler::new(
         hubris,
         core,

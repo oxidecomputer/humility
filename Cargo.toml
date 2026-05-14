@@ -113,8 +113,8 @@ humility = { path = "./humility-core", package = "humility-core" }
 humility-arch-arm = { path = "./humility-arch-arm" }
 humility-auxflash = { path = "./humility-auxflash" }
 humility-cortex = { path = "./humility-arch-cortex" }
-humility-cmd = { path = "./humility-cmd", default-features = false }
-humility-cli = { path = "./humility-cli" }
+humility-cmd = { path = "./humility-cmd" }
+humility-cli = { path = "./humility-cli", default-features = false }
 humility-dump-agent = { path = "./humility-dump-agent" }
 humility-doppel = { path = "./humility-doppel" }
 humility-hiffy = { path = "./humility-hiffy" }

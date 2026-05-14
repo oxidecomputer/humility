@@ -31,7 +31,7 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use humility::hubris::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use std::{collections::HashSet, convert::TryInto};
 
 #[derive(Parser, Debug)]
@@ -44,9 +44,8 @@ struct StackmarginArgs {
 #[rustfmt::skip::macros(println, bail)]
 fn stackmargin(context: &mut ExecutionContext) -> Result<()> {
     let subargs = StackmarginArgs::try_parse_from(&context.cli.cmd)?;
-
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
 
     let valid_tasks = if subargs.tasks.is_empty() {
         None
@@ -167,10 +166,5 @@ pub fn init() -> Command {
         app: StackmarginArgs::command(),
         name: "stackmargin",
         run: stackmargin,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Booted,
-        },
     }
 }

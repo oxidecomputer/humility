@@ -43,9 +43,11 @@ use anyhow::{Result, bail};
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 
+use humility::core::Core;
+use humility::hubris::HubrisArchive;
 use humility::reflect::*;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
 
@@ -87,14 +89,11 @@ struct NetArgs {
     cmd: NetCommand,
 }
 
-fn net_ip(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
-
-    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
+fn net_ip(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    mut hiffy_context: HiffyContext,
+) -> Result<()> {
     let op = hubris.get_idol_command("Net.get_mac_address")?;
 
     let value = humility_hiffy::hiffy_call(
@@ -146,14 +145,11 @@ pub fn mac_to_ip6(mac: [u8; 6]) -> String {
     out
 }
 
-fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
-
-    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
+fn net_mac_table(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    mut hiffy_context: HiffyContext,
+) -> Result<()> {
     let op_mac_count = hubris.get_idol_command("Net.read_ksz8463_mac_count")?;
 
     // We need to make two HIF calls:
@@ -271,14 +267,11 @@ fn net_mac_table(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-fn net_status(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
-
-    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
+fn net_status(
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    mut hiffy_context: HiffyContext,
+) -> Result<()> {
     let op = hubris.get_idol_command("Net.management_link_status")?;
 
     let value = humility_hiffy::hiffy_call(
@@ -349,17 +342,12 @@ fn net_status(context: &mut ExecutionContext) -> Result<()> {
 }
 
 fn net_counters(
-    context: &mut ExecutionContext,
+    hubris: &HubrisArchive,
+    core: &mut dyn Core,
+    mut hiffy_context: HiffyContext,
     table: bool,
     diagram: bool,
 ) -> Result<()> {
-    let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
-
-    let hubris = context.archive.as_ref().unwrap();
-    let core = &mut **context.core.as_mut().unwrap();
-
-    let mut hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
-
     let op = hubris.get_idol_command("Net.management_counters")?;
 
     let value = humility_hiffy::hiffy_call(
@@ -576,26 +564,21 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
 fn net(context: &mut ExecutionContext) -> Result<()> {
     let subargs = NetArgs::try_parse_from(&context.cli.cmd)?;
 
+    let hubris = &context.cli.archive()?;
+    let core = &mut *context.cli.attach_live_booted(hubris)?;
+    let hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
+
     match subargs.cmd {
-        NetCommand::Mac => net_mac_table(context)?,
-        NetCommand::Ip => net_ip(context)?,
-        NetCommand::Status => net_status(context)?,
+        NetCommand::Mac => net_mac_table(hubris, core, hiffy_context)?,
+        NetCommand::Ip => net_ip(hubris, core, hiffy_context)?,
+        NetCommand::Status => net_status(hubris, core, hiffy_context)?,
         NetCommand::Counters { table, diagram } => {
-            net_counters(context, table, diagram)?
+            net_counters(hubris, core, hiffy_context, table, diagram)?
         }
     }
     Ok(())
 }
 
 pub fn init() -> Command {
-    Command {
-        app: NetArgs::command(),
-        name: "net",
-        run: net,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::LiveOnly,
-            validate: Validate::Booted,
-        },
-    }
+    Command { app: NetArgs::command(), name: "net", run: net }
 }

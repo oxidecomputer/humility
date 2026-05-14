@@ -15,7 +15,7 @@ use clap::{CommandFactory, Parser};
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use std::io::Read;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
@@ -86,7 +86,7 @@ fn rebootleby(context: &mut ExecutionContext) -> Result<()> {
         bail!("Re-run with appropriate flag");
     }
 
-    let core = &mut **context.core.as_mut().unwrap();
+    let mut core = context.cli.attach_probe(None)?;
     let mut flash = FlashHack { core: &mut *core };
 
     humility::msg!("Connected to core.");
@@ -139,16 +139,7 @@ fn rebootleby(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: Rebootleby::command(),
-        name: "rebootleby",
-        run: rebootleby,
-        kind: CommandKind::Attached {
-            archive: Archive::Ignored,
-            attach: Attach::LiveOnly,
-            validate: Validate::None,
-        },
-    }
+    Command { app: Rebootleby::command(), name: "rebootleby", run: rebootleby }
 }
 
 // The undocumented registers. These look remarkably similar to the

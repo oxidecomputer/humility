@@ -68,7 +68,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
 use humility_cli::ExecutionContext;
-use humility_cmd::{Archive, Attach, Command, CommandKind, Validate};
+use humility_cmd::Command;
 use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
@@ -233,10 +233,8 @@ fn taskname<'a>(
 // an attribute to a macro invoction, so we have to put it here instead.
 #[allow(clippy::print_literal)]
 fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
-    let core = &mut **context.core.as_mut().unwrap();
-    let hubris = context.archive.as_ref().unwrap();
-
     let subargs = RingbufArgs::try_parse_from(&context.cli.cmd)?;
+    let hubris = &context.cli.archive()?;
 
     let mut ringbufs = vec![];
 
@@ -292,6 +290,7 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
+    let core = &mut *context.cli.attach_live_or_dump_match(hubris)?;
     for (v, def) in ringbufs {
         // Try not to use `?` here, because it causes one bad ringbuf to make
         // them all unavailable.
@@ -317,14 +316,5 @@ fn ringbuf(context: &mut ExecutionContext) -> Result<()> {
 }
 
 pub fn init() -> Command {
-    Command {
-        app: RingbufArgs::command(),
-        name: "ringbuf",
-        run: ringbuf,
-        kind: CommandKind::Attached {
-            archive: Archive::Required,
-            attach: Attach::Any,
-            validate: Validate::Match,
-        },
-    }
+    Command { app: RingbufArgs::command(), name: "ringbuf", run: ringbuf }
 }

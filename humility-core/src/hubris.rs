@@ -799,8 +799,9 @@ pub struct HubrisArchive {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
-    pub fn new() -> Result<HubrisArchive> {
-        Ok(Self {
+    #[expect(clippy::new_without_default)]
+    pub fn new() -> HubrisArchive {
+        Self {
             archive: Vec::new(),
             imageid: None,
             manifest: Default::default(),
@@ -834,7 +835,7 @@ impl HubrisArchive {
             definitions: MultiMap::new(),
             namespaces: Namespaces::new(),
             extern_regions: ExternRegions::new(),
-        })
+        }
     }
 
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
@@ -1687,6 +1688,11 @@ impl HubrisArchive {
         }
 
         Ok(())
+    }
+
+    /// Destroys the `HubrisArchive`, returning the raw archive data
+    pub fn take_raw_archive(self) -> Vec<u8> {
+        self.archive
     }
 
     pub fn load_dump(
@@ -6524,7 +6530,9 @@ impl HubrisPrintFormat {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum HubrisValidate {
+    /// Validate that the archive matches
     ArchiveMatch,
+    /// Validate that the archive matches and the system has booted
     Booted,
 }
 
