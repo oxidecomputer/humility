@@ -60,7 +60,7 @@ pub struct HubrisManifest {
     pub sensors: Vec<HubrisSensor>,
     pub sockets: Vec<HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
-    pub max_refdes_len: usize,
+    pub fmt_meta: ManifestFormatMetadata,
 }
 
 impl HubrisManifest {
@@ -69,6 +69,13 @@ impl HubrisManifest {
             anyhow!("couldn't find socket with owner {:?}", task)
         })
     }
+}
+
+/// Bonus fields which are not actually part of the Hubris manifest, but which
+/// may make formatting bits of it easier.
+#[derive(Default, Debug, Serialize)]
+pub struct ManifestFormatMetadata {
+    pub max_refdes_len: usize,
 }
 
 //
@@ -1071,8 +1078,8 @@ impl HubrisArchive {
                 let refdes =
                     device.refdes.as_ref().map(HubrisConfigRefdes::to_string);
                 if let Some(ref refdes) = refdes {
-                    self.manifest.max_refdes_len =
-                        self.manifest.max_refdes_len.max(refdes.len());
+                    self.manifest.fmt_meta.max_refdes_len =
+                        self.manifest.fmt_meta.max_refdes_len.max(refdes.len());
                 }
                 let name = &device.device;
 

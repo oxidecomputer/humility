@@ -172,8 +172,11 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
 
     const REFDES_HDR: &str = "REFDES";
     const NO_REFDES: &str = "???";
-    let refdes_len =
-        manifest.max_refdes_len.max(NO_REFDES.len()).max(REFDES_HDR.len());
+    let refdes_len = manifest
+        .fmt_meta
+        .max_refdes_len
+        .max(NO_REFDES.len())
+        .max(REFDES_HDR.len());
 
     if !manifest.i2c_devices.is_empty() {
         println!(
