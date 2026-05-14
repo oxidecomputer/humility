@@ -170,6 +170,11 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
         }
     }
 
+    const REFDES_HDR: &str = "REFDES";
+    const NO_REFDES: &str = "???";
+    let refdes_len =
+        manifest.max_refdes_len.max(NO_REFDES.len()).max(REFDES_HDR.len());
+
     if !manifest.i2c_devices.is_empty() {
         println!(
             "{:>12} => {} device{}",
@@ -178,11 +183,9 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             if manifest.i2c_devices.len() != 1 { "s" } else { "" }
         );
 
-        const REFDES_LEN: usize = 8; // TODO(eliza): ITS 8 RIGHT LOL?
-
         println!(
-            "{:>19} {:2} {:2} {} {} {:REFDES_LEN$} {:13} {}",
-            "ID", "C", "P", "MUX", "ADDR", "REFDES", "DEVICE", "DESCRIPTION"
+            "{:>19} {:2} {:2} {} {} {REFDES_HDR:refdes_len$} {:13} {}",
+            "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION"
         );
 
         for (ndx, device) in manifest.i2c_devices.iter().enumerate() {
@@ -193,13 +196,13 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             };
 
             println!(
-                "{:>19} {:2} {:2} {:3} 0x{:02x} {:REFDES_LEN$} {:13} {}",
+                "{:>19} {:2} {:2} {:3} 0x{:02x} {:refdes_len$} {:13} {}",
                 ndx,
                 device.controller,
                 device.port.name,
                 mux,
                 device.address,
-                device.refdes.as_deref().unwrap_or("???"),
+                device.refdes.as_deref().unwrap_or(NO_REFDES),
                 device.device,
                 device.description
             );
@@ -232,15 +235,19 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
             manifest.sensors.len(),
             if manifest.sensors.len() > 1 { "s" } else { "" }
         );
-        println!("{:>19} {:23} {:11} {}", "ID", "NAME", "DEVICE", "KIND");
+        println!(
+            "{:>19} {:23} {:11} {REFDES_HDR:refdes_len$} {}",
+            "ID", "NAME", "DEVICE", "KIND"
+        );
 
         for (ndx, s) in manifest.sensors.iter().enumerate() {
             let device = match &s.device {
                 HubrisSensorDevice::I2c(ndx) => format!("i2c id={}", ndx),
                 HubrisSensorDevice::Other(dev, _) => dev.to_string(),
             };
+            let refdes = s.refdes.as_deref().unwrap_or(NO_REFDES);
             println!(
-                "                {:3} {:23} {:11} {}",
+                "                {:3} {:23} {:11} {refdes:refdes_len$} {}",
                 ndx, s.name, device, s.kind,
             );
         }
