@@ -105,6 +105,7 @@ fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
     let ip = context
         .cli
         .ip
+        .clone()
         // TODO(eliza): I wonder if there's some way to make `clap` enforce that
         // an optional global argument is required, so that it prints a prettier
         // error message here?
@@ -114,8 +115,11 @@ fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
             )
         })?;
 
-    let mut client =
-        Client::new(ip, subargs.port, Duration::from_millis(subargs.timeout))?;
+    let mut client = Client::new(
+        ip.0?,
+        subargs.port,
+        Duration::from_millis(subargs.timeout),
+    )?;
 
     // We can generalize this when we have more than one command defined.
     match subargs.cmd {
