@@ -71,7 +71,7 @@ pub struct Cli {
     /// HUMILITY_IP environment variable. Run "humility doc" for more
     /// information on running Humility over a network.
     #[clap(long, short, group = "hubris")]
-    pub ip: Option<net::ScopedV6Addr>,
+    pub ip: Option<net::ScopedV6AddrResult>,
 
     /// Hubris environment file. Thie may also be set via the
     /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
@@ -179,7 +179,7 @@ impl Cli {
                 bail!("cannot attach over net without Hubris archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)
         } else {
             self.attach_probe(hubris)
         }?;
@@ -257,7 +257,7 @@ impl Cli {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)?
+            humility_net_core::attach_net(ip.0.clone()?, hubris, timeout)?
         } else {
             self.attach_probe(hubris)?
         };
