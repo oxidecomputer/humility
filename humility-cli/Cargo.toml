@@ -10,7 +10,6 @@ anyhow.workspace = true
 clap.workspace = true
 indexmap.workspace = true
 parse_int.workspace = true
-regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

@@ -1629,7 +1629,6 @@ dependencies = [
  "humility-probes-core",
  "indexmap 2.14.0",
  "parse_int",
- "regex",
  "serde",
  "serde_json",
 ]

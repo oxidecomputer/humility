@@ -121,53 +121,6 @@ pub struct Cli {
 }
 
 impl Cli {
-    /// Extracts and returns the probe serial name
-    ///
-    /// We can get the serial name from two different places:
-    /// - If the global `--probe` argument is of the form `vid:pid:serial`, then we
-    ///   can extract the serial name.  This is also the case if we're using an
-    ///   environment file, which populates `args.probe` automatically.
-    /// - If the `--serial` argument is given in this command's subarguments,
-    ///   then we use it directly.
-    ///
-    /// This function checks both sources, returns an error if they conflict, and
-    /// returns the (optional) serial name otherwise.
-    pub fn get_probe_serial(
-        &self,
-        subargs_serial: Option<&str>,
-    ) -> Result<Option<String>> {
-        match &self.probe {
-            Some(probe) => {
-                let re = regex::Regex::new(
-                    r"^([[:xdigit:]]+):([[:xdigit:]]+):([[:xdigit:]]+)$",
-                )
-                .unwrap();
-                if let Some(cap) = re.captures(probe) {
-                    if subargs_serial.is_some() {
-                        if self.target.is_some() {
-                            bail!(
-                                "Cannot specify probe serial number with both \
-                                 environment and `--serial`"
-                            );
-                        } else {
-                            bail!(
-                                "Cannot specify probe serial number with both \
-                                 `--probe` and `--serial`"
-                            );
-                        }
-                    }
-                    Ok(Some(cap.get(3).unwrap().as_str().to_string()))
-                } else {
-                    bail!(
-                        "`--probe` argument must be of the form
-                         `vid:pid:serial`, not {probe}",
-                    );
-                }
-            }
-            None => Ok(subargs_serial.map(|s| s.to_owned())),
-        }
-    }
-
     /// Loads an archive based on CLI arguments
     ///
     /// If `--archive` is specified, then the archive is loaded (and cooked to
