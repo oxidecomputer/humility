@@ -66,7 +66,7 @@ pub struct Cli {
     /// HUMILITY_IP environment variable. Run "humility doc" for more
     /// information on running Humility over a network.
     #[clap(long, short, group = "hubris")]
-    pub ip: Option<net::ScopedV6Addr>,
+    pub ip: Option<net::ScopedV6AddrResult>,
 
     /// Hubris environment file. Thie may also be set via the
     /// HUMILITY_ENVIRONMENT environment variable. Run "humility doc" for
@@ -165,12 +165,12 @@ impl Cli {
     ) -> Result<Box<dyn Core>> {
         let mut core = if self.dump.is_some() {
             bail!("must be run against a live system");
-        } else if let Some(ip) = &self.ip {
+        } else if let Some(ip) = self.ip.clone() {
             let Some(hubris) = hubris else {
                 bail!("cannot attach over net without Hubris archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)
+            humility_net_core::attach_net(ip.0?, hubris, timeout)
         } else {
             self.attach_probe(hubris)
         }?;
@@ -243,12 +243,12 @@ impl Cli {
     ) -> Result<Box<dyn Core>> {
         let mut core = if let Some(dump) = &self.dump {
             humility::core::attach_dump(dump)?
-        } else if let Some(ip) = &self.ip {
+        } else if let Some(ip) = self.ip.clone() {
             let Some(hubris) = hubris else {
                 bail!("cannot connect over the network without archive");
             };
             let timeout = Duration::from_millis(self.timeout as u64);
-            humility_net_core::attach_net(*ip, hubris, timeout)?
+            humility_net_core::attach_net(ip.0?, hubris, timeout)?
         } else {
             self.attach_probe(hubris)?
         };

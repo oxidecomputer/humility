@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use anyhow::{Context, Result, bail};
 use std::{fmt, net::Ipv6Addr, str::FromStr};
 
 /// An IPv6 address, plus a scope ID.
@@ -24,18 +23,17 @@ pub struct ScopedV6Addr {
 const SCOPE_DELIM: char = '%';
 
 impl FromStr for ScopedV6Addr {
-    type Err = anyhow::Error;
+    type Err = ScopedV6AddrError;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim();
         let Some((ip, scope)) = s.rsplit_once(SCOPE_DELIM) else {
-            bail!(
-                "missing scope ID (e.g. \"{SCOPE_DELIM}en0\") in IPv6 address"
-            )
+            return Err(ScopedV6AddrError::MissingScopeId);
         };
-        let ip = ip
-            .parse()
-            .with_context(|| format!("{ip:?} is not a valid IPv6 address"))?;
+        let ip = ip.parse().map_err(|err| ScopedV6AddrError::ParseFailed {
+            ip: ip.to_owned(),
+            err,
+        })?;
         let scopeid = decode_iface(scope)?;
         Ok(ScopedV6Addr { ip, scopeid })
     }
@@ -54,7 +52,7 @@ impl fmt::Debug for ScopedV6Addr {
     }
 }
 
-pub fn decode_iface(iface: &str) -> Result<u32> {
+pub fn decode_iface(iface: &str) -> Result<u32, CouldNotFindInterface> {
     #[cfg(not(windows))]
     use libc::if_nametoindex;
     #[cfg(windows)]
@@ -68,7 +66,41 @@ pub fn decode_iface(iface: &str) -> Result<u32> {
         .parse()
         .unwrap_or_else(|_| unsafe { if_nametoindex(iface_c.as_ptr()) });
     if scopeid == 0 {
-        bail!("Could not find interface for {}", iface);
+        Err(CouldNotFindInterface(iface.to_owned()))
+    } else {
+        Ok(scopeid)
     }
-    Ok(scopeid)
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("could not find interface for {0}")]
+pub struct CouldNotFindInterface(String);
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum ScopedV6AddrError {
+    #[error(transparent)]
+    CouldNotFindInterface(#[from] CouldNotFindInterface),
+    #[error("{ip:?} is not a valid IPv6 address")]
+    ParseFailed {
+        ip: String,
+        #[source]
+        err: std::net::AddrParseError,
+    },
+    #[error("missing scope ID (e.g. \"{SCOPE_DELIM}en0\") in IPv6 address")]
+    MissingScopeId,
+}
+
+/// Wrapper which contains a parsed `ScopedV6Addr` or a parse error
+///
+/// This allows us to defer handling the parse error for an `--ip` argument if
+/// it's not actually needed.
+#[derive(Clone, Debug)]
+pub struct ScopedV6AddrResult(pub Result<ScopedV6Addr, ScopedV6AddrError>);
+
+impl FromStr for ScopedV6AddrResult {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.parse())) // defer to ScopedV6Addr::from_str
+    }
 }
