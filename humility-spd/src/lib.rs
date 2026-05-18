@@ -114,24 +114,8 @@ pub fn spd_lookup(
                 out
             }
             Value::Struct(s) => {
-                let Some(Value::Array(a)) = s.get("spd_data") else {
-                    bail!("expected `spd_data` to be an array");
-                };
-                let mut out = Vec::with_capacity(a.len());
-                for a in a.iter() {
-                    let Value::Array(a) = a else {
-                        bail!("expected array-of-arrays");
-                    };
-                    let mut chunk = Vec::with_capacity(a.len());
-                    for v in a.iter() {
-                        let Value::Base(Base::U8(b)) = v else {
-                            bail!("expected `u8` array");
-                        };
-                        chunk.push(*b);
-                    }
-                    out.push(SpdData(chunk))
-                }
-                out
+                let out = s.field::<Vec<Vec<u8>>>("spd_data")?;
+                out.into_iter().map(SpdData).collect()
             }
             _ => bail!("expected `spd_data` to be an array or struct"),
         };
