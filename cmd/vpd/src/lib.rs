@@ -184,7 +184,7 @@ struct VpdArgs {
     allow_missing: bool,
 }
 
-enum VpdTarget {
+pub enum VpdTarget {
     Device(usize),
     Loopback(fs::File),
 }
@@ -197,6 +197,11 @@ fn vpd_devices(
         .i2c_devices
         .iter()
         .filter(|device| device.device == "at24csw080")
+}
+
+pub struct HubrisVpd {
+    pub i2c: HubrisI2cDevice,
+    pub locked: bool,
 }
 
 pub fn list(
