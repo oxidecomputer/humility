@@ -59,6 +59,7 @@ pub struct HubrisManifest {
     pub sensors: Vec<HubrisSensor>,
     pub sockets: Vec<HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
+    pub fmt_meta: ManifestFormatMetadata,
 }
 
 impl HubrisManifest {
@@ -160,11 +161,13 @@ impl HubrisManifest {
         let mut sensors = vec![];
         let mut i2c_devices = vec![];
         let mut i2c_buses = HubrisI2cBusList(vec![]);
+        let mut max_refdes_len = 0;
         if let Some(ref config) = config.config {
             if let Some(i2c) = config.i2c.as_ref() {
                 let cfg = HubrisManifestI2cConfig::from_config(i2c)?;
                 i2c_buses = cfg.i2c_buses;
                 i2c_devices = cfg.i2c_devices;
+                max_refdes_len = cfg.max_refdes_len;
                 sensors.extend(cfg.sensors);
             }
 
@@ -208,6 +211,7 @@ impl HubrisManifest {
             sensors,
             i2c_buses,
             i2c_devices,
+            fmt_meta: ManifestFormatMetadata { max_refdes_len },
         })
     }
 
@@ -223,6 +227,7 @@ impl HubrisManifest {
                             device.device.clone(),
                             i,
                         ),
+                        refdes: None, // TODO ELIZA FIXME LOL
                     });
                 }
             }
@@ -235,6 +240,7 @@ struct HubrisManifestI2cConfig {
     pub i2c_devices: Vec<HubrisI2cDevice>,
     pub i2c_buses: HubrisI2cBusList,
     pub sensors: Vec<HubrisSensor>,
+    pub max_refdes_len: usize,
 }
 
 impl HubrisManifestI2cConfig {
@@ -243,6 +249,7 @@ impl HubrisManifestI2cConfig {
         let mut i2c_devices = Vec::new();
         let mut sensors = Vec::new();
         let mut buses = HashMap::new();
+        let mut max_refdes_len = 0;
 
         if let Some(ref controllers) = i2c.controllers {
             for controller in controllers {
@@ -322,19 +329,26 @@ impl HubrisManifestI2cConfig {
         let get_sensor = |d: &HubrisConfigI2cDevice,
                           i: usize,
                           ndx: usize,
-                          kind: HubrisSensorKind|
+                          kind: HubrisSensorKind,
+                          refdes: Option<&String>|
          -> Result<HubrisSensor> {
             let name = sensor_name(d, i, &kind)?;
             Ok(HubrisSensor {
                 name,
                 kind,
                 device: HubrisSensorDevice::I2c(ndx),
+                refdes: refdes.cloned(),
             })
         };
 
         if let Some(ref devices) = i2c.devices {
             for device in devices {
                 let name = &device.device;
+                let refdes =
+                    device.refdes.as_ref().map(HubrisConfigRefdes::to_string);
+                if let Some(ref refdes) = refdes {
+                    max_refdes_len = max_refdes_len.max(refdes.len());
+                }
 
                 let (controller, port) = match &device.bus {
                     Some(bus) => match buses.get(&bus) {
@@ -372,6 +386,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::Temperature,
+                            refdes.as_ref(),
                         )?);
                     }
 
@@ -381,6 +396,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::Power,
+                            refdes.as_ref(),
                         )?);
                     }
                     for i in 0..dev_sensors.current {
@@ -389,6 +405,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::Current,
+                            refdes.as_ref(),
                         )?);
                     }
                     for i in 0..dev_sensors.voltage {
@@ -397,6 +414,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::Voltage,
+                            refdes.as_ref(),
                         )?);
                     }
                     for i in 0..dev_sensors.input_current {
@@ -405,6 +423,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::InputCurrent,
+                            refdes.as_ref(),
                         )?);
                     }
                     for i in 0..dev_sensors.input_voltage {
@@ -413,6 +432,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::InputVoltage,
+                            refdes.as_ref(),
                         )?);
                     }
 
@@ -422,6 +442,7 @@ impl HubrisManifestI2cConfig {
                             i,
                             ndx,
                             HubrisSensorKind::Speed,
+                            refdes.as_ref(),
                         )?);
                     }
                 }
@@ -437,11 +458,12 @@ impl HubrisManifestI2cConfig {
                     description: device.description.clone(),
                     class: HubrisI2cDeviceClass::from(device),
                     removable: device.removable.unwrap_or(false),
+                    refdes,
                 });
             }
         }
 
-        Ok(Self { i2c_devices, i2c_buses, sensors })
+        Ok(Self { i2c_devices, i2c_buses, sensors, max_refdes_len })
     }
 }
 
@@ -541,6 +563,13 @@ pub struct HubrisManifestRev {
     pub version: String,
     pub gitrev: Option<String>,
     pub image: Option<String>,
+}
+
+/// Bonus fields which are not actually part of the Hubris manifest, but which
+/// may make formatting bits of it easier.
+#[derive(Default, Debug, Serialize)]
+pub struct ManifestFormatMetadata {
+    pub max_refdes_len: usize,
 }
 
 //
@@ -695,6 +724,7 @@ struct HubrisConfigI2cDevice {
     power: Option<HubrisConfigI2cPower>,
     sensors: Option<HubrisConfigI2cSensors>,
     removable: Option<bool>,
+    refdes: Option<HubrisConfigRefdes>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -835,6 +865,33 @@ pub struct HubrisI2cDevice {
     pub description: String,
     pub class: HubrisI2cDeviceClass,
     pub removable: bool,
+    pub refdes: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum HubrisConfigRefdes {
+    Component(String),
+    Path(Vec<String>),
+}
+
+impl fmt::Display for HubrisConfigRefdes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Component(c) => c.fmt(f)?,
+            Self::Path(pieces) => {
+                let mut pieces = pieces.iter();
+                if let Some(piece) = pieces.next() {
+                    f.write_str(piece)?;
+                    for piece in pieces {
+                        write!(f, "/{piece}")?;
+                    }
+                };
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Deserialize, Debug, PartialEq, Eq, Hash, Serialize)]
@@ -864,6 +921,7 @@ pub struct HubrisSensor {
     pub name: String,
     pub kind: HubrisSensorKind,
     pub device: HubrisSensorDevice,
+    pub refdes: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

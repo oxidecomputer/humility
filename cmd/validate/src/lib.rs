@@ -97,9 +97,18 @@ pub struct ValidateArgs {
     id: Option<usize>,
 }
 
+const REFDES_HDR: &str = "REFDES";
+const NO_REFDES: &str = "???";
+
 fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
+    let refdes_len = hubris
+        .manifest
+        .fmt_meta
+        .max_refdes_len
+        .max(REFDES_HDR.len())
+        .max(NO_REFDES.len());
     println!(
-        "{:2} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "{:2} {REFDES_HDR:refdes_len$} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
         "ID", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
@@ -117,8 +126,9 @@ fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
         };
 
         println!(
-            "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:refdes_len$} {:2} {:2} {:3} 0x{:02x} {:13} {}",
             ndx,
+            device.refdes.as_deref().unwrap_or(NO_REFDES),
             device.controller,
             device.port.name,
             mux,
@@ -136,6 +146,12 @@ fn validate(
 ) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
+    let refdes_len = hubris
+        .manifest
+        .fmt_meta
+        .max_refdes_len
+        .max(REFDES_HDR.len())
+        .max(NO_REFDES.len());
 
     let hargs = if subargs.bus.is_some() || subargs.controller.is_some() {
         Some(I2cArgs::parse(
@@ -196,7 +212,7 @@ fn validate(
     };
 
     println!(
-        "{:2} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
+        "{:2} {REFDES_HDR:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
         "ID", "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
@@ -258,8 +274,9 @@ fn validate(
         };
 
         println!(
-            "{:2} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
+            "{:2} {:refdes_len$} {:11} {:2} {:2} {:3} 0x{:02x} {:13} {}",
             ndx,
+            device.refdes.as_deref().unwrap_or(NO_REFDES),
             result,
             device.controller,
             device.port.name,
