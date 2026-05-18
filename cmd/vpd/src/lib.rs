@@ -107,7 +107,6 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect;
 use humility_cli::ExecutionContext;
 use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
@@ -469,10 +468,9 @@ fn vpd_read_at(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let r = context
-        .idol_result::<reflect::Struct>(op, &results[0])
-        .with_context(|| format!("failed to read at offset {offset}"))?;
-    r.field::<Vec<u8>>("value")
+    context
+        .idol_result::<Vec<u8>>(op, &results[0])
+        .with_context(|| format!("failed to read at offset {offset}"))
 }
 
 fn vpd_slurp(
