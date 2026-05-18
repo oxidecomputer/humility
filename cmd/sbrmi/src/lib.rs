@@ -95,7 +95,6 @@ use colored::Colorize;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect;
 use humility_cli::ExecutionContext;
 use humility_cmd::Command;
 use humility_hiffy::*;
@@ -155,8 +154,7 @@ fn call_cpuid(
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    let result = context.idol_result::<reflect::Struct>(&op, &results[0])?;
-    let registers = result.field::<[u32; 4]>("value")?;
+    let registers = context.idol_result::<[u32; 4]>(&op, &results[0])?;
 
     Ok(CpuIdResult {
         eax: registers[0],
@@ -538,25 +536,11 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    println!(
-        "{:#x?}",
-        context
-            .idol_result::<humility::reflect::Value>(&nthreads, &results[0])?
-    );
     let nthreads = context.idol_result::<u8>(&nthreads, &results[0])?;
-
-    println!(
-        "{:#x?}",
-        context
-            .idol_result::<humility::reflect::Value>(&enabled, &results[1])?
-    );
-    let result =
-        context.idol_result::<reflect::Struct>(&enabled, &results[1])?;
-    let enabled = threadmap(&result.field::<Vec<u8>>("value")?)?;
-
-    let result = context.idol_result::<reflect::Struct>(&alert, &results[2])?;
-    let alert = threadmap(&result.field::<Vec<u8>>("value")?)?;
-
+    let enabled =
+        threadmap(&context.idol_result::<Vec<u8>>(&enabled, &results[1])?)?;
+    let alert =
+        threadmap(&context.idol_result::<Vec<u8>>(&alert, &results[2])?)?;
     let mcg_cap = context.idol_result::<u64>(&mcg_cap, &results[3])?;
 
     if subargs.mca {
