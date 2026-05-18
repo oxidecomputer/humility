@@ -16,19 +16,18 @@
 //!
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::Command;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use std::collections::{BTreeMap, HashSet};
 
 #[derive(Parser, Debug)]
 #[clap(name = "power", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct PowerArgs {
+pub struct PowerArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
@@ -115,8 +114,7 @@ fn phase_currents(
     Ok(())
 }
 
-fn power(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = PowerArgs::try_parse_from(&context.cli.cmd)?;
+fn power(subargs: PowerArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
@@ -307,6 +305,9 @@ fn power(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: PowerArgs::command(), name: "power", run: power }
+pub type Args = PowerArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        power(args, context)
+    }
 }

@@ -12,5 +12,4 @@ parse_int.workspace = true
 probe-rs.workspace = true
 
 humility-cortex.workspace = true
-humility-cmd.workspace = true
 humility-cli.workspace = true

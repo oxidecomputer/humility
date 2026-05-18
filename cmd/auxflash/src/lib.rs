@@ -10,16 +10,15 @@
 //! program auxiliary flash when needed.
 
 use anyhow::Result;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
-use humility_cli::ExecutionContext;
+use humility_cli::{ExecutionContext, HumilitySubcommand};
 
 use humility_auxflash::AuxFlashHandler;
-use humility_cmd::Command;
 
 #[derive(Parser, Debug)]
 #[clap(name = "auxflash", about = env!("CARGO_PKG_DESCRIPTION"))]
-struct AuxFlashArgs {
+pub struct AuxFlashArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
@@ -97,8 +96,10 @@ fn auxflash_status(mut worker: AuxFlashHandler, verbose: bool) -> Result<()> {
     Ok(())
 }
 
-fn auxflash(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = AuxFlashArgs::try_parse_from(&context.cli.cmd)?;
+fn auxflash(
+    subargs: AuxFlashArgs,
+    context: &mut ExecutionContext,
+) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let mut worker = AuxFlashHandler::new(hubris, core, subargs.timeout)?;
@@ -130,6 +131,9 @@ fn auxflash(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: AuxFlashArgs::command(), name: "auxflash", run: auxflash }
+pub type Args = AuxFlashArgs;
+impl HumilitySubcommand for AuxFlashArgs {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        auxflash(args, context)
+    }
 }

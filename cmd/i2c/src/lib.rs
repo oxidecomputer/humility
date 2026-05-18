@@ -91,10 +91,10 @@
 //! ```
 
 use anyhow::{Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use hif::*;
-use humility_cli::ExecutionContext;
-use humility_cmd::{Command, Dumper};
+use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_log::msg;
 
@@ -423,8 +423,7 @@ fn i2c_done(
     Ok(())
 }
 
-fn i2c(context: &mut ExecutionContext) -> Result<()> {
-    let subargs = I2cArgs::try_parse_from(&context.cli.cmd)?;
+fn i2c(subargs: I2cArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
 
     if !subargs.scan
@@ -709,6 +708,9 @@ fn i2c(context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn init() -> Command {
-    Command { app: I2cArgs::command(), name: "i2c", run: i2c }
+pub type Args = I2cArgs;
+impl HumilitySubcommand for Args {
+    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
+        i2c(args, context)
+    }
 }

@@ -22,8 +22,9 @@ version = "0.12.17"
 license = "MPL-2.0"
 
 [build-dependencies]
-cargo_metadata = { workspace = true }
 anyhow = { workspace = true }
+cargo_metadata = { workspace = true }
+heck = { workspace = true }
 
 # Any dependency marked with option is to allow compiling without libusb
 [dependencies]
@@ -32,8 +33,8 @@ hif = { workspace = true }
 spd = { workspace = true }
 humility = { workspace = true }
 humility-cortex = { workspace = true }
-humility-cmd = { workspace = true }
 humility-cli = { workspace = true, default-features = false }
+humility-hexdump = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }
@@ -118,4 +119,3 @@ probes = ["humility-cli/probes", "cmd-reset", "cmd-lsusb", "cmd-flash", "cmd-deb
 [[bin]]
 name = "humility"
 path = "src/main.rs"
-
