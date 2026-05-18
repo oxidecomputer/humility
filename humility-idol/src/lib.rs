@@ -819,15 +819,24 @@ pub fn lookup_reply<'a>(
                 _ => match m.lookup_struct_byname(hubris, ok) {
                     Ok(Some(s)) => Ok(s.goff),
                     _ => {
-                        //
                         // As a last ditch, we look up the REPLY type.  This is
                         // a last effort because it might not be there:  if no
                         // task calls the function, the type will be absent.
-                        //
                         let t = format!("{}_{}_REPLY", iface.name, op);
 
+                        // The generated REPLY type contains a single member
+                        // named "value", which we'll use here if possible
+                        // (instead of the outer wrapper type)
                         match hubris.lookup_struct_byname(&t) {
-                            Ok(s) => Ok(s.goff),
+                            Ok(s) => {
+                                if s.members.len() == 1
+                                    && let Ok(m) = s.lookup_member("value")
+                                {
+                                    Ok(m.goff)
+                                } else {
+                                    Ok(s.goff)
+                                }
+                            }
                             Err(_) => lookup_ok_err(ok),
                         }
                     }
