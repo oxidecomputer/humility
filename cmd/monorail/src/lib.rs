@@ -172,10 +172,10 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
 use humility_cli::ExecutionContext;
-use humility_hiffy::HiffyContext;
+use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
@@ -600,14 +600,9 @@ fn monorail_dump(
         results
             .into_iter()
             .map(move |r| humility_hiffy::hiffy_decode(hubris, &op_read, r))
-            .collect::<Result<Vec<Result<_, _>>>>()?
+            .collect::<Result<Vec<u32>, _>>()?
     };
-    for (i, v) in results.iter().enumerate() {
-        let value = if let Ok(Value::Base(Base::U32(v))) = v {
-            v
-        } else {
-            bail!("Got bad reflected value: expected U32, got {v:?}");
-        };
+    for (i, value) in results.iter().enumerate() {
         let addr = format!("{}", start_address as usize + i * 4);
         // XXX this is inefficient
         match parse_reg_or_addr(&addr) {
@@ -684,7 +679,7 @@ fn monorail_status(
                     hubris, &op_port, r,
                 )
             })
-            .collect::<Result<Vec<Result<_, _>>>>()?;
+            .collect::<Vec<_>>();
         let phy_results = phy_results
             .into_iter()
             .map(move |r| {
@@ -692,7 +687,7 @@ fn monorail_status(
                     hubris, &op_phy, r,
                 )
             })
-            .collect::<Result<Vec<Result<_, _>>>>()?;
+            .collect::<Vec<_>>();
 
         // Decode the port and phy status values into reflect::Value
         port_results.into_iter().zip(phy_results).collect::<Vec<_>>()
@@ -717,19 +712,10 @@ fn monorail_status(
         v => panic!("Expected enum, got {:?}", v),
     };
     // Extracts a device name from a reflected value, e.g. "DEV1G_0"
-    let decode_dev = |value: &Value| match value {
-        Value::Tuple(dev) => {
-            let d = match &dev[0] {
-                Value::Enum(d) => d.disc(),
-                d => panic!("Could not get enum from {:?}", d),
-            };
-            let n = match &dev[1] {
-                Value::Base(Base::U8(n)) => n,
-                d => panic!("Could not get U8 from {:?}", d),
-            };
-            format!("{}_{}", d.to_uppercase(), n)
-        }
-        dev => panic!("Expected tuple, got {:?}", dev),
+    let decode_dev = |dev: &Tuple| -> Result<_> {
+        let d = dev.field::<Enum>(0)?;
+        let n = dev.field::<u8>(1)?;
+        Ok(format!("{}_{}", d.disc().to_uppercase(), n))
     };
 
     let fmt_link = |v: &Value| match v {
@@ -759,20 +745,18 @@ fn monorail_status(
         match port_value {
             Ok(s) => {
                 assert_eq!(s.name(), "PortStatus");
-                let (dev, serdes, mode, speed) = match &s["cfg"] {
-                    Value::Struct(cfg) => {
-                        assert_eq!(cfg.name(), "PortConfig");
-                        let dev = decode_dev(&cfg["dev"]);
-                        let serdes = decode_dev(&cfg["serdes"]);
-                        let (mode, speed) = decode_mode(&cfg["mode"]);
-                        (
-                            dev.replace("DEV", ""),
-                            serdes.replace("SERDES", ""),
-                            mode,
-                            speed,
-                        )
-                    }
-                    v => panic!("Expected Struct, got {:?}", v),
+                let (dev, serdes, mode, speed) = {
+                    let cfg = s.field::<Struct>("cfg")?;
+                    assert_eq!(cfg.name(), "PortConfig");
+                    let dev = decode_dev(&cfg.field("dev")?)?;
+                    let serdes = decode_dev(&cfg.field("serdes")?)?;
+                    let (mode, speed) = decode_mode(&cfg["mode"]);
+                    (
+                        dev.replace("DEV", ""),
+                        serdes.replace("SERDES", ""),
+                        mode,
+                        speed,
+                    )
                 };
                 let fmt_mode = match mode.as_str() {
                     "SGMII" => mode.cyan(),
@@ -791,7 +775,9 @@ fn monorail_status(
                 )
             }
             Err(e) => {
-                if e == "UnconfiguredPort" {
+                if let HiffyError::Hiffy(e) = &e
+                    && e == "UnconfiguredPort"
+                {
                     print!(
                         "{}",
                         "--      --     --      --      --  ".dimmed()
@@ -805,19 +791,17 @@ fn monorail_status(
         match phy_value {
             Ok(s) => {
                 assert_eq!(s.name(), "PhyStatus");
-                let phy_ty = match &s["ty"] {
-                    Value::Enum(e) => e.disc().to_uppercase(),
-                    v => panic!("Expected struct, got {:?}", v),
-                };
                 println!(
                     "{:<6}  {:<8}  {:<10}",
-                    phy_ty,
+                    s.field::<Enum>("ty")?.disc().to_uppercase(),
                     fmt_link(&s["mac_link_up"]),
                     fmt_link(&s["media_link_up"]),
                 )
             }
             Err(e) => {
-                if e == "UnconfiguredPort" || e == "NoPhy" {
+                if let HiffyError::Hiffy(e) = &e
+                    && (e == "UnconfiguredPort" || e == "NoPhy")
+                {
                     println!("{}", "--       --         --".dimmed());
                 } else {
                     println!("Got unexpected error {e}");
@@ -885,7 +869,7 @@ fn monorail_mac_table(
                 hubris, &op, r,
             )
         })
-        .collect::<Result<Vec<Result<_, _>>>>()?;
+        .collect::<Vec<Result<_, _>>>();
 
     let mut mac_table: BTreeMap<u16, Vec<[u8; 6]>> = BTreeMap::new();
     for r in results {
