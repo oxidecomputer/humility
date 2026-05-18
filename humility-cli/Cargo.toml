@@ -13,10 +13,10 @@ parse_int.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-humility.workspace = true
 humility-net-core.workspace = true
-
 humility-probes-core = { workspace = true, optional = true }
+humility.workspace = true
+hubtools.workspace = true
 
 [features]
 default = ["probes"]
