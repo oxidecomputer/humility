@@ -41,7 +41,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum IdolError<'a> {
     CLike(&'a HubrisEnum),
     Complex(&'a HubrisEnum),

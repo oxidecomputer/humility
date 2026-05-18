@@ -5,7 +5,6 @@ edition.workspace = true
 description = "validate presence and operation of devices"
 
 [dependencies]
-hif.workspace = true
 clap.workspace = true
 colored.workspace = true
 anyhow.workspace = true
@@ -14,6 +13,5 @@ idol.workspace = true
 
 humility.workspace = true
 humility-cli.workspace = true
-humility-hiffy.workspace = true
-humility-idol.workspace = true
 humility-i2c.workspace = true
+humility-validate.workspace = true
