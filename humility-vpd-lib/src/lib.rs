@@ -5,7 +5,6 @@
 use hif::Op;
 use humility::core::Core;
 use humility::hubris::{HubrisArchive, HubrisI2cDevice};
-use humility::reflect;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -411,10 +410,9 @@ fn vpd_read_at(
         .run(core, ops.as_slice(), None)
         .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
 
-    let r = context.idol_result::<reflect::Struct>(op, &results[0]).map_err(
-        |_| VpdError::Idol(format!("failed to read at offset {offset}")),
-    )?;
-    r.field::<Vec<u8>>("value").map_err(|e| VpdError::Reflect(format!("{e:?}")))
+    context.idol_result::<Vec<u8>>(op, &results[0]).map_err(|e| {
+        VpdError::Idol(format!("failed to read at offset {offset}: {e:?}"))
+    })
 }
 
 fn vpd_slurp(
