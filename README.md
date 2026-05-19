@@ -3364,9 +3364,6 @@ humility: attached via ST-Link V3
 humility: successfully wrote 56 bytes of VPD
 ```
 
-You can also use a file as a loopback device via `--loopback`, allowing
-you to, e.g., read binary data and format it (i.e., via `--read`).
-
 To lock a VPD device, use the `--lock` command.  This will lock the VPD
 permanently and cannot be undone; subsequent attempts to write to (or
 lock) a locked VPD device will result in an error.  The lock status of
@@ -3378,7 +3375,7 @@ To lock all VPD devices, use the `--lock-all` command.
   already locked
 - If a device is missing or returns an error when its lock status is
   initially checked, the command returns a *non-zero* exit status without
-  locking other devices.  Use `--allow-missing` to disable this behavior.
+  locking other devices.
 - If all devices are present but some devices fail to lock, other devices
   will be locked and the command will return with a *non-zero* exit status.
 

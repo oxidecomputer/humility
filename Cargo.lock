@@ -2543,8 +2543,7 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-hexdump",
- "humility-hiffy",
- "humility-idol",
+ "humility-vpd-lib",
  "idol",
  "indexmap 2.14.0",
  "indicatif",
@@ -2785,6 +2784,23 @@ dependencies = [
  "humility-idol",
  "idol",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "humility-vpd-lib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hif",
+ "humility-core",
+ "humility-hiffy",
+ "humility-idol",
+ "humility-probes-core",
+ "idol",
+ "indicatif",
+ "thiserror 2.0.18",
+ "tlvc",
+ "tlvc-text",
 ]
 
 [[package]]
