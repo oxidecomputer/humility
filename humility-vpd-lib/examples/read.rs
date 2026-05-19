@@ -5,7 +5,7 @@
 use humility::hubris::{HubrisArchive, RawHubrisArchive};
 
 fn main() {
-    let hubris = std::env::var("HUMILITY_ARCHVE").unwrap();
+    let hubris = std::env::var("HUMILITY_ARCHIVE").unwrap();
     let probe = std::env::var("HUMILITY_PROBE").unwrap();
 
     let hubris = RawHubrisArchive::load(&hubris).unwrap();
