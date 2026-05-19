@@ -1,4 +1,8 @@
-use humility::hubris::{RawHubrisArchive, HubrisArchive};
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+use humility::hubris::{HubrisArchive, RawHubrisArchive};
 
 fn main() {
     let hubris = std::env::var("HUMILITY_ARCHVE").unwrap();
@@ -17,10 +21,14 @@ fn main() {
     let results = humility_vpd_lib::vpd_list(&hubris, core, 10000).unwrap();
 
     for r in results {
-        println!("index {} lock status {}", r.ndx, match r.locked {
-            Ok(true) => "locked",
-            Ok(false) => "unlocked",
-            Err(_) => "error"
-        });
+        println!(
+            "index {} lock status {}",
+            r.ndx,
+            match r.locked {
+                Ok(true) => "locked",
+                Ok(false) => "unlocked",
+                Err(_) => "error",
+            }
+        );
     }
 }
