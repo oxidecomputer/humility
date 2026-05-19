@@ -115,7 +115,7 @@ pub fn vpd_list(
 
         let mut target = VpdTarget::Device(ndx);
 
-        let data = vpd_slurp(core, &mut context, &hubris, &mut target);
+        let data = vpd_slurp(core, &mut context, hubris, &mut target);
 
         items.push(VpdEntry { ndx, locked, data, device: device.clone() });
     }
@@ -225,7 +225,7 @@ pub fn vpd_lock(
         .get_idol_command("Vpd.permanently_lock")
         .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
     // Make sure we can read the VPD
-    vpd_slurp(core, &mut context, &hubris, &mut target)?;
+    vpd_slurp(core, &mut context, hubris, &mut target)?;
 
     let index = match target {
         VpdTarget::Device(index) => index,
@@ -264,7 +264,7 @@ pub fn vpd_read(
     let mut context = HiffyContext::new(hubris, core, timeout)
         .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
 
-    vpd_slurp(core, &mut context, &hubris, &mut target)
+    vpd_slurp(core, &mut context, hubris, &mut target)
 }
 
 // Erasing is just writing everything to `0xff`
