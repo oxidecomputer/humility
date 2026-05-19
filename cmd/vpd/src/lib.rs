@@ -102,18 +102,15 @@
 //! - If all devices are present but some devices fail to lock, other devices
 //!   will be locked and the command will return with a *non-zero* exit status.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{ArgGroup, Parser};
-use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, HumilitySubcommand};
 use humility_hexdump::Dumper;
-use humility_hiffy::*;
-use humility_idol::{self as idol, HubrisIdol};
-use indicatif::{ProgressBar, ProgressStyle};
+use humility_vpd_lib::VpdTarget;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::Write;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -183,11 +180,6 @@ pub struct VpdArgs {
     allow_missing: bool,
 }
 
-enum VpdTarget {
-    Device(usize),
-    Loopback(fs::File),
-}
-
 fn vpd_devices(
     hubris: &HubrisArchive,
 ) -> impl Iterator<Item = &HubrisI2cDevice> {
@@ -198,90 +190,48 @@ fn vpd_devices(
         .filter(|device| device.device == "at24csw080")
 }
 
-fn list(
+pub fn list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    timeout: u32,
+    read: bool,
 ) -> Result<()> {
-    let devices = vpd_devices(hubris).collect::<Vec<_>>();
-    let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
-    let read_op = hubris.get_idol_command("Vpd.read")?;
-
-    let locked_op = hubris.get_idol_command("Vpd.is_locked").ok();
-    let results = if let Some(locked_op) = &locked_op {
-        let mut ops = vec![];
-
-        for ndx in 0..devices.len() {
-            let payload = locked_op.payload(&[(
-                "index",
-                idol::IdolArgument::Scalar(ndx as u64),
-            )])?;
-
-            context.idol_call_ops(locked_op, &payload, &mut ops)?;
-        }
-
-        ops.push(Op::Done);
-
-        Some(context.run(core, ops.as_slice(), None)?)
-    } else {
-        println!(
-            "Note: firmware does not support the Vpd.is_locked operation."
-        );
-        println!("Lock status will be missing from the table below.");
-        None
-    };
+    let results = humility_vpd_lib::vpd_list(hubris, core, timeout)?;
 
     println!(
         "{:2} {:>2} {:2} {:3} {:4} {:13} {:25} LOCKED",
         "ID", "C", "P", "MUX", "ADDR", "DEVICE", "DESCRIPTION",
     );
 
-    for (ndx, device) in devices.iter().enumerate() {
-        use humility::reflect::Base::Bool;
-        use humility::reflect::Value::Base;
-
-        let mux = match (device.mux, device.segment) {
+    for device in results {
+        let mux = match (device.device.mux, device.device.segment) {
             (Some(m), Some(s)) => format!("{}:{}", m, s),
             (None, None) => "-".to_string(),
             (_, _) => "?:?".to_string(),
         };
 
-        let result = if let (Some(lop), Some(rs)) = (&locked_op, &results) {
-            Some(context.idol_result(lop, &rs[ndx]))
-        } else {
-            None
+        let locked = match device.locked {
+            Ok(true) => "locked".to_string(),
+            Ok(false) => "unlocked".to_string(),
+            Err(s) => format!("<{s}>"),
         };
 
         println!(
             "{:2} {:2} {:2} {:3} 0x{:02x} {:13} {:25} {}",
-            ndx,
-            device.controller,
-            device.port.name,
+            device.ndx,
+            device.device.controller,
+            device.device.port.name,
             mux,
-            device.address,
-            device.device,
-            device.description,
-            match result {
-                Some(Ok(Base(Bool(val)))) => match val {
-                    false => "unlocked",
-                    true => "locked",
-                }
-                .to_string(),
-                Some(Ok(r)) => format!("<{r:?}>").to_string(),
-                Some(Err(err)) => format!("<{}>", err).to_string(),
-                None => "(too old)".to_string(),
-            },
+            device.device.address,
+            device.device.device,
+            device.device.description,
+            locked
         );
 
-        if subargs.read {
-            let mut target = VpdTarget::Device(ndx);
-
-            let rval = vpd_slurp(core, &mut context, &read_op, &mut target);
-
+        if read {
             print!(" |\n +--> ");
 
-            match rval {
+            match device.data {
                 Ok(vpd) => {
                     match tlvc::TlvcReader::begin(&vpd[..]) {
                         Ok(reader) => {
@@ -351,186 +301,20 @@ fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<VpdTarget> {
     }
 }
 
-fn vpd_write(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &VpdArgs,
-) -> Result<()> {
-    let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
-    let op = hubris.get_idol_command("Vpd.write")?;
-    let target = target(hubris, subargs)?;
-
-    let bytes = if let Some(ref filename) = subargs.write {
-        let file = fs::File::open(filename)?;
-
-        let p = tlvc_text::load(file).with_context(|| {
-            format!("failed to parse {} as VPD input", filename)
-        })?;
-
-        tlvc_text::pack(&p)
-    } else {
-        vec![0xffu8; 1024]
-    };
-
-    let target = match target {
-        VpdTarget::Device(target) => target,
-        VpdTarget::Loopback(mut file) => {
-            file.write_all(&bytes)?;
-            return Ok(());
-        }
-    };
-
-    let mut all_ops = vec![];
-
-    for (offset, b) in bytes.iter().enumerate() {
-        let mut ops = vec![];
-        let payload = op.payload(&[
-            ("index", idol::IdolArgument::Scalar(target as u64)),
-            ("offset", idol::IdolArgument::Scalar(offset as u64)),
-            ("contents", idol::IdolArgument::Scalar(*b as u64)),
-        ])?;
-
-        context.idol_call_ops(&op, &payload, &mut ops)?;
-        all_ops.push(ops);
-    }
-
-    let nops = (context.text_size() / context.ops_size(&all_ops[0])?) - 1;
-
-    if nops == 0 {
-        bail!("text size is too small for a single write!");
-    }
-
-    let mut offset = 0;
-
-    let bar = ProgressBar::new(bytes.len() as u64);
-
-    bar.set_style(ProgressStyle::default_bar().template(if subargs.erase {
-        "humility: erasing VPD [{bar:30}] {bytes}/{total_bytes}"
-    } else {
-        "humility: writing VPD [{bar:30}] {bytes}/{total_bytes}"
-    })?);
-
-    for chunk in all_ops.chunks(nops) {
-        let mut ops = chunk.iter().flatten().copied().collect::<Vec<Op>>();
-        ops.push(Op::Done);
-
-        let results = context.run(core, ops.as_slice(), None)?;
-
-        for (o, result) in results.iter().enumerate() {
-            context.idol_result::<()>(&op, result).with_context(|| {
-                format!("failed to write VPD at offset {}", offset + o)
-            })?;
-        }
-
-        offset += results.len();
-
-        bar.set_position(offset as u64);
-    }
-
-    bar.finish_and_clear();
-
-    if subargs.erase {
-        humility::msg!("successfully erased VPD");
-    } else {
-        humility::msg!("successfully wrote {offset} bytes of VPD");
-    }
-
-    Ok(())
-}
-
-fn vpd_read_at(
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    target: &mut VpdTarget,
-    offset: usize,
-) -> Result<Vec<u8>> {
-    let target = match target {
-        VpdTarget::Device(target) => *target,
-        VpdTarget::Loopback(file) => {
-            let mut buffer = vec![];
-            file.seek(SeekFrom::Start(offset as u64))?;
-            file.read_to_end(&mut buffer)?;
-            return Ok(buffer);
-        }
-    };
-
-    let payload = op.payload(&[
-        ("index", idol::IdolArgument::Scalar(target as u64)),
-        ("offset", idol::IdolArgument::Scalar(offset as u64)),
-    ])?;
-
-    let mut ops = vec![];
-
-    context.idol_call_ops(op, &payload, &mut ops)?;
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-
-    context
-        .idol_result::<Vec<u8>>(op, &results[0])
-        .with_context(|| format!("failed to read at offset {offset}"))
-}
-
-fn vpd_slurp(
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    target: &mut VpdTarget,
-) -> Result<Vec<u8>> {
-    //
-    // First, read in enough to read just the header.
-    //
-    let mut vpd = vpd_read_at(core, context, op, target, 0)?;
-
-    let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
-        Ok(reader) => reader,
-        Err(err) => bail!("{:?}", err),
-    };
-
-    //
-    // If this isn't a header, see if it's all 0xff -- in which case we
-    // will suggest that the part is unprogrammed.
-    //
-    let header = match reader.read_header() {
-        Ok(header) => header,
-        Err(err) => match vpd.iter().find(|&b| *b != 0xffu8) {
-            Some(_) => {
-                bail!("bad header: {:x?}", err);
-            }
-            None => {
-                bail!("VPD appears to be unprogrammed");
-            }
-        },
-    };
-
-    //
-    // And now go back and read everything.
-    //
-    let total = header.total_len_in_bytes();
-
-    while vpd.len() < total {
-        vpd.extend(
-            vpd_read_at(core, context, op, target, vpd.len())
-                .with_context(|| format!("failed to read {total} bytes"))?,
-        );
-    }
-
-    Ok(vpd[..total].to_vec())
+enum OutputOption {
+    Tlvc,
+    Raw,
+    Binary(String),
 }
 
 fn vpd_read(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    subargs: &VpdArgs,
+    target: VpdTarget,
+    timeout: u32,
+    output: OutputOption,
 ) -> Result<()> {
-    let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
-    let op = hubris.get_idol_command("Vpd.read")?;
-    let mut target = target(hubris, subargs)?;
-
-    let vpd = vpd_slurp(core, &mut context, &op, &mut target)?;
+    let vpd = humility_vpd_lib::vpd_read(hubris, core, target, timeout)?;
 
     //
     // Now we should have the whole thing!
@@ -542,171 +326,21 @@ fn vpd_read(
         }
     };
 
-    if subargs.lock {
-        //
-        // We can only get here because we are doing the read as part of
-        // a `--lock` operation.
-        //
-        assert!(!subargs.read);
-    } else if subargs.raw {
-        let dumper = Dumper::new();
-        dumper.dump(&vpd, 0);
-    } else if let Some(output) = &subargs.binary {
-        let mut file = fs::File::create(output)?;
-        file.write_all(&vpd)?;
-    } else {
-        let p = tlvc_text::dump(reader);
-        tlvc_text::save(std::io::stdout(), &p)?;
-        println!();
-    }
-
-    Ok(())
-}
-
-fn vpd_lock(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &VpdArgs,
-) -> Result<()> {
-    let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
-
-    let op = hubris.get_idol_command("Vpd.permanently_lock")?;
-    let index = match target(hubris, subargs)? {
-        VpdTarget::Device(index) => index,
-        _ => {
-            bail!("can only lock a physical device");
+    match output {
+        OutputOption::Raw => {
+            let dumper = Dumper::new();
+            dumper.dump(&vpd, 0);
         }
-    };
-
-    vpd_read(hubris, core, subargs).context("can't lock VPD")?;
-
-    let payload =
-        op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
-
-    let mut ops = vec![];
-
-    context.idol_call_ops(&op, &payload, &mut ops)?;
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-
-    context
-        .idol_result::<()>(&op, &results[0])
-        .with_context(|| format!("failed to lock {index}"))?;
-
-    humility::msg!("successfully locked VPD");
-
-    Ok(())
-}
-
-fn vpd_lock_all(
-    hubris: &HubrisArchive,
-    core: &mut dyn Core,
-    subargs: &VpdArgs,
-) -> Result<()> {
-    let timeout = std::time::Duration::from_millis(subargs.timeout);
-    let mut context = HiffyContext::new(hubris, core, timeout)?;
-    let op = hubris.get_idol_command("Vpd.is_locked")?;
-    let read_op = hubris.get_idol_command("Vpd.read")?;
-    let lock_op = hubris.get_idol_command("Vpd.permanently_lock")?;
-    let devices = vpd_devices(hubris).collect::<Vec<_>>();
-
-    let mut ops = vec![];
-    let mut locking = vec![];
-
-    //
-    // First, determine those devices that are already locked...
-    //
-    for ndx in 0..devices.len() {
-        let payload =
-            op.payload(&[("index", idol::IdolArgument::Scalar(ndx as u64))])?;
-
-        context.idol_call_ops(&op, &payload, &mut ops)?;
-    }
-
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-    let mut locked = 0;
-    let mut any_missing = false;
-
-    for ((ndx, _), r) in devices.iter().enumerate().zip(results.iter()) {
-        use humility::reflect::Base::Bool;
-        use humility::reflect::Value::Base;
-
-        let result = context.idol_result(&op, r);
-
-        match result {
-            Ok(Base(Bool(true))) => {
-                humility::msg!("skipping VPD {ndx}: already locked");
-                locked += 1;
-            }
-
-            Err(err) => {
-                humility::warn!("skipping VPD {ndx}: {err:?}");
-                any_missing = true;
-            }
-
-            Ok(Base(Bool(false))) => {
-                let mut target = VpdTarget::Device(ndx);
-                match vpd_slurp(core, &mut context, &read_op, &mut target) {
-                    Ok(_) => {
-                        humility::msg!("will lock VPD {ndx}");
-                        locking.push(ndx);
-                    }
-
-                    Err(err) => {
-                        humility::warn!("skipping VPD {ndx}: {err:?}");
-                        any_missing = true;
-                    }
-                }
-            }
-
-            Ok(r) => {
-                humility::warn!("skipping {ndx}: unknown result: {r:?}");
-                any_missing = true;
-            }
+        OutputOption::Binary(output) => {
+            let mut file = fs::File::create(output)?;
+            file.write_all(&vpd)?;
+        }
+        OutputOption::Tlvc => {
+            let p = tlvc_text::dump(reader);
+            tlvc_text::save(std::io::stdout(), &p)?;
+            println!();
         }
     }
-
-    let mut ops = vec![];
-
-    if locking.is_empty() {
-        if locked == devices.len() {
-            humility::msg!("all VPDs are already locked");
-            return Ok(());
-        }
-
-        bail!("no VPDs to lock");
-    } else if any_missing && !subargs.allow_missing {
-        bail!("some VPDs are missing; use `--allow-missing` to continue")
-    }
-
-    for ndx in &locking {
-        let payload = lock_op
-            .payload(&[("index", idol::IdolArgument::Scalar(*ndx as u64))])?;
-
-        context.idol_call_ops(&lock_op, &payload, &mut ops)?;
-    }
-
-    ops.push(Op::Done);
-
-    let results = context.run(core, ops.as_slice(), None)?;
-    let mut success = 0;
-
-    for (ndx, r) in locking.iter().zip(results.iter()) {
-        context
-            .idol_result::<()>(&lock_op, r)
-            .with_context(|| format!("failed to lock VPD {ndx}"))?;
-        success += 1;
-    }
-
-    if success != locking.len() {
-        bail!("failed to lock some VPDs");
-    }
-
-    humility::msg!("successfully locked {} VPDs", success);
 
     Ok(())
 }
@@ -714,17 +348,38 @@ fn vpd_lock_all(
 fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
+    let target = target(hubris, &subargs)?;
 
     if subargs.list {
-        list(hubris, core, &subargs)?;
-    } else if subargs.write.is_some() || subargs.erase {
-        vpd_write(hubris, core, &subargs)?;
+        list(hubris, core, subargs.timeout, subargs.read)?;
+    } else if let Some(path) = subargs.write {
+        humility_vpd_lib::vpd_write(
+            hubris,
+            core,
+            target,
+            subargs.timeout,
+            path.into(),
+        )?;
+    } else if subargs.erase {
+        humility_vpd_lib::vpd_erase(hubris, core, target, subargs.timeout)?;
     } else if subargs.read {
-        vpd_read(hubris, core, &subargs)?;
+        let options = if subargs.raw {
+            OutputOption::Raw
+        } else if let Some(s) = subargs.binary {
+            OutputOption::Binary(s)
+        } else {
+            OutputOption::Tlvc
+        };
+        vpd_read(hubris, core, target, subargs.timeout, options)?;
     } else if subargs.lock {
-        vpd_lock(hubris, core, &subargs)?;
+        humility_vpd_lib::vpd_lock(hubris, core, target, subargs.timeout)?;
     } else if subargs.lock_all {
-        vpd_lock_all(hubris, core, &subargs)?;
+        humility_vpd_lib::vpd_lock_all(
+            hubris,
+            core,
+            subargs.timeout,
+            subargs.allow_missing,
+        )?;
     } else {
         bail!("expected a command");
     }

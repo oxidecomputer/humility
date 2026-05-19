@@ -23,7 +23,8 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use capstone::InsnGroupType;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
-use hubtools::RawHubrisArchive;
+// Save us some library headaches
+pub use hubtools::RawHubrisArchive;
 use humpty::DumpTask;
 use idol::syntax::send::Interface;
 use multimap::MultiMap;
