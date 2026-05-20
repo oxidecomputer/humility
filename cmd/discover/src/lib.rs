@@ -315,7 +315,7 @@ fn discover_run(context: &mut ExecutionContext) -> Result<()> {
     let subargs = DiscoverArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = &context.cli.try_archive()?;
 
-    let image_id = hubris.as_ref().and_then(|h| h.image_id());
+    let image_id = hubris.as_ref().map(|h| h.image_id());
     if image_id.is_none() {
         humility::warn!("no archive provided; not checking for compatibility");
     }

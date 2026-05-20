@@ -42,13 +42,13 @@ const MAX_HUBRIS_VERSION: u32 = 11;
 
 #[derive(Debug, Serialize)]
 pub struct HubrisManifest {
-    pub version: Option<String>,
+    pub version: String,
     pub gitrev: Option<String>,
     pub features: Vec<String>,
-    pub board: Option<String>,
+    pub board: String,
     pub image: Option<String>,
-    pub name: Option<String>,
-    pub target: Option<String>,
+    pub name: String,
+    pub target: String,
     pub task_features: HashMap<String, Vec<String>>,
     pub task_irqs: HashMap<String, Vec<(u32, u32)>>,
     pub task_notifications: HashMap<String, Vec<String>>,
@@ -73,9 +73,9 @@ impl HubrisManifest {
         config: &HubrisConfig,
         rev: HubrisManifestRev,
     ) -> Result<Self> {
-        let board = Some(config.board.clone());
-        let name = Some(config.name.clone());
-        let target = Some(config.target.clone());
+        let board = config.board.clone();
+        let name = config.name.clone();
+        let target = config.target.clone();
         let features = match config.kernel.features {
             Some(ref features) => features.clone(),
             None => vec![],
@@ -537,9 +537,8 @@ impl<'a> IntoIterator for &'a HubrisI2cBusList {
 }
 
 /// Portions of the [`HubrisManifest`] that are loaded from archive files
-#[derive(Default)]
 pub struct HubrisManifestRev {
-    pub version: Option<String>,
+    pub version: String,
     pub gitrev: Option<String>,
     pub image: Option<String>,
 }
@@ -1156,7 +1155,7 @@ pub struct HubrisArchive {
     pub manifest: HubrisManifest,
 
     // image ID
-    pub imageid: Option<(u32, Vec<u8>)>,
+    imageid: (u32, Vec<u8>),
 
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
@@ -1353,19 +1352,23 @@ impl HubrisArchive {
         }
 
         // First, we'll load aspects of configuration.
-        let mut manifest_rev = HubrisManifestRev::default();
-        if let Ok(git_rev) = hubris.extract_file("git-rev") {
-            manifest_rev.gitrev =
-                Some(std::str::from_utf8(&git_rev)?.to_string());
-        }
+        let gitrev = if let Ok(git_rev) = hubris.extract_file("git-rev") {
+            Some(std::str::from_utf8(&git_rev)?.to_string())
+        } else {
+            None
+        };
 
-        if let Ok(image_name) = hubris.extract_file("image-name") {
-            manifest_rev.image =
-                Some(std::str::from_utf8(&image_name)?.to_string());
-        }
+        let image = if let Ok(image_name) = hubris.extract_file("image-name") {
+            Some(std::str::from_utf8(&image_name)?.to_string())
+        } else {
+            None
+        };
 
-        manifest_rev.version =
-            Some(format!("hubris build archive v{}", archive_version));
+        let manifest_rev = HubrisManifestRev {
+            version: format!("hubris build archive v{archive_version}"),
+            gitrev,
+            image,
+        };
 
         // Load the main manifest config file
         let app = hubris.extract_file("app.toml")?;
@@ -1424,7 +1427,7 @@ impl HubrisArchive {
         // forward slash: regardless of platform, paths within a ZIP archive
         // use the forward slash as a separator.
         //
-        let mut loader = HubrisObjectLoader::new(0)?;
+        let mut loader = HubrisObjectLoader::new(0);
         loader.load_object(
             "kernel",
             HubrisTask::Kernel,
@@ -1481,7 +1484,7 @@ impl HubrisArchive {
             .into_par_iter()
             .map(|(id, name, buf)| {
                 let id: u32 = id.try_into().unwrap();
-                let mut loader = HubrisObjectLoader::new(id + 1)?;
+                let mut loader = HubrisObjectLoader::new(id + 1);
                 loader.load_object(&name, HubrisTask::Task(id), &buf)?;
                 Ok(loader)
             })
@@ -1533,9 +1536,12 @@ impl HubrisArchive {
             loader.structs_byname.insert(name.clone(), *goff);
         }
 
+        let Some(imageid) = loader.imageid else {
+            bail!("missing image id");
+        };
         Ok(Self {
             hubris_archive: hubris,
-            imageid: loader.imageid,
+            imageid,
             manifest,
             loaded: loader.loaded,
             task_dump,
@@ -1609,11 +1615,6 @@ impl HubrisArchive {
         flash.chip
     }
 
-    /// Destroys the `HubrisArchive`, returning the raw archive data
-    pub fn take_raw_archive(self) -> Vec<u8> {
-        self.hubris_archive.zip
-    }
-
     /// Helper function to load a dump into a [`RawHubrisArchive`]
     ///
     /// Returns a tuple of `(raw archive, dump task)`; the second field is
@@ -1681,10 +1682,6 @@ impl HubrisArchive {
             bail!("could not find archive in dump");
         };
         Ok((archive, task_dump))
-    }
-
-    pub fn loaded(&self) -> bool {
-        !self.modules.is_empty()
     }
 
     ///
@@ -2094,42 +2091,30 @@ impl HubrisArchive {
             return Ok(());
         }
 
-        //
         // To validate that what we're running on the target matches what
         // we have in the archive, we are going to check the image ID, an
-        // identifer created for this purpose.  If we don't have an image ID,
-        // we check the legacy mechanism of the .hubris_app_table; if we
-        // don't have either of these, we don't have a way of validating the
-        // archive and we fail.
-        //
-        if let Some(imageid) = &self.imageid {
-            let addr = imageid.0;
-            let nbytes = imageid.1.len();
-            assert!(nbytes > 0);
+        // identifer created for this purpose.
+        let addr = self.imageid.0;
+        let nbytes = self.imageid.1.len();
+        assert!(nbytes > 0);
 
-            let mut id = vec![0; nbytes];
-            core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
-                format!(
-                    "failed to read image ID at 0x{:x}; board mismatch?",
-                    addr
-                )
-            })?;
+        let mut id = vec![0; nbytes];
+        core.read_8(addr, &mut id[0..nbytes]).with_context(|| {
+            format!("failed to read image ID at 0x{:x}; board mismatch?", addr)
+        })?;
 
-            let deltas = id
-                .iter()
-                .zip(imageid.1.iter())
-                .filter(|&(lhs, rhs)| lhs != rhs)
-                .count();
+        let deltas = id
+            .iter()
+            .zip(self.imageid.1.iter())
+            .filter(|&(lhs, rhs)| lhs != rhs)
+            .count();
 
-            if deltas > 0 || id.len() != imageid.1.len() {
-                bail!(
+        if deltas > 0 || id.len() != self.imageid.1.len() {
+            bail!(
                     "image ID in archive ({:x?}) does not equal \
                     ID at 0x{:x} ({:x?})",
-                    imageid.1, imageid.0, id,
+                    self.imageid.1, self.imageid.0, id,
                 );
-            }
-        } else {
-            bail!("could not find HUBRIS_IMAGE_ID");
         }
 
         if criteria == HubrisValidate::ArchiveMatch {
@@ -2333,12 +2318,12 @@ impl HubrisArchive {
         Ok(())
     }
 
-    pub fn image_id_addr(&self) -> Option<u32> {
-        self.imageid.as_ref().map(|i| i.0)
+    pub fn image_id_addr(&self) -> u32 {
+        self.imageid.0
     }
 
-    pub fn image_id(&self) -> Option<&[u8]> {
-        self.imageid.as_ref().map(|i| i.1.as_slice())
+    pub fn image_id(&self) -> &[u8] {
+        &self.imageid.1
     }
 
     pub fn member_offset(
@@ -2751,12 +2736,12 @@ impl HubrisArchive {
         // always 8-byte aligned; if we have our 17 floating point registers
         // here, we also have an unstored pad.)
         //
-        let (nregs_fp, align) =
-            if self.manifest.target.as_ref().unwrap() == "thumbv6m-none-eabi" {
-                (0, 0)
-            } else {
-                (17, 1)
-            };
+        let (nregs_fp, align) = if self.manifest.target == "thumbv6m-none-eabi"
+        {
+            (0, 0)
+        } else {
+            (17, 1)
+        };
 
         let nregs_frame: usize = NREGS_CORE + nregs_fp + align;
 
@@ -3729,8 +3714,8 @@ struct HubrisObjectLoader {
 }
 
 impl HubrisObjectLoader {
-    fn new(object_id: u32) -> Result<Self> {
-        Ok(Self {
+    fn new(object_id: u32) -> Self {
+        Self {
             object_id,
             imageid: None,
             arrays: HashMap::new(),
@@ -3759,7 +3744,7 @@ impl HubrisObjectLoader {
             structs_byname: MultiMap::new(),
             subprograms: HashMap::new(),
             syscall_pushes: HashMap::new(),
-        })
+        }
     }
 
     fn merge(&mut self, loader: HubrisObjectLoader) -> Result<()> {

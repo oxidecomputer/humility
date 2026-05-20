@@ -372,10 +372,10 @@ fn dump_ddr4_over_i2c(
     subargs: &SpdArgs,
 ) -> Result<()> {
     // Warn the user that we probably can't talk to DDR4s on non-Gimlet hardware
-    if !hubris.manifest.target.as_ref().is_some_and(|t| t.contains("gimlet")) {
+    if !hubris.manifest.target.contains("gimlet") {
         humility::warn!(
             "trying to talk to DDR4 SPDs on an invalid target `{}`",
-            hubris.manifest.target.as_deref().unwrap_or("<unknown>")
+            hubris.manifest.target,
         );
     };
 
