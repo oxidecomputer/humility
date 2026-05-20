@@ -515,7 +515,7 @@ impl HubrisI2cBusList {
     pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
         self.0
             .iter()
-            .find(|&b| b.name == Some(bus.to_string()))
+            .find(|&b| b.name.as_deref() == Some(bus))
             .ok_or_else(|| anyhow!("couldn't find bus {}", bus))
     }
 
@@ -1369,7 +1369,7 @@ impl HubrisArchive {
 
         // Load the main manifest config file
         let app = hubris.extract_file("app.toml")?;
-        let mut config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+        let mut config: HubrisConfig = toml::from_slice(&app)?;
 
         // Apply TOML patches, if `patches.toml` is present in the archive.
         if let Ok(patches) = hubris.extract_file("patches.toml") {
@@ -1440,6 +1440,8 @@ impl HubrisArchive {
         let mut objects = (0..hubris.file_count()?)
             .into_par_iter()
             .map(|i| -> Result<Option<(usize, String, Vec<u8>)>> {
+                // TODO(matt) once hubtools#65 is merged, this can be made more
+                // efficient; right now, it extracts every file.
                 let (name, data) = hubris.extract_file_by_index(i)?;
                 let path = Path::new(&name);
                 let pieces = path.iter().collect::<Vec<_>>();
