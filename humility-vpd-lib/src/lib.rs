@@ -10,10 +10,9 @@ use humility_idol::{HubrisIdol, IdolArgument};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
 use std::path::PathBuf;
-use thiserror::Error;
 use tlvc::TlvcReadError;
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum VpdError {
     #[error("hiffy error")]
     Hiffy(#[source] anyhow::Error),
