@@ -224,7 +224,7 @@ fn net_mac_table(
         if let Ok(r) = r {
             let s = r.as_struct()?;
             assert_eq!(s.name(), "KszMacTableEntry");
-            let port = s.field::<u16>("port").unwrap();
+            let port = s.field::<u16>("port")?;
             let mac = s.field::<[u8; 6]>("mac")?;
             if mac == [0; 6] && port == 0xFFFF {
                 humility::msg!("Skipping empty MAC address");
@@ -372,7 +372,7 @@ fn net_counters_table(s: &Struct) -> Result<()> {
     let k_tx = s.field::<[_; 3]>("ksz8463_tx")?;
     let k_rx = s.field::<[_; 3]>("ksz8463_rx")?;
     let value = |k: &Struct, s: &str| {
-        let k = k[s].as_base().unwrap().as_u32().unwrap();
+        let k = k.field::<u32>(s).unwrap();
         let out = format!("{:>6}", k);
         if k > 0 {
             if s.contains("ERR") { out.red() } else { out.green() }
@@ -466,9 +466,8 @@ fn net_counters_table(s: &Struct) -> Result<()> {
 }
 
 fn net_counters_diagram(s: &Struct) -> Result<()> {
-    let k_tx = s.field::<[_; 3]>("ksz8463_tx")?;
-    let k_rx = s.field::<[_; 3]>("ksz8463_rx")?;
-    let value = |k: &Struct, s: &str| k.field::<u32>(s).unwrap();
+    let k_tx = s.field::<[Struct; 3]>("ksz8463_tx")?;
+    let k_rx = s.field::<[Struct; 3]>("ksz8463_rx")?;
 
     let mut ksz_tx = [0; 3];
     let mut ksz_rx = [0; 3];
@@ -476,15 +475,14 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
         let k_tx = &k_tx[port];
         let k_rx = &k_rx[port];
         for t in ["unicast", "broadcast", "multicast"] {
-            ksz_tx[port] += value(k_tx, t);
-            ksz_rx[port] += value(k_rx, t);
+            ksz_tx[port] += k_tx.field::<u32>(t)?;
+            ksz_rx[port] += k_rx.field::<u32>(t)?;
         }
     }
 
-    let v_tx = s.field::<[_; 2]>("vsc85x2_tx")?;
-    let v_rx = s.field::<[_; 2]>("vsc85x2_rx")?;
+    let v_tx = s.field::<[Struct; 2]>("vsc85x2_tx")?;
+    let v_rx = s.field::<[Struct; 2]>("vsc85x2_rx")?;
     let v_mac_valid = s.field::<bool>("vsc85x2_mac_valid")?;
-    let value = |v: &Struct, s: &str| v.field::<u16>(s).unwrap();
 
     let mut v_mac_tx = [0; 2];
     let mut v_mac_rx = [0; 2];
@@ -494,11 +492,11 @@ fn net_counters_diagram(s: &Struct) -> Result<()> {
         let v_tx = &v_tx[port];
         let v_rx = &v_rx[port];
         if v_mac_valid {
-            v_mac_tx[port] = value(v_tx, "mac_good");
-            v_mac_rx[port] = value(v_rx, "mac_good");
+            v_mac_tx[port] = v_tx.field::<u16>("mac_good")?;
+            v_mac_rx[port] = v_rx.field::<u16>("mac_good")?;
         }
-        v_media_tx[port] = value(v_tx, "media_good");
-        v_media_rx[port] = value(v_rx, "media_good");
+        v_media_tx[port] = v_tx.field::<u16>("media_good")?;
+        v_media_rx[port] = v_rx.field::<u16>("media_good")?;
     }
 
     let mac = |i: u16| {

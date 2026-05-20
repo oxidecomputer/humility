@@ -9,7 +9,7 @@ use humility::{
 };
 use humility_doppel as doppel;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 
 /// Name of the packrat buffer which contains SPD data
 static PACKRAT_BUF_NAME: &str = "task_packrat::main::BUFS";
@@ -78,15 +78,15 @@ pub fn spd_lookup(
         let Value::Struct(packrat_bufs) = &as_static_cell.cell.value else {
             bail!("expected {PACKRAT_BUF_NAME} to be a struct");
         };
-        let Some(Value::Struct(compute_sled_bufs)) = packrat_bufs
+        let Ok(Value::Struct(compute_sled_bufs)) = packrat_bufs
             .get("gimlet_bufs")
-            .or_else(|| packrat_bufs.get("cosmo_bufs"))
+            .or_else(|_e| packrat_bufs.get("cosmo_bufs"))
         else {
             bail!("could not find `gimlet_bufs` or `cosmo_bufs`");
         };
-        let Some(spd_data) = compute_sled_bufs.get("spd_data") else {
-            bail!("could not find `spd_data` in sled-specific packrat bufs");
-        };
+        let spd_data = compute_sled_bufs.get("spd_data").context(
+            "could not find `spd_data` in sled-specific packrat bufs",
+        )?;
 
         // We have multiple versions of SPD data.  In older firmwares (Gimlet
         // only), it's a single `[u8; 8192]` buffer; in newer firmwares, it's a
