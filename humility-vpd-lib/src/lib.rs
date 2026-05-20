@@ -15,10 +15,10 @@ use tlvc::TlvcReadError;
 
 #[derive(Debug, Error)]
 pub enum VpdError {
-    #[error("hiffy: {0}")]
-    Hiffy(String),
-    #[error("idol: {0}")]
-    Idol(String),
+    #[error("hiffy error")]
+    Hiffy(#[source] anyhow::Error),
+    #[error("idol error")]
+    Idol(#[source] anyhow::Error),
     #[error("I/O error")]
     Io {
         #[source]
@@ -34,6 +34,28 @@ pub enum VpdError {
     NoVpd,
     #[error("Errors in VPD entry prevent locking")]
     VpdEntry,
+    #[error("indicatif template")]
+    TemplateError(#[source] indicatif::style::TemplateError),
+    #[error("lock failure at index {ndx}")]
+    LockFailure {
+        ndx: usize,
+        #[source]
+        err: anyhow::Error,
+    },
+    #[error("text size too small for a single write")]
+    TextTooSmall,
+    #[error("failed to write VPD at offset {offset}")]
+    WriteFailure {
+        offset: usize,
+        #[source]
+        err: anyhow::Error,
+    },
+    #[error("failed to read VPD at offset {offset}")]
+    ReadFailure {
+        offset: usize,
+        #[source]
+        err: anyhow::Error,
+    },
 }
 
 pub enum VpdTarget {
@@ -72,12 +94,11 @@ pub fn vpd_list(
     timeout: u32,
 ) -> Result<Vec<VpdEntry>, VpdError> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
-    let mut context = HiffyContext::new(hubris, core, timeout)
-        .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
+    let mut context =
+        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
 
-    let locked_op = hubris
-        .get_idol_command("Vpd.is_locked")
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let locked_op =
+        hubris.get_idol_command("Vpd.is_locked").map_err(VpdError::Idol)?;
 
     let mut ops = vec![];
 
@@ -87,20 +108,19 @@ pub fn vpd_list(
                 "index",
                 humility_idol::IdolArgument::Scalar(ndx as u64),
             )])
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+            .map_err(VpdError::Idol)?;
 
         context
             .idol_call_ops(&locked_op, &payload, &mut ops)
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+            .map_err(VpdError::Idol)?;
     }
 
     ops.push(Op::Done);
 
     let mut items = vec![];
 
-    let results = context
-        .run(core, ops.as_slice(), None)
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let results =
+        context.run(core, ops.as_slice(), None).map_err(VpdError::Idol)?;
 
     for (ndx, device) in devices.into_iter().enumerate() {
         let locked = context
@@ -164,13 +184,13 @@ pub fn vpd_lock_all(
         }
     }
 
-    let mut context = HiffyContext::new(hubris, core, timeout)
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let mut context =
+        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Idol)?;
 
     let mut ops = vec![];
     let lock_op = hubris
         .get_idol_command("Vpd.permanently_lock")
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+        .map_err(VpdError::Idol)?;
 
     if locking.is_empty() {
         return Ok(0);
@@ -183,23 +203,22 @@ pub fn vpd_lock_all(
     for ndx in &locking {
         let payload = lock_op
             .payload(&[("index", IdolArgument::Scalar(*ndx as u64))])
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+            .map_err(VpdError::Idol)?;
 
         context
             .idol_call_ops(&lock_op, &payload, &mut ops)
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+            .map_err(VpdError::Idol)?;
     }
 
     ops.push(Op::Done);
 
-    let results = context
-        .run(core, ops.as_slice(), None)
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let results =
+        context.run(core, ops.as_slice(), None).map_err(VpdError::Idol)?;
 
     for (ndx, r) in locking.iter().zip(results.iter()) {
-        context.idol_result::<()>(&lock_op, r).map_err(|e| {
-            VpdError::Idol(format!("failed to lock {ndx}: {e:?}"))
-        })?;
+        context
+            .idol_result::<()>(&lock_op, r)
+            .map_err(|err| VpdError::LockFailure { err, ndx: *ndx })?;
     }
 
     Ok(locking.len())
@@ -212,12 +231,12 @@ pub fn vpd_lock(
     mut target: VpdTarget,
     timeout: u32,
 ) -> Result<(), VpdError> {
-    let mut context = HiffyContext::new(hubris, core, timeout)
-        .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
+    let mut context =
+        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
 
     let op = hubris
         .get_idol_command("Vpd.permanently_lock")
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+        .map_err(VpdError::Idol)?;
     // Make sure we can read the VPD
     vpd_slurp(core, &mut context, hubris, &mut target)?;
 
@@ -227,22 +246,19 @@ pub fn vpd_lock(
 
     let payload = op
         .payload(&[("index", IdolArgument::Scalar(index as u64))])
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+        .map_err(VpdError::Idol)?;
 
     let mut ops = vec![];
 
-    context
-        .idol_call_ops(&op, &payload, &mut ops)
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    context.idol_call_ops(&op, &payload, &mut ops).map_err(VpdError::Idol)?;
     ops.push(Op::Done);
 
-    let results = context
-        .run(core, ops.as_slice(), None)
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let results =
+        context.run(core, ops.as_slice(), None).map_err(VpdError::Idol)?;
 
-    context.idol_result::<()>(&op, &results[0]).map_err(|e| {
-        VpdError::Idol(format!("failed to lock {index}: {e:?}"))
-    })?;
+    context
+        .idol_result::<()>(&op, &results[0])
+        .map_err(|err| VpdError::LockFailure { err, ndx: index })?;
 
     Ok(())
 }
@@ -254,8 +270,8 @@ pub fn vpd_read(
     mut target: VpdTarget,
     timeout: u32,
 ) -> Result<Vec<u8>, VpdError> {
-    let mut context = HiffyContext::new(hubris, core, timeout)
-        .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
+    let mut context =
+        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
 
     vpd_slurp(core, &mut context, hubris, &mut target)
 }
@@ -268,11 +284,9 @@ fn vpd_erase_write(
     timeout: u32,
     write: Option<PathBuf>,
 ) -> Result<(), VpdError> {
-    let mut context = HiffyContext::new(hubris, core, timeout)
-        .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
-    let op = hubris
-        .get_idol_command("Vpd.write")
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let mut context =
+        HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
+    let op = hubris.get_idol_command("Vpd.write").map_err(VpdError::Idol)?;
 
     let (bytes, erase) = if let Some(ref filename) = write {
         let file =
@@ -300,24 +314,20 @@ fn vpd_erase_write(
                 ("offset", IdolArgument::Scalar(offset as u64)),
                 ("contents", IdolArgument::Scalar(*b as u64)),
             ])
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+            .map_err(VpdError::Idol)?;
 
         context
             .idol_call_ops(&op, &payload, &mut ops)
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+            .map_err(VpdError::Idol)?;
         all_ops.push(ops);
     }
 
     let nops = (context.text_size()
-        / context
-            .ops_size(&all_ops[0])
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?)
+        / context.ops_size(&all_ops[0]).map_err(VpdError::Idol)?)
         - 1;
 
     if nops == 0 {
-        return Err(VpdError::Idol(
-            "text size is too small for a single write!".to_string(),
-        ));
+        return Err(VpdError::TextTooSmall);
     }
 
     let mut offset = 0;
@@ -333,23 +343,19 @@ fn vpd_erase_write(
             } else {
                 "humility: writing VPD [{bar:30}] {bytes}/{total_bytes}"
             })
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?,
+            .map_err(VpdError::TemplateError)?,
     );
 
     for chunk in all_ops.chunks(nops) {
         let mut ops = chunk.iter().flatten().copied().collect::<Vec<Op>>();
         ops.push(Op::Done);
 
-        let results = context
-            .run(core, ops.as_slice(), None)
-            .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+        let results =
+            context.run(core, ops.as_slice(), None).map_err(VpdError::Idol)?;
 
         for (o, result) in results.iter().enumerate() {
-            context.idol_result::<()>(&op, result).map_err(|e| {
-                VpdError::Idol(format!(
-                    "failed to write VPD at offset {}: {e:?}",
-                    offset + o
-                ))
+            context.idol_result::<()>(&op, result).map_err(|err| {
+                VpdError::WriteFailure { err, offset: offset + o }
             })?;
         }
 
@@ -379,22 +385,19 @@ fn vpd_read_at(
             ("index", humility_idol::IdolArgument::Scalar(target as u64)),
             ("offset", humility_idol::IdolArgument::Scalar(offset as u64)),
         ])
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+        .map_err(VpdError::Idol)?;
 
     let mut ops = vec![];
 
-    context
-        .idol_call_ops(op, &payload, &mut ops)
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    context.idol_call_ops(op, &payload, &mut ops).map_err(VpdError::Idol)?;
     ops.push(Op::Done);
 
-    let results = context
-        .run(core, ops.as_slice(), None)
-        .map_err(|e| VpdError::Hiffy(format!("{e:?}")))?;
+    let results =
+        context.run(core, ops.as_slice(), None).map_err(VpdError::Hiffy)?;
 
-    context.idol_result::<Vec<u8>>(op, &results[0]).map_err(|e| {
-        VpdError::Idol(format!("failed to read at offset {offset}: {e:?}"))
-    })
+    context
+        .idol_result::<Vec<u8>>(op, &results[0])
+        .map_err(|err| VpdError::ReadFailure { err, offset })
 }
 
 fn vpd_slurp(
@@ -403,9 +406,7 @@ fn vpd_slurp(
     hubris: &HubrisArchive,
     target: &mut VpdTarget,
 ) -> Result<Vec<u8>, VpdError> {
-    let op = hubris
-        .get_idol_command("Vpd.read")
-        .map_err(|e| VpdError::Idol(format!("{e:?}")))?;
+    let op = hubris.get_idol_command("Vpd.read").map_err(VpdError::Idol)?;
     //
     // First, read in enough to read just the header.
     //
