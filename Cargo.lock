@@ -2562,8 +2562,6 @@ dependencies = [
  "humility-cli",
  "humility-core",
  "humility-hexdump",
- "humility-hiffy",
- "humility-idol",
  "humility-vpd-lib",
  "idol",
  "indexmap 2.14.0",
