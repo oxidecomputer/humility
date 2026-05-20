@@ -125,9 +125,9 @@ struct VpdArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// list all devices that have VPD (can be combined with --read)
     #[clap(long, short, conflicts_with_all = &[
@@ -205,7 +205,8 @@ fn list(
     subargs: &VpdArgs,
 ) -> Result<()> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let read_op = hubris.get_idol_command("Vpd.read")?;
 
     let locked_op = hubris.get_idol_command("Vpd.is_locked").ok();
@@ -356,7 +357,8 @@ fn vpd_write(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.write")?;
     let target = target(hubris, subargs)?;
 
@@ -540,7 +542,8 @@ fn vpd_read(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.read")?;
     let mut target = target(hubris, subargs)?;
 
@@ -582,7 +585,8 @@ fn vpd_lock(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let op = hubris.get_idol_command("Vpd.permanently_lock")?;
     let index = match target(hubris, subargs)? {
@@ -620,7 +624,8 @@ fn vpd_lock_all(
     core: &mut dyn Core,
     subargs: &VpdArgs,
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Vpd.is_locked")?;
     let read_op = hubris.get_idol_command("Vpd.read")?;
     let lock_op = hubris.get_idol_command("Vpd.permanently_lock")?;

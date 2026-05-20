@@ -351,7 +351,11 @@ fn host_post_codes(
     check_post_code_target(hubris);
     use hif::*;
 
-    let mut context = HiffyContext::new(hubris, core, 5000)?;
+    let mut context = HiffyContext::new(
+        hubris,
+        core,
+        std::time::Duration::from_millis(5000),
+    )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
     let value = humility_hiffy::hiffy_call(
         hubris,
@@ -438,7 +442,11 @@ fn host_last_post_code(
 ) -> Result<()> {
     check_post_code_target(hubris);
 
-    let mut context = HiffyContext::new(hubris, core, 5000)?;
+    let mut context = HiffyContext::new(
+        hubris,
+        core,
+        std::time::Duration::from_millis(5000),
+    )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
     let value = humility_hiffy::hiffy_call(
         hubris,

@@ -38,16 +38,11 @@ impl<'a> UartConsoleHandler<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        hiffy_timeout: u32,
-        poll_interval: u32,
+        hiffy_timeout: Duration,
+        poll_interval: Duration,
     ) -> Result<Self> {
         let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
-        Ok(Self {
-            hubris,
-            core,
-            context,
-            poll_interval: Duration::from_millis(u64::from(poll_interval)),
-        })
+        Ok(Self { hubris, core, context, poll_interval })
     }
 
     fn uart_read(&mut self, buf: &mut [u8]) -> Result<usize> {
@@ -317,12 +312,10 @@ pub(super) fn console_proxy(context: &mut ExecutionContext) -> Result<()> {
     let subargs = UartConsoleArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut worker = UartConsoleHandler::new(
-        hubris,
-        core,
-        subargs.hiffy_timeout,
-        subargs.poll_interval,
-    )?;
+    let hiffy_timeout = Duration::from_millis(subargs.hiffy_timeout);
+    let poll_interval = Duration::from_millis(subargs.poll_interval);
+    let mut worker =
+        UartConsoleHandler::new(hubris, core, hiffy_timeout, poll_interval)?;
 
     match subargs.cmd {
         UartConsoleCommand::Attach { raw, imap, omap, log } => {

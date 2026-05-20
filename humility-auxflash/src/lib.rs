@@ -8,6 +8,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
+use std::time::Duration;
 
 const DEFAULT_SLOT_SIZE_BYTES: usize = 2 * 1024 * 1024;
 const READ_CHUNK_SIZE: usize = 256; // limited by HIFFY_SCRATCH_SIZE
@@ -24,7 +25,7 @@ impl<'a> AuxFlashHandler<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        hiffy_timeout: u32,
+        hiffy_timeout: Duration,
     ) -> Result<Self> {
         let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
         Ok(Self { hubris, core, context })

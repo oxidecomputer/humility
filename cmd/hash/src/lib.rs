@@ -83,9 +83,9 @@ struct HashArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// enable long test
     #[clap(long, short)]
@@ -97,7 +97,8 @@ fn hash(context: &mut ExecutionContext) -> Result<()> {
     let archive = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(archive)?;
 
-    let mut context = HiffyContext::new(archive, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(archive, core, timeout)?;
     let scratch_size = context.scratch_size();
     let mut ops = vec![];
 

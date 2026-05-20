@@ -114,9 +114,9 @@ struct SbrmiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// thread to operate upon
     #[clap(
@@ -521,7 +521,8 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
     let subargs = SbrmiArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     if subargs.cpuid {
         return cpuid(hubris, core, &mut context, subargs.thread);

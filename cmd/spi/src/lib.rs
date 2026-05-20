@@ -50,9 +50,9 @@ struct SpiArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// SPI peripheral on which to operate
     #[clap(long, short, value_name = "peripheral")]
@@ -175,7 +175,8 @@ fn spi(context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let spi_read = context.get_function("SpiRead", 4)?;
     let spi_write = context.get_function("SpiWrite", 3)?;

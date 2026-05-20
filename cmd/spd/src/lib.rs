@@ -127,9 +127,9 @@ struct SpdArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// verbose output (including raw SPD data)
     #[clap(long, short)]
@@ -379,7 +379,8 @@ fn dump_ddr4_over_i2c(
         );
     };
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
 
     let i2c_read = context.get_function("I2cRead", 7)?;
     let i2c_write = context.get_function("I2cWrite", 8)?;

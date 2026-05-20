@@ -29,9 +29,9 @@ struct PowershelfArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// index of the power shelf to inspect
     #[clap(long, default_value_t = 0)]
@@ -136,7 +136,8 @@ fn powershelf_run(context: &mut ExecutionContext) -> Result<()> {
 
     let operation = lookup_operation_enum(hubris)?;
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let mut ops = vec![];
 
     let idol_cmd = hubris
