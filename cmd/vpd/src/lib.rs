@@ -290,12 +290,8 @@ fn target(hubris: &HubrisArchive, subargs: &VpdArgs) -> Result<VpdTarget> {
         } else {
             bail!("device index {} invalid; --list to list", id)
         }
-    } else if let Some(loopback) = &subargs.loopback {
-        if subargs.write.is_some() {
-            Ok(VpdTarget::Loopback(fs::File::create(loopback)?))
-        } else {
-            Ok(VpdTarget::Loopback(fs::File::open(loopback)?))
-        }
+    } else if subargs.loopback.is_some() {
+        bail!("loopback support is deprecated");
     } else {
         bail!("must specify either device ID or device description");
     }

@@ -9,8 +9,6 @@ use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
-use std::io::Write;
-use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use thiserror::Error;
 use tlvc::TlvcReadError;
@@ -32,8 +30,6 @@ pub enum VpdError {
     Unprogrammed,
     #[error("reflect: {0}")]
     Reflect(String),
-    #[error("Can't lock a loopback device")]
-    Loopback,
     #[error("No VPD entries found")]
     NoVpd,
     #[error("Errors in VPD entry prevent locking")]
@@ -42,7 +38,6 @@ pub enum VpdError {
 
 pub enum VpdTarget {
     Device(usize),
-    Loopback(fs::File),
 }
 
 /// Represents a single VPD from the hubris archive
@@ -228,7 +223,6 @@ pub fn vpd_lock(
 
     let index = match target {
         VpdTarget::Device(index) => index,
-        _ => return Err(VpdError::Loopback),
     };
 
     let payload = op
@@ -294,10 +288,6 @@ fn vpd_erase_write(
 
     let target = match target {
         VpdTarget::Device(target) => target,
-        VpdTarget::Loopback(mut file) => {
-            file.write_all(&bytes).map_err(|err| VpdError::Io { err })?;
-            return Ok(());
-        }
     };
 
     let mut all_ops = vec![];
@@ -382,14 +372,6 @@ fn vpd_read_at(
 ) -> Result<Vec<u8>, VpdError> {
     let target = match target {
         VpdTarget::Device(target) => *target,
-        VpdTarget::Loopback(file) => {
-            let mut buffer = vec![];
-            file.seek(SeekFrom::Start(offset as u64))
-                .map_err(|err| VpdError::Io { err })?;
-            file.read_to_end(&mut buffer)
-                .map_err(|err| VpdError::Io { err })?;
-            return Ok(buffer);
-        }
     };
 
     let payload = op
