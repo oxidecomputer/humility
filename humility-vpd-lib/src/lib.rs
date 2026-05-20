@@ -93,7 +93,7 @@ fn vpd_devices(
 pub fn vpd_list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    timeout: u32,
+    timeout: std::time::Duration,
 ) -> Result<Vec<VpdEntry>, VpdError> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
     let mut context =
@@ -144,7 +144,7 @@ pub fn vpd_write(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     target: VpdTarget,
-    timeout: u32,
+    timeout: std::time::Duration,
     write: PathBuf,
 ) -> Result<(), VpdError> {
     vpd_erase_write(hubris, core, target, timeout, Some(write))
@@ -155,7 +155,7 @@ pub fn vpd_erase(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     target: VpdTarget,
-    timeout: u32,
+    timeout: std::time::Duration,
 ) -> Result<(), VpdError> {
     vpd_erase_write(hubris, core, target, timeout, None)
 }
@@ -165,7 +165,7 @@ pub fn vpd_erase(
 pub fn vpd_lock_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    timeout: u32,
+    timeout: std::time::Duration,
     allow_missing: bool,
 ) -> Result<usize, VpdError> {
     let devices = vpd_list(hubris, core, timeout)?;
@@ -231,7 +231,7 @@ pub fn vpd_lock(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     mut target: VpdTarget,
-    timeout: u32,
+    timeout: std::time::Duration,
 ) -> Result<(), VpdError> {
     let mut context =
         HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
@@ -270,7 +270,7 @@ pub fn vpd_read(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     mut target: VpdTarget,
-    timeout: u32,
+    timeout: std::time::Duration,
 ) -> Result<Vec<u8>, VpdError> {
     let mut context =
         HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
@@ -283,7 +283,7 @@ fn vpd_erase_write(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     target: VpdTarget,
-    timeout: u32,
+    timeout: std::time::Duration,
     write: Option<PathBuf>,
 ) -> Result<(), VpdError> {
     let mut context =
