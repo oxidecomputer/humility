@@ -76,6 +76,9 @@ pub struct VpdEntry {
     pub data: Result<Vec<u8>, VpdError>,
 }
 
+/// Name we expect to see from hubris
+const VPD_EEPROM_NAME : &'static str = "at24csw080";
+
 fn vpd_devices(
     hubris: &HubrisArchive,
 ) -> impl Iterator<Item = &HubrisI2cDevice> {
@@ -83,7 +86,7 @@ fn vpd_devices(
         .manifest
         .i2c_devices
         .iter()
-        .filter(|device| device.device == "at24csw080")
+        .filter(|device| device.device == VPD_EEPROM_NAME)
 }
 
 /// List all available VPD devices
