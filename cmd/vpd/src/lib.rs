@@ -111,6 +111,7 @@ use humility_hexdump::Dumper;
 use humility_vpd_lib::VpdTarget;
 use std::fs;
 use std::io::Write;
+use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -193,7 +194,7 @@ fn vpd_devices(
 pub fn list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
-    timeout: u32,
+    timeout: Duration,
     read: bool,
 ) -> Result<()> {
     let results = humility_vpd_lib::vpd_list(hubris, core, timeout)?;
@@ -307,7 +308,7 @@ fn vpd_read(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     target: VpdTarget,
-    timeout: u32,
+    timeout: Duration,
     output: OutputOption,
 ) -> Result<()> {
     let vpd = humility_vpd_lib::vpd_read(hubris, core, target, timeout)?;
@@ -345,19 +346,20 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
     let target = target(hubris, &subargs)?;
+    let timeout = Duration::from_millis(subargs.timeout);
 
     if subargs.list {
-        list(hubris, core, subargs.timeout, subargs.read)?;
+        list(hubris, core, timeout, subargs.read)?;
     } else if let Some(path) = subargs.write {
         humility_vpd_lib::vpd_write(
             hubris,
             core,
             target,
-            subargs.timeout,
+            timeout,
             path.into(),
         )?;
     } else if subargs.erase {
-        humility_vpd_lib::vpd_erase(hubris, core, target, subargs.timeout)?;
+        humility_vpd_lib::vpd_erase(hubris, core, target, timeout)?;
     } else if subargs.read {
         let options = if subargs.raw {
             OutputOption::Raw
@@ -366,14 +368,14 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
         } else {
             OutputOption::Tlvc
         };
-        vpd_read(hubris, core, target, subargs.timeout, options)?;
+        vpd_read(hubris, core, target, timeout, options)?;
     } else if subargs.lock {
-        humility_vpd_lib::vpd_lock(hubris, core, target, subargs.timeout)?;
+        humility_vpd_lib::vpd_lock(hubris, core, target, timeout)?;
     } else if subargs.lock_all {
         humility_vpd_lib::vpd_lock_all(
             hubris,
             core,
-            subargs.timeout,
+            timeout,
             subargs.allow_missing,
         )?;
     } else {

@@ -21,7 +21,7 @@ fn main() {
     // Read the first VPD
     let target = humility_vpd_lib::VpdTarget::Device(0);
 
-    let vpd = humility_vpd_lib::vpd_read(&hubris, core, target, 10000).unwrap();
+    let vpd = humility_vpd_lib::vpd_read(&hubris, core, target, std::time::Duration::from_millis(10000)).unwrap();
 
     let reader = match tlvc::TlvcReader::begin(&vpd[..]) {
         Ok(reader) => reader,
