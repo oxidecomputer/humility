@@ -23,9 +23,9 @@ struct AuxFlashArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     #[clap(subcommand)]
     cmd: AuxFlashCommand,
@@ -101,7 +101,8 @@ fn auxflash(context: &mut ExecutionContext) -> Result<()> {
     let subargs = AuxFlashArgs::try_parse_from(&context.cli.cmd)?;
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let mut worker = AuxFlashHandler::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut worker = AuxFlashHandler::new(hubris, core, timeout)?;
 
     match subargs.cmd {
         AuxFlashCommand::Status { verbose } => {

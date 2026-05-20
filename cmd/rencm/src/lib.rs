@@ -34,9 +34,9 @@ struct RencmArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// verbose output
     #[clap(long, short)]
@@ -100,7 +100,8 @@ fn rencm_attached(
     subargs: &RencmArgs,
     modules: &[Module],
 ) -> Result<()> {
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let read_func = context.get_function("I2cRead", 7)?;
     let write_func = context.get_function("I2cWrite", 8)?;
 

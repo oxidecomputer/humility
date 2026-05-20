@@ -57,7 +57,7 @@ struct DashboardArgs {
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
         value_parser = parse_int::parse::<u32>
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// CSV output file
     #[clap(long, short)]
@@ -399,7 +399,8 @@ impl<'a> Dashboard<'a> {
         core: &mut dyn Core,
         subargs: &DashboardArgs,
     ) -> Result<Dashboard<'a>> {
-        let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+        let timeout = Duration::from_millis(subargs.timeout);
+        let mut context = HiffyContext::new(hubris, core, timeout)?;
         let mut ops = vec![];
 
         let mut status_ops = vec![];

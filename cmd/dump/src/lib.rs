@@ -93,9 +93,9 @@ struct DumpArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 20000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// show dump agent status
     #[clap(long, conflicts_with_all = &["simulation", "task", "extract_all"])]
@@ -330,7 +330,8 @@ fn get_dump_agent<'a>(
         Ok(Box::new(UdpDumpAgent::new(core, imageid)?))
     } else {
         humility::msg!("using hiffy dump agent");
-        Ok(Box::new(HiffyDumpAgent::new(hubris, core, subargs.timeout)?))
+        let timeout = std::time::Duration::from_millis(subargs.timeout);
+        Ok(Box::new(HiffyDumpAgent::new(hubris, core, timeout)?))
     }
 }
 

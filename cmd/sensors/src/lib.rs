@@ -46,9 +46,9 @@ struct SensorsArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// list all sensors
     #[clap(long, short)]
@@ -622,13 +622,14 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         sensors.push((i, s.clone()));
     }
 
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
     let core = &mut *context.cli.attach_live_or_dump_booted(hubris)?;
     let mut reader: Box<dyn SensorReader> = match subargs.backend {
         Some(Backend::Hiffy) => {
             if core.is_dump() {
                 bail!("cannot use hiffy backend on dump");
             }
-            let context = HiffyContext::new(hubris, core, subargs.timeout)?;
+            let context = HiffyContext::new(hubris, core, timeout)?;
             Box::new(HiffySensorReader::new(hubris, &sensors, context)?)
         }
         Some(Backend::Readmem) => {
@@ -637,7 +638,7 @@ fn sensors(context: &mut ExecutionContext) -> Result<()> {
         None if core.is_dump() => {
             Box::new(RamSensorReader::new(hubris, &sensors)?)
         }
-        None => match HiffyContext::new(hubris, core, subargs.timeout) {
+        None => match HiffyContext::new(hubris, core, timeout) {
             Ok(ctx) => Box::new(HiffySensorReader::new(hubris, &sensors, ctx)?),
             Err(_) => Box::new(RamSensorReader::new(hubris, &sensors)?),
         },

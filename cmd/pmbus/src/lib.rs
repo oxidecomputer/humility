@@ -211,9 +211,9 @@ struct PmbusArgs {
     /// sets timeout
     #[clap(
         long, short, default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// list PMBus components
     #[clap(
@@ -1458,8 +1458,9 @@ impl<'a> I2cWorker<'a> {
     fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        timeout: u32,
+        timeout: u64,
     ) -> Result<Self> {
+        let timeout = std::time::Duration::from_millis(timeout);
         let context = HiffyContext::new(hubris, core, timeout)?;
         let read_func = context.get_function("I2cRead", 7)?;
         let write_func = context.get_function("I2cWrite", 8)?;
@@ -1639,8 +1640,9 @@ impl<'a> IdolWorker<'a> {
     fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        timeout: u32,
+        timeout: u64,
     ) -> Result<Self> {
+        let timeout = std::time::Duration::from_millis(timeout);
         let context = HiffyContext::new(hubris, core, timeout)?;
         let write_set = hubris.get_idol_command("Power.raw_pmbus_set")?;
         let write_byte =

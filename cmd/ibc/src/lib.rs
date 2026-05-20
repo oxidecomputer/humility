@@ -123,9 +123,9 @@ struct IbcArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 15000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     #[clap(subcommand)]
     cmd: IbcSubcommand,
@@ -150,8 +150,9 @@ impl<'a> IbcHandler<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &'a mut dyn Core,
-        hiffy_timeout: u32,
+        hiffy_timeout: u64,
     ) -> Result<Self> {
+        let hiffy_timeout = std::time::Duration::from_millis(hiffy_timeout);
         let context = HiffyContext::new(hubris, core, hiffy_timeout)?;
         Ok(Self { hubris, core, context })
     }

@@ -81,9 +81,9 @@ struct NetArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>
+        value_parser = parse_int::parse::<u64>
     )]
-    timeout: u32,
+    timeout: u64,
 
     #[clap(subcommand)]
     cmd: NetCommand,
@@ -566,7 +566,8 @@ fn net(context: &mut ExecutionContext) -> Result<()> {
 
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let hiffy_context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let hiffy_context = HiffyContext::new(hubris, core, timeout)?;
 
     match subargs.cmd {
         NetCommand::Mac => net_mac_table(hubris, core, hiffy_context)?,

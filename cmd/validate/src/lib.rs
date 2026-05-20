@@ -59,9 +59,9 @@ struct ValidateArgs {
     /// sets timeout
     #[clap(
         long, short = 'T', default_value_t = 5000, value_name = "timeout_ms",
-        value_parser = parse_int::parse::<u32>,
+        value_parser = parse_int::parse::<u64>,
     )]
-    timeout: u32,
+    timeout: u64,
 
     /// list all devices to be validated
     #[clap(long, short)]
@@ -154,7 +154,8 @@ fn validate(context: &mut ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    let mut context = HiffyContext::new(hubris, core, subargs.timeout)?;
+    let timeout = std::time::Duration::from_millis(subargs.timeout);
+    let mut context = HiffyContext::new(hubris, core, timeout)?;
     let op = hubris.get_idol_command("Validate.validate_i2c")?;
     let mut ops = vec![];
 

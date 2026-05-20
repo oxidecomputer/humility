@@ -35,7 +35,7 @@ enum State {
 pub struct HiffyContext<'a> {
     hubris: &'a HubrisArchive,
     scratch_size: usize,
-    timeout: u32,
+    timeout: Duration,
     state: State,
     functions: HiffyFunctions,
     hiffy: HiffyImpl<'a>,
@@ -252,10 +252,10 @@ impl<'a> HiffyContext<'a> {
     pub fn new(
         hubris: &'a HubrisArchive,
         core: &mut dyn Core,
-        timeout: u32,
+        timeout: Duration,
     ) -> Result<HiffyContext<'a>> {
         let hiffy = if core.is_net() {
-            core.set_timeout(Duration::from_millis(timeout.into()))?;
+            core.set_timeout(timeout)?;
             if hubris
                 .manifest
                 .task_features
@@ -1143,8 +1143,7 @@ impl<'a> HiffyContext<'a> {
 
         let start = std::time::Instant::now();
         let mut ready = false;
-        let timeout = Duration::from_millis(self.timeout.into());
-        while start.elapsed() < timeout {
+        while start.elapsed() < self.timeout {
             if !syscall_observed {
                 if has_task_started(self.hubris, core, hiffy_task.unwrap())? {
                     syscall_observed = true;
@@ -1261,7 +1260,7 @@ impl<'a> HiffyContext<'a> {
 
         core.op_done()?;
 
-        if kick_time.elapsed().as_millis() > self.timeout.into() {
+        if kick_time.elapsed() > self.timeout {
             bail!("operation timed out");
         }
 

@@ -34,7 +34,7 @@ struct UartConsoleArgs {
         default_value_t = 5000,
         value_name = "hiffy_timeout_ms"
     )]
-    hiffy_timeout: u32,
+    hiffy_timeout: u64,
 
     #[clap(
         long,
@@ -43,7 +43,7 @@ struct UartConsoleArgs {
         help = "frequency of polling the SP for new data",
         value_name = "poll_interval_ms"
     )]
-    poll_interval: u32,
+    poll_interval: u64,
 
     #[clap(subcommand)]
     cmd: UartConsoleCommand,
