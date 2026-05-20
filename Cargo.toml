@@ -88,6 +88,7 @@ rust-version = "1.91" # if this changes, edit ci.yaml as well!
 # `git`-based deps
 gimlet-inspector-protocol = { git = "https://github.com/oxidecomputer/gimlet-inspector-protocol" }
 hif = { git = "https://github.com/oxidecomputer/hif" }
+hubtools = { git = "https://github.com/oxidecomputer/hubtools.git" }
 humpty = { git = "https://github.com/oxidecomputer/humpty", version = "0.1.5" }
 idol = { git = "https://github.com/oxidecomputer/idolatry.git" }
 idt8a3xxxx = { git = "https://github.com/oxidecomputer/idt8a3xxxx" }

@@ -6,14 +6,12 @@ use capstone::prelude::*;
 use humility_arch_arm::{ARMRegister, presyscall_pushes};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::io::prelude::*;
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, btree_map};
 use std::convert::TryInto;
 use std::fmt::{self, Write};
 use std::fs::{self, OpenOptions};
-use std::io::Cursor;
 use std::mem::size_of;
 use std::num::TryFromIntError;
 use std::path::{Path, PathBuf};
@@ -25,6 +23,7 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use capstone::InsnGroupType;
 use gimli::UnwindSection;
 use goblin::elf::Elf;
+use hubtools::RawHubrisArchive;
 use humpty::DumpTask;
 use idol::syntax::send::Interface;
 use multimap::MultiMap;
@@ -41,7 +40,7 @@ pub const OXIDE_NT_HUBRIS_TASK: u32 = OXIDE_NT_BASE + 3;
 
 const MAX_HUBRIS_VERSION: u32 = 11;
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct HubrisManifest {
     pub version: Option<String>,
     pub gitrev: Option<String>,
@@ -56,7 +55,7 @@ pub struct HubrisManifest {
     pub peripherals: BTreeMap<String, u32>,
     pub peripherals_byaddr: BTreeMap<u32, String>,
     pub i2c_devices: Vec<HubrisI2cDevice>,
-    pub i2c_buses: Vec<HubrisI2cBus>,
+    pub i2c_buses: HubrisI2cBusList,
     pub sensors: Vec<HubrisSensor>,
     pub sockets: Vec<HubrisSocket>,
     pub auxflash: Option<HubrisConfigAuxflash>,
@@ -68,6 +67,481 @@ impl HubrisManifest {
             anyhow!("couldn't find socket with owner {:?}", task)
         })
     }
+
+    /// Loads a manifest from a `HubrisConfig` and revision
+    fn from_config(
+        config: &HubrisConfig,
+        rev: HubrisManifestRev,
+    ) -> Result<Self> {
+        let board = Some(config.board.clone());
+        let name = Some(config.name.clone());
+        let target = Some(config.target.clone());
+        let features = match config.kernel.features {
+            Some(ref features) => features.clone(),
+            None => vec![],
+        };
+        let auxflash = config.config.as_ref().and_then(|c| c.auxflash.clone());
+
+        let mut named_interrupts = HashMap::new();
+
+        let mut peripherals = BTreeMap::new();
+        let mut peripherals_byaddr = BTreeMap::new();
+        if let Some(periphs) = config.peripherals.as_ref() {
+            for (name, p) in periphs {
+                peripherals.insert(name.clone(), p.address);
+                peripherals_byaddr.insert(p.address, name.clone());
+
+                if let Some(ref interrupts) = p.interrupts {
+                    for (interrupt, irq) in interrupts {
+                        named_interrupts
+                            .insert(format!("{}.{}", name, interrupt), *irq);
+                    }
+                }
+            }
+        }
+
+        let mut task_features = HashMap::new();
+        let mut task_irqs = HashMap::new();
+        let mut task_notifications = HashMap::new();
+        for (name, task) in &config.tasks {
+            if let Some(ref features) = task.features {
+                task_features.insert(name.clone(), features.clone());
+            }
+
+            if let Some(ref interrupts) = task.interrupts {
+                let mut this_task_irqs = vec![];
+
+                for (irq_str, notification) in interrupts {
+                    let irq = match irq_str.parse::<u32>() {
+                        Ok(irq_num) => irq_num,
+                        Err(_) => {
+                            //
+                            // If our IRQ number doesn't parse, it may be
+                            // because it's named; look it up before failing.
+                            //
+                            match named_interrupts.get(irq_str) {
+                                Some(irq_num) => *irq_num,
+                                None => {
+                                    bail!(
+                                        "unrecognized irq {} on task {}",
+                                        irq_str,
+                                        name
+                                    )
+                                }
+                            }
+                        }
+                    };
+                    let notification = match notification {
+                        HubrisTaskInterrupt::Mask(i) => *i,
+                        HubrisTaskInterrupt::Named(name) => match task
+                            .notifications
+                            .iter()
+                            .position(|n| n == name)
+                        {
+                            Some(i) => 1 << i,
+                            None => bail!(
+                                "could not find notification '{name}' \
+                                 (options are {:?})",
+                                task.notifications
+                            ),
+                        },
+                    };
+
+                    this_task_irqs.push((notification, irq));
+                }
+
+                task_irqs.insert(name.clone(), this_task_irqs);
+            }
+
+            task_notifications.insert(name.clone(), task.notifications.clone());
+        }
+
+        let mut sockets = vec![];
+        let mut sensors = vec![];
+        let mut i2c_devices = vec![];
+        let mut i2c_buses = HubrisI2cBusList(vec![]);
+        if let Some(ref config) = config.config {
+            if let Some(i2c) = config.i2c.as_ref() {
+                let cfg = HubrisManifestI2cConfig::from_config(i2c)?;
+                i2c_buses = cfg.i2c_buses;
+                i2c_devices = cfg.i2c_devices;
+                sensors.extend(cfg.sensors);
+            }
+
+            if let Some(sensor) = config.sensor.as_ref() {
+                sensors.extend(Self::load_sensor_config(sensor));
+            }
+            if let Some(net) = config.net.as_ref() {
+                sockets = net
+                    .sockets
+                    .iter()
+                    .map(|(name, cfg)| HubrisSocket {
+                        name: name.clone(),
+                        kind: cfg.kind.clone(),
+                        owner: cfg.owner.clone(),
+                        port: cfg.port,
+                        tx: cfg.tx,
+                        rx: cfg.rx,
+                    })
+                    .collect();
+            }
+        }
+
+        // Destructure the `HubrisManifestRev`
+        let HubrisManifestRev { version, gitrev, image } = rev;
+
+        Ok(Self {
+            version,
+            gitrev,
+            board,
+            features,
+            task_features,
+            image,
+            name,
+            target,
+            task_irqs,
+            task_notifications,
+            peripherals,
+            peripherals_byaddr,
+            auxflash,
+            sockets,
+            sensors,
+            i2c_buses,
+            i2c_devices,
+        })
+    }
+
+    fn load_sensor_config(sensor: &HubrisConfigSensor) -> Vec<HubrisSensor> {
+        let mut out = vec![];
+        for device in &sensor.devices {
+            for (kind, &count) in &device.sensors {
+                for i in 0..count {
+                    out.push(HubrisSensor {
+                        name: device.name.clone(),
+                        kind: HubrisSensorKind::from(kind.as_str()),
+                        device: HubrisSensorDevice::Other(
+                            device.device.clone(),
+                            i,
+                        ),
+                    });
+                }
+            }
+        }
+        out
+    }
+}
+
+struct HubrisManifestI2cConfig {
+    pub i2c_devices: Vec<HubrisI2cDevice>,
+    pub i2c_buses: HubrisI2cBusList,
+    pub sensors: Vec<HubrisSensor>,
+}
+
+impl HubrisManifestI2cConfig {
+    fn from_config(i2c: &HubrisConfigI2c) -> Result<Self> {
+        let mut i2c_buses = Vec::new();
+        let mut i2c_devices = Vec::new();
+        let mut sensors = Vec::new();
+        let mut buses = HashMap::new();
+
+        if let Some(ref controllers) = i2c.controllers {
+            for controller in controllers {
+                for (index, (name, port)) in controller.ports.iter().enumerate()
+                {
+                    i2c_buses.push(HubrisI2cBus {
+                        controller: controller.controller,
+                        port: HubrisI2cPort {
+                            name: name.clone(),
+                            index: index as u8,
+                        },
+                        name: port.name.as_ref().cloned(),
+                        description: port.description.as_ref().cloned(),
+                        target: controller.target.unwrap_or(false),
+                    });
+                }
+            }
+        }
+
+        let i2c_buses = HubrisI2cBusList(i2c_buses);
+        for bus in &i2c_buses.0 {
+            if let Some(ref name) = bus.name {
+                buses.insert(name, bus);
+            }
+        }
+
+        let sensor_name = |d: &HubrisConfigI2cDevice,
+                           idx: usize,
+                           kind: &HubrisSensorKind|
+         -> Result<String> {
+            if let Some(pmbus) = &d.pmbus {
+                if let Some(rails) = &pmbus.rails {
+                    if idx < rails.len() {
+                        return Ok(rails[idx].clone());
+                    } else {
+                        bail!("sensor count exceeds rails for {:?}", d);
+                    }
+                }
+            } else if d.power.is_some()
+                && d.power
+                    .as_ref()
+                    .unwrap()
+                    .sensors
+                    .as_ref()
+                    .is_none_or(|s| s.contains(kind))
+                && let Some(rails) = &d.power.as_ref().unwrap().rails
+            {
+                if idx < rails.len() {
+                    return Ok(rails[idx].clone());
+                } else {
+                    bail!("sensor count exceeds rails for {:?}", d);
+                }
+            }
+
+            if let Some(names) = &d.sensors.as_ref().unwrap().names {
+                if idx >= names.len() {
+                    bail!(
+                        "name array is too short ({}) for sensor index ({})",
+                        names.len(),
+                        idx
+                    );
+                } else {
+                    Ok(names[idx].clone())
+                }
+            } else if let Some(name) = &d.name {
+                if idx == 0 {
+                    Ok(name.clone())
+                } else {
+                    Ok(format!("{}#{}", name, idx))
+                }
+            } else if idx == 0 {
+                Ok(d.device.clone())
+            } else {
+                Ok(format!("{}#{}", d.device, idx))
+            }
+        };
+        let get_sensor = |d: &HubrisConfigI2cDevice,
+                          i: usize,
+                          ndx: usize,
+                          kind: HubrisSensorKind|
+         -> Result<HubrisSensor> {
+            let name = sensor_name(d, i, &kind)?;
+            Ok(HubrisSensor {
+                name,
+                kind,
+                device: HubrisSensorDevice::I2c(ndx),
+            })
+        };
+
+        if let Some(ref devices) = i2c.devices {
+            for device in devices {
+                let name = &device.device;
+
+                let (controller, port) = match &device.bus {
+                    Some(bus) => match buses.get(&bus) {
+                        Some(bus) => (bus.controller, &bus.port),
+                        None => {
+                            //
+                            // This really shouldn't happen: we have
+                            // a bus that doesn't exist.
+                            //
+                            bail!("{}: unknown bus {}", name, bus);
+                        }
+                    },
+                    None => match (device.controller, &device.port) {
+                        (Some(controller), Some(port)) => (
+                            controller,
+                            i2c_buses.lookup_i2c_port(controller, port)?,
+                        ),
+                        (None, _) => {
+                            bail!("{}: missing controller", name);
+                        }
+                        (Some(controller), None) => {
+                            (controller, i2c_buses.i2c_port(controller)?)
+                        }
+                    },
+                };
+
+                let port = port.clone();
+
+                if let Some(dev_sensors) = &device.sensors {
+                    let ndx = i2c_devices.len();
+
+                    for i in 0..dev_sensors.temperature {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Temperature,
+                        )?);
+                    }
+
+                    for i in 0..dev_sensors.power {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Power,
+                        )?);
+                    }
+                    for i in 0..dev_sensors.current {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Current,
+                        )?);
+                    }
+                    for i in 0..dev_sensors.voltage {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Voltage,
+                        )?);
+                    }
+                    for i in 0..dev_sensors.input_current {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::InputCurrent,
+                        )?);
+                    }
+                    for i in 0..dev_sensors.input_voltage {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::InputVoltage,
+                        )?);
+                    }
+
+                    for i in 0..dev_sensors.speed {
+                        sensors.push(get_sensor(
+                            device,
+                            i,
+                            ndx,
+                            HubrisSensorKind::Speed,
+                        )?);
+                    }
+                }
+
+                i2c_devices.push(HubrisI2cDevice {
+                    device: device.device.clone(),
+                    name: device.name.clone(),
+                    controller,
+                    port,
+                    mux: device.mux,
+                    segment: device.segment,
+                    address: device.address,
+                    description: device.description.clone(),
+                    class: HubrisI2cDeviceClass::from(device),
+                    removable: device.removable.unwrap_or(false),
+                });
+            }
+        }
+
+        Ok(Self { i2c_devices, i2c_buses, sensors })
+    }
+}
+
+/// Wrapper around a `Vec<HubrisI2cBus>` with a few helper functions
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct HubrisI2cBusList(Vec<HubrisI2cBus>);
+
+impl HubrisI2cBusList {
+    /// For a given controller and port name, return the matching port (if any)
+    pub fn lookup_i2c_port(
+        &self,
+        controller: u8,
+        port: &str,
+    ) -> Result<&HubrisI2cPort> {
+        let mut found = false;
+
+        for bus in &self.0 {
+            if bus.controller != controller {
+                continue;
+            }
+
+            found = true;
+
+            if bus.port.name.eq_ignore_ascii_case(port) {
+                return Ok(&bus.port);
+            }
+        }
+
+        if !found {
+            bail!("unknown I2C controller {}", controller);
+        }
+
+        let ports = self
+            .0
+            .iter()
+            .filter(|bus| bus.controller == controller)
+            .map(|bus| bus.port.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        bail!("invalid port \"{}\" (must be one of: {})", port, ports);
+    }
+
+    pub fn i2c_port(&self, controller: u8) -> Result<&HubrisI2cPort> {
+        let found = self
+            .0
+            .iter()
+            .filter(|bus| bus.controller == controller)
+            .collect::<Vec<_>>();
+
+        if found.is_empty() {
+            bail!("unknown I2C controller {}", controller);
+        } else if found.len() == 1 {
+            Ok(&found[0].port)
+        } else {
+            let ports = found
+                .iter()
+                .map(|bus| bus.port.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            bail!(
+                "I2C{} has multiple ports; expected one of: {}",
+                controller,
+                ports
+            )
+        }
+    }
+
+    pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
+        self.0
+            .iter()
+            .find(|&b| b.name.as_deref() == Some(bus))
+            .ok_or_else(|| anyhow!("couldn't find bus {}", bus))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<'a> IntoIterator for &'a HubrisI2cBusList {
+    type Item = &'a HubrisI2cBus;
+    type IntoIter = std::slice::Iter<'a, HubrisI2cBus>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+/// Portions of the [`HubrisManifest`] that are loaded from archive files
+#[derive(Default)]
+pub struct HubrisManifestRev {
+    pub version: Option<String>,
+    pub gitrev: Option<String>,
+    pub image: Option<String>,
 }
 
 //
@@ -532,21 +1006,11 @@ impl HubrisFlashMap {
     ///
     /// This will fail if the `HubrisArchive` is fake, i.e. contains zero bytes.
     pub fn new(hubris: &HubrisArchive) -> Result<Self> {
-        if hubris.archive().is_empty() {
-            bail!("archive is required for network use but was not provided");
-        }
         //
         // We want to read in the "final.elf" from our archive and use that
         // to determine the memory that constitutes flash.
         //
-        let cursor = Cursor::new(hubris.archive());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut file = archive
-            .by_name("img/final.elf")
-            .map_err(|e| anyhow!("failed to find final.elf: {}", e))?;
-
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents)?;
+        let contents = hubris.hubris_archive.extract_file("img/final.elf")?;
 
         let elf = Elf::parse(&contents).map_err(|e| {
             anyhow!("failed to parse final.elf as an ELF file: {}", e)
@@ -607,14 +1071,6 @@ pub struct HubrisFlashConfig {
     pub metadata: HubrisFlashMeta,
     pub elf: Vec<u8>,
     pub chip: Option<String>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum HubrisArchiveDoneness {
-    /// Fully load archive
-    Cook,
-    /// Load archive into memory, but do not otherwise process
-    Raw,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -690,8 +1146,11 @@ impl Namespaces {
 }
 
 pub struct HubrisArchive {
-    // the entire archive
-    archive: Vec<u8>,
+    /// Raw archive
+    hubris_archive: RawHubrisArchive,
+
+    /// Number of tasks (not including the kernel)
+    ntasks: usize,
 
     // constructed manifest
     pub manifest: HubrisManifest,
@@ -701,9 +1160,6 @@ pub struct HubrisArchive {
 
     // loaded regions
     loaded: BTreeMap<u32, HubrisRegion>,
-
-    // current object
-    current: u32,
 
     // non-None if a dump of a single task
     task_dump: Option<DumpTask>,
@@ -796,44 +1252,6 @@ pub struct HubrisArchive {
 
 #[rustfmt::skip::macros(anyhow, bail)]
 impl HubrisArchive {
-    #[expect(clippy::new_without_default)]
-    pub fn new() -> HubrisArchive {
-        Self {
-            archive: Vec::new(),
-            imageid: None,
-            manifest: Default::default(),
-            loaded: BTreeMap::new(),
-            current: 0,
-            task_dump: None,
-            instrs: HashMap::new(),
-            syscall_pushes: HashMap::new(),
-            modules: BTreeMap::new(),
-            tasks: HashMap::new(),
-            frames: HashMap::new(),
-            src: HashMap::new(),
-            dsyms: BTreeMap::new(),
-            esyms: BTreeMap::new(),
-            esyms_byname: MultiMap::new(),
-            inlined: BTreeMap::new(),
-            subprograms: HashMap::new(),
-            basetypes: HashMap::new(),
-            basetypes_byname: HashMap::new(),
-            ptrtypes: HashMap::new(),
-            structs: HashMap::new(),
-            structs_byname: MultiMap::new(),
-            enums: HashMap::new(),
-            addr2line: HashMap::new(),
-            enums_byname: MultiMap::new(),
-            arrays: HashMap::new(),
-            variables: MultiMap::new(),
-            qualified_variables: MultiMap::new(),
-            unions: HashMap::new(),
-            definitions: MultiMap::new(),
-            namespaces: Namespaces::new(),
-            extern_regions: ExternRegions::new(),
-        }
-    }
-
     pub fn instr_len(&self, addr: u32) -> Option<u32> {
         self.instrs.get(&addr).map(|instr| instr.0.len() as u32)
     }
@@ -919,386 +1337,43 @@ impl HubrisArchive {
         inlined
     }
 
-    fn load_sensor_config(
-        &mut self,
-        sensor: &HubrisConfigSensor,
-    ) -> Result<()> {
-        for device in &sensor.devices {
-            for (kind, &count) in &device.sensors {
-                for i in 0..count {
-                    self.manifest.sensors.push(HubrisSensor {
-                        name: device.name.clone(),
-                        kind: HubrisSensorKind::from(kind.as_str()),
-                        device: HubrisSensorDevice::Other(
-                            device.device.clone(),
-                            i,
-                        ),
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn load_i2c_config(&mut self, i2c: &HubrisConfigI2c) -> Result<()> {
-        let mut buses = HashMap::new();
-
-        if let Some(ref controllers) = i2c.controllers {
-            for controller in controllers {
-                for (index, (name, port)) in controller.ports.iter().enumerate()
-                {
-                    self.manifest.i2c_buses.push(HubrisI2cBus {
-                        controller: controller.controller,
-                        port: HubrisI2cPort {
-                            name: name.clone(),
-                            index: index as u8,
-                        },
-                        name: port.name.as_ref().cloned(),
-                        description: port.description.as_ref().cloned(),
-                        target: controller.target.unwrap_or(false),
-                    });
-                }
-            }
+    pub fn load(
+        hubris: RawHubrisArchive,
+        task_dump: Option<DumpTask>,
+    ) -> Result<Self> {
+        // Check the version early and bail if we don't match/can't read
+        let archive_version = hubris.archive_version();
+        if archive_version > MAX_HUBRIS_VERSION {
+            bail!("\
+                Hubris archive version is unsupported.\n\
+                Humility supports v{} and earlier; archive is v{}.\n\
+                Please update Humility.",
+                MAX_HUBRIS_VERSION, archive_version
+            );
         }
 
-        for bus in &self.manifest.i2c_buses {
-            if let Some(ref name) = bus.name {
-                buses.insert(name, bus);
-            }
-        }
-
-        let sensor_name = |d: &HubrisConfigI2cDevice,
-                           idx: usize,
-                           kind: &HubrisSensorKind|
-         -> Result<String> {
-            if let Some(pmbus) = &d.pmbus {
-                if let Some(rails) = &pmbus.rails {
-                    if idx < rails.len() {
-                        return Ok(rails[idx].clone());
-                    } else {
-                        bail!("sensor count exceeds rails for {:?}", d);
-                    }
-                }
-            } else if d.power.is_some()
-                && d.power
-                    .as_ref()
-                    .unwrap()
-                    .sensors
-                    .as_ref()
-                    .is_none_or(|s| s.contains(kind))
-                && let Some(rails) = &d.power.as_ref().unwrap().rails
-            {
-                if idx < rails.len() {
-                    return Ok(rails[idx].clone());
-                } else {
-                    bail!("sensor count exceeds rails for {:?}", d);
-                }
-            }
-
-            if let Some(names) = &d.sensors.as_ref().unwrap().names {
-                if idx >= names.len() {
-                    bail!(
-                        "name array is too short ({}) for sensor index ({})",
-                        names.len(),
-                        idx
-                    );
-                } else {
-                    Ok(names[idx].clone())
-                }
-            } else if let Some(name) = &d.name {
-                if idx == 0 {
-                    Ok(name.clone())
-                } else {
-                    Ok(format!("{}#{}", name, idx))
-                }
-            } else if idx == 0 {
-                Ok(d.device.clone())
-            } else {
-                Ok(format!("{}#{}", d.device, idx))
-            }
-        };
-        let get_sensor = |d: &HubrisConfigI2cDevice,
-                          i: usize,
-                          ndx: usize,
-                          kind: HubrisSensorKind|
-         -> Result<HubrisSensor> {
-            let name = sensor_name(d, i, &kind)?;
-            Ok(HubrisSensor {
-                name,
-                kind,
-                device: HubrisSensorDevice::I2c(ndx),
-            })
-        };
-
-        if let Some(ref devices) = i2c.devices {
-            for device in devices {
-                let name = &device.device;
-
-                let (controller, port) = match &device.bus {
-                    Some(bus) => match buses.get(&bus) {
-                        Some(bus) => (bus.controller, &bus.port),
-                        None => {
-                            //
-                            // This really shouldn't happen: we have
-                            // a bus that doesn't exist.
-                            //
-                            bail!("{}: unknown bus {}", name, bus);
-                        }
-                    },
-                    None => match (device.controller, &device.port) {
-                        (Some(controller), Some(port)) => (
-                            controller,
-                            self.lookup_i2c_port(controller, port)?,
-                        ),
-                        (None, _) => {
-                            bail!("{}: missing controller", name);
-                        }
-                        (Some(controller), None) => {
-                            (controller, self.i2c_port(controller)?)
-                        }
-                    },
-                };
-
-                let port = port.clone();
-
-                if let Some(sensors) = &device.sensors {
-                    let ndx = self.manifest.i2c_devices.len();
-
-                    for i in 0..sensors.temperature {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::Temperature,
-                        )?);
-                    }
-
-                    for i in 0..sensors.power {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::Power,
-                        )?);
-                    }
-                    for i in 0..sensors.current {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::Current,
-                        )?);
-                    }
-                    for i in 0..sensors.voltage {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::Voltage,
-                        )?);
-                    }
-                    for i in 0..sensors.input_current {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::InputCurrent,
-                        )?);
-                    }
-                    for i in 0..sensors.input_voltage {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::InputVoltage,
-                        )?);
-                    }
-
-                    for i in 0..sensors.speed {
-                        self.manifest.sensors.push(get_sensor(
-                            device,
-                            i,
-                            ndx,
-                            HubrisSensorKind::Speed,
-                        )?);
-                    }
-                }
-
-                self.manifest.i2c_devices.push(HubrisI2cDevice {
-                    device: device.device.clone(),
-                    name: device.name.clone(),
-                    controller,
-                    port,
-                    mux: device.mux,
-                    segment: device.segment,
-                    address: device.address,
-                    description: device.description.clone(),
-                    class: HubrisI2cDeviceClass::from(device),
-                    removable: device.removable.unwrap_or(false),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    fn load_config(
-        &mut self,
-        config: &HubrisConfig,
-        peripherals: Option<&IndexMap<String, HubrisConfigPeripheral>>,
-    ) -> Result<()> {
-        self.manifest.board = Some(config.board.clone());
-        self.manifest.name = Some(config.name.clone());
-        self.manifest.target = Some(config.target.clone());
-        self.manifest.features = match config.kernel.features {
-            Some(ref features) => features.clone(),
-            None => vec![],
-        };
-        self.manifest.auxflash =
-            config.config.as_ref().and_then(|c| c.auxflash.clone());
-
-        let mut named_interrupts = HashMap::new();
-
-        if let Some(peripherals) = peripherals {
-            for (name, p) in peripherals {
-                self.manifest.peripherals.insert(name.clone(), p.address);
-                self.manifest
-                    .peripherals_byaddr
-                    .insert(p.address, name.clone());
-
-                if let Some(ref interrupts) = p.interrupts {
-                    for (interrupt, irq) in interrupts {
-                        named_interrupts
-                            .insert(format!("{}.{}", name, interrupt), *irq);
-                    }
-                }
-            }
-        }
-
-        for (name, task) in &config.tasks {
-            if let Some(ref features) = task.features {
-                self.manifest
-                    .task_features
-                    .insert(name.clone(), features.clone());
-            }
-
-            if let Some(ref interrupts) = task.interrupts {
-                let mut task_irqs = vec![];
-
-                for (irq_str, notification) in interrupts {
-                    let irq = match irq_str.parse::<u32>() {
-                        Ok(irq_num) => irq_num,
-                        Err(_) => {
-                            //
-                            // If our IRQ number doesn't parse, it may be
-                            // because it's named; look it up before failing.
-                            //
-                            match named_interrupts.get(irq_str) {
-                                Some(irq_num) => *irq_num,
-                                None => {
-                                    bail!(
-                                        "unrecognized irq {} on task {}",
-                                        irq_str, name
-                                    )
-                                }
-                            }
-                        }
-                    };
-                    let notification = match notification {
-                        HubrisTaskInterrupt::Mask(i) => *i,
-                        HubrisTaskInterrupt::Named(name) => match task
-                            .notifications
-                            .iter()
-                            .position(|n| n == name)
-                        {
-                            Some(i) => 1 << i,
-                            None => bail!(
-                                "could not find notification '{name}' \
-                                 (options are {:?})",
-                                task.notifications),
-                        },
-                    };
-
-                    task_irqs.push((notification, irq));
-                }
-
-                self.manifest.task_irqs.insert(name.clone(), task_irqs);
-            }
-
-            self.manifest
-                .task_notifications
-                .insert(name.clone(), task.notifications.clone());
-        }
-
-        if let Some(ref config) = config.config {
-            if let Some(i2c) = config.i2c.as_ref() {
-                self.load_i2c_config(i2c)?;
-            }
-            if let Some(sensor) = config.sensor.as_ref() {
-                self.load_sensor_config(sensor)?;
-            }
-            if let Some(net) = config.net.as_ref() {
-                self.manifest.sockets = net
-                    .sockets
-                    .iter()
-                    .map(|(name, cfg)| HubrisSocket {
-                        name: name.clone(),
-                        kind: cfg.kind.clone(),
-                        owner: cfg.owner.clone(),
-                        port: cfg.port,
-                        tx: cfg.tx,
-                        rx: cfg.rx,
-                    })
-                    .collect();
-            }
-        }
-
-        Ok(())
-    }
-
-    fn load_archive(&mut self, archive: &[u8]) -> Result<()> {
-        let cursor = Cursor::new(archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let manifest = &mut self.manifest;
-
-        macro_rules! byname {
-            ($name:tt) => {
-                archive
-                    .by_name($name)
-                    .map_err(|e| anyhow!("failed to find \"{}\": {}", $name, e))
-            };
-        }
-
-        //
         // First, we'll load aspects of configuration.
-        //
-        manifest.version = Some(str::from_utf8(archive.comment())?.to_string());
-
-        if let Ok(mut file) = archive.by_name("git-rev") {
-            let mut gitrev = String::new();
-            file.read_to_string(&mut gitrev)
-                .context("failed reading `git-rev`")?;
-            manifest.gitrev = Some(gitrev);
+        let mut manifest_rev = HubrisManifestRev::default();
+        if let Ok(git_rev) = hubris.extract_file("git-rev") {
+            manifest_rev.gitrev =
+                Some(std::str::from_utf8(&git_rev)?.to_string());
         }
 
-        if let Ok(mut file) = archive.by_name("image-name") {
-            let mut image = String::new();
-            file.read_to_string(&mut image)
-                .context("failed reading `image-name`")?;
-            manifest.image = Some(image);
+        if let Ok(image_name) = hubris.extract_file("image-name") {
+            manifest_rev.image =
+                Some(std::str::from_utf8(&image_name)?.to_string());
         }
 
-        let mut app = String::new();
-        byname!("app.toml")?.read_to_string(&mut app)?;
+        manifest_rev.version =
+            Some(format!("hubris build archive v{}", archive_version));
 
-        let mut config: HubrisConfig = toml::from_slice(app.as_bytes())?;
+        // Load the main manifest config file
+        let app = hubris.extract_file("app.toml")?;
+        let mut config: HubrisConfig = toml::from_slice(&app)?;
 
         // Apply TOML patches, if `patches.toml` is present in the archive.
-        if let Ok(mut patches) = byname!("patches.toml") {
-            let mut patch_str = String::new();
-            patches.read_to_string(&mut patch_str)?;
-            let patches: HubrisConfigPatches =
-                toml::from_slice(patch_str.as_bytes())?;
+        if let Ok(patches) = hubris.extract_file("patches.toml") {
+            let patches: HubrisConfigPatches = toml::from_slice(&patches)?;
             config.name = patches.name;
             for (task, features) in patches.features {
                 config
@@ -1311,22 +1386,13 @@ impl HubrisArchive {
             }
         }
 
-        let config = config; // remove mutability
-
-        //
-        // Before we load our config, we need to find where our peripherals
-        // are located (if we have any).  If they are hanging off our config,
-        // use that -- but if we have a newer archive that contains a referred
-        // chip, pull in the TOML that it points to instead.
-        //
-        if let Some(ref peripherals) = config.peripherals {
-            self.load_config(&config, Some(peripherals))?;
-        } else if let Some(ref chip) = config.chip {
-            //
+        // Hot-patch the `peripherals` member of config
+        if config.peripherals.is_none()
+            && let Some(chip) = &config.chip
+        {
             // Paths are relative, so we always pull the basename -- and
             // paths within a ZIP archive always use the forward slash
             // as a separator.
-            //
             let path = match chip.rsplit('/').next() {
                 // Newer archive files may include the chip peripherals with
                 // the generic name "chip.toml" instead of something like
@@ -1338,39 +1404,32 @@ impl HubrisArchive {
                 None => chip,
             };
 
-            let mut chip = String::new();
-
-            //
             // Ideally, we would hard-fail if we didn't find this file in
             // the archive -- but there was a small window of time in which
             // the chip TOML was not properly in the archive.  This is still
             // recoverable -- but anything that relies on the presence of
             // peripherals in the TOML will fail.
-            //
-            if let Ok(mut file) = archive.by_name(path) {
-                file.read_to_string(&mut chip)?;
-
-                let peripherals: IndexMap<String, HubrisConfigPeripheral> =
-                    toml::from_slice(chip.as_bytes())?;
-
-                self.load_config(&config, Some(&peripherals))?;
-            } else {
-                self.load_config(&config, None)?;
+            if let Ok(chip) = hubris.extract_file(path) {
+                config.peripherals = toml::from_slice(&chip)?;
             }
-        } else {
-            self.load_config(&config, None)?;
         }
+
+        let config = config; // remove mutability
+
+        // Build the manifest, now that we've got a complete config
+        let manifest = HubrisManifest::from_config(&config, manifest_rev)?;
 
         //
         // Next up is the kernel.  Note that we refer to it explicitly with a
         // forward slash: regardless of platform, paths within a ZIP archive
         // use the forward slash as a separator.
         //
-        let mut buffer = Vec::new();
-        byname!("elf/kernel")?.read_to_end(&mut buffer)?;
-        let mut loader = HubrisObjectLoader::new(self.current)?;
-        loader.load_object("kernel", HubrisTask::Kernel, &buffer)?;
-        self.merge(loader)?;
+        let mut loader = HubrisObjectLoader::new(0)?;
+        loader.load_object(
+            "kernel",
+            HubrisTask::Kernel,
+            &hubris.extract_file("elf/kernel")?,
+        )?;
 
         //
         // Find and unzip tasks in parallel.  Note that into_par_iter discards
@@ -1378,13 +1437,13 @@ impl HubrisArchive {
         // resulting tuple for later sorting.
         //
         use rayon::prelude::*;
-        let mut objects = (0..archive.len())
+        let mut objects = (0..hubris.file_count()?)
             .into_par_iter()
             .map(|i| -> Result<Option<(usize, String, Vec<u8>)>> {
-                // ZipArchive is cheap to clone since the backing is cheap
-                let mut archive = archive.clone();
-                let mut file = archive.by_index(i)?;
-                let path = Path::new(file.name());
+                // TODO(matt) once hubtools#65 is merged, this can be made more
+                // efficient; right now, it extracts every file.
+                let (name, data) = hubris.extract_file_by_index(i)?;
+                let path = Path::new(&name);
                 let pieces = path.iter().collect::<Vec<_>>();
 
                 //
@@ -1395,13 +1454,11 @@ impl HubrisArchive {
                     return Ok(None);
                 }
 
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)?;
-                let filename = Path::new(file.name());
+                let filename = Path::new(&name);
                 Ok(Some((
                     i,
                     filename.file_name().unwrap().to_str().unwrap().to_owned(),
-                    buffer,
+                    data,
                 )))
             })
             .filter_map(|f| f.transpose())
@@ -1424,210 +1481,108 @@ impl HubrisArchive {
             .into_par_iter()
             .map(|(id, name, buf)| {
                 let id: u32 = id.try_into().unwrap();
-                let mut loader = HubrisObjectLoader::new(self.current + id)?;
+                let mut loader = HubrisObjectLoader::new(id + 1)?;
                 loader.load_object(&name, HubrisTask::Task(id), &buf)?;
                 Ok(loader)
             })
             .collect::<Result<Vec<_>>>()?;
 
-        for loader in files {
-            self.merge(loader)?;
+        let ntasks = files.len();
+        for f in files {
+            loader.merge(f)?;
         }
-        assert_eq!(self.current as usize, self.tasks.len());
 
         //
         // Now that we have loaded our tasks, load our extern regions.
         //
-        self.extern_regions = ExternRegions::load(self, &mut archive, &config)?;
+        let extern_regions =
+            ExternRegions::load(&loader.tasks, &hubris, &config)?;
 
         //
         // Post-process our enums and structs to add their fully scoped names.
         //
         let mut work = BTreeSet::new();
 
-        for (name, enums) in self.enums_byname.iter_all() {
+        for (name, enums) in loader.enums_byname.iter_all() {
             for goff in enums.iter() {
-                let n = self.enums.get(goff).unwrap().namespace;
+                let n = loader.enums.get(goff).unwrap().namespace;
 
-                if let Some(full) = self.namespaces.to_full_name(n, name)? {
+                if let Some(full) = loader.namespaces.to_full_name(n, name)? {
                     work.insert((full, *goff));
                 }
             }
         }
 
         for (name, goff) in work.iter() {
-            self.enums_byname.insert(name.clone(), *goff);
+            loader.enums_byname.insert(name.clone(), *goff);
         }
 
         let mut work = BTreeSet::new();
 
-        for (name, structs) in self.structs_byname.iter_all() {
+        for (name, structs) in loader.structs_byname.iter_all() {
             for goff in structs.iter() {
-                let n = self.structs.get(goff).unwrap().namespace;
+                let n = loader.structs.get(goff).unwrap().namespace;
 
-                if let Some(full) = self.namespaces.to_full_name(n, name)? {
+                if let Some(full) = loader.namespaces.to_full_name(n, name)? {
                     work.insert((full, *goff));
                 }
             }
         }
 
         for (name, goff) in work.iter() {
-            self.structs_byname.insert(name.clone(), *goff);
+            loader.structs_byname.insert(name.clone(), *goff);
         }
 
-        Ok(())
-    }
-
-    fn merge(&mut self, loader: HubrisObjectLoader) -> Result<()> {
-        if loader.imageid.is_some() {
-            self.imageid = loader.imageid;
-        }
-        self.esyms_byname.extend(loader.esyms_byname);
-
-        self.esyms.extend(loader.esyms);
-        self.tasks.extend(loader.tasks);
-        self.modules.extend(loader.modules);
-        self.frames.extend(loader.frames);
-        self.loaded.extend(loader.loaded);
-        self.instrs.extend(loader.instrs);
-        self.syscall_pushes.extend(loader.syscall_pushes);
-        self.unions.extend(loader.unions);
-        self.src.extend(loader.src);
-        self.enums_byname.extend(loader.enums_byname);
-        self.structs_byname.extend(loader.structs_byname);
-        self.arrays.extend(loader.arrays);
-        self.basetypes.extend(loader.basetypes);
-        self.addr2line.extend(loader.addr2line);
-        self.basetypes_byname.extend(loader.basetypes_byname);
-        self.ptrtypes.extend(loader.ptrtypes);
-        self.inlined.extend(loader.inlined);
-        self.subprograms.extend(loader.subprograms);
-        self.dsyms.extend(loader.dsyms);
-        self.variables.extend(loader.variables);
-        self.qualified_variables.extend(loader.qualified_variables);
-        self.definitions.extend(loader.definitions);
-
-        // Namespaces need to be shifted when merging into the global namespaces
-        // vec.  This change applies to the `namespace` member in structs and
-        // enums, as well as the `namespaces` table itself.
-        let ns_offset = self.namespaces.0.len();
-
-        self.namespaces.0.extend(loader.namespaces.0.into_iter().map(
-            |mut v| {
-                if let Some(n) = &mut v.parent {
-                    n.0 += ns_offset;
-                }
-                v
-            },
-        ));
-        self.structs.extend(loader.structs.into_iter().map(|(goff, mut s)| {
-            if let Some(n) = &mut s.namespace {
-                n.0 += ns_offset;
-            }
-            (goff, s)
-        }));
-        self.enums.extend(loader.enums.into_iter().map(|(goff, mut s)| {
-            if let Some(n) = &mut s.namespace {
-                n.0 += ns_offset;
-            }
-            (goff, s)
-        }));
-
-        self.current += 1;
-        Ok(())
-    }
-
-    pub fn load(
-        &mut self,
-        archive: &str,
-        doneness: HubrisArchiveDoneness,
-    ) -> Result<()> {
-        let metadata = fs::metadata(archive)?;
-
-        if metadata.is_dir() {
-            bail!("a directory as an archive is deprecated; \
-                use archive instead");
-        }
-
-        //
-        // We read the entire archive into memory (and hold onto it) -- we
-        // are going to need most of it anyway, and we want to have
-        // the entire archive in memory to be able to write it out to
-        // any generated dump.
-        //
-        let contents = fs::read(archive)?;
-
-        let cursor = Cursor::new(&contents);
-        let archive = zip::ZipArchive::new(cursor)?;
-        let comment = str::from_utf8(archive.comment())
-            .context("Failed to decode comment string")?;
-        Self::check_version(comment)?;
-
-        if doneness == HubrisArchiveDoneness::Cook {
-            self.load_archive(&contents)?;
-        }
-
-        self.archive = contents;
-        Ok(())
-    }
-
-    fn check_version(comment: &str) -> Result<()> {
-        match comment.strip_prefix("hubris build archive v") {
-            Some(v) => {
-                let archive_version = match v {
-                    // Special-case for older archives
-                    "1.0.0" => 1,
-                    // There was no v1, just v1.0.0
-                    "1" => bail!("Invalid archive version 'v1'"),
-                    // Otherwise, expect an integer
-                    v => v.parse().with_context(|| {
-                        format!("Failed to parse version string {}", v)
-                    })?,
-                };
-                if archive_version > MAX_HUBRIS_VERSION {
-                    bail!("\
-                        Hubris archive version is unsupported.\n\
-                        Humility supports v{} and earlier; archive is v{}.\n\
-                        Please update Humility.",
-                        MAX_HUBRIS_VERSION, v)
-                }
-            }
-            None => {
-                bail!(
-                    "Could not parse hubris archive version from '{}'",
-                    comment)
-            }
-        }
-        Ok(())
+        Ok(Self {
+            hubris_archive: hubris,
+            imageid: loader.imageid,
+            manifest,
+            loaded: loader.loaded,
+            task_dump,
+            ntasks,
+            instrs: loader.instrs,
+            syscall_pushes: loader.syscall_pushes,
+            modules: loader.modules,
+            tasks: loader.tasks,
+            frames: loader.frames,
+            src: loader.src,
+            dsyms: loader.dsyms,
+            esyms: loader.esyms,
+            esyms_byname: loader.esyms_byname,
+            inlined: loader.inlined,
+            subprograms: loader.subprograms,
+            basetypes: loader.basetypes,
+            basetypes_byname: loader.basetypes_byname,
+            ptrtypes: loader.ptrtypes,
+            structs: loader.structs,
+            structs_byname: loader.structs_byname,
+            enums: loader.enums,
+            addr2line: loader.addr2line,
+            enums_byname: loader.enums_byname,
+            arrays: loader.arrays,
+            variables: loader.variables,
+            qualified_variables: loader.qualified_variables,
+            unions: loader.unions,
+            definitions: loader.definitions,
+            namespaces: loader.namespaces,
+            extern_regions,
+        })
     }
 
     pub fn load_flash_config(&self) -> Result<HubrisFlashConfig> {
-        let cursor = Cursor::new(&self.archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-
-        macro_rules! slurp {
-            ($name:tt) => {{
-                let mut buffer = Vec::new();
-                archive
-                    .by_name($name)
-                    .map_err(|e| {
-                        anyhow!("failed to find \"{}\": {}", $name, e)
-                    })?
-                    .read_to_end(&mut buffer)?;
-                buffer
-            }};
-        }
-
-        let flash_ron = archive.by_name("img/flash.ron").map_err(|_| {
-            anyhow!(
+        let flash_ron = self
+            .hubris_archive
+            .extract_file("img/flash.ron")
+            .map_err(|_| {
+                anyhow!(
                 "could not find img/flash.ron in archive; \
                 does archive pre-date addition of flash information?"
             )
-        })?;
+            })?;
 
         let config: HubrisFlashMeta = ron::options::Options::default()
             .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
-            .from_reader(flash_ron)?;
+            .from_bytes(&flash_ron)?;
 
         // This is incredibly ugly! It also gives us backwards compatibility!
         let chip: Option<String> = match config.chip {
@@ -1637,7 +1592,7 @@ impl HubrisArchive {
 
         Ok(HubrisFlashConfig {
             metadata: config,
-            elf: slurp!("img/final.elf"),
+            elf: self.hubris_archive.extract_file("img/final.elf")?,
             chip,
         })
     }
@@ -1656,22 +1611,24 @@ impl HubrisArchive {
 
     /// Destroys the `HubrisArchive`, returning the raw archive data
     pub fn take_raw_archive(self) -> Vec<u8> {
-        self.archive
+        self.hubris_archive.zip
     }
 
+    /// Helper function to load a dump into a [`RawHubrisArchive`]
+    ///
+    /// Returns a tuple of `(raw archive, dump task)`; the second field is
+    /// `Some(..)` if this is a single-task dump.
     pub fn load_dump(
-        &mut self,
         dumpfile: &str,
-        doneness: HubrisArchiveDoneness,
-    ) -> Result<()> {
-        //
+    ) -> Result<(RawHubrisArchive, Option<DumpTask>)> {
         // We expect the dump to be an ELF core dump.
-        //
         let contents = fs::read(dumpfile)?;
         let elf = Elf::parse(&contents).map_err(|e| {
             anyhow!("failed to parse {} as an ELF file: {}", dumpfile, e)
         })?;
 
+        let mut task_dump = None;
+        let mut archive = None;
         if let Some(notes) = elf.iter_note_headers(&contents) {
             for note in notes {
                 match note {
@@ -1682,20 +1639,24 @@ impl HubrisArchive {
 
                         match note.n_type {
                             OXIDE_NT_HUBRIS_ARCHIVE => {
-                                if doneness == HubrisArchiveDoneness::Cook {
-                                    self.load_archive(note.desc)?;
+                                if archive.is_some() {
+                                    bail!("multiple OXIDE_NT_HUBRIS_ARCHIVE found in dump");
                                 }
-
-                                self.archive = note.desc.to_vec();
+                                archive = Some(RawHubrisArchive::from_vec(
+                                    note.desc.to_vec(),
+                                )?);
                             }
                             OXIDE_NT_HUBRIS_TASK => {
                                 match DumpTask::read_from_prefix(note.desc) {
                                     Ok((task, _)) => {
-                                        self.task_dump = Some(task);
+                                        if task_dump.is_some() {
+                                            bail!("multiple OXIDE_NT_HUBRIS_TASK found in dump");
+                                        }
+                                        task_dump = Some(task);
                                     }
                                     Err(e) => {
                                         bail!(
-                                            "unrecognized task {:?} ({e})",
+                                            "could not read task {:?} ({e})",
                                              note.desc
                                         );
                                     }
@@ -1716,7 +1677,10 @@ impl HubrisArchive {
             }
         }
 
-        Ok(())
+        let Some(archive) = archive else {
+            bail!("could not find archive in dump");
+        };
+        Ok((archive, task_dump))
     }
 
     pub fn loaded(&self) -> bool {
@@ -2014,7 +1978,7 @@ impl HubrisArchive {
     }
 
     pub fn ntasks(&self) -> usize {
-        if self.current >= 1 { self.current as usize - 1 } else { 0 }
+        self.ntasks
     }
 
     /// If this is a dump from a single task, returns that task -- or None
@@ -2126,16 +2090,6 @@ impl HubrisArchive {
         criteria: HubrisValidate,
     ) -> Result<()> {
         let ntasks = self.ntasks();
-
-        if self.current == 0 {
-            //
-            // If we have no objects, we were never loaded -- and we consider
-            // this to be validated because it will give no answers rather
-            // than wrong ones.
-            //
-            return Ok(());
-        }
-
         if core.is_net() || core.is_archive() {
             return Ok(());
         }
@@ -2279,13 +2233,8 @@ impl HubrisArchive {
 
         // We don't use final.elf for much and don't keep it around in a
         // convenient buffer. So, go get it out of the archive.
-        let cursor = Cursor::new(self.archive());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut elf_file = archive
-            .by_name("img/final.elf")
-            .context("could not find final.elf in archive!")?;
-        let mut file_contents = vec![];
-        elf_file.read_to_end(&mut file_contents)?;
+        let file_contents =
+            self.hubris_archive.extract_file("img/final.elf")?;
 
         let elf =
             Elf::parse(&file_contents).context("busted final ELF object")?;
@@ -3312,7 +3261,7 @@ impl HubrisArchive {
 
         notes.push(goblin::elf::note::Nhdr32 {
             n_namesz: (oxide.len() + 1) as u32,
-            n_descsz: self.archive.len() as u32,
+            n_descsz: self.hubris_archive.zip.len() as u32,
             n_type: OXIDE_NT_HUBRIS_ARCHIVE,
         });
 
@@ -3426,7 +3375,7 @@ impl HubrisArchive {
                 }
 
                 OXIDE_NT_HUBRIS_ARCHIVE => {
-                    file.write_all(&self.archive)?;
+                    file.write_all(&self.hubris_archive.zip)?;
                 }
 
                 OXIDE_NT_HUBRIS_TASK => {
@@ -3490,15 +3439,12 @@ impl HubrisArchive {
     }
 
     pub fn extract_file_to(&self, filename: &str, target: &Path) -> Result<()> {
-        let cursor = Cursor::new(self.archive.as_slice());
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let mut file = archive
-            .by_name(filename)
+        let bytes = self
+            .hubris_archive
+            .extract_file(filename)
             .map_err(|e| anyhow!("failed to find '{}': {}", filename, e))?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
 
-        std::fs::write(target, &buffer).map_err(Into::into)
+        std::fs::write(target, &bytes).map_err(Into::into)
     }
 
     pub fn lookup_feature(&self, feature: &str) -> Result<Vec<HubrisTask>> {
@@ -3568,78 +3514,23 @@ impl HubrisArchive {
     }
 
     pub fn lookup_i2c_bus(&self, bus: &str) -> Result<&HubrisI2cBus> {
-        self.manifest
-            .i2c_buses
-            .iter()
-            .find(|&b| b.name == Some(bus.to_string()))
-            .ok_or_else(|| anyhow!("couldn't find bus {}", bus))
+        self.manifest.i2c_buses.lookup_i2c_bus(bus)
     }
 
-    ///
-    /// For a given controller and port name, return the matching port
-    /// (if any)
+    /// For a given controller and port name, return the matching port (if any)
     pub fn lookup_i2c_port(
         &self,
         controller: u8,
         port: &str,
     ) -> Result<&HubrisI2cPort> {
-        let mut found = false;
-
-        for bus in &self.manifest.i2c_buses {
-            if bus.controller != controller {
-                continue;
-            }
-
-            found = true;
-
-            if bus.port.name.eq_ignore_ascii_case(port) {
-                return Ok(&bus.port);
-            }
-        }
-
-        if !found {
-            bail!("unknown I2C controller {}", controller);
-        }
-
-        let ports = self
-            .manifest
-            .i2c_buses
-            .iter()
-            .filter(|bus| bus.controller == controller)
-            .map(|bus| bus.port.name.clone())
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        bail!("invalid port \"{}\" (must be one of: {})", port, ports);
+        self.manifest.i2c_buses.lookup_i2c_port(controller, port)
     }
 
     ///
     /// For a given controller, return its port if there is only one, failing
     /// if there is more than one port.
     pub fn i2c_port(&self, controller: u8) -> Result<&HubrisI2cPort> {
-        let found = self
-            .manifest
-            .i2c_buses
-            .iter()
-            .filter(|bus| bus.controller == controller)
-            .collect::<Vec<_>>();
-
-        if found.is_empty() {
-            bail!("unknown I2C controller {}", controller);
-        } else if found.len() == 1 {
-            Ok(&found[0].port)
-        } else {
-            let ports = found
-                .iter()
-                .map(|bus| bus.port.name.clone())
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            bail!(
-                "I2C{} has multiple ports; expected one of: {}",
-                controller, ports
-            )
-        }
+        self.manifest.i2c_buses.i2c_port(controller)
     }
 
     pub fn clock(
@@ -3674,8 +3565,8 @@ impl HubrisArchive {
         }
     }
 
-    pub fn archive(&self) -> &[u8] {
-        &self.archive
+    pub fn hubris_archive(&self) -> &RawHubrisArchive {
+        &self.hubris_archive
     }
 
     /// Reads the auxiliary flash data from a Hubris archive
@@ -3683,18 +3574,12 @@ impl HubrisArchive {
     /// Returns `Ok(Some(...))` if the data is loaded, `Ok(None)` if the file
     /// is missing, or `Err(...)` if a zip file error occurred.
     pub fn read_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
-        let archive = self.archive();
-        let cursor = Cursor::new(archive);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-        let file = archive.by_name(name);
-        match file {
-            Ok(mut f) => {
-                let mut buffer = Vec::new();
-                f.read_to_end(&mut buffer)?;
-                Ok(Some(buffer))
-            }
-            Err(zip::result::ZipError::FileNotFound) => Ok(None),
-            Err(e) => bail!("Failed to extract {}: {}", name, e),
+        match self.hubris_archive.extract_file(name) {
+            Ok(s) => Ok(Some(s)),
+            Err(hubtools::Error::ZipError(
+                zip::result::ZipError::FileNotFound,
+            )) => Ok(None),
+            Err(e) => bail!("Failed to extract {name}: {e}"),
         }
     }
 
@@ -3752,7 +3637,7 @@ impl HubrisArchive {
 /// meant to be used for parallel loading, after which point everything is
 /// merged using `HubrisArchive::merge`.
 struct HubrisObjectLoader {
-    current: u32,
+    object_id: u32,
 
     // image ID
     imageid: Option<(u32, Vec<u8>)>,
@@ -3844,9 +3729,9 @@ struct HubrisObjectLoader {
 }
 
 impl HubrisObjectLoader {
-    fn new(current: u32) -> Result<Self> {
+    fn new(object_id: u32) -> Result<Self> {
         Ok(Self {
-            current,
+            object_id,
             imageid: None,
             arrays: HashMap::new(),
             variables: MultiMap::new(),
@@ -3875,6 +3760,64 @@ impl HubrisObjectLoader {
             subprograms: HashMap::new(),
             syscall_pushes: HashMap::new(),
         })
+    }
+
+    fn merge(&mut self, loader: HubrisObjectLoader) -> Result<()> {
+        if loader.imageid.is_some() {
+            self.imageid = loader.imageid;
+        }
+        self.esyms_byname.extend(loader.esyms_byname);
+
+        self.esyms.extend(loader.esyms);
+        self.tasks.extend(loader.tasks);
+        self.modules.extend(loader.modules);
+        self.frames.extend(loader.frames);
+        self.loaded.extend(loader.loaded);
+        self.instrs.extend(loader.instrs);
+        self.syscall_pushes.extend(loader.syscall_pushes);
+        self.unions.extend(loader.unions);
+        self.src.extend(loader.src);
+        self.enums_byname.extend(loader.enums_byname);
+        self.structs_byname.extend(loader.structs_byname);
+        self.arrays.extend(loader.arrays);
+        self.basetypes.extend(loader.basetypes);
+        self.addr2line.extend(loader.addr2line);
+        self.basetypes_byname.extend(loader.basetypes_byname);
+        self.ptrtypes.extend(loader.ptrtypes);
+        self.inlined.extend(loader.inlined);
+        self.subprograms.extend(loader.subprograms);
+        self.dsyms.extend(loader.dsyms);
+        self.variables.extend(loader.variables);
+        self.qualified_variables.extend(loader.qualified_variables);
+        self.definitions.extend(loader.definitions);
+
+        // Namespaces need to be shifted when merging into the global namespaces
+        // vec.  This change applies to the `namespace` member in structs and
+        // enums, as well as the `namespaces` table itself.
+        let ns_offset = self.namespaces.0.len();
+
+        self.namespaces.0.extend(loader.namespaces.0.into_iter().map(
+            |mut v| {
+                if let Some(n) = &mut v.parent {
+                    n.0 += ns_offset;
+                }
+                v
+            },
+        ));
+        self.structs.extend(loader.structs.into_iter().map(|(goff, mut s)| {
+            if let Some(n) = &mut s.namespace {
+                n.0 += ns_offset;
+            }
+            (goff, s)
+        }));
+        self.enums.extend(loader.enums.into_iter().map(|(goff, mut s)| {
+            if let Some(n) = &mut s.namespace {
+                n.0 += ns_offset;
+            }
+            (goff, s)
+        }));
+
+        Ok(())
     }
 
     fn load_object(
@@ -3940,7 +3883,7 @@ impl HubrisObjectLoader {
         let offset = textsec.sh_offset as u32;
         let textsize = textsec.sh_size as u32;
 
-        log::trace!("loading {} as object {}", object, self.current);
+        log::trace!("loading {} as object {}", object, self.object_id);
 
         for sym in elf.syms.iter() {
             if sym.st_name == 0 {
@@ -4104,7 +4047,7 @@ impl HubrisObjectLoader {
             textsec.sh_addr as u32,
             HubrisModule {
                 name: String::from(object),
-                object: self.current,
+                object: self.object_id,
                 textbase: (textsec.sh_addr as u32),
                 textsize,
                 memsize: memsz as u32,
@@ -4576,7 +4519,7 @@ impl HubrisObjectLoader {
         entry: &gimli::DebuggingInformationEntry<R, usize>,
     ) -> HubrisGoff {
         let goff = entry.offset().to_unit_section_offset(unit).0;
-        HubrisGoff { object: self.current, goff }
+        HubrisGoff { object: self.object_id, goff }
     }
 
     fn dwarf_union<R: gimli::Reader<Offset = usize>>(
@@ -4738,7 +4681,7 @@ impl HubrisObjectLoader {
             }
         };
 
-        Some(HubrisGoff { object: self.current, goff })
+        Some(HubrisGoff { object: self.object_id, goff })
     }
 
     fn dwarf_variant<R: gimli::Reader<Offset = usize>>(
@@ -6510,9 +6453,6 @@ pub enum HubrisValidate {
 //
 #[derive(Debug)]
 enum ExternRegions {
-    /// We have not yet loaded any external regions
-    Unloaded,
-
     /// We have the metadata to correlate addresses to regions
     ByAddress(HashMap<u32, String>),
 
@@ -6522,26 +6462,20 @@ enum ExternRegions {
 }
 
 impl ExternRegions {
-    fn new() -> Self {
-        ExternRegions::Unloaded
-    }
-
     ///
     /// Load external regions from the archive.  Based on the presence of
     /// archive metadata, this will construct the necessary structures to
     /// correlate address to external region.
     ///
     fn load(
-        hubris: &HubrisArchive,
-        archive: &mut zip::ZipArchive<Cursor<&[u8]>>,
+        tasks: &HashMap<String, HubrisTask>,
+        archive: &RawHubrisArchive,
         config: &HubrisConfig,
     ) -> Result<Self> {
-        match archive.by_name("memory.toml") {
-            Ok(mut file) => {
-                let mut memory = String::new();
-                file.read_to_string(&mut memory)?;
+        match archive.extract_file("memory.toml") {
+            Ok(file) => {
                 let all_memories: IndexMap<String, Vec<HubrisMemoryRegion>> =
-                    toml::from_slice(memory.as_bytes())?;
+                    toml::from_slice(&file)?;
 
                 //
                 // We have our memory metadata but it includes all memories
@@ -6581,7 +6515,7 @@ impl ExternRegions {
 
                 for (name, task) in &config.tasks {
                     if task.extern_regions.is_some() {
-                        set.insert(hubris.lookup_task(name).unwrap());
+                        set.insert(tasks.get(name).copied().unwrap());
                     }
                 }
 
@@ -6599,7 +6533,6 @@ impl ExternRegions {
         match self {
             ExternRegions::ByAddress(map) => map.contains_key(&address),
             ExternRegions::ByTask(set) => dma && set.contains(&task),
-            ExternRegions::Unloaded => panic!("no archive has been loaded"),
         }
     }
 
