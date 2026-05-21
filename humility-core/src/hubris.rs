@@ -1337,8 +1337,8 @@ impl HubrisArchive {
     }
 
     pub fn load_from_path<P: AsRef<Path> + std::fmt::Debug + Copy>(
-        path: P
-    )-> Result<Self> {
+        path: P,
+    ) -> Result<Self> {
         let hubris = RawHubrisArchive::load(path)?;
         Self::load(hubris, None)
     }
