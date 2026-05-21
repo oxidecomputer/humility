@@ -89,13 +89,12 @@
 //! desired target thread; full MCA information can similarly be retrieved
 //! using the `--mca` option and specifyin a desired thread.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use clap::{ArgGroup, CommandFactory, Parser};
 use colored::Colorize;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect;
 use humility_cli::ExecutionContext;
 use humility_cmd::Command;
 use humility_hiffy::*;
@@ -155,21 +154,13 @@ fn call_cpuid(
     ops.push(Op::Done);
 
     let results = context.run(core, ops.as_slice(), None)?;
-    let result = context.idol_result(&op, &results[0])?;
-    let registers = result.as_struct()?["value"].as_array()?;
-
-    let register = |ndx| {
-        let b: &reflect::Value = &registers[ndx];
-        b.as_base()?
-            .as_u32()
-            .ok_or_else(|| anyhow!("couldn't decode index {ndx} as u32"))
-    };
+    let registers = context.idol_result::<[u32; 4]>(&op, &results[0])?;
 
     Ok(CpuIdResult {
-        eax: register(0)?,
-        ebx: register(1)?,
-        ecx: register(2)?,
-        edx: register(3)?,
+        eax: registers[0],
+        ebx: registers[1],
+        ecx: registers[2],
+        edx: registers[3],
     })
 }
 
@@ -234,12 +225,10 @@ fn cpuid(
     Ok(())
 }
 
-fn threadmap(arr: &reflect::Array) -> Result<HashSet<u8>> {
+fn threadmap(arr: &[u8]) -> Result<HashSet<u8>> {
     let mut rval = HashSet::new();
 
-    for (base, elem) in arr.iter().enumerate() {
-        let val = elem.as_base()?.as_u8().unwrap();
-
+    for (base, val) in arr.iter().enumerate() {
         for bit in 0..8 {
             if val & (1 << bit) != 0 {
                 rval.insert(((base * 8) + bit) as u8);
@@ -405,12 +394,8 @@ fn mca(
     let ipid_results = &results[nbanks as usize..];
 
     for (bank, r) in results[..nbanks as usize].iter().enumerate() {
-        let status = context.idol_result(&op, r)?.as_base()?.as_u64().unwrap();
-        let ipid = context
-            .idol_result(&op, &ipid_results[bank])?
-            .as_base()?
-            .as_u64()
-            .unwrap();
+        let status = context.idol_result::<u64>(&op, r)?;
+        let ipid = context.idol_result::<u64>(&op, &ipid_results[bank])?;
 
         if !all_mca {
             if status == 0 {
@@ -457,7 +442,7 @@ fn mca(
         let mut values = HashMap::new();
 
         for (ndx, reg) in reg_results.iter().enumerate() {
-            let v = context.idol_result(&op, reg)?.as_base()?.as_u64().unwrap();
+            let v = context.idol_result::<u64>(&op, reg)?;
             values.insert(allregs[ndx], v);
         }
 
@@ -552,23 +537,12 @@ fn sbrmi(context: &mut ExecutionContext) -> Result<()> {
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let nthreads = context
-        .idol_result(&nthreads, &results[0])?
-        .as_base()?
-        .as_u8()
-        .unwrap();
-
-    let result = context.idol_result(&enabled, &results[1])?;
-    let enabled = threadmap(result.as_struct()?["value"].as_array()?)?;
-
-    let result = context.idol_result(&alert, &results[2])?;
-    let alert = threadmap(result.as_struct()?["value"].as_array()?)?;
-
-    let mcg_cap = context
-        .idol_result(&mcg_cap, &results[3])?
-        .as_base()?
-        .as_u64()
-        .unwrap();
+    let nthreads = context.idol_result::<u8>(&nthreads, &results[0])?;
+    let enabled =
+        threadmap(&context.idol_result::<Vec<u8>>(&enabled, &results[1])?)?;
+    let alert =
+        threadmap(&context.idol_result::<Vec<u8>>(&alert, &results[2])?)?;
+    let mcg_cap = context.idol_result::<u64>(&mcg_cap, &results[3])?;
 
     if subargs.mca {
         let thread = subargs.thread.unwrap();
