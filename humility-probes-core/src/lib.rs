@@ -227,3 +227,16 @@ pub fn attach_for_flashing(
 ) -> Result<Box<dyn Core>> {
     attach_to_chip(probe, Some(chip), speed_khz)
 }
+
+/// Extension trait to make it easier for libraries to attach
+/// to chips. It is encourageed to extend this trait as
+/// needed to make developer's lives easier.
+pub trait HubrisAttach {
+    fn attach(&self, probe: &str) -> Result<Box<dyn Core>>;
+}
+
+impl HubrisAttach for humility::hubris::HubrisArchive {
+    fn attach(&self, probe: &str) -> Result<Box<dyn Core>> {
+        attach_to_chip(probe, self.chip().as_deref(), None)
+    }
+}
