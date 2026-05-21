@@ -135,7 +135,7 @@ pub fn vpd_list<'a>(
     for (ndx, device) in devices.into_iter().enumerate() {
         let locked = context
             .idol_result::<bool>(&locked_op, &results[ndx])
-            .map_err(|e| format!("{e:?}"));
+            .map_err(|e| format!("{e:#}"));
 
         let mut target = VpdTarget::Device(ndx);
 
