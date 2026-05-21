@@ -939,11 +939,8 @@ fn monorail_mac_table(
         if let Ok(r) = r {
             let s = r.as_struct()?;
             assert_eq!(s.name(), "MacTableEntry");
-            let port = s["port"].as_base().unwrap().as_u16().unwrap();
-            let mut mac = [0; 6];
-            for (i, m) in s["mac"].as_array().unwrap().iter().enumerate() {
-                mac[i] = m.as_base().unwrap().as_u8().unwrap()
-            }
+            let port = s.field::<u16>("port").unwrap();
+            let mac = s.field::<[u8; 6]>("mac").unwrap();
             if mac == [0; 6] && port == 0xFFFF {
                 println!("Skipping empty MAC address");
             } else {

@@ -414,9 +414,7 @@ impl<T: humility::reflect::Load> humility::reflect::Load for MaybeUninit<T> {
             "expected MaybeUninit, got {:?}",
             v_struct.name()
         );
-        let value = v_struct
-            .get("value")
-            .ok_or_else(|| anyhow!("missing `value` member"))?;
+        let value = v_struct.get("value")?;
         T::from_value(value).map(|value| Self { value })
     }
 }
@@ -463,6 +461,7 @@ impl humility::reflect::Load for CountedRingbuf {
         // but don't compile in the actual ringbufs.
         let ringbuf = rb_struct
             .get("ringbuf")
+            .ok()
             .map(|value| {
                 let cell = StaticCell::from_value(value)?;
                 let ringbuf = Ringbuf::from_value(&cell.cell.value)?;
