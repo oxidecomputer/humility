@@ -1397,6 +1397,13 @@ impl HubrisArchive {
         inlined
     }
 
+    pub fn load_from_path<P: AsRef<Path> + std::fmt::Debug + Copy>(
+        path: P,
+    ) -> Result<Self> {
+        let hubris = RawHubrisArchive::load(path)?;
+        Self::load(hubris, None)
+    }
+
     pub fn load(
         hubris: RawHubrisArchive,
         task_dump: Option<DumpTask>,
