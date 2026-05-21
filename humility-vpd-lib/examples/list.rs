@@ -17,7 +17,12 @@ fn main() {
     )
     .unwrap();
 
-    let results = humility_vpd_lib::vpd_list(&hubris, core, std::time::Duration::from_millis(10000)).unwrap();
+    let results = humility_vpd_lib::vpd_list(
+        &hubris,
+        core,
+        std::time::Duration::from_millis(10000),
+    )
+    .unwrap();
 
     for r in results {
         println!(

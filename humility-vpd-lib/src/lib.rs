@@ -77,7 +77,7 @@ pub struct VpdEntry {
 }
 
 /// Name we expect to see from hubris
-const VPD_EEPROM_NAME : &'static str = "at24csw080";
+const VPD_EEPROM_NAME: &'static str = "at24csw080";
 
 fn vpd_devices(
     hubris: &HubrisArchive,
