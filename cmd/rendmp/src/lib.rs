@@ -1626,7 +1626,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                 Call::WriteWord32 => &self.write_word32,
             };
             let v = hiffy_decode(self.hubris, op, value)
-                .context("failed to decode {op:?} result")?;
+                .with_context(|| format!("failed to decode {call:?} result"))?;
             match v {
                 Ok(v) => {
                     let v = v.as_base().context("expected Base, got {v:?}")?;
