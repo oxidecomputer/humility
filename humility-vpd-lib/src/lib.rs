@@ -177,8 +177,7 @@ pub enum VpdLockStatus {
     Count(usize),
 }
 
-/// Permanently lock all VPDs, returns the total count of devices
-/// locked. A return value of 0 indicates that all devices were locked.
+/// Permanently lock all VPDs
 pub fn vpd_lock_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
