@@ -387,21 +387,25 @@ pub enum CounterVariant {
 }
 
 #[derive(Clone, Debug, Load)]
+#[load(check_name)]
 pub struct ClaimOnceCell<T: Load> {
     pub cell: UnsafeCell<T>,
 }
 
 #[derive(Clone, Debug, Load)]
+#[load(check_name)]
 pub struct StaticCell<T: Load> {
     pub cell: UnsafeCell<T>,
 }
 
 #[derive(Clone, Debug, Load)]
+#[load(check_name)]
 pub struct UnsafeCell<T: Load> {
     pub value: T,
 }
 
 #[derive(Clone, Debug, Load)]
+#[load(check_name)]
 pub struct MaybeUninit<T: Load> {
     pub value: T,
 }
