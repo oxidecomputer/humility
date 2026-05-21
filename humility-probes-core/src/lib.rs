@@ -227,3 +227,28 @@ pub fn attach_for_flashing(
 ) -> Result<Box<dyn Core>> {
     attach_to_chip(probe, Some(chip), speed_khz)
 }
+
+/// Trait to make it easier for libraries to attach to
+/// a probe via a hubris archive. This may gain more
+/// functions as we find more ways users want to attach
+/// to probes.
+pub trait HubrisAttach {
+    /// Attach to the specified probe using the chip in the
+    /// hubris archive and that the archive matches the image
+    /// id present on target. If no chip is is present in the archive
+    /// this will still attach.
+    fn attach_probe(&self, probe: &str) -> Result<Box<dyn Core>>;
+}
+
+impl HubrisAttach for humility::hubris::HubrisArchive {
+    fn attach_probe(&self, probe: &str) -> Result<Box<dyn Core>> {
+        let mut core = attach_to_chip(probe, self.chip().as_deref(), None)?;
+
+        self.validate(
+            &mut *core,
+            humility::hubris::HubrisValidate::ArchiveMatch,
+        )?;
+
+        Ok(core)
+    }
+}
