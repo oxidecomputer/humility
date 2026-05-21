@@ -357,7 +357,7 @@ fn host_post_codes(
         std::time::Duration::from_millis(5000),
     )?;
     let op = hubris.get_idol_command("Sequencer.post_code_buffer_len")?;
-    let value = humility_hiffy::hiffy_call(
+    let count = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut context,
@@ -366,12 +366,6 @@ fn host_post_codes(
         None,
         None,
     )?;
-    let Ok(reflect::Value::Base(reflect::Base::U32(count))) = value else {
-        bail!(
-            "Got bad value from post_code_buffer_len: \
-             expected U32, got {value:?}"
-        );
-    };
 
     let op = hubris.get_idol_command("Sequencer.get_post_code")?;
     let handle_value = |v| {
@@ -448,7 +442,7 @@ fn host_last_post_code(
         std::time::Duration::from_millis(5000),
     )?;
     let op = hubris.get_idol_command("Sequencer.last_post_code")?;
-    let value = humility_hiffy::hiffy_call(
+    let v = humility_hiffy::hiffy_call::<u32>(
         hubris,
         core,
         &mut context,
@@ -457,9 +451,6 @@ fn host_last_post_code(
         None,
         None,
     )?;
-    let Ok(reflect::Value::Base(reflect::Base::U32(v))) = value else {
-        bail!("Got bad value from last_post_code: expected U32, got {value:?}");
-    };
     if raw {
         println!("{v:08x}");
     } else {
