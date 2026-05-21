@@ -111,8 +111,8 @@ use humility_hexdump::Dumper;
 use humility_vpd_lib::VpdTarget;
 use std::fs;
 use std::io::Write;
-use std::time::Duration;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -353,27 +353,28 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
         list(hubris, core, timeout, subargs.read)?;
         return Ok(());
     } else if subargs.lock_all {
-        humility_vpd_lib::vpd_lock_all(
-            hubris,
-            core,
-            timeout,
-            subargs.allow_missing,
-        )?;
+        if subargs.allow_missing {
+            bail!("--allow-missing is deprecated");
+        }
+        match humility_vpd_lib::vpd_lock_all(hubris, core, timeout)? {
+            humility_vpd_lib::VpdLockStatus::AlreadyLocked => {
+                humility::msg!("all VPDs are already locked");
+            }
+            humility_vpd_lib::VpdLockStatus::Count(count) => {
+                humility::msg!("successfully locked {count} VPDs");
+            }
+        }
         return Ok(());
     }
 
     let target = target(hubris, &subargs)?;
 
     if let Some(path) = subargs.write {
-        humility_vpd_lib::vpd_write(
-            hubris,
-            core,
-            target,
-            timeout,
-            &path,
-        )?;
+        humility_vpd_lib::vpd_write(hubris, core, target, timeout, &path)?;
+        humility::msg!("successfully wrote VPD");
     } else if subargs.erase {
         humility_vpd_lib::vpd_erase(hubris, core, target, timeout)?;
+        humility::msg!("successfully erased VPD");
     } else if subargs.read {
         let options = if subargs.raw {
             OutputOption::Raw
@@ -385,6 +386,7 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
         vpd_read(hubris, core, target, timeout, options)?;
     } else if subargs.lock {
         humility_vpd_lib::vpd_lock(hubris, core, target, timeout)?;
+        humility::msg!("successfully locked VPD");
     } else {
         bail!("expected a command");
     }

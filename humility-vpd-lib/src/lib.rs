@@ -172,14 +172,18 @@ pub fn vpd_erase(
     vpd_erase_write(hubris, core, target, timeout, None)
 }
 
+pub enum VpdLockStatus {
+    AlreadyLocked,
+    Count(usize),
+}
+
 /// Permanently lock all VPDs, returns the total count of devices
 /// locked. A return value of 0 indicates that all devices were locked.
 pub fn vpd_lock_all(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     timeout: std::time::Duration,
-    allow_missing: bool,
-) -> Result<usize, VpdError> {
+) -> Result<VpdLockStatus, VpdError> {
     let devices = vpd_list(hubris, core, timeout, true)?;
 
     let mut any_missing = false;
@@ -207,12 +211,15 @@ pub fn vpd_lock_all(
         .get_idol_command("Vpd.permanently_lock")
         .map_err(VpdError::Idol)?;
 
-    if locking.is_empty() {
-        return Ok(0);
+    if any_missing {
+        return Err(VpdError::VpdEntry);
     }
 
-    if any_missing && !allow_missing {
-        return Err(VpdError::VpdEntry);
+    // We aren't missing any VPD and don't have any VPD to lock.
+    // vpd_list returns an error on an empty VPD list so there's
+    // nothing to do and we can return success.
+    if locking.is_empty() {
+        return Ok(VpdLockStatus::AlreadyLocked);
     }
 
     for ndx in &locking {
@@ -236,7 +243,7 @@ pub fn vpd_lock_all(
             .map_err(|err| VpdError::LockFailure { err, ndx: *ndx })?;
     }
 
-    Ok(locking.len())
+    Ok(VpdLockStatus::Count(locking.len()))
 }
 
 /// Permanently lock a single VPD

@@ -17,7 +17,7 @@ fn main() {
         &hubris,
         core,
         std::time::Duration::from_millis(10000),
-        false
+        false,
     )
     .unwrap();
 
