@@ -349,8 +349,6 @@ fn vpd_erase_write(
 
     let mut offset = 0;
 
-    // Do we want to make this an argument for optionally not having
-    // a progress bar?
     let bar = ProgressBar::new(bytes.len() as u64);
 
     bar.set_style(
