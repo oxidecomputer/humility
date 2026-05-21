@@ -61,6 +61,14 @@ pub enum VpdTarget {
     Device(usize),
 }
 
+pub enum VpdData {
+    /// Data was not requested to be read
+    NotRead,
+    /// Result of reading the VPD data. These are the raw bytes
+    /// and can be formatted with the `tlvc` crate.
+    Data(Result<Vec<u8>, VpdError>),
+}
+
 /// Represents a single VPD from the hubris archive
 pub struct VpdEntry {
     /// Index into the vpd devices list. This is expected to be stable
@@ -71,9 +79,8 @@ pub struct VpdEntry {
     /// Whether the `VpdLock` command has been successfully issued to this
     /// device.
     pub locked: Result<bool, String>,
-    /// Result of reading the VPD data. These are the raw bytes and can
-    /// be formatted nicely with the `tlvc` crate.
-    pub data: Result<Vec<u8>, VpdError>,
+    /// Reading out the VPD can be very slow and can be omitted
+    pub data: VpdData,
 }
 
 /// Name we expect to see from hubris
@@ -94,6 +101,7 @@ pub fn vpd_list(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
     timeout: std::time::Duration,
+    read_data: bool,
 ) -> Result<Vec<VpdEntry>, VpdError> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
     let mut context =
@@ -131,7 +139,11 @@ pub fn vpd_list(
 
         let mut target = VpdTarget::Device(ndx);
 
-        let data = vpd_slurp(core, &mut context, hubris, &mut target);
+        let data = if read_data {
+            VpdData::Data(vpd_slurp(core, &mut context, hubris, &mut target))
+        } else {
+            VpdData::NotRead
+        };
 
         items.push(VpdEntry { ndx, locked, data, device: device.clone() });
     }
@@ -150,7 +162,7 @@ pub fn vpd_write(
     vpd_erase_write(hubris, core, target, timeout, Some(write))
 }
 
-/// Erases 1k of the VPD (write as `0xff`)
+/// Erase the entire VPD (write as `0xff`)
 pub fn vpd_erase(
     hubris: &HubrisArchive,
     core: &mut dyn Core,
@@ -168,7 +180,7 @@ pub fn vpd_lock_all(
     timeout: std::time::Duration,
     allow_missing: bool,
 ) -> Result<usize, VpdError> {
-    let devices = vpd_list(hubris, core, timeout)?;
+    let devices = vpd_list(hubris, core, timeout, true)?;
 
     let mut any_missing = false;
     let mut locking = vec![];
@@ -177,12 +189,13 @@ pub fn vpd_lock_all(
             (Ok(true), _) => {
                 // Do nothing, this is already locked
             }
-            (Ok(false), Ok(_)) => {
+            (Ok(false), VpdData::Data(Ok(_))) => {
                 locking.push(d.ndx);
             }
-            (Err(_), _) | (_, Err(_)) => {
+            (Err(_), _) | (_, VpdData::Data(Err(_))) => {
                 any_missing = true;
             }
+            (_, VpdData::NotRead) => unreachable!(),
         }
     }
 
@@ -294,10 +307,10 @@ fn vpd_erase_write(
 
         let p = tlvc_text::load(file).map_err(|err| VpdError::Io { err })?;
 
-        (tlvc_text::pack(&p), true)
+        (tlvc_text::pack(&p), false)
     } else {
-        // Should probably cite where the 1k comes from
-        (vec![0xffu8; 1024], false)
+        // All our EEPROMs are 1KiB so this will erase the whole space
+        (vec![0xffu8; 1024], true)
     };
 
     let VpdTarget::Device(target) = target;
@@ -403,17 +416,14 @@ fn vpd_slurp(
     target: &mut VpdTarget,
 ) -> Result<Vec<u8>, VpdError> {
     let op = hubris.get_idol_command("Vpd.read").map_err(VpdError::Idol)?;
-    //
+
     // First, read in enough to read just the header.
-    //
     let mut vpd = vpd_read_at(core, context, &op, target, 0)?;
 
     let reader = tlvc::TlvcReader::begin(&vpd[..]).map_err(VpdError::Tlvc)?;
 
-    //
     // If this isn't a header, see if it's all 0xff -- in which case we
     // will suggest that the part is unprogrammed.
-    //
     let header = reader.read_header().map_err(|e| {
         match vpd.iter().find(|&b| *b != 0xffu8) {
             Some(_) => VpdError::Tlvc(e),
@@ -421,9 +431,7 @@ fn vpd_slurp(
         }
     })?;
 
-    //
     // And now go back and read everything.
-    //
     let total = header.total_len_in_bytes();
 
     while vpd.len() < total {

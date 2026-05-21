@@ -197,7 +197,7 @@ pub fn list(
     timeout: Duration,
     read: bool,
 ) -> Result<()> {
-    let results = humility_vpd_lib::vpd_list(hubris, core, timeout)?;
+    let results = humility_vpd_lib::vpd_list(hubris, core, timeout, read)?;
 
     println!(
         "{:2} {:>2} {:2} {:3} {:4} {:13} {:25} LOCKED",
@@ -229,10 +229,10 @@ pub fn list(
             locked
         );
 
-        if read {
+        if let humility_vpd_lib::VpdData::Data(d) = device.data {
             print!(" |\n +--> ");
 
-            match device.data {
+            match d {
                 Ok(vpd) => {
                     match tlvc::TlvcReader::begin(&vpd[..]) {
                         Ok(reader) => {
