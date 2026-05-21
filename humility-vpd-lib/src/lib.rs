@@ -77,7 +77,7 @@ pub struct VpdEntry {
 }
 
 /// Name we expect to see from hubris
-const VPD_EEPROM_NAME: &'static str = "at24csw080";
+const VPD_EEPROM_NAME: &str = "at24csw080";
 
 fn vpd_devices(
     hubris: &HubrisArchive,
@@ -242,9 +242,7 @@ pub fn vpd_lock(
     // Make sure we can read the VPD
     vpd_slurp(core, &mut context, hubris, &mut target)?;
 
-    let index = match target {
-        VpdTarget::Device(index) => index,
-    };
+    let VpdTarget::Device(index) = target;
 
     let payload = op
         .payload(&[("index", IdolArgument::Scalar(index as u64))])
@@ -302,9 +300,7 @@ fn vpd_erase_write(
         (vec![0xffu8; 1024], false)
     };
 
-    let target = match target {
-        VpdTarget::Device(target) => target,
-    };
+    let VpdTarget::Device(target) = target;
 
     let mut all_ops = vec![];
 
@@ -378,9 +374,7 @@ fn vpd_read_at(
     target: &mut VpdTarget,
     offset: usize,
 ) -> Result<Vec<u8>, VpdError> {
-    let target = match target {
-        VpdTarget::Device(target) => *target,
-    };
+    let VpdTarget::Device(target) = *target;
 
     let payload = op
         .payload(&[
