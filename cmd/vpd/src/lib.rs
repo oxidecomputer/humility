@@ -112,6 +112,7 @@ use humility_vpd_lib::VpdTarget;
 use std::fs;
 use std::io::Write;
 use std::time::Duration;
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -142,7 +143,7 @@ pub struct VpdArgs {
 
     /// write the contents of the specified file into the designated VPD
     #[clap(long, short, value_name = "filename", group = "command")]
-    write: Option<String>,
+    write: Option<PathBuf>,
 
     /// read the contents of the designated VPD (or of all with --list)
     #[clap(long, short, group = "command")]
@@ -369,7 +370,7 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
             core,
             target,
             timeout,
-            path.into(),
+            &path,
         )?;
     } else if subargs.erase {
         humility_vpd_lib::vpd_erase(hubris, core, target, timeout)?;

@@ -9,7 +9,7 @@ use humility_hiffy::HiffyContext;
 use humility_idol::{HubrisIdol, IdolArgument};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use tlvc::TlvcReadError;
 
 #[derive(Debug, thiserror::Error)]
@@ -157,7 +157,7 @@ pub fn vpd_write(
     core: &mut dyn Core,
     target: VpdTarget,
     timeout: std::time::Duration,
-    write: PathBuf,
+    write: &Path,
 ) -> Result<(), VpdError> {
     vpd_erase_write(hubris, core, target, timeout, Some(write))
 }
@@ -295,13 +295,13 @@ fn vpd_erase_write(
     core: &mut dyn Core,
     target: VpdTarget,
     timeout: std::time::Duration,
-    write: Option<PathBuf>,
+    write: Option<&Path>,
 ) -> Result<(), VpdError> {
     let mut context =
         HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
     let op = hubris.get_idol_command("Vpd.write").map_err(VpdError::Idol)?;
 
-    let (bytes, erase) = if let Some(ref filename) = write {
+    let (bytes, erase) = if let Some(filename) = write {
         let file =
             fs::File::open(filename).map_err(|err| VpdError::Io { err })?;
 
