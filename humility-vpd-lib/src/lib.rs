@@ -70,12 +70,12 @@ pub enum VpdData {
 }
 
 /// Represents a single VPD from the hubris archive
-pub struct VpdEntry {
+pub struct VpdEntry<'a> {
     /// Index into the vpd devices list. This is expected to be stable
     /// across hubris releases
     pub ndx: usize,
     /// Raw i2c data about the device
-    pub device: HubrisI2cDevice,
+    pub device: &'a HubrisI2cDevice,
     /// Whether the `VpdLock` command has been successfully issued to this
     /// device.
     pub locked: Result<bool, String>,
@@ -97,12 +97,12 @@ fn vpd_devices(
 }
 
 /// List all available VPD devices
-pub fn vpd_list(
-    hubris: &HubrisArchive,
+pub fn vpd_list<'a>(
+    hubris: &'a HubrisArchive,
     core: &mut dyn Core,
     timeout: std::time::Duration,
     read_data: bool,
-) -> Result<Vec<VpdEntry>, VpdError> {
+) -> Result<Vec<VpdEntry<'a>>, VpdError> {
     let devices = vpd_devices(hubris).collect::<Vec<_>>();
     let mut context =
         HiffyContext::new(hubris, core, timeout).map_err(VpdError::Hiffy)?;
@@ -145,7 +145,7 @@ pub fn vpd_list(
             VpdData::NotRead
         };
 
-        items.push(VpdEntry { ndx, locked, data, device: device.clone() });
+        items.push(VpdEntry { ndx, locked, data, device });
     }
 
     if items.is_empty() { Err(VpdError::NoVpd) } else { Ok(items) }
