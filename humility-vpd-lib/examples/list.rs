@@ -2,14 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use humility::hubris::{HubrisArchive, RawHubrisArchive};
+use humility::hubris::HubrisArchive;
 
 fn main() {
     let hubris = std::env::var("HUMILITY_ARCHIVE").unwrap();
     let probe = std::env::var("HUMILITY_PROBE").unwrap();
 
-    let hubris = RawHubrisArchive::load(&hubris).unwrap();
-    let hubris = HubrisArchive::load(hubris, None).unwrap();
+    let hubris = HubrisArchive::load_from_path(&hubris).unwrap();
 
     let core = &mut *humility_probes_core::attach_to_chip(
         &probe,
