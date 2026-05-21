@@ -345,12 +345,25 @@ fn vpd_read(
 fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     let hubris = &context.cli.archive()?;
     let core = &mut *context.cli.attach_live_booted(hubris)?;
-    let target = target(hubris, &subargs)?;
     let timeout = Duration::from_millis(subargs.timeout);
 
+    // These commands don't take a target so check them first
     if subargs.list {
         list(hubris, core, timeout, subargs.read)?;
-    } else if let Some(path) = subargs.write {
+        return Ok(());
+    } else if subargs.lock_all {
+        humility_vpd_lib::vpd_lock_all(
+            hubris,
+            core,
+            timeout,
+            subargs.allow_missing,
+        )?;
+        return Ok(());
+    }
+
+    let target = target(hubris, &subargs)?;
+
+    if let Some(path) = subargs.write {
         humility_vpd_lib::vpd_write(
             hubris,
             core,
@@ -371,13 +384,6 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
         vpd_read(hubris, core, target, timeout, options)?;
     } else if subargs.lock {
         humility_vpd_lib::vpd_lock(hubris, core, target, timeout)?;
-    } else if subargs.lock_all {
-        humility_vpd_lib::vpd_lock_all(
-            hubris,
-            core,
-            timeout,
-            subargs.allow_missing,
-        )?;
     } else {
         bail!("expected a command");
     }
