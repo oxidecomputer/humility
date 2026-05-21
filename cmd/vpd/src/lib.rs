@@ -107,7 +107,6 @@ use clap::{ArgGroup, CommandFactory, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility::reflect;
 use humility_cli::ExecutionContext;
 use humility_cmd::{Command, Dumper};
 use humility_hiffy::*;
@@ -419,13 +418,9 @@ fn vpd_write(
         let results = context.run(core, ops.as_slice(), None)?;
 
         for (o, result) in results.iter().enumerate() {
-            if let Err(err) = context.idol_result(&op, result) {
-                bail!(
-                    "failed to write VPD at offset {}: {:?}",
-                    offset + o,
-                    err
-                );
-            }
+            context.idol_result::<()>(&op, result).with_context(|| {
+                format!("failed to write VPD at offset {}", offset + o)
+            })?;
         }
 
         offset += results.len();
@@ -473,21 +468,9 @@ fn vpd_read_at(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let r = context
-        .idol_result(op, &results[0])
-        .with_context(|| format!("failed to read at offset {offset}"))?;
-    let contents = r.as_struct()?["value"].as_array()?;
-    let mut rval = vec![];
-
-    for b in contents.iter() {
-        if let reflect::Base::U8(val) = b.as_base()? {
-            rval.push(*val);
-        } else {
-            bail!("expected array of U8; found {:?}", contents);
-        }
-    }
-
-    Ok(rval)
+    context
+        .idol_result::<Vec<u8>>(op, &results[0])
+        .with_context(|| format!("failed to read at offset {offset}"))
 }
 
 fn vpd_slurp(
@@ -596,9 +579,7 @@ fn vpd_lock(
         }
     };
 
-    if let Err(err) = vpd_read(hubris, core, subargs) {
-        bail!("can't lock VPD: {err}");
-    }
+    vpd_read(hubris, core, subargs).context("can't lock VPD")?;
 
     let payload =
         op.payload(&[("index", idol::IdolArgument::Scalar(index as u64))])?;
@@ -610,9 +591,9 @@ fn vpd_lock(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    if let Err(err) = context.idol_result(&op, &results[0]) {
-        bail!("failed to lock {index}: {err:?}");
-    }
+    context
+        .idol_result::<()>(&op, &results[0])
+        .with_context(|| format!("failed to lock {index}"))?;
 
     humility::msg!("successfully locked VPD");
 
@@ -715,11 +696,10 @@ fn vpd_lock_all(
     let mut success = 0;
 
     for (ndx, r) in locking.iter().zip(results.iter()) {
-        if let Err(err) = context.idol_result(&lock_op, r) {
-            humility::warn!("failed to lock VPD {ndx}: {err:?}");
-        } else {
-            success += 1;
-        }
+        context
+            .idol_result::<()>(&lock_op, r)
+            .with_context(|| format!("failed to lock VPD {ndx}"))?;
+        success += 1;
     }
 
     if success != locking.len() {
