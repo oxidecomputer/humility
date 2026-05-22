@@ -23,7 +23,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::msg;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -140,9 +140,4 @@ fn exec(subargs: ExecArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = ExecArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        exec(args, context)
-    }
-}
+humility_cmd!(ExecArgs, exec);

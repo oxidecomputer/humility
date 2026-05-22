@@ -105,7 +105,7 @@ use chrono::DateTime;
 use clap::Parser;
 
 use humility::{core::Core, hubris::HubrisArchive, reflect, reflect::Load};
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel as doppel;
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
@@ -485,9 +485,4 @@ fn host(subargs: HostArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 }
 
-pub type Args = HostArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        host(args, context)
-    }
-}
+humility_cmd!(HostArgs, host);

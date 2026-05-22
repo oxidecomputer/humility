@@ -12,7 +12,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use std::collections::HashMap;
 use termimad::*;
 
@@ -60,9 +60,4 @@ fn doc(subargs: DocArgs, _context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = DocArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        doc(args, context)
-    }
-}
+humility_cmd!(DocArgs, doc);

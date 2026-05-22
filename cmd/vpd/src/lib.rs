@@ -107,7 +107,7 @@ use clap::{ArgGroup, Parser};
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -732,9 +732,4 @@ fn vpd(subargs: VpdArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = VpdArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        vpd(args, context)
-    }
-}
+humility_cmd!(VpdArgs, vpd);

@@ -190,7 +190,7 @@
 use colored::Colorize;
 use humility::hubris::*;
 use humility::{core::Core, warn};
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolArgument, IdolOperation};
@@ -2242,9 +2242,4 @@ fn pmbus_main(
     Ok(())
 }
 
-pub type Args = PmbusArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        pmbus(args, context)
-    }
-}
+humility_cmd!(PmbusArgs, pmbus);

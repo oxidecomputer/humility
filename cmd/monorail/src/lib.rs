@@ -171,7 +171,7 @@ use std::convert::TryInto;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::{HiffyContext, HiffyError};
 use humility_idol::{HubrisIdol, IdolArgument};
 
@@ -1080,9 +1080,4 @@ fn monorail(
     Ok(())
 }
 
-pub type Args = MonorailArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        monorail(args, context)
-    }
-}
+humility_cmd!(MonorailArgs, monorail);

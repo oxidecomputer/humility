@@ -19,7 +19,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{ArgGroup, Parser};
 
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use sha2::{Digest, Sha256};
 use std::fs::File;
@@ -472,9 +472,4 @@ fn print_hash(buf: &[u8]) {
     }
 }
 
-pub type Args = HashArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        hash(args, context)
-    }
-}
+humility_cmd!(HashArgs, hash);

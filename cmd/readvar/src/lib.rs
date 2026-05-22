@@ -40,7 +40,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::core::{Core, ProbeError};
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "readvar", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -177,9 +177,4 @@ fn readvar(subargs: ReadvarArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = ReadvarArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        readvar(args, context)
-    }
-}
+humility_cmd!(ReadvarArgs, readvar);

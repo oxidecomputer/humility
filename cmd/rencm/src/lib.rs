@@ -10,7 +10,7 @@
 
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
@@ -804,9 +804,4 @@ fn rencm(subargs: RencmArgs, context: &mut ExecutionContext) -> Result<()> {
     rencm_attached(hubris, core, &subargs, modules)
 }
 
-pub type Args = RencmArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        rencm(args, context)
-    }
-}
+humility_cmd!(RencmArgs, rencm);

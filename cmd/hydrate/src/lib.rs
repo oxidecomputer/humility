@@ -21,7 +21,7 @@ use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::hubris::HubrisFlashMap;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::msg;
 use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
@@ -30,7 +30,7 @@ use std::{collections::BTreeMap, io::Read, path::PathBuf};
     name = "hydrate", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("target").multiple(false)
 )]
-pub struct Args {
+pub struct HydrateArgs {
     /// Path to write the resulting dump
     #[clap(short, long)]
     out: Option<PathBuf>,
@@ -107,7 +107,7 @@ impl humility::core::Core for DryCore {
     }
 }
 
-fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
+fn run(subargs: HydrateArgs, context: &mut ExecutionContext) -> Result<()> {
     let f = std::fs::File::open(&subargs.file)?;
     let mut z = zip::ZipArchive::new(f)?;
 
@@ -193,8 +193,4 @@ fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
     )
 }
 
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        run(args, context)
-    }
-}
+humility_cmd!(HydrateArgs, run);

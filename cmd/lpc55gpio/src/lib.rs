@@ -102,7 +102,7 @@
 //! ```
 //!
 
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use std::str;
 
@@ -309,9 +309,4 @@ fn gpio(subargs: GpioArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = GpioArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        gpio(args, context)
-    }
-}
+humility_cmd!(GpioArgs, gpio);

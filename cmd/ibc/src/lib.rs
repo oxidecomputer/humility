@@ -103,7 +103,7 @@
 use anyhow::{Result, anyhow, bail};
 use clap::Parser;
 use colored::Colorize;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_idol::{self as idol, HubrisIdol};
 use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout,
@@ -526,9 +526,4 @@ fn ibc(subargs: IbcArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = IbcArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        ibc(args, context)
-    }
-}
+humility_cmd!(IbcArgs, ibc);

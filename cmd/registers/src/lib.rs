@@ -133,7 +133,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::*;
 use humility_arch_arm::{ARMRegister, ARMRegisterField};
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_cortex::debug::*;
 use num_traits::FromPrimitive;
 use std::collections::BTreeMap;
@@ -363,9 +363,4 @@ fn registers(
     Ok(())
 }
 
-pub type Args = RegistersArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        registers(args, context)
-    }
-}
+humility_cmd!(RegistersArgs, registers);

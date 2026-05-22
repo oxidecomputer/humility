@@ -10,7 +10,7 @@ use humility::{
     core::Core,
     hubris::{HubrisArchive, HubrisTask},
 };
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 use anyhow::{Context, Result, anyhow};
 use std::collections::VecDeque;
@@ -344,9 +344,4 @@ fn ereport(subargs: EreportArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 }
 
-pub type Args = EreportArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        ereport(args, context)
-    }
-}
+humility_cmd!(EreportArgs, ereport);

@@ -83,7 +83,7 @@
 //! as well as bulk erase.
 
 use humility::core::Core;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol::{HubrisIdol, IdolArgument};
@@ -1182,9 +1182,4 @@ impl fmt::Display for DeviceIdData {
     }
 }
 
-pub type Args = QspiArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        qspi(args, context)
-    }
-}
+humility_cmd!(QspiArgs, qspi);

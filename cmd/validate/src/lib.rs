@@ -47,7 +47,7 @@ use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::{HiffyContext, IpcError};
 use humility_i2c::I2cArgs;
 use humility_idol::{self as idol, HubrisIdol};
@@ -291,9 +291,4 @@ fn validate(
     Ok(())
 }
 
-pub type Args = ValidateArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        validate(args, context)
-    }
-}
+humility_cmd!(ValidateArgs, validate);

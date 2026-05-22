@@ -117,7 +117,7 @@ use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load};
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{self as doppel, Task, TaskDesc, TaskId, TaskState};
 use num_traits::FromPrimitive;
 use std::collections::{BTreeMap, HashMap};
@@ -921,9 +921,4 @@ fn explain_recv(
     Ok(())
 }
 
-pub type Args = TasksArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        tasks(args, context)
-    }
-}
+humility_cmd!(TasksArgs, tasks);

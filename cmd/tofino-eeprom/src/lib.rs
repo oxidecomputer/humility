@@ -8,7 +8,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use humility::core::Core;
@@ -157,9 +157,4 @@ fn eeprom(subargs: EepromArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = EepromArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        eeprom(args, context)
-    }
-}
+humility_cmd!(EepromArgs, eeprom);

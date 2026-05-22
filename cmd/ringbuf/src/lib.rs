@@ -67,7 +67,7 @@ use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Format, Load, Value};
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{CountedRingbuf, CounterVariant, Ringbuf, StaticCell};
 
 #[derive(Parser, Debug)]
@@ -313,9 +313,4 @@ fn ringbuf(subargs: RingbufArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = RingbufArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        ringbuf(args, context)
-    }
-}
+humility_cmd!(RingbufArgs, ringbuf);

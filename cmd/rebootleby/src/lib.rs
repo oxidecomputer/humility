@@ -14,7 +14,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use std::io::Read;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
@@ -136,13 +136,6 @@ fn rebootleby(
     humility::msg!("Good luck.");
 
     Ok(())
-}
-
-pub type Args = Rebootleby;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        rebootleby(args, context)
-    }
 }
 
 // The undocumented registers. These look remarkably similar to the
@@ -317,3 +310,4 @@ const STARTA: u32 = 0x4003_4010;
 const STOPA: u32 = 0x4003_4014;
 const CMD: u32 = 0x4003_4000;
 const DATAW0: u32 = 0x4003_4080;
+humility_cmd!(Rebootleby, rebootleby);

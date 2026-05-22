@@ -30,7 +30,7 @@ use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load};
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel as doppel;
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
@@ -646,9 +646,4 @@ fn sensors(subargs: SensorsArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = SensorsArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        sensors(args, context)
-    }
-}
+humility_cmd!(SensorsArgs, sensors);

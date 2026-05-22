@@ -44,7 +44,7 @@
 //! 0x00000030 | f739ba6f 20067a60 310c4e08 e42eca28 | o.9.`z. .N.1(...
 //! ```
 
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
 
@@ -150,9 +150,4 @@ fn spctrl(subargs: SpCtrlArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = SpCtrlArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        spctrl(args, context)
-    }
-}
+humility_cmd!(SpCtrlArgs, spctrl);

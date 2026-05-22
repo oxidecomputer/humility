@@ -131,7 +131,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_log::msg;
 use std::fs::File;
 use std::io::Cursor;
@@ -233,9 +233,4 @@ fn extract(subargs: ExtractArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = ExtractArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        extract(args, context)
-    }
-}
+humility_cmd!(ExtractArgs, extract);

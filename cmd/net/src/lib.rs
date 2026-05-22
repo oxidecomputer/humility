@@ -46,7 +46,7 @@ use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::HubrisArchive;
 use humility::reflect::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::HiffyContext;
 use humility_idol::HubrisIdol;
 
@@ -538,9 +538,4 @@ fn net(subargs: NetArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = NetArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        net(args, context)
-    }
-}
+humility_cmd!(NetArgs, net);

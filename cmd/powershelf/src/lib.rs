@@ -18,7 +18,7 @@ use clap::Parser;
 use hif::*;
 use humility::hubris::HubrisArchive;
 use humility::hubris::HubrisEnum;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 
@@ -219,9 +219,4 @@ fn powershelf_run(
     Ok(())
 }
 
-pub type Args = PowershelfArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        powershelf_run(args, context)
-    }
-}
+humility_cmd!(PowershelfArgs, powershelf_run);

@@ -63,7 +63,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "map", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -133,10 +133,4 @@ fn mapcmd(_args: MapArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-/// This is some init right here
-pub type Args = MapArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        mapcmd(args, context)
-    }
-}
+humility_cmd!(MapArgs, mapcmd);

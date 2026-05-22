@@ -118,7 +118,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use std::convert::TryInto;
 use std::io::Write;
@@ -267,9 +267,4 @@ fn readmem(subargs: ReadmemArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = ReadmemArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        readmem(args, context)
-    }
-}
+humility_cmd!(ReadmemArgs, readmem);

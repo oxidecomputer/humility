@@ -31,7 +31,7 @@ use anyhow::{Result, anyhow};
 use clap::Parser;
 use humility::core::Core;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 const FLASH_OPT_KEY1: u32 = 0x0819_2A3B;
 const FLASH_OPT_KEY2: u32 = 0x4C5D_6E7F;
@@ -319,9 +319,4 @@ fn stmsecure(
     }
 }
 
-pub type Args = StmSecureArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        stmsecure(args, context)
-    }
-}
+humility_cmd!(StmSecureArgs, stmsecure);

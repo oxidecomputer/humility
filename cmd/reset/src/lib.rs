@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "reset", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -109,9 +109,4 @@ fn reset(subargs: ResetArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = ResetArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        reset(args, context)
-    }
-}
+humility_cmd!(ResetArgs, reset);

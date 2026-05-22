@@ -95,7 +95,7 @@ use colored::Colorize;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use raw_cpuid::{CpuId, CpuIdResult};
@@ -587,9 +587,4 @@ fn sbrmi(subargs: SbrmiArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = SbrmiArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        sbrmi(args, context)
-    }
-}
+humility_cmd!(SbrmiArgs, sbrmi);

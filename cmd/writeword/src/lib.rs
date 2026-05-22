@@ -49,7 +49,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "writeword", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -82,9 +82,4 @@ fn writeword(
     Ok(())
 }
 
-pub type Args = WritewordArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        writeword(args, context)
-    }
-}
+humility_cmd!(WritewordArgs, writeword);

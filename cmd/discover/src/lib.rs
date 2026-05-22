@@ -44,7 +44,7 @@ use clap::{ArgGroup, Parser};
 use colored::Colorize;
 use hubpack::SerializedSize;
 use humility::net::decode_iface;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
@@ -326,9 +326,4 @@ fn discover_run(
     Ok(())
 }
 
-pub type Args = DiscoverArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        discover_run(args, context)
-    }
-}
+humility_cmd!(DiscoverArgs, discover_run);

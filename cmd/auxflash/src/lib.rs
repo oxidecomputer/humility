@@ -12,7 +12,7 @@
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 use humility_auxflash::AuxFlashHandler;
 
@@ -132,9 +132,4 @@ fn auxflash(
     Ok(())
 }
 
-pub type Args = AuxFlashArgs;
-impl HumilitySubcommand for AuxFlashArgs {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        auxflash(args, context)
-    }
-}
+humility_cmd!(AuxFlashArgs, auxflash);

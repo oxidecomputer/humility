@@ -107,7 +107,7 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_log::msg;
@@ -517,9 +517,4 @@ fn dump_ddr4_over_i2c(
     Ok(())
 }
 
-pub type Args = SpdArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        spd(args, context)
-    }
-}
+humility_cmd!(SpdArgs, spd);

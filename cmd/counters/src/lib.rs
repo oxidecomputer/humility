@@ -205,7 +205,7 @@ use colored::Colorize;
 use humility::core::Core;
 use humility::hubris::*;
 use humility::reflect::{self, Load, Value};
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{CountedRingbuf, CounterVariant, Counters};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
@@ -623,9 +623,4 @@ fn hint() -> impl std::fmt::Display {
     "hint:".bold()
 }
 
-pub type Args = CountersArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        counters(args, context)
-    }
-}
+humility_cmd!(CountersArgs, counters);

@@ -30,7 +30,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use std::{collections::HashSet, convert::TryInto};
 
 #[derive(Parser, Debug)]
@@ -162,9 +162,4 @@ fn stackmargin(
     Ok(())
 }
 
-pub type Args = StackmarginArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        stackmargin(args, context)
-    }
-}
+humility_cmd!(StackmarginArgs, stackmargin);

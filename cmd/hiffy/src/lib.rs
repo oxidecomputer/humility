@@ -50,7 +50,7 @@ use anyhow::{Context, Result, bail};
 use clap::Parser;
 use humility::hubris::*;
 use humility::warn;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
 use humility_idol as idol;
@@ -347,9 +347,4 @@ fn hiffy(subargs: HiffyArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = HiffyArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        hiffy(args, context)
-    }
-}
+humility_cmd!(HiffyArgs, hiffy);

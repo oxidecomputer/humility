@@ -9,17 +9,17 @@
 
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[clap(name = "lsusb", about = env!("CARGO_PKG_DESCRIPTION"))]
-pub struct Args {
+pub struct LsUsbArgs {
     // None as yet
 }
 
-fn lsusb(_args: Args, context: &mut ExecutionContext) -> Result<()> {
+fn lsusb(_args: LsUsbArgs, context: &mut ExecutionContext) -> Result<()> {
     let mut targets = if let Some(ref env) = context.cli.environment {
         humility_cli::env::Environment::read(env)
             .with_context(|| {
@@ -138,8 +138,4 @@ fn list1(
     Ok((format!("{vid:04x}:{pid:04x}:{serial}"), format!("{man}\t{prod}")))
 }
 
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        lsusb(args, context)
-    }
-}
+humility_cmd!(LsUsbArgs, lsusb);

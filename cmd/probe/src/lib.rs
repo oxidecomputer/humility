@@ -90,7 +90,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::HubrisValidate;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_cortex::debug::*;
 use humility_cortex::scs::*;
 
@@ -409,9 +409,4 @@ fn probecmd(subargs: ProbeArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = ProbeArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        probecmd(args, context)
-    }
-}
+humility_cmd!(ProbeArgs, probecmd);

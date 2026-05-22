@@ -20,7 +20,7 @@ use clap::Parser;
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use std::collections::{BTreeMap, HashSet};
@@ -306,9 +306,4 @@ fn power(subargs: PowerArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = PowerArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        power(args, context)
-    }
-}
+humility_cmd!(PowerArgs, power);

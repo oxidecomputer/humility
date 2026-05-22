@@ -19,7 +19,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use clap::{ArgGroup, Parser};
 use humility::net::ScopedV6Addr;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 
 /// This is defined in the gimlet TOML.
@@ -30,7 +30,7 @@ const HARDCODED_PORT: u16 = 23547;
     name = "gimlet", about = env!("CARGO_PKG_DESCRIPTION"),
     group = ArgGroup::new("target").multiple(false)
 )]
-pub struct Args {
+pub struct GimletArgs {
     /// How long to wait for a response from the target, in milliseconds.
     #[clap(
         long, short = 'T', default_value_t = 2000, value_name = "ms",
@@ -101,7 +101,7 @@ impl Client {
     }
 }
 
-fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
+fn run(subargs: GimletArgs, context: &mut ExecutionContext) -> Result<()> {
     let ip = context
         .cli
         .ip
@@ -135,8 +135,4 @@ fn run(subargs: Args, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        run(args, context)
-    }
-}
+humility_cmd!(GimletArgs, run);

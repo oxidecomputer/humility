@@ -23,7 +23,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 use humility::{core::Core, hubris::*};
 use humility_auxflash::AuxFlashHandler;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 
 #[derive(Parser, Debug)]
 #[clap(name = "flash", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -416,9 +416,4 @@ fn generate_ihex_from_elf(data: &[u8]) -> Result<String> {
     Ok(ihex::create_object_file_representation(&records)?)
 }
 
-pub type Args = FlashArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        flashcmd(args, context)
-    }
-}
+humility_cmd!(FlashArgs, flashcmd);

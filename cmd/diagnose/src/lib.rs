@@ -18,7 +18,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_doppel::{GenOrRestartCount, Task, TaskDesc, TaskState};
 use std::num::NonZeroU32;
 use std::time::Duration;
@@ -378,9 +378,4 @@ fn find_task_names<'a>(
         .collect())
 }
 
-pub type Args = DiagnoseArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        diagnose(args, context)
-    }
-}
+humility_cmd!(DiagnoseArgs, diagnose);

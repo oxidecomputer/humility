@@ -64,7 +64,6 @@ pub enum Subcommand {{
         "}}
 
 pub fn dispatch(c: Subcommand, ctx: &mut ::humility_cli::ExecutionContext) -> anyhow::Result<()> {{
-    use ::humility_cli::HumilitySubcommand;
     match c {{"
     )?;
     for cmd in cmds.iter() {

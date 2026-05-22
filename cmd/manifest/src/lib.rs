@@ -44,7 +44,7 @@
 use anyhow::Result;
 use clap::Parser;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
@@ -274,9 +274,4 @@ fn manifestcmd(
     Ok(())
 }
 
-pub type Args = ManifestArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        manifestcmd(args, context)
-    }
-}
+humility_cmd!(ManifestArgs, manifestcmd);

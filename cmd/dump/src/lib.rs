@@ -70,7 +70,7 @@ use clap::{ArgGroup, Parser};
 use humility::core::Core;
 use humility::hubris::*;
 use humility_arch_arm::ARMRegister;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_dump_agent::{
     DumpAgent, DumpAgentCore, DumpAgentExt, DumpArea, DumpBreakdown,
     HiffyDumpAgent, UdpDumpAgent, task_areas,
@@ -896,9 +896,4 @@ fn dumpcmd(subargs: DumpArgs, context: &mut ExecutionContext) -> Result<()> {
     }
 }
 
-pub type Args = DumpArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        dumpcmd(args, context)
-    }
-}
+humility_cmd!(DumpArgs, dumpcmd);

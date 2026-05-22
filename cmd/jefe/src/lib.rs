@@ -97,7 +97,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_jefe::{JefeRequest, send_request};
 use std::num::NonZeroU32;
 
@@ -168,9 +168,4 @@ fn jefe(subargs: JefeArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = JefeArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        jefe(args, context)
-    }
-}
+humility_cmd!(JefeArgs, jefe);

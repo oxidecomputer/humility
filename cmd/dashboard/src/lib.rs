@@ -28,7 +28,7 @@ use crossterm::{
 use hif::*;
 use humility::core::Core;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_idol::{self as idol, HubrisIdol};
 use ratatui::{
@@ -1084,9 +1084,4 @@ fn draw(f: &mut Frame, dashboard: &mut Dashboard) {
     draw_status(f, screen[1], &dashboard.status());
 }
 
-pub type Args = DashboardArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        dashboard(args, context)
-    }
-}
+humility_cmd!(DashboardArgs, dashboard);

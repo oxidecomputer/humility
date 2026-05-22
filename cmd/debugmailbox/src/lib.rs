@@ -31,7 +31,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use probe_rs::{
     DebugProbeError, DebugProbeSelector, Probe,
     architecture::arm::{ApAddress, ArmProbeInterface, DapError, DpAddress},
@@ -459,9 +459,4 @@ pub struct DebugMailboxArgs {
     cmd: DebugMailboxCmd,
 }
 
-pub type Args = DebugMailboxArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()> {
-        debugmailboxcmd(args, context)
-    }
-}
+humility_cmd!(DebugMailboxArgs, debugmailboxcmd);

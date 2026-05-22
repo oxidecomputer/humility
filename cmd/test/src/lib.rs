@@ -95,7 +95,7 @@ use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use std::fmt;
 use std::fs::OpenOptions;
@@ -284,9 +284,4 @@ fn test(subargs: TestArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = TestArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        test(args, context)
-    }
-}
+humility_cmd!(TestArgs, test);

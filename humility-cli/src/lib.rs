@@ -327,9 +327,24 @@ impl Cli {
     }
 }
 
-/// Trait representing a Humility subcommand
-pub trait HumilitySubcommand: Parser {
-    fn run(args: Self, context: &mut ExecutionContext) -> Result<()>;
+/// Promotes an argument type and run function into a Humility subcommand
+///
+/// The `$args_ty` value must implement `clap::Parser`, and `$run_fn` must have
+/// the signature `fn run(args: $args_ty, ctx: &mut ExecutionContext) ->
+/// anyhow::Result<()>`.
+#[macro_export]
+macro_rules! humility_cmd {
+    ($args_ty:ty, $run_fn:ident) => {
+        pub type Args = $args_ty;
+        impl Args {
+            pub fn run(
+                args: Self,
+                context: &mut ::humility_cli::ExecutionContext,
+            ) -> ::anyhow::Result<()> {
+                $run_fn(args, context)
+            }
+        }
+    };
 }
 
 pub struct ExecutionContext {

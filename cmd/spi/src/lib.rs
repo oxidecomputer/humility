@@ -33,7 +33,7 @@
 //!
 
 use humility::hubris::*;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hexdump::Dumper;
 use humility_hiffy::*;
 
@@ -311,9 +311,4 @@ fn spi(subargs: SpiArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = SpiArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        spi(args, context)
-    }
-}
+humility_cmd!(SpiArgs, spi);

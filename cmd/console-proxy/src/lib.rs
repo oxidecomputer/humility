@@ -7,7 +7,7 @@
 //! Act as a proxy for the host serial console when it is jumpered to the SP.
 
 use clap::Parser;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::humility_cmd;
 use std::path::PathBuf;
 
 #[cfg(not(windows))]
@@ -107,9 +107,4 @@ enum UartConsoleCommand {
     Client,
 }
 
-pub type Args = UartConsoleArgs;
-impl HumilitySubcommand for UartConsoleArgs {
-    fn run(args: Args, context: &mut ExecutionContext) -> anyhow::Result<()> {
-        console_proxy(args, context)
-    }
-}
+humility_cmd!(UartConsoleArgs, console_proxy);

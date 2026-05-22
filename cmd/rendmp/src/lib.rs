@@ -145,7 +145,7 @@
 use humility::hubris::*;
 use humility::reflect::{Base, Value};
 use humility::warn;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 use humility_idol::{HubrisIdol, IdolOperation};
@@ -2884,9 +2884,4 @@ fn rendmp(subargs: RendmpArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = RendmpArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        rendmp(args, context)
-    }
-}
+humility_cmd!(RendmpArgs, rendmp);

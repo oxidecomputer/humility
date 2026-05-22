@@ -34,7 +34,7 @@
 
 use humility::hubris::*;
 use humility::msg;
-use humility_cli::{ExecutionContext, HumilitySubcommand};
+use humility_cli::{ExecutionContext, humility_cmd};
 use humility_hiffy::*;
 use humility_i2c::I2cArgs;
 
@@ -575,9 +575,4 @@ fn mwocp(subargs: MwocpArgs, context: &mut ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub type Args = MwocpArgs;
-impl HumilitySubcommand for Args {
-    fn run(args: Args, context: &mut ExecutionContext) -> Result<()> {
-        mwocp(args, context)
-    }
-}
+humility_cmd!(MwocpArgs, mwocp);
