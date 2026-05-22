@@ -226,7 +226,7 @@ fn stmsecure_setsecureregion(
     // We have to use the delightful ROM API in order to write this register
     core.halt()?;
 
-    // Set up the pub structure at 0x2000_0000
+    // Set up the structure at 0x2000_0000
     // typedef struct
     // {
     // uint32_t sizeInBytes; /**< pass 0 for an empty secure area */

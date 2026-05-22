@@ -34,7 +34,6 @@ spd = { workspace = true }
 humility = { workspace = true }
 humility-cortex = { workspace = true }
 humility-cli = { workspace = true, default-features = false }
-humility-hexdump = { workspace = true }
 cmd-auxflash = { workspace = true }
 cmd-console-proxy = { workspace = true }
 cmd-counters = { workspace = true }

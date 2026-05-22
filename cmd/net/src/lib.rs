@@ -60,7 +60,7 @@ enum NetCommand {
     Status,
     /// Print the counters
     ///
-    /// This is a depub structive operation that clears counter values, resetting
+    /// This is a destructive operation that clears counter values, resetting
     /// them to zero.
     ///
     /// If no flags are provided, both the table and diagram are shown.

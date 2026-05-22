@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     write!(
         output,
         r##"
-#[derive(::clap::Parser, Debug)]
+#[derive(::clap::Subcommand, Debug)]
 pub enum Subcommand {{
 "##
     )?;

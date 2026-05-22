@@ -37,7 +37,7 @@ fn main() -> std::process::ExitCode {
     };
     let OuterCli { cli, cmd } = outer_cli;
     if let Some(s) = version(&cli) {
-        eprintln!("{s}");
+        println!("{s}");
         return std::process::ExitCode::SUCCESS;
     };
 

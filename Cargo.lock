@@ -1695,7 +1695,6 @@ dependencies = [
  "humility-cmd-writeword",
  "humility-core",
  "humility-cortex",
- "humility-hexdump",
  "indexmap 2.14.0",
  "indicatif",
  "jep106 0.3.0",
@@ -2054,7 +2053,6 @@ dependencies = [
  "hif",
  "humility-cli",
  "humility-core",
- "humility-hexdump",
  "humility-hiffy",
  "humility-idol",
  "idol",
@@ -2473,7 +2471,6 @@ dependencies = [
  "clap",
  "humility-cli",
  "humility-core",
- "humility-hexdump",
 ]
 
 [[package]]
