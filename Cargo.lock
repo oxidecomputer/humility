@@ -2257,6 +2257,7 @@ dependencies = [
  "log",
  "parse_int",
  "sha2 0.11.0",
+ "zerocopy",
 ]
 
 [[package]]
