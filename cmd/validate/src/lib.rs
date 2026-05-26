@@ -42,15 +42,15 @@
 //! ```
 //!
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result};
 use clap::Parser;
 use colored::Colorize;
 use hif::*;
 use humility::hubris::*;
 use humility_cli::{ExecutionContext, humility_cmd};
-use humility_hiffy::{HiffyContext, IpcError};
+use humility_hiffy::HiffyContext;
 use humility_i2c::I2cArgs;
-use humility_idol::{self as idol, HubrisIdol};
+use humility_idol::{self as idol, HubrisIdol, IdolDecodeError, IdolError};
 
 #[derive(Parser, Debug)]
 #[clap(name = "validate", about = env!("CARGO_PKG_DESCRIPTION"))]
@@ -206,67 +206,42 @@ fn validate(
 
     let results = context.run(core, ops.as_slice(), None)?;
 
-    let fmt = HubrisPrintFormat {
-        newline: false,
-        hex: true,
-        ..HubrisPrintFormat::default()
-    };
-
     println!(
         "{:2} {:refdes_len$} {:11} {:>2} {:2} {:3} {:4} {:13} DESCRIPTION",
         "ID", REFDES_HDR, "VALIDATION", "C", "P", "MUX", "ADDR", "DEVICE"
     );
 
-    let ok = hubris.lookup_enum(op.ok)?;
-
     for (rndx, (ndx, device)) in devices.iter().enumerate() {
-        let result = match &results[rndx] {
-            Ok(val) => {
-                // TODO: assumes discriminant is a u8. Since this is using Hiffy
-                // call results instead of looking at a Rust value in memory,
-                // it's not clear from context what changes would be required to
-                // fix this.
-                if let Some(variant) =
-                    ok.lookup_variant_by_tag(Tag::from(val[0]))
-                {
-                    Ok(match variant.name.as_str() {
-                        "Present" => "present".yellow(),
-                        "Validated" => "validated".green(),
-                        _ => format!("<{}>", variant.name).cyan(),
-                    })
-                } else {
-                    Ok(hubris.printfmt(val, op.ok, fmt)?.white())
+        let result = match op.decode::<humility::reflect::Enum>(&results[rndx])
+        {
+            Ok(val) => match val.disc() {
+                "Present" => "present".yellow(),
+                "Validated" => "validated".green(),
+                n => format!("<{n}>").cyan(),
+            },
+            Err(IdolDecodeError::DecodeFailed(e)) => return Err(e.into()),
+            Err(IdolDecodeError::Idol(e)) => match e {
+                IdolError::Named(n) => match n.as_str() {
+                    "NotPresent" => {
+                        if device.removable {
+                            "removed".blue()
+                        } else {
+                            "absent".red()
+                        }
+                    }
+                    "BadValidation" => "failed".red(),
+                    "DeviceTimeout" => "timeout".red(),
+                    "DeviceError" => "error".red(),
+                    "Unavailable" => "unavailable".yellow(),
+                    n => format!("<{n}>").red(),
+                },
+                IdolError::ServerDied(..) => "server died".red(),
+                IdolError::ComplexError(..)
+                | IdolError::UnknownErrorVariant(..) => {
+                    return Err(e).context("unexpected error type");
                 }
-            }
-            Err(IpcError::Error(e)) => {
-                if let idol::IdolErrorType::CLike(err) = op.error {
-                    // TODO: assumes discriminant is a u8. Since this is using
-                    // Hiffy call results instead of looking at a Rust value in
-                    // memory, it's not clear from context what changes would be
-                    // required to fix this.
-                    Ok(match err.lookup_variant_by_tag(Tag::from(*e)) {
-                        Some(variant) => match variant.name.as_str() {
-                            "NotPresent" => {
-                                if device.removable {
-                                    "removed".blue()
-                                } else {
-                                    "absent".red()
-                                }
-                            }
-                            "BadValidation" => "failed".red(),
-                            "DeviceTimeout" => "timeout".red(),
-                            "DeviceError" => "error".red(),
-                            "Unavailable" => "unavailable".yellow(),
-                            _ => format!("<{}>", variant.name).red(),
-                        },
-                        None => format!("Err(0x{:x?})", e).red(),
-                    })
-                } else {
-                    Err(anyhow!("unexpected error type {:?}", op.error))
-                }
-            }
-            Err(IpcError::ServerDied(_)) => Ok("server died".red()),
-        }?;
+            },
+        };
 
         let mux = match (device.mux, device.segment) {
             (Some(m), Some(s)) => format!("{}:{}", m, s),
