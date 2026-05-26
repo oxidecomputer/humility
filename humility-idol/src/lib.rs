@@ -23,13 +23,14 @@ pub struct IdolOperation<'a> {
     pub code: u16,
     pub args: Option<&'a HubrisStruct>,
     pub ok: HubrisGoff,
+    pub ok_ty: HubrisType<'a>,
     pub error: IdolErrorType<'a>,
 }
 
 /// Error returned from [`IdolOperation::decode`]
 ///
 /// This error is either an error reported by Idol ([`IdolError`]) or an error
-/// that occured in the process of decoding ([`IdolDecodeFailed`])
+/// that occurred in the process of decoding ([`IdolDecodeFailed`])
 #[derive(Debug, thiserror::Error)]
 pub enum IdolDecodeError {
     /// Error reported from Idol
@@ -38,20 +39,37 @@ pub enum IdolDecodeError {
 
     /// Decoding the result failed in Humility
     #[error(transparent)]
-    Failed(#[from] IdolDecodeFailed),
+    DecodeFailed(#[from] IdolDecodeFailed),
 }
 
 /// Idol decode errors happening outside of Idol
 #[derive(Debug, thiserror::Error)]
 pub enum IdolDecodeFailed {
-    #[error("failed to load zerocopy value")]
-    BytecastFailed(#[source] anyhow::Error),
-    #[error("failed to deserialize value")]
-    DeserializeValueFailed(#[source] anyhow::Error),
+    /// Got error when deserializing a value
+    #[error(
+        "failed to deserialize value using {} encoding",
+        encoding_str(*encoding)
+    )]
+    DeserializeFailed {
+        encoding: ::idol::syntax::Encoding,
+        #[source]
+        err: anyhow::Error,
+    },
+    /// Calling [`reflect::Load`](humility::reflect::Load) failed
     #[error("failed to load value with reflection")]
     LoadFailed(#[source] anyhow::Error),
+    /// The operation has [`IdolErrorType::None`] but had an error
     #[error("operation has no error type, but decode was called with an error")]
     NoErrorType,
+}
+
+/// Helper function to stringify an [`::idol::syntax::Encoding`] value
+fn encoding_str(e: ::idol::syntax::Encoding) -> &'static str {
+    match e {
+        ::idol::syntax::Encoding::Ssmarshal => "ssmarshal",
+        ::idol::syntax::Encoding::Hubpack => "hubpack",
+        ::idol::syntax::Encoding::Zerocopy => "zerocopy",
+    }
 }
 
 /// Errors reported by Idol
@@ -111,11 +129,22 @@ impl<'a> IdolOperation<'a> {
         let module = hubris.lookup_module(task)?;
         let args = module.lookup_struct_byname(hubris, &t)?;
         let (ok, error) = lookup_reply(hubris, module, operation)?;
+        let ok_ty = hubris.lookup_type(ok)?;
 
         //
         // We have our fully formed Idol call!
         //
-        Ok(Self { hubris, name, task, operation: op, code, args, ok, error })
+        Ok(Self {
+            hubris,
+            name,
+            task,
+            operation: op,
+            code,
+            args,
+            ok,
+            ok_ty,
+            error,
+        })
     }
 
     fn args_size(&self) -> usize {
@@ -297,32 +326,41 @@ impl<'a> IdolOperation<'a> {
     ) -> Result<T, IdolDecodeError> {
         match val {
             Ok(val) => {
-                let ty = self.hubris.lookup_type(self.ok).unwrap();
                 let value = match self.operation.encoding {
                     ::idol::syntax::Encoding::Zerocopy => {
-                        humility::reflect::load_value(self.hubris, val, ty, 0)
-                            .map_err(IdolDecodeFailed::BytecastFailed)?
+                        humility::reflect::load_value(
+                            self.hubris,
+                            val,
+                            self.ok_ty,
+                            0,
+                        )
                     }
                     ::idol::syntax::Encoding::Ssmarshal
                     | ::idol::syntax::Encoding::Hubpack => {
                         humility::reflect::deserialize_value(
                             self.hubris,
                             val,
-                            ty,
+                            self.ok_ty,
                         )
-                        .map_err(IdolDecodeFailed::DeserializeValueFailed)?
-                        .0
+                        .map(|v| v.0)
                     }
-                };
+                }
+                .map_err(|err| {
+                    IdolDecodeFailed::DeserializeFailed {
+                        err,
+                        encoding: self.operation.encoding,
+                    }
+                })?;
+
                 Ok(T::from_value(&value)
-                    .map_err(IdolDecodeFailed::DeserializeValueFailed)?)
+                    .map_err(IdolDecodeFailed::LoadFailed)?)
             }
             Err(e) => Err(self.decode_error(*e)),
         }
     }
 
     pub fn decode_error(&self, err: IpcError) -> IdolDecodeError {
-        let out = match err {
+        match err {
             IpcError::Error(e) => match self.error {
                 IdolErrorType::CLike(error) => {
                     // TODO potentially sign-extended discriminator represented
@@ -333,21 +371,18 @@ impl<'a> IdolOperation<'a> {
                     if let Some(v) =
                         error.lookup_variant_by_tag(Tag::from(e as u64))
                     {
-                        IdolError::Named(v.name.to_string())
+                        IdolError::Named(v.name.to_string()).into()
                     } else {
-                        IdolError::UnknownErrorVariant(e)
+                        IdolError::UnknownErrorVariant(e).into()
                     }
                 }
                 IdolErrorType::Complex(error) => {
-                    IdolError::ComplexError(error.name.to_string())
+                    IdolError::ComplexError(error.name.to_string()).into()
                 }
-                IdolErrorType::None => {
-                    return IdolDecodeFailed::NoErrorType.into();
-                }
+                IdolErrorType::None => IdolDecodeFailed::NoErrorType.into(),
             },
-            IpcError::ServerDied(c) => IdolError::ServerDied(c),
-        };
-        IdolDecodeError::Idol(out)
+            IpcError::ServerDied(c) => IdolError::ServerDied(c).into(),
+        }
     }
 }
 

@@ -169,7 +169,7 @@ fn powershelf_run(
             match idol_cmd.decode::<humility::reflect::Value>(&results[ndx]) {
                 Ok(s) => Ok(s),
                 Err(IdolDecodeError::Idol(s)) => Err(s),
-                Err(IdolDecodeError::Failed(e)) => return Err(e.into()),
+                Err(IdolDecodeError::DecodeFailed(e)) => return Err(e.into()),
             };
 
         println!(

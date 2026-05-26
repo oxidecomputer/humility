@@ -1487,7 +1487,7 @@ pub fn hiffy_call<T: humility::reflect::Load>(
         data.copy_from_slice(&extra_data);
     }
     op.decode(&v).map_err(|e| match e {
-        idol::IdolDecodeError::Failed(v) => HiffyError::Other(v.into()),
+        idol::IdolDecodeError::DecodeFailed(v) => HiffyError::Other(v.into()),
         idol::IdolDecodeError::Idol(v) => HiffyError::Hiffy(v),
     })
 }

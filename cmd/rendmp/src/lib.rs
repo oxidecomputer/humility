@@ -1639,7 +1639,7 @@ impl<'a, 'b> HifWorker<'a, 'b> {
                     }
                 },
                 Err(IdolDecodeError::Idol(e)) => out.push(Err(e)),
-                Err(IdolDecodeError::Failed(e)) => {
+                Err(IdolDecodeError::DecodeFailed(e)) => {
                     return Err(e).with_context(|| {
                         format!("failed to decode {call:?} result")
                     });
