@@ -162,7 +162,7 @@ fn manifestcmd(context: &mut ExecutionContext) -> Result<()> {
     }
 
     const REFDES_HDR: &str = "REFDES";
-    const NO_REFDES: &str = "???";
+    const NO_REFDES: &str = "-";
     let refdes_len = manifest
         .fmt_meta
         .max_refdes_len

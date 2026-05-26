@@ -99,7 +99,7 @@ struct ValidateArgs {
 }
 
 const REFDES_HDR: &str = "REFDES";
-const NO_REFDES: &str = "???";
+const NO_REFDES: &str = "-";
 
 fn list(hubris: &HubrisArchive, hargs: &Option<I2cArgs>) -> Result<()> {
     let refdes_len = hubris
