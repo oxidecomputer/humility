@@ -273,34 +273,6 @@ impl<'a> IdolOperation<'a> {
         Ok(())
     }
 
-    pub fn strerror(&self, error: impl Into<IpcError>) -> String {
-        match error.into() {
-            IpcError::Error(code) => {
-                let variant = if let IdolErrorType::CLike(error) = self.error {
-                    // TODO: assumes discriminant is a u8. Since this is using Hiffy
-                    // call results instead of looking at a Rust value in memory, it's
-                    // not clear from context what changes would be required to fix
-                    // this.
-                    error.lookup_variant_by_tag(Tag::from(code as u64))
-                } else {
-                    None
-                };
-
-                if let Some(variant) = variant {
-                    variant.name.to_string()
-                } else {
-                    format!(
-                        "<Unknown {}.{} error: {}>",
-                        self.name.0, self.name.1, code
-                    )
-                }
-            }
-            IpcError::ServerDied(id) => {
-                format!("<{} server died: {id}>", self.name.0)
-            }
-        }
-    }
-
     pub fn reply_size(&self) -> Result<usize> {
         let reply_size = match self.operation.encoding {
             ::idol::syntax::Encoding::Zerocopy => {

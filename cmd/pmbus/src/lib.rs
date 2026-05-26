@@ -1851,12 +1851,12 @@ impl PmbusWorker for IdolWorker<'_> {
 
     fn decode_read_err(&self, err: IpcError) -> String {
         // All read operations share an error code
-        self.read_byte.strerror(err)
+        self.read_byte.decode_error(err).to_string()
     }
 
     fn decode_write_err(&self, err: IpcError) -> String {
         // All write operations share an error code
-        self.write_byte.strerror(err)
+        self.write_byte.decode_error(err).to_string()
     }
 
     fn run(&mut self) -> Result<Vec<Result<Vec<u8>, IpcError>>> {

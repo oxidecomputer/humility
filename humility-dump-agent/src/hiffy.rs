@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 use crate::DumpAgent;
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use core::mem::size_of;
 use hif::*;
 use humility::{core::Core, hubris::HubrisArchive};
 use humility_hiffy::{HiffyContext, IpcError};
-use humility_idol::{self as idol, HubrisIdol};
+use humility_idol::{self as idol, HubrisIdol, IdolDecodeError, IdolError};
 use humpty::{DumpAreaHeader, DumpSegment, DumpSegmentHeader};
 use std::time::Duration;
 
@@ -72,7 +72,8 @@ impl DumpAgent for HiffyDumpAgent<'_> {
         ops.push(Op::Done);
 
         if let Err(err) = self.run(ops.as_slice())?[0] {
-            bail!("failed to initialize dump: {}", op.strerror(err));
+            return Err(op.decode_error(err))
+                .context("failed to initialize dump");
         }
 
         Ok(())
@@ -97,11 +98,12 @@ impl DumpAgent for HiffyDumpAgent<'_> {
 
         for (result, (base, size)) in results.iter().zip(segments.iter()) {
             if let Err(err) = result {
-                bail!(
-                    "failed to add segment at address {base:#x} for length \
-                    {size}: {}",
-                    op.strerror(*err),
-                );
+                return Err(op.decode_error(*err)).with_context(|| {
+                    format!(
+                        "failed to add segment at address {base:#x} \
+                         for length {size}"
+                    )
+                });
             }
         }
 
@@ -162,7 +164,7 @@ impl DumpAgent for HiffyDumpAgent<'_> {
         let results = self.run(ops.as_slice())?;
 
         if let Err(err) = results[rindex] {
-            bail!("failed to take dump: {}", op.strerror(err))
+            return Err(op.decode_error(err)).context("failed to take dump");
         }
 
         Ok(())
@@ -218,17 +220,18 @@ impl DumpAgent for HiffyDumpAgent<'_> {
                         }
                         rval.push(val.to_vec());
                     }
-                    Err(err) => {
-                        let s = op.strerror(*err);
-                        if s == "InvalidArea" {
+                    Err(err) => match op.decode_error(*err) {
+                        IdolDecodeError::Idol(IdolError::Named(s))
+                            if s == "InvalidArea" =>
+                        {
                             return Ok(rval);
-                        } else {
-                            bail!(
-                                "failed to read index {index}, offset: {offset}:
-                                {s}",
-                            );
                         }
-                    }
+                        e => return Err(e).with_context(|| {
+                            format!(
+                                "failed to read index {index}, offset: {offset}"
+                            )
+                        }),
+                    },
                 }
             }
         }
@@ -254,7 +257,7 @@ impl DumpAgent for HiffyDumpAgent<'_> {
                 Ok(v[0])
             }
             Err(err) => {
-                bail!("failed to dump task: {}", op.strerror(*err))
+                Err(op.decode_error(*err)).context("failed to dump task")
             }
         }
     }
@@ -283,7 +286,7 @@ impl DumpAgent for HiffyDumpAgent<'_> {
                 Ok(v[0])
             }
             Err(err) => {
-                bail!("failed to dump task region: {}", op.strerror(*err))
+                Err(op.decode_error(*err)).context("failed to dump task region")
             }
         }
     }
@@ -300,9 +303,9 @@ impl DumpAgent for HiffyDumpAgent<'_> {
         let out = self.run(ops.as_slice())?;
         assert_eq!(out.len(), 1);
         if let Err(err) = &out[0] {
-            bail!("failed to dump task region: {}", op.strerror(*err))
+            Err(op.decode_error(*err)).context("failed to dump task region")
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 }
