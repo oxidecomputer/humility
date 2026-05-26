@@ -1368,6 +1368,77 @@ impl<'a> HiffyContext<'a> {
     pub fn scratch_size(&self) -> usize {
         self.scratch_size
     }
+
+    /// Executes a Hiffy call, returning the output value (or an error)
+    pub fn call<T: humility::reflect::Load>(
+        &mut self,
+        core: &mut dyn Core,
+        op: &idol::IdolOperation,
+        args: &[(&str, idol::IdolArgument)],
+        lease_write: Option<&[u8]>,
+        lease_read: Option<&mut [u8]>,
+    ) -> Result<T, HiffyError> {
+        check_op(op)?;
+        check_leases(op, lease_write, lease_read.as_deref())?;
+
+        let mut ops = vec![];
+
+        let payload = op.payload(args)?;
+        // Read/Write is flipped when passing through the Idol operation;
+        // Read/Write is from the perspective of the host, but
+        // idol_call_ops_read/read_write/write is from the perspective of the
+        // called function.
+        match (&lease_write, &lease_read) {
+            (None, None) => self.idol_call_ops(op, &payload, &mut ops)?,
+            (None, Some(n)) => self.idol_call_ops_write(
+                op,
+                &payload,
+                &mut ops,
+                n.len().try_into().unwrap(),
+            )?,
+            (Some(d), None) => self.idol_call_ops_read(
+                op,
+                &payload,
+                &mut ops,
+                d.len().try_into().unwrap(),
+            )?,
+            (Some(d), Some(n)) => self.idol_call_ops_read_write(
+                op,
+                &payload,
+                &mut ops,
+                d.len().try_into().unwrap(),
+                n.len().try_into().unwrap(),
+            )?,
+        }
+        ops.push(Op::Done);
+
+        let mut results = self.run(core, ops.as_slice(), lease_write)?;
+
+        if results.len() != 1 {
+            return Err(HiffyError::Other(anyhow!(
+                "unexpected results length: {:?}",
+                results
+            )));
+        }
+
+        let mut v: Result<Vec<u8>, IpcError> = results.pop().unwrap();
+
+        // If this is a successful Read operation, steal extra data from the
+        // returned stack and copy it into the incoming 'read' argument
+        if let Ok(v) = v.as_mut()
+            && let Some(data) = lease_read
+        {
+            let ok_size = op.reply_size()?;
+            let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
+            data.copy_from_slice(&extra_data);
+        }
+        op.decode(&v).map_err(|e| match e {
+            idol::IdolDecodeError::DecodeFailed(v) => {
+                HiffyError::Other(v.into())
+            }
+            idol::IdolDecodeError::Idol(v) => HiffyError::Hiffy(v),
+        })
+    }
 }
 
 /// Performs a somewhat probabilistic check for whether a task has _started,_ by
@@ -1421,75 +1492,6 @@ pub enum HiffyError {
     /// There was an error invoking the HIF program
     #[error(transparent)]
     Other(#[from] anyhow::Error),
-}
-
-/// Executes a Hiffy call, returning the output value (or an error)
-pub fn hiffy_call<T: humility::reflect::Load>(
-    core: &mut dyn Core,
-    context: &mut HiffyContext,
-    op: &idol::IdolOperation,
-    args: &[(&str, idol::IdolArgument)],
-    lease_write: Option<&[u8]>,
-    lease_read: Option<&mut [u8]>,
-) -> Result<T, HiffyError> {
-    check_op(op)?;
-    check_leases(op, lease_write, lease_read.as_deref())?;
-
-    let mut ops = vec![];
-
-    let payload = op.payload(args)?;
-    // Read/Write is flipped when passing through the Idol operation;
-    // Read/Write is from the perspective of the host, but
-    // idol_call_ops_read/read_write/write is from the perspective of the
-    // called function.
-    match (&lease_write, &lease_read) {
-        (None, None) => context.idol_call_ops(op, &payload, &mut ops)?,
-        (None, Some(n)) => context.idol_call_ops_write(
-            op,
-            &payload,
-            &mut ops,
-            n.len().try_into().unwrap(),
-        )?,
-        (Some(d), None) => context.idol_call_ops_read(
-            op,
-            &payload,
-            &mut ops,
-            d.len().try_into().unwrap(),
-        )?,
-        (Some(d), Some(n)) => context.idol_call_ops_read_write(
-            op,
-            &payload,
-            &mut ops,
-            d.len().try_into().unwrap(),
-            n.len().try_into().unwrap(),
-        )?,
-    }
-    ops.push(Op::Done);
-
-    let mut results = context.run(core, ops.as_slice(), lease_write)?;
-
-    if results.len() != 1 {
-        return Err(HiffyError::Other(anyhow!(
-            "unexpected results length: {:?}",
-            results
-        )));
-    }
-
-    let mut v: Result<Vec<u8>, IpcError> = results.pop().unwrap();
-
-    // If this is a successful Read operation, steal extra data from the
-    // returned stack and copy it into the incoming 'read' argument
-    if let Ok(v) = v.as_mut()
-        && let Some(data) = lease_read
-    {
-        let ok_size = op.reply_size()?;
-        let extra_data = v.drain(ok_size..).collect::<Vec<u8>>();
-        data.copy_from_slice(&extra_data);
-    }
-    op.decode(&v).map_err(|e| match e {
-        idol::IdolDecodeError::DecodeFailed(v) => HiffyError::Other(v.into()),
-        idol::IdolDecodeError::Idol(v) => HiffyError::Hiffy(v),
-    })
 }
 
 pub fn hiffy_format_result<E: std::fmt::Display>(

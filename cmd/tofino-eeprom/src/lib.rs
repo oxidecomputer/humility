@@ -85,9 +85,8 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(out.len() as u64);
         for (i, chunk) in out.chunks_mut(READ_CHUNK_SIZE).enumerate() {
             let offset = i * READ_CHUNK_SIZE;
-            humility_hiffy::hiffy_call::<()>(
+            self.context.call::<()>(
                 self.core,
-                &mut self.context,
                 &op,
                 &[("offset", IdolArgument::Scalar(offset as u64))],
                 None,
@@ -119,9 +118,8 @@ impl<'a> EepromHandler<'a> {
         bar.set_length(data.len() as u64);
         for (i, chunk) in data.chunks(WRITE_CHUNK_SIZE).enumerate() {
             let offset = i * WRITE_CHUNK_SIZE;
-            humility_hiffy::hiffy_call::<()>(
+            self.context.call::<()>(
                 self.core,
-                &mut self.context,
                 &op,
                 &[("offset", IdolArgument::Scalar(offset as u64))],
                 Some(chunk),

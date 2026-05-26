@@ -309,9 +309,8 @@ fn monorail_read(
     humility::msg!("Reading {reg} from {addr:#x}");
 
     let op = hubris.get_idol_command("Monorail.read_vsc7448_reg")?;
-    let value = humility_hiffy::hiffy_call::<u32>(
+    let value = context.call::<u32>(
         core,
-        context,
         &op,
         &[("addr", IdolArgument::Scalar(u64::from(addr)))],
         None,
@@ -343,9 +342,8 @@ fn monorail_write(
     pretty_print_fields(value, reg.fields(), 0);
 
     let op = hubris.get_idol_command("Monorail.write_vsc7448_reg")?;
-    humility_hiffy::hiffy_call::<()>(
+    context.call::<()>(
         core,
-        context,
         &op,
         &[
             ("addr", IdolArgument::Scalar(u64::from(addr))),
@@ -420,9 +418,8 @@ fn monorail_phy_read(
     let reg = parse_phy_register(&reg)?;
     println!("Reading from port {} PHY, register {}", port, reg.name);
     let op = hubris.get_idol_command("Monorail.read_phy_reg")?;
-    let value = humility_hiffy::hiffy_call::<u16>(
+    let value = context.call::<u16>(
         core,
-        context,
         &op,
         &[
             ("port", IdolArgument::Scalar(u64::from(port))),
@@ -452,9 +449,8 @@ fn monorail_phy_write(
     );
     pretty_print_fields(value as u32, &reg.fields, 0);
     let op = hubris.get_idol_command("Monorail.write_phy_reg")?;
-    humility_hiffy::hiffy_call::<()>(
+    context.call::<()>(
         core,
-        context,
         &op,
         &[
             ("port", IdolArgument::Scalar(u64::from(port))),
@@ -811,14 +807,8 @@ fn monorail_mac_table(
     // We need to make two HIF calls:
     // - Read the number of entries in the MAC table
     // - Loop over the table that many times, reading entries
-    let mac_count = humility_hiffy::hiffy_call::<u32>(
-        core,
-        context,
-        &op_mac_count,
-        &[],
-        None,
-        None,
-    )?;
+    let mac_count =
+        context.call::<u32>(core, &op_mac_count, &[], None, None)?;
 
     println!("Reading {mac_count} MAC addresses...");
 
@@ -899,9 +889,8 @@ fn monorail_reset_counters(
     port: u8,
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.reset_port_counters")?;
-    humility_hiffy::hiffy_call::<()>(
+    context.call::<()>(
         core,
-        context,
         &op,
         &[("port", IdolArgument::Scalar(u64::from(port)))],
         None,
@@ -917,9 +906,8 @@ fn monorail_counters(
     port: u8,
 ) -> Result<()> {
     let op = hubris.get_idol_command("Monorail.get_port_counters")?;
-    let s = humility_hiffy::hiffy_call::<humility::reflect::Struct>(
+    let s = context.call::<humility::reflect::Struct>(
         core,
-        context,
         &op,
         &[("port", IdolArgument::Scalar(u64::from(port)))],
         None,
