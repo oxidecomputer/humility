@@ -50,7 +50,7 @@
                  10  3 H  -   0x27 U524   tps546b24a    A2 5V rail
                  11  3 H  -   0x29 U561   tps546b24a    A2 1.8V rail
                  12  3 H  -   0x3a U275   max5970       M.2 hot plug controller
-                 13  3 H  -   0x4c ???    sbtsi         CPU temperature sensor
+                 13  3 H  -   0x4c -      sbtsi         CPU temperature sensor
                  14  3 H  -   0x58 U446   idt8a34003    Clock generator
                  15  3 H  -   0x5a U350   raa229618     CPU power controller
                  16  3 H  -   0x5b U351   raa229618     SoC power controller
@@ -97,7 +97,7 @@
                  13 V1P8_SYS_A2             i2c id=11   U561   temp
                  14 V1P8_SYS_A2             i2c id=11   U561   current
                  15 V1P8_SYS_A2             i2c id=11   U561   voltage
-                 16 CPU                     i2c id=13   ???    temp
+                 16 CPU                     i2c id=13   -      temp
                  17 VDD_VCORE               i2c id=15   U350   temp
                  18 VDD_MEM_ABCD            i2c id=15   U350   temp
                  19 VDD_VCORE               i2c id=15   U350   power

@@ -79,12 +79,12 @@
                  25  4 H  -   0x1c U20    tps546b24a    V1P8_SYS rail
                  26  4 H  -   0x4c U65    tmp451        VSC7448 temperature sensor
                  27  4 D  -   0x50 U91    at24csw080    Mainboard FRUID
-                 28  1 B1 1:2 0x50 ???    at24csw080    Fan 0 FRUID
-                 29  1 B1 1:1 0x50 ???    at24csw080    Fan 1 FRUID
-                 30  3 H  1:2 0x50 ???    at24csw080    Fan 2 FRUID
-                 31  3 H  1:1 0x50 ???    at24csw080    Fan 3 FRUID
-                 32  2 F  -   0x50 ???    at24csw080    Front IO board FRUID
-                 33  2 F  -   0x73 ???    pca9538       Front IO GPIO expander
+                 28  1 B1 1:2 0x50 -      at24csw080    Fan 0 FRUID
+                 29  1 B1 1:1 0x50 -      at24csw080    Fan 1 FRUID
+                 30  3 H  1:2 0x50 -      at24csw080    Fan 2 FRUID
+                 31  3 H  1:1 0x50 -      at24csw080    Fan 3 FRUID
+                 32  2 F  -   0x50 -      at24csw080    Front IO board FRUID
+                 33  2 F  -   0x73 -      pca9538       Front IO GPIO expander
                  34  2 F  -   0x0a U5     pca9956b      Front IO LED driver (left)
                  35  2 F  -   0x0b U6     pca9956b      Front IO LED driver (right)
    aux flash => 16777216 bytes (16 MiB), 8 slots (2 MiB/slot)

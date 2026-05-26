@@ -80,8 +80,8 @@
                  35  2 F  3:2 0x6a J215   nvme_bmc      U.2 J NVMe Basic Management Control
                  36  2 F  3:4 0x50 U615   at24csw080    Gimlet VPD
                  37  2 B  -   0x73 U422   pca9545       M.2 mux
-                 38  2 B  1:1 0x6a ???    m2_hp_only    M.2 A NVMe Basic Management Command
-                 39  2 B  1:2 0x6a ???    m2_hp_only    M.2 B NVMe Basic Management Command
+                 38  2 B  1:1 0x6a -      m2_hp_only    M.2 A NVMe Basic Management Command
+                 39  2 B  1:2 0x6a -      m2_hp_only    M.2 B NVMe Basic Management Command
                  40  2 B  1:3 0x50 J180   at24csw080    Fan VPD
                  41  2 B  1:4 0x4c U491   tmp451        T6 temperature sensor
                  42  3 H  -   0x24 U522   tps546b24a    A2 3.3V rail
@@ -89,7 +89,7 @@
                  44  3 H  -   0x27 U524   tps546b24a    A2 5V rail
                  45  3 H  -   0x29 U561   tps546b24a    A2 1.8V rail
                  46  3 H  -   0x3a U275   max5970       M.2 hot plug controller
-                 47  3 H  -   0x4c ???    sbtsi         CPU temperature sensor
+                 47  3 H  -   0x4c -      sbtsi         CPU temperature sensor
                  48  3 H  -   0x58 U446   idt8a34003    Clock generator
                  49  3 H  -   0x5a U350   raa229618     CPU power controller
                  50  3 H  -   0x5b U351   raa229618     SoC power controller
@@ -173,8 +173,8 @@
                  50 V12_U2J_A0              i2c id=34   J215   voltage
                  51 V3P3_U2J_A0             i2c id=34   J215   voltage
                  52 U2_N9                   i2c id=35   J215   temp
-                 53 M2_A                    i2c id=38   ???    temp
-                 54 M2_B                    i2c id=39   ???    temp
+                 53 M2_A                    i2c id=38   -      temp
+                 54 M2_B                    i2c id=39   -      temp
                  55 t6                      i2c id=41   U491   temp
                  56 V3P3_SP_A2              i2c id=42   U522   temp
                  57 V3P3_SP_A2              i2c id=42   U522   current
@@ -192,7 +192,7 @@
                  69 V3P3_M2B_A0HP           i2c id=46   U275   current
                  70 V3P3_M2A_A0HP           i2c id=46   U275   voltage
                  71 V3P3_M2B_A0HP           i2c id=46   U275   voltage
-                 72 CPU                     i2c id=47   ???    temp
+                 72 CPU                     i2c id=47   -      temp
                  73 VDD_VCORE               i2c id=49   U350   temp
                  74 VDD_MEM_ABCD            i2c id=49   U350   temp
                  75 VDD_VCORE               i2c id=49   U350   power

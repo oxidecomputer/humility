@@ -14,8 +14,8 @@
                  1   2 idle                0.1K 
      sensors => 5 sensors
                  ID NAME                    DEVICE      REFDES KIND
-                  0 xcvr30                  qsfp        ???    speed
-                  1 xcvr30                  qsfp        ???    speed
-                  2 xcvr30                  qsfp        ???    temp
-                  3 xcvr30                  qsfp        ???    temp
-                  4 xcvr30                  qsfp        ???    temp
+                  0 xcvr30                  qsfp        -      speed
+                  1 xcvr30                  qsfp        -      speed
+                  2 xcvr30                  qsfp        -      temp
+                  3 xcvr30                  qsfp        -      temp
+                  4 xcvr30                  qsfp        -      temp

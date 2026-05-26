@@ -78,12 +78,12 @@
                  26  4 H  -   0x1c U20    tps546b24a    V1P8_SYS rail
                  27  4 H  -   0x4c U65    tmp451        VSC7448 temperature sensor
                  28  4 D  -   0x50 U91    at24csw080    Mainboard FRUID
-                 29  1 B1 1:2 0x50 ???    at24csw080    Fan 0 FRUID
-                 30  1 B1 1:1 0x50 ???    at24csw080    Fan 1 FRUID
-                 31  3 H  1:2 0x50 ???    at24csw080    Fan 2 FRUID
-                 32  3 H  1:1 0x50 ???    at24csw080    Fan 3 FRUID
-                 33  2 F  -   0x50 ???    at24csw080    Front IO board FRUID
-                 34  2 F  -   0x73 ???    pca9538       Front IO GPIO expander
+                 29  1 B1 1:2 0x50 -      at24csw080    Fan 0 FRUID
+                 30  1 B1 1:1 0x50 -      at24csw080    Fan 1 FRUID
+                 31  3 H  1:2 0x50 -      at24csw080    Fan 2 FRUID
+                 32  3 H  1:1 0x50 -      at24csw080    Fan 3 FRUID
+                 33  2 F  -   0x50 -      at24csw080    Front IO board FRUID
+                 34  2 F  -   0x73 -      pca9538       Front IO GPIO expander
                  35  2 F  -   0x0a U5     pca9956b      Front IO LED driver (left)
                  36  2 F  -   0x0b U6     pca9956b      Front IO LED driver (right)
    aux flash => 33554432 bytes (32 MiB), 16 slots (2 MiB/slot)
@@ -154,38 +154,38 @@
                  62 V1P8_SYS                i2c id=26   U20    current
                  63 V1P8_SYS                i2c id=26   U20    voltage
                  64 vsc7448                 i2c id=27   U65    temp
-                 65 xcvr0                   qsfp        ???    temp
-                 66 xcvr1                   qsfp        ???    temp
-                 67 xcvr2                   qsfp        ???    temp
-                 68 xcvr3                   qsfp        ???    temp
-                 69 xcvr4                   qsfp        ???    temp
-                 70 xcvr5                   qsfp        ???    temp
-                 71 xcvr6                   qsfp        ???    temp
-                 72 xcvr7                   qsfp        ???    temp
-                 73 xcvr8                   qsfp        ???    temp
-                 74 xcvr9                   qsfp        ???    temp
-                 75 xcvr10                  qsfp        ???    temp
-                 76 xcvr11                  qsfp        ???    temp
-                 77 xcvr12                  qsfp        ???    temp
-                 78 xcvr13                  qsfp        ???    temp
-                 79 xcvr14                  qsfp        ???    temp
-                 80 xcvr15                  qsfp        ???    temp
-                 81 xcvr16                  qsfp        ???    temp
-                 82 xcvr17                  qsfp        ???    temp
-                 83 xcvr18                  qsfp        ???    temp
-                 84 xcvr19                  qsfp        ???    temp
-                 85 xcvr20                  qsfp        ???    temp
-                 86 xcvr21                  qsfp        ???    temp
-                 87 xcvr22                  qsfp        ???    temp
-                 88 xcvr23                  qsfp        ???    temp
-                 89 xcvr24                  qsfp        ???    temp
-                 90 xcvr25                  qsfp        ???    temp
-                 91 xcvr26                  qsfp        ???    temp
-                 92 xcvr27                  qsfp        ???    temp
-                 93 xcvr28                  qsfp        ???    temp
-                 94 xcvr29                  qsfp        ???    temp
-                 95 xcvr30                  qsfp        ???    temp
-                 96 xcvr31                  qsfp        ???    temp
+                 65 xcvr0                   qsfp        -      temp
+                 66 xcvr1                   qsfp        -      temp
+                 67 xcvr2                   qsfp        -      temp
+                 68 xcvr3                   qsfp        -      temp
+                 69 xcvr4                   qsfp        -      temp
+                 70 xcvr5                   qsfp        -      temp
+                 71 xcvr6                   qsfp        -      temp
+                 72 xcvr7                   qsfp        -      temp
+                 73 xcvr8                   qsfp        -      temp
+                 74 xcvr9                   qsfp        -      temp
+                 75 xcvr10                  qsfp        -      temp
+                 76 xcvr11                  qsfp        -      temp
+                 77 xcvr12                  qsfp        -      temp
+                 78 xcvr13                  qsfp        -      temp
+                 79 xcvr14                  qsfp        -      temp
+                 80 xcvr15                  qsfp        -      temp
+                 81 xcvr16                  qsfp        -      temp
+                 82 xcvr17                  qsfp        -      temp
+                 83 xcvr18                  qsfp        -      temp
+                 84 xcvr19                  qsfp        -      temp
+                 85 xcvr20                  qsfp        -      temp
+                 86 xcvr21                  qsfp        -      temp
+                 87 xcvr22                  qsfp        -      temp
+                 88 xcvr23                  qsfp        -      temp
+                 89 xcvr24                  qsfp        -      temp
+                 90 xcvr25                  qsfp        -      temp
+                 91 xcvr26                  qsfp        -      temp
+                 92 xcvr27                  qsfp        -      temp
+                 93 xcvr28                  qsfp        -      temp
+                 94 xcvr29                  qsfp        -      temp
+                 95 xcvr30                  qsfp        -      temp
+                 96 xcvr31                  qsfp        -      temp
      sockets => 6 sockets
                NAME                 KIND    PORT  RXSIZE OWNER
                echo                 udp        7    1024 udpecho
