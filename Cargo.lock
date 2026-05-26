@@ -1610,7 +1610,6 @@ dependencies = [
  "capstone",
  "num-derive 0.4.2",
  "num-traits",
- "thiserror 2.0.18",
 ]
 
 [[package]]

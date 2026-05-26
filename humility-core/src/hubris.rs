@@ -4162,7 +4162,7 @@ impl HubrisObjectLoader {
             {
                 self.syscall_pushes.insert(
                     addr + b.len() as u32,
-                    Some(presyscall_pushes(cs, &instrs[0..ndx])?),
+                    Some(presyscall_pushes(cs, &instrs[0..ndx])),
                 );
             }
         }
